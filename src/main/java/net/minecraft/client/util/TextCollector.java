@@ -1,0 +1,34 @@
+package net.minecraft.client.util;
+
+import com.google.common.collect.Lists;
+import java.util.List;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.text.StringVisitable;
+import org.jspecify.annotations.Nullable;
+
+@Environment(EnvType.CLIENT)
+public class TextCollector {
+   private final List<StringVisitable> texts = Lists.newArrayList();
+
+   public void add(StringVisitable text) {
+      this.texts.add(text);
+   }
+
+   public @Nullable StringVisitable getRawCombined() {
+      if (this.texts.isEmpty()) {
+         return null;
+      } else {
+         return this.texts.size() == 1 ? this.texts.get(0) : StringVisitable.concat(this.texts);
+      }
+   }
+
+   public StringVisitable getCombined() {
+      StringVisitable stringVisitable = this.getRawCombined();
+      return stringVisitable != null ? stringVisitable : StringVisitable.EMPTY;
+   }
+
+   public void clear() {
+      this.texts.clear();
+   }
+}

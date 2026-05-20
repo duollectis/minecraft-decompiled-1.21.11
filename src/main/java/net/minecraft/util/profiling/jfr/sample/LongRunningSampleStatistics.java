@@ -1,0 +1,28 @@
+package net.minecraft.util.profiling.jfr.sample;
+
+import java.time.Duration;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import net.minecraft.util.math.Quantiles;
+import org.jspecify.annotations.Nullable;
+
+public record LongRunningSampleStatistics<T extends LongRunningSample>(
+   T fastestSample, T slowestSample, @Nullable T secondSlowestSample, int count, Map<Integer, Double> quantiles, Duration totalDuration
+) {
+   public static <T extends LongRunningSample> Optional<LongRunningSampleStatistics<T>> fromSamples(List<T> samples) {
+      if (samples.isEmpty()) {
+         return Optional.empty();
+      } else {
+         List<T> list = samples.stream().sorted(Comparator.comparing(LongRunningSample::duration)).toList();
+         Duration duration = list.stream().map(LongRunningSample::duration).reduce(Duration::plus).orElse(Duration.ZERO);
+         T longRunningSample = (T)list.getFirst();
+         T longRunningSample2 = (T)list.getLast();
+         T longRunningSample3 = list.size() > 1 ? list.get(list.size() - 2) : null;
+         int i = list.size();
+         Map<Integer, Double> map = Quantiles.create(list.stream().mapToLong(sample -> sample.duration().toNanos()).toArray());
+         return Optional.of(new LongRunningSampleStatistics<>(longRunningSample, longRunningSample2, longRunningSample3, i, map, duration));
+      }
+   }
+}

@@ -1,0 +1,75 @@
+package net.minecraft.client.render.item.model.special;
+
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.function.Consumer;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.render.TexturedRenderLayers;
+import net.minecraft.client.render.block.entity.ShulkerBoxBlockEntityRenderer;
+import net.minecraft.client.render.command.OrderedRenderCommandQueue;
+import net.minecraft.client.util.SpriteIdentifier;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemDisplayContext;
+import net.minecraft.util.DyeColor;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Direction;
+import org.joml.Vector3fc;
+
+@Environment(EnvType.CLIENT)
+public class ShulkerBoxModelRenderer implements SimpleSpecialModelRenderer {
+   private final ShulkerBoxBlockEntityRenderer blockEntityRenderer;
+   private final float openness;
+   private final Direction facing;
+   private final SpriteIdentifier textureId;
+
+   public ShulkerBoxModelRenderer(ShulkerBoxBlockEntityRenderer blockEntityRenderer, float openness, Direction facing, SpriteIdentifier textureId) {
+      this.blockEntityRenderer = blockEntityRenderer;
+      this.openness = openness;
+      this.facing = facing;
+      this.textureId = textureId;
+   }
+
+   @Override
+   public void render(ItemDisplayContext displayContext, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, int overlay, boolean glint, int i) {
+      this.blockEntityRenderer.render(matrices, queue, light, overlay, this.facing, this.openness, null, this.textureId, i);
+   }
+
+   @Override
+   public void collectVertices(Consumer<Vector3fc> consumer) {
+      this.blockEntityRenderer.collectVertices(this.facing, this.openness, consumer);
+   }
+
+   @Environment(EnvType.CLIENT)
+   public record Unbaked(Identifier texture, float openness, Direction facing) implements SpecialModelRenderer.Unbaked {
+      public static final MapCodec<ShulkerBoxModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
+         instance -> instance.group(
+               Identifier.CODEC.fieldOf("texture").forGetter(ShulkerBoxModelRenderer.Unbaked::texture),
+               Codec.FLOAT.optionalFieldOf("openness", 0.0F).forGetter(ShulkerBoxModelRenderer.Unbaked::openness),
+               Direction.CODEC.optionalFieldOf("orientation", Direction.UP).forGetter(ShulkerBoxModelRenderer.Unbaked::facing)
+            )
+            .apply(instance, ShulkerBoxModelRenderer.Unbaked::new)
+      );
+
+      public Unbaked() {
+         this(Identifier.ofVanilla("shulker"), 0.0F, Direction.UP);
+      }
+
+      public Unbaked(DyeColor color) {
+         this(TexturedRenderLayers.createShulkerId(color), 0.0F, Direction.UP);
+      }
+
+      @Override
+      public MapCodec<ShulkerBoxModelRenderer.Unbaked> getCodec() {
+         return CODEC;
+      }
+
+      @Override
+      public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
+         return new ShulkerBoxModelRenderer(
+            new ShulkerBoxBlockEntityRenderer(context), this.openness, this.facing, TexturedRenderLayers.SHULKER_SPRITE_MAPPER.map(this.texture)
+         );
+      }
+   }
+}

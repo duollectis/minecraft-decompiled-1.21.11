@@ -1,0 +1,8 @@
+package com.microsoft.aad.msal4j;
+
+enum ManagedIdentityIdType {
+   SYSTEM_ASSIGNED,
+   CLIENT_ID,
+   RESOURCE_ID,
+   OBJECT_ID;
+}

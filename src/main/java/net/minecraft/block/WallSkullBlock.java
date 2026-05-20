@@ -1,0 +1,75 @@
+package net.minecraft.block;
+
+import com.mojang.serialization.MapCodec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import java.util.Map;
+import net.minecraft.item.ItemPlacementContext;
+import net.minecraft.state.StateManager;
+import net.minecraft.state.property.EnumProperty;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.util.shape.VoxelShapes;
+import net.minecraft.world.BlockView;
+
+public class WallSkullBlock extends AbstractSkullBlock {
+   public static final MapCodec<WallSkullBlock> CODEC = RecordCodecBuilder.mapCodec(
+      instance -> instance.group(SkullBlock.SkullType.CODEC.fieldOf("kind").forGetter(AbstractSkullBlock::getSkullType), createSettingsCodec())
+         .apply(instance, WallSkullBlock::new)
+   );
+   public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
+   private static final Map<Direction, VoxelShape> SHAPES_BY_DIRECTION = VoxelShapes.createHorizontalFacingShapeMap(Block.createCuboidZShape(8.0, 8.0, 16.0));
+
+   @Override
+   public MapCodec<? extends WallSkullBlock> getCodec() {
+      return CODEC;
+   }
+
+   public WallSkullBlock(SkullBlock.SkullType skullType, AbstractBlock.Settings settings) {
+      super(skullType, settings);
+      this.setDefaultState(this.getDefaultState().with(FACING, Direction.NORTH));
+   }
+
+   @Override
+   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+      return SHAPES_BY_DIRECTION.get(state.get(FACING));
+   }
+
+   @Override
+   public BlockState getPlacementState(ItemPlacementContext ctx) {
+      BlockState blockState = super.getPlacementState(ctx);
+      BlockView blockView = ctx.getWorld();
+      BlockPos blockPos = ctx.getBlockPos();
+      Direction[] directions = ctx.getPlacementDirections();
+
+      for (Direction direction : directions) {
+         if (direction.getAxis().isHorizontal()) {
+            Direction direction2 = direction.getOpposite();
+            blockState = blockState.with(FACING, direction2);
+            if (!blockView.getBlockState(blockPos.offset(direction)).canReplace(ctx)) {
+               return blockState;
+            }
+         }
+      }
+
+      return null;
+   }
+
+   @Override
+   protected BlockState rotate(BlockState state, BlockRotation rotation) {
+      return state.with(FACING, rotation.rotate(state.get(FACING)));
+   }
+
+   @Override
+   protected BlockState mirror(BlockState state, BlockMirror mirror) {
+      return state.rotate(mirror.getRotation(state.get(FACING)));
+   }
+
+   @Override
+   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+      super.appendProperties(builder);
+      builder.add(FACING);
+   }
+}

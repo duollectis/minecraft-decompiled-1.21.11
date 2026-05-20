@@ -1,0 +1,66 @@
+plugins {
+    id 'java'
+}
+
+group = 'net.minecraft'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation fileTree("./libs")
+    compileOnly 'org.jetbrains:annotations:26.1.0'
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+
+    // Все зависимости из локальной папки libs/
+    compileOnly fileTree(dir: 'libs', include: '*.jar')
+
+    testImplementation platform('org.junit:junit-bom:6.0.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+sourceSets {
+    main {
+        java {
+            // Исключаем сторонние библиотеки — они уже есть в libs/ как скомпилированные JAR
+//            exclude 'com/azure/**'
+//            exclude 'com/google/**'
+//            exclude 'com/ibm/**'
+//            exclude 'com/jcraft/**'
+//            exclude 'com/llamalad7/**'
+//            exclude 'com/microsoft/**'
+//            exclude 'com/mojang/datafixers/**'
+//            exclude 'com/mojang/patchy/**'
+//            exclude 'com/mojang/serialization/**'
+//            exclude 'com/mojang/text2speech/**'
+//            exclude 'com/sun/**'
+//            exclude 'io/**'
+//            exclude 'it/**'
+//            exclude 'joptsimple/**'
+//            exclude 'net/fabricmc/**'
+//            exclude 'net/jpountz/**'
+//            exclude 'org/**'
+//            exclude 'oshi/**'
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+compileJava {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += [
+        '-Xlint:none',
+        '-nowarn'
+    ]
+}
