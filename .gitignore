@@ -4,6 +4,7 @@
 /assets/
 /run/
 /output/
+/logs/
 
 ### IntelliJ IDEA ###
 /.idea/
