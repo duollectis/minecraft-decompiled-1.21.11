@@ -2,10 +2,6 @@ package net.minecraft.world.event.listener;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 import net.minecraft.entity.Entity;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.world.ServerWorld;
@@ -18,116 +14,154 @@ import net.minecraft.world.event.EntityPositionSource;
 import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.event.PositionSource;
 
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * {@code SimpleGameEventDispatcher}.
+ */
 public class SimpleGameEventDispatcher implements GameEventDispatcher {
-   private final List<GameEventListener> listeners = Lists.newArrayList();
-   private final Set<GameEventListener> toRemove = Sets.newHashSet();
-   private final List<GameEventListener> toAdd = Lists.newArrayList();
-   private boolean dispatching;
-   private final ServerWorld world;
-   private final int ySectionCoord;
-   private final SimpleGameEventDispatcher.DisposalCallback disposalCallback;
 
-   public SimpleGameEventDispatcher(ServerWorld world, int ySectionCoord, SimpleGameEventDispatcher.DisposalCallback disposalCallback) {
-      this.world = world;
-      this.ySectionCoord = ySectionCoord;
-      this.disposalCallback = disposalCallback;
-   }
+	private final List<GameEventListener> listeners = Lists.newArrayList();
+	private final Set<GameEventListener> toRemove = Sets.newHashSet();
+	private final List<GameEventListener> toAdd = Lists.newArrayList();
+	private boolean dispatching;
+	private final ServerWorld world;
+	private final int ySectionCoord;
+	private final SimpleGameEventDispatcher.DisposalCallback disposalCallback;
 
-   @Override
-   public boolean isEmpty() {
-      return this.listeners.isEmpty();
-   }
+	public SimpleGameEventDispatcher(
+			ServerWorld world,
+			int ySectionCoord,
+			SimpleGameEventDispatcher.DisposalCallback disposalCallback
+	) {
+		this.world = world;
+		this.ySectionCoord = ySectionCoord;
+		this.disposalCallback = disposalCallback;
+	}
 
-   @Override
-   public void addListener(GameEventListener listener) {
-      if (this.dispatching) {
-         this.toAdd.add(listener);
-      } else {
-         this.listeners.add(listener);
-      }
+	@Override
+	public boolean isEmpty() {
+		return this.listeners.isEmpty();
+	}
 
-      sendDebugData(this.world, listener);
-   }
+	@Override
+	public void addListener(GameEventListener listener) {
+		if (this.dispatching) {
+			this.toAdd.add(listener);
+		}
+		else {
+			this.listeners.add(listener);
+		}
 
-   private static void sendDebugData(ServerWorld world, GameEventListener listener) {
-      if (world.getSubscriptionTracker().isSubscribed(DebugSubscriptionTypes.GAME_EVENT_LISTENERS)) {
-         GameEventListenerDebugData gameEventListenerDebugData = new GameEventListenerDebugData(listener.getRange());
-         PositionSource positionSource = listener.getPositionSource();
-         if (positionSource instanceof BlockPositionSource blockPositionSource) {
-            world.getSubscriptionTracker()
-               .sendBlockDebugData(blockPositionSource.pos(), DebugSubscriptionTypes.GAME_EVENT_LISTENERS, gameEventListenerDebugData);
-         } else if (positionSource instanceof EntityPositionSource entityPositionSource) {
-            Entity entity = world.getEntity(entityPositionSource.getUuid());
-            if (entity != null) {
-               world.getSubscriptionTracker().sendEntityDebugData(entity, DebugSubscriptionTypes.GAME_EVENT_LISTENERS, gameEventListenerDebugData);
-            }
-         }
-      }
-   }
+		sendDebugData(this.world, listener);
+	}
 
-   @Override
-   public void removeListener(GameEventListener listener) {
-      if (this.dispatching) {
-         this.toRemove.add(listener);
-      } else {
-         this.listeners.remove(listener);
-      }
+	private static void sendDebugData(ServerWorld world, GameEventListener listener) {
+		if (world.getSubscriptionTracker().isSubscribed(DebugSubscriptionTypes.GAME_EVENT_LISTENERS)) {
+			GameEventListenerDebugData gameEventListenerDebugData = new GameEventListenerDebugData(listener.getRange());
+			PositionSource positionSource = listener.getPositionSource();
+			if (positionSource instanceof BlockPositionSource blockPositionSource) {
+				world.getSubscriptionTracker()
+				     .sendBlockDebugData(
+						     blockPositionSource.pos(),
+						     DebugSubscriptionTypes.GAME_EVENT_LISTENERS,
+						     gameEventListenerDebugData
+				     );
+			}
+			else if (positionSource instanceof EntityPositionSource entityPositionSource) {
+				Entity entity = world.getEntity(entityPositionSource.getUuid());
+				if (entity != null) {
+					world
+							.getSubscriptionTracker()
+							.sendEntityDebugData(
+									entity,
+									DebugSubscriptionTypes.GAME_EVENT_LISTENERS,
+									gameEventListenerDebugData
+							);
+				}
+			}
+		}
+	}
 
-      if (this.listeners.isEmpty()) {
-         this.disposalCallback.apply(this.ySectionCoord);
-      }
-   }
+	@Override
+	public void removeListener(GameEventListener listener) {
+		if (this.dispatching) {
+			this.toRemove.add(listener);
+		}
+		else {
+			this.listeners.remove(listener);
+		}
 
-   @Override
-   public boolean dispatch(RegistryEntry<GameEvent> event, Vec3d pos, GameEvent.Emitter emitter, GameEventDispatcher.DispatchCallback callback) {
-      this.dispatching = true;
-      boolean bl = false;
+		if (this.listeners.isEmpty()) {
+			this.disposalCallback.apply(this.ySectionCoord);
+		}
+	}
 
-      try {
-         Iterator<GameEventListener> iterator = this.listeners.iterator();
+	@Override
+	public boolean dispatch(
+			RegistryEntry<GameEvent> event,
+			Vec3d pos,
+			GameEvent.Emitter emitter,
+			GameEventDispatcher.DispatchCallback callback
+	) {
+		this.dispatching = true;
+		boolean bl = false;
 
-         while (iterator.hasNext()) {
-            GameEventListener gameEventListener = iterator.next();
-            if (this.toRemove.remove(gameEventListener)) {
-               iterator.remove();
-            } else {
-               Optional<Vec3d> optional = dispatchTo(this.world, pos, gameEventListener);
-               if (optional.isPresent()) {
-                  callback.visit(gameEventListener, optional.get());
-                  bl = true;
-               }
-            }
-         }
-      } finally {
-         this.dispatching = false;
-      }
+		try {
+			Iterator<GameEventListener> iterator = this.listeners.iterator();
 
-      if (!this.toAdd.isEmpty()) {
-         this.listeners.addAll(this.toAdd);
-         this.toAdd.clear();
-      }
+			while (iterator.hasNext()) {
+				GameEventListener gameEventListener = iterator.next();
+				if (this.toRemove.remove(gameEventListener)) {
+					iterator.remove();
+				}
+				else {
+					Optional<Vec3d> optional = dispatchTo(this.world, pos, gameEventListener);
+					if (optional.isPresent()) {
+						callback.visit(gameEventListener, optional.get());
+						bl = true;
+					}
+				}
+			}
+		}
+		finally {
+			this.dispatching = false;
+		}
 
-      if (!this.toRemove.isEmpty()) {
-         this.listeners.removeAll(this.toRemove);
-         this.toRemove.clear();
-      }
+		if (!this.toAdd.isEmpty()) {
+			this.listeners.addAll(this.toAdd);
+			this.toAdd.clear();
+		}
 
-      return bl;
-   }
+		if (!this.toRemove.isEmpty()) {
+			this.listeners.removeAll(this.toRemove);
+			this.toRemove.clear();
+		}
 
-   private static Optional<Vec3d> dispatchTo(ServerWorld world, Vec3d listenerPos, GameEventListener listener) {
-      Optional<Vec3d> optional = listener.getPositionSource().getPos(world);
-      if (optional.isEmpty()) {
-         return Optional.empty();
-      } else {
-         double d = BlockPos.ofFloored(optional.get()).getSquaredDistance(BlockPos.ofFloored(listenerPos));
-         int i = listener.getRange() * listener.getRange();
-         return d > i ? Optional.empty() : optional;
-      }
-   }
+		return bl;
+	}
 
-   @FunctionalInterface
-   public interface DisposalCallback {
-      void apply(int ySectionCoord);
-   }
+	private static Optional<Vec3d> dispatchTo(ServerWorld world, Vec3d listenerPos, GameEventListener listener) {
+		Optional<Vec3d> optional = listener.getPositionSource().getPos(world);
+		if (optional.isEmpty()) {
+			return Optional.empty();
+		}
+		else {
+			double d = BlockPos.ofFloored(optional.get()).getSquaredDistance(BlockPos.ofFloored(listenerPos));
+			int i = listener.getRange() * listener.getRange();
+			return d > i ? Optional.empty() : optional;
+		}
+	}
+
+	@FunctionalInterface
+	/**
+	 * {@code DisposalCallback}.
+	 */
+	public interface DisposalCallback {
+
+		void apply(int ySectionCoord);
+	}
 }

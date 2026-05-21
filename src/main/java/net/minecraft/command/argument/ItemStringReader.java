@@ -9,11 +9,6 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.serialization.DataResult;
 import it.unimi.dsi.fastutil.objects.ReferenceArraySet;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
 import net.minecraft.command.CommandSource;
 import net.minecraft.component.ComponentChanges;
 import net.minecraft.component.ComponentMap;
@@ -24,288 +19,340 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.StringNbtReader;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.RegistryOps;
-import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.registry.*;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Unit;
 import org.apache.commons.lang3.mutable.MutableObject;
 
+import java.util.Locale;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+
+/**
+ * {@code ItemStringReader}.
+ */
 public class ItemStringReader {
-   static final DynamicCommandExceptionType INVALID_ITEM_ID_EXCEPTION = new DynamicCommandExceptionType(
-      id -> Text.stringifiedTranslatable("argument.item.id.invalid", id)
-   );
-   static final DynamicCommandExceptionType UNKNOWN_COMPONENT_EXCEPTION = new DynamicCommandExceptionType(
-      id -> Text.stringifiedTranslatable("arguments.item.component.unknown", id)
-   );
-   static final Dynamic2CommandExceptionType MALFORMED_COMPONENT_EXCEPTION = new Dynamic2CommandExceptionType(
-      (type, error) -> Text.stringifiedTranslatable("arguments.item.component.malformed", type, error)
-   );
-   static final SimpleCommandExceptionType COMPONENT_EXPECTED_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("arguments.item.component.expected"));
-   static final DynamicCommandExceptionType REPEATED_COMPONENT_EXCEPTION = new DynamicCommandExceptionType(
-      type -> Text.stringifiedTranslatable("arguments.item.component.repeated", type)
-   );
-   private static final DynamicCommandExceptionType MALFORMED_ITEM_EXCEPTION = new DynamicCommandExceptionType(
-      error -> Text.stringifiedTranslatable("arguments.item.malformed", error)
-   );
-   public static final char OPEN_SQUARE_BRACKET = '[';
-   public static final char CLOSED_SQUARE_BRACKET = ']';
-   public static final char COMMA = ',';
-   public static final char EQUAL_SIGN = '=';
-   public static final char EXCLAMATION_MARK = '!';
-   static final Function<SuggestionsBuilder, CompletableFuture<Suggestions>> SUGGEST_DEFAULT = SuggestionsBuilder::buildFuture;
-   final RegistryWrapper.Impl<Item> itemRegistry;
-   final RegistryOps<NbtElement> ops;
-   final StringNbtReader<NbtElement> snbtReader;
 
-   public ItemStringReader(RegistryWrapper.WrapperLookup registries) {
-      this.itemRegistry = registries.getOrThrow(RegistryKeys.ITEM);
-      this.ops = registries.getOps(NbtOps.INSTANCE);
-      this.snbtReader = StringNbtReader.fromOps(this.ops);
-   }
+	static final DynamicCommandExceptionType INVALID_ITEM_ID_EXCEPTION = new DynamicCommandExceptionType(
+			id -> Text.stringifiedTranslatable("argument.item.id.invalid", id)
+	);
+	static final DynamicCommandExceptionType UNKNOWN_COMPONENT_EXCEPTION = new DynamicCommandExceptionType(
+			id -> Text.stringifiedTranslatable("arguments.item.component.unknown", id)
+	);
+	static final Dynamic2CommandExceptionType MALFORMED_COMPONENT_EXCEPTION = new Dynamic2CommandExceptionType(
+			(type, error) -> Text.stringifiedTranslatable("arguments.item.component.malformed", type, error)
+	);
+	static final SimpleCommandExceptionType
+			COMPONENT_EXPECTED_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("arguments.item.component.expected"));
+	static final DynamicCommandExceptionType REPEATED_COMPONENT_EXCEPTION = new DynamicCommandExceptionType(
+			type -> Text.stringifiedTranslatable("arguments.item.component.repeated", type)
+	);
+	private static final DynamicCommandExceptionType MALFORMED_ITEM_EXCEPTION = new DynamicCommandExceptionType(
+			error -> Text.stringifiedTranslatable("arguments.item.malformed", error)
+	);
+	public static final char OPEN_SQUARE_BRACKET = '[';
+	public static final char CLOSED_SQUARE_BRACKET = ']';
+	public static final char COMMA = ',';
+	public static final char EQUAL_SIGN = '=';
+	public static final char EXCLAMATION_MARK = '!';
+	static final Function<SuggestionsBuilder, CompletableFuture<Suggestions>>
+			SUGGEST_DEFAULT =
+			SuggestionsBuilder::buildFuture;
+	final RegistryWrapper.Impl<Item> itemRegistry;
+	final RegistryOps<NbtElement> ops;
+	final StringNbtReader<NbtElement> snbtReader;
 
-   public ItemStringReader.ItemResult consume(StringReader reader) throws CommandSyntaxException {
-      final MutableObject<RegistryEntry<Item>> mutableObject = new MutableObject();
-      final ComponentChanges.Builder builder = ComponentChanges.builder();
-      this.consume(reader, new ItemStringReader.Callbacks() {
-         @Override
-         public void onItem(RegistryEntry<Item> item) {
-            mutableObject.setValue(item);
-         }
+	public ItemStringReader(RegistryWrapper.WrapperLookup registries) {
+		this.itemRegistry = registries.getOrThrow(RegistryKeys.ITEM);
+		this.ops = registries.getOps(NbtOps.INSTANCE);
+		this.snbtReader = StringNbtReader.fromOps(this.ops);
+	}
 
-         @Override
-         public <T> void onComponentAdded(ComponentType<T> type, T value) {
-            builder.add(type, value);
-         }
+	public ItemStringReader.ItemResult consume(StringReader reader) throws CommandSyntaxException {
+		final MutableObject<RegistryEntry<Item>> mutableObject = new MutableObject();
+		final ComponentChanges.Builder builder = ComponentChanges.builder();
+		this.consume(
+				reader, new ItemStringReader.Callbacks() {
+					@Override
+					public void onItem(RegistryEntry<Item> item) {
+						mutableObject.setValue(item);
+					}
 
-         @Override
-         public <T> void onComponentRemoved(ComponentType<T> type) {
-            builder.remove(type);
-         }
-      });
-      RegistryEntry<Item> registryEntry = Objects.requireNonNull((RegistryEntry<Item>)mutableObject.get(), "Parser gave no item");
-      ComponentChanges componentChanges = builder.build();
-      validate(reader, registryEntry, componentChanges);
-      return new ItemStringReader.ItemResult(registryEntry, componentChanges);
-   }
+					@Override
+					public <T> void onComponentAdded(ComponentType<T> type, T value) {
+						builder.add(type, value);
+					}
 
-   private static void validate(StringReader reader, RegistryEntry<Item> item, ComponentChanges components) throws CommandSyntaxException {
-      ComponentMap componentMap = MergedComponentMap.create(item.value().getComponents(), components);
-      DataResult<Unit> dataResult = ItemStack.validateComponents(componentMap);
-      dataResult.getOrThrow(error -> MALFORMED_ITEM_EXCEPTION.createWithContext(reader, error));
-   }
+					@Override
+					public <T> void onComponentRemoved(ComponentType<T> type) {
+						builder.remove(type);
+					}
+				}
+		);
+		RegistryEntry<Item>
+				registryEntry =
+				Objects.requireNonNull((RegistryEntry<Item>) mutableObject.get(), "Parser gave no item");
+		ComponentChanges componentChanges = builder.build();
+		validate(reader, registryEntry, componentChanges);
+		return new ItemStringReader.ItemResult(registryEntry, componentChanges);
+	}
 
-   public void consume(StringReader reader, ItemStringReader.Callbacks callbacks) throws CommandSyntaxException {
-      int i = reader.getCursor();
+	private static void validate(StringReader reader, RegistryEntry<Item> item, ComponentChanges components)
+	throws CommandSyntaxException {
+		ComponentMap componentMap = MergedComponentMap.create(item.value().getComponents(), components);
+		DataResult<Unit> dataResult = ItemStack.validateComponents(componentMap);
+		dataResult.getOrThrow(error -> MALFORMED_ITEM_EXCEPTION.createWithContext(reader, error));
+	}
 
-      try {
-         new ItemStringReader.Reader(reader, callbacks).read();
-      } catch (CommandSyntaxException var5) {
-         reader.setCursor(i);
-         throw var5;
-      }
-   }
+	public void consume(StringReader reader, ItemStringReader.Callbacks callbacks) throws CommandSyntaxException {
+		int i = reader.getCursor();
 
-   public CompletableFuture<Suggestions> getSuggestions(SuggestionsBuilder builder) {
-      StringReader stringReader = new StringReader(builder.getInput());
-      stringReader.setCursor(builder.getStart());
-      ItemStringReader.SuggestionCallbacks suggestionCallbacks = new ItemStringReader.SuggestionCallbacks();
-      ItemStringReader.Reader reader = new ItemStringReader.Reader(stringReader, suggestionCallbacks);
+		try {
+			new ItemStringReader.Reader(reader, callbacks).read();
+		}
+		catch (CommandSyntaxException var5) {
+			reader.setCursor(i);
+			throw var5;
+		}
+	}
 
-      try {
-         reader.read();
-      } catch (CommandSyntaxException var6) {
-      }
+	public CompletableFuture<Suggestions> getSuggestions(SuggestionsBuilder builder) {
+		StringReader stringReader = new StringReader(builder.getInput());
+		stringReader.setCursor(builder.getStart());
+		ItemStringReader.SuggestionCallbacks suggestionCallbacks = new ItemStringReader.SuggestionCallbacks();
+		ItemStringReader.Reader reader = new ItemStringReader.Reader(stringReader, suggestionCallbacks);
 
-      return suggestionCallbacks.getSuggestions(builder, stringReader);
-   }
+		try {
+			reader.read();
+		}
+		catch (CommandSyntaxException var6) {
+		}
 
-   public interface Callbacks {
-      default void onItem(RegistryEntry<Item> item) {
-      }
+		return suggestionCallbacks.getSuggestions(builder, stringReader);
+	}
 
-      default <T> void onComponentAdded(ComponentType<T> type, T value) {
-      }
+	/**
+	 * {@code Callbacks}.
+	 */
+	public interface Callbacks {
 
-      default <T> void onComponentRemoved(ComponentType<T> type) {
-      }
+		default void onItem(RegistryEntry<Item> item) {
+		}
 
-      default void setSuggestor(Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
-      }
-   }
+		default <T> void onComponentAdded(ComponentType<T> type, T value) {
+		}
 
-   public record ItemResult(RegistryEntry<Item> item, ComponentChanges components) {
-   }
+		default <T> void onComponentRemoved(ComponentType<T> type) {
+		}
 
-   class Reader {
-      private final StringReader reader;
-      private final ItemStringReader.Callbacks callbacks;
+		default void setSuggestor(Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
+		}
+	}
 
-      Reader(final StringReader reader, final ItemStringReader.Callbacks callbacks) {
-         this.reader = reader;
-         this.callbacks = callbacks;
-      }
+	/**
+	 * {@code ItemResult}.
+	 */
+	public record ItemResult(RegistryEntry<Item> item, ComponentChanges components) {
+	}
 
-      public void read() throws CommandSyntaxException {
-         this.callbacks.setSuggestor(this::suggestItems);
-         this.readItem();
-         this.callbacks.setSuggestor(this::suggestBracket);
-         if (this.reader.canRead() && this.reader.peek() == '[') {
-            this.callbacks.setSuggestor(ItemStringReader.SUGGEST_DEFAULT);
-            this.readComponents();
-         }
-      }
+	/**
+	 * {@code Reader}.
+	 */
+	class Reader {
 
-      private void readItem() throws CommandSyntaxException {
-         int i = this.reader.getCursor();
-         Identifier identifier = Identifier.fromCommandInput(this.reader);
-         this.callbacks.onItem(ItemStringReader.this.itemRegistry.getOptional(RegistryKey.of(RegistryKeys.ITEM, identifier)).orElseThrow(() -> {
-            this.reader.setCursor(i);
-            return ItemStringReader.INVALID_ITEM_ID_EXCEPTION.createWithContext(this.reader, identifier);
-         }));
-      }
+		private final StringReader reader;
+		private final ItemStringReader.Callbacks callbacks;
 
-      private void readComponents() throws CommandSyntaxException {
-         this.reader.expect('[');
-         this.callbacks.setSuggestor(this::suggestComponents);
-         Set<ComponentType<?>> set = new ReferenceArraySet();
+		Reader(final StringReader reader, final ItemStringReader.Callbacks callbacks) {
+			this.reader = reader;
+			this.callbacks = callbacks;
+		}
 
-         while (this.reader.canRead() && this.reader.peek() != ']') {
-            this.reader.skipWhitespace();
-            if (this.reader.canRead() && this.reader.peek() == '!') {
-               this.reader.skip();
-               this.callbacks.setSuggestor(this::suggestComponentsToRemove);
-               ComponentType<?> componentType = readComponentType(this.reader);
-               if (!set.add(componentType)) {
-                  throw ItemStringReader.REPEATED_COMPONENT_EXCEPTION.create(componentType);
-               }
+		public void read() throws CommandSyntaxException {
+			this.callbacks.setSuggestor(this::suggestItems);
+			this.readItem();
+			this.callbacks.setSuggestor(this::suggestBracket);
+			if (this.reader.canRead() && this.reader.peek() == '[') {
+				this.callbacks.setSuggestor(ItemStringReader.SUGGEST_DEFAULT);
+				this.readComponents();
+			}
+		}
 
-               this.callbacks.onComponentRemoved(componentType);
-               this.callbacks.setSuggestor(ItemStringReader.SUGGEST_DEFAULT);
-               this.reader.skipWhitespace();
-            } else {
-               ComponentType<?> componentType = readComponentType(this.reader);
-               if (!set.add(componentType)) {
-                  throw ItemStringReader.REPEATED_COMPONENT_EXCEPTION.create(componentType);
-               }
+		private void readItem() throws CommandSyntaxException {
+			int i = this.reader.getCursor();
+			Identifier identifier = Identifier.fromCommandInput(this.reader);
+			this.callbacks.onItem(ItemStringReader.this.itemRegistry
+					.getOptional(RegistryKey.of(RegistryKeys.ITEM, identifier))
+					.orElseThrow(() -> {
+						this.reader.setCursor(i);
+						return ItemStringReader.INVALID_ITEM_ID_EXCEPTION.createWithContext(this.reader, identifier);
+					}));
+		}
 
-               this.callbacks.setSuggestor(this::suggestEqual);
-               this.reader.skipWhitespace();
-               this.reader.expect('=');
-               this.callbacks.setSuggestor(ItemStringReader.SUGGEST_DEFAULT);
-               this.reader.skipWhitespace();
-               this.readComponentValue(ItemStringReader.this.snbtReader, ItemStringReader.this.ops, componentType);
-               this.reader.skipWhitespace();
-            }
+		private void readComponents() throws CommandSyntaxException {
+			this.reader.expect('[');
+			this.callbacks.setSuggestor(this::suggestComponents);
+			Set<ComponentType<?>> set = new ReferenceArraySet();
 
-            this.callbacks.setSuggestor(this::suggestEndOfComponent);
-            if (!this.reader.canRead() || this.reader.peek() != ',') {
-               break;
-            }
+			while (this.reader.canRead() && this.reader.peek() != ']') {
+				this.reader.skipWhitespace();
+				if (this.reader.canRead() && this.reader.peek() == '!') {
+					this.reader.skip();
+					this.callbacks.setSuggestor(this::suggestComponentsToRemove);
+					ComponentType<?> componentType = readComponentType(this.reader);
+					if (!set.add(componentType)) {
+						throw ItemStringReader.REPEATED_COMPONENT_EXCEPTION.create(componentType);
+					}
 
-            this.reader.skip();
-            this.reader.skipWhitespace();
-            this.callbacks.setSuggestor(this::suggestComponents);
-            if (!this.reader.canRead()) {
-               throw ItemStringReader.COMPONENT_EXPECTED_EXCEPTION.createWithContext(this.reader);
-            }
-         }
+					this.callbacks.onComponentRemoved(componentType);
+					this.callbacks.setSuggestor(ItemStringReader.SUGGEST_DEFAULT);
+					this.reader.skipWhitespace();
+				}
+				else {
+					ComponentType<?> componentType = readComponentType(this.reader);
+					if (!set.add(componentType)) {
+						throw ItemStringReader.REPEATED_COMPONENT_EXCEPTION.create(componentType);
+					}
 
-         this.reader.expect(']');
-         this.callbacks.setSuggestor(ItemStringReader.SUGGEST_DEFAULT);
-      }
+					this.callbacks.setSuggestor(this::suggestEqual);
+					this.reader.skipWhitespace();
+					this.reader.expect('=');
+					this.callbacks.setSuggestor(ItemStringReader.SUGGEST_DEFAULT);
+					this.reader.skipWhitespace();
+					this.readComponentValue(ItemStringReader.this.snbtReader, ItemStringReader.this.ops, componentType);
+					this.reader.skipWhitespace();
+				}
 
-      public static ComponentType<?> readComponentType(StringReader reader) throws CommandSyntaxException {
-         if (!reader.canRead()) {
-            throw ItemStringReader.COMPONENT_EXPECTED_EXCEPTION.createWithContext(reader);
-         } else {
-            int i = reader.getCursor();
-            Identifier identifier = Identifier.fromCommandInput(reader);
-            ComponentType<?> componentType = Registries.DATA_COMPONENT_TYPE.get(identifier);
-            if (componentType != null && !componentType.shouldSkipSerialization()) {
-               return componentType;
-            } else {
-               reader.setCursor(i);
-               throw ItemStringReader.UNKNOWN_COMPONENT_EXCEPTION.createWithContext(reader, identifier);
-            }
-         }
-      }
+				this.callbacks.setSuggestor(this::suggestEndOfComponent);
+				if (!this.reader.canRead() || this.reader.peek() != ',') {
+					break;
+				}
 
-      private <T, O> void readComponentValue(StringNbtReader<O> snbtReader, RegistryOps<O> ops, ComponentType<T> type) throws CommandSyntaxException {
-         int i = this.reader.getCursor();
-         O object = snbtReader.readAsArgument(this.reader);
-         DataResult<T> dataResult = type.getCodecOrThrow().parse(ops, object);
-         this.callbacks.onComponentAdded(type, (T)dataResult.getOrThrow(error -> {
-            this.reader.setCursor(i);
-            return ItemStringReader.MALFORMED_COMPONENT_EXCEPTION.createWithContext(this.reader, type.toString(), error);
-         }));
-      }
+				this.reader.skip();
+				this.reader.skipWhitespace();
+				this.callbacks.setSuggestor(this::suggestComponents);
+				if (!this.reader.canRead()) {
+					throw ItemStringReader.COMPONENT_EXPECTED_EXCEPTION.createWithContext(this.reader);
+				}
+			}
 
-      private CompletableFuture<Suggestions> suggestBracket(SuggestionsBuilder builder) {
-         if (builder.getRemaining().isEmpty()) {
-            builder.suggest(String.valueOf('['));
-         }
+			this.reader.expect(']');
+			this.callbacks.setSuggestor(ItemStringReader.SUGGEST_DEFAULT);
+		}
 
-         return builder.buildFuture();
-      }
+		public static ComponentType<?> readComponentType(StringReader reader) throws CommandSyntaxException {
+			if (!reader.canRead()) {
+				throw ItemStringReader.COMPONENT_EXPECTED_EXCEPTION.createWithContext(reader);
+			}
+			else {
+				int i = reader.getCursor();
+				Identifier identifier = Identifier.fromCommandInput(reader);
+				ComponentType<?> componentType = Registries.DATA_COMPONENT_TYPE.get(identifier);
+				if (componentType != null && !componentType.shouldSkipSerialization()) {
+					return componentType;
+				}
+				else {
+					reader.setCursor(i);
+					throw ItemStringReader.UNKNOWN_COMPONENT_EXCEPTION.createWithContext(reader, identifier);
+				}
+			}
+		}
 
-      private CompletableFuture<Suggestions> suggestEndOfComponent(SuggestionsBuilder builder) {
-         if (builder.getRemaining().isEmpty()) {
-            builder.suggest(String.valueOf(','));
-            builder.suggest(String.valueOf(']'));
-         }
+		private <T, O> void readComponentValue(StringNbtReader<O> snbtReader, RegistryOps<O> ops, ComponentType<T> type)
+		throws CommandSyntaxException {
+			int i = this.reader.getCursor();
+			O object = snbtReader.readAsArgument(this.reader);
+			DataResult<T> dataResult = type.getCodecOrThrow().parse(ops, object);
+			this.callbacks.onComponentAdded(
+					type, (T) dataResult.getOrThrow(error -> {
+						this.reader.setCursor(i);
+						return ItemStringReader.MALFORMED_COMPONENT_EXCEPTION.createWithContext(
+								this.reader,
+								type.toString(),
+								error
+						);
+					})
+			);
+		}
 
-         return builder.buildFuture();
-      }
+		private CompletableFuture<Suggestions> suggestBracket(SuggestionsBuilder builder) {
+			if (builder.getRemaining().isEmpty()) {
+				builder.suggest(String.valueOf('['));
+			}
 
-      private CompletableFuture<Suggestions> suggestEqual(SuggestionsBuilder builder) {
-         if (builder.getRemaining().isEmpty()) {
-            builder.suggest(String.valueOf('='));
-         }
+			return builder.buildFuture();
+		}
 
-         return builder.buildFuture();
-      }
+		private CompletableFuture<Suggestions> suggestEndOfComponent(SuggestionsBuilder builder) {
+			if (builder.getRemaining().isEmpty()) {
+				builder.suggest(String.valueOf(','));
+				builder.suggest(String.valueOf(']'));
+			}
 
-      private CompletableFuture<Suggestions> suggestItems(SuggestionsBuilder builder) {
-         return CommandSource.suggestIdentifiers(ItemStringReader.this.itemRegistry.streamKeys().map(RegistryKey::getValue), builder);
-      }
+			return builder.buildFuture();
+		}
 
-      private CompletableFuture<Suggestions> suggestComponents(SuggestionsBuilder builder) {
-         builder.suggest(String.valueOf('!'));
-         return this.suggestComponents(builder, String.valueOf('='));
-      }
+		private CompletableFuture<Suggestions> suggestEqual(SuggestionsBuilder builder) {
+			if (builder.getRemaining().isEmpty()) {
+				builder.suggest(String.valueOf('='));
+			}
 
-      private CompletableFuture<Suggestions> suggestComponentsToRemove(SuggestionsBuilder builder) {
-         return this.suggestComponents(builder, "");
-      }
+			return builder.buildFuture();
+		}
 
-      private CompletableFuture<Suggestions> suggestComponents(SuggestionsBuilder builder, String suffix) {
-         String string = builder.getRemaining().toLowerCase(Locale.ROOT);
-         CommandSource.forEachMatching(Registries.DATA_COMPONENT_TYPE.getEntrySet(), string, entry -> entry.getKey().getValue(), entry -> {
-            ComponentType<?> componentType = entry.getValue();
-            if (componentType.getCodec() != null) {
-               Identifier identifier = entry.getKey().getValue();
-               builder.suggest(identifier + suffix);
-            }
-         });
-         return builder.buildFuture();
-      }
-   }
+		private CompletableFuture<Suggestions> suggestItems(SuggestionsBuilder builder) {
+			return CommandSource.suggestIdentifiers(
+					ItemStringReader.this.itemRegistry
+							.streamKeys()
+							.map(RegistryKey::getValue), builder
+			);
+		}
 
-   static class SuggestionCallbacks implements ItemStringReader.Callbacks {
-      private Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor = ItemStringReader.SUGGEST_DEFAULT;
+		private CompletableFuture<Suggestions> suggestComponents(SuggestionsBuilder builder) {
+			builder.suggest(String.valueOf('!'));
+			return this.suggestComponents(builder, String.valueOf('='));
+		}
 
-      @Override
-      public void setSuggestor(Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
-         this.suggestor = suggestor;
-      }
+		private CompletableFuture<Suggestions> suggestComponentsToRemove(SuggestionsBuilder builder) {
+			return this.suggestComponents(builder, "");
+		}
 
-      public CompletableFuture<Suggestions> getSuggestions(SuggestionsBuilder builder, StringReader reader) {
-         return this.suggestor.apply(builder.createOffset(reader.getCursor()));
-      }
-   }
+		private CompletableFuture<Suggestions> suggestComponents(SuggestionsBuilder builder, String suffix) {
+			String string = builder.getRemaining().toLowerCase(Locale.ROOT);
+			CommandSource.forEachMatching(
+					Registries.DATA_COMPONENT_TYPE.getEntrySet(), string, entry -> entry.getKey().getValue(), entry -> {
+						ComponentType<?> componentType = entry.getValue();
+						if (componentType.getCodec() != null) {
+							Identifier identifier = entry.getKey().getValue();
+							builder.suggest(identifier + suffix);
+						}
+					}
+			);
+			return builder.buildFuture();
+		}
+	}
+
+	/**
+	 * {@code SuggestionCallbacks}.
+	 */
+	static class SuggestionCallbacks implements ItemStringReader.Callbacks {
+
+		private Function<SuggestionsBuilder, CompletableFuture<Suggestions>>
+				suggestor =
+				ItemStringReader.SUGGEST_DEFAULT;
+
+		@Override
+		public void setSuggestor(Function<SuggestionsBuilder, CompletableFuture<Suggestions>> suggestor) {
+			this.suggestor = suggestor;
+		}
+
+		public CompletableFuture<Suggestions> getSuggestions(SuggestionsBuilder builder, StringReader reader) {
+			return this.suggestor.apply(builder.createOffset(reader.getCursor()));
+		}
+	}
 }

@@ -9,17 +9,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Identifier;
 
-public record CooldownUpdateS2CPacket(Identifier cooldownGroup, int cooldown) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, CooldownUpdateS2CPacket> CODEC = PacketCodec.tuple(
-      Identifier.PACKET_CODEC, CooldownUpdateS2CPacket::cooldownGroup, PacketCodecs.VAR_INT, CooldownUpdateS2CPacket::cooldown, CooldownUpdateS2CPacket::new
-   );
+public record CooldownUpdateS2CPacket(
+		Identifier cooldownGroup,
+		int cooldown
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<CooldownUpdateS2CPacket> getPacketType() {
-      return PlayPackets.COOLDOWN;
-   }
+	public static final PacketCodec<RegistryByteBuf, CooldownUpdateS2CPacket> CODEC = PacketCodec.tuple(
+			Identifier.PACKET_CODEC,
+			CooldownUpdateS2CPacket::cooldownGroup,
+			PacketCodecs.VAR_INT,
+			CooldownUpdateS2CPacket::cooldown,
+			CooldownUpdateS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onCooldownUpdate(this);
-   }
+	@Override
+	public PacketType<CooldownUpdateS2CPacket> getPacketType() {
+		return PlayPackets.COOLDOWN;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onCooldownUpdate(this);
+	}
 }

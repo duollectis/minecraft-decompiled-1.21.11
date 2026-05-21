@@ -1,37 +1,43 @@
 package net.minecraft.util.packrat;
 
-import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+
+/**
+ * {@code ParsingState}.
+ */
 public interface ParsingState<S> {
-   ParseResults getResults();
 
-   ParseErrorList<S> getErrors();
+	ParseResults getResults();
 
-   default <T> Optional<T> startParsing(ParsingRuleEntry<S, T> rule) {
-      T object = this.parse(rule);
-      if (object != null) {
-         this.getErrors().setCursor(this.getCursor());
-      }
+	ParseErrorList<S> getErrors();
 
-      if (!this.getResults().areFramesPlacedCorrectly()) {
-         throw new IllegalStateException("Malformed scope: " + this.getResults());
-      } else {
-         return Optional.ofNullable(object);
-      }
-   }
+	default <T> Optional<T> startParsing(ParsingRuleEntry<S, T> rule) {
+		T object = this.parse(rule);
+		if (object != null) {
+			this.getErrors().setCursor(this.getCursor());
+		}
 
-   <T> @Nullable T parse(ParsingRuleEntry<S, T> rule);
+		if (!this.getResults().areFramesPlacedCorrectly()) {
+			throw new IllegalStateException("Malformed scope: " + this.getResults());
+		}
+		else {
+			return Optional.ofNullable(object);
+		}
+	}
 
-   S getReader();
+	<T> @Nullable T parse(ParsingRuleEntry<S, T> rule);
 
-   int getCursor();
+	S getReader();
 
-   void setCursor(int cursor);
+	int getCursor();
 
-   Cut pushCutter();
+	void setCursor(int cursor);
 
-   void popCutter();
+	Cut pushCutter();
 
-   ParsingState<S> getErrorSuppressingState();
+	void popCutter();
+
+	ParsingState<S> getErrorSuppressingState();
 }

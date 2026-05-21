@@ -2,102 +2,116 @@ package net.minecraft.client.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import it.unimi.dsi.fastutil.objects.Object2ObjectSortedMaps;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.SequencedMap;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.util.BufferAllocator;
 import org.jspecify.annotations.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.SequencedMap;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code VertexConsumerProvider}.
+ */
 public interface VertexConsumerProvider {
-   static VertexConsumerProvider.Immediate immediate(BufferAllocator buffer) {
-      return immediate(Object2ObjectSortedMaps.emptyMap(), buffer);
-   }
 
-   static VertexConsumerProvider.Immediate immediate(SequencedMap<RenderLayer, BufferAllocator> layerBuffers, BufferAllocator fallbackBuffer) {
-      return new VertexConsumerProvider.Immediate(fallbackBuffer, layerBuffers);
-   }
+	static VertexConsumerProvider.Immediate immediate(BufferAllocator buffer) {
+		return immediate(Object2ObjectSortedMaps.emptyMap(), buffer);
+	}
 
-   VertexConsumer getBuffer(RenderLayer layer);
+	static VertexConsumerProvider.Immediate immediate(
+			SequencedMap<RenderLayer, BufferAllocator> layerBuffers,
+			BufferAllocator fallbackBuffer
+	) {
+		return new VertexConsumerProvider.Immediate(fallbackBuffer, layerBuffers);
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static class Immediate implements VertexConsumerProvider {
-      protected final BufferAllocator allocator;
-      protected final SequencedMap<RenderLayer, BufferAllocator> layerBuffers;
-      protected final Map<RenderLayer, BufferBuilder> pending = new HashMap<>();
-      protected @Nullable RenderLayer currentLayer;
+	VertexConsumer getBuffer(RenderLayer layer);
 
-      protected Immediate(BufferAllocator allocator, SequencedMap<RenderLayer, BufferAllocator> layerBuffers) {
-         this.allocator = allocator;
-         this.layerBuffers = layerBuffers;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Immediate}.
+	 */
+	public static class Immediate implements VertexConsumerProvider {
 
-      @Override
-      public VertexConsumer getBuffer(RenderLayer layer) {
-         BufferBuilder bufferBuilder = this.pending.get(layer);
-         if (bufferBuilder != null && !layer.areVerticesNotShared()) {
-            this.draw(layer, bufferBuilder);
-            bufferBuilder = null;
-         }
+		protected final BufferAllocator allocator;
+		protected final SequencedMap<RenderLayer, BufferAllocator> layerBuffers;
+		protected final Map<RenderLayer, BufferBuilder> pending = new HashMap<>();
+		protected @Nullable RenderLayer currentLayer;
 
-         if (bufferBuilder != null) {
-            return bufferBuilder;
-         } else {
-            BufferAllocator bufferAllocator = this.layerBuffers.get(layer);
-            if (bufferAllocator != null) {
-               bufferBuilder = new BufferBuilder(bufferAllocator, layer.getDrawMode(), layer.getVertexFormat());
-            } else {
-               if (this.currentLayer != null) {
-                  this.draw(this.currentLayer);
-               }
+		protected Immediate(BufferAllocator allocator, SequencedMap<RenderLayer, BufferAllocator> layerBuffers) {
+			this.allocator = allocator;
+			this.layerBuffers = layerBuffers;
+		}
 
-               bufferBuilder = new BufferBuilder(this.allocator, layer.getDrawMode(), layer.getVertexFormat());
-               this.currentLayer = layer;
-            }
+		@Override
+		public VertexConsumer getBuffer(RenderLayer layer) {
+			BufferBuilder bufferBuilder = this.pending.get(layer);
+			if (bufferBuilder != null && !layer.areVerticesNotShared()) {
+				this.draw(layer, bufferBuilder);
+				bufferBuilder = null;
+			}
 
-            this.pending.put(layer, bufferBuilder);
-            return bufferBuilder;
-         }
-      }
+			if (bufferBuilder != null) {
+				return bufferBuilder;
+			}
+			else {
+				BufferAllocator bufferAllocator = this.layerBuffers.get(layer);
+				if (bufferAllocator != null) {
+					bufferBuilder = new BufferBuilder(bufferAllocator, layer.getDrawMode(), layer.getVertexFormat());
+				}
+				else {
+					if (this.currentLayer != null) {
+						this.draw(this.currentLayer);
+					}
 
-      public void drawCurrentLayer() {
-         if (this.currentLayer != null) {
-            this.draw(this.currentLayer);
-            this.currentLayer = null;
-         }
-      }
+					bufferBuilder = new BufferBuilder(this.allocator, layer.getDrawMode(), layer.getVertexFormat());
+					this.currentLayer = layer;
+				}
 
-      public void draw() {
-         this.drawCurrentLayer();
+				this.pending.put(layer, bufferBuilder);
+				return bufferBuilder;
+			}
+		}
 
-         for (RenderLayer renderLayer : this.layerBuffers.keySet()) {
-            this.draw(renderLayer);
-         }
-      }
+		public void drawCurrentLayer() {
+			if (this.currentLayer != null) {
+				this.draw(this.currentLayer);
+				this.currentLayer = null;
+			}
+		}
 
-      public void draw(RenderLayer layer) {
-         BufferBuilder bufferBuilder = this.pending.remove(layer);
-         if (bufferBuilder != null) {
-            this.draw(layer, bufferBuilder);
-         }
-      }
+		public void draw() {
+			this.drawCurrentLayer();
 
-      private void draw(RenderLayer layer, BufferBuilder builder) {
-         BuiltBuffer builtBuffer = builder.endNullable();
-         if (builtBuffer != null) {
-            if (layer.isTranslucent()) {
-               BufferAllocator bufferAllocator = this.layerBuffers.getOrDefault(layer, this.allocator);
-               builtBuffer.sortQuads(bufferAllocator, RenderSystem.getProjectionType().getVertexSorter());
-            }
+			for (RenderLayer renderLayer : this.layerBuffers.keySet()) {
+				this.draw(renderLayer);
+			}
+		}
 
-            layer.draw(builtBuffer);
-         }
+		public void draw(RenderLayer layer) {
+			BufferBuilder bufferBuilder = this.pending.remove(layer);
+			if (bufferBuilder != null) {
+				this.draw(layer, bufferBuilder);
+			}
+		}
 
-         if (layer.equals(this.currentLayer)) {
-            this.currentLayer = null;
-         }
-      }
-   }
+		private void draw(RenderLayer layer, BufferBuilder builder) {
+			BuiltBuffer builtBuffer = builder.endNullable();
+			if (builtBuffer != null) {
+				if (layer.isTranslucent()) {
+					BufferAllocator bufferAllocator = this.layerBuffers.getOrDefault(layer, this.allocator);
+					builtBuffer.sortQuads(bufferAllocator, RenderSystem.getProjectionType().getVertexSorter());
+				}
+
+				layer.draw(builtBuffer);
+			}
+
+			if (layer.equals(this.currentLayer)) {
+				this.currentLayer = null;
+			}
+		}
+	}
 }

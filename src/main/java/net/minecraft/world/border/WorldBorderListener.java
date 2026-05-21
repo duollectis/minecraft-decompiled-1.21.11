@@ -1,17 +1,21 @@
 package net.minecraft.world.border;
 
+/**
+ * {@code WorldBorderListener}.
+ */
 public interface WorldBorderListener {
-   void onSizeChange(WorldBorder border, double size);
 
-   void onInterpolateSize(WorldBorder border, double fromSize, double toSize, long time, long l);
+	void onSizeChange(WorldBorder border, double size);
 
-   void onCenterChanged(WorldBorder border, double centerX, double centerZ);
+	void onInterpolateSize(WorldBorder border, double fromSize, double toSize, long time, long l);
 
-   void onWarningTimeChanged(WorldBorder border, int warningTime);
+	void onCenterChanged(WorldBorder border, double centerX, double centerZ);
 
-   void onWarningBlocksChanged(WorldBorder border, int warningBlockDistance);
+	void onWarningTimeChanged(WorldBorder border, int warningTime);
 
-   void onDamagePerBlockChanged(WorldBorder border, double damagePerBlock);
+	void onWarningBlocksChanged(WorldBorder border, int warningBlockDistance);
 
-   void onSafeZoneChanged(WorldBorder border, double safeZoneRadius);
+	void onDamagePerBlockChanged(WorldBorder border, double damagePerBlock);
+
+	void onSafeZoneChanged(WorldBorder border, double safeZoneRadius);
 }

@@ -13,47 +13,62 @@ import net.minecraft.entity.passive.VillagerEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code VillagerEntityRenderer}.
+ */
 public class VillagerEntityRenderer extends AgeableMobEntityRenderer<VillagerEntity, VillagerEntityRenderState, VillagerResemblingModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/villager/villager.png");
-   public static final HeadFeatureRenderer.HeadTransformation HEAD_TRANSFORMATION = new HeadFeatureRenderer.HeadTransformation(-0.1171875F, -0.07421875F, 1.0F);
 
-   public VillagerEntityRenderer(EntityRendererFactory.Context context) {
-      super(
-         context,
-         new VillagerResemblingModel(context.getPart(EntityModelLayers.VILLAGER)),
-         new VillagerResemblingModel(context.getPart(EntityModelLayers.VILLAGER_BABY)),
-         0.5F
-      );
-      this.addFeature(new HeadFeatureRenderer<>(this, context.getEntityModels(), context.getPlayerSkinCache(), HEAD_TRANSFORMATION));
-      this.addFeature(
-         new VillagerClothingFeatureRenderer<>(
-            this,
-            context.getResourceManager(),
-            "villager",
-            new VillagerResemblingModel(context.getPart(EntityModelLayers.VILLAGER_NO_HAT)),
-            new VillagerResemblingModel(context.getPart(EntityModelLayers.VILLAGER_BABY_NO_HAT))
-         )
-      );
-      this.addFeature(new VillagerHeldItemFeatureRenderer<>(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/villager/villager.png");
+	public static final HeadFeatureRenderer.HeadTransformation
+			HEAD_TRANSFORMATION =
+			new HeadFeatureRenderer.HeadTransformation(-0.1171875F, -0.07421875F, 1.0F);
 
-   public Identifier getTexture(VillagerEntityRenderState villagerEntityRenderState) {
-      return TEXTURE;
-   }
+	public VillagerEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new VillagerResemblingModel(context.getPart(EntityModelLayers.VILLAGER)),
+				new VillagerResemblingModel(context.getPart(EntityModelLayers.VILLAGER_BABY)),
+				0.5F
+		);
+		this.addFeature(new HeadFeatureRenderer<>(
+				this,
+				context.getEntityModels(),
+				context.getPlayerSkinCache(),
+				HEAD_TRANSFORMATION
+		));
+		this.addFeature(
+				new VillagerClothingFeatureRenderer<>(
+						this,
+						context.getResourceManager(),
+						"villager",
+						new VillagerResemblingModel(context.getPart(EntityModelLayers.VILLAGER_NO_HAT)),
+						new VillagerResemblingModel(context.getPart(EntityModelLayers.VILLAGER_BABY_NO_HAT))
+				)
+		);
+		this.addFeature(new VillagerHeldItemFeatureRenderer<>(this));
+	}
 
-   protected float getShadowRadius(VillagerEntityRenderState villagerEntityRenderState) {
-      float f = super.getShadowRadius(villagerEntityRenderState);
-      return villagerEntityRenderState.baby ? f * 0.5F : f;
-   }
+	public Identifier getTexture(VillagerEntityRenderState villagerEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public VillagerEntityRenderState createRenderState() {
-      return new VillagerEntityRenderState();
-   }
+	protected float getShadowRadius(VillagerEntityRenderState villagerEntityRenderState) {
+		float f = super.getShadowRadius(villagerEntityRenderState);
+		return villagerEntityRenderState.baby ? f * 0.5F : f;
+	}
 
-   public void updateRenderState(VillagerEntity villagerEntity, VillagerEntityRenderState villagerEntityRenderState, float f) {
-      super.updateRenderState(villagerEntity, villagerEntityRenderState, f);
-      ItemHolderEntityRenderState.update(villagerEntity, villagerEntityRenderState, this.itemModelResolver);
-      villagerEntityRenderState.headRolling = villagerEntity.getHeadRollingTimeLeft() > 0;
-      villagerEntityRenderState.villagerData = villagerEntity.getVillagerData();
-   }
+	public VillagerEntityRenderState createRenderState() {
+		return new VillagerEntityRenderState();
+	}
+
+	public void updateRenderState(
+			VillagerEntity villagerEntity,
+			VillagerEntityRenderState villagerEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(villagerEntity, villagerEntityRenderState, f);
+		ItemHolderEntityRenderState.update(villagerEntity, villagerEntityRenderState, this.itemModelResolver);
+		villagerEntityRenderState.headRolling = villagerEntity.getHeadRollingTimeLeft() > 0;
+		villagerEntityRenderState.villagerData = villagerEntity.getVillagerData();
+	}
 }

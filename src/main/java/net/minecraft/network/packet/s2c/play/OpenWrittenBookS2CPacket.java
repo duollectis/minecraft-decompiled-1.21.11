@@ -9,33 +9,34 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Hand;
 
 public class OpenWrittenBookS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, OpenWrittenBookS2CPacket> CODEC = Packet.createCodec(
-      OpenWrittenBookS2CPacket::write, OpenWrittenBookS2CPacket::new
-   );
-   private final Hand hand;
 
-   public OpenWrittenBookS2CPacket(Hand hand) {
-      this.hand = hand;
-   }
+	public static final PacketCodec<PacketByteBuf, OpenWrittenBookS2CPacket> CODEC = Packet.createCodec(
+			OpenWrittenBookS2CPacket::write, OpenWrittenBookS2CPacket::new
+	);
+	private final Hand hand;
 
-   private OpenWrittenBookS2CPacket(PacketByteBuf buf) {
-      this.hand = buf.readEnumConstant(Hand.class);
-   }
+	public OpenWrittenBookS2CPacket(Hand hand) {
+		this.hand = hand;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeEnumConstant(this.hand);
-   }
+	private OpenWrittenBookS2CPacket(PacketByteBuf buf) {
+		this.hand = buf.readEnumConstant(Hand.class);
+	}
 
-   @Override
-   public PacketType<OpenWrittenBookS2CPacket> getPacketType() {
-      return PlayPackets.OPEN_BOOK;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeEnumConstant(this.hand);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onOpenWrittenBook(this);
-   }
+	@Override
+	public PacketType<OpenWrittenBookS2CPacket> getPacketType() {
+		return PlayPackets.OPEN_BOOK;
+	}
 
-   public Hand getHand() {
-      return this.hand;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onOpenWrittenBook(this);
+	}
+
+	public Hand getHand() {
+		return this.hand;
+	}
 }

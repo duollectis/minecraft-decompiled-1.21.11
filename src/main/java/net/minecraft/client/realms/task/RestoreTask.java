@@ -13,67 +13,74 @@ import net.minecraft.text.Text;
 import org.slf4j.Logger;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RestoreTask}.
+ */
 public class RestoreTask extends LongRunningTask {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final Text TITLE = Text.translatable("mco.backup.restoring");
-   private final Backup backup;
-   private final long field_61055;
-   private final RealmsConfigureWorldScreen lastScreen;
 
-   public RestoreTask(Backup backup, long l, RealmsConfigureWorldScreen realmsConfigureWorldScreen) {
-      this.backup = backup;
-      this.field_61055 = l;
-      this.lastScreen = realmsConfigureWorldScreen;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final Text TITLE = Text.translatable("mco.backup.restoring");
+	private final Backup backup;
+	private final long backupIndex;
+	private final RealmsConfigureWorldScreen lastScreen;
 
-   @Override
-   public void run() {
-      RealmsClient realmsClient = RealmsClient.create();
-      int i = 0;
+	public RestoreTask(Backup backup, long l, RealmsConfigureWorldScreen realmsConfigureWorldScreen) {
+		this.backup = backup;
+		this.backupIndex = l;
+		this.lastScreen = realmsConfigureWorldScreen;
+	}
 
-      while (i < 25) {
-         try {
-            if (this.aborted()) {
-               return;
-            }
+	@Override
+	public void run() {
+		RealmsClient realmsClient = RealmsClient.create();
+		int i = 0;
 
-            realmsClient.restoreWorld(this.field_61055, this.backup.backupId);
-            pause(1L);
-            if (this.aborted()) {
-               return;
-            }
+		while (i < 25) {
+			try {
+				if (this.aborted()) {
+					return;
+				}
 
-            setScreen(this.lastScreen);
-            return;
-         } catch (RetryCallException var4) {
-            if (this.aborted()) {
-               return;
-            }
+				realmsClient.restoreWorld(this.backupIndex, this.backup.backupId);
+				pause(1L);
+				if (this.aborted()) {
+					return;
+				}
 
-            pause(var4.delaySeconds);
-            i++;
-         } catch (RealmsServiceException var5) {
-            if (this.aborted()) {
-               return;
-            }
+				setScreen(this.lastScreen);
+				return;
+			}
+			catch (RetryCallException var4) {
+				if (this.aborted()) {
+					return;
+				}
 
-            LOGGER.error("Couldn't restore backup", var5);
-            setScreen(new RealmsGenericErrorScreen(var5, this.lastScreen));
-            return;
-         } catch (Exception var6) {
-            if (this.aborted()) {
-               return;
-            }
+				pause(var4.delaySeconds);
+				i++;
+			}
+			catch (RealmsServiceException var5) {
+				if (this.aborted()) {
+					return;
+				}
 
-            LOGGER.error("Couldn't restore backup", var6);
-            this.error(var6);
-            return;
-         }
-      }
-   }
+				LOGGER.error("Couldn't restore backup", var5);
+				setScreen(new RealmsGenericErrorScreen(var5, this.lastScreen));
+				return;
+			}
+			catch (Exception var6) {
+				if (this.aborted()) {
+					return;
+				}
 
-   @Override
-   public Text getTitle() {
-      return TITLE;
-   }
+				LOGGER.error("Couldn't restore backup", var6);
+				this.error(var6);
+				return;
+			}
+		}
+	}
+
+	@Override
+	public Text getTitle() {
+		return TITLE;
+	}
 }

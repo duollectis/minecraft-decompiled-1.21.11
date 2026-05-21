@@ -3,34 +3,52 @@ package net.minecraft.registry;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JavaOps;
-import java.util.HashMap;
-import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * {@code RegistryCloner}.
+ */
 public class RegistryCloner<T> {
-   private final Codec<T> elementCodec;
 
-   RegistryCloner(Codec<T> elementCodec) {
-      this.elementCodec = elementCodec;
-   }
+	private final Codec<T> elementCodec;
 
-   public T clone(T value, RegistryWrapper.WrapperLookup subsetRegistry, RegistryWrapper.WrapperLookup fullRegistry) {
-      DynamicOps<Object> dynamicOps = subsetRegistry.getOps(JavaOps.INSTANCE);
-      DynamicOps<Object> dynamicOps2 = fullRegistry.getOps(JavaOps.INSTANCE);
-      Object object = this.elementCodec.encodeStart(dynamicOps, value).getOrThrow(error -> new IllegalStateException("Failed to encode: " + error));
-      return (T)this.elementCodec.parse(dynamicOps2, object).getOrThrow(error -> new IllegalStateException("Failed to decode: " + error));
-   }
+	RegistryCloner(Codec<T> elementCodec) {
+		this.elementCodec = elementCodec;
+	}
 
-   public static class CloneableRegistries {
-      private final Map<RegistryKey<? extends Registry<?>>, RegistryCloner<?>> registries = new HashMap<>();
+	public T clone(T value, RegistryWrapper.WrapperLookup subsetRegistry, RegistryWrapper.WrapperLookup fullRegistry) {
+		DynamicOps<Object> dynamicOps = subsetRegistry.getOps(JavaOps.INSTANCE);
+		DynamicOps<Object> dynamicOps2 = fullRegistry.getOps(JavaOps.INSTANCE);
+		Object
+				object =
+				this.elementCodec
+						.encodeStart(dynamicOps, value)
+						.getOrThrow(error -> new IllegalStateException("Failed to encode: " + error));
+		return (T) this.elementCodec
+				.parse(dynamicOps2, object)
+				.getOrThrow(error -> new IllegalStateException("Failed to decode: " + error));
+	}
 
-      public <T> RegistryCloner.CloneableRegistries add(RegistryKey<? extends Registry<? extends T>> registryRef, Codec<T> elementCodec) {
-         this.registries.put(registryRef, new RegistryCloner(elementCodec));
-         return this;
-      }
+	/**
+	 * {@code CloneableRegistries}.
+	 */
+	public static class CloneableRegistries {
 
-      public <T> @Nullable RegistryCloner<T> get(RegistryKey<? extends Registry<? extends T>> registryRef) {
-         return (RegistryCloner<T>)this.registries.get(registryRef);
-      }
-   }
+		private final Map<RegistryKey<? extends Registry<?>>, RegistryCloner<?>> registries = new HashMap<>();
+
+		public <T> RegistryCloner.CloneableRegistries add(
+				RegistryKey<? extends Registry<? extends T>> registryRef,
+				Codec<T> elementCodec
+		) {
+			this.registries.put(registryRef, new RegistryCloner(elementCodec));
+			return this;
+		}
+
+		public <T> @Nullable RegistryCloner<T> get(RegistryKey<? extends Registry<? extends T>> registryRef) {
+			return (RegistryCloner<T>) this.registries.get(registryRef);
+		}
+	}
 }

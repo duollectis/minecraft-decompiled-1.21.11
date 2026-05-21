@@ -9,48 +9,55 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SoundInstance}.
+ */
 public interface SoundInstance extends FabricSoundInstance {
-   Identifier getId();
 
-   @Nullable WeightedSoundSet getSoundSet(SoundManager soundManager);
+	Identifier getId();
 
-   @Nullable Sound getSound();
+	@Nullable WeightedSoundSet getSoundSet(SoundManager soundManager);
 
-   SoundCategory getCategory();
+	@Nullable Sound getSound();
 
-   boolean isRepeatable();
+	SoundCategory getCategory();
 
-   boolean isRelative();
+	boolean isRepeatable();
 
-   int getRepeatDelay();
+	boolean isRelative();
 
-   float getVolume();
+	int getRepeatDelay();
 
-   float getPitch();
+	float getVolume();
 
-   double getX();
+	float getPitch();
 
-   double getY();
+	double getX();
 
-   double getZ();
+	double getY();
 
-   SoundInstance.AttenuationType getAttenuationType();
+	double getZ();
 
-   default boolean shouldAlwaysPlay() {
-      return false;
-   }
+	SoundInstance.AttenuationType getAttenuationType();
 
-   default boolean canPlay() {
-      return true;
-   }
+	default boolean shouldAlwaysPlay() {
+		return false;
+	}
 
-   static Random createRandom() {
-      return Random.create();
-   }
+	default boolean canPlay() {
+		return true;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum AttenuationType {
-      NONE,
-      LINEAR;
-   }
+	static Random createRandom() {
+		return Random.create();
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code AttenuationType}.
+	 */
+	public static enum AttenuationType {
+		NONE,
+		LINEAR;
+	}
 }

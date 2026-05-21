@@ -9,63 +9,70 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code CauldronBlock}.
+ */
 public class CauldronBlock extends AbstractCauldronBlock {
-   public static final MapCodec<CauldronBlock> CODEC = createCodec(CauldronBlock::new);
-   private static final float FILL_WITH_RAIN_CHANCE = 0.05F;
-   private static final float FILL_WITH_SNOW_CHANCE = 0.1F;
 
-   @Override
-   public MapCodec<CauldronBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<CauldronBlock> CODEC = createCodec(CauldronBlock::new);
+	private static final float FILL_WITH_RAIN_CHANCE = 0.05F;
+	private static final float FILL_WITH_SNOW_CHANCE = 0.1F;
 
-   public CauldronBlock(AbstractBlock.Settings settings) {
-      super(settings, CauldronBehavior.EMPTY_CAULDRON_BEHAVIOR);
-   }
+	@Override
+	public MapCodec<CauldronBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public boolean isFull(BlockState state) {
-      return false;
-   }
+	public CauldronBlock(AbstractBlock.Settings settings) {
+		super(settings, CauldronBehavior.EMPTY_CAULDRON_BEHAVIOR);
+	}
 
-   protected static boolean canFillWithPrecipitation(World world, Biome.Precipitation precipitation) {
-      if (precipitation == Biome.Precipitation.RAIN) {
-         return world.getRandom().nextFloat() < 0.05F;
-      } else {
-         return precipitation == Biome.Precipitation.SNOW ? world.getRandom().nextFloat() < 0.1F : false;
-      }
-   }
+	@Override
+	public boolean isFull(BlockState state) {
+		return false;
+	}
 
-   @Override
-   public void precipitationTick(BlockState state, World world, BlockPos pos, Biome.Precipitation precipitation) {
-      if (canFillWithPrecipitation(world, precipitation)) {
-         if (precipitation == Biome.Precipitation.RAIN) {
-            world.setBlockState(pos, Blocks.WATER_CAULDRON.getDefaultState());
-            world.emitGameEvent(null, GameEvent.BLOCK_CHANGE, pos);
-         } else if (precipitation == Biome.Precipitation.SNOW) {
-            world.setBlockState(pos, Blocks.POWDER_SNOW_CAULDRON.getDefaultState());
-            world.emitGameEvent(null, GameEvent.BLOCK_CHANGE, pos);
-         }
-      }
-   }
+	protected static boolean canFillWithPrecipitation(World world, Biome.Precipitation precipitation) {
+		if (precipitation == Biome.Precipitation.RAIN) {
+			return world.getRandom().nextFloat() < 0.05F;
+		}
+		else {
+			return precipitation == Biome.Precipitation.SNOW ? world.getRandom().nextFloat() < 0.1F : false;
+		}
+	}
 
-   @Override
-   protected boolean canBeFilledByDripstone(Fluid fluid) {
-      return true;
-   }
+	@Override
+	public void precipitationTick(BlockState state, World world, BlockPos pos, Biome.Precipitation precipitation) {
+		if (canFillWithPrecipitation(world, precipitation)) {
+			if (precipitation == Biome.Precipitation.RAIN) {
+				world.setBlockState(pos, Blocks.WATER_CAULDRON.getDefaultState());
+				world.emitGameEvent(null, GameEvent.BLOCK_CHANGE, pos);
+			}
+			else if (precipitation == Biome.Precipitation.SNOW) {
+				world.setBlockState(pos, Blocks.POWDER_SNOW_CAULDRON.getDefaultState());
+				world.emitGameEvent(null, GameEvent.BLOCK_CHANGE, pos);
+			}
+		}
+	}
 
-   @Override
-   protected void fillFromDripstone(BlockState state, World world, BlockPos pos, Fluid fluid) {
-      if (fluid == Fluids.WATER) {
-         BlockState blockState = Blocks.WATER_CAULDRON.getDefaultState();
-         world.setBlockState(pos, blockState);
-         world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(blockState));
-         world.syncWorldEvent(1047, pos, 0);
-      } else if (fluid == Fluids.LAVA) {
-         BlockState blockState = Blocks.LAVA_CAULDRON.getDefaultState();
-         world.setBlockState(pos, blockState);
-         world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(blockState));
-         world.syncWorldEvent(1046, pos, 0);
-      }
-   }
+	@Override
+	protected boolean canBeFilledByDripstone(Fluid fluid) {
+		return true;
+	}
+
+	@Override
+	protected void fillFromDripstone(BlockState state, World world, BlockPos pos, Fluid fluid) {
+		if (fluid == Fluids.WATER) {
+			BlockState blockState = Blocks.WATER_CAULDRON.getDefaultState();
+			world.setBlockState(pos, blockState);
+			world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(blockState));
+			world.syncWorldEvent(1047, pos, 0);
+		}
+		else if (fluid == Fluids.LAVA) {
+			BlockState blockState = Blocks.LAVA_CAULDRON.getDefaultState();
+			world.setBlockState(pos, blockState);
+			world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(blockState));
+			world.syncWorldEvent(1046, pos, 0);
+		}
+	}
 }

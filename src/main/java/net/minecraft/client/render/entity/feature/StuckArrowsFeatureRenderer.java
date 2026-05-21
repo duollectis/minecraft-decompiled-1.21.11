@@ -12,19 +12,26 @@ import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.client.render.entity.state.ProjectileEntityRenderState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code StuckArrowsFeatureRenderer}.
+ */
 public class StuckArrowsFeatureRenderer<M extends PlayerEntityModel> extends StuckObjectsFeatureRenderer<M, ProjectileEntityRenderState> {
-   public StuckArrowsFeatureRenderer(LivingEntityRenderer<?, PlayerEntityRenderState, M> entityRenderer, EntityRendererFactory.Context context) {
-      super(
-         entityRenderer,
-         new ArrowEntityModel(context.getPart(EntityModelLayers.ARROW)),
-         new ProjectileEntityRenderState(),
-         ArrowEntityRenderer.TEXTURE,
-         StuckObjectsFeatureRenderer.RenderPosition.IN_CUBE
-      );
-   }
 
-   @Override
-   protected int getObjectCount(PlayerEntityRenderState playerRenderState) {
-      return playerRenderState.stuckArrowCount;
-   }
+	public StuckArrowsFeatureRenderer(
+			LivingEntityRenderer<?, PlayerEntityRenderState, M> entityRenderer,
+			EntityRendererFactory.Context context
+	) {
+		super(
+				entityRenderer,
+				new ArrowEntityModel(context.getPart(EntityModelLayers.ARROW)),
+				new ProjectileEntityRenderState(),
+				ArrowEntityRenderer.TEXTURE,
+				StuckObjectsFeatureRenderer.RenderPosition.IN_CUBE
+		);
+	}
+
+	@Override
+	protected int getObjectCount(PlayerEntityRenderState playerRenderState) {
+		return playerRenderState.stuckArrowCount;
+	}
 }

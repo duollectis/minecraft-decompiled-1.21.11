@@ -20,126 +20,136 @@ import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code HopperMinecartEntity}.
+ */
 public class HopperMinecartEntity extends StorageMinecartEntity implements Hopper {
-   private static final boolean DEFAULT_ENABLED = true;
-   private boolean enabled = true;
-   private boolean hopperTicked = false;
 
-   public HopperMinecartEntity(EntityType<? extends HopperMinecartEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final boolean DEFAULT_ENABLED = true;
+	private boolean enabled = true;
+	private boolean hopperTicked = false;
 
-   @Override
-   public BlockState getDefaultContainedBlock() {
-      return Blocks.HOPPER.getDefaultState();
-   }
+	public HopperMinecartEntity(EntityType<? extends HopperMinecartEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   public int getDefaultBlockOffset() {
-      return 1;
-   }
+	@Override
+	public BlockState getDefaultContainedBlock() {
+		return Blocks.HOPPER.getDefaultState();
+	}
 
-   @Override
-   public int size() {
-      return 5;
-   }
+	@Override
+	public int getDefaultBlockOffset() {
+		return 1;
+	}
 
-   @Override
-   public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
-      boolean bl2 = !bl;
-      if (bl2 != this.isEnabled()) {
-         this.setEnabled(bl2);
-      }
-   }
+	@Override
+	public int size() {
+		return 5;
+	}
 
-   public boolean isEnabled() {
-      return this.enabled;
-   }
+	@Override
+	public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
+		boolean bl2 = !bl;
+		if (bl2 != this.isEnabled()) {
+			this.setEnabled(bl2);
+		}
+	}
 
-   public void setEnabled(boolean enabled) {
-      this.enabled = enabled;
-   }
+	public boolean isEnabled() {
+		return this.enabled;
+	}
 
-   @Override
-   public double getHopperX() {
-      return this.getX();
-   }
+	public void setEnabled(boolean enabled) {
+		this.enabled = enabled;
+	}
 
-   @Override
-   public double getHopperY() {
-      return this.getY() + 0.5;
-   }
+	@Override
+	public double getHopperX() {
+		return this.getX();
+	}
 
-   @Override
-   public double getHopperZ() {
-      return this.getZ();
-   }
+	@Override
+	public double getHopperY() {
+		return this.getY() + 0.5;
+	}
 
-   @Override
-   public boolean canBlockFromAbove() {
-      return false;
-   }
+	@Override
+	public double getHopperZ() {
+		return this.getZ();
+	}
 
-   @Override
-   public void tick() {
-      this.hopperTicked = false;
-      super.tick();
-      this.tickHopper();
-   }
+	@Override
+	public boolean canBlockFromAbove() {
+		return false;
+	}
 
-   @Override
-   protected double moveAlongTrack(BlockPos pos, RailShape shape, double remainingMovement) {
-      double d = super.moveAlongTrack(pos, shape, remainingMovement);
-      this.tickHopper();
-      return d;
-   }
+	@Override
+	public void tick() {
+		this.hopperTicked = false;
+		super.tick();
+		this.tickHopper();
+	}
 
-   private void tickHopper() {
-      if (!this.getEntityWorld().isClient() && this.isAlive() && this.isEnabled() && !this.hopperTicked && this.canOperate()) {
-         this.hopperTicked = true;
-         this.markDirty();
-      }
-   }
+	@Override
+	protected double moveAlongTrack(BlockPos pos, RailShape shape, double remainingMovement) {
+		double d = super.moveAlongTrack(pos, shape, remainingMovement);
+		this.tickHopper();
+		return d;
+	}
 
-   public boolean canOperate() {
-      if (HopperBlockEntity.extract(this.getEntityWorld(), this)) {
-         return true;
-      } else {
-         for (ItemEntity itemEntity : this.getEntityWorld()
-            .getEntitiesByClass(ItemEntity.class, this.getBoundingBox().expand(0.25, 0.0, 0.25), EntityPredicates.VALID_ENTITY)) {
-            if (HopperBlockEntity.extract(this, itemEntity)) {
-               return true;
-            }
-         }
+	private void tickHopper() {
+		if (!this.getEntityWorld().isClient() && this.isAlive() && this.isEnabled() && !this.hopperTicked
+				&& this.canOperate()) {
+			this.hopperTicked = true;
+			this.markDirty();
+		}
+	}
 
-         return false;
-      }
-   }
+	public boolean canOperate() {
+		if (HopperBlockEntity.extract(this.getEntityWorld(), this)) {
+			return true;
+		}
+		else {
+			for (ItemEntity itemEntity : this.getEntityWorld()
+			                                 .getEntitiesByClass(
+					                                 ItemEntity.class,
+					                                 this.getBoundingBox().expand(0.25, 0.0, 0.25),
+					                                 EntityPredicates.VALID_ENTITY
+			                                 )) {
+				if (HopperBlockEntity.extract(this, itemEntity)) {
+					return true;
+				}
+			}
 
-   @Override
-   protected Item asItem() {
-      return Items.HOPPER_MINECART;
-   }
+			return false;
+		}
+	}
 
-   @Override
-   public ItemStack getPickBlockStack() {
-      return new ItemStack(Items.HOPPER_MINECART);
-   }
+	@Override
+	protected Item asItem() {
+		return Items.HOPPER_MINECART;
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putBoolean("Enabled", this.enabled);
-   }
+	@Override
+	public ItemStack getPickBlockStack() {
+		return new ItemStack(Items.HOPPER_MINECART);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.enabled = view.getBoolean("Enabled", true);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putBoolean("Enabled", this.enabled);
+	}
 
-   @Override
-   public ScreenHandler getScreenHandler(int syncId, PlayerInventory playerInventory) {
-      return new HopperScreenHandler(syncId, playerInventory, this);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.enabled = view.getBoolean("Enabled", true);
+	}
+
+	@Override
+	public ScreenHandler getScreenHandler(int syncId, PlayerInventory playerInventory) {
+		return new HopperScreenHandler(syncId, playerInventory, this);
+	}
 }

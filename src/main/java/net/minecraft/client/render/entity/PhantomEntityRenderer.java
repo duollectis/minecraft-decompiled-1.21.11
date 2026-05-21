@@ -12,36 +12,50 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PhantomEntityRenderer}.
+ */
 public class PhantomEntityRenderer extends MobEntityRenderer<PhantomEntity, PhantomEntityRenderState, PhantomEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/phantom.png");
 
-   public PhantomEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new PhantomEntityModel(context.getPart(EntityModelLayers.PHANTOM)), 0.75F);
-      this.addFeature(new PhantomEyesFeatureRenderer(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/phantom.png");
 
-   public Identifier getTexture(PhantomEntityRenderState phantomEntityRenderState) {
-      return TEXTURE;
-   }
+	public PhantomEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new PhantomEntityModel(context.getPart(EntityModelLayers.PHANTOM)), 0.75F);
+		this.addFeature(new PhantomEyesFeatureRenderer(this));
+	}
 
-   public PhantomEntityRenderState createRenderState() {
-      return new PhantomEntityRenderState();
-   }
+	public Identifier getTexture(PhantomEntityRenderState phantomEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(PhantomEntity phantomEntity, PhantomEntityRenderState phantomEntityRenderState, float f) {
-      super.updateRenderState(phantomEntity, phantomEntityRenderState, f);
-      phantomEntityRenderState.wingFlapProgress = phantomEntity.getWingFlapTickOffset() + phantomEntityRenderState.age;
-      phantomEntityRenderState.size = phantomEntity.getPhantomSize();
-   }
+	public PhantomEntityRenderState createRenderState() {
+		return new PhantomEntityRenderState();
+	}
 
-   protected void scale(PhantomEntityRenderState phantomEntityRenderState, MatrixStack matrixStack) {
-      float f = 1.0F + 0.15F * phantomEntityRenderState.size;
-      matrixStack.scale(f, f, f);
-      matrixStack.translate(0.0F, 1.3125F, 0.1875F);
-   }
+	public void updateRenderState(
+			PhantomEntity phantomEntity,
+			PhantomEntityRenderState phantomEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(phantomEntity, phantomEntityRenderState, f);
+		phantomEntityRenderState.wingFlapProgress =
+				phantomEntity.getWingFlapTickOffset() + phantomEntityRenderState.age;
+		phantomEntityRenderState.size = phantomEntity.getPhantomSize();
+	}
 
-   protected void setupTransforms(PhantomEntityRenderState phantomEntityRenderState, MatrixStack matrixStack, float f, float g) {
-      super.setupTransforms(phantomEntityRenderState, matrixStack, f, g);
-      matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(phantomEntityRenderState.pitch));
-   }
+	protected void scale(PhantomEntityRenderState phantomEntityRenderState, MatrixStack matrixStack) {
+		float f = 1.0F + 0.15F * phantomEntityRenderState.size;
+		matrixStack.scale(f, f, f);
+		matrixStack.translate(0.0F, 1.3125F, 0.1875F);
+	}
+
+	protected void setupTransforms(
+			PhantomEntityRenderState phantomEntityRenderState,
+			MatrixStack matrixStack,
+			float f,
+			float g
+	) {
+		super.setupTransforms(phantomEntityRenderState, matrixStack, f, g);
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(phantomEntityRenderState.pitch));
+	}
 }

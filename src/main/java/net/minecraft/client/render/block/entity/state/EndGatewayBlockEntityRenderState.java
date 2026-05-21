@@ -4,9 +4,13 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EndGatewayBlockEntityRenderState}.
+ */
 public class EndGatewayBlockEntityRenderState extends EndPortalBlockEntityRenderState {
-   public int beamSpan;
-   public float beamHeight;
-   public int beamColor;
-   public float beamRotationDegrees;
+
+	public int beamSpan;
+	public float beamHeight;
+	public int beamColor;
+	public float beamRotationDegrees;
 }

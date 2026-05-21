@@ -8,30 +8,38 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+/**
+ * {@code EndIslandFeature}.
+ */
 public class EndIslandFeature extends Feature<DefaultFeatureConfig> {
-   public EndIslandFeature(Codec<DefaultFeatureConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      Random random = context.getRandom();
-      BlockPos blockPos = context.getOrigin();
-      float f = random.nextInt(3) + 4.0F;
+	public EndIslandFeature(Codec<DefaultFeatureConfig> codec) {
+		super(codec);
+	}
 
-      for (int i = 0; f > 0.5F; i--) {
-         for (int j = MathHelper.floor(-f); j <= MathHelper.ceil(f); j++) {
-            for (int k = MathHelper.floor(-f); k <= MathHelper.ceil(f); k++) {
-               if (j * j + k * k <= (f + 1.0F) * (f + 1.0F)) {
-                  this.setBlockState(structureWorldAccess, blockPos.add(j, i, k), Blocks.END_STONE.getDefaultState());
-               }
-            }
-         }
+	@Override
+	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		Random random = context.getRandom();
+		BlockPos blockPos = context.getOrigin();
+		float f = random.nextInt(3) + 4.0F;
 
-         f -= random.nextInt(2) + 0.5F;
-      }
+		for (int i = 0; f > 0.5F; i--) {
+			for (int j = MathHelper.floor(-f); j <= MathHelper.ceil(f); j++) {
+				for (int k = MathHelper.floor(-f); k <= MathHelper.ceil(f); k++) {
+					if (j * j + k * k <= (f + 1.0F) * (f + 1.0F)) {
+						this.setBlockState(
+								structureWorldAccess,
+								blockPos.add(j, i, k),
+								Blocks.END_STONE.getDefaultState()
+						);
+					}
+				}
+			}
 
-      return true;
-   }
+			f -= random.nextInt(2) + 0.5F;
+		}
+
+		return true;
+	}
 }

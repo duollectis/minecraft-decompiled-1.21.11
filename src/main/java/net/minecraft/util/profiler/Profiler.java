@@ -2,149 +2,158 @@ package net.minecraft.util.profiler;
 
 import java.util.function.Supplier;
 
+/**
+ * {@code Profiler}.
+ */
 public interface Profiler {
-   String ROOT_NAME = "root";
 
-   void startTick();
+	String ROOT_NAME = "root";
 
-   void endTick();
+	void startTick();
 
-   void push(String location);
+	void endTick();
 
-   void push(Supplier<String> locationGetter);
+	void push(String location);
 
-   void pop();
+	void push(Supplier<String> locationGetter);
 
-   void swap(String location);
+	void pop();
 
-   void swap(Supplier<String> locationGetter);
+	void swap(String location);
 
-   default void addZoneText(String label) {
-   }
+	void swap(Supplier<String> locationGetter);
 
-   default void addZoneValue(long value) {
-   }
+	default void addZoneText(String label) {
+	}
 
-   default void setZoneColor(int color) {
-   }
+	default void addZoneValue(long value) {
+	}
 
-   default ScopedProfiler scoped(String name) {
-      this.push(name);
-      return new ScopedProfiler(this);
-   }
+	default void setZoneColor(int color) {
+	}
 
-   default ScopedProfiler scoped(Supplier<String> nameSupplier) {
-      this.push(nameSupplier);
-      return new ScopedProfiler(this);
-   }
+	default ScopedProfiler scoped(String name) {
+		this.push(name);
+		return new ScopedProfiler(this);
+	}
 
-   void markSampleType(SampleType type);
+	default ScopedProfiler scoped(Supplier<String> nameSupplier) {
+		this.push(nameSupplier);
+		return new ScopedProfiler(this);
+	}
 
-   default void visit(String marker) {
-      this.visit(marker, 1);
-   }
+	void markSampleType(SampleType type);
 
-   void visit(String marker, int num);
+	default void visit(String marker) {
+		this.visit(marker, 1);
+	}
 
-   default void visit(Supplier<String> markerGetter) {
-      this.visit(markerGetter, 1);
-   }
+	void visit(String marker, int num);
 
-   void visit(Supplier<String> markerGetter, int num);
+	default void visit(Supplier<String> markerGetter) {
+		this.visit(markerGetter, 1);
+	}
 
-   static Profiler union(Profiler first, Profiler second) {
-      if (first == DummyProfiler.INSTANCE) {
-         return second;
-      } else {
-         return (Profiler)(second == DummyProfiler.INSTANCE ? first : new Profiler.UnionProfiler(first, second));
-      }
-   }
+	void visit(Supplier<String> markerGetter, int num);
 
-   public static class UnionProfiler implements Profiler {
-      private final Profiler first;
-      private final Profiler second;
+	static Profiler union(Profiler first, Profiler second) {
+		if (first == DummyProfiler.INSTANCE) {
+			return second;
+		}
+		else {
+			return (Profiler) (second == DummyProfiler.INSTANCE ? first : new Profiler.UnionProfiler(first, second));
+		}
+	}
 
-      public UnionProfiler(Profiler first, Profiler second) {
-         this.first = first;
-         this.second = second;
-      }
+	/**
+	 * {@code UnionProfiler}.
+	 */
+	public static class UnionProfiler implements Profiler {
 
-      @Override
-      public void startTick() {
-         this.first.startTick();
-         this.second.startTick();
-      }
+		private final Profiler first;
+		private final Profiler second;
 
-      @Override
-      public void endTick() {
-         this.first.endTick();
-         this.second.endTick();
-      }
+		public UnionProfiler(Profiler first, Profiler second) {
+			this.first = first;
+			this.second = second;
+		}
 
-      @Override
-      public void push(String location) {
-         this.first.push(location);
-         this.second.push(location);
-      }
+		@Override
+		public void startTick() {
+			this.first.startTick();
+			this.second.startTick();
+		}
 
-      @Override
-      public void push(Supplier<String> locationGetter) {
-         this.first.push(locationGetter);
-         this.second.push(locationGetter);
-      }
+		@Override
+		public void endTick() {
+			this.first.endTick();
+			this.second.endTick();
+		}
 
-      @Override
-      public void markSampleType(SampleType type) {
-         this.first.markSampleType(type);
-         this.second.markSampleType(type);
-      }
+		@Override
+		public void push(String location) {
+			this.first.push(location);
+			this.second.push(location);
+		}
 
-      @Override
-      public void pop() {
-         this.first.pop();
-         this.second.pop();
-      }
+		@Override
+		public void push(Supplier<String> locationGetter) {
+			this.first.push(locationGetter);
+			this.second.push(locationGetter);
+		}
 
-      @Override
-      public void swap(String location) {
-         this.first.swap(location);
-         this.second.swap(location);
-      }
+		@Override
+		public void markSampleType(SampleType type) {
+			this.first.markSampleType(type);
+			this.second.markSampleType(type);
+		}
 
-      @Override
-      public void swap(Supplier<String> locationGetter) {
-         this.first.swap(locationGetter);
-         this.second.swap(locationGetter);
-      }
+		@Override
+		public void pop() {
+			this.first.pop();
+			this.second.pop();
+		}
 
-      @Override
-      public void visit(String marker, int num) {
-         this.first.visit(marker, num);
-         this.second.visit(marker, num);
-      }
+		@Override
+		public void swap(String location) {
+			this.first.swap(location);
+			this.second.swap(location);
+		}
 
-      @Override
-      public void visit(Supplier<String> markerGetter, int num) {
-         this.first.visit(markerGetter, num);
-         this.second.visit(markerGetter, num);
-      }
+		@Override
+		public void swap(Supplier<String> locationGetter) {
+			this.first.swap(locationGetter);
+			this.second.swap(locationGetter);
+		}
 
-      @Override
-      public void addZoneText(String label) {
-         this.first.addZoneText(label);
-         this.second.addZoneText(label);
-      }
+		@Override
+		public void visit(String marker, int num) {
+			this.first.visit(marker, num);
+			this.second.visit(marker, num);
+		}
 
-      @Override
-      public void addZoneValue(long value) {
-         this.first.addZoneValue(value);
-         this.second.addZoneValue(value);
-      }
+		@Override
+		public void visit(Supplier<String> markerGetter, int num) {
+			this.first.visit(markerGetter, num);
+			this.second.visit(markerGetter, num);
+		}
 
-      @Override
-      public void setZoneColor(int color) {
-         this.first.setZoneColor(color);
-         this.second.setZoneColor(color);
-      }
-   }
+		@Override
+		public void addZoneText(String label) {
+			this.first.addZoneText(label);
+			this.second.addZoneText(label);
+		}
+
+		@Override
+		public void addZoneValue(long value) {
+			this.first.addZoneValue(value);
+			this.second.addZoneValue(value);
+		}
+
+		@Override
+		public void setZoneColor(int color) {
+			this.first.setZoneColor(color);
+			this.second.setZoneColor(color);
+		}
+	}
 }

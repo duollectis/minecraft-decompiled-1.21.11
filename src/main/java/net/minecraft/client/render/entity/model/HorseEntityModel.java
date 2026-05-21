@@ -6,8 +6,12 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.state.LivingHorseEntityRenderState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code HorseEntityModel}.
+ */
 public class HorseEntityModel extends AbstractHorseEntityModel<LivingHorseEntityRenderState> {
-   public HorseEntityModel(ModelPart modelPart) {
-      super(modelPart);
-   }
+
+	public HorseEntityModel(ModelPart modelPart) {
+		super(modelPart);
+	}
 }

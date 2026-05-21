@@ -8,21 +8,30 @@ import net.minecraft.server.function.CommandFunction;
 import net.minecraft.server.function.CommandFunctionManager;
 import net.minecraft.util.Identifier;
 
+/**
+ * {@code FunctionTimerCallback}.
+ */
 public record FunctionTimerCallback(Identifier name) implements TimerCallback<MinecraftServer> {
-   public static final MapCodec<FunctionTimerCallback> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Identifier.CODEC.fieldOf("Name").forGetter(FunctionTimerCallback::name)).apply(instance, FunctionTimerCallback::new)
-   );
 
-   public void call(MinecraftServer minecraftServer, Timer<MinecraftServer> timer, long l) {
-      CommandFunctionManager commandFunctionManager = minecraftServer.getCommandFunctionManager();
-      commandFunctionManager.getFunction(this.name)
-         .ifPresent(
-            function -> commandFunctionManager.execute((CommandFunction<ServerCommandSource>)function, commandFunctionManager.getScheduledCommandSource())
-         );
-   }
+	public static final MapCodec<FunctionTimerCallback> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Identifier.CODEC.fieldOf("Name").forGetter(FunctionTimerCallback::name))
+					.apply(instance, FunctionTimerCallback::new)
+	);
 
-   @Override
-   public MapCodec<FunctionTimerCallback> getCodec() {
-      return CODEC;
-   }
+	public void call(MinecraftServer minecraftServer, Timer<MinecraftServer> timer, long l) {
+		CommandFunctionManager commandFunctionManager = minecraftServer.getCommandFunctionManager();
+		commandFunctionManager.getFunction(this.name)
+		                      .ifPresent(
+				                      function -> commandFunctionManager.execute(
+						                      (CommandFunction<ServerCommandSource>) function,
+						                      commandFunctionManager.getScheduledCommandSource()
+				                      )
+		                      );
+	}
+
+	@Override
+	public MapCodec<FunctionTimerCallback> getCodec() {
+		return CODEC;
+	}
 }

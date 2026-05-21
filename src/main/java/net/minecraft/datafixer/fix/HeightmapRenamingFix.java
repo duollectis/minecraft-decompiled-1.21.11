@@ -7,57 +7,66 @@ import com.mojang.datafixers.TypeRewriteRule;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.Type;
 import com.mojang.serialization.Dynamic;
-import java.util.Optional;
 import net.minecraft.datafixer.TypeReferences;
 
+import java.util.Optional;
+
+/**
+ * {@code HeightmapRenamingFix}.
+ */
 public class HeightmapRenamingFix extends DataFix {
-   public HeightmapRenamingFix(Schema schema, boolean bl) {
-      super(schema, bl);
-   }
 
-   protected TypeRewriteRule makeRule() {
-      Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-      OpticFinder<?> opticFinder = type.findField("Level");
-      return this.fixTypeEverywhereTyped(
-         "HeightmapRenamingFix",
-         type,
-         chunkTyped -> chunkTyped.updateTyped(opticFinder, levelTyped -> levelTyped.update(DSL.remainderFinder(), this::renameHeightmapTags))
-      );
-   }
+	public HeightmapRenamingFix(Schema schema, boolean bl) {
+		super(schema, bl);
+	}
 
-   private Dynamic<?> renameHeightmapTags(Dynamic<?> levelDynamic) {
-      Optional<? extends Dynamic<?>> optional = levelDynamic.get("Heightmaps").result();
-      if (optional.isEmpty()) {
-         return levelDynamic;
-      } else {
-         Dynamic<?> dynamic = (Dynamic<?>)optional.get();
-         Optional<? extends Dynamic<?>> optional2 = dynamic.get("LIQUID").result();
-         if (optional2.isPresent()) {
-            dynamic = dynamic.remove("LIQUID");
-            dynamic = dynamic.set("WORLD_SURFACE_WG", optional2.get());
-         }
+	protected TypeRewriteRule makeRule() {
+		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
+		OpticFinder<?> opticFinder = type.findField("Level");
+		return this.fixTypeEverywhereTyped(
+				"HeightmapRenamingFix",
+				type,
+				chunkTyped -> chunkTyped.updateTyped(
+						opticFinder,
+						levelTyped -> levelTyped.update(DSL.remainderFinder(), this::renameHeightmapTags)
+				)
+		);
+	}
 
-         Optional<? extends Dynamic<?>> optional3 = dynamic.get("SOLID").result();
-         if (optional3.isPresent()) {
-            dynamic = dynamic.remove("SOLID");
-            dynamic = dynamic.set("OCEAN_FLOOR_WG", optional3.get());
-            dynamic = dynamic.set("OCEAN_FLOOR", optional3.get());
-         }
+	private Dynamic<?> renameHeightmapTags(Dynamic<?> levelDynamic) {
+		Optional<? extends Dynamic<?>> optional = levelDynamic.get("Heightmaps").result();
+		if (optional.isEmpty()) {
+			return levelDynamic;
+		}
+		else {
+			Dynamic<?> dynamic = (Dynamic<?>) optional.get();
+			Optional<? extends Dynamic<?>> optional2 = dynamic.get("LIQUID").result();
+			if (optional2.isPresent()) {
+				dynamic = dynamic.remove("LIQUID");
+				dynamic = dynamic.set("WORLD_SURFACE_WG", optional2.get());
+			}
 
-         Optional<? extends Dynamic<?>> optional4 = dynamic.get("LIGHT").result();
-         if (optional4.isPresent()) {
-            dynamic = dynamic.remove("LIGHT");
-            dynamic = dynamic.set("LIGHT_BLOCKING", optional4.get());
-         }
+			Optional<? extends Dynamic<?>> optional3 = dynamic.get("SOLID").result();
+			if (optional3.isPresent()) {
+				dynamic = dynamic.remove("SOLID");
+				dynamic = dynamic.set("OCEAN_FLOOR_WG", optional3.get());
+				dynamic = dynamic.set("OCEAN_FLOOR", optional3.get());
+			}
 
-         Optional<? extends Dynamic<?>> optional5 = dynamic.get("RAIN").result();
-         if (optional5.isPresent()) {
-            dynamic = dynamic.remove("RAIN");
-            dynamic = dynamic.set("MOTION_BLOCKING", optional5.get());
-            dynamic = dynamic.set("MOTION_BLOCKING_NO_LEAVES", optional5.get());
-         }
+			Optional<? extends Dynamic<?>> optional4 = dynamic.get("LIGHT").result();
+			if (optional4.isPresent()) {
+				dynamic = dynamic.remove("LIGHT");
+				dynamic = dynamic.set("LIGHT_BLOCKING", optional4.get());
+			}
 
-         return levelDynamic.set("Heightmaps", dynamic);
-      }
-   }
+			Optional<? extends Dynamic<?>> optional5 = dynamic.get("RAIN").result();
+			if (optional5.isPresent()) {
+				dynamic = dynamic.remove("RAIN");
+				dynamic = dynamic.set("MOTION_BLOCKING", optional5.get());
+				dynamic = dynamic.set("MOTION_BLOCKING_NO_LEAVES", optional5.get());
+			}
+
+			return levelDynamic.set("Heightmaps", dynamic);
+		}
+	}
 }

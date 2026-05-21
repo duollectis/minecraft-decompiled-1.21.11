@@ -6,14 +6,18 @@ import net.minecraft.util.DyeColor;
 import net.minecraft.util.math.Direction;
 import org.apache.commons.lang3.Validate;
 
+/**
+ * {@code BannerItem}.
+ */
 public class BannerItem extends VerticallyAttachableBlockItem {
-   public BannerItem(Block bannerBlock, Block wallBannerBlock, Item.Settings settings) {
-      super(bannerBlock, wallBannerBlock, Direction.DOWN, settings);
-      Validate.isInstanceOf(AbstractBannerBlock.class, bannerBlock);
-      Validate.isInstanceOf(AbstractBannerBlock.class, wallBannerBlock);
-   }
 
-   public DyeColor getColor() {
-      return ((AbstractBannerBlock)this.getBlock()).getColor();
-   }
+	public BannerItem(Block bannerBlock, Block wallBannerBlock, Item.Settings settings) {
+		super(bannerBlock, wallBannerBlock, Direction.DOWN, settings);
+		Validate.isInstanceOf(AbstractBannerBlock.class, bannerBlock);
+		Validate.isInstanceOf(AbstractBannerBlock.class, wallBannerBlock);
+	}
+
+	public DyeColor getColor() {
+		return ((AbstractBannerBlock) this.getBlock()).getColor();
+	}
 }

@@ -1,40 +1,49 @@
 package net.minecraft.entity.ai.goal;
 
-import java.util.EnumSet;
 import net.minecraft.entity.passive.MerchantEntity;
 import net.minecraft.entity.player.PlayerEntity;
 
+import java.util.EnumSet;
+
+/**
+ * {@code StopFollowingCustomerGoal}.
+ */
 public class StopFollowingCustomerGoal extends Goal {
-   private final MerchantEntity merchant;
 
-   public StopFollowingCustomerGoal(MerchantEntity merchant) {
-      this.merchant = merchant;
-      this.setControls(EnumSet.of(Goal.Control.JUMP, Goal.Control.MOVE));
-   }
+	private final MerchantEntity merchant;
 
-   @Override
-   public boolean canStart() {
-      if (!this.merchant.isAlive()) {
-         return false;
-      } else if (this.merchant.isTouchingWater()) {
-         return false;
-      } else if (!this.merchant.isOnGround()) {
-         return false;
-      } else if (this.merchant.knockedBack) {
-         return false;
-      } else {
-         PlayerEntity playerEntity = this.merchant.getCustomer();
-         return playerEntity == null ? false : !(this.merchant.squaredDistanceTo(playerEntity) > 16.0);
-      }
-   }
+	public StopFollowingCustomerGoal(MerchantEntity merchant) {
+		this.merchant = merchant;
+		this.setControls(EnumSet.of(Goal.Control.JUMP, Goal.Control.MOVE));
+	}
 
-   @Override
-   public void start() {
-      this.merchant.getNavigation().stop();
-   }
+	@Override
+	public boolean canStart() {
+		if (!this.merchant.isAlive()) {
+			return false;
+		}
+		else if (this.merchant.isTouchingWater()) {
+			return false;
+		}
+		else if (!this.merchant.isOnGround()) {
+			return false;
+		}
+		else if (this.merchant.knockedBack) {
+			return false;
+		}
+		else {
+			PlayerEntity playerEntity = this.merchant.getCustomer();
+			return playerEntity == null ? false : !(this.merchant.squaredDistanceTo(playerEntity) > 16.0);
+		}
+	}
 
-   @Override
-   public void stop() {
-      this.merchant.setCustomer(null);
-   }
+	@Override
+	public void start() {
+		this.merchant.getNavigation().stop();
+	}
+
+	@Override
+	public void stop() {
+		this.merchant.setCustomer(null);
+	}
 }

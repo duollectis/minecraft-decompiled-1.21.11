@@ -7,5 +7,8 @@ import org.jspecify.annotations.NullMarked;
 // $VF: synthetic class
 @NullMarked
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PackageInfo8022}.
+ */
 interface PackageInfo8022 {
 }

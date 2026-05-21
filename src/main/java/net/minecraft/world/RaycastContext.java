@@ -1,11 +1,6 @@
 package net.minecraft.world;
 
-import java.util.function.Predicate;
-import net.minecraft.block.AbstractBlock;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.EntityShapeContext;
-import net.minecraft.block.ShapeContext;
+import net.minecraft.block.*;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.fluid.FluidState;
@@ -18,99 +13,135 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.rule.GameRules;
 
+import java.util.function.Predicate;
+
+/**
+ * {@code RaycastContext}.
+ */
 public class RaycastContext {
-   private final Vec3d start;
-   private final Vec3d end;
-   private final RaycastContext.ShapeType shapeType;
-   private final RaycastContext.FluidHandling fluid;
-   private final ShapeContext shapeContext;
 
-   public RaycastContext(Vec3d start, Vec3d end, RaycastContext.ShapeType shapeType, RaycastContext.FluidHandling fluidHandling, Entity entity) {
-      this(start, end, shapeType, fluidHandling, ShapeContext.of(entity));
-   }
+	private final Vec3d start;
+	private final Vec3d end;
+	private final RaycastContext.ShapeType shapeType;
+	private final RaycastContext.FluidHandling fluid;
+	private final ShapeContext shapeContext;
 
-   public RaycastContext(Vec3d start, Vec3d end, RaycastContext.ShapeType shapeType, RaycastContext.FluidHandling fluidHandling, ShapeContext shapeContext) {
-      this.start = start;
-      this.end = end;
-      this.shapeType = shapeType;
-      this.fluid = fluidHandling;
-      this.shapeContext = shapeContext;
-   }
+	public RaycastContext(
+			Vec3d start,
+			Vec3d end,
+			RaycastContext.ShapeType shapeType,
+			RaycastContext.FluidHandling fluidHandling,
+			Entity entity
+	) {
+		this(start, end, shapeType, fluidHandling, ShapeContext.of(entity));
+	}
 
-   public Vec3d getEnd() {
-      return this.end;
-   }
+	public RaycastContext(
+			Vec3d start,
+			Vec3d end,
+			RaycastContext.ShapeType shapeType,
+			RaycastContext.FluidHandling fluidHandling,
+			ShapeContext shapeContext
+	) {
+		this.start = start;
+		this.end = end;
+		this.shapeType = shapeType;
+		this.fluid = fluidHandling;
+		this.shapeContext = shapeContext;
+	}
 
-   public Vec3d getStart() {
-      return this.start;
-   }
+	public Vec3d getEnd() {
+		return this.end;
+	}
 
-   public VoxelShape getBlockShape(BlockState state, BlockView world, BlockPos pos) {
-      return this.shapeType.get(state, world, pos, this.shapeContext);
-   }
+	public Vec3d getStart() {
+		return this.start;
+	}
 
-   public VoxelShape getFluidShape(FluidState state, BlockView world, BlockPos pos) {
-      return this.fluid.handled(state) ? state.getShape(world, pos) : VoxelShapes.empty();
-   }
+	public VoxelShape getBlockShape(BlockState state, BlockView world, BlockPos pos) {
+		return this.shapeType.get(state, world, pos, this.shapeContext);
+	}
 
-   public static enum FluidHandling {
-      NONE(state -> false),
-      SOURCE_ONLY(FluidState::isStill),
-      ANY(state -> !state.isEmpty()),
-      WATER(state -> state.isIn(FluidTags.WATER));
+	public VoxelShape getFluidShape(FluidState state, BlockView world, BlockPos pos) {
+		return this.fluid.handled(state) ? state.getShape(world, pos) : VoxelShapes.empty();
+	}
 
-      private final Predicate<FluidState> predicate;
+	/**
+	 * {@code FluidHandling}.
+	 */
+	public static enum FluidHandling {
+		NONE(state -> false),
+		SOURCE_ONLY(FluidState::isStill),
+		ANY(state -> !state.isEmpty()),
+		WATER(state -> state.isIn(FluidTags.WATER));
 
-      private FluidHandling(final Predicate<FluidState> predicate) {
-         this.predicate = predicate;
-      }
+		private final Predicate<FluidState> predicate;
 
-      public boolean handled(FluidState state) {
-         return this.predicate.test(state);
-      }
-   }
+		private FluidHandling(final Predicate<FluidState> predicate) {
+			this.predicate = predicate;
+		}
 
-   public interface ShapeProvider {
-      VoxelShape get(BlockState state, BlockView world, BlockPos pos, ShapeContext context);
-   }
+		public boolean handled(FluidState state) {
+			return this.predicate.test(state);
+		}
+	}
 
-   public static enum ShapeType implements RaycastContext.ShapeProvider {
-      COLLIDER(AbstractBlock.AbstractBlockState::getCollisionShape),
-      OUTLINE(AbstractBlock.AbstractBlockState::getOutlineShape),
-      VISUAL(AbstractBlock.AbstractBlockState::getCameraCollisionShape),
-      FALLDAMAGE_RESETTING(
-         (state, world, pos, context) -> {
-            if (state.isIn(BlockTags.FALL_DAMAGE_RESETTING)) {
-               return VoxelShapes.fullCube();
-            } else {
-               if (context instanceof EntityShapeContext entityShapeContext
-                  && entityShapeContext.getEntity() != null
-                  && entityShapeContext.getEntity().getType() == EntityType.PLAYER) {
-                  if (state.isOf(Blocks.END_GATEWAY) || state.isOf(Blocks.END_PORTAL)) {
-                     return VoxelShapes.fullCube();
-                  }
+	/**
+	 * {@code ShapeProvider}.
+	 */
+	public interface ShapeProvider {
 
-                  if (world instanceof ServerWorld serverWorld
-                     && state.isOf(Blocks.NETHER_PORTAL)
-                     && serverWorld.getGameRules().getValue(GameRules.PLAYERS_NETHER_PORTAL_DEFAULT_DELAY) == 0) {
-                     return VoxelShapes.fullCube();
-                  }
-               }
+		VoxelShape get(BlockState state, BlockView world, BlockPos pos, ShapeContext context);
+	}
 
-               return VoxelShapes.empty();
-            }
-         }
-      );
+	/**
+	 * {@code ShapeType}.
+	 */
+	public static enum ShapeType implements RaycastContext.ShapeProvider {
+		COLLIDER(AbstractBlock.AbstractBlockState::getCollisionShape),
+		OUTLINE(AbstractBlock.AbstractBlockState::getOutlineShape),
+		VISUAL(AbstractBlock.AbstractBlockState::getCameraCollisionShape),
+		FALLDAMAGE_RESETTING(
+				(state, world, pos, context) -> {
+					if (state.isIn(BlockTags.FALL_DAMAGE_RESETTING)) {
+						return VoxelShapes.fullCube();
+					}
+					else {
+						if (context instanceof EntityShapeContext entityShapeContext
+								&& entityShapeContext.getEntity() != null
+								&& entityShapeContext.getEntity().getType() == EntityType.PLAYER) {
+							if (state.isOf(Blocks.END_GATEWAY) || state.isOf(Blocks.END_PORTAL)) {
+								return VoxelShapes.fullCube();
+							}
 
-      private final RaycastContext.ShapeProvider provider;
+							if (world instanceof ServerWorld serverWorld
+									&& state.isOf(Blocks.NETHER_PORTAL)
+									&&
+									serverWorld.getGameRules().getValue(GameRules.PLAYERS_NETHER_PORTAL_DEFAULT_DELAY)
+											== 0) {
+								return VoxelShapes.fullCube();
+							}
+						}
 
-      private ShapeType(final RaycastContext.ShapeProvider provider) {
-         this.provider = provider;
-      }
+						return VoxelShapes.empty();
+					}
+				}
+		);
 
-      @Override
-      public VoxelShape get(BlockState blockState, BlockView blockView, BlockPos blockPos, ShapeContext shapeContext) {
-         return this.provider.get(blockState, blockView, blockPos, shapeContext);
-      }
-   }
+		private final RaycastContext.ShapeProvider provider;
+
+		private ShapeType(final RaycastContext.ShapeProvider provider) {
+			this.provider = provider;
+		}
+
+		@Override
+		public VoxelShape get(
+				BlockState blockState,
+				BlockView blockView,
+				BlockPos blockPos,
+				ShapeContext shapeContext
+		) {
+			return this.provider.get(blockState, blockView, blockPos, shapeContext);
+		}
+	}
 }

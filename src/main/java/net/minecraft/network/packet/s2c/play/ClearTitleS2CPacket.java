@@ -8,31 +8,34 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class ClearTitleS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ClearTitleS2CPacket> CODEC = Packet.createCodec(ClearTitleS2CPacket::write, ClearTitleS2CPacket::new);
-   private final boolean reset;
 
-   public ClearTitleS2CPacket(boolean reset) {
-      this.reset = reset;
-   }
+	public static final PacketCodec<PacketByteBuf, ClearTitleS2CPacket>
+			CODEC =
+			Packet.createCodec(ClearTitleS2CPacket::write, ClearTitleS2CPacket::new);
+	private final boolean reset;
 
-   private ClearTitleS2CPacket(PacketByteBuf buf) {
-      this.reset = buf.readBoolean();
-   }
+	public ClearTitleS2CPacket(boolean reset) {
+		this.reset = reset;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeBoolean(this.reset);
-   }
+	private ClearTitleS2CPacket(PacketByteBuf buf) {
+		this.reset = buf.readBoolean();
+	}
 
-   @Override
-   public PacketType<ClearTitleS2CPacket> getPacketType() {
-      return PlayPackets.CLEAR_TITLES;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeBoolean(this.reset);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onTitleClear(this);
-   }
+	@Override
+	public PacketType<ClearTitleS2CPacket> getPacketType() {
+		return PlayPackets.CLEAR_TITLES;
+	}
 
-   public boolean shouldReset() {
-      return this.reset;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onTitleClear(this);
+	}
+
+	public boolean shouldReset() {
+		return this.reset;
+	}
 }

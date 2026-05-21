@@ -1,25 +1,30 @@
 package net.minecraft.server.dedicated.management.handler;
 
-import java.util.Collection;
 import net.minecraft.server.BannedIpEntry;
 import net.minecraft.server.BannedPlayerEntry;
 import net.minecraft.server.PlayerConfigEntry;
 import net.minecraft.server.dedicated.management.network.ManagementConnectionId;
 
+import java.util.Collection;
+
+/**
+ * {@code BanManagementHandler}.
+ */
 public interface BanManagementHandler {
-   void addPlayer(BannedPlayerEntry entry, ManagementConnectionId remote);
 
-   void removePlayer(PlayerConfigEntry entry, ManagementConnectionId remote);
+	void addPlayer(BannedPlayerEntry entry, ManagementConnectionId remote);
 
-   Collection<BannedPlayerEntry> getUserBanList();
+	void removePlayer(PlayerConfigEntry entry, ManagementConnectionId remote);
 
-   Collection<BannedIpEntry> getIpBanList();
+	Collection<BannedPlayerEntry> getUserBanList();
 
-   void addIpAddress(BannedIpEntry entry, ManagementConnectionId remote);
+	Collection<BannedIpEntry> getIpBanList();
 
-   void clearIpBanList(ManagementConnectionId remote);
+	void addIpAddress(BannedIpEntry entry, ManagementConnectionId remote);
 
-   void removeIpAddress(String ipAddress, ManagementConnectionId remote);
+	void clearIpBanList(ManagementConnectionId remote);
 
-   void clearBanList(ManagementConnectionId remote);
+	void removeIpAddress(String ipAddress, ManagementConnectionId remote);
+
+	void clearBanList(ManagementConnectionId remote);
 }

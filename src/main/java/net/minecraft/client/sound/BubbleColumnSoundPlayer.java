@@ -11,37 +11,46 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.world.World;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BubbleColumnSoundPlayer}.
+ */
 public class BubbleColumnSoundPlayer implements ClientPlayerTickable {
-   private final ClientPlayerEntity player;
-   private boolean hasPlayedForCurrentColumn;
-   private boolean firstTick = true;
 
-   public BubbleColumnSoundPlayer(ClientPlayerEntity player) {
-      this.player = player;
-   }
+	private final ClientPlayerEntity player;
+	private boolean hasPlayedForCurrentColumn;
+	private boolean firstTick = true;
 
-   @Override
-   public void tick() {
-      World world = this.player.getEntityWorld();
-      BlockState blockState = world.getStatesInBoxIfLoaded(this.player.getBoundingBox().expand(0.0, -0.4F, 0.0).contract(1.0E-6))
-         .filter(state -> state.isOf(Blocks.BUBBLE_COLUMN))
-         .findFirst()
-         .orElse(null);
-      if (blockState != null) {
-         if (!this.hasPlayedForCurrentColumn && !this.firstTick && blockState.isOf(Blocks.BUBBLE_COLUMN) && !this.player.isSpectator()) {
-            boolean bl = blockState.get(BubbleColumnBlock.DRAG);
-            if (bl) {
-               this.player.playSound(SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE, 1.0F, 1.0F);
-            } else {
-               this.player.playSound(SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE, 1.0F, 1.0F);
-            }
-         }
+	public BubbleColumnSoundPlayer(ClientPlayerEntity player) {
+		this.player = player;
+	}
 
-         this.hasPlayedForCurrentColumn = true;
-      } else {
-         this.hasPlayedForCurrentColumn = false;
-      }
+	@Override
+	public void tick() {
+		World world = this.player.getEntityWorld();
+		BlockState
+				blockState =
+				world.getStatesInBoxIfLoaded(this.player.getBoundingBox().expand(0.0, -0.4F, 0.0).contract(1.0E-6))
+				     .filter(state -> state.isOf(Blocks.BUBBLE_COLUMN))
+				     .findFirst()
+				     .orElse(null);
+		if (blockState != null) {
+			if (!this.hasPlayedForCurrentColumn && !this.firstTick && blockState.isOf(Blocks.BUBBLE_COLUMN)
+					&& !this.player.isSpectator()) {
+				boolean bl = blockState.get(BubbleColumnBlock.DRAG);
+				if (bl) {
+					this.player.playSound(SoundEvents.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE, 1.0F, 1.0F);
+				}
+				else {
+					this.player.playSound(SoundEvents.BLOCK_BUBBLE_COLUMN_UPWARDS_INSIDE, 1.0F, 1.0F);
+				}
+			}
 
-      this.firstTick = false;
-   }
+			this.hasPlayedForCurrentColumn = true;
+		}
+		else {
+			this.hasPlayedForCurrentColumn = false;
+		}
+
+		this.firstTick = false;
+	}
 }

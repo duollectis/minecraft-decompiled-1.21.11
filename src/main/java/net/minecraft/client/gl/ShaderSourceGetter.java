@@ -8,6 +8,10 @@ import org.jspecify.annotations.Nullable;
 
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ShaderSourceGetter}.
+ */
 public interface ShaderSourceGetter {
-   @Nullable String get(Identifier id, ShaderType type);
+
+	@Nullable String get(Identifier id, ShaderType type);
 }

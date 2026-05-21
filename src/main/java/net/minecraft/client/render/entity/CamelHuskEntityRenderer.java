@@ -11,29 +11,33 @@ import net.minecraft.client.render.entity.state.CamelEntityRenderState;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CamelHuskEntityRenderer}.
+ */
 public class CamelHuskEntityRenderer extends CamelEntityRenderer {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/camel/camel_husk.png");
 
-   public CamelHuskEntityRenderer(EntityRendererFactory.Context context) {
-      super(context);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/camel/camel_husk.png");
 
-   @Override
-   protected SaddleFeatureRenderer<CamelEntityRenderState, CamelEntityModel, CamelSaddleEntityModel> createSaddleFeatureRenderer(
-      EntityRendererFactory.Context context
-   ) {
-      return new SaddleFeatureRenderer<>(
-         this,
-         context.getEquipmentRenderer(),
-         EquipmentModel.LayerType.CAMEL_HUSK_SADDLE,
-         state -> state.saddleStack,
-         new CamelSaddleEntityModel(context.getPart(EntityModelLayers.CAMEL_HUSK)),
-         new CamelSaddleEntityModel(context.getPart(EntityModelLayers.CAMEL_HUSK_BABY))
-      );
-   }
+	public CamelHuskEntityRenderer(EntityRendererFactory.Context context) {
+		super(context);
+	}
 
-   @Override
-   public Identifier getTexture(CamelEntityRenderState camelEntityRenderState) {
-      return TEXTURE;
-   }
+	@Override
+	protected SaddleFeatureRenderer<CamelEntityRenderState, CamelEntityModel, CamelSaddleEntityModel> createSaddleFeatureRenderer(
+			EntityRendererFactory.Context context
+	) {
+		return new SaddleFeatureRenderer<>(
+				this,
+				context.getEquipmentRenderer(),
+				EquipmentModel.LayerType.CAMEL_HUSK_SADDLE,
+				state -> state.saddleStack,
+				new CamelSaddleEntityModel(context.getPart(EntityModelLayers.CAMEL_HUSK)),
+				new CamelSaddleEntityModel(context.getPart(EntityModelLayers.CAMEL_HUSK_BABY))
+		);
+	}
+
+	@Override
+	public Identifier getTexture(CamelEntityRenderState camelEntityRenderState) {
+		return TEXTURE;
+	}
 }

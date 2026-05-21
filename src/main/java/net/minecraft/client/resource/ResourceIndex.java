@@ -5,6 +5,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.mojang.logging.LogUtils;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.resource.fs.ResourceFileSystem;
+import net.minecraft.util.JsonHelper;
+import org.slf4j.Logger;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -12,41 +18,42 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map.Entry;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.resource.fs.ResourceFileSystem;
-import net.minecraft.util.JsonHelper;
-import org.slf4j.Logger;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ResourceIndex}.
+ */
 public class ResourceIndex {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final Splitter SEPARATOR_SPLITTER = Splitter.on('/');
 
-   public static Path buildFileSystem(Path assetsDir, String indexName) {
-      Path path = assetsDir.resolve("objects");
-      ResourceFileSystem.Builder builder = ResourceFileSystem.builder();
-      Path path2 = assetsDir.resolve("indexes/" + indexName + ".json");
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final Splitter SEPARATOR_SPLITTER = Splitter.on('/');
 
-      try (BufferedReader bufferedReader = Files.newBufferedReader(path2, StandardCharsets.UTF_8)) {
-         JsonObject jsonObject = JsonHelper.deserialize(bufferedReader);
-         JsonObject jsonObject2 = JsonHelper.getObject(jsonObject, "objects", null);
-         if (jsonObject2 != null) {
-            for (Entry<String, JsonElement> entry : jsonObject2.entrySet()) {
-               JsonObject jsonObject3 = (JsonObject)entry.getValue();
-               String string = entry.getKey();
-               List<String> list = SEPARATOR_SPLITTER.splitToList(string);
-               String string2 = JsonHelper.getString(jsonObject3, "hash");
-               Path path3 = path.resolve(string2.substring(0, 2) + "/" + string2);
-               builder.withFile(list, path3);
-            }
-         }
-      } catch (JsonParseException var17) {
-         LOGGER.error("Unable to parse resource index file: {}", path2);
-      } catch (IOException var18) {
-         LOGGER.error("Can't open the resource index file: {}", path2);
-      }
+	public static Path buildFileSystem(Path assetsDir, String indexName) {
+		Path path = assetsDir.resolve("objects");
+		ResourceFileSystem.Builder builder = ResourceFileSystem.builder();
+		Path path2 = assetsDir.resolve("indexes/" + indexName + ".json");
 
-      return builder.build("index-" + indexName).getPath("/");
-   }
+		try (BufferedReader bufferedReader = Files.newBufferedReader(path2, StandardCharsets.UTF_8)) {
+			JsonObject jsonObject = JsonHelper.deserialize(bufferedReader);
+			JsonObject jsonObject2 = JsonHelper.getObject(jsonObject, "objects", null);
+			if (jsonObject2 != null) {
+				for (Entry<String, JsonElement> entry : jsonObject2.entrySet()) {
+					JsonObject jsonObject3 = (JsonObject) entry.getValue();
+					String string = entry.getKey();
+					List<String> list = SEPARATOR_SPLITTER.splitToList(string);
+					String string2 = JsonHelper.getString(jsonObject3, "hash");
+					Path path3 = path.resolve(string2.substring(0, 2) + "/" + string2);
+					builder.withFile(list, path3);
+				}
+			}
+		}
+		catch (JsonParseException var17) {
+			LOGGER.error("Unable to parse resource index file: {}", path2);
+		}
+		catch (IOException var18) {
+			LOGGER.error("Can't open the resource index file: {}", path2);
+		}
+
+		return builder.build("index-" + indexName).getPath("/");
+	}
 }

@@ -9,38 +9,47 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code VertexSorter}.
+ */
 public interface VertexSorter {
-   VertexSorter BY_DISTANCE = byDistance(0.0F, 0.0F, 0.0F);
-   VertexSorter BY_Z = of(vec -> -vec.z());
 
-   static VertexSorter byDistance(float originX, float originY, float originZ) {
-      return byDistance(new Vector3f(originX, originY, originZ));
-   }
+	VertexSorter BY_DISTANCE = byDistance(0.0F, 0.0F, 0.0F);
 
-   static VertexSorter byDistance(Vector3fc origin) {
-      return of(origin::distanceSquared);
-   }
+	VertexSorter BY_Z = of(vec -> -vec.z());
 
-   static VertexSorter of(VertexSorter.SortKeyMapper mapper) {
-      return vectors -> {
-         Vector3f vector3f = new Vector3f();
-         float[] fs = new float[vectors.size()];
-         int[] is = new int[vectors.size()];
+	static VertexSorter byDistance(float originX, float originY, float originZ) {
+		return byDistance(new Vector3f(originX, originY, originZ));
+	}
 
-         for (int i = 0; i < vectors.size(); is[i] = i++) {
-            fs[i] = mapper.apply(vectors.get(i, vector3f));
-         }
+	static VertexSorter byDistance(Vector3fc origin) {
+		return of(origin::distanceSquared);
+	}
 
-         IntArrays.mergeSort(is, (a, b) -> Floats.compare(fs[b], fs[a]));
-         return is;
-      };
-   }
+	static VertexSorter of(VertexSorter.SortKeyMapper mapper) {
+		return vectors -> {
+			Vector3f vector3f = new Vector3f();
+			float[] fs = new float[vectors.size()];
+			int[] is = new int[vectors.size()];
 
-   int[] sort(Vec3fArray vectors);
+			for (int i = 0; i < vectors.size(); is[i] = i++) {
+				fs[i] = mapper.apply(vectors.get(i, vector3f));
+			}
 
-   @FunctionalInterface
-   @Environment(EnvType.CLIENT)
-   public interface SortKeyMapper {
-      float apply(Vector3f vec);
-   }
+			IntArrays.mergeSort(is, (a, b) -> Floats.compare(fs[b], fs[a]));
+			return is;
+		};
+	}
+
+	int[] sort(Vec3fArray vectors);
+
+	@FunctionalInterface
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code SortKeyMapper}.
+	 */
+	public interface SortKeyMapper {
+
+		float apply(Vector3f vec);
+	}
 }

@@ -9,8 +9,14 @@ import net.minecraft.server.DataPackContents;
 
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GeneratorOptionsFactory}.
+ */
 public interface GeneratorOptionsFactory {
-   GeneratorOptionsHolder apply(
-      DataPackContents dataPackContents, CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries, WorldCreationSettings settings
-   );
+
+	GeneratorOptionsHolder apply(
+			DataPackContents dataPackContents,
+			CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries,
+			WorldCreationSettings settings
+	);
 }

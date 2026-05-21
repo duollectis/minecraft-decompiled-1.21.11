@@ -16,62 +16,73 @@ import net.minecraft.text.Text;
 import net.minecraft.text.Texts;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsGenericErrorScreen}.
+ */
 public class RealmsGenericErrorScreen extends RealmsScreen {
-   private static final Text field_63826 = Text.translatable("mco.errorMessage.generic");
-   private final Screen parent;
-   private final Text field_63827;
-   private MultilineText field_63825 = MultilineText.EMPTY;
 
-   public RealmsGenericErrorScreen(RealmsServiceException realmsServiceException, Screen parent) {
-      this(RealmsGenericErrorScreen.ErrorMessages.method_75754(realmsServiceException), parent);
-   }
+	private static final Text DEFAULT_ERROR_TITLE = Text.translatable("mco.errorMessage.generic");
+	private final Screen parent;
+	private final Text errorDetail;
+	private MultilineText errorDetailMultiline = MultilineText.EMPTY;
 
-   public RealmsGenericErrorScreen(Text description, Screen parent) {
-      this(new RealmsGenericErrorScreen.ErrorMessages(field_63826, description), parent);
-   }
+	public RealmsGenericErrorScreen(RealmsServiceException realmsServiceException, Screen parent) {
+		this(RealmsGenericErrorScreen.ErrorMessages.fromException(realmsServiceException), parent);
+	}
 
-   public RealmsGenericErrorScreen(Text title, Text description, Screen parent) {
-      this(new RealmsGenericErrorScreen.ErrorMessages(title, description), parent);
-   }
+	public RealmsGenericErrorScreen(Text description, Screen parent) {
+		this(new RealmsGenericErrorScreen.ErrorMessages(DEFAULT_ERROR_TITLE, description), parent);
+	}
 
-   private RealmsGenericErrorScreen(RealmsGenericErrorScreen.ErrorMessages errorMessages, Screen screen) {
-      super(errorMessages.title);
-      this.parent = screen;
-      this.field_63827 = Texts.withStyle(errorMessages.detail, Style.EMPTY.withColor(-2142128));
-   }
+	public RealmsGenericErrorScreen(Text title, Text description, Screen parent) {
+		this(new RealmsGenericErrorScreen.ErrorMessages(title, description), parent);
+	}
 
-   @Override
-   public void init() {
-      this.addDrawableChild(ButtonWidget.builder(ScreenTexts.OK, button -> this.close()).dimensions(this.width / 2 - 100, this.height - 52, 200, 20).build());
-      this.field_63825 = MultilineText.create(this.textRenderer, this.field_63827, this.width * 3 / 4);
-   }
+	private RealmsGenericErrorScreen(RealmsGenericErrorScreen.ErrorMessages errorMessages, Screen screen) {
+		super(errorMessages.title);
+		this.parent = screen;
+		this.errorDetail = Texts.withStyle(errorMessages.detail, Style.EMPTY.withColor(-2142128));
+	}
 
-   @Override
-   public void close() {
-      this.client.setScreen(this.parent);
-   }
+	@Override
+	public void init() {
+		this.addDrawableChild(ButtonWidget
+				.builder(ScreenTexts.OK, button -> this.close())
+				.dimensions(this.width / 2 - 100, this.height - 52, 200, 20)
+				.build());
+		this.errorDetailMultiline = MultilineText.create(this.textRenderer, this.errorDetail, this.width * 3 / 4);
+	}
 
-   @Override
-   public Text getNarratedTitle() {
-      return ScreenTexts.joinSentences(super.getNarratedTitle(), this.field_63827);
-   }
+	@Override
+	public void close() {
+		this.client.setScreen(this.parent);
+	}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 80, -1);
-      DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
-      this.field_63825.draw(Alignment.CENTER, this.width / 2, 100, 9, drawnTextConsumer);
-   }
+	@Override
+	public Text getNarratedTitle() {
+		return ScreenTexts.joinSentences(super.getNarratedTitle(), this.errorDetail);
+	}
 
-   @Environment(EnvType.CLIENT)
-   record ErrorMessages(Text title, Text detail) {
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 80, -1);
+		DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
+		this.errorDetailMultiline.draw(Alignment.CENTER, this.width / 2, 100, 9, drawnTextConsumer);
+	}
 
-      static RealmsGenericErrorScreen.ErrorMessages method_75754(RealmsServiceException realmsServiceException) {
-         RealmsError realmsError = realmsServiceException.error;
-         return new RealmsGenericErrorScreen.ErrorMessages(
-            Text.translatable("mco.errorMessage.realmsService.realmsError", realmsError.getErrorCode()), realmsError.getText()
-         );
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ErrorMessages}.
+	 */
+	record ErrorMessages(Text title, Text detail) {
+
+		static RealmsGenericErrorScreen.ErrorMessages fromException(RealmsServiceException realmsServiceException) {
+			RealmsError realmsError = realmsServiceException.error;
+			return new RealmsGenericErrorScreen.ErrorMessages(
+					Text.translatable("mco.errorMessage.realmsService.realmsError", realmsError.getErrorCode()),
+					realmsError.getText()
+			);
+		}
+	}
 }

@@ -6,11 +6,15 @@ import net.minecraft.entity.decoration.DisplayEntity;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BlockDisplayEntityRenderState}.
+ */
 public class BlockDisplayEntityRenderState extends DisplayEntityRenderState {
-   public DisplayEntity.BlockDisplayEntity.@Nullable Data data;
 
-   @Override
-   public boolean canRender() {
-      return this.data != null;
-   }
+	public DisplayEntity.BlockDisplayEntity.@Nullable Data data;
+
+	@Override
+	public boolean canRender() {
+		return this.data != null;
+	}
 }

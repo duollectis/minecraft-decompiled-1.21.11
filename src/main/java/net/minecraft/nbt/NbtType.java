@@ -1,91 +1,105 @@
 package net.minecraft.nbt;
 
-import java.io.DataInput;
-import java.io.IOException;
 import net.minecraft.nbt.scanner.NbtScanner;
 
+import java.io.DataInput;
+import java.io.IOException;
+
+/**
+ * {@code NbtType}.
+ */
 public interface NbtType<T extends NbtElement> {
-   T read(DataInput input, NbtSizeTracker tracker) throws IOException;
 
-   NbtScanner.Result doAccept(DataInput input, NbtScanner visitor, NbtSizeTracker tracker) throws IOException;
+	T read(DataInput input, NbtSizeTracker tracker) throws IOException;
 
-   default void accept(DataInput input, NbtScanner visitor, NbtSizeTracker tracker) throws IOException {
-      switch (visitor.start(this)) {
-         case CONTINUE:
-            this.doAccept(input, visitor, tracker);
-         case HALT:
-         default:
-            break;
-         case BREAK:
-            this.skip(input, tracker);
-      }
-   }
+	NbtScanner.Result doAccept(DataInput input, NbtScanner visitor, NbtSizeTracker tracker) throws IOException;
 
-   void skip(DataInput input, int count, NbtSizeTracker tracker) throws IOException;
+	default void accept(DataInput input, NbtScanner visitor, NbtSizeTracker tracker) throws IOException {
+		switch (visitor.start(this)) {
+			case CONTINUE:
+				this.doAccept(input, visitor, tracker);
+			case HALT:
+			default:
+				break;
+			case BREAK:
+				this.skip(input, tracker);
+		}
+	}
 
-   void skip(DataInput input, NbtSizeTracker tracker) throws IOException;
+	void skip(DataInput input, int count, NbtSizeTracker tracker) throws IOException;
 
-   String getCrashReportName();
+	void skip(DataInput input, NbtSizeTracker tracker) throws IOException;
 
-   String getCommandFeedbackName();
+	String getCrashReportName();
 
-   static NbtType<NbtEnd> createInvalid(int type) {
-      return new NbtType<NbtEnd>() {
-         private IOException createException() {
-            return new IOException("Invalid tag id: " + type);
-         }
+	String getCommandFeedbackName();
 
-         public NbtEnd read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-            throw this.createException();
-         }
+	static NbtType<NbtEnd> createInvalid(int type) {
+		return new NbtType<NbtEnd>() {
+			private IOException createException() {
+				return new IOException("Invalid tag id: " + type);
+			}
 
-         @Override
-         public NbtScanner.Result doAccept(DataInput input, NbtScanner visitor, NbtSizeTracker tracker) throws IOException {
-            throw this.createException();
-         }
+			public NbtEnd read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
+				throw this.createException();
+			}
 
-         @Override
-         public void skip(DataInput input, int count, NbtSizeTracker tracker) throws IOException {
-            throw this.createException();
-         }
+			@Override
+			public NbtScanner.Result doAccept(DataInput input, NbtScanner visitor, NbtSizeTracker tracker)
+			throws IOException {
+				throw this.createException();
+			}
 
-         @Override
-         public void skip(DataInput input, NbtSizeTracker tracker) throws IOException {
-            throw this.createException();
-         }
+			@Override
+			public void skip(DataInput input, int count, NbtSizeTracker tracker) throws IOException {
+				throw this.createException();
+			}
 
-         @Override
-         public String getCrashReportName() {
-            return "INVALID[" + type + "]";
-         }
+			@Override
+			public void skip(DataInput input, NbtSizeTracker tracker) throws IOException {
+				throw this.createException();
+			}
 
-         @Override
-         public String getCommandFeedbackName() {
-            return "UNKNOWN_" + type;
-         }
-      };
-   }
+			@Override
+			public String getCrashReportName() {
+				return "INVALID[" + type + "]";
+			}
 
-   public interface OfFixedSize<T extends NbtElement> extends NbtType<T> {
-      @Override
-      default void skip(DataInput input, NbtSizeTracker tracker) throws IOException {
-         input.skipBytes(this.getSizeInBytes());
-      }
+			@Override
+			public String getCommandFeedbackName() {
+				return "UNKNOWN_" + type;
+			}
+		};
+	}
 
-      @Override
-      default void skip(DataInput input, int count, NbtSizeTracker tracker) throws IOException {
-         input.skipBytes(this.getSizeInBytes() * count);
-      }
+	/**
+	 * {@code OfFixedSize}.
+	 */
+	public interface OfFixedSize<T extends NbtElement> extends NbtType<T> {
 
-      int getSizeInBytes();
-   }
+		@Override
+		default void skip(DataInput input, NbtSizeTracker tracker) throws IOException {
+			input.skipBytes(this.getSizeInBytes());
+		}
 
-   public interface OfVariableSize<T extends NbtElement> extends NbtType<T> {
-      @Override
-      default void skip(DataInput input, int count, NbtSizeTracker tracker) throws IOException {
-         for (int i = 0; i < count; i++) {
-            this.skip(input, tracker);
-         }
-      }
-   }
+		@Override
+		default void skip(DataInput input, int count, NbtSizeTracker tracker) throws IOException {
+			input.skipBytes(this.getSizeInBytes() * count);
+		}
+
+		int getSizeInBytes();
+	}
+
+	/**
+	 * {@code OfVariableSize}.
+	 */
+	public interface OfVariableSize<T extends NbtElement> extends NbtType<T> {
+
+		@Override
+		default void skip(DataInput input, int count, NbtSizeTracker tracker) throws IOException {
+			for (int i = 0; i < count; i++) {
+				this.skip(input, tracker);
+			}
+		}
+	}
 }

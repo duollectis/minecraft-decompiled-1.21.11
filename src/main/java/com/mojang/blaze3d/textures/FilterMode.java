@@ -6,7 +6,10 @@ import net.minecraft.util.annotation.DeobfuscateClass;
 
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
+/**
+ * {@code FilterMode}.
+ */
 public enum FilterMode {
-   NEAREST,
-   LINEAR;
+	NEAREST,
+	LINEAR;
 }

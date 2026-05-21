@@ -1,119 +1,130 @@
 package net.minecraft.client.render.entity.model;
 
-import java.util.Map.Entry;
-import java.util.function.UnaryOperator;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.model.Dilation;
-import net.minecraft.client.model.ModelData;
-import net.minecraft.client.model.ModelPart;
-import net.minecraft.client.model.ModelPartBuilder;
-import net.minecraft.client.model.ModelPartData;
-import net.minecraft.client.model.ModelTransform;
-import net.minecraft.client.model.TexturedModelData;
+import net.minecraft.client.model.*;
 import net.minecraft.client.render.entity.state.LlamaEntityRenderState;
 import net.minecraft.util.math.MathHelper;
 
+import java.util.Map.Entry;
+import java.util.function.UnaryOperator;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LlamaEntityModel}.
+ */
 public class LlamaEntityModel extends EntityModel<LlamaEntityRenderState> {
-   public static final ModelTransformer BABY_TRANSFORMER = LlamaEntityModel::transformBaby;
-   private final ModelPart head;
-   private final ModelPart rightHindLeg;
-   private final ModelPart leftHindLeg;
-   private final ModelPart rightFrontLeg;
-   private final ModelPart leftFrontLeg;
-   private final ModelPart rightChest;
-   private final ModelPart leftChest;
 
-   public LlamaEntityModel(ModelPart modelPart) {
-      super(modelPart);
-      this.head = modelPart.getChild("head");
-      this.rightChest = modelPart.getChild("right_chest");
-      this.leftChest = modelPart.getChild("left_chest");
-      this.rightHindLeg = modelPart.getChild("right_hind_leg");
-      this.leftHindLeg = modelPart.getChild("left_hind_leg");
-      this.rightFrontLeg = modelPart.getChild("right_front_leg");
-      this.leftFrontLeg = modelPart.getChild("left_front_leg");
-   }
+	public static final ModelTransformer BABY_TRANSFORMER = LlamaEntityModel::transformBaby;
+	private final ModelPart head;
+	private final ModelPart rightHindLeg;
+	private final ModelPart leftHindLeg;
+	private final ModelPart rightFrontLeg;
+	private final ModelPart leftFrontLeg;
+	private final ModelPart rightChest;
+	private final ModelPart leftChest;
 
-   public static TexturedModelData getTexturedModelData(Dilation dilation) {
-      ModelData modelData = new ModelData();
-      ModelPartData modelPartData = modelData.getRoot();
-      modelPartData.addChild(
-         "head",
-         ModelPartBuilder.create()
-            .uv(0, 0)
-            .cuboid(-2.0F, -14.0F, -10.0F, 4.0F, 4.0F, 9.0F, dilation)
-            .uv(0, 14)
-            .cuboid("neck", -4.0F, -16.0F, -6.0F, 8.0F, 18.0F, 6.0F, dilation)
-            .uv(17, 0)
-            .cuboid("ear", -4.0F, -19.0F, -4.0F, 3.0F, 3.0F, 2.0F, dilation)
-            .uv(17, 0)
-            .cuboid("ear", 1.0F, -19.0F, -4.0F, 3.0F, 3.0F, 2.0F, dilation),
-         ModelTransform.origin(0.0F, 7.0F, -6.0F)
-      );
-      modelPartData.addChild(
-         "body",
-         ModelPartBuilder.create().uv(29, 0).cuboid(-6.0F, -10.0F, -7.0F, 12.0F, 18.0F, 10.0F, dilation),
-         ModelTransform.of(0.0F, 5.0F, 2.0F, (float) (Math.PI / 2), 0.0F, 0.0F)
-      );
-      modelPartData.addChild(
-         "right_chest",
-         ModelPartBuilder.create().uv(45, 28).cuboid(-3.0F, 0.0F, 0.0F, 8.0F, 8.0F, 3.0F, dilation),
-         ModelTransform.of(-8.5F, 3.0F, 3.0F, 0.0F, (float) (Math.PI / 2), 0.0F)
-      );
-      modelPartData.addChild(
-         "left_chest",
-         ModelPartBuilder.create().uv(45, 41).cuboid(-3.0F, 0.0F, 0.0F, 8.0F, 8.0F, 3.0F, dilation),
-         ModelTransform.of(5.5F, 3.0F, 3.0F, 0.0F, (float) (Math.PI / 2), 0.0F)
-      );
-      int i = 4;
-      int j = 14;
-      ModelPartBuilder modelPartBuilder = ModelPartBuilder.create().uv(29, 29).cuboid(-2.0F, 0.0F, -2.0F, 4.0F, 14.0F, 4.0F, dilation);
-      modelPartData.addChild("right_hind_leg", modelPartBuilder, ModelTransform.origin(-3.5F, 10.0F, 6.0F));
-      modelPartData.addChild("left_hind_leg", modelPartBuilder, ModelTransform.origin(3.5F, 10.0F, 6.0F));
-      modelPartData.addChild("right_front_leg", modelPartBuilder, ModelTransform.origin(-3.5F, 10.0F, -5.0F));
-      modelPartData.addChild("left_front_leg", modelPartBuilder, ModelTransform.origin(3.5F, 10.0F, -5.0F));
-      return TexturedModelData.of(modelData, 128, 64);
-   }
+	public LlamaEntityModel(ModelPart modelPart) {
+		super(modelPart);
+		this.head = modelPart.getChild("head");
+		this.rightChest = modelPart.getChild("right_chest");
+		this.leftChest = modelPart.getChild("left_chest");
+		this.rightHindLeg = modelPart.getChild("right_hind_leg");
+		this.leftHindLeg = modelPart.getChild("left_hind_leg");
+		this.rightFrontLeg = modelPart.getChild("right_front_leg");
+		this.leftFrontLeg = modelPart.getChild("left_front_leg");
+	}
 
-   private static ModelData transformBaby(ModelData modelData) {
-      float f = 2.0F;
-      float g = 0.7F;
-      float h = 1.1F;
-      UnaryOperator<ModelTransform> unaryOperator = modelTransform -> modelTransform.moveOrigin(0.0F, 21.0F, 3.52F)
-         .scaled(0.71428573F, 0.64935064F, 0.7936508F);
-      UnaryOperator<ModelTransform> unaryOperator2 = modelTransform -> modelTransform.moveOrigin(0.0F, 33.0F, 0.0F).scaled(0.625F, 0.45454544F, 0.45454544F);
-      UnaryOperator<ModelTransform> unaryOperator3 = modelTransform -> modelTransform.moveOrigin(0.0F, 33.0F, 0.0F)
-         .scaled(0.45454544F, 0.41322312F, 0.45454544F);
-      ModelData modelData2 = new ModelData();
+	public static TexturedModelData getTexturedModelData(Dilation dilation) {
+		ModelData modelData = new ModelData();
+		ModelPartData modelPartData = modelData.getRoot();
+		modelPartData.addChild(
+				"head",
+				ModelPartBuilder.create()
+				                .uv(0, 0)
+				                .cuboid(-2.0F, -14.0F, -10.0F, 4.0F, 4.0F, 9.0F, dilation)
+				                .uv(0, 14)
+				                .cuboid("neck", -4.0F, -16.0F, -6.0F, 8.0F, 18.0F, 6.0F, dilation)
+				                .uv(17, 0)
+				                .cuboid("ear", -4.0F, -19.0F, -4.0F, 3.0F, 3.0F, 2.0F, dilation)
+				                .uv(17, 0)
+				                .cuboid("ear", 1.0F, -19.0F, -4.0F, 3.0F, 3.0F, 2.0F, dilation),
+				ModelTransform.origin(0.0F, 7.0F, -6.0F)
+		);
+		modelPartData.addChild(
+				"body",
+				ModelPartBuilder.create().uv(29, 0).cuboid(-6.0F, -10.0F, -7.0F, 12.0F, 18.0F, 10.0F, dilation),
+				ModelTransform.of(0.0F, 5.0F, 2.0F, (float) (Math.PI / 2), 0.0F, 0.0F)
+		);
+		modelPartData.addChild(
+				"right_chest",
+				ModelPartBuilder.create().uv(45, 28).cuboid(-3.0F, 0.0F, 0.0F, 8.0F, 8.0F, 3.0F, dilation),
+				ModelTransform.of(-8.5F, 3.0F, 3.0F, 0.0F, (float) (Math.PI / 2), 0.0F)
+		);
+		modelPartData.addChild(
+				"left_chest",
+				ModelPartBuilder.create().uv(45, 41).cuboid(-3.0F, 0.0F, 0.0F, 8.0F, 8.0F, 3.0F, dilation),
+				ModelTransform.of(5.5F, 3.0F, 3.0F, 0.0F, (float) (Math.PI / 2), 0.0F)
+		);
+		int i = 4;
+		int j = 14;
+		ModelPartBuilder
+				modelPartBuilder =
+				ModelPartBuilder.create().uv(29, 29).cuboid(-2.0F, 0.0F, -2.0F, 4.0F, 14.0F, 4.0F, dilation);
+		modelPartData.addChild("right_hind_leg", modelPartBuilder, ModelTransform.origin(-3.5F, 10.0F, 6.0F));
+		modelPartData.addChild("left_hind_leg", modelPartBuilder, ModelTransform.origin(3.5F, 10.0F, 6.0F));
+		modelPartData.addChild("right_front_leg", modelPartBuilder, ModelTransform.origin(-3.5F, 10.0F, -5.0F));
+		modelPartData.addChild("left_front_leg", modelPartBuilder, ModelTransform.origin(3.5F, 10.0F, -5.0F));
+		return TexturedModelData.of(modelData, 128, 64);
+	}
 
-      for (Entry<String, ModelPartData> entry : modelData.getRoot().getChildren()) {
-         String string = entry.getKey();
-         ModelPartData modelPartData = entry.getValue();
+	private static ModelData transformBaby(ModelData modelData) {
+		float f = 2.0F;
+		float g = 0.7F;
+		float h = 1.1F;
+		UnaryOperator<ModelTransform> unaryOperator = modelTransform -> modelTransform.moveOrigin(0.0F, 21.0F, 3.52F)
+		                                                                              .scaled(
+				                                                                              0.71428573F,
+				                                                                              0.64935064F,
+				                                                                              0.7936508F
+		                                                                              );
+		UnaryOperator<ModelTransform>
+				unaryOperator2 =
+				modelTransform -> modelTransform.moveOrigin(0.0F, 33.0F, 0.0F).scaled(0.625F, 0.45454544F, 0.45454544F);
+		UnaryOperator<ModelTransform> unaryOperator3 = modelTransform -> modelTransform.moveOrigin(0.0F, 33.0F, 0.0F)
+		                                                                               .scaled(
+				                                                                               0.45454544F,
+				                                                                               0.41322312F,
+				                                                                               0.45454544F
+		                                                                               );
+		ModelData modelData2 = new ModelData();
 
-         UnaryOperator<ModelTransform> unaryOperator4 = switch (string) {
-            case "head" -> unaryOperator;
-            case "body" -> unaryOperator2;
-            default -> unaryOperator3;
-         };
-         modelData2.getRoot().addChild(string, modelPartData.applyTransformer(unaryOperator4));
-      }
+		for (Entry<String, ModelPartData> entry : modelData.getRoot().getChildren()) {
+			String string = entry.getKey();
+			ModelPartData modelPartData = entry.getValue();
 
-      return modelData2;
-   }
+			UnaryOperator<ModelTransform> unaryOperator4 = switch (string) {
+				case "head" -> unaryOperator;
+				case "body" -> unaryOperator2;
+				default -> unaryOperator3;
+			};
+			modelData2.getRoot().addChild(string, modelPartData.applyTransformer(unaryOperator4));
+		}
 
-   public void setAngles(LlamaEntityRenderState llamaEntityRenderState) {
-      super.setAngles(llamaEntityRenderState);
-      this.head.pitch = llamaEntityRenderState.pitch * (float) (Math.PI / 180.0);
-      this.head.yaw = llamaEntityRenderState.relativeHeadYaw * (float) (Math.PI / 180.0);
-      float f = llamaEntityRenderState.limbSwingAmplitude;
-      float g = llamaEntityRenderState.limbSwingAnimationProgress;
-      this.rightHindLeg.pitch = MathHelper.cos(g * 0.6662F) * 1.4F * f;
-      this.leftHindLeg.pitch = MathHelper.cos(g * 0.6662F + (float) Math.PI) * 1.4F * f;
-      this.rightFrontLeg.pitch = MathHelper.cos(g * 0.6662F + (float) Math.PI) * 1.4F * f;
-      this.leftFrontLeg.pitch = MathHelper.cos(g * 0.6662F) * 1.4F * f;
-      this.rightChest.visible = llamaEntityRenderState.hasChest;
-      this.leftChest.visible = llamaEntityRenderState.hasChest;
-   }
+		return modelData2;
+	}
+
+	public void setAngles(LlamaEntityRenderState llamaEntityRenderState) {
+		super.setAngles(llamaEntityRenderState);
+		this.head.pitch = llamaEntityRenderState.pitch * (float) (Math.PI / 180.0);
+		this.head.yaw = llamaEntityRenderState.relativeHeadYaw * (float) (Math.PI / 180.0);
+		float f = llamaEntityRenderState.limbSwingAmplitude;
+		float g = llamaEntityRenderState.limbSwingAnimationProgress;
+		this.rightHindLeg.pitch = MathHelper.cos(g * 0.6662F) * 1.4F * f;
+		this.leftHindLeg.pitch = MathHelper.cos(g * 0.6662F + (float) Math.PI) * 1.4F * f;
+		this.rightFrontLeg.pitch = MathHelper.cos(g * 0.6662F + (float) Math.PI) * 1.4F * f;
+		this.leftFrontLeg.pitch = MathHelper.cos(g * 0.6662F) * 1.4F * f;
+		this.rightChest.visible = llamaEntityRenderState.hasChest;
+		this.leftChest.visible = llamaEntityRenderState.hasChest;
+	}
 }

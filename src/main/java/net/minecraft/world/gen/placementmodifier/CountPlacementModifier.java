@@ -6,31 +6,38 @@ import net.minecraft.util.math.intprovider.ConstantIntProvider;
 import net.minecraft.util.math.intprovider.IntProvider;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code CountPlacementModifier}.
+ */
 public class CountPlacementModifier extends AbstractCountPlacementModifier {
-   public static final MapCodec<CountPlacementModifier> MODIFIER_CODEC = IntProvider.createValidatingCodec(0, 256)
-      .fieldOf("count")
-      .xmap(CountPlacementModifier::new, placementModifier -> placementModifier.count);
-   private final IntProvider count;
 
-   private CountPlacementModifier(IntProvider count) {
-      this.count = count;
-   }
+	public static final MapCodec<CountPlacementModifier> MODIFIER_CODEC = IntProvider.createValidatingCodec(0, 256)
+	                                                                                 .fieldOf("count")
+	                                                                                 .xmap(
+			                                                                                 CountPlacementModifier::new,
+			                                                                                 placementModifier -> placementModifier.count
+	                                                                                 );
+	private final IntProvider count;
 
-   public static CountPlacementModifier of(IntProvider count) {
-      return new CountPlacementModifier(count);
-   }
+	private CountPlacementModifier(IntProvider count) {
+		this.count = count;
+	}
 
-   public static CountPlacementModifier of(int count) {
-      return of(ConstantIntProvider.create(count));
-   }
+	public static CountPlacementModifier of(IntProvider count) {
+		return new CountPlacementModifier(count);
+	}
 
-   @Override
-   protected int getCount(Random random, BlockPos pos) {
-      return this.count.get(random);
-   }
+	public static CountPlacementModifier of(int count) {
+		return of(ConstantIntProvider.create(count));
+	}
 
-   @Override
-   public PlacementModifierType<?> getType() {
-      return PlacementModifierType.COUNT;
-   }
+	@Override
+	protected int getCount(Random random, BlockPos pos) {
+		return this.count.get(random);
+	}
+
+	@Override
+	public PlacementModifierType<?> getType() {
+		return PlacementModifierType.COUNT;
+	}
 }

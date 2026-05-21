@@ -6,7 +6,11 @@ import net.minecraft.block.BlockState;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EndermanEntityRenderState}.
+ */
 public class EndermanEntityRenderState extends BipedEntityRenderState {
-   public boolean angry;
-   public @Nullable BlockState carriedBlock;
+
+	public boolean angry;
+	public @Nullable BlockState carriedBlock;
 }

@@ -6,22 +6,26 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.math.Vec3i;
 
 @Deprecated
+/**
+ * {@code SolidBlockPredicate}.
+ */
 public class SolidBlockPredicate extends OffsetPredicate {
-   public static final MapCodec<SolidBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> registerOffsetField(instance).apply(instance, SolidBlockPredicate::new)
-   );
 
-   public SolidBlockPredicate(Vec3i vec3i) {
-      super(vec3i);
-   }
+	public static final MapCodec<SolidBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> registerOffsetField(instance).apply(instance, SolidBlockPredicate::new)
+	);
 
-   @Override
-   protected boolean test(BlockState state) {
-      return state.isSolid();
-   }
+	public SolidBlockPredicate(Vec3i vec3i) {
+		super(vec3i);
+	}
 
-   @Override
-   public BlockPredicateType<?> getType() {
-      return BlockPredicateType.SOLID;
-   }
+	@Override
+	protected boolean test(BlockState state) {
+		return state.isSolid();
+	}
+
+	@Override
+	public BlockPredicateType<?> getType() {
+		return BlockPredicateType.SOLID;
+	}
 }

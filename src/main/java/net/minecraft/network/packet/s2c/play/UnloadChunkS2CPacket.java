@@ -9,22 +9,25 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.ChunkPos;
 
 public record UnloadChunkS2CPacket(ChunkPos pos) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, UnloadChunkS2CPacket> CODEC = Packet.createCodec(UnloadChunkS2CPacket::write, UnloadChunkS2CPacket::new);
 
-   private UnloadChunkS2CPacket(PacketByteBuf buf) {
-      this(buf.readChunkPos());
-   }
+	public static final PacketCodec<PacketByteBuf, UnloadChunkS2CPacket>
+			CODEC =
+			Packet.createCodec(UnloadChunkS2CPacket::write, UnloadChunkS2CPacket::new);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeChunkPos(this.pos);
-   }
+	private UnloadChunkS2CPacket(PacketByteBuf buf) {
+		this(buf.readChunkPos());
+	}
 
-   @Override
-   public PacketType<UnloadChunkS2CPacket> getPacketType() {
-      return PlayPackets.FORGET_LEVEL_CHUNK;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeChunkPos(this.pos);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onUnloadChunk(this);
-   }
+	@Override
+	public PacketType<UnloadChunkS2CPacket> getPacketType() {
+		return PlayPackets.FORGET_LEVEL_CHUNK;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onUnloadChunk(this);
+	}
 }

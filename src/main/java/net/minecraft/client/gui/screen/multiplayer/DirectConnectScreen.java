@@ -14,88 +14,93 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DirectConnectScreen}.
+ */
 public class DirectConnectScreen extends Screen {
-   private static final Text ENTER_IP_TEXT = Text.translatable("manageServer.enterIp");
-   private ButtonWidget selectServerButton;
-   private final ServerInfo serverEntry;
-   private TextFieldWidget addressField;
-   private final BooleanConsumer callback;
-   private final Screen parent;
 
-   public DirectConnectScreen(Screen parent, BooleanConsumer callback, ServerInfo server) {
-      super(Text.translatable("selectServer.direct"));
-      this.parent = parent;
-      this.serverEntry = server;
-      this.callback = callback;
-   }
+	private static final Text ENTER_IP_TEXT = Text.translatable("manageServer.enterIp");
+	private ButtonWidget selectServerButton;
+	private final ServerInfo serverEntry;
+	private TextFieldWidget addressField;
+	private final BooleanConsumer callback;
+	private final Screen parent;
 
-   @Override
-   public boolean keyPressed(KeyInput input) {
-      if (this.selectServerButton.active && this.getFocused() == this.addressField && input.isEnter()) {
-         this.saveAndClose();
-         return true;
-      } else {
-         return super.keyPressed(input);
-      }
-   }
+	public DirectConnectScreen(Screen parent, BooleanConsumer callback, ServerInfo server) {
+		super(Text.translatable("selectServer.direct"));
+		this.parent = parent;
+		this.serverEntry = server;
+		this.callback = callback;
+	}
 
-   @Override
-   protected void init() {
-      this.addressField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, 116, 200, 20, ENTER_IP_TEXT);
-      this.addressField.setMaxLength(128);
-      this.addressField.setText(this.client.options.lastServer);
-      this.addressField.setChangedListener(text -> this.onAddressFieldChanged());
-      this.addSelectableChild(this.addressField);
-      this.selectServerButton = this.addDrawableChild(
-         ButtonWidget.builder(Text.translatable("selectServer.select"), button -> this.saveAndClose())
-            .dimensions(this.width / 2 - 100, this.height / 4 + 96 + 12, 200, 20)
-            .build()
-      );
-      this.addDrawableChild(
-         ButtonWidget.builder(ScreenTexts.CANCEL, button -> this.callback.accept(false))
-            .dimensions(this.width / 2 - 100, this.height / 4 + 120 + 12, 200, 20)
-            .build()
-      );
-      this.onAddressFieldChanged();
-   }
+	@Override
+	public boolean keyPressed(KeyInput input) {
+		if (this.selectServerButton.active && this.getFocused() == this.addressField && input.isEnter()) {
+			this.saveAndClose();
+			return true;
+		}
+		else {
+			return super.keyPressed(input);
+		}
+	}
 
-   @Override
-   protected void setInitialFocus() {
-      this.setInitialFocus(this.addressField);
-   }
+	@Override
+	protected void init() {
+		this.addressField = new TextFieldWidget(this.textRenderer, this.width / 2 - 100, 116, 200, 20, ENTER_IP_TEXT);
+		this.addressField.setMaxLength(128);
+		this.addressField.setText(this.client.options.lastServer);
+		this.addressField.setChangedListener(text -> this.onAddressFieldChanged());
+		this.addSelectableChild(this.addressField);
+		this.selectServerButton = this.addDrawableChild(
+				ButtonWidget.builder(Text.translatable("selectServer.select"), button -> this.saveAndClose())
+				            .dimensions(this.width / 2 - 100, this.height / 4 + 96 + 12, 200, 20)
+				            .build()
+		);
+		this.addDrawableChild(
+				ButtonWidget.builder(ScreenTexts.CANCEL, button -> this.callback.accept(false))
+				            .dimensions(this.width / 2 - 100, this.height / 4 + 120 + 12, 200, 20)
+				            .build()
+		);
+		this.onAddressFieldChanged();
+	}
 
-   @Override
-   public void resize(int width, int height) {
-      String string = this.addressField.getText();
-      this.init(width, height);
-      this.addressField.setText(string);
-   }
+	@Override
+	protected void setInitialFocus() {
+		this.setInitialFocus(this.addressField);
+	}
 
-   private void saveAndClose() {
-      this.serverEntry.address = this.addressField.getText();
-      this.callback.accept(true);
-   }
+	@Override
+	public void resize(int width, int height) {
+		String string = this.addressField.getText();
+		this.init(width, height);
+		this.addressField.setText(string);
+	}
 
-   @Override
-   public void close() {
-      this.client.setScreen(this.parent);
-   }
+	private void saveAndClose() {
+		this.serverEntry.address = this.addressField.getText();
+		this.callback.accept(true);
+	}
 
-   @Override
-   public void removed() {
-      this.client.options.lastServer = this.addressField.getText();
-      this.client.options.write();
-   }
+	@Override
+	public void close() {
+		this.client.setScreen(this.parent);
+	}
 
-   private void onAddressFieldChanged() {
-      this.selectServerButton.active = ServerAddress.isValid(this.addressField.getText());
-   }
+	@Override
+	public void removed() {
+		this.client.options.lastServer = this.addressField.getText();
+		this.client.options.write();
+	}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, -1);
-      context.drawTextWithShadow(this.textRenderer, ENTER_IP_TEXT, this.width / 2 - 100 + 1, 100, -6250336);
-      this.addressField.render(context, mouseX, mouseY, deltaTicks);
-   }
+	private void onAddressFieldChanged() {
+		this.selectServerButton.active = ServerAddress.isValid(this.addressField.getText());
+	}
+
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, -1);
+		context.drawTextWithShadow(this.textRenderer, ENTER_IP_TEXT, this.width / 2 - 100 + 1, 100, -6250336);
+		this.addressField.render(context, mouseX, mouseY, deltaTicks);
+	}
 }

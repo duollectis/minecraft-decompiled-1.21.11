@@ -8,42 +8,47 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.util.Identifier;
 
-public record LoginQueryRequestS2CPacket(int queryId, LoginQueryRequestPayload payload) implements Packet<ClientLoginPacketListener> {
-   public static final PacketCodec<PacketByteBuf, LoginQueryRequestS2CPacket> CODEC = Packet.createCodec(
-      LoginQueryRequestS2CPacket::write, LoginQueryRequestS2CPacket::new
-   );
-   private static final int MAX_PAYLOAD_SIZE = 1048576;
+public record LoginQueryRequestS2CPacket(
+		int queryId,
+		LoginQueryRequestPayload payload
+) implements Packet<ClientLoginPacketListener> {
 
-   private LoginQueryRequestS2CPacket(PacketByteBuf buf) {
-      this(buf.readVarInt(), readPayload(buf.readIdentifier(), buf));
-   }
+	public static final PacketCodec<PacketByteBuf, LoginQueryRequestS2CPacket> CODEC = Packet.createCodec(
+			LoginQueryRequestS2CPacket::write, LoginQueryRequestS2CPacket::new
+	);
+	private static final int MAX_PAYLOAD_SIZE = 1048576;
 
-   private static LoginQueryRequestPayload readPayload(Identifier id, PacketByteBuf buf) {
-      return readUnknownPayload(id, buf);
-   }
+	private LoginQueryRequestS2CPacket(PacketByteBuf buf) {
+		this(buf.readVarInt(), readPayload(buf.readIdentifier(), buf));
+	}
 
-   private static UnknownLoginQueryRequestPayload readUnknownPayload(Identifier id, PacketByteBuf buf) {
-      int i = buf.readableBytes();
-      if (i >= 0 && i <= 1048576) {
-         buf.skipBytes(i);
-         return new UnknownLoginQueryRequestPayload(id);
-      } else {
-         throw new IllegalArgumentException("Payload may not be larger than 1048576 bytes");
-      }
-   }
+	private static LoginQueryRequestPayload readPayload(Identifier id, PacketByteBuf buf) {
+		return readUnknownPayload(id, buf);
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.queryId);
-      buf.writeIdentifier(this.payload.id());
-      this.payload.write(buf);
-   }
+	private static UnknownLoginQueryRequestPayload readUnknownPayload(Identifier id, PacketByteBuf buf) {
+		int i = buf.readableBytes();
+		if (i >= 0 && i <= 1048576) {
+			buf.skipBytes(i);
+			return new UnknownLoginQueryRequestPayload(id);
+		}
+		else {
+			throw new IllegalArgumentException("Payload may not be larger than 1048576 bytes");
+		}
+	}
 
-   @Override
-   public PacketType<LoginQueryRequestS2CPacket> getPacketType() {
-      return LoginPackets.CUSTOM_QUERY;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.queryId);
+		buf.writeIdentifier(this.payload.id());
+		this.payload.write(buf);
+	}
 
-   public void apply(ClientLoginPacketListener clientLoginPacketListener) {
-      clientLoginPacketListener.onQueryRequest(this);
-   }
+	@Override
+	public PacketType<LoginQueryRequestS2CPacket> getPacketType() {
+		return LoginPackets.CUSTOM_QUERY;
+	}
+
+	public void apply(ClientLoginPacketListener clientLoginPacketListener) {
+		clientLoginPacketListener.onQueryRequest(this);
+	}
 }

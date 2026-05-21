@@ -2,10 +2,6 @@ package net.minecraft.advancement.criterion;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
 import net.minecraft.advancement.AdvancementCriterion;
 import net.minecraft.item.ItemStack;
 import net.minecraft.predicate.entity.EntityPredicate;
@@ -15,65 +11,103 @@ import net.minecraft.recipe.Recipe;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.ServerPlayerEntity;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * {@code RecipeCraftedCriterion}.
+ */
 public class RecipeCraftedCriterion extends AbstractCriterion<RecipeCraftedCriterion.Conditions> {
-   @Override
-   public Codec<RecipeCraftedCriterion.Conditions> getConditionsCodec() {
-      return RecipeCraftedCriterion.Conditions.CODEC;
-   }
 
-   public void trigger(ServerPlayerEntity player, RegistryKey<Recipe<?>> recipeKey, List<ItemStack> ingredients) {
-      this.trigger(player, conditions -> conditions.matches(recipeKey, ingredients));
-   }
+	@Override
+	public Codec<RecipeCraftedCriterion.Conditions> getConditionsCodec() {
+		return RecipeCraftedCriterion.Conditions.CODEC;
+	}
 
-   public record Conditions(Optional<LootContextPredicate> player, RegistryKey<Recipe<?>> recipeId, List<ItemPredicate> ingredients)
-      implements AbstractCriterion.Conditions {
-      public static final Codec<RecipeCraftedCriterion.Conditions> CODEC = RecordCodecBuilder.create(
-         instance -> instance.group(
-               EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC.optionalFieldOf("player").forGetter(RecipeCraftedCriterion.Conditions::player),
-               Recipe.KEY_CODEC.fieldOf("recipe_id").forGetter(RecipeCraftedCriterion.Conditions::recipeId),
-               ItemPredicate.CODEC.listOf().optionalFieldOf("ingredients", List.of()).forGetter(RecipeCraftedCriterion.Conditions::ingredients)
-            )
-            .apply(instance, RecipeCraftedCriterion.Conditions::new)
-      );
+	public void trigger(ServerPlayerEntity player, RegistryKey<Recipe<?>> recipeKey, List<ItemStack> ingredients) {
+		this.trigger(player, conditions -> conditions.matches(recipeKey, ingredients));
+	}
 
-      public static AdvancementCriterion<RecipeCraftedCriterion.Conditions> create(RegistryKey<Recipe<?>> recipeKey, List<ItemPredicate.Builder> ingredients) {
-         return Criteria.RECIPE_CRAFTED
-            .create(new RecipeCraftedCriterion.Conditions(Optional.empty(), recipeKey, ingredients.stream().map(ItemPredicate.Builder::build).toList()));
-      }
+	/**
+	 * {@code Conditions}.
+	 */
+	public record Conditions(
+			Optional<LootContextPredicate> player,
+			RegistryKey<Recipe<?>> recipeId,
+			List<ItemPredicate> ingredients
+	)
+			implements AbstractCriterion.Conditions {
 
-      public static AdvancementCriterion<RecipeCraftedCriterion.Conditions> create(RegistryKey<Recipe<?>> recipeKey) {
-         return Criteria.RECIPE_CRAFTED.create(new RecipeCraftedCriterion.Conditions(Optional.empty(), recipeKey, List.of()));
-      }
+		public static final Codec<RecipeCraftedCriterion.Conditions> CODEC = RecordCodecBuilder.create(
+				instance -> instance.group(
+						                    EntityPredicate.LOOT_CONTEXT_PREDICATE_CODEC
+								                    .optionalFieldOf("player")
+								                    .forGetter(RecipeCraftedCriterion.Conditions::player),
+						                    Recipe.KEY_CODEC.fieldOf("recipe_id").forGetter(RecipeCraftedCriterion.Conditions::recipeId),
+						                    ItemPredicate.CODEC
+								                    .listOf()
+								                    .optionalFieldOf("ingredients", List.of())
+								                    .forGetter(RecipeCraftedCriterion.Conditions::ingredients)
+				                    )
+				                    .apply(instance, RecipeCraftedCriterion.Conditions::new)
+		);
 
-      public static AdvancementCriterion<RecipeCraftedCriterion.Conditions> createCrafterRecipeCrafted(RegistryKey<Recipe<?>> recipeKey) {
-         return Criteria.CRAFTER_RECIPE_CRAFTED.create(new RecipeCraftedCriterion.Conditions(Optional.empty(), recipeKey, List.of()));
-      }
+		public static AdvancementCriterion<RecipeCraftedCriterion.Conditions> create(
+				RegistryKey<Recipe<?>> recipeKey,
+				List<ItemPredicate.Builder> ingredients
+		) {
+			return Criteria.RECIPE_CRAFTED
+					.create(new RecipeCraftedCriterion.Conditions(
+							Optional.empty(),
+							recipeKey,
+							ingredients.stream().map(ItemPredicate.Builder::build).toList()
+					));
+		}
 
-      boolean matches(RegistryKey<Recipe<?>> recipeKey, List<ItemStack> ingredients) {
-         if (recipeKey != this.recipeId) {
-            return false;
-         } else {
-            List<ItemStack> list = new ArrayList<>(ingredients);
+		public static AdvancementCriterion<RecipeCraftedCriterion.Conditions> create(RegistryKey<Recipe<?>> recipeKey) {
+			return Criteria.RECIPE_CRAFTED.create(new RecipeCraftedCriterion.Conditions(
+					Optional.empty(),
+					recipeKey,
+					List.of()
+			));
+		}
 
-            for (ItemPredicate itemPredicate : this.ingredients) {
-               boolean bl = false;
-               Iterator<ItemStack> iterator = list.iterator();
+		public static AdvancementCriterion<RecipeCraftedCriterion.Conditions> createCrafterRecipeCrafted(RegistryKey<Recipe<?>> recipeKey) {
+			return Criteria.CRAFTER_RECIPE_CRAFTED.create(new RecipeCraftedCriterion.Conditions(
+					Optional.empty(),
+					recipeKey,
+					List.of()
+			));
+		}
 
-               while (iterator.hasNext()) {
-                  if (itemPredicate.test(iterator.next())) {
-                     iterator.remove();
-                     bl = true;
-                     break;
-                  }
-               }
+		boolean matches(RegistryKey<Recipe<?>> recipeKey, List<ItemStack> ingredients) {
+			if (recipeKey != this.recipeId) {
+				return false;
+			}
+			else {
+				List<ItemStack> list = new ArrayList<>(ingredients);
 
-               if (!bl) {
-                  return false;
-               }
-            }
+				for (ItemPredicate itemPredicate : this.ingredients) {
+					boolean bl = false;
+					Iterator<ItemStack> iterator = list.iterator();
 
-            return true;
-         }
-      }
-   }
+					while (iterator.hasNext()) {
+						if (itemPredicate.test(iterator.next())) {
+							iterator.remove();
+							bl = true;
+							break;
+						}
+					}
+
+					if (!bl) {
+						return false;
+					}
+				}
+
+				return true;
+			}
+		}
+	}
 }

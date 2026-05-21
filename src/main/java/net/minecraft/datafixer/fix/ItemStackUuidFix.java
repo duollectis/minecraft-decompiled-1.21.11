@@ -9,40 +9,60 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 
+/**
+ * {@code ItemStackUuidFix}.
+ */
 public class ItemStackUuidFix extends AbstractUuidFix {
-   public ItemStackUuidFix(Schema outputSchema) {
-      super(outputSchema, TypeReferences.ITEM_STACK);
-   }
 
-   @SuppressWarnings("unchecked")
-   public TypeRewriteRule makeRule() {
-      OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
-         "id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
-      );
-      return this.fixTypeEverywhereTyped("ItemStackUUIDFix", this.getInputSchema().getType(this.typeReference), itemStackTyped -> {
-         OpticFinder<Object> opticFinder2 = (OpticFinder<Object>) itemStackTyped.getType().findField("tag");
-         return itemStackTyped.updateTyped(opticFinder2, tagTyped -> tagTyped.update(DSL.remainderFinder(), tagDynamic -> {
-            tagDynamic = this.fixAttributeModifiers(tagDynamic);
-            if (itemStackTyped.getOptional(opticFinder).map(id -> "minecraft:player_head".equals(id.getSecond())).orElse(false)) {
-               tagDynamic = this.fixSkullOwner(tagDynamic);
-            }
+	public ItemStackUuidFix(Schema outputSchema) {
+		super(outputSchema, TypeReferences.ITEM_STACK);
+	}
 
-            return tagDynamic;
-         }));
-      });
-   }
+	@SuppressWarnings("unchecked")
+	public TypeRewriteRule makeRule() {
+		OpticFinder<Pair<String, String>> opticFinder = DSL.fieldFinder(
+				"id", DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType())
+		);
+		return this.fixTypeEverywhereTyped(
+				"ItemStackUUIDFix", this.getInputSchema().getType(this.typeReference), itemStackTyped -> {
+					OpticFinder<Object> opticFinder2 = (OpticFinder<Object>) itemStackTyped.getType().findField("tag");
+					return itemStackTyped.updateTyped(
+							opticFinder2, tagTyped -> tagTyped.update(
+									DSL.remainderFinder(), tagDynamic -> {
+										tagDynamic = this.fixAttributeModifiers(tagDynamic);
+										if (itemStackTyped
+												.getOptional(opticFinder)
+												.map(id -> "minecraft:player_head".equals(id.getSecond()))
+												.orElse(false)) {
+											tagDynamic = this.fixSkullOwner(tagDynamic);
+										}
 
-   private Dynamic<?> fixAttributeModifiers(Dynamic<?> tagDynamic) {
-      return tagDynamic.update(
-         "AttributeModifiers",
-         attributeModifiersDynamic -> tagDynamic.createList(
-            attributeModifiersDynamic.asStream()
-               .map(attributeModifier -> (Dynamic<?>)updateRegularMostLeast((Dynamic<?>)attributeModifier, "UUID", "UUID").orElse((Dynamic<?>)attributeModifier))
-         )
-      );
-   }
+										return tagDynamic;
+									}
+							)
+					);
+				}
+		);
+	}
 
-   private Dynamic<?> fixSkullOwner(Dynamic<?> tagDynamic) {
-      return tagDynamic.update("SkullOwner", skullOwner -> updateStringUuid(skullOwner, "Id", "Id").orElse(skullOwner));
-   }
+	private Dynamic<?> fixAttributeModifiers(Dynamic<?> tagDynamic) {
+		return tagDynamic.update(
+				"AttributeModifiers",
+				attributeModifiersDynamic -> tagDynamic.createList(
+						attributeModifiersDynamic.asStream()
+						                         .map(attributeModifier -> (Dynamic<?>) updateRegularMostLeast(
+								                         (Dynamic<?>) attributeModifier,
+								                         "UUID",
+								                         "UUID"
+						                         ).orElse((Dynamic<?>) attributeModifier))
+				)
+		);
+	}
+
+	private Dynamic<?> fixSkullOwner(Dynamic<?> tagDynamic) {
+		return tagDynamic.update(
+				"SkullOwner",
+				skullOwner -> updateStringUuid(skullOwner, "Id", "Id").orElse(skullOwner)
+		);
+	}
 }

@@ -9,16 +9,17 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record SetCursorItemS2CPacket(ItemStack contents) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, SetCursorItemS2CPacket> CODEC = PacketCodec.tuple(
-      ItemStack.OPTIONAL_PACKET_CODEC, SetCursorItemS2CPacket::contents, SetCursorItemS2CPacket::new
-   );
 
-   @Override
-   public PacketType<SetCursorItemS2CPacket> getPacketType() {
-      return PlayPackets.SET_CURSOR_ITEM;
-   }
+	public static final PacketCodec<RegistryByteBuf, SetCursorItemS2CPacket> CODEC = PacketCodec.tuple(
+			ItemStack.OPTIONAL_PACKET_CODEC, SetCursorItemS2CPacket::contents, SetCursorItemS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onSetCursorItem(this);
-   }
+	@Override
+	public PacketType<SetCursorItemS2CPacket> getPacketType() {
+		return PlayPackets.SET_CURSOR_ITEM;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onSetCursorItem(this);
+	}
 }

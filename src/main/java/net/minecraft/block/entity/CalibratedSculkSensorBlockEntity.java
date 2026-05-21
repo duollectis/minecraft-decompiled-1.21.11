@@ -11,35 +11,54 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.event.Vibrations;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CalibratedSculkSensorBlockEntity}.
+ */
 public class CalibratedSculkSensorBlockEntity extends SculkSensorBlockEntity {
-   public CalibratedSculkSensorBlockEntity(BlockPos blockPos, BlockState blockState) {
-      super(BlockEntityType.CALIBRATED_SCULK_SENSOR, blockPos, blockState);
-   }
 
-   @Override
-   public Vibrations.Callback createCallback() {
-      return new CalibratedSculkSensorBlockEntity.Callback(this.getPos());
-   }
+	public CalibratedSculkSensorBlockEntity(BlockPos blockPos, BlockState blockState) {
+		super(BlockEntityType.CALIBRATED_SCULK_SENSOR, blockPos, blockState);
+	}
 
-   protected class Callback extends SculkSensorBlockEntity.VibrationCallback {
-      public Callback(final BlockPos pos) {
-         super(pos);
-      }
+	@Override
+	public Vibrations.Callback createCallback() {
+		return new CalibratedSculkSensorBlockEntity.Callback(this.getPos());
+	}
 
-      @Override
-      public int getRange() {
-         return 16;
-      }
+	/**
+	 * {@code Callback}.
+	 */
+	protected class Callback extends SculkSensorBlockEntity.VibrationCallback {
 
-      @Override
-      public boolean accepts(ServerWorld world, BlockPos pos, RegistryEntry<GameEvent> event, GameEvent.@Nullable Emitter emitter) {
-         int i = this.getCalibrationFrequency(world, this.pos, CalibratedSculkSensorBlockEntity.this.getCachedState());
-         return i != 0 && Vibrations.getFrequency(event) != i ? false : super.accepts(world, pos, event, emitter);
-      }
+		public Callback(final BlockPos pos) {
+			super(pos);
+		}
 
-      private int getCalibrationFrequency(World world, BlockPos pos, BlockState state) {
-         Direction direction = state.get(CalibratedSculkSensorBlock.FACING).getOpposite();
-         return world.getEmittedRedstonePower(pos.offset(direction), direction);
-      }
-   }
+		@Override
+		public int getRange() {
+			return 16;
+		}
+
+		@Override
+		public boolean accepts(
+				ServerWorld world,
+				BlockPos pos,
+				RegistryEntry<GameEvent> event,
+				GameEvent.@Nullable Emitter emitter
+		) {
+			int
+					i =
+					this.getCalibrationFrequency(
+							world,
+							this.pos,
+							CalibratedSculkSensorBlockEntity.this.getCachedState()
+					);
+			return i != 0 && Vibrations.getFrequency(event) != i ? false : super.accepts(world, pos, event, emitter);
+		}
+
+		private int getCalibrationFrequency(World world, BlockPos pos, BlockState state) {
+			Direction direction = state.get(CalibratedSculkSensorBlock.FACING).getOpposite();
+			return world.getEmittedRedstonePower(pos.offset(direction), direction);
+		}
+	}
 }

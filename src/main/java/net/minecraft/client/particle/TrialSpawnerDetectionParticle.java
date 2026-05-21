@@ -8,69 +8,93 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TrialSpawnerDetectionParticle}.
+ */
 public class TrialSpawnerDetectionParticle extends BillboardParticle {
-   private final SpriteProvider spriteProvider;
-   private static final int field_47460 = 8;
 
-   protected TrialSpawnerDetectionParticle(
-      ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, float scale, SpriteProvider spriteProvider
-   ) {
-      super(world, x, y, z, 0.0, 0.0, 0.0, spriteProvider.getFirst());
-      this.spriteProvider = spriteProvider;
-      this.velocityMultiplier = 0.96F;
-      this.gravityStrength = -0.1F;
-      this.ascending = true;
-      this.velocityX *= 0.0;
-      this.velocityY *= 0.9;
-      this.velocityZ *= 0.0;
-      this.velocityX += velocityX;
-      this.velocityY += velocityY;
-      this.velocityZ += velocityZ;
-      this.scale *= 0.75F * scale;
-      this.maxAge = (int)(8.0F / MathHelper.nextBetween(this.random, 0.5F, 1.0F) * scale);
-      this.maxAge = Math.max(this.maxAge, 1);
-      this.updateSprite(spriteProvider);
-      this.collidesWithWorld = true;
-   }
+	private final SpriteProvider spriteProvider;
+	private static final int PARTICLE_LIFETIME = 8;
 
-   @Override
-   public BillboardParticle.RenderType getRenderType() {
-      return BillboardParticle.RenderType.PARTICLE_ATLAS_OPAQUE;
-   }
+	protected TrialSpawnerDetectionParticle(
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
+			float scale,
+			SpriteProvider spriteProvider
+	) {
+		super(world, x, y, z, 0.0, 0.0, 0.0, spriteProvider.getFirst());
+		this.spriteProvider = spriteProvider;
+		this.velocityMultiplier = 0.96F;
+		this.gravityStrength = -0.1F;
+		this.ascending = true;
+		this.velocityX *= 0.0;
+		this.velocityY *= 0.9;
+		this.velocityZ *= 0.0;
+		this.velocityX += velocityX;
+		this.velocityY += velocityY;
+		this.velocityZ += velocityZ;
+		this.scale *= 0.75F * scale;
+		this.maxAge = (int) (8.0F / MathHelper.nextBetween(this.random, 0.5F, 1.0F) * scale);
+		this.maxAge = Math.max(this.maxAge, 1);
+		this.updateSprite(spriteProvider);
+		this.collidesWithWorld = true;
+	}
 
-   @Override
-   public int getBrightness(float tint) {
-      return 240;
-   }
+	@Override
+	public BillboardParticle.RenderType getRenderType() {
+		return BillboardParticle.RenderType.PARTICLE_ATLAS_OPAQUE;
+	}
 
-   @Override
-   public BillboardParticle.Rotator getRotator() {
-      return BillboardParticle.Rotator.Y_AND_W_ONLY;
-   }
+	@Override
+	public int getBrightness(float tint) {
+		return 240;
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      this.updateSprite(this.spriteProvider);
-   }
+	@Override
+	public BillboardParticle.Rotator getRotator() {
+		return BillboardParticle.Rotator.Y_AND_W_ONLY;
+	}
 
-   @Override
-   public float getSize(float tickProgress) {
-      return this.scale * MathHelper.clamp((this.age + tickProgress) / this.maxAge * 32.0F, 0.0F, 1.0F);
-   }
+	@Override
+	public void tick() {
+		super.tick();
+		this.updateSprite(this.spriteProvider);
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static class Factory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+	@Override
+	public float getSize(float tickProgress) {
+		return this.scale * MathHelper.clamp((this.age + tickProgress) / this.maxAge * 32.0F, 0.0F, 1.0F);
+	}
 
-      public Factory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Factory}.
+	 */
+	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new TrialSpawnerDetectionParticle(clientWorld, d, e, f, g, h, i, 1.5F, this.spriteProvider);
-      }
-   }
+		private final SpriteProvider spriteProvider;
+
+		public Factory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
+
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new TrialSpawnerDetectionParticle(clientWorld, d, e, f, g, h, i, 1.5F, this.spriteProvider);
+		}
+	}
 }

@@ -2,7 +2,6 @@ package net.minecraft.predicate.item;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
 import net.minecraft.component.ComponentType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.equipment.trim.ArmorTrim;
@@ -13,24 +12,39 @@ import net.minecraft.registry.RegistryCodecs;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntryList;
 
-public record TrimPredicate(Optional<RegistryEntryList<ArmorTrimMaterial>> material, Optional<RegistryEntryList<ArmorTrimPattern>> pattern)
-   implements ComponentSubPredicate<ArmorTrim> {
-   public static final Codec<TrimPredicate> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            RegistryCodecs.entryList(RegistryKeys.TRIM_MATERIAL).optionalFieldOf("material").forGetter(TrimPredicate::material),
-            RegistryCodecs.entryList(RegistryKeys.TRIM_PATTERN).optionalFieldOf("pattern").forGetter(TrimPredicate::pattern)
-         )
-         .apply(instance, TrimPredicate::new)
-   );
+import java.util.Optional;
 
-   @Override
-   public ComponentType<ArmorTrim> getComponentType() {
-      return DataComponentTypes.TRIM;
-   }
+/**
+ * {@code TrimPredicate}.
+ */
+public record TrimPredicate(
+		Optional<RegistryEntryList<ArmorTrimMaterial>> material,
+		Optional<RegistryEntryList<ArmorTrimPattern>> pattern
+)
+		implements ComponentSubPredicate<ArmorTrim> {
 
-   public boolean test(ArmorTrim armorTrim) {
-      return this.material.isPresent() && !this.material.get().contains(armorTrim.material())
-         ? false
-         : !this.pattern.isPresent() || this.pattern.get().contains(armorTrim.pattern());
-   }
+	public static final Codec<TrimPredicate> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    RegistryCodecs
+							                    .entryList(RegistryKeys.TRIM_MATERIAL)
+							                    .optionalFieldOf("material")
+							                    .forGetter(TrimPredicate::material),
+					                    RegistryCodecs
+							                    .entryList(RegistryKeys.TRIM_PATTERN)
+							                    .optionalFieldOf("pattern")
+							                    .forGetter(TrimPredicate::pattern)
+			                    )
+			                    .apply(instance, TrimPredicate::new)
+	);
+
+	@Override
+	public ComponentType<ArmorTrim> getComponentType() {
+		return DataComponentTypes.TRIM;
+	}
+
+	public boolean test(ArmorTrim armorTrim) {
+		return this.material.isPresent() && !this.material.get().contains(armorTrim.material())
+		       ? false
+		       : !this.pattern.isPresent() || this.pattern.get().contains(armorTrim.pattern());
+	}
 }

@@ -10,80 +10,87 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.gen.feature.EndPortalFeature;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code LandingPhase}.
+ */
 public class LandingPhase extends AbstractPhase {
-   private @Nullable Vec3d target;
 
-   public LandingPhase(EnderDragonEntity enderDragonEntity) {
-      super(enderDragonEntity);
-   }
+	private @Nullable Vec3d target;
 
-   @Override
-   public void clientTick() {
-      Vec3d vec3d = this.dragon.getRotationVectorFromPhase(1.0F).normalize();
-      vec3d.rotateY((float) (-Math.PI / 4));
-      double d = this.dragon.head.getX();
-      double e = this.dragon.head.getBodyY(0.5);
-      double f = this.dragon.head.getZ();
+	public LandingPhase(EnderDragonEntity enderDragonEntity) {
+		super(enderDragonEntity);
+	}
 
-      for (int i = 0; i < 8; i++) {
-         Random random = this.dragon.getRandom();
-         double g = d + random.nextGaussian() / 2.0;
-         double h = e + random.nextGaussian() / 2.0;
-         double j = f + random.nextGaussian() / 2.0;
-         Vec3d vec3d2 = this.dragon.getVelocity();
-         this.dragon
-            .getEntityWorld()
-            .addParticleClient(
-               DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F),
-               g,
-               h,
-               j,
-               -vec3d.x * 0.08F + vec3d2.x,
-               -vec3d.y * 0.3F + vec3d2.y,
-               -vec3d.z * 0.08F + vec3d2.z
-            );
-         vec3d.rotateY((float) (Math.PI / 16));
-      }
-   }
+	@Override
+	public void clientTick() {
+		Vec3d vec3d = this.dragon.getRotationVectorFromPhase(1.0F).normalize();
+		vec3d.rotateY((float) (-Math.PI / 4));
+		double d = this.dragon.head.getX();
+		double e = this.dragon.head.getBodyY(0.5);
+		double f = this.dragon.head.getZ();
 
-   @Override
-   public void serverTick(ServerWorld world) {
-      if (this.target == null) {
-         this.target = Vec3d.ofBottomCenter(
-            world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin()))
-         );
-      }
+		for (int i = 0; i < 8; i++) {
+			Random random = this.dragon.getRandom();
+			double g = d + random.nextGaussian() / 2.0;
+			double h = e + random.nextGaussian() / 2.0;
+			double j = f + random.nextGaussian() / 2.0;
+			Vec3d vec3d2 = this.dragon.getVelocity();
+			this.dragon
+					.getEntityWorld()
+					.addParticleClient(
+							DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F),
+							g,
+							h,
+							j,
+							-vec3d.x * 0.08F + vec3d2.x,
+							-vec3d.y * 0.3F + vec3d2.y,
+							-vec3d.z * 0.08F + vec3d2.z
+					);
+			vec3d.rotateY((float) (Math.PI / 16));
+		}
+	}
 
-      if (this.target.squaredDistanceTo(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ()) < 1.0) {
-         this.dragon.getPhaseManager().create(PhaseType.SITTING_FLAMING).reset();
-         this.dragon.getPhaseManager().setPhase(PhaseType.SITTING_SCANNING);
-      }
-   }
+	@Override
+	public void serverTick(ServerWorld world) {
+		if (this.target == null) {
+			this.target = Vec3d.ofBottomCenter(
+					world.getTopPosition(
+							Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+							EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin())
+					)
+			);
+		}
 
-   @Override
-   public float getMaxYAcceleration() {
-      return 1.5F;
-   }
+		if (this.target.squaredDistanceTo(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ()) < 1.0) {
+			this.dragon.getPhaseManager().create(PhaseType.SITTING_FLAMING).reset();
+			this.dragon.getPhaseManager().setPhase(PhaseType.SITTING_SCANNING);
+		}
+	}
 
-   @Override
-   public float getYawAcceleration() {
-      float f = (float)this.dragon.getVelocity().horizontalLength() + 1.0F;
-      float g = Math.min(f, 40.0F);
-      return g / f;
-   }
+	@Override
+	public float getMaxYAcceleration() {
+		return 1.5F;
+	}
 
-   @Override
-   public void beginPhase() {
-      this.target = null;
-   }
+	@Override
+	public float getYawAcceleration() {
+		float f = (float) this.dragon.getVelocity().horizontalLength() + 1.0F;
+		float g = Math.min(f, 40.0F);
+		return g / f;
+	}
 
-   @Override
-   public @Nullable Vec3d getPathTarget() {
-      return this.target;
-   }
+	@Override
+	public void beginPhase() {
+		this.target = null;
+	}
 
-   @Override
-   public PhaseType<LandingPhase> getType() {
-      return PhaseType.LANDING;
-   }
+	@Override
+	public @Nullable Vec3d getPathTarget() {
+		return this.target;
+	}
+
+	@Override
+	public PhaseType<LandingPhase> getType() {
+		return PhaseType.LANDING;
+	}
 }

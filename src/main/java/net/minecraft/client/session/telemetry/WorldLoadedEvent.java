@@ -8,58 +8,68 @@ import net.minecraft.world.GameMode;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WorldLoadedEvent}.
+ */
 public class WorldLoadedEvent {
-   private boolean sent;
-   private TelemetryEventProperty.@Nullable GameMode gameMode;
-   private @Nullable String brand;
-   private final @Nullable String minigameName;
 
-   public WorldLoadedEvent(@Nullable String minigameName) {
-      this.minigameName = minigameName;
-   }
+	private boolean sent;
+	private TelemetryEventProperty.@Nullable GameMode gameMode;
+	private @Nullable String brand;
+	private final @Nullable String minigameName;
 
-   public void putServerType(PropertyMap.Builder builder) {
-      if (this.brand != null) {
-         builder.put(TelemetryEventProperty.SERVER_MODDED, !this.brand.equals("vanilla"));
-      }
+	public WorldLoadedEvent(@Nullable String minigameName) {
+		this.minigameName = minigameName;
+	}
 
-      builder.put(TelemetryEventProperty.SERVER_TYPE, this.getServerType());
-   }
+	public void putServerType(PropertyMap.Builder builder) {
+		if (this.brand != null) {
+			builder.put(TelemetryEventProperty.SERVER_MODDED, !this.brand.equals("vanilla"));
+		}
 
-   private TelemetryEventProperty.ServerType getServerType() {
-      ServerInfo serverInfo = MinecraftClient.getInstance().getCurrentServerEntry();
-      if (serverInfo != null && serverInfo.isRealm()) {
-         return TelemetryEventProperty.ServerType.REALM;
-      } else {
-         return MinecraftClient.getInstance().isIntegratedServerRunning() ? TelemetryEventProperty.ServerType.LOCAL : TelemetryEventProperty.ServerType.OTHER;
-      }
-   }
+		builder.put(TelemetryEventProperty.SERVER_TYPE, this.getServerType());
+	}
 
-   public boolean send(TelemetrySender sender) {
-      if (!this.sent && this.gameMode != null && this.brand != null) {
-         this.sent = true;
-         sender.send(TelemetryEventType.WORLD_LOADED, adder -> {
-            adder.put(TelemetryEventProperty.GAME_MODE, this.gameMode);
-            if (this.minigameName != null) {
-               adder.put(TelemetryEventProperty.REALMS_MAP_CONTENT, this.minigameName);
-            }
-         });
-         return true;
-      } else {
-         return false;
-      }
-   }
+	private TelemetryEventProperty.ServerType getServerType() {
+		ServerInfo serverInfo = MinecraftClient.getInstance().getCurrentServerEntry();
+		if (serverInfo != null && serverInfo.isRealm()) {
+			return TelemetryEventProperty.ServerType.REALM;
+		}
+		else {
+			return MinecraftClient.getInstance().isIntegratedServerRunning() ? TelemetryEventProperty.ServerType.LOCAL
+			                                                                 : TelemetryEventProperty.ServerType.OTHER;
+		}
+	}
 
-   public void setGameMode(GameMode gameMode, boolean hardcore) {
-      this.gameMode = switch (gameMode) {
-         case SURVIVAL -> hardcore ? TelemetryEventProperty.GameMode.HARDCORE : TelemetryEventProperty.GameMode.SURVIVAL;
-         case CREATIVE -> TelemetryEventProperty.GameMode.CREATIVE;
-         case ADVENTURE -> TelemetryEventProperty.GameMode.ADVENTURE;
-         case SPECTATOR -> TelemetryEventProperty.GameMode.SPECTATOR;
-      };
-   }
+	public boolean send(TelemetrySender sender) {
+		if (!this.sent && this.gameMode != null && this.brand != null) {
+			this.sent = true;
+			sender.send(
+					TelemetryEventType.WORLD_LOADED, adder -> {
+						adder.put(TelemetryEventProperty.GAME_MODE, this.gameMode);
+						if (this.minigameName != null) {
+							adder.put(TelemetryEventProperty.REALMS_MAP_CONTENT, this.minigameName);
+						}
+					}
+			);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   public void setBrand(String brand) {
-      this.brand = brand;
-   }
+	public void setGameMode(GameMode gameMode, boolean hardcore) {
+		this.gameMode = switch (gameMode) {
+			case SURVIVAL ->
+					hardcore ? TelemetryEventProperty.GameMode.HARDCORE : TelemetryEventProperty.GameMode.SURVIVAL;
+			case CREATIVE -> TelemetryEventProperty.GameMode.CREATIVE;
+			case ADVENTURE -> TelemetryEventProperty.GameMode.ADVENTURE;
+			case SPECTATOR -> TelemetryEventProperty.GameMode.SPECTATOR;
+		};
+	}
+
+	public void setBrand(String brand) {
+		this.brand = brand;
+	}
 }

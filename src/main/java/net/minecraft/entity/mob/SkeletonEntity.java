@@ -13,114 +13,125 @@ import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import net.minecraft.world.World;
 
+/**
+ * {@code SkeletonEntity}.
+ */
 public class SkeletonEntity extends AbstractSkeletonEntity {
-   private static final int TOTAL_CONVERSION_TIME = 300;
-   private static final TrackedData<Boolean> CONVERTING = DataTracker.registerData(SkeletonEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   public static final String STRAY_CONVERSION_TIME_KEY = "StrayConversionTime";
-   private static final int DEFAULT_STRAY_CONVERSION_TIME = -1;
-   private int inPowderSnowTime;
-   private int conversionTime;
 
-   public SkeletonEntity(EntityType<? extends SkeletonEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final int TOTAL_CONVERSION_TIME = 300;
+	private static final TrackedData<Boolean>
+			CONVERTING =
+			DataTracker.registerData(SkeletonEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	public static final String STRAY_CONVERSION_TIME_KEY = "StrayConversionTime";
+	private static final int DEFAULT_STRAY_CONVERSION_TIME = -1;
+	private int inPowderSnowTime;
+	private int conversionTime;
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(CONVERTING, false);
-   }
+	public SkeletonEntity(EntityType<? extends SkeletonEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public boolean isConverting() {
-      return this.getDataTracker().get(CONVERTING);
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(CONVERTING, false);
+	}
 
-   public void setConverting(boolean converting) {
-      this.dataTracker.set(CONVERTING, converting);
-   }
+	public boolean isConverting() {
+		return this.getDataTracker().get(CONVERTING);
+	}
 
-   @Override
-   public boolean isShaking() {
-      return this.isConverting();
-   }
+	public void setConverting(boolean converting) {
+		this.dataTracker.set(CONVERTING, converting);
+	}
 
-   @Override
-   public void tick() {
-      if (!this.getEntityWorld().isClient() && this.isAlive() && !this.isAiDisabled()) {
-         if (this.inPowderSnow) {
-            if (this.isConverting()) {
-               this.conversionTime--;
-               if (this.conversionTime < 0) {
-                  this.convertToStray();
-               }
-            } else {
-               this.inPowderSnowTime++;
-               if (this.inPowderSnowTime >= 140) {
-                  this.setConversionTime(300);
-               }
-            }
-         } else {
-            this.inPowderSnowTime = -1;
-            this.setConverting(false);
-         }
-      }
+	@Override
+	public boolean isShaking() {
+		return this.isConverting();
+	}
 
-      super.tick();
-   }
+	@Override
+	public void tick() {
+		if (!this.getEntityWorld().isClient() && this.isAlive() && !this.isAiDisabled()) {
+			if (this.inPowderSnow) {
+				if (this.isConverting()) {
+					this.conversionTime--;
+					if (this.conversionTime < 0) {
+						this.convertToStray();
+					}
+				}
+				else {
+					this.inPowderSnowTime++;
+					if (this.inPowderSnowTime >= 140) {
+						this.setConversionTime(300);
+					}
+				}
+			}
+			else {
+				this.inPowderSnowTime = -1;
+				this.setConverting(false);
+			}
+		}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putInt("StrayConversionTime", this.isConverting() ? this.conversionTime : -1);
-   }
+		super.tick();
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      int i = view.getInt("StrayConversionTime", -1);
-      if (i != -1) {
-         this.setConversionTime(i);
-      } else {
-         this.setConverting(false);
-      }
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putInt("StrayConversionTime", this.isConverting() ? this.conversionTime : -1);
+	}
 
-   @VisibleForTesting
-   public void setConversionTime(int time) {
-      this.conversionTime = time;
-      this.setConverting(true);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		int i = view.getInt("StrayConversionTime", -1);
+		if (i != -1) {
+			this.setConversionTime(i);
+		}
+		else {
+			this.setConverting(false);
+		}
+	}
 
-   protected void convertToStray() {
-      this.convertTo(EntityType.STRAY, EntityConversionContext.create(this, true, true), stray -> {
-         if (!this.isSilent()) {
-            this.getEntityWorld().syncWorldEvent(null, 1048, this.getBlockPos(), 0);
-         }
-      });
-   }
+	@VisibleForTesting
+	public void setConversionTime(int time) {
+		this.conversionTime = time;
+		this.setConverting(true);
+	}
 
-   @Override
-   public boolean canFreeze() {
-      return false;
-   }
+	protected void convertToStray() {
+		this.convertTo(
+				EntityType.STRAY, EntityConversionContext.create(this, true, true), stray -> {
+					if (!this.isSilent()) {
+						this.getEntityWorld().syncWorldEvent(null, 1048, this.getBlockPos(), 0);
+					}
+				}
+		);
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_SKELETON_AMBIENT;
-   }
+	@Override
+	public boolean canFreeze() {
+		return false;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_SKELETON_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_SKELETON_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_SKELETON_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_SKELETON_HURT;
+	}
 
-   @Override
-   SoundEvent getStepSound() {
-      return SoundEvents.ENTITY_SKELETON_STEP;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_SKELETON_DEATH;
+	}
+
+	@Override
+	SoundEvent getStepSound() {
+		return SoundEvents.ENTITY_SKELETON_STEP;
+	}
 }

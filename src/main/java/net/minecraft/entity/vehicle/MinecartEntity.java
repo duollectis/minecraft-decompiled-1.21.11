@@ -13,81 +13,89 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+/**
+ * {@code MinecartEntity}.
+ */
 public class MinecartEntity extends AbstractMinecartEntity {
-   private float field_52518;
-   private float field_52519;
 
-   public MinecartEntity(EntityType<?> entityType, World world) {
-      super(entityType, world);
-   }
+	private float currentYawAngle;
+	private float prevYawAngle;
 
-   @Override
-   public ActionResult interact(PlayerEntity player, Hand hand) {
-      if (!player.shouldCancelInteraction() && !this.hasPassengers() && (this.getEntityWorld().isClient() || player.startRiding(this))) {
-         this.field_52519 = this.field_52518;
-         if (!this.getEntityWorld().isClient()) {
-            return (ActionResult)(player.startRiding(this) ? ActionResult.CONSUME : ActionResult.PASS);
-         } else {
-            return ActionResult.SUCCESS;
-         }
-      } else {
-         return ActionResult.PASS;
-      }
-   }
+	public MinecartEntity(EntityType<?> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected Item asItem() {
-      return Items.MINECART;
-   }
+	@Override
+	public ActionResult interact(PlayerEntity player, Hand hand) {
+		if (!player.shouldCancelInteraction() && !this.hasPassengers() && (this.getEntityWorld().isClient()
+				|| player.startRiding(this)
+		)) {
+			this.prevYawAngle = this.currentYawAngle;
+			if (!this.getEntityWorld().isClient()) {
+				return (ActionResult) (player.startRiding(this) ? ActionResult.CONSUME : ActionResult.PASS);
+			}
+			else {
+				return ActionResult.SUCCESS;
+			}
+		}
+		else {
+			return ActionResult.PASS;
+		}
+	}
 
-   @Override
-   public ItemStack getPickBlockStack() {
-      return new ItemStack(Items.MINECART);
-   }
+	@Override
+	protected Item asItem() {
+		return Items.MINECART;
+	}
 
-   @Override
-   public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
-      if (bl) {
-         if (this.hasPassengers()) {
-            this.removeAllPassengers();
-         }
+	@Override
+	public ItemStack getPickBlockStack() {
+		return new ItemStack(Items.MINECART);
+	}
 
-         if (this.getDamageWobbleTicks() == 0) {
-            this.setDamageWobbleSide(-this.getDamageWobbleSide());
-            this.setDamageWobbleTicks(10);
-            this.setDamageWobbleStrength(50.0F);
-            this.scheduleVelocityUpdate();
-         }
-      }
-   }
+	@Override
+	public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
+		if (bl) {
+			if (this.hasPassengers()) {
+				this.removeAllPassengers();
+			}
 
-   @Override
-   public boolean isRideable() {
-      return true;
-   }
+			if (this.getDamageWobbleTicks() == 0) {
+				this.setDamageWobbleSide(-this.getDamageWobbleSide());
+				this.setDamageWobbleTicks(10);
+				this.setDamageWobbleStrength(50.0F);
+				this.scheduleVelocityUpdate();
+			}
+		}
+	}
 
-   @Override
-   public void tick() {
-      double d = this.getYaw();
-      Vec3d vec3d = this.getEntityPos();
-      super.tick();
-      double e = (this.getYaw() - d) % 360.0;
-      if (this.getEntityWorld().isClient() && vec3d.distanceTo(this.getEntityPos()) > 0.01) {
-         this.field_52518 += (float)e;
-         this.field_52518 %= 360.0F;
-      }
-   }
+	@Override
+	public boolean isRideable() {
+		return true;
+	}
 
-   @Override
-   protected void updatePassengerPosition(Entity passenger, Entity.PositionUpdater positionUpdater) {
-      super.updatePassengerPosition(passenger, positionUpdater);
-      if (this.getEntityWorld().isClient()
-         && passenger instanceof PlayerEntity playerEntity
-         && playerEntity.shouldRotateWithMinecart()
-         && areMinecartImprovementsEnabled(this.getEntityWorld())) {
-         float f = (float)MathHelper.lerpAngleDegrees(0.5, (double)this.field_52519, (double)this.field_52518);
-         playerEntity.setYaw(playerEntity.getYaw() - (f - this.field_52519));
-         this.field_52519 = f;
-      }
-   }
+	@Override
+	public void tick() {
+		double d = this.getYaw();
+		Vec3d vec3d = this.getEntityPos();
+		super.tick();
+		double e = (this.getYaw() - d) % 360.0;
+		if (this.getEntityWorld().isClient() && vec3d.distanceTo(this.getEntityPos()) > 0.01) {
+			this.currentYawAngle += (float) e;
+			this.currentYawAngle %= 360.0F;
+		}
+	}
+
+	@Override
+	protected void updatePassengerPosition(Entity passenger, Entity.PositionUpdater positionUpdater) {
+		super.updatePassengerPosition(passenger, positionUpdater);
+		if (this.getEntityWorld().isClient()
+				&& passenger instanceof PlayerEntity playerEntity
+				&& playerEntity.shouldRotateWithMinecart()
+				&& areMinecartImprovementsEnabled(this.getEntityWorld())) {
+			float f = (float) MathHelper.lerpAngleDegrees(0.5, (double) this.prevYawAngle, (double) this.currentYawAngle);
+			playerEntity.setYaw(playerEntity.getYaw() - (f - this.prevYawAngle));
+			this.prevYawAngle = f;
+		}
+	}
 }

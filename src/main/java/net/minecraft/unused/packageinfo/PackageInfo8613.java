@@ -4,5 +4,8 @@ import org.jspecify.annotations.NullMarked;
 
 // $VF: synthetic class
 @NullMarked
+/**
+ * {@code PackageInfo8613}.
+ */
 interface PackageInfo8613 {
 }

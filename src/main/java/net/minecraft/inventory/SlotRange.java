@@ -3,29 +3,33 @@ package net.minecraft.inventory;
 import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.util.StringIdentifiable;
 
+/**
+ * {@code SlotRange}.
+ */
 public interface SlotRange extends StringIdentifiable {
-   IntList getSlotIds();
 
-   default int getSlotCount() {
-      return this.getSlotIds().size();
-   }
+	IntList getSlotIds();
 
-   static SlotRange create(String name, IntList slotIds) {
-      return new SlotRange() {
-         @Override
-         public IntList getSlotIds() {
-            return slotIds;
-         }
+	default int getSlotCount() {
+		return this.getSlotIds().size();
+	}
 
-         @Override
-         public String asString() {
-            return name;
-         }
+	static SlotRange create(String name, IntList slotIds) {
+		return new SlotRange() {
+			@Override
+			public IntList getSlotIds() {
+				return slotIds;
+			}
 
-         @Override
-         public String toString() {
-            return name;
-         }
-      };
-   }
+			@Override
+			public String asString() {
+				return name;
+			}
+
+			@Override
+			public String toString() {
+				return name;
+			}
+		};
+	}
 }

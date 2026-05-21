@@ -6,41 +6,50 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import net.minecraft.block.Block;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.command.ServerCommandSource;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * {@code BlockStateArgumentType}.
+ */
 public class BlockStateArgumentType implements ArgumentType<BlockStateArgument> {
-   private static final Collection<String> EXAMPLES = Arrays.asList("stone", "minecraft:stone", "stone[foo=bar]", "foo{bar=baz}");
-   private final RegistryWrapper<Block> registryWrapper;
 
-   public BlockStateArgumentType(CommandRegistryAccess commandRegistryAccess) {
-      this.registryWrapper = commandRegistryAccess.getOrThrow(RegistryKeys.BLOCK);
-   }
+	private static final Collection<String>
+			EXAMPLES =
+			Arrays.asList("stone", "minecraft:stone", "stone[foo=bar]", "foo{bar=baz}");
+	private final RegistryWrapper<Block> registryWrapper;
 
-   public static BlockStateArgumentType blockState(CommandRegistryAccess commandRegistryAccess) {
-      return new BlockStateArgumentType(commandRegistryAccess);
-   }
+	public BlockStateArgumentType(CommandRegistryAccess commandRegistryAccess) {
+		this.registryWrapper = commandRegistryAccess.getOrThrow(RegistryKeys.BLOCK);
+	}
 
-   public BlockStateArgument parse(StringReader stringReader) throws CommandSyntaxException {
-      BlockArgumentParser.BlockResult blockResult = BlockArgumentParser.block(this.registryWrapper, stringReader, true);
-      return new BlockStateArgument(blockResult.blockState(), blockResult.properties().keySet(), blockResult.nbt());
-   }
+	public static BlockStateArgumentType blockState(CommandRegistryAccess commandRegistryAccess) {
+		return new BlockStateArgumentType(commandRegistryAccess);
+	}
 
-   public static BlockStateArgument getBlockState(CommandContext<ServerCommandSource> context, String name) {
-      return (BlockStateArgument)context.getArgument(name, BlockStateArgument.class);
-   }
+	public BlockStateArgument parse(StringReader stringReader) throws CommandSyntaxException {
+		BlockArgumentParser.BlockResult
+				blockResult =
+				BlockArgumentParser.block(this.registryWrapper, stringReader, true);
+		return new BlockStateArgument(blockResult.blockState(), blockResult.properties().keySet(), blockResult.nbt());
+	}
 
-   public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-      return BlockArgumentParser.getSuggestions(this.registryWrapper, builder, false, true);
-   }
+	public static BlockStateArgument getBlockState(CommandContext<ServerCommandSource> context, String name) {
+		return (BlockStateArgument) context.getArgument(name, BlockStateArgument.class);
+	}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
+		return BlockArgumentParser.getSuggestions(this.registryWrapper, builder, false, true);
+	}
+
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 }

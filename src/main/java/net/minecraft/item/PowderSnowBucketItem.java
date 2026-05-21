@@ -13,42 +13,55 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code PowderSnowBucketItem}.
+ */
 public class PowderSnowBucketItem extends BlockItem implements FluidModificationItem {
-   private final SoundEvent placeSound;
 
-   public PowderSnowBucketItem(Block block, SoundEvent placeSound, Item.Settings settings) {
-      super(block, settings);
-      this.placeSound = placeSound;
-   }
+	private final SoundEvent placeSound;
 
-   @Override
-   public ActionResult useOnBlock(ItemUsageContext context) {
-      ActionResult actionResult = super.useOnBlock(context);
-      PlayerEntity playerEntity = context.getPlayer();
-      if (actionResult.isAccepted() && playerEntity != null) {
-         playerEntity.setStackInHand(context.getHand(), BucketItem.getEmptiedStack(context.getStack(), playerEntity));
-      }
+	public PowderSnowBucketItem(Block block, SoundEvent placeSound, Item.Settings settings) {
+		super(block, settings);
+		this.placeSound = placeSound;
+	}
 
-      return actionResult;
-   }
+	@Override
+	public ActionResult useOnBlock(ItemUsageContext context) {
+		ActionResult actionResult = super.useOnBlock(context);
+		PlayerEntity playerEntity = context.getPlayer();
+		if (actionResult.isAccepted() && playerEntity != null) {
+			playerEntity.setStackInHand(
+					context.getHand(),
+					BucketItem.getEmptiedStack(context.getStack(), playerEntity)
+			);
+		}
 
-   @Override
-   protected SoundEvent getPlaceSound(BlockState state) {
-      return this.placeSound;
-   }
+		return actionResult;
+	}
 
-   @Override
-   public boolean placeFluid(@Nullable LivingEntity user, World world, BlockPos pos, @Nullable BlockHitResult hitResult) {
-      if (world.isInBuildLimit(pos) && world.isAir(pos)) {
-         if (!world.isClient()) {
-            world.setBlockState(pos, this.getBlock().getDefaultState(), 3);
-         }
+	@Override
+	protected SoundEvent getPlaceSound(BlockState state) {
+		return this.placeSound;
+	}
 
-         world.emitGameEvent(user, GameEvent.FLUID_PLACE, pos);
-         world.playSound(user, pos, this.placeSound, SoundCategory.BLOCKS, 1.0F, 1.0F);
-         return true;
-      } else {
-         return false;
-      }
-   }
+	@Override
+	public boolean placeFluid(
+			@Nullable LivingEntity user,
+			World world,
+			BlockPos pos,
+			@Nullable BlockHitResult hitResult
+	) {
+		if (world.isInBuildLimit(pos) && world.isAir(pos)) {
+			if (!world.isClient()) {
+				world.setBlockState(pos, this.getBlock().getDefaultState(), 3);
+			}
+
+			world.emitGameEvent(user, GameEvent.FLUID_PLACE, pos);
+			world.playSound(user, pos, this.placeSound, SoundCategory.BLOCKS, 1.0F, 1.0F);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 }

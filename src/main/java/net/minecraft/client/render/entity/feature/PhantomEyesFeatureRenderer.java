@@ -9,15 +9,19 @@ import net.minecraft.client.render.entity.state.PhantomEntityRenderState;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PhantomEyesFeatureRenderer}.
+ */
 public class PhantomEyesFeatureRenderer extends EyesFeatureRenderer<PhantomEntityRenderState, PhantomEntityModel> {
-   private static final RenderLayer SKIN = RenderLayers.eyes(Identifier.ofVanilla("textures/entity/phantom_eyes.png"));
 
-   public PhantomEyesFeatureRenderer(FeatureRendererContext<PhantomEntityRenderState, PhantomEntityModel> featureRendererContext) {
-      super(featureRendererContext);
-   }
+	private static final RenderLayer SKIN = RenderLayers.eyes(Identifier.ofVanilla("textures/entity/phantom_eyes.png"));
 
-   @Override
-   public RenderLayer getEyesTexture() {
-      return SKIN;
-   }
+	public PhantomEyesFeatureRenderer(FeatureRendererContext<PhantomEntityRenderState, PhantomEntityModel> featureRendererContext) {
+		super(featureRendererContext);
+	}
+
+	@Override
+	public RenderLayer getEyesTexture() {
+		return SKIN;
+	}
 }

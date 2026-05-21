@@ -12,17 +12,20 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.stat.Stat;
 
 public record StatisticsS2CPacket(Object2IntMap<Stat<?>> stats) implements Packet<ClientPlayPacketListener> {
-   private static final PacketCodec<RegistryByteBuf, Object2IntMap<Stat<?>>> STAT_MAP_CODEC = PacketCodecs.map(
-      Object2IntOpenHashMap::new, Stat.PACKET_CODEC, PacketCodecs.VAR_INT
-   );
-   public static final PacketCodec<RegistryByteBuf, StatisticsS2CPacket> CODEC = STAT_MAP_CODEC.xmap(StatisticsS2CPacket::new, StatisticsS2CPacket::stats);
 
-   @Override
-   public PacketType<StatisticsS2CPacket> getPacketType() {
-      return PlayPackets.AWARD_STATS;
-   }
+	private static final PacketCodec<RegistryByteBuf, Object2IntMap<Stat<?>>> STAT_MAP_CODEC = PacketCodecs.map(
+			Object2IntOpenHashMap::new, Stat.PACKET_CODEC, PacketCodecs.VAR_INT
+	);
+	public static final PacketCodec<RegistryByteBuf, StatisticsS2CPacket>
+			CODEC =
+			STAT_MAP_CODEC.xmap(StatisticsS2CPacket::new, StatisticsS2CPacket::stats);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onStatistics(this);
-   }
+	@Override
+	public PacketType<StatisticsS2CPacket> getPacketType() {
+		return PlayPackets.AWARD_STATS;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onStatistics(this);
+	}
 }

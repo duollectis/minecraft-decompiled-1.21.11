@@ -9,65 +9,115 @@ import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SquidInkParticle}.
+ */
 public class SquidInkParticle extends AnimatedParticle {
-   SquidInkParticle(
-      ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, int color, SpriteProvider spriteProvider
-   ) {
-      super(world, x, y, z, spriteProvider, 0.0F);
-      this.velocityMultiplier = 0.92F;
-      this.scale = 0.5F;
-      this.setAlpha(1.0F);
-      this.setColor(ColorHelper.getRedFloat(color), ColorHelper.getGreenFloat(color), ColorHelper.getBlueFloat(color));
-      this.maxAge = (int)(this.scale * 12.0F / (this.random.nextFloat() * 0.8F + 0.2F));
-      this.updateSprite(spriteProvider);
-      this.collidesWithWorld = false;
-      this.velocityX = velocityX;
-      this.velocityY = velocityY;
-      this.velocityZ = velocityZ;
-   }
 
-   @Override
-   public void tick() {
-      super.tick();
-      if (!this.dead) {
-         this.updateSprite(this.spriteProvider);
-         if (this.age > this.maxAge / 2) {
-            this.setAlpha(1.0F - ((float)this.age - this.maxAge / 2) / this.maxAge);
-         }
+	SquidInkParticle(
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
+			int color,
+			SpriteProvider spriteProvider
+	) {
+		super(world, x, y, z, spriteProvider, 0.0F);
+		this.velocityMultiplier = 0.92F;
+		this.scale = 0.5F;
+		this.setAlpha(1.0F);
+		this.setColor(
+				ColorHelper.getRedFloat(color),
+				ColorHelper.getGreenFloat(color),
+				ColorHelper.getBlueFloat(color)
+		);
+		this.maxAge = (int) (this.scale * 12.0F / (this.random.nextFloat() * 0.8F + 0.2F));
+		this.updateSprite(spriteProvider);
+		this.collidesWithWorld = false;
+		this.velocityX = velocityX;
+		this.velocityY = velocityY;
+		this.velocityZ = velocityZ;
+	}
 
-         if (this.world.getBlockState(BlockPos.ofFloored(this.x, this.y, this.z)).isAir()) {
-            this.velocityY -= 0.0074F;
-         }
-      }
-   }
+	@Override
+	public void tick() {
+		super.tick();
+		if (!this.dead) {
+			this.updateSprite(this.spriteProvider);
+			if (this.age > this.maxAge / 2) {
+				this.setAlpha(1.0F - ((float) this.age - this.maxAge / 2) / this.maxAge);
+			}
 
-   @Environment(EnvType.CLIENT)
-   public static class Factory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+			if (this.world.getBlockState(BlockPos.ofFloored(this.x, this.y, this.z)).isAir()) {
+				this.velocityY -= 0.0074F;
+			}
+		}
+	}
 
-      public Factory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Factory}.
+	 */
+	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new SquidInkParticle(clientWorld, d, e, f, g, h, i, -16777216, this.spriteProvider);
-      }
-   }
+		private final SpriteProvider spriteProvider;
 
-   @Environment(EnvType.CLIENT)
-   public static class GlowSquidInkFactory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+		public Factory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
 
-      public GlowSquidInkFactory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new SquidInkParticle(clientWorld, d, e, f, g, h, i, -16777216, this.spriteProvider);
+		}
+	}
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new SquidInkParticle(clientWorld, d, e, f, g, h, i, ColorHelper.fromFloats(1.0F, 0.2F, 0.8F, 0.6F), this.spriteProvider);
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code GlowSquidInkFactory}.
+	 */
+	public static class GlowSquidInkFactory implements ParticleFactory<SimpleParticleType> {
+
+		private final SpriteProvider spriteProvider;
+
+		public GlowSquidInkFactory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
+
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new SquidInkParticle(
+					clientWorld,
+					d,
+					e,
+					f,
+					g,
+					h,
+					i,
+					ColorHelper.fromFloats(1.0F, 0.2F, 0.8F, 0.6F),
+					this.spriteProvider
+			);
+		}
+	}
 }

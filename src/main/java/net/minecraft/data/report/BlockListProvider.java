@@ -5,8 +5,6 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
-import java.nio.file.Path;
-import java.util.concurrent.CompletableFuture;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.BlockTypes;
@@ -20,88 +18,112 @@ import net.minecraft.state.StateManager;
 import net.minecraft.state.property.Property;
 import net.minecraft.util.Util;
 
+import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * {@code BlockListProvider}.
+ */
 public class BlockListProvider implements DataProvider {
-   private final DataOutput output;
-   private final CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture;
 
-   public BlockListProvider(DataOutput output, CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture) {
-      this.output = output;
-      this.registriesFuture = registriesFuture;
-   }
+	private final DataOutput output;
+	private final CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture;
 
-   @Override
-   public CompletableFuture<?> run(DataWriter writer) {
-      Path path = this.output.resolvePath(DataOutput.OutputType.REPORTS).resolve("blocks.json");
-      return this.registriesFuture
-         .thenCompose(
-            registries -> {
-               JsonObject jsonObject = new JsonObject();
-               RegistryOps<JsonElement> registryOps = registries.getOps(JsonOps.INSTANCE);
-               registries.getOrThrow(RegistryKeys.BLOCK)
-                  .streamEntries()
-                  .forEach(
-                     entry -> {
-                        JsonObject jsonObject2 = new JsonObject();
-                        StateManager<Block, BlockState> stateManager = entry.value().getStateManager();
-                        if (!stateManager.getProperties().isEmpty()) {
-                           JsonObject jsonObject3 = new JsonObject();
+	public BlockListProvider(DataOutput output, CompletableFuture<RegistryWrapper.WrapperLookup> registriesFuture) {
+		this.output = output;
+		this.registriesFuture = registriesFuture;
+	}
 
-                           for (Property<?> property : stateManager.getProperties()) {
-                              JsonArray jsonArray = new JsonArray();
+	@Override
+	public CompletableFuture<?> run(DataWriter writer) {
+		Path path = this.output.resolvePath(DataOutput.OutputType.REPORTS).resolve("blocks.json");
+		return this.registriesFuture
+				.thenCompose(
+						registries -> {
+							JsonObject jsonObject = new JsonObject();
+							RegistryOps<JsonElement> registryOps = registries.getOps(JsonOps.INSTANCE);
+							registries.getOrThrow(RegistryKeys.BLOCK)
+							          .streamEntries()
+							          .forEach(
+									          entry -> {
+										          JsonObject jsonObject2 = new JsonObject();
+										          StateManager<Block, BlockState>
+												          stateManager =
+												          entry.value().getStateManager();
+										          if (!stateManager.getProperties().isEmpty()) {
+											          JsonObject jsonObject3 = new JsonObject();
 
-                              for (Comparable<?> comparable : property.getValues()) {
-                                 jsonArray.add(Util.getValueAsString(property, comparable));
-                              }
+											          for (Property<?> property : stateManager.getProperties()) {
+												          JsonArray jsonArray = new JsonArray();
 
-                              jsonObject3.add(property.getName(), jsonArray);
-                           }
+												          for (Comparable<?> comparable : property.getValues()) {
+													          jsonArray.add(Util.getValueAsString(
+															          property,
+															          comparable
+													          ));
+												          }
 
-                           jsonObject2.add("properties", jsonObject3);
-                        }
+												          jsonObject3.add(property.getName(), jsonArray);
+											          }
 
-                        JsonArray jsonArray2 = new JsonArray();
-                        UnmodifiableIterator var13 = stateManager.getStates().iterator();
+											          jsonObject2.add("properties", jsonObject3);
+										          }
 
-                        while (var13.hasNext()) {
-                           BlockState blockState = (BlockState)var13.next();
-                           JsonObject jsonObject4 = new JsonObject();
-                           JsonObject jsonObject5 = new JsonObject();
+										          JsonArray jsonArray2 = new JsonArray();
+										          UnmodifiableIterator var13 = stateManager.getStates().iterator();
 
-                           for (Property<?> property2 : stateManager.getProperties()) {
-                              jsonObject5.addProperty(property2.getName(), Util.getValueAsString(property2, blockState.get(property2)));
-                           }
+										          while (var13.hasNext()) {
+											          BlockState blockState = (BlockState) var13.next();
+											          JsonObject jsonObject4 = new JsonObject();
+											          JsonObject jsonObject5 = new JsonObject();
 
-                           if (!jsonObject5.isEmpty()) {
-                              jsonObject4.add("properties", jsonObject5);
-                           }
+											          for (Property<?> property2 : stateManager.getProperties()) {
+												          jsonObject5.addProperty(
+														          property2.getName(),
+														          Util.getValueAsString(
+																          property2,
+																          blockState.get(property2)
+														          )
+												          );
+											          }
 
-                           jsonObject4.addProperty("id", Block.getRawIdFromState(blockState));
-                           if (blockState == entry.value().getDefaultState()) {
-                              jsonObject4.addProperty("default", true);
-                           }
+											          if (!jsonObject5.isEmpty()) {
+												          jsonObject4.add("properties", jsonObject5);
+											          }
 
-                           jsonArray2.add(jsonObject4);
-                        }
+											          jsonObject4.addProperty(
+													          "id",
+													          Block.getRawIdFromState(blockState)
+											          );
+											          if (blockState == entry.value().getDefaultState()) {
+												          jsonObject4.addProperty("default", true);
+											          }
 
-                        jsonObject2.add("states", jsonArray2);
-                        String string = entry.getIdAsString();
-                        JsonElement jsonElement = (JsonElement)BlockTypes.CODEC
-                           .codec()
-                           .encodeStart(registryOps, entry.value())
-                           .getOrThrow(
-                              string2 -> new AssertionError("Failed to serialize block " + string + " (is type registered in BlockTypes?): " + string2)
-                           );
-                        jsonObject2.add("definition", jsonElement);
-                        jsonObject.add(string, jsonObject2);
-                     }
-                  );
-               return DataProvider.writeToPath(writer, jsonObject, path);
-            }
-         );
-   }
+											          jsonArray2.add(jsonObject4);
+										          }
 
-   @Override
-   public String getName() {
-      return "Block List";
-   }
+										          jsonObject2.add("states", jsonArray2);
+										          String string = entry.getIdAsString();
+										          JsonElement jsonElement = (JsonElement) BlockTypes.CODEC
+												          .codec()
+												          .encodeStart(registryOps, entry.value())
+												          .getOrThrow(
+														          string2 -> new AssertionError(
+																          "Failed to serialize block " + string
+																		          + " (is type registered in BlockTypes?): "
+																		          + string2)
+												          );
+										          jsonObject2.add("definition", jsonElement);
+										          jsonObject.add(string, jsonObject2);
+									          }
+							          );
+							return DataProvider.writeToPath(writer, jsonObject, path);
+						}
+				);
+	}
+
+	@Override
+	public String getName() {
+		return "Block List";
+	}
 }

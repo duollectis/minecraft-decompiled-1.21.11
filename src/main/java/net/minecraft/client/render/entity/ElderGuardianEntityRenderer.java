@@ -7,15 +7,19 @@ import net.minecraft.client.render.entity.state.GuardianEntityRenderState;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ElderGuardianEntityRenderer}.
+ */
 public class ElderGuardianEntityRenderer extends GuardianEntityRenderer {
-   public static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/guardian_elder.png");
 
-   public ElderGuardianEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, 1.2F, EntityModelLayers.ELDER_GUARDIAN);
-   }
+	public static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/guardian_elder.png");
 
-   @Override
-   public Identifier getTexture(GuardianEntityRenderState guardianEntityRenderState) {
-      return TEXTURE;
-   }
+	public ElderGuardianEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, 1.2F, EntityModelLayers.ELDER_GUARDIAN);
+	}
+
+	@Override
+	public Identifier getTexture(GuardianEntityRenderState guardianEntityRenderState) {
+		return TEXTURE;
+	}
 }

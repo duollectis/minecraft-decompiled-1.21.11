@@ -12,20 +12,26 @@ import net.minecraft.util.dynamic.Codecs;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code UseCycleProperty}.
+ */
 public record UseCycleProperty(float period) implements NumericProperty {
-   public static final MapCodec<UseCycleProperty> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codecs.POSITIVE_FLOAT.optionalFieldOf("period", 1.0F).forGetter(UseCycleProperty::period))
-         .apply(instance, UseCycleProperty::new)
-   );
 
-   @Override
-   public float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext context, int seed) {
-      LivingEntity livingEntity = context == null ? null : context.getEntity();
-      return livingEntity != null && livingEntity.getActiveItem() == stack ? livingEntity.getItemUseTimeLeft() % this.period : 0.0F;
-   }
+	public static final MapCodec<UseCycleProperty> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codecs.POSITIVE_FLOAT.optionalFieldOf("period", 1.0F).forGetter(UseCycleProperty::period))
+					.apply(instance, UseCycleProperty::new)
+	);
 
-   @Override
-   public MapCodec<UseCycleProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext context, int seed) {
+		LivingEntity livingEntity = context == null ? null : context.getEntity();
+		return livingEntity != null && livingEntity.getActiveItem() == stack ? livingEntity.getItemUseTimeLeft()
+		                                                                       % this.period : 0.0F;
+	}
+
+	@Override
+	public MapCodec<UseCycleProperty> getCodec() {
+		return CODEC;
+	}
 }

@@ -13,55 +13,61 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
+/**
+ * {@code BeetrootsBlock}.
+ */
 public class BeetrootsBlock extends CropBlock {
-   public static final MapCodec<BeetrootsBlock> CODEC = createCodec(BeetrootsBlock::new);
-   public static final int BEETROOTS_MAX_AGE = 3;
-   public static final IntProperty AGE = Properties.AGE_3;
-   private static final VoxelShape[] SHAPES_BY_AGE = Block.createShapeArray(3, age -> Block.createColumnShape(16.0, 0.0, 2 + age * 2));
 
-   @Override
-   public MapCodec<BeetrootsBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<BeetrootsBlock> CODEC = createCodec(BeetrootsBlock::new);
+	public static final int BEETROOTS_MAX_AGE = 3;
+	public static final IntProperty AGE = Properties.AGE_3;
+	private static final VoxelShape[]
+			SHAPES_BY_AGE =
+			Block.createShapeArray(3, age -> Block.createColumnShape(16.0, 0.0, 2 + age * 2));
 
-   public BeetrootsBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<BeetrootsBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected IntProperty getAgeProperty() {
-      return AGE;
-   }
+	public BeetrootsBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public int getMaxAge() {
-      return 3;
-   }
+	@Override
+	protected IntProperty getAgeProperty() {
+		return AGE;
+	}
 
-   @Override
-   protected ItemConvertible getSeedsItem() {
-      return Items.BEETROOT_SEEDS;
-   }
+	@Override
+	public int getMaxAge() {
+		return 3;
+	}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (random.nextInt(3) != 0) {
-         super.randomTick(state, world, pos, random);
-      }
-   }
+	@Override
+	protected ItemConvertible getSeedsItem() {
+		return Items.BEETROOT_SEEDS;
+	}
 
-   @Override
-   protected int getGrowthAmount(World world) {
-      return super.getGrowthAmount(world) / 3;
-   }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (random.nextInt(3) != 0) {
+			super.randomTick(state, world, pos, random);
+		}
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(AGE);
-   }
+	@Override
+	protected int getGrowthAmount(World world) {
+		return super.getGrowthAmount(world) / 3;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPES_BY_AGE[this.getAge(state)];
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(AGE);
+	}
+
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPES_BY_AGE[this.getAge(state)];
+	}
 }

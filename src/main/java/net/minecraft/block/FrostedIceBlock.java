@@ -17,93 +17,108 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code FrostedIceBlock}.
+ */
 public class FrostedIceBlock extends IceBlock {
-   public static final MapCodec<FrostedIceBlock> CODEC = createCodec(FrostedIceBlock::new);
-   public static final int MAX_AGE = 3;
-   public static final IntProperty AGE = Properties.AGE_3;
-   private static final int NEIGHBORS_CHECKED_ON_SCHEDULED_TICK = 4;
-   private static final int NEIGHBORS_CHECKED_ON_NEIGHBOR_UPDATE = 2;
 
-   @Override
-   public MapCodec<FrostedIceBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<FrostedIceBlock> CODEC = createCodec(FrostedIceBlock::new);
+	public static final int MAX_AGE = 3;
+	public static final IntProperty AGE = Properties.AGE_3;
+	private static final int NEIGHBORS_CHECKED_ON_SCHEDULED_TICK = 4;
+	private static final int NEIGHBORS_CHECKED_ON_NEIGHBOR_UPDATE = 2;
 
-   public FrostedIceBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(AGE, 0));
-   }
+	@Override
+	public MapCodec<FrostedIceBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-      world.scheduleBlockTick(pos, this, MathHelper.nextInt(world.getRandom(), 60, 120));
-   }
+	public FrostedIceBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(AGE, 0));
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (random.nextInt(3) == 0 || this.canMelt(world, pos, 4)) {
-         int i = world.getRegistryKey() == World.END ? world.getLightLevel(LightType.BLOCK, pos) : world.getLightLevel(pos);
-         if (i > 11 - state.get(AGE) - state.getOpacity() && this.increaseAge(state, world, pos)) {
-            BlockPos.Mutable mutable = new BlockPos.Mutable();
+	@Override
+	public void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
+		world.scheduleBlockTick(pos, this, MathHelper.nextInt(world.getRandom(), 60, 120));
+	}
 
-            for (Direction direction : Direction.values()) {
-               mutable.set(pos, direction);
-               BlockState blockState = world.getBlockState(mutable);
-               if (blockState.isOf(this) && !this.increaseAge(blockState, world, mutable)) {
-                  world.scheduleBlockTick(mutable, this, MathHelper.nextInt(random, 20, 40));
-               }
-            }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (random.nextInt(3) == 0 || this.canMelt(world, pos, 4)) {
+			int
+					i =
+					world.getRegistryKey() == World.END ? world.getLightLevel(LightType.BLOCK, pos)
+					                                    : world.getLightLevel(pos);
+			if (i > 11 - state.get(AGE) - state.getOpacity() && this.increaseAge(state, world, pos)) {
+				BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-            return;
-         }
-      }
+				for (Direction direction : Direction.values()) {
+					mutable.set(pos, direction);
+					BlockState blockState = world.getBlockState(mutable);
+					if (blockState.isOf(this) && !this.increaseAge(blockState, world, mutable)) {
+						world.scheduleBlockTick(mutable, this, MathHelper.nextInt(random, 20, 40));
+					}
+				}
 
-      world.scheduleBlockTick(pos, this, MathHelper.nextInt(random, 20, 40));
-   }
+				return;
+			}
+		}
 
-   private boolean increaseAge(BlockState state, World world, BlockPos pos) {
-      int i = state.get(AGE);
-      if (i < 3) {
-         world.setBlockState(pos, state.with(AGE, i + 1), 2);
-         return false;
-      } else {
-         this.melt(state, world, pos);
-         return true;
-      }
-   }
+		world.scheduleBlockTick(pos, this, MathHelper.nextInt(random, 20, 40));
+	}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      if (sourceBlock.getDefaultState().isOf(this) && this.canMelt(world, pos, 2)) {
-         this.melt(state, world, pos);
-      }
+	private boolean increaseAge(BlockState state, World world, BlockPos pos) {
+		int i = state.get(AGE);
+		if (i < 3) {
+			world.setBlockState(pos, state.with(AGE, i + 1), 2);
+			return false;
+		}
+		else {
+			this.melt(state, world, pos);
+			return true;
+		}
+	}
 
-      super.neighborUpdate(state, world, pos, sourceBlock, wireOrientation, notify);
-   }
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		if (sourceBlock.getDefaultState().isOf(this) && this.canMelt(world, pos, 2)) {
+			this.melt(state, world, pos);
+		}
 
-   private boolean canMelt(BlockView world, BlockPos pos, int maxNeighbors) {
-      int i = 0;
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
+		super.neighborUpdate(state, world, pos, sourceBlock, wireOrientation, notify);
+	}
 
-      for (Direction direction : Direction.values()) {
-         mutable.set(pos, direction);
-         if (world.getBlockState(mutable).isOf(this)) {
-            if (++i >= maxNeighbors) {
-               return false;
-            }
-         }
-      }
+	private boolean canMelt(BlockView world, BlockPos pos, int maxNeighbors) {
+		int i = 0;
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-      return true;
-   }
+		for (Direction direction : Direction.values()) {
+			mutable.set(pos, direction);
+			if (world.getBlockState(mutable).isOf(this)) {
+				if (++i >= maxNeighbors) {
+					return false;
+				}
+			}
+		}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(AGE);
-   }
+		return true;
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return ItemStack.EMPTY;
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(AGE);
+	}
+
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return ItemStack.EMPTY;
+	}
 }

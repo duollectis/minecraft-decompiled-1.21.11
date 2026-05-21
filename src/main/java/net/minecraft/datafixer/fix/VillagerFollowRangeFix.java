@@ -6,31 +6,43 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code VillagerFollowRangeFix}.
+ */
 public class VillagerFollowRangeFix extends ChoiceFix {
-   private static final double OLD_RANGE = 16.0;
-   private static final double NEW_RANGE = 48.0;
 
-   public VillagerFollowRangeFix(Schema outputSchema) {
-      super(outputSchema, false, "Villager Follow Range Fix", TypeReferences.ENTITY, "minecraft:villager");
-   }
+	private static final double OLD_RANGE = 16.0;
+	private static final double NEW_RANGE = 48.0;
 
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      return inputTyped.update(DSL.remainderFinder(), VillagerFollowRangeFix::fix);
-   }
+	public VillagerFollowRangeFix(Schema outputSchema) {
+		super(outputSchema, false, "Villager Follow Range Fix", TypeReferences.ENTITY, "minecraft:villager");
+	}
 
-   private static Dynamic<?> fix(Dynamic<?> villagerDynamic) {
-      return villagerDynamic.update(
-         "Attributes",
-         attributesDynamic -> villagerDynamic.createList(
-            attributesDynamic.asStream()
-               .map(
-                  attributeDynamic -> attributeDynamic.get("Name").asString("").equals("generic.follow_range")
-                        && attributeDynamic.get("Base").asDouble(0.0) == 16.0
-                     ? attributeDynamic.set("Base", attributeDynamic.createDouble(48.0))
-                     : attributeDynamic
-               )
-         )
-      );
-   }
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		return inputTyped.update(DSL.remainderFinder(), VillagerFollowRangeFix::fix);
+	}
+
+	private static Dynamic<?> fix(Dynamic<?> villagerDynamic) {
+		return villagerDynamic.update(
+				"Attributes",
+				attributesDynamic -> villagerDynamic.createList(
+						attributesDynamic.asStream()
+						                 .map(
+								                 attributeDynamic -> attributeDynamic
+										                                     .get("Name")
+										                                     .asString("")
+										                                     .equals("generic.follow_range")
+										                                     &&
+										                                     attributeDynamic.get("Base").asDouble(0.0)
+												                                     == 16.0
+								                                     ? attributeDynamic.set(
+										                 "Base",
+										                 attributeDynamic.createDouble(48.0)
+								                 )
+								                                     : attributeDynamic
+						                 )
+				)
+		);
+	}
 }

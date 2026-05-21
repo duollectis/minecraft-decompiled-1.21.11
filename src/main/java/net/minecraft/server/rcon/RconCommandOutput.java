@@ -9,56 +9,60 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * {@code RconCommandOutput}.
+ */
 public class RconCommandOutput implements CommandOutput {
-   private static final String RCON_NAME = "Rcon";
-   private static final Text RCON_NAME_TEXT = Text.literal("Rcon");
-   private final StringBuffer buffer = new StringBuffer();
-   private final MinecraftServer server;
 
-   public RconCommandOutput(MinecraftServer server) {
-      this.server = server;
-   }
+	private static final String RCON_NAME = "Rcon";
+	private static final Text RCON_NAME_TEXT = Text.literal("Rcon");
+	private final StringBuffer buffer = new StringBuffer();
+	private final MinecraftServer server;
 
-   public void clear() {
-      this.buffer.setLength(0);
-   }
+	public RconCommandOutput(MinecraftServer server) {
+		this.server = server;
+	}
 
-   public String asString() {
-      return this.buffer.toString();
-   }
+	public void clear() {
+		this.buffer.setLength(0);
+	}
 
-   public ServerCommandSource createRconCommandSource() {
-      ServerWorld serverWorld = this.server.getOverworld();
-      return new ServerCommandSource(
-         this,
-         Vec3d.of(serverWorld.getSpawnPoint().getPos()),
-         Vec2f.ZERO,
-         serverWorld,
-         LeveledPermissionPredicate.OWNERS,
-         "Rcon",
-         RCON_NAME_TEXT,
-         this.server,
-         null
-      );
-   }
+	public String asString() {
+		return this.buffer.toString();
+	}
 
-   @Override
-   public void sendMessage(Text message) {
-      this.buffer.append(message.getString());
-   }
+	public ServerCommandSource createRconCommandSource() {
+		ServerWorld serverWorld = this.server.getOverworld();
+		return new ServerCommandSource(
+				this,
+				Vec3d.of(serverWorld.getSpawnPoint().getPos()),
+				Vec2f.ZERO,
+				serverWorld,
+				LeveledPermissionPredicate.OWNERS,
+				"Rcon",
+				RCON_NAME_TEXT,
+				this.server,
+				null
+		);
+	}
 
-   @Override
-   public boolean shouldReceiveFeedback() {
-      return true;
-   }
+	@Override
+	public void sendMessage(Text message) {
+		this.buffer.append(message.getString());
+	}
 
-   @Override
-   public boolean shouldTrackOutput() {
-      return true;
-   }
+	@Override
+	public boolean shouldReceiveFeedback() {
+		return true;
+	}
 
-   @Override
-   public boolean shouldBroadcastConsoleToOps() {
-      return this.server.shouldBroadcastRconToOps();
-   }
+	@Override
+	public boolean shouldTrackOutput() {
+		return true;
+	}
+
+	@Override
+	public boolean shouldBroadcastConsoleToOps() {
+		return this.server.shouldBroadcastRconToOps();
+	}
 }

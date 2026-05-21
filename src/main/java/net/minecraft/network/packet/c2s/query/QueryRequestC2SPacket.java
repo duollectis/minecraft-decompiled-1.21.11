@@ -8,18 +8,19 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.StatusPackets;
 
 public class QueryRequestC2SPacket implements Packet<ServerQueryPacketListener> {
-   public static final QueryRequestC2SPacket INSTANCE = new QueryRequestC2SPacket();
-   public static final PacketCodec<ByteBuf, QueryRequestC2SPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   private QueryRequestC2SPacket() {
-   }
+	public static final QueryRequestC2SPacket INSTANCE = new QueryRequestC2SPacket();
+	public static final PacketCodec<ByteBuf, QueryRequestC2SPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   @Override
-   public PacketType<QueryRequestC2SPacket> getPacketType() {
-      return StatusPackets.STATUS_REQUEST;
-   }
+	private QueryRequestC2SPacket() {
+	}
 
-   public void apply(ServerQueryPacketListener serverQueryPacketListener) {
-      serverQueryPacketListener.onRequest(this);
-   }
+	@Override
+	public PacketType<QueryRequestC2SPacket> getPacketType() {
+		return StatusPackets.STATUS_REQUEST;
+	}
+
+	public void apply(ServerQueryPacketListener serverQueryPacketListener) {
+		serverQueryPacketListener.onRequest(this);
+	}
 }

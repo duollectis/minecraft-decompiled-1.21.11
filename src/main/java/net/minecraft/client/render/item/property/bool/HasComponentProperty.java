@@ -14,22 +14,35 @@ import net.minecraft.registry.Registries;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code HasComponentProperty}.
+ */
 public record HasComponentProperty(ComponentType<?> componentType, boolean ignoreDefault) implements BooleanProperty {
-   public static final MapCodec<HasComponentProperty> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Registries.DATA_COMPONENT_TYPE.getCodec().fieldOf("component").forGetter(HasComponentProperty::componentType),
-            Codec.BOOL.optionalFieldOf("ignore_default", false).forGetter(HasComponentProperty::ignoreDefault)
-         )
-         .apply(instance, HasComponentProperty::new)
-   );
 
-   @Override
-   public boolean test(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity entity, int seed, ItemDisplayContext displayContext) {
-      return this.ignoreDefault ? stack.hasChangedComponent(this.componentType) : stack.contains(this.componentType);
-   }
+	public static final MapCodec<HasComponentProperty> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Registries.DATA_COMPONENT_TYPE
+							                    .getCodec()
+							                    .fieldOf("component")
+							                    .forGetter(HasComponentProperty::componentType),
+					                    Codec.BOOL.optionalFieldOf("ignore_default", false).forGetter(HasComponentProperty::ignoreDefault)
+			                    )
+			                    .apply(instance, HasComponentProperty::new)
+	);
 
-   @Override
-   public MapCodec<HasComponentProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public boolean test(
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity entity,
+			int seed,
+			ItemDisplayContext displayContext
+	) {
+		return this.ignoreDefault ? stack.hasChangedComponent(this.componentType) : stack.contains(this.componentType);
+	}
+
+	@Override
+	public MapCodec<HasComponentProperty> getCodec() {
+		return CODEC;
+	}
 }

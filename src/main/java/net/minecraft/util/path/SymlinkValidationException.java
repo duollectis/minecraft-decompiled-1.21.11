@@ -4,24 +4,31 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * {@code SymlinkValidationException}.
+ */
 public class SymlinkValidationException extends Exception {
-   private final Path path;
-   private final List<SymlinkEntry> symlinks;
 
-   public SymlinkValidationException(Path path, List<SymlinkEntry> symlinks) {
-      this.path = path;
-      this.symlinks = symlinks;
-   }
+	private final Path path;
+	private final List<SymlinkEntry> symlinks;
 
-   @Override
-   public String getMessage() {
-      return getMessage(this.path, this.symlinks);
-   }
+	public SymlinkValidationException(Path path, List<SymlinkEntry> symlinks) {
+		this.path = path;
+		this.symlinks = symlinks;
+	}
 
-   public static String getMessage(Path path, List<SymlinkEntry> symlinks) {
-      return "Failed to validate '"
-         + path
-         + "'. Found forbidden symlinks: "
-         + symlinks.stream().map(symlink -> symlink.link() + "->" + symlink.target()).collect(Collectors.joining(", "));
-   }
+	@Override
+	public String getMessage() {
+		return getMessage(this.path, this.symlinks);
+	}
+
+	public static String getMessage(Path path, List<SymlinkEntry> symlinks) {
+		return "Failed to validate '"
+				+ path
+				+ "'. Found forbidden symlinks: "
+				+ symlinks
+				.stream()
+				.map(symlink -> symlink.link() + "->" + symlink.target())
+				.collect(Collectors.joining(", "));
+	}
 }

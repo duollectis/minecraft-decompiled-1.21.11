@@ -6,27 +6,31 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.gen.feature.FeaturePlacementContext;
 
+/**
+ * {@code RarityFilterPlacementModifier}.
+ */
 public class RarityFilterPlacementModifier extends AbstractConditionalPlacementModifier {
-   public static final MapCodec<RarityFilterPlacementModifier> MODIFIER_CODEC = Codecs.POSITIVE_INT
-      .fieldOf("chance")
-      .xmap(RarityFilterPlacementModifier::new, placementModifier -> placementModifier.chance);
-   private final int chance;
 
-   private RarityFilterPlacementModifier(int chance) {
-      this.chance = chance;
-   }
+	public static final MapCodec<RarityFilterPlacementModifier> MODIFIER_CODEC = Codecs.POSITIVE_INT
+			.fieldOf("chance")
+			.xmap(RarityFilterPlacementModifier::new, placementModifier -> placementModifier.chance);
+	private final int chance;
 
-   public static RarityFilterPlacementModifier of(int chance) {
-      return new RarityFilterPlacementModifier(chance);
-   }
+	private RarityFilterPlacementModifier(int chance) {
+		this.chance = chance;
+	}
 
-   @Override
-   protected boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos) {
-      return random.nextFloat() < 1.0F / this.chance;
-   }
+	public static RarityFilterPlacementModifier of(int chance) {
+		return new RarityFilterPlacementModifier(chance);
+	}
 
-   @Override
-   public PlacementModifierType<?> getType() {
-      return PlacementModifierType.RARITY_FILTER;
-   }
+	@Override
+	protected boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos) {
+		return random.nextFloat() < 1.0F / this.chance;
+	}
+
+	@Override
+	public PlacementModifierType<?> getType() {
+		return PlacementModifierType.RARITY_FILTER;
+	}
 }

@@ -1,23 +1,26 @@
 package net.minecraft.util.profiler;
 
+/**
+ * {@code SampleType}.
+ */
 public enum SampleType {
-   PATH_FINDING("pathfinding"),
-   EVENT_LOOPS("event-loops"),
-   CONSECUTIVE_EXECUTORS("consecutive-executors"),
-   TICK_LOOP("ticking"),
-   JVM("jvm"),
-   CHUNK_RENDERING("chunk rendering"),
-   CHUNK_RENDERING_DISPATCHING("chunk rendering dispatching"),
-   CPU("cpu"),
-   GPU("gpu");
+	PATH_FINDING("pathfinding"),
+	EVENT_LOOPS("event-loops"),
+	CONSECUTIVE_EXECUTORS("consecutive-executors"),
+	TICK_LOOP("ticking"),
+	JVM("jvm"),
+	CHUNK_RENDERING("chunk rendering"),
+	CHUNK_RENDERING_DISPATCHING("chunk rendering dispatching"),
+	CPU("cpu"),
+	GPU("gpu");
 
-   private final String name;
+	private final String name;
 
-   private SampleType(final String name) {
-      this.name = name;
-   }
+	private SampleType(final String name) {
+		this.name = name;
+	}
 
-   public String getName() {
-      return this.name;
-   }
+	public String getName() {
+		return this.name;
+	}
 }

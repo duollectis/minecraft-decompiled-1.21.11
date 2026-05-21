@@ -21,178 +21,203 @@ import net.minecraft.world.block.WireOrientation;
 import net.minecraft.world.tick.TickPriority;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code AbstractRedstoneGateBlock}.
+ */
 public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
-   public static final BooleanProperty POWERED = Properties.POWERED;
-   private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 2.0);
 
-   protected AbstractRedstoneGateBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	public static final BooleanProperty POWERED = Properties.POWERED;
+	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 2.0);
 
-   @Override
-   protected abstract MapCodec<? extends AbstractRedstoneGateBlock> getCodec();
+	protected AbstractRedstoneGateBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	@Override
+	protected abstract MapCodec<? extends AbstractRedstoneGateBlock> getCodec();
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      BlockPos blockPos = pos.down();
-      return this.canPlaceAbove(world, blockPos, world.getBlockState(blockPos));
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   protected boolean canPlaceAbove(WorldView world, BlockPos pos, BlockState state) {
-      return state.isSideSolid(world, pos, Direction.UP, SideShapeType.RIGID);
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		BlockPos blockPos = pos.down();
+		return this.canPlaceAbove(world, blockPos, world.getBlockState(blockPos));
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (!this.isLocked(world, pos, state)) {
-         boolean bl = state.get(POWERED);
-         boolean bl2 = this.hasPower(world, pos, state);
-         if (bl && !bl2) {
-            world.setBlockState(pos, state.with(POWERED, false), 2);
-         } else if (!bl) {
-            world.setBlockState(pos, state.with(POWERED, true), 2);
-            if (!bl2) {
-               world.scheduleBlockTick(pos, this, this.getUpdateDelayInternal(state), TickPriority.VERY_HIGH);
-            }
-         }
-      }
-   }
+	protected boolean canPlaceAbove(WorldView world, BlockPos pos, BlockState state) {
+		return state.isSideSolid(world, pos, Direction.UP, SideShapeType.RIGID);
+	}
 
-   @Override
-   protected int getStrongRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-      return state.getWeakRedstonePower(world, pos, direction);
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (!this.isLocked(world, pos, state)) {
+			boolean bl = state.get(POWERED);
+			boolean bl2 = this.hasPower(world, pos, state);
+			if (bl && !bl2) {
+				world.setBlockState(pos, state.with(POWERED, false), 2);
+			}
+			else if (!bl) {
+				world.setBlockState(pos, state.with(POWERED, true), 2);
+				if (!bl2) {
+					world.scheduleBlockTick(pos, this, this.getUpdateDelayInternal(state), TickPriority.VERY_HIGH);
+				}
+			}
+		}
+	}
 
-   @Override
-   protected int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-      if (!state.get(POWERED)) {
-         return 0;
-      } else {
-         return state.get(FACING) == direction ? this.getOutputLevel(world, pos, state) : 0;
-      }
-   }
+	@Override
+	protected int getStrongRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
+		return state.getWeakRedstonePower(world, pos, direction);
+	}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      if (state.canPlaceAt(world, pos)) {
-         this.updatePowered(world, pos, state);
-      } else {
-         BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
-         dropStacks(state, world, pos, blockEntity);
-         world.removeBlock(pos, false);
+	@Override
+	protected int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
+		if (!state.get(POWERED)) {
+			return 0;
+		}
+		else {
+			return state.get(FACING) == direction ? this.getOutputLevel(world, pos, state) : 0;
+		}
+	}
 
-         for (Direction direction : Direction.values()) {
-            world.updateNeighbors(pos.offset(direction), this);
-         }
-      }
-   }
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		if (state.canPlaceAt(world, pos)) {
+			this.updatePowered(world, pos, state);
+		}
+		else {
+			BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
+			dropStacks(state, world, pos, blockEntity);
+			world.removeBlock(pos, false);
 
-   protected void updatePowered(World world, BlockPos pos, BlockState state) {
-      if (!this.isLocked(world, pos, state)) {
-         boolean bl = state.get(POWERED);
-         boolean bl2 = this.hasPower(world, pos, state);
-         if (bl != bl2 && !world.getBlockTickScheduler().isTicking(pos, this)) {
-            TickPriority tickPriority = TickPriority.HIGH;
-            if (this.isTargetNotAligned(world, pos, state)) {
-               tickPriority = TickPriority.EXTREMELY_HIGH;
-            } else if (bl) {
-               tickPriority = TickPriority.VERY_HIGH;
-            }
+			for (Direction direction : Direction.values()) {
+				world.updateNeighbors(pos.offset(direction), this);
+			}
+		}
+	}
 
-            world.scheduleBlockTick(pos, this, this.getUpdateDelayInternal(state), tickPriority);
-         }
-      }
-   }
+	protected void updatePowered(World world, BlockPos pos, BlockState state) {
+		if (!this.isLocked(world, pos, state)) {
+			boolean bl = state.get(POWERED);
+			boolean bl2 = this.hasPower(world, pos, state);
+			if (bl != bl2 && !world.getBlockTickScheduler().isTicking(pos, this)) {
+				TickPriority tickPriority = TickPriority.HIGH;
+				if (this.isTargetNotAligned(world, pos, state)) {
+					tickPriority = TickPriority.EXTREMELY_HIGH;
+				}
+				else if (bl) {
+					tickPriority = TickPriority.VERY_HIGH;
+				}
 
-   public boolean isLocked(WorldView world, BlockPos pos, BlockState state) {
-      return false;
-   }
+				world.scheduleBlockTick(pos, this, this.getUpdateDelayInternal(state), tickPriority);
+			}
+		}
+	}
 
-   protected boolean hasPower(World world, BlockPos pos, BlockState state) {
-      return this.getPower(world, pos, state) > 0;
-   }
+	public boolean isLocked(WorldView world, BlockPos pos, BlockState state) {
+		return false;
+	}
 
-   protected int getPower(World world, BlockPos pos, BlockState state) {
-      Direction direction = state.get(FACING);
-      BlockPos blockPos = pos.offset(direction);
-      int i = world.getEmittedRedstonePower(blockPos, direction);
-      if (i >= 15) {
-         return i;
-      } else {
-         BlockState blockState = world.getBlockState(blockPos);
-         return Math.max(i, blockState.isOf(Blocks.REDSTONE_WIRE) ? blockState.get(RedstoneWireBlock.POWER) : 0);
-      }
-   }
+	protected boolean hasPower(World world, BlockPos pos, BlockState state) {
+		return this.getPower(world, pos, state) > 0;
+	}
 
-   protected int getMaxInputLevelSides(RedstoneView world, BlockPos pos, BlockState state) {
-      Direction direction = state.get(FACING);
-      Direction direction2 = direction.rotateYClockwise();
-      Direction direction3 = direction.rotateYCounterclockwise();
-      boolean bl = this.getSideInputFromGatesOnly();
-      return Math.max(
-         world.getEmittedRedstonePower(pos.offset(direction2), direction2, bl), world.getEmittedRedstonePower(pos.offset(direction3), direction3, bl)
-      );
-   }
+	protected int getPower(World world, BlockPos pos, BlockState state) {
+		Direction direction = state.get(FACING);
+		BlockPos blockPos = pos.offset(direction);
+		int i = world.getEmittedRedstonePower(blockPos, direction);
+		if (i >= 15) {
+			return i;
+		}
+		else {
+			BlockState blockState = world.getBlockState(blockPos);
+			return Math.max(i, blockState.isOf(Blocks.REDSTONE_WIRE) ? blockState.get(RedstoneWireBlock.POWER) : 0);
+		}
+	}
 
-   @Override
-   protected boolean emitsRedstonePower(BlockState state) {
-      return true;
-   }
+	protected int getMaxInputLevelSides(RedstoneView world, BlockPos pos, BlockState state) {
+		Direction direction = state.get(FACING);
+		Direction direction2 = direction.rotateYClockwise();
+		Direction direction3 = direction.rotateYCounterclockwise();
+		boolean bl = this.getSideInputFromGatesOnly();
+		return Math.max(
+				world.getEmittedRedstonePower(pos.offset(direction2), direction2, bl),
+				world.getEmittedRedstonePower(pos.offset(direction3), direction3, bl)
+		);
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
-   }
+	@Override
+	protected boolean emitsRedstonePower(BlockState state) {
+		return true;
+	}
 
-   @Override
-   public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
-      if (this.hasPower(world, pos, state)) {
-         world.scheduleBlockTick(pos, this, 1);
-      }
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
+	}
 
-   @Override
-   protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-      this.updateTarget(world, pos, state);
-   }
+	@Override
+	public void onPlaced(
+			World world,
+			BlockPos pos,
+			BlockState state,
+			@Nullable LivingEntity placer,
+			ItemStack itemStack
+	) {
+		if (this.hasPower(world, pos, state)) {
+			world.scheduleBlockTick(pos, this, 1);
+		}
+	}
 
-   @Override
-   protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-      if (!moved) {
-         this.updateTarget(world, pos, state);
-      }
-   }
+	@Override
+	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
+		this.updateTarget(world, pos, state);
+	}
 
-   protected void updateTarget(World world, BlockPos pos, BlockState state) {
-      Direction direction = state.get(FACING);
-      BlockPos blockPos = pos.offset(direction.getOpposite());
-      WireOrientation wireOrientation = OrientationHelper.getEmissionOrientation(world, direction.getOpposite(), Direction.UP);
-      world.updateNeighbor(blockPos, this, wireOrientation);
-      world.updateNeighborsExcept(blockPos, this, direction, wireOrientation);
-   }
+	@Override
+	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+		if (!moved) {
+			this.updateTarget(world, pos, state);
+		}
+	}
 
-   protected boolean getSideInputFromGatesOnly() {
-      return false;
-   }
+	protected void updateTarget(World world, BlockPos pos, BlockState state) {
+		Direction direction = state.get(FACING);
+		BlockPos blockPos = pos.offset(direction.getOpposite());
+		WireOrientation
+				wireOrientation =
+				OrientationHelper.getEmissionOrientation(world, direction.getOpposite(), Direction.UP);
+		world.updateNeighbor(blockPos, this, wireOrientation);
+		world.updateNeighborsExcept(blockPos, this, direction, wireOrientation);
+	}
 
-   protected int getOutputLevel(BlockView world, BlockPos pos, BlockState state) {
-      return 15;
-   }
+	protected boolean getSideInputFromGatesOnly() {
+		return false;
+	}
 
-   public static boolean isRedstoneGate(BlockState state) {
-      return state.getBlock() instanceof AbstractRedstoneGateBlock;
-   }
+	protected int getOutputLevel(BlockView world, BlockPos pos, BlockState state) {
+		return 15;
+	}
 
-   public boolean isTargetNotAligned(BlockView world, BlockPos pos, BlockState state) {
-      Direction direction = state.get(FACING).getOpposite();
-      BlockState blockState = world.getBlockState(pos.offset(direction));
-      return isRedstoneGate(blockState) && blockState.get(FACING) != direction;
-   }
+	public static boolean isRedstoneGate(BlockState state) {
+		return state.getBlock() instanceof AbstractRedstoneGateBlock;
+	}
 
-   protected abstract int getUpdateDelayInternal(BlockState state);
+	public boolean isTargetNotAligned(BlockView world, BlockPos pos, BlockState state) {
+		Direction direction = state.get(FACING).getOpposite();
+		BlockState blockState = world.getBlockState(pos.offset(direction));
+		return isRedstoneGate(blockState) && blockState.get(FACING) != direction;
+	}
+
+	protected abstract int getUpdateDelayInternal(BlockState state);
 }

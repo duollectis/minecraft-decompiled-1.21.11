@@ -14,57 +14,67 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ParchedEntity}.
+ */
 public class ParchedEntity extends AbstractSkeletonEntity {
-   public ParchedEntity(EntityType<? extends AbstractSkeletonEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   @Override
-   protected PersistentProjectileEntity createArrowProjectile(ItemStack arrow, float damageModifier, @Nullable ItemStack shotFrom) {
-      PersistentProjectileEntity persistentProjectileEntity = super.createArrowProjectile(arrow, damageModifier, shotFrom);
-      if (persistentProjectileEntity instanceof ArrowEntity) {
-         ((ArrowEntity)persistentProjectileEntity).addEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 600));
-      }
+	public ParchedEntity(EntityType<? extends AbstractSkeletonEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-      return persistentProjectileEntity;
-   }
+	@Override
+	protected PersistentProjectileEntity createArrowProjectile(
+			ItemStack arrow,
+			float damageModifier,
+			@Nullable ItemStack shotFrom
+	) {
+		PersistentProjectileEntity
+				persistentProjectileEntity =
+				super.createArrowProjectile(arrow, damageModifier, shotFrom);
+		if (persistentProjectileEntity instanceof ArrowEntity) {
+			((ArrowEntity) persistentProjectileEntity).addEffect(new StatusEffectInstance(StatusEffects.WEAKNESS, 600));
+		}
 
-   public static DefaultAttributeContainer.Builder createParchedAttributes() {
-      return AbstractSkeletonEntity.createAbstractSkeletonAttributes().add(EntityAttributes.MAX_HEALTH, 16.0);
-   }
+		return persistentProjectileEntity;
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_PARCHED_AMBIENT;
-   }
+	public static DefaultAttributeContainer.Builder createParchedAttributes() {
+		return AbstractSkeletonEntity.createAbstractSkeletonAttributes().add(EntityAttributes.MAX_HEALTH, 16.0);
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_PARCHED_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_PARCHED_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_PARCHED_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_PARCHED_HURT;
+	}
 
-   @Override
-   SoundEvent getStepSound() {
-      return SoundEvents.ENTITY_PARCHED_STEP;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_PARCHED_DEATH;
+	}
 
-   @Override
-   protected int getHardAttackInterval() {
-      return 50;
-   }
+	@Override
+	SoundEvent getStepSound() {
+		return SoundEvents.ENTITY_PARCHED_STEP;
+	}
 
-   @Override
-   protected int getRegularAttackInterval() {
-      return 70;
-   }
+	@Override
+	protected int getHardAttackInterval() {
+		return 50;
+	}
 
-   @Override
-   public boolean canHaveStatusEffect(StatusEffectInstance effect) {
-      return effect.getEffectType() == StatusEffects.WEAKNESS ? false : super.canHaveStatusEffect(effect);
-   }
+	@Override
+	protected int getRegularAttackInterval() {
+		return 70;
+	}
+
+	@Override
+	public boolean canHaveStatusEffect(StatusEffectInstance effect) {
+		return effect.getEffectType() == StatusEffects.WEAKNESS ? false : super.canHaveStatusEffect(effect);
+	}
 }

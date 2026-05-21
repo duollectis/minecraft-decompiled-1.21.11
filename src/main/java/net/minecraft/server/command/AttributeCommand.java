@@ -8,7 +8,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType;
 import com.mojang.brigadier.exceptions.Dynamic3CommandExceptionType;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
-import java.util.stream.Stream;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.EntityArgumentType;
@@ -25,329 +24,625 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
+import java.util.stream.Stream;
+
+/**
+ * {@code AttributeCommand}.
+ */
 public class AttributeCommand {
-   private static final DynamicCommandExceptionType ENTITY_FAILED_EXCEPTION = new DynamicCommandExceptionType(
-      name -> Text.stringifiedTranslatable("commands.attribute.failed.entity", name)
-   );
-   private static final Dynamic2CommandExceptionType NO_ATTRIBUTE_EXCEPTION = new Dynamic2CommandExceptionType(
-      (entityName, attributeName) -> Text.stringifiedTranslatable("commands.attribute.failed.no_attribute", entityName, attributeName)
-   );
-   private static final Dynamic3CommandExceptionType NO_MODIFIER_EXCEPTION = new Dynamic3CommandExceptionType(
-      (entityName, attributeName, uuid) -> Text.stringifiedTranslatable("commands.attribute.failed.no_modifier", attributeName, entityName, uuid)
-   );
-   private static final Dynamic3CommandExceptionType MODIFIER_ALREADY_PRESENT_EXCEPTION = new Dynamic3CommandExceptionType(
-      (entityName, attributeName, uuid) -> Text.stringifiedTranslatable("commands.attribute.failed.modifier_already_present", uuid, attributeName, entityName)
-   );
 
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("attribute")
-               .requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK)))
-            .then(
-               CommandManager.argument("target", EntityArgumentType.entity())
-                  .then(
-                     ((RequiredArgumentBuilder)((RequiredArgumentBuilder)CommandManager.argument(
-                                 "attribute", RegistryEntryReferenceArgumentType.registryEntry(registryAccess, RegistryKeys.ATTRIBUTE)
-                              )
-                              .then(
-                                 ((LiteralArgumentBuilder)CommandManager.literal("get")
-                                       .executes(
-                                          context -> executeValueGet(
-                                             (ServerCommandSource)context.getSource(),
-                                             EntityArgumentType.getEntity(context, "target"),
-                                             RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                             1.0
-                                          )
-                                       ))
-                                    .then(
-                                       CommandManager.argument("scale", DoubleArgumentType.doubleArg())
-                                          .executes(
-                                             context -> executeValueGet(
-                                                (ServerCommandSource)context.getSource(),
-                                                EntityArgumentType.getEntity(context, "target"),
-                                                RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                DoubleArgumentType.getDouble(context, "scale")
-                                             )
-                                          )
-                                    )
-                              ))
-                           .then(
-                              ((LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("base")
-                                       .then(
-                                          CommandManager.literal("set")
-                                             .then(
-                                                CommandManager.argument("value", DoubleArgumentType.doubleArg())
-                                                   .executes(
-                                                      context -> executeBaseValueSet(
-                                                         (ServerCommandSource)context.getSource(),
-                                                         EntityArgumentType.getEntity(context, "target"),
-                                                         RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                         DoubleArgumentType.getDouble(context, "value")
-                                                      )
-                                                   )
-                                             )
-                                       ))
-                                    .then(
-                                       ((LiteralArgumentBuilder)CommandManager.literal("get")
-                                             .executes(
-                                                context -> executeBaseValueGet(
-                                                   (ServerCommandSource)context.getSource(),
-                                                   EntityArgumentType.getEntity(context, "target"),
-                                                   RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                   1.0
-                                                )
-                                             ))
-                                          .then(
-                                             CommandManager.argument("scale", DoubleArgumentType.doubleArg())
-                                                .executes(
-                                                   context -> executeBaseValueGet(
-                                                      (ServerCommandSource)context.getSource(),
-                                                      EntityArgumentType.getEntity(context, "target"),
-                                                      RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                      DoubleArgumentType.getDouble(context, "scale")
-                                                   )
-                                                )
-                                          )
-                                    ))
-                                 .then(
-                                    CommandManager.literal("reset")
-                                       .executes(
-                                          context -> executeResetToBaseValue(
-                                             (ServerCommandSource)context.getSource(),
-                                             EntityArgumentType.getEntity(context, "target"),
-                                             RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute")
-                                          )
-                                       )
-                                 )
-                           ))
-                        .then(
-                           ((LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("modifier")
-                                    .then(
-                                       CommandManager.literal("add")
-                                          .then(
-                                             CommandManager.argument("id", IdentifierArgumentType.identifier())
-                                                .then(
-                                                   ((RequiredArgumentBuilder)((RequiredArgumentBuilder)CommandManager.argument(
-                                                               "value", DoubleArgumentType.doubleArg()
-                                                            )
-                                                            .then(
-                                                               CommandManager.literal("add_value")
-                                                                  .executes(
-                                                                     context -> executeModifierAdd(
-                                                                        (ServerCommandSource)context.getSource(),
-                                                                        EntityArgumentType.getEntity(context, "target"),
-                                                                        RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                                        IdentifierArgumentType.getIdentifier(context, "id"),
-                                                                        DoubleArgumentType.getDouble(context, "value"),
-                                                                        EntityAttributeModifier.Operation.ADD_VALUE
-                                                                     )
-                                                                  )
-                                                            ))
-                                                         .then(
-                                                            CommandManager.literal("add_multiplied_base")
-                                                               .executes(
-                                                                  context -> executeModifierAdd(
-                                                                     (ServerCommandSource)context.getSource(),
-                                                                     EntityArgumentType.getEntity(context, "target"),
-                                                                     RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                                     IdentifierArgumentType.getIdentifier(context, "id"),
-                                                                     DoubleArgumentType.getDouble(context, "value"),
-                                                                     EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
-                                                                  )
-                                                               )
-                                                         ))
-                                                      .then(
-                                                         CommandManager.literal("add_multiplied_total")
-                                                            .executes(
-                                                               context -> executeModifierAdd(
-                                                                  (ServerCommandSource)context.getSource(),
-                                                                  EntityArgumentType.getEntity(context, "target"),
-                                                                  RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                                  IdentifierArgumentType.getIdentifier(context, "id"),
-                                                                  DoubleArgumentType.getDouble(context, "value"),
-                                                                  EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
-                                                               )
-                                                            )
-                                                      )
-                                                )
-                                          )
-                                    ))
-                                 .then(
-                                    CommandManager.literal("remove")
-                                       .then(
-                                          CommandManager.argument("id", IdentifierArgumentType.identifier())
-                                             .suggests(
-                                                (context, builder) -> CommandSource.suggestIdentifiers(
-                                                   streamModifiers(
-                                                      EntityArgumentType.getEntity(context, "target"),
-                                                      RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute")
-                                                   ),
-                                                   builder
-                                                )
-                                             )
-                                             .executes(
-                                                context -> executeModifierRemove(
-                                                   (ServerCommandSource)context.getSource(),
-                                                   EntityArgumentType.getEntity(context, "target"),
-                                                   RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                   IdentifierArgumentType.getIdentifier(context, "id")
-                                                )
-                                             )
-                                       )
-                                 ))
-                              .then(
-                                 CommandManager.literal("value")
-                                    .then(
-                                       CommandManager.literal("get")
-                                          .then(
-                                             ((RequiredArgumentBuilder)CommandManager.argument("id", IdentifierArgumentType.identifier())
-                                                   .suggests(
-                                                      (context, builder) -> CommandSource.suggestIdentifiers(
-                                                         streamModifiers(
-                                                            EntityArgumentType.getEntity(context, "target"),
-                                                            RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute")
-                                                         ),
-                                                         builder
-                                                      )
-                                                   )
-                                                   .executes(
-                                                      context -> executeModifierValueGet(
-                                                         (ServerCommandSource)context.getSource(),
-                                                         EntityArgumentType.getEntity(context, "target"),
-                                                         RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                         IdentifierArgumentType.getIdentifier(context, "id"),
-                                                         1.0
-                                                      )
-                                                   ))
-                                                .then(
-                                                   CommandManager.argument("scale", DoubleArgumentType.doubleArg())
-                                                      .executes(
-                                                         context -> executeModifierValueGet(
-                                                            (ServerCommandSource)context.getSource(),
-                                                            EntityArgumentType.getEntity(context, "target"),
-                                                            RegistryEntryReferenceArgumentType.getEntityAttribute(context, "attribute"),
-                                                            IdentifierArgumentType.getIdentifier(context, "id"),
-                                                            DoubleArgumentType.getDouble(context, "scale")
-                                                         )
-                                                      )
-                                                )
-                                          )
-                                    )
-                              )
-                        )
-                  )
-            )
-      );
-   }
+	private static final DynamicCommandExceptionType ENTITY_FAILED_EXCEPTION = new DynamicCommandExceptionType(
+			name -> Text.stringifiedTranslatable("commands.attribute.failed.entity", name)
+	);
+	private static final Dynamic2CommandExceptionType NO_ATTRIBUTE_EXCEPTION = new Dynamic2CommandExceptionType(
+			(entityName, attributeName) -> Text.stringifiedTranslatable(
+					"commands.attribute.failed.no_attribute",
+					entityName,
+					attributeName
+			)
+	);
+	private static final Dynamic3CommandExceptionType NO_MODIFIER_EXCEPTION = new Dynamic3CommandExceptionType(
+			(entityName, attributeName, uuid) -> Text.stringifiedTranslatable(
+					"commands.attribute.failed.no_modifier",
+					attributeName,
+					entityName,
+					uuid
+			)
+	);
+	private static final Dynamic3CommandExceptionType
+			MODIFIER_ALREADY_PRESENT_EXCEPTION =
+			new Dynamic3CommandExceptionType(
+					(entityName, attributeName, uuid) -> Text.stringifiedTranslatable(
+							"commands.attribute.failed.modifier_already_present",
+							uuid,
+							attributeName,
+							entityName
+					)
+			);
 
-   private static EntityAttributeInstance getAttributeInstance(Entity entity, RegistryEntry<EntityAttribute> attribute) throws CommandSyntaxException {
-      EntityAttributeInstance entityAttributeInstance = getLivingEntity(entity).getAttributes().getCustomInstance(attribute);
-      if (entityAttributeInstance == null) {
-         throw NO_ATTRIBUTE_EXCEPTION.create(entity.getName(), getName(attribute));
-      } else {
-         return entityAttributeInstance;
-      }
-   }
+	public static void register(
+			CommandDispatcher<ServerCommandSource> dispatcher,
+			CommandRegistryAccess registryAccess
+	) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("attribute")
+				                                                                 .requires(CommandManager.requirePermissionLevel(
+						                                                                 CommandManager.GAMEMASTERS_CHECK))
+				)
+						.then(
+								CommandManager.argument("target", EntityArgumentType.entity())
+								              .then(
+										              ((RequiredArgumentBuilder) ((RequiredArgumentBuilder) CommandManager
+												              .argument(
+														              "attribute",
+														              RegistryEntryReferenceArgumentType.registryEntry(
+																              registryAccess,
+																              RegistryKeys.ATTRIBUTE
+														              )
+												              )
+												              .then(
+														              ((LiteralArgumentBuilder) CommandManager
+																              .literal("get")
+																              .executes(
+																		              context -> executeValueGet(
+																				              (ServerCommandSource) context.getSource(),
+																				              EntityArgumentType.getEntity(
+																						              context,
+																						              "target"
+																				              ),
+																				              RegistryEntryReferenceArgumentType.getEntityAttribute(
+																						              context,
+																						              "attribute"
+																				              ),
+																				              1.0
+																		              )
+																              )
+														              )
+																              .then(
+																		              CommandManager
+																				              .argument(
+																						              "scale",
+																						              DoubleArgumentType.doubleArg()
+																				              )
+																				              .executes(
+																						              context -> executeValueGet(
+																								              (ServerCommandSource) context.getSource(),
+																								              EntityArgumentType.getEntity(
+																										              context,
+																										              "target"
+																								              ),
+																								              RegistryEntryReferenceArgumentType.getEntityAttribute(
+																										              context,
+																										              "attribute"
+																								              ),
+																								              DoubleArgumentType.getDouble(
+																										              context,
+																										              "scale"
+																								              )
+																						              )
+																				              )
+																              )
+												              )
+										              )
+												              .then(
+														              ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
+																              .literal("base")
+																              .then(
+																		              CommandManager.literal("set")
+																		                            .then(
+																				                            CommandManager
+																						                            .argument(
+																								                            "value",
+																								                            DoubleArgumentType.doubleArg()
+																						                            )
+																						                            .executes(
+																								                            context -> executeBaseValueSet(
+																										                            (ServerCommandSource) context.getSource(),
+																										                            EntityArgumentType.getEntity(
+																												                            context,
+																												                            "target"
+																										                            ),
+																										                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																												                            context,
+																												                            "attribute"
+																										                            ),
+																										                            DoubleArgumentType.getDouble(
+																												                            context,
+																												                            "value"
+																										                            )
+																								                            )
+																						                            )
+																		                            )
+																              )
+														              )
+																              .then(
+																		              ((LiteralArgumentBuilder) CommandManager
+																				              .literal("get")
+																				              .executes(
+																						              context -> executeBaseValueGet(
+																								              (ServerCommandSource) context.getSource(),
+																								              EntityArgumentType.getEntity(
+																										              context,
+																										              "target"
+																								              ),
+																								              RegistryEntryReferenceArgumentType.getEntityAttribute(
+																										              context,
+																										              "attribute"
+																								              ),
+																								              1.0
+																						              )
+																				              )
+																		              )
+																				              .then(
+																						              CommandManager
+																								              .argument(
+																										              "scale",
+																										              DoubleArgumentType.doubleArg()
+																								              )
+																								              .executes(
+																										              context -> executeBaseValueGet(
+																												              (ServerCommandSource) context.getSource(),
+																												              EntityArgumentType.getEntity(
+																														              context,
+																														              "target"
+																												              ),
+																												              RegistryEntryReferenceArgumentType.getEntityAttribute(
+																														              context,
+																														              "attribute"
+																												              ),
+																												              DoubleArgumentType.getDouble(
+																														              context,
+																														              "scale"
+																												              )
+																										              )
+																								              )
+																				              )
+																              )
+														              )
+																              .then(
+																		              CommandManager.literal("reset")
+																		                            .executes(
+																				                            context -> executeResetToBaseValue(
+																						                            (ServerCommandSource) context.getSource(),
+																						                            EntityArgumentType.getEntity(
+																								                            context,
+																								                            "target"
+																						                            ),
+																						                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																								                            context,
+																								                            "attribute"
+																						                            )
+																				                            )
+																		                            )
+																              )
+												              )
+										              )
+												              .then(
+														              ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
+																              .literal("modifier")
+																              .then(
+																		              CommandManager.literal("add")
+																		                            .then(
+																				                            CommandManager
+																						                            .argument(
+																								                            "id",
+																								                            IdentifierArgumentType.identifier()
+																						                            )
+																						                            .then(
+																								                            ((RequiredArgumentBuilder) ((RequiredArgumentBuilder) CommandManager
+																										                            .argument(
+																												                            "value",
+																												                            DoubleArgumentType.doubleArg()
+																										                            )
+																										                            .then(
+																												                            CommandManager
+																														                            .literal(
+																																                            "add_value")
+																														                            .executes(
+																																                            context -> executeModifierAdd(
+																																		                            (ServerCommandSource) context.getSource(),
+																																		                            EntityArgumentType.getEntity(
+																																				                            context,
+																																				                            "target"
+																																		                            ),
+																																		                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																																				                            context,
+																																				                            "attribute"
+																																		                            ),
+																																		                            IdentifierArgumentType.getIdentifier(
+																																				                            context,
+																																				                            "id"
+																																		                            ),
+																																		                            DoubleArgumentType.getDouble(
+																																				                            context,
+																																				                            "value"
+																																		                            ),
+																																		                            EntityAttributeModifier.Operation.ADD_VALUE
+																																                            )
+																														                            )
+																										                            )
+																								                            )
+																										                            .then(
+																												                            CommandManager
+																														                            .literal(
+																																                            "add_multiplied_base")
+																														                            .executes(
+																																                            context -> executeModifierAdd(
+																																		                            (ServerCommandSource) context.getSource(),
+																																		                            EntityArgumentType.getEntity(
+																																				                            context,
+																																				                            "target"
+																																		                            ),
+																																		                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																																				                            context,
+																																				                            "attribute"
+																																		                            ),
+																																		                            IdentifierArgumentType.getIdentifier(
+																																				                            context,
+																																				                            "id"
+																																		                            ),
+																																		                            DoubleArgumentType.getDouble(
+																																				                            context,
+																																				                            "value"
+																																		                            ),
+																																		                            EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
+																																                            )
+																														                            )
+																										                            )
+																								                            )
+																										                            .then(
+																												                            CommandManager
+																														                            .literal(
+																																                            "add_multiplied_total")
+																														                            .executes(
+																																                            context -> executeModifierAdd(
+																																		                            (ServerCommandSource) context.getSource(),
+																																		                            EntityArgumentType.getEntity(
+																																				                            context,
+																																				                            "target"
+																																		                            ),
+																																		                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																																				                            context,
+																																				                            "attribute"
+																																		                            ),
+																																		                            IdentifierArgumentType.getIdentifier(
+																																				                            context,
+																																				                            "id"
+																																		                            ),
+																																		                            DoubleArgumentType.getDouble(
+																																				                            context,
+																																				                            "value"
+																																		                            ),
+																																		                            EntityAttributeModifier.Operation.ADD_MULTIPLIED_TOTAL
+																																                            )
+																														                            )
+																										                            )
+																						                            )
+																		                            )
+																              )
+														              )
+																              .then(
+																		              CommandManager.literal("remove")
+																		                            .then(
+																				                            CommandManager
+																						                            .argument(
+																								                            "id",
+																								                            IdentifierArgumentType.identifier()
+																						                            )
+																						                            .suggests(
+																								                            (context, builder) -> CommandSource.suggestIdentifiers(
+																										                            streamModifiers(
+																												                            EntityArgumentType.getEntity(
+																														                            context,
+																														                            "target"
+																												                            ),
+																												                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																														                            context,
+																														                            "attribute"
+																												                            )
+																										                            ),
+																										                            builder
+																								                            )
+																						                            )
+																						                            .executes(
+																								                            context -> executeModifierRemove(
+																										                            (ServerCommandSource) context.getSource(),
+																										                            EntityArgumentType.getEntity(
+																												                            context,
+																												                            "target"
+																										                            ),
+																										                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																												                            context,
+																												                            "attribute"
+																										                            ),
+																										                            IdentifierArgumentType.getIdentifier(
+																												                            context,
+																												                            "id"
+																										                            )
+																								                            )
+																						                            )
+																		                            )
+																              )
+														              )
+																              .then(
+																		              CommandManager.literal("value")
+																		                            .then(
+																				                            CommandManager
+																						                            .literal(
+																								                            "get")
+																						                            .then(
+																								                            ((RequiredArgumentBuilder) CommandManager
+																										                            .argument(
+																												                            "id",
+																												                            IdentifierArgumentType.identifier()
+																										                            )
+																										                            .suggests(
+																												                            (context, builder) -> CommandSource.suggestIdentifiers(
+																														                            streamModifiers(
+																																                            EntityArgumentType.getEntity(
+																																		                            context,
+																																		                            "target"
+																																                            ),
+																																                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																																		                            context,
+																																		                            "attribute"
+																																                            )
+																														                            ),
+																														                            builder
+																												                            )
+																										                            )
+																										                            .executes(
+																												                            context -> executeModifierValueGet(
+																														                            (ServerCommandSource) context.getSource(),
+																														                            EntityArgumentType.getEntity(
+																																                            context,
+																																                            "target"
+																														                            ),
+																														                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																																                            context,
+																																                            "attribute"
+																														                            ),
+																														                            IdentifierArgumentType.getIdentifier(
+																																                            context,
+																																                            "id"
+																														                            ),
+																														                            1.0
+																												                            )
+																										                            )
+																								                            )
+																										                            .then(
+																												                            CommandManager
+																														                            .argument(
+																																                            "scale",
+																																                            DoubleArgumentType.doubleArg()
+																														                            )
+																														                            .executes(
+																																                            context -> executeModifierValueGet(
+																																		                            (ServerCommandSource) context.getSource(),
+																																		                            EntityArgumentType.getEntity(
+																																				                            context,
+																																				                            "target"
+																																		                            ),
+																																		                            RegistryEntryReferenceArgumentType.getEntityAttribute(
+																																				                            context,
+																																				                            "attribute"
+																																		                            ),
+																																		                            IdentifierArgumentType.getIdentifier(
+																																				                            context,
+																																				                            "id"
+																																		                            ),
+																																		                            DoubleArgumentType.getDouble(
+																																				                            context,
+																																				                            "scale"
+																																		                            )
+																																                            )
+																														                            )
+																										                            )
+																						                            )
+																		                            )
+																              )
+												              )
+								              )
+						)
+		);
+	}
 
-   private static LivingEntity getLivingEntity(Entity entity) throws CommandSyntaxException {
-      if (!(entity instanceof LivingEntity)) {
-         throw ENTITY_FAILED_EXCEPTION.create(entity.getName());
-      } else {
-         return (LivingEntity)entity;
-      }
-   }
+	private static EntityAttributeInstance getAttributeInstance(Entity entity, RegistryEntry<EntityAttribute> attribute)
+	throws CommandSyntaxException {
+		EntityAttributeInstance
+				entityAttributeInstance =
+				getLivingEntity(entity).getAttributes().getCustomInstance(attribute);
+		if (entityAttributeInstance == null) {
+			throw NO_ATTRIBUTE_EXCEPTION.create(entity.getName(), getName(attribute));
+		}
+		else {
+			return entityAttributeInstance;
+		}
+	}
 
-   private static LivingEntity getLivingEntityWithAttribute(Entity entity, RegistryEntry<EntityAttribute> attribute) throws CommandSyntaxException {
-      LivingEntity livingEntity = getLivingEntity(entity);
-      if (!livingEntity.getAttributes().hasAttribute(attribute)) {
-         throw NO_ATTRIBUTE_EXCEPTION.create(entity.getName(), getName(attribute));
-      } else {
-         return livingEntity;
-      }
-   }
+	private static LivingEntity getLivingEntity(Entity entity) throws CommandSyntaxException {
+		if (!(entity instanceof LivingEntity)) {
+			throw ENTITY_FAILED_EXCEPTION.create(entity.getName());
+		}
+		else {
+			return (LivingEntity) entity;
+		}
+	}
 
-   private static int executeValueGet(ServerCommandSource source, Entity target, RegistryEntry<EntityAttribute> attribute, double multiplier) throws CommandSyntaxException {
-      LivingEntity livingEntity = getLivingEntityWithAttribute(target, attribute);
-      double d = livingEntity.getAttributeValue(attribute);
-      source.sendFeedback(() -> Text.translatable("commands.attribute.value.get.success", getName(attribute), target.getName(), d), false);
-      return (int)(d * multiplier);
-   }
+	private static LivingEntity getLivingEntityWithAttribute(Entity entity, RegistryEntry<EntityAttribute> attribute)
+	throws CommandSyntaxException {
+		LivingEntity livingEntity = getLivingEntity(entity);
+		if (!livingEntity.getAttributes().hasAttribute(attribute)) {
+			throw NO_ATTRIBUTE_EXCEPTION.create(entity.getName(), getName(attribute));
+		}
+		else {
+			return livingEntity;
+		}
+	}
 
-   private static int executeBaseValueGet(ServerCommandSource source, Entity target, RegistryEntry<EntityAttribute> attribute, double multiplier) throws CommandSyntaxException {
-      LivingEntity livingEntity = getLivingEntityWithAttribute(target, attribute);
-      double d = livingEntity.getAttributeBaseValue(attribute);
-      source.sendFeedback(() -> Text.translatable("commands.attribute.base_value.get.success", getName(attribute), target.getName(), d), false);
-      return (int)(d * multiplier);
-   }
+	private static int executeValueGet(
+			ServerCommandSource source,
+			Entity target,
+			RegistryEntry<EntityAttribute> attribute,
+			double multiplier
+	) throws CommandSyntaxException {
+		LivingEntity livingEntity = getLivingEntityWithAttribute(target, attribute);
+		double d = livingEntity.getAttributeValue(attribute);
+		source.sendFeedback(
+				() -> Text.translatable(
+						"commands.attribute.value.get.success",
+						getName(attribute),
+						target.getName(),
+						d
+				), false
+		);
+		return (int) (d * multiplier);
+	}
 
-   private static int executeModifierValueGet(
-      ServerCommandSource source, Entity target, RegistryEntry<EntityAttribute> attribute, Identifier id, double multiplier
-   ) throws CommandSyntaxException {
-      LivingEntity livingEntity = getLivingEntityWithAttribute(target, attribute);
-      AttributeContainer attributeContainer = livingEntity.getAttributes();
-      if (!attributeContainer.hasModifierForAttribute(attribute, id)) {
-         throw NO_MODIFIER_EXCEPTION.create(target.getName(), getName(attribute), id);
-      } else {
-         double d = attributeContainer.getModifierValue(attribute, id);
-         source.sendFeedback(
-            () -> Text.translatable("commands.attribute.modifier.value.get.success", Text.of(id), getName(attribute), target.getName(), d), false
-         );
-         return (int)(d * multiplier);
-      }
-   }
+	private static int executeBaseValueGet(
+			ServerCommandSource source,
+			Entity target,
+			RegistryEntry<EntityAttribute> attribute,
+			double multiplier
+	) throws CommandSyntaxException {
+		LivingEntity livingEntity = getLivingEntityWithAttribute(target, attribute);
+		double d = livingEntity.getAttributeBaseValue(attribute);
+		source.sendFeedback(
+				() -> Text.translatable(
+						"commands.attribute.base_value.get.success",
+						getName(attribute),
+						target.getName(),
+						d
+				), false
+		);
+		return (int) (d * multiplier);
+	}
 
-   private static Stream<Identifier> streamModifiers(Entity target, RegistryEntry<EntityAttribute> attribute) throws CommandSyntaxException {
-      EntityAttributeInstance entityAttributeInstance = getAttributeInstance(target, attribute);
-      return entityAttributeInstance.getModifiers().stream().map(EntityAttributeModifier::id);
-   }
+	private static int executeModifierValueGet(
+			ServerCommandSource source,
+			Entity target,
+			RegistryEntry<EntityAttribute> attribute,
+			Identifier id,
+			double multiplier
+	) throws CommandSyntaxException {
+		LivingEntity livingEntity = getLivingEntityWithAttribute(target, attribute);
+		AttributeContainer attributeContainer = livingEntity.getAttributes();
+		if (!attributeContainer.hasModifierForAttribute(attribute, id)) {
+			throw NO_MODIFIER_EXCEPTION.create(target.getName(), getName(attribute), id);
+		}
+		else {
+			double d = attributeContainer.getModifierValue(attribute, id);
+			source.sendFeedback(
+					() -> Text.translatable(
+							"commands.attribute.modifier.value.get.success",
+							Text.of(id),
+							getName(attribute),
+							target.getName(),
+							d
+					), false
+			);
+			return (int) (d * multiplier);
+		}
+	}
 
-   private static int executeBaseValueSet(ServerCommandSource source, Entity target, RegistryEntry<EntityAttribute> attribute, double value) throws CommandSyntaxException {
-      getAttributeInstance(target, attribute).setBaseValue(value);
-      source.sendFeedback(() -> Text.translatable("commands.attribute.base_value.set.success", getName(attribute), target.getName(), value), false);
-      return 1;
-   }
+	private static Stream<Identifier> streamModifiers(Entity target, RegistryEntry<EntityAttribute> attribute)
+	throws CommandSyntaxException {
+		EntityAttributeInstance entityAttributeInstance = getAttributeInstance(target, attribute);
+		return entityAttributeInstance.getModifiers().stream().map(EntityAttributeModifier::id);
+	}
 
-   private static int executeResetToBaseValue(ServerCommandSource source, Entity target, RegistryEntry<EntityAttribute> attribute) throws CommandSyntaxException {
-      LivingEntity livingEntity = getLivingEntity(target);
-      if (!livingEntity.getAttributes().resetToBaseValue(attribute)) {
-         throw NO_ATTRIBUTE_EXCEPTION.create(target.getName(), getName(attribute));
-      } else {
-         double d = livingEntity.getAttributeBaseValue(attribute);
-         source.sendFeedback(() -> Text.translatable("commands.attribute.base_value.reset.success", getName(attribute), target.getName(), d), false);
-         return 1;
-      }
-   }
+	private static int executeBaseValueSet(
+			ServerCommandSource source,
+			Entity target,
+			RegistryEntry<EntityAttribute> attribute,
+			double value
+	) throws CommandSyntaxException {
+		getAttributeInstance(target, attribute).setBaseValue(value);
+		source.sendFeedback(
+				() -> Text.translatable(
+						"commands.attribute.base_value.set.success",
+						getName(attribute),
+						target.getName(),
+						value
+				), false
+		);
+		return 1;
+	}
 
-   private static int executeModifierAdd(
-      ServerCommandSource source,
-      Entity target,
-      RegistryEntry<EntityAttribute> attribute,
-      Identifier id,
-      double value,
-      EntityAttributeModifier.Operation operation
-   ) throws CommandSyntaxException {
-      EntityAttributeInstance entityAttributeInstance = getAttributeInstance(target, attribute);
-      EntityAttributeModifier entityAttributeModifier = new EntityAttributeModifier(id, value, operation);
-      if (entityAttributeInstance.hasModifier(id)) {
-         throw MODIFIER_ALREADY_PRESENT_EXCEPTION.create(target.getName(), getName(attribute), id);
-      } else {
-         entityAttributeInstance.addPersistentModifier(entityAttributeModifier);
-         source.sendFeedback(() -> Text.translatable("commands.attribute.modifier.add.success", Text.of(id), getName(attribute), target.getName()), false);
-         return 1;
-      }
-   }
+	private static int executeResetToBaseValue(
+			ServerCommandSource source,
+			Entity target,
+			RegistryEntry<EntityAttribute> attribute
+	) throws CommandSyntaxException {
+		LivingEntity livingEntity = getLivingEntity(target);
+		if (!livingEntity.getAttributes().resetToBaseValue(attribute)) {
+			throw NO_ATTRIBUTE_EXCEPTION.create(target.getName(), getName(attribute));
+		}
+		else {
+			double d = livingEntity.getAttributeBaseValue(attribute);
+			source.sendFeedback(
+					() -> Text.translatable(
+							"commands.attribute.base_value.reset.success",
+							getName(attribute),
+							target.getName(),
+							d
+					), false
+			);
+			return 1;
+		}
+	}
 
-   private static int executeModifierRemove(ServerCommandSource source, Entity target, RegistryEntry<EntityAttribute> attribute, Identifier id) throws CommandSyntaxException {
-      EntityAttributeInstance entityAttributeInstance = getAttributeInstance(target, attribute);
-      if (entityAttributeInstance.removeModifier(id)) {
-         source.sendFeedback(() -> Text.translatable("commands.attribute.modifier.remove.success", Text.of(id), getName(attribute), target.getName()), false);
-         return 1;
-      } else {
-         throw NO_MODIFIER_EXCEPTION.create(target.getName(), getName(attribute), id);
-      }
-   }
+	private static int executeModifierAdd(
+			ServerCommandSource source,
+			Entity target,
+			RegistryEntry<EntityAttribute> attribute,
+			Identifier id,
+			double value,
+			EntityAttributeModifier.Operation operation
+	) throws CommandSyntaxException {
+		EntityAttributeInstance entityAttributeInstance = getAttributeInstance(target, attribute);
+		EntityAttributeModifier entityAttributeModifier = new EntityAttributeModifier(id, value, operation);
+		if (entityAttributeInstance.hasModifier(id)) {
+			throw MODIFIER_ALREADY_PRESENT_EXCEPTION.create(target.getName(), getName(attribute), id);
+		}
+		else {
+			entityAttributeInstance.addPersistentModifier(entityAttributeModifier);
+			source.sendFeedback(
+					() -> Text.translatable(
+							"commands.attribute.modifier.add.success",
+							Text.of(id),
+							getName(attribute),
+							target.getName()
+					), false
+			);
+			return 1;
+		}
+	}
 
-   private static Text getName(RegistryEntry<EntityAttribute> attribute) {
-      return Text.translatable(attribute.value().getTranslationKey());
-   }
+	private static int executeModifierRemove(
+			ServerCommandSource source,
+			Entity target,
+			RegistryEntry<EntityAttribute> attribute,
+			Identifier id
+	) throws CommandSyntaxException {
+		EntityAttributeInstance entityAttributeInstance = getAttributeInstance(target, attribute);
+		if (entityAttributeInstance.removeModifier(id)) {
+			source.sendFeedback(
+					() -> Text.translatable(
+							"commands.attribute.modifier.remove.success",
+							Text.of(id),
+							getName(attribute),
+							target.getName()
+					), false
+			);
+			return 1;
+		}
+		else {
+			throw NO_MODIFIER_EXCEPTION.create(target.getName(), getName(attribute), id);
+		}
+	}
+
+	private static Text getName(RegistryEntry<EntityAttribute> attribute) {
+		return Text.translatable(attribute.value().getTranslationKey());
+	}
 }

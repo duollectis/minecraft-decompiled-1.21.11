@@ -1,22 +1,27 @@
 package net.minecraft.inventory;
 
-import java.util.List;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.RecipeInputProvider;
 import net.minecraft.recipe.input.CraftingRecipeInput;
 
+import java.util.List;
+
+/**
+ * {@code RecipeInputInventory}.
+ */
 public interface RecipeInputInventory extends Inventory, RecipeInputProvider {
-   int getWidth();
 
-   int getHeight();
+	int getWidth();
 
-   List<ItemStack> getHeldStacks();
+	int getHeight();
 
-   default CraftingRecipeInput createRecipeInput() {
-      return this.createPositionedRecipeInput().input();
-   }
+	List<ItemStack> getHeldStacks();
 
-   default CraftingRecipeInput.Positioned createPositionedRecipeInput() {
-      return CraftingRecipeInput.createPositioned(this.getWidth(), this.getHeight(), this.getHeldStacks());
-   }
+	default CraftingRecipeInput createRecipeInput() {
+		return this.createPositionedRecipeInput().input();
+	}
+
+	default CraftingRecipeInput.Positioned createPositionedRecipeInput() {
+		return CraftingRecipeInput.createPositioned(this.getWidth(), this.getHeight(), this.getHeldStacks());
+	}
 }

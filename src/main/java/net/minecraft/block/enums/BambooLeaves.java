@@ -2,24 +2,27 @@ package net.minecraft.block.enums;
 
 import net.minecraft.util.StringIdentifiable;
 
+/**
+ * {@code BambooLeaves}.
+ */
 public enum BambooLeaves implements StringIdentifiable {
-   NONE("none"),
-   SMALL("small"),
-   LARGE("large");
+	NONE("none"),
+	SMALL("small"),
+	LARGE("large");
 
-   private final String name;
+	private final String name;
 
-   private BambooLeaves(final String name) {
-      this.name = name;
-   }
+	private BambooLeaves(final String name) {
+		this.name = name;
+	}
 
-   @Override
-   public String toString() {
-      return this.name;
-   }
+	@Override
+	public String toString() {
+		return this.name;
+	}
 
-   @Override
-   public String asString() {
-      return this.name;
-   }
+	@Override
+	public String asString() {
+		return this.name;
+	}
 }

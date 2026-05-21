@@ -10,90 +10,96 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
 public class UpdateCommandBlockC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, UpdateCommandBlockC2SPacket> CODEC = Packet.createCodec(
-      UpdateCommandBlockC2SPacket::write, UpdateCommandBlockC2SPacket::new
-   );
-   private static final int TRACK_OUTPUT_MASK = 1;
-   private static final int CONDITIONAL_MASK = 2;
-   private static final int ALWAYS_ACTIVE_MASK = 4;
-   private final BlockPos pos;
-   private final String command;
-   private final boolean trackOutput;
-   private final boolean conditional;
-   private final boolean alwaysActive;
-   private final CommandBlockBlockEntity.Type type;
 
-   public UpdateCommandBlockC2SPacket(
-      BlockPos pos, String command, CommandBlockBlockEntity.Type type, boolean trackOutput, boolean conditional, boolean alwaysActive
-   ) {
-      this.pos = pos;
-      this.command = command;
-      this.trackOutput = trackOutput;
-      this.conditional = conditional;
-      this.alwaysActive = alwaysActive;
-      this.type = type;
-   }
+	public static final PacketCodec<PacketByteBuf, UpdateCommandBlockC2SPacket> CODEC = Packet.createCodec(
+			UpdateCommandBlockC2SPacket::write, UpdateCommandBlockC2SPacket::new
+	);
+	private static final int TRACK_OUTPUT_MASK = 1;
+	private static final int CONDITIONAL_MASK = 2;
+	private static final int ALWAYS_ACTIVE_MASK = 4;
+	private final BlockPos pos;
+	private final String command;
+	private final boolean trackOutput;
+	private final boolean conditional;
+	private final boolean alwaysActive;
+	private final CommandBlockBlockEntity.Type type;
 
-   private UpdateCommandBlockC2SPacket(PacketByteBuf buf) {
-      this.pos = buf.readBlockPos();
-      this.command = buf.readString();
-      this.type = buf.readEnumConstant(CommandBlockBlockEntity.Type.class);
-      int i = buf.readByte();
-      this.trackOutput = (i & 1) != 0;
-      this.conditional = (i & 2) != 0;
-      this.alwaysActive = (i & 4) != 0;
-   }
+	public UpdateCommandBlockC2SPacket(
+			BlockPos pos,
+			String command,
+			CommandBlockBlockEntity.Type type,
+			boolean trackOutput,
+			boolean conditional,
+			boolean alwaysActive
+	) {
+		this.pos = pos;
+		this.command = command;
+		this.trackOutput = trackOutput;
+		this.conditional = conditional;
+		this.alwaysActive = alwaysActive;
+		this.type = type;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeBlockPos(this.pos);
-      buf.writeString(this.command);
-      buf.writeEnumConstant(this.type);
-      int i = 0;
-      if (this.trackOutput) {
-         i |= 1;
-      }
+	private UpdateCommandBlockC2SPacket(PacketByteBuf buf) {
+		this.pos = buf.readBlockPos();
+		this.command = buf.readString();
+		this.type = buf.readEnumConstant(CommandBlockBlockEntity.Type.class);
+		int i = buf.readByte();
+		this.trackOutput = (i & 1) != 0;
+		this.conditional = (i & 2) != 0;
+		this.alwaysActive = (i & 4) != 0;
+	}
 
-      if (this.conditional) {
-         i |= 2;
-      }
+	private void write(PacketByteBuf buf) {
+		buf.writeBlockPos(this.pos);
+		buf.writeString(this.command);
+		buf.writeEnumConstant(this.type);
+		int i = 0;
+		if (this.trackOutput) {
+			i |= 1;
+		}
 
-      if (this.alwaysActive) {
-         i |= 4;
-      }
+		if (this.conditional) {
+			i |= 2;
+		}
 
-      buf.writeByte(i);
-   }
+		if (this.alwaysActive) {
+			i |= 4;
+		}
 
-   @Override
-   public PacketType<UpdateCommandBlockC2SPacket> getPacketType() {
-      return PlayPackets.SET_COMMAND_BLOCK;
-   }
+		buf.writeByte(i);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onUpdateCommandBlock(this);
-   }
+	@Override
+	public PacketType<UpdateCommandBlockC2SPacket> getPacketType() {
+		return PlayPackets.SET_COMMAND_BLOCK;
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onUpdateCommandBlock(this);
+	}
 
-   public String getCommand() {
-      return this.command;
-   }
+	public BlockPos getPos() {
+		return this.pos;
+	}
 
-   public boolean shouldTrackOutput() {
-      return this.trackOutput;
-   }
+	public String getCommand() {
+		return this.command;
+	}
 
-   public boolean isConditional() {
-      return this.conditional;
-   }
+	public boolean shouldTrackOutput() {
+		return this.trackOutput;
+	}
 
-   public boolean isAlwaysActive() {
-      return this.alwaysActive;
-   }
+	public boolean isConditional() {
+		return this.conditional;
+	}
 
-   public CommandBlockBlockEntity.Type getType() {
-      return this.type;
-   }
+	public boolean isAlwaysActive() {
+		return this.alwaysActive;
+	}
+
+	public CommandBlockBlockEntity.Type getType() {
+		return this.type;
+	}
 }

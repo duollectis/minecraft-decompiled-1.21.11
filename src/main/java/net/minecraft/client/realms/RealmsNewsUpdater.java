@@ -6,42 +6,49 @@ import net.minecraft.client.realms.dto.RealmsNews;
 import net.minecraft.client.realms.util.RealmsPersistence;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsNewsUpdater}.
+ */
 public class RealmsNewsUpdater {
-   private final RealmsPersistence persistence;
-   private boolean hasUnreadNews;
-   private String newsLink;
 
-   public RealmsNewsUpdater(RealmsPersistence persistence) {
-      this.persistence = persistence;
-      RealmsPersistence.RealmsPersistenceData realmsPersistenceData = persistence.load();
-      this.hasUnreadNews = realmsPersistenceData.hasUnreadNews;
-      this.newsLink = realmsPersistenceData.newsLink;
-   }
+	private final RealmsPersistence persistence;
+	private boolean hasUnreadNews;
+	private String newsLink;
 
-   public boolean hasUnreadNews() {
-      return this.hasUnreadNews;
-   }
+	public RealmsNewsUpdater(RealmsPersistence persistence) {
+		this.persistence = persistence;
+		RealmsPersistence.RealmsPersistenceData realmsPersistenceData = persistence.load();
+		this.hasUnreadNews = realmsPersistenceData.hasUnreadNews;
+		this.newsLink = realmsPersistenceData.newsLink;
+	}
 
-   public String getNewsLink() {
-      return this.newsLink;
-   }
+	public boolean hasUnreadNews() {
+		return this.hasUnreadNews;
+	}
 
-   public void updateNews(RealmsNews news) {
-      RealmsPersistence.RealmsPersistenceData realmsPersistenceData = this.checkLinkUpdated(news);
-      this.hasUnreadNews = realmsPersistenceData.hasUnreadNews;
-      this.newsLink = realmsPersistenceData.newsLink;
-   }
+	public String getNewsLink() {
+		return this.newsLink;
+	}
 
-   private RealmsPersistence.RealmsPersistenceData checkLinkUpdated(RealmsNews news) {
-      RealmsPersistence.RealmsPersistenceData realmsPersistenceData = this.persistence.load();
-      if (news.newsLink() != null && !news.newsLink().equals(realmsPersistenceData.newsLink)) {
-         RealmsPersistence.RealmsPersistenceData realmsPersistenceData2 = new RealmsPersistence.RealmsPersistenceData();
-         realmsPersistenceData2.newsLink = news.newsLink();
-         realmsPersistenceData2.hasUnreadNews = true;
-         this.persistence.save(realmsPersistenceData2);
-         return realmsPersistenceData2;
-      } else {
-         return realmsPersistenceData;
-      }
-   }
+	public void updateNews(RealmsNews news) {
+		RealmsPersistence.RealmsPersistenceData realmsPersistenceData = this.checkLinkUpdated(news);
+		this.hasUnreadNews = realmsPersistenceData.hasUnreadNews;
+		this.newsLink = realmsPersistenceData.newsLink;
+	}
+
+	private RealmsPersistence.RealmsPersistenceData checkLinkUpdated(RealmsNews news) {
+		RealmsPersistence.RealmsPersistenceData realmsPersistenceData = this.persistence.load();
+		if (news.newsLink() != null && !news.newsLink().equals(realmsPersistenceData.newsLink)) {
+			RealmsPersistence.RealmsPersistenceData
+					realmsPersistenceData2 =
+					new RealmsPersistence.RealmsPersistenceData();
+			realmsPersistenceData2.newsLink = news.newsLink();
+			realmsPersistenceData2.hasUnreadNews = true;
+			this.persistence.save(realmsPersistenceData2);
+			return realmsPersistenceData2;
+		}
+		else {
+			return realmsPersistenceData;
+		}
+	}
 }

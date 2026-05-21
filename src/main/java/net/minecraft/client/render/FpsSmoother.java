@@ -4,38 +4,43 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FpsSmoother}.
+ */
 public class FpsSmoother {
-   private final long[] times;
-   private int size;
-   private int index;
 
-   public FpsSmoother(int size) {
-      this.times = new long[size];
-   }
+	private final long[] times;
+	private int size;
+	private int index;
 
-   public long getTargetUsedTime(long time) {
-      if (this.size < this.times.length) {
-         this.size++;
-      }
+	public FpsSmoother(int size) {
+		this.times = new long[size];
+	}
 
-      this.times[this.index] = time;
-      this.index = (this.index + 1) % this.times.length;
-      long l = Long.MAX_VALUE;
-      long m = Long.MIN_VALUE;
-      long n = 0L;
+	public long getTargetUsedTime(long time) {
+		if (this.size < this.times.length) {
+			this.size++;
+		}
 
-      for (int i = 0; i < this.size; i++) {
-         long o = this.times[i];
-         n += o;
-         l = Math.min(l, o);
-         m = Math.max(m, o);
-      }
+		this.times[this.index] = time;
+		this.index = (this.index + 1) % this.times.length;
+		long l = Long.MAX_VALUE;
+		long m = Long.MIN_VALUE;
+		long n = 0L;
 
-      if (this.size > 2) {
-         n -= l + m;
-         return n / (this.size - 2);
-      } else {
-         return n > 0L ? this.size / n : 0L;
-      }
-   }
+		for (int i = 0; i < this.size; i++) {
+			long o = this.times[i];
+			n += o;
+			l = Math.min(l, o);
+			m = Math.max(m, o);
+		}
+
+		if (this.size > 2) {
+			n -= l + m;
+			return n / (this.size - 2);
+		}
+		else {
+			return n > 0L ? this.size / n : 0L;
+		}
+	}
 }

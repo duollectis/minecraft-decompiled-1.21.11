@@ -14,63 +14,67 @@ import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code EnderDragonPart}.
+ */
 public class EnderDragonPart extends Entity {
-   public final EnderDragonEntity owner;
-   public final String name;
-   private final EntityDimensions partDimensions;
 
-   public EnderDragonPart(EnderDragonEntity owner, String name, float width, float height) {
-      super(owner.getType(), owner.getEntityWorld());
-      this.partDimensions = EntityDimensions.changing(width, height);
-      this.calculateDimensions();
-      this.owner = owner;
-      this.name = name;
-   }
+	public final EnderDragonEntity owner;
+	public final String name;
+	private final EntityDimensions partDimensions;
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-   }
+	public EnderDragonPart(EnderDragonEntity owner, String name, float width, float height) {
+		super(owner.getType(), owner.getEntityWorld());
+		this.partDimensions = EntityDimensions.changing(width, height);
+		this.calculateDimensions();
+		this.owner = owner;
+		this.name = name;
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+	}
 
-   @Override
-   public boolean canHit() {
-      return true;
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+	}
 
-   @Override
-   public @Nullable ItemStack getPickBlockStack() {
-      return this.owner.getPickBlockStack();
-   }
+	@Override
+	public boolean canHit() {
+		return true;
+	}
 
-   @Override
-   public final boolean damage(ServerWorld world, DamageSource source, float amount) {
-      return this.isAlwaysInvulnerableTo(source) ? false : this.owner.damagePart(world, this, source, amount);
-   }
+	@Override
+	public @Nullable ItemStack getPickBlockStack() {
+		return this.owner.getPickBlockStack();
+	}
 
-   @Override
-   public boolean isPartOf(Entity entity) {
-      return this == entity || this.owner == entity;
-   }
+	@Override
+	public final boolean damage(ServerWorld world, DamageSource source, float amount) {
+		return this.isAlwaysInvulnerableTo(source) ? false : this.owner.damagePart(world, this, source, amount);
+	}
 
-   @Override
-   public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
-      throw new UnsupportedOperationException();
-   }
+	@Override
+	public boolean isPartOf(Entity entity) {
+		return this == entity || this.owner == entity;
+	}
 
-   @Override
-   public EntityDimensions getDimensions(EntityPose pose) {
-      return this.partDimensions;
-   }
+	@Override
+	public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
+		throw new UnsupportedOperationException();
+	}
 
-   @Override
-   public boolean shouldSave() {
-      return false;
-   }
+	@Override
+	public EntityDimensions getDimensions(EntityPose pose) {
+		return this.partDimensions;
+	}
+
+	@Override
+	public boolean shouldSave() {
+		return false;
+	}
 }

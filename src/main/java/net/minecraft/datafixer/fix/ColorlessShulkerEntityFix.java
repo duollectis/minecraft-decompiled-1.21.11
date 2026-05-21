@@ -5,16 +5,23 @@ import com.mojang.datafixers.Typed;
 import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code ColorlessShulkerEntityFix}.
+ */
 public class ColorlessShulkerEntityFix extends ChoiceFix {
-   public ColorlessShulkerEntityFix(Schema schema, boolean bl) {
-      super(schema, bl, "Colorless shulker entity fix", TypeReferences.ENTITY, "minecraft:shulker");
-   }
 
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      return inputTyped.update(
-         DSL.remainderFinder(),
-         shulkerDynamic -> shulkerDynamic.get("Color").asInt(0) == 10 ? shulkerDynamic.set("Color", shulkerDynamic.createByte((byte)16)) : shulkerDynamic
-      );
-   }
+	public ColorlessShulkerEntityFix(Schema schema, boolean bl) {
+		super(schema, bl, "Colorless shulker entity fix", TypeReferences.ENTITY, "minecraft:shulker");
+	}
+
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		return inputTyped.update(
+				DSL.remainderFinder(),
+				shulkerDynamic -> shulkerDynamic.get("Color").asInt(0) == 10 ? shulkerDynamic.set(
+						"Color",
+						shulkerDynamic.createByte((byte) 16)
+				) : shulkerDynamic
+		);
+	}
 }

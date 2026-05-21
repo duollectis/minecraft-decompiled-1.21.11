@@ -11,48 +11,60 @@ import net.minecraft.world.World;
 import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code RedstoneLampBlock}.
+ */
 public class RedstoneLampBlock extends Block {
-   public static final MapCodec<RedstoneLampBlock> CODEC = createCodec(RedstoneLampBlock::new);
-   public static final BooleanProperty LIT = RedstoneTorchBlock.LIT;
 
-   @Override
-   public MapCodec<RedstoneLampBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<RedstoneLampBlock> CODEC = createCodec(RedstoneLampBlock::new);
+	public static final BooleanProperty LIT = RedstoneTorchBlock.LIT;
 
-   public RedstoneLampBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.getDefaultState().with(LIT, false));
-   }
+	@Override
+	public MapCodec<RedstoneLampBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(LIT, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()));
-   }
+	public RedstoneLampBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.getDefaultState().with(LIT, false));
+	}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      if (!world.isClient()) {
-         boolean bl = state.get(LIT);
-         if (bl != world.isReceivingRedstonePower(pos)) {
-            if (bl) {
-               world.scheduleBlockTick(pos, this, 4);
-            } else {
-               world.setBlockState(pos, state.cycle(LIT), 2);
-            }
-         }
-      }
-   }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getDefaultState().with(LIT, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()));
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (state.get(LIT) && !world.isReceivingRedstonePower(pos)) {
-         world.setBlockState(pos, state.cycle(LIT), 2);
-      }
-   }
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		if (!world.isClient()) {
+			boolean bl = state.get(LIT);
+			if (bl != world.isReceivingRedstonePower(pos)) {
+				if (bl) {
+					world.scheduleBlockTick(pos, this, 4);
+				}
+				else {
+					world.setBlockState(pos, state.cycle(LIT), 2);
+				}
+			}
+		}
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(LIT);
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (state.get(LIT) && !world.isReceivingRedstonePower(pos)) {
+			world.setBlockState(pos, state.cycle(LIT), 2);
+		}
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(LIT);
+	}
 }

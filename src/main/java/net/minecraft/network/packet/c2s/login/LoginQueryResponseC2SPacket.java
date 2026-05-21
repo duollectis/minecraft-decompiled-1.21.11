@@ -8,42 +8,47 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import org.jspecify.annotations.Nullable;
 
-public record LoginQueryResponseC2SPacket(int queryId, @Nullable LoginQueryResponsePayload response) implements Packet<ServerLoginPacketListener> {
-   public static final PacketCodec<PacketByteBuf, LoginQueryResponseC2SPacket> CODEC = Packet.createCodec(
-      LoginQueryResponseC2SPacket::write, LoginQueryResponseC2SPacket::read
-   );
-   private static final int MAX_PAYLOAD_SIZE = 1048576;
+public record LoginQueryResponseC2SPacket(
+		int queryId,
+		@Nullable LoginQueryResponsePayload response
+) implements Packet<ServerLoginPacketListener> {
 
-   private static LoginQueryResponseC2SPacket read(PacketByteBuf buf) {
-      int i = buf.readVarInt();
-      return new LoginQueryResponseC2SPacket(i, readPayload(i, buf));
-   }
+	public static final PacketCodec<PacketByteBuf, LoginQueryResponseC2SPacket> CODEC = Packet.createCodec(
+			LoginQueryResponseC2SPacket::write, LoginQueryResponseC2SPacket::read
+	);
+	private static final int MAX_PAYLOAD_SIZE = 1048576;
 
-   private static LoginQueryResponsePayload readPayload(int queryId, PacketByteBuf buf) {
-      return getVanillaPayload(buf);
-   }
+	private static LoginQueryResponseC2SPacket read(PacketByteBuf buf) {
+		int i = buf.readVarInt();
+		return new LoginQueryResponseC2SPacket(i, readPayload(i, buf));
+	}
 
-   private static LoginQueryResponsePayload getVanillaPayload(PacketByteBuf buf) {
-      int i = buf.readableBytes();
-      if (i >= 0 && i <= 1048576) {
-         buf.skipBytes(i);
-         return UnknownLoginQueryResponsePayload.INSTANCE;
-      } else {
-         throw new IllegalArgumentException("Payload may not be larger than 1048576 bytes");
-      }
-   }
+	private static LoginQueryResponsePayload readPayload(int queryId, PacketByteBuf buf) {
+		return getVanillaPayload(buf);
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.queryId);
-      buf.writeNullable(this.response, (bufx, response) -> response.write(bufx));
-   }
+	private static LoginQueryResponsePayload getVanillaPayload(PacketByteBuf buf) {
+		int i = buf.readableBytes();
+		if (i >= 0 && i <= 1048576) {
+			buf.skipBytes(i);
+			return UnknownLoginQueryResponsePayload.INSTANCE;
+		}
+		else {
+			throw new IllegalArgumentException("Payload may not be larger than 1048576 bytes");
+		}
+	}
 
-   @Override
-   public PacketType<LoginQueryResponseC2SPacket> getPacketType() {
-      return LoginPackets.CUSTOM_QUERY_ANSWER;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.queryId);
+		buf.writeNullable(this.response, (bufx, response) -> response.write(bufx));
+	}
 
-   public void apply(ServerLoginPacketListener serverLoginPacketListener) {
-      serverLoginPacketListener.onQueryResponse(this);
-   }
+	@Override
+	public PacketType<LoginQueryResponseC2SPacket> getPacketType() {
+		return LoginPackets.CUSTOM_QUERY_ANSWER;
+	}
+
+	public void apply(ServerLoginPacketListener serverLoginPacketListener) {
+		serverLoginPacketListener.onQueryResponse(this);
+	}
 }

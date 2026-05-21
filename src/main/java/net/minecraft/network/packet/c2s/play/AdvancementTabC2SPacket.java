@@ -11,60 +11,62 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 public class AdvancementTabC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, AdvancementTabC2SPacket> CODEC = Packet.createCodec(
-      AdvancementTabC2SPacket::write, AdvancementTabC2SPacket::new
-   );
-   private final AdvancementTabC2SPacket.Action action;
-   private final @Nullable Identifier tabToOpen;
 
-   public AdvancementTabC2SPacket(AdvancementTabC2SPacket.Action action, @Nullable Identifier tab) {
-      this.action = action;
-      this.tabToOpen = tab;
-   }
+	public static final PacketCodec<PacketByteBuf, AdvancementTabC2SPacket> CODEC = Packet.createCodec(
+			AdvancementTabC2SPacket::write, AdvancementTabC2SPacket::new
+	);
+	private final AdvancementTabC2SPacket.Action action;
+	private final @Nullable Identifier tabToOpen;
 
-   public static AdvancementTabC2SPacket open(AdvancementEntry advancement) {
-      return new AdvancementTabC2SPacket(AdvancementTabC2SPacket.Action.OPENED_TAB, advancement.id());
-   }
+	public AdvancementTabC2SPacket(AdvancementTabC2SPacket.Action action, @Nullable Identifier tab) {
+		this.action = action;
+		this.tabToOpen = tab;
+	}
 
-   public static AdvancementTabC2SPacket close() {
-      return new AdvancementTabC2SPacket(AdvancementTabC2SPacket.Action.CLOSED_SCREEN, null);
-   }
+	public static AdvancementTabC2SPacket open(AdvancementEntry advancement) {
+		return new AdvancementTabC2SPacket(AdvancementTabC2SPacket.Action.OPENED_TAB, advancement.id());
+	}
 
-   private AdvancementTabC2SPacket(PacketByteBuf buf) {
-      this.action = buf.readEnumConstant(AdvancementTabC2SPacket.Action.class);
-      if (this.action == AdvancementTabC2SPacket.Action.OPENED_TAB) {
-         this.tabToOpen = buf.readIdentifier();
-      } else {
-         this.tabToOpen = null;
-      }
-   }
+	public static AdvancementTabC2SPacket close() {
+		return new AdvancementTabC2SPacket(AdvancementTabC2SPacket.Action.CLOSED_SCREEN, null);
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeEnumConstant(this.action);
-      if (this.action == AdvancementTabC2SPacket.Action.OPENED_TAB) {
-         buf.writeIdentifier(this.tabToOpen);
-      }
-   }
+	private AdvancementTabC2SPacket(PacketByteBuf buf) {
+		this.action = buf.readEnumConstant(AdvancementTabC2SPacket.Action.class);
+		if (this.action == AdvancementTabC2SPacket.Action.OPENED_TAB) {
+			this.tabToOpen = buf.readIdentifier();
+		}
+		else {
+			this.tabToOpen = null;
+		}
+	}
 
-   @Override
-   public PacketType<AdvancementTabC2SPacket> getPacketType() {
-      return PlayPackets.SEEN_ADVANCEMENTS;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeEnumConstant(this.action);
+		if (this.action == AdvancementTabC2SPacket.Action.OPENED_TAB) {
+			buf.writeIdentifier(this.tabToOpen);
+		}
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onAdvancementTab(this);
-   }
+	@Override
+	public PacketType<AdvancementTabC2SPacket> getPacketType() {
+		return PlayPackets.SEEN_ADVANCEMENTS;
+	}
 
-   public AdvancementTabC2SPacket.Action getAction() {
-      return this.action;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onAdvancementTab(this);
+	}
 
-   public @Nullable Identifier getTabToOpen() {
-      return this.tabToOpen;
-   }
+	public AdvancementTabC2SPacket.Action getAction() {
+		return this.action;
+	}
 
-   public static enum Action {
-      OPENED_TAB,
-      CLOSED_SCREEN;
-   }
+	public @Nullable Identifier getTabToOpen() {
+		return this.tabToOpen;
+	}
+
+	public static enum Action {
+		OPENED_TAB,
+		CLOSED_SCREEN;
+	}
 }

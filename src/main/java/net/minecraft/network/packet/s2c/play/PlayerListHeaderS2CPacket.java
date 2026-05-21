@@ -10,20 +10,21 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
 public record PlayerListHeaderS2CPacket(Text header, Text footer) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, PlayerListHeaderS2CPacket> CODEC = PacketCodec.tuple(
-      TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
-      PlayerListHeaderS2CPacket::header,
-      TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
-      PlayerListHeaderS2CPacket::footer,
-      PlayerListHeaderS2CPacket::new
-   );
 
-   @Override
-   public PacketType<PlayerListHeaderS2CPacket> getPacketType() {
-      return PlayPackets.TAB_LIST;
-   }
+	public static final PacketCodec<RegistryByteBuf, PlayerListHeaderS2CPacket> CODEC = PacketCodec.tuple(
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
+			PlayerListHeaderS2CPacket::header,
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
+			PlayerListHeaderS2CPacket::footer,
+			PlayerListHeaderS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onPlayerListHeader(this);
-   }
+	@Override
+	public PacketType<PlayerListHeaderS2CPacket> getPacketType() {
+		return PlayPackets.TAB_LIST;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onPlayerListHeader(this);
+	}
 }

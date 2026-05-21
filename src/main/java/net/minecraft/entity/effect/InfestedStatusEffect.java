@@ -1,6 +1,5 @@
 package net.minecraft.entity.effect;
 
-import java.util.function.ToIntFunction;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.SpawnReason;
@@ -14,38 +13,61 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import org.joml.Vector3f;
 
+import java.util.function.ToIntFunction;
+
+/**
+ * {@code InfestedStatusEffect}.
+ */
 class InfestedStatusEffect extends StatusEffect {
-   private final float silverfishChance;
-   private final ToIntFunction<Random> silverfishCountFunction;
 
-   protected InfestedStatusEffect(StatusEffectCategory category, int color, float silverfishChance, ToIntFunction<Random> silverfishCountFunction) {
-      super(category, color, ParticleTypes.INFESTED);
-      this.silverfishChance = silverfishChance;
-      this.silverfishCountFunction = silverfishCountFunction;
-   }
+	private final float silverfishChance;
+	private final ToIntFunction<Random> silverfishCountFunction;
 
-   @Override
-   public void onEntityDamage(ServerWorld world, LivingEntity entity, int amplifier, DamageSource source, float amount) {
-      if (entity.getRandom().nextFloat() <= this.silverfishChance) {
-         int i = this.silverfishCountFunction.applyAsInt(entity.getRandom());
+	protected InfestedStatusEffect(
+			StatusEffectCategory category,
+			int color,
+			float silverfishChance,
+			ToIntFunction<Random> silverfishCountFunction
+	) {
+		super(category, color, ParticleTypes.INFESTED);
+		this.silverfishChance = silverfishChance;
+		this.silverfishCountFunction = silverfishCountFunction;
+	}
 
-         for (int j = 0; j < i; j++) {
-            this.spawnSilverfish(world, entity, entity.getX(), entity.getY() + entity.getHeight() / 2.0, entity.getZ());
-         }
-      }
-   }
+	@Override
+	public void onEntityDamage(
+			ServerWorld world,
+			LivingEntity entity,
+			int amplifier,
+			DamageSource source,
+			float amount
+	) {
+		if (entity.getRandom().nextFloat() <= this.silverfishChance) {
+			int i = this.silverfishCountFunction.applyAsInt(entity.getRandom());
 
-   private void spawnSilverfish(ServerWorld world, LivingEntity entity, double x, double y, double z) {
-      SilverfishEntity silverfishEntity = EntityType.SILVERFISH.create(world, SpawnReason.TRIGGERED);
-      if (silverfishEntity != null) {
-         Random random = entity.getRandom();
-         float f = (float) (Math.PI / 2);
-         float g = MathHelper.nextBetween(random, (float) (-Math.PI / 2), (float) (Math.PI / 2));
-         Vector3f vector3f = entity.getRotationVector().toVector3f().mul(0.3F).mul(1.0F, 1.5F, 1.0F).rotateY(g);
-         silverfishEntity.refreshPositionAndAngles(x, y, z, world.getRandom().nextFloat() * 360.0F, 0.0F);
-         silverfishEntity.setVelocity(new Vec3d(vector3f));
-         world.spawnEntity(silverfishEntity);
-         silverfishEntity.playSoundIfNotSilent(SoundEvents.ENTITY_SILVERFISH_HURT);
-      }
-   }
+			for (int j = 0; j < i; j++) {
+				this.spawnSilverfish(
+						world,
+						entity,
+						entity.getX(),
+						entity.getY() + entity.getHeight() / 2.0,
+						entity.getZ()
+				);
+			}
+		}
+	}
+
+	private void spawnSilverfish(ServerWorld world, LivingEntity entity, double x, double y, double z) {
+		SilverfishEntity silverfishEntity = EntityType.SILVERFISH.create(world, SpawnReason.TRIGGERED);
+		if (silverfishEntity != null) {
+			Random random = entity.getRandom();
+			float f = (float) (Math.PI / 2);
+			float g = MathHelper.nextBetween(random, (float) (-Math.PI / 2), (float) (Math.PI / 2));
+			Vector3f vector3f = entity.getRotationVector().toVector3f().mul(0.3F).mul(1.0F, 1.5F, 1.0F).rotateY(g);
+			silverfishEntity.refreshPositionAndAngles(x, y, z, world.getRandom().nextFloat() * 360.0F, 0.0F);
+			silverfishEntity.setVelocity(new Vec3d(vector3f));
+			world.spawnEntity(silverfishEntity);
+			silverfishEntity.playSoundIfNotSilent(SoundEvents.ENTITY_SILVERFISH_HURT);
+		}
+	}
 }

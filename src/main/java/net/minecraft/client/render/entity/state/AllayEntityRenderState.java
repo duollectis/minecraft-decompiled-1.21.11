@@ -4,9 +4,13 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AllayEntityRenderState}.
+ */
 public class AllayEntityRenderState extends ArmedEntityRenderState {
-   public boolean dancing;
-   public boolean spinning;
-   public float spinningAnimationTicks;
-   public float itemHoldAnimationTicks;
+
+	public boolean dancing;
+	public boolean spinning;
+	public float spinningAnimationTicks;
+	public float itemHoldAnimationTicks;
 }

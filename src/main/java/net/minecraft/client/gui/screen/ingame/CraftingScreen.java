@@ -12,28 +12,43 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CraftingScreen}.
+ */
 public class CraftingScreen extends RecipeBookScreen<CraftingScreenHandler> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/crafting_table.png");
 
-   public CraftingScreen(CraftingScreenHandler handler, PlayerInventory inventory, Text title) {
-      super(handler, new CraftingRecipeBookWidget(handler), inventory, title);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/crafting_table.png");
 
-   @Override
-   protected void init() {
-      super.init();
-      this.titleX = 29;
-   }
+	public CraftingScreen(CraftingScreenHandler handler, PlayerInventory inventory, Text title) {
+		super(handler, new CraftingRecipeBookWidget(handler), inventory, title);
+	}
 
-   @Override
-   protected ScreenPos getRecipeBookButtonPos() {
-      return new ScreenPos(this.x + 5, this.height / 2 - 49);
-   }
+	@Override
+	protected void init() {
+		super.init();
+		this.titleX = 29;
+	}
 
-   @Override
-   protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-      int i = this.x;
-      int j = (this.height - this.backgroundHeight) / 2;
-      context.drawTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, i, j, 0.0F, 0.0F, this.backgroundWidth, this.backgroundHeight, 256, 256);
-   }
+	@Override
+	protected ScreenPos getRecipeBookButtonPos() {
+		return new ScreenPos(this.x + 5, this.height / 2 - 49);
+	}
+
+	@Override
+	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
+		int i = this.x;
+		int j = (this.height - this.backgroundHeight) / 2;
+		context.drawTexture(
+				RenderPipelines.GUI_TEXTURED,
+				TEXTURE,
+				i,
+				j,
+				0.0F,
+				0.0F,
+				this.backgroundWidth,
+				this.backgroundHeight,
+				256,
+				256
+		);
+	}
 }

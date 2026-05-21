@@ -1,15 +1,19 @@
 package net.minecraft.util.profiler;
 
+/**
+ * {@code Recorder}.
+ */
 public interface Recorder {
-   void stop();
 
-   void forceStop();
+	void stop();
 
-   void startTick();
+	void forceStop();
 
-   boolean isActive();
+	void startTick();
 
-   Profiler getProfiler();
+	boolean isActive();
 
-   void endTick();
+	Profiler getProfiler();
+
+	void endTick();
 }

@@ -38,201 +38,233 @@ import net.minecraft.util.profiler.Profilers;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code TadpoleEntity}.
+ */
 public class TadpoleEntity extends FishEntity {
-   private static final int DEFAULT_TADPOLE_AGE = 0;
-   @VisibleForTesting
-   public static int MAX_TADPOLE_AGE = Math.abs(-24000);
-   public static final float WIDTH = 0.4F;
-   public static final float HEIGHT = 0.3F;
-   private int tadpoleAge = 0;
-   protected static final ImmutableList<SensorType<? extends Sensor<? super TadpoleEntity>>> SENSORS = ImmutableList.of(
-      SensorType.NEAREST_LIVING_ENTITIES, SensorType.NEAREST_PLAYERS, SensorType.HURT_BY, SensorType.FROG_TEMPTATIONS
-   );
-   protected static final ImmutableList<MemoryModuleType<?>> MEMORY_MODULES = ImmutableList.of(
-      MemoryModuleType.LOOK_TARGET,
-      MemoryModuleType.VISIBLE_MOBS,
-      MemoryModuleType.WALK_TARGET,
-      MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE,
-      MemoryModuleType.PATH,
-      MemoryModuleType.NEAREST_VISIBLE_ADULT,
-      MemoryModuleType.TEMPTATION_COOLDOWN_TICKS,
-      MemoryModuleType.IS_TEMPTED,
-      MemoryModuleType.TEMPTING_PLAYER,
-      MemoryModuleType.BREED_TARGET,
-      MemoryModuleType.IS_PANICKING
-   );
 
-   public TadpoleEntity(EntityType<? extends FishEntity> entityType, World world) {
-      super(entityType, world);
-      this.moveControl = new AquaticMoveControl(this, 85, 10, 0.02F, 0.1F, true);
-      this.lookControl = new YawAdjustingLookControl(this, 10);
-   }
+	private static final int DEFAULT_TADPOLE_AGE = 0;
+	@VisibleForTesting
+	public static int MAX_TADPOLE_AGE = Math.abs(-24000);
+	public static final float WIDTH = 0.4F;
+	public static final float HEIGHT = 0.3F;
+	private int tadpoleAge = 0;
+	protected static final ImmutableList<SensorType<? extends Sensor<? super TadpoleEntity>>>
+			SENSORS =
+			ImmutableList.of(
+					SensorType.NEAREST_LIVING_ENTITIES,
+					SensorType.NEAREST_PLAYERS,
+					SensorType.HURT_BY,
+					SensorType.FROG_TEMPTATIONS
+			);
+	protected static final ImmutableList<MemoryModuleType<?>> MEMORY_MODULES = ImmutableList.of(
+			MemoryModuleType.LOOK_TARGET,
+			MemoryModuleType.VISIBLE_MOBS,
+			MemoryModuleType.WALK_TARGET,
+			MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE,
+			MemoryModuleType.PATH,
+			MemoryModuleType.NEAREST_VISIBLE_ADULT,
+			MemoryModuleType.TEMPTATION_COOLDOWN_TICKS,
+			MemoryModuleType.IS_TEMPTED,
+			MemoryModuleType.TEMPTING_PLAYER,
+			MemoryModuleType.BREED_TARGET,
+			MemoryModuleType.IS_PANICKING
+	);
 
-   @Override
-   protected EntityNavigation createNavigation(World world) {
-      return new SwimNavigation(this, world);
-   }
+	public TadpoleEntity(EntityType<? extends FishEntity> entityType, World world) {
+		super(entityType, world);
+		this.moveControl = new AquaticMoveControl(this, 85, 10, 0.02F, 0.1F, true);
+		this.lookControl = new YawAdjustingLookControl(this, 10);
+	}
 
-   @Override
-   protected Brain.Profile<TadpoleEntity> createBrainProfile() {
-      return Brain.createProfile(MEMORY_MODULES, SENSORS);
-   }
+	@Override
+	protected EntityNavigation createNavigation(World world) {
+		return new SwimNavigation(this, world);
+	}
 
-   @Override
-   protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
-      return TadpoleBrain.create(this.createBrainProfile().deserialize(dynamic));
-   }
+	@Override
+	protected Brain.Profile<TadpoleEntity> createBrainProfile() {
+		return Brain.createProfile(MEMORY_MODULES, SENSORS);
+	}
 
-   @Override
-   public Brain<TadpoleEntity> getBrain() {
-      return (Brain<TadpoleEntity>)super.getBrain();
-   }
+	@Override
+	protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
+		return TadpoleBrain.create(this.createBrainProfile().deserialize(dynamic));
+	}
 
-   @Override
-   protected SoundEvent getFlopSound() {
-      return SoundEvents.ENTITY_TADPOLE_FLOP;
-   }
+	@Override
+	public Brain<TadpoleEntity> getBrain() {
+		return (Brain<TadpoleEntity>) super.getBrain();
+	}
 
-   @Override
-   protected void mobTick(ServerWorld world) {
-      Profiler profiler = Profilers.get();
-      profiler.push("tadpoleBrain");
-      this.getBrain().tick(world, this);
-      profiler.pop();
-      profiler.push("tadpoleActivityUpdate");
-      TadpoleBrain.updateActivities(this);
-      profiler.pop();
-      super.mobTick(world);
-   }
+	@Override
+	protected SoundEvent getFlopSound() {
+		return SoundEvents.ENTITY_TADPOLE_FLOP;
+	}
 
-   public static DefaultAttributeContainer.Builder createTadpoleAttributes() {
-      return AnimalEntity.createAnimalAttributes().add(EntityAttributes.MOVEMENT_SPEED, 1.0).add(EntityAttributes.MAX_HEALTH, 6.0);
-   }
+	@Override
+	protected void mobTick(ServerWorld world) {
+		Profiler profiler = Profilers.get();
+		profiler.push("tadpoleBrain");
+		this.getBrain().tick(world, this);
+		profiler.pop();
+		profiler.push("tadpoleActivityUpdate");
+		TadpoleBrain.updateActivities(this);
+		profiler.pop();
+		super.mobTick(world);
+	}
 
-   @Override
-   public void tickMovement() {
-      super.tickMovement();
-      if (!this.getEntityWorld().isClient()) {
-         this.setTadpoleAge(this.tadpoleAge + 1);
-      }
-   }
+	public static DefaultAttributeContainer.Builder createTadpoleAttributes() {
+		return AnimalEntity
+				.createAnimalAttributes()
+				.add(EntityAttributes.MOVEMENT_SPEED, 1.0)
+				.add(EntityAttributes.MAX_HEALTH, 6.0);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putInt("Age", this.tadpoleAge);
-   }
+	@Override
+	public void tickMovement() {
+		super.tickMovement();
+		if (!this.getEntityWorld().isClient()) {
+			this.setTadpoleAge(this.tadpoleAge + 1);
+		}
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.setTadpoleAge(view.getInt("Age", 0));
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putInt("Age", this.tadpoleAge);
+	}
 
-   @Override
-   protected @Nullable SoundEvent getAmbientSound() {
-      return null;
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.setTadpoleAge(view.getInt("Age", 0));
+	}
 
-   @Override
-   protected @Nullable SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_TADPOLE_HURT;
-   }
+	@Override
+	protected @Nullable SoundEvent getAmbientSound() {
+		return null;
+	}
 
-   @Override
-   protected @Nullable SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_TADPOLE_DEATH;
-   }
+	@Override
+	protected @Nullable SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_TADPOLE_HURT;
+	}
 
-   @Override
-   public ActionResult interactMob(PlayerEntity player, Hand hand) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if (this.isFrogFood(itemStack)) {
-         this.eatSlimeBall(player, itemStack);
-         return ActionResult.SUCCESS;
-      } else {
-         return Bucketable.tryBucket(player, hand, this).orElse(super.interactMob(player, hand));
-      }
-   }
+	@Override
+	protected @Nullable SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_TADPOLE_DEATH;
+	}
 
-   @Override
-   public boolean isFromBucket() {
-      return true;
-   }
+	@Override
+	public ActionResult interactMob(PlayerEntity player, Hand hand) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if (this.isFrogFood(itemStack)) {
+			this.eatSlimeBall(player, itemStack);
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return Bucketable.tryBucket(player, hand, this).orElse(super.interactMob(player, hand));
+		}
+	}
 
-   @Override
-   public void setFromBucket(boolean fromBucket) {
-   }
+	@Override
+	public boolean isFromBucket() {
+		return true;
+	}
 
-   @Override
-   public void copyDataToStack(ItemStack stack) {
-      Bucketable.copyDataToStack(this, stack);
-      NbtComponent.set(DataComponentTypes.BUCKET_ENTITY_DATA, stack, nbtCompound -> nbtCompound.putInt("Age", this.getTadpoleAge()));
-   }
+	@Override
+	public void setFromBucket(boolean fromBucket) {
+	}
 
-   @Override
-   public void copyDataFromNbt(NbtCompound nbt) {
-      Bucketable.copyDataFromNbt(this, nbt);
-      nbt.getInt("Age").ifPresent(this::setTadpoleAge);
-   }
+	@Override
+	public void copyDataToStack(ItemStack stack) {
+		Bucketable.copyDataToStack(this, stack);
+		NbtComponent.set(
+				DataComponentTypes.BUCKET_ENTITY_DATA,
+				stack,
+				nbtCompound -> nbtCompound.putInt("Age", this.getTadpoleAge())
+		);
+	}
 
-   @Override
-   public ItemStack getBucketItem() {
-      return new ItemStack(Items.TADPOLE_BUCKET);
-   }
+	@Override
+	public void copyDataFromNbt(NbtCompound nbt) {
+		Bucketable.copyDataFromNbt(this, nbt);
+		nbt.getInt("Age").ifPresent(this::setTadpoleAge);
+	}
 
-   @Override
-   public SoundEvent getBucketFillSound() {
-      return SoundEvents.ITEM_BUCKET_FILL_TADPOLE;
-   }
+	@Override
+	public ItemStack getBucketItem() {
+		return new ItemStack(Items.TADPOLE_BUCKET);
+	}
 
-   private boolean isFrogFood(ItemStack stack) {
-      return stack.isIn(ItemTags.FROG_FOOD);
-   }
+	@Override
+	public SoundEvent getBucketFillSound() {
+		return SoundEvents.ITEM_BUCKET_FILL_TADPOLE;
+	}
 
-   private void eatSlimeBall(PlayerEntity player, ItemStack stack) {
-      this.decrementItem(player, stack);
-      this.increaseAge(PassiveEntity.toGrowUpAge(this.getTicksUntilGrowth()));
-      this.getEntityWorld()
-         .addParticleClient(ParticleTypes.HAPPY_VILLAGER, this.getParticleX(1.0), this.getRandomBodyY() + 0.5, this.getParticleZ(1.0), 0.0, 0.0, 0.0);
-   }
+	private boolean isFrogFood(ItemStack stack) {
+		return stack.isIn(ItemTags.FROG_FOOD);
+	}
 
-   private void decrementItem(PlayerEntity player, ItemStack stack) {
-      stack.decrementUnlessCreative(1, player);
-   }
+	private void eatSlimeBall(PlayerEntity player, ItemStack stack) {
+		this.decrementItem(player, stack);
+		this.increaseAge(PassiveEntity.toGrowUpAge(this.getTicksUntilGrowth()));
+		this.getEntityWorld()
+		    .addParticleClient(
+				    ParticleTypes.HAPPY_VILLAGER,
+				    this.getParticleX(1.0),
+				    this.getRandomBodyY() + 0.5,
+				    this.getParticleZ(1.0),
+				    0.0,
+				    0.0,
+				    0.0
+		    );
+	}
 
-   private int getTadpoleAge() {
-      return this.tadpoleAge;
-   }
+	private void decrementItem(PlayerEntity player, ItemStack stack) {
+		stack.decrementUnlessCreative(1, player);
+	}
 
-   private void increaseAge(int seconds) {
-      this.setTadpoleAge(this.tadpoleAge + seconds * 20);
-   }
+	private int getTadpoleAge() {
+		return this.tadpoleAge;
+	}
 
-   private void setTadpoleAge(int tadpoleAge) {
-      this.tadpoleAge = tadpoleAge;
-      if (this.tadpoleAge >= MAX_TADPOLE_AGE) {
-         this.growUp();
-      }
-   }
+	private void increaseAge(int seconds) {
+		this.setTadpoleAge(this.tadpoleAge + seconds * 20);
+	}
 
-   private void growUp() {
-      if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         this.convertTo(EntityType.FROG, EntityConversionContext.create(this, false, false), frog -> {
-            frog.initialize(serverWorld, serverWorld.getLocalDifficulty(frog.getBlockPos()), SpawnReason.CONVERSION, null);
-            frog.setPersistent();
-            frog.recalculateDimensions(this.getDimensions(this.getPose()));
-            this.playSound(SoundEvents.ENTITY_TADPOLE_GROW_UP, 0.15F, 1.0F);
-         });
-      }
-   }
+	private void setTadpoleAge(int tadpoleAge) {
+		this.tadpoleAge = tadpoleAge;
+		if (this.tadpoleAge >= MAX_TADPOLE_AGE) {
+			this.growUp();
+		}
+	}
 
-   private int getTicksUntilGrowth() {
-      return Math.max(0, MAX_TADPOLE_AGE - this.tadpoleAge);
-   }
+	private void growUp() {
+		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			this.convertTo(
+					EntityType.FROG, EntityConversionContext.create(this, false, false), frog -> {
+						frog.initialize(
+								serverWorld,
+								serverWorld.getLocalDifficulty(frog.getBlockPos()),
+								SpawnReason.CONVERSION,
+								null
+						);
+						frog.setPersistent();
+						frog.recalculateDimensions(this.getDimensions(this.getPose()));
+						this.playSound(SoundEvents.ENTITY_TADPOLE_GROW_UP, 0.15F, 1.0F);
+					}
+			);
+		}
+	}
 
-   @Override
-   public boolean shouldDropExperience() {
-      return false;
-   }
+	private int getTicksUntilGrowth() {
+		return Math.max(0, MAX_TADPOLE_AGE - this.tadpoleAge);
+	}
+
+	@Override
+	public boolean shouldDropExperience() {
+		return false;
+	}
 }

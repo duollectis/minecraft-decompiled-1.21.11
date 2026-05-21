@@ -8,25 +8,26 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public record ServerTransferS2CPacket(String host, int port) implements Packet<ClientCommonPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ServerTransferS2CPacket> CODEC = Packet.createCodec(
-      ServerTransferS2CPacket::write, ServerTransferS2CPacket::new
-   );
 
-   private ServerTransferS2CPacket(PacketByteBuf buf) {
-      this(buf.readString(), buf.readVarInt());
-   }
+	public static final PacketCodec<PacketByteBuf, ServerTransferS2CPacket> CODEC = Packet.createCodec(
+			ServerTransferS2CPacket::write, ServerTransferS2CPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeString(this.host);
-      buf.writeVarInt(this.port);
-   }
+	private ServerTransferS2CPacket(PacketByteBuf buf) {
+		this(buf.readString(), buf.readVarInt());
+	}
 
-   @Override
-   public PacketType<ServerTransferS2CPacket> getPacketType() {
-      return CommonPackets.TRANSFER;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeString(this.host);
+		buf.writeVarInt(this.port);
+	}
 
-   public void apply(ClientCommonPacketListener clientCommonPacketListener) {
-      clientCommonPacketListener.onServerTransfer(this);
-   }
+	@Override
+	public PacketType<ServerTransferS2CPacket> getPacketType() {
+		return CommonPackets.TRANSFER;
+	}
+
+	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
+		clientCommonPacketListener.onServerTransfer(this);
+	}
 }

@@ -14,23 +14,30 @@ import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MapColorTintSource}.
+ */
 public record MapColorTintSource(int defaultColor) implements TintSource {
-   public static final MapCodec<MapColorTintSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codecs.RGB.fieldOf("default").forGetter(MapColorTintSource::defaultColor)).apply(instance, MapColorTintSource::new)
-   );
 
-   public MapColorTintSource() {
-      this(MapColorComponent.DEFAULT.rgb());
-   }
+	public static final MapCodec<MapColorTintSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codecs.RGB.fieldOf("default").forGetter(MapColorTintSource::defaultColor))
+					.apply(instance, MapColorTintSource::new)
+	);
 
-   @Override
-   public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
-      MapColorComponent mapColorComponent = stack.get(DataComponentTypes.MAP_COLOR);
-      return mapColorComponent != null ? ColorHelper.fullAlpha(mapColorComponent.rgb()) : ColorHelper.fullAlpha(this.defaultColor);
-   }
+	public MapColorTintSource() {
+		this(MapColorComponent.DEFAULT.rgb());
+	}
 
-   @Override
-   public MapCodec<MapColorTintSource> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
+		MapColorComponent mapColorComponent = stack.get(DataComponentTypes.MAP_COLOR);
+		return mapColorComponent != null ? ColorHelper.fullAlpha(mapColorComponent.rgb())
+		                                 : ColorHelper.fullAlpha(this.defaultColor);
+	}
+
+	@Override
+	public MapCodec<MapColorTintSource> getCodec() {
+		return CODEC;
+	}
 }

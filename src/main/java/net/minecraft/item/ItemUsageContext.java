@@ -9,70 +9,80 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ItemUsageContext}.
+ */
 public class ItemUsageContext {
-   private final @Nullable PlayerEntity player;
-   private final Hand hand;
-   private final BlockHitResult hit;
-   private final World world;
-   private final ItemStack stack;
 
-   public ItemUsageContext(PlayerEntity player, Hand hand, BlockHitResult hit) {
-      this(player.getEntityWorld(), player, hand, player.getStackInHand(hand), hit);
-   }
+	private final @Nullable PlayerEntity player;
+	private final Hand hand;
+	private final BlockHitResult hit;
+	private final World world;
+	private final ItemStack stack;
 
-   public ItemUsageContext(World world, @Nullable PlayerEntity player, Hand hand, ItemStack stack, BlockHitResult hit) {
-      this.player = player;
-      this.hand = hand;
-      this.hit = hit;
-      this.stack = stack;
-      this.world = world;
-   }
+	public ItemUsageContext(PlayerEntity player, Hand hand, BlockHitResult hit) {
+		this(player.getEntityWorld(), player, hand, player.getStackInHand(hand), hit);
+	}
 
-   protected final BlockHitResult getHitResult() {
-      return this.hit;
-   }
+	public ItemUsageContext(
+			World world,
+			@Nullable PlayerEntity player,
+			Hand hand,
+			ItemStack stack,
+			BlockHitResult hit
+	) {
+		this.player = player;
+		this.hand = hand;
+		this.hit = hit;
+		this.stack = stack;
+		this.world = world;
+	}
 
-   public BlockPos getBlockPos() {
-      return this.hit.getBlockPos();
-   }
+	protected final BlockHitResult getHitResult() {
+		return this.hit;
+	}
 
-   public Direction getSide() {
-      return this.hit.getSide();
-   }
+	public BlockPos getBlockPos() {
+		return this.hit.getBlockPos();
+	}
 
-   public Vec3d getHitPos() {
-      return this.hit.getPos();
-   }
+	public Direction getSide() {
+		return this.hit.getSide();
+	}
 
-   public boolean hitsInsideBlock() {
-      return this.hit.isInsideBlock();
-   }
+	public Vec3d getHitPos() {
+		return this.hit.getPos();
+	}
 
-   public ItemStack getStack() {
-      return this.stack;
-   }
+	public boolean hitsInsideBlock() {
+		return this.hit.isInsideBlock();
+	}
 
-   public @Nullable PlayerEntity getPlayer() {
-      return this.player;
-   }
+	public ItemStack getStack() {
+		return this.stack;
+	}
 
-   public Hand getHand() {
-      return this.hand;
-   }
+	public @Nullable PlayerEntity getPlayer() {
+		return this.player;
+	}
 
-   public World getWorld() {
-      return this.world;
-   }
+	public Hand getHand() {
+		return this.hand;
+	}
 
-   public Direction getHorizontalPlayerFacing() {
-      return this.player == null ? Direction.NORTH : this.player.getHorizontalFacing();
-   }
+	public World getWorld() {
+		return this.world;
+	}
 
-   public boolean shouldCancelInteraction() {
-      return this.player != null && this.player.shouldCancelInteraction();
-   }
+	public Direction getHorizontalPlayerFacing() {
+		return this.player == null ? Direction.NORTH : this.player.getHorizontalFacing();
+	}
 
-   public float getPlayerYaw() {
-      return this.player == null ? 0.0F : this.player.getYaw();
-   }
+	public boolean shouldCancelInteraction() {
+		return this.player != null && this.player.shouldCancelInteraction();
+	}
+
+	public float getPlayerYaw() {
+		return this.player == null ? 0.0F : this.player.getYaw();
+	}
 }

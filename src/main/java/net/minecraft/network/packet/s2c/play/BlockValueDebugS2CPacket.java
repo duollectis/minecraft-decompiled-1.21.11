@@ -9,21 +9,25 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.debug.DebugSubscriptionType;
 
-public record BlockValueDebugS2CPacket(BlockPos blockPos, DebugSubscriptionType.OptionalValue<?> update) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, BlockValueDebugS2CPacket> PACKET_CODEC = PacketCodec.tuple(
-      BlockPos.PACKET_CODEC,
-      BlockValueDebugS2CPacket::blockPos,
-      DebugSubscriptionType.OptionalValue.PACKET_CODEC,
-      BlockValueDebugS2CPacket::update,
-      BlockValueDebugS2CPacket::new
-   );
+public record BlockValueDebugS2CPacket(
+		BlockPos blockPos,
+		DebugSubscriptionType.OptionalValue<?> update
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<BlockValueDebugS2CPacket> getPacketType() {
-      return PlayPackets.BLOCK_VALUE_DEBUG;
-   }
+	public static final PacketCodec<RegistryByteBuf, BlockValueDebugS2CPacket> PACKET_CODEC = PacketCodec.tuple(
+			BlockPos.PACKET_CODEC,
+			BlockValueDebugS2CPacket::blockPos,
+			DebugSubscriptionType.OptionalValue.PACKET_CODEC,
+			BlockValueDebugS2CPacket::update,
+			BlockValueDebugS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onBlockValueDebug(this);
-   }
+	@Override
+	public PacketType<BlockValueDebugS2CPacket> getPacketType() {
+		return PlayPackets.BLOCK_VALUE_DEBUG;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onBlockValueDebug(this);
+	}
 }

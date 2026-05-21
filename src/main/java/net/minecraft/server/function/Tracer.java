@@ -2,15 +2,19 @@ package net.minecraft.server.function;
 
 import net.minecraft.util.Identifier;
 
+/**
+ * {@code Tracer}.
+ */
 public interface Tracer extends AutoCloseable {
-   void traceCommandStart(int depth, String command);
 
-   void traceCommandEnd(int depth, String command, int result);
+	void traceCommandStart(int depth, String command);
 
-   void traceError(String message);
+	void traceCommandEnd(int depth, String command, int result);
 
-   void traceFunctionCall(int depth, Identifier function, int size);
+	void traceError(String message);
 
-   @Override
-   void close();
+	void traceFunctionCall(int depth, Identifier function, int size);
+
+	@Override
+	void close();
 }

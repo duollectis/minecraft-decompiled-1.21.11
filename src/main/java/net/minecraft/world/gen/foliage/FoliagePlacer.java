@@ -16,184 +16,232 @@ import net.minecraft.world.TestableWorld;
 import net.minecraft.world.gen.feature.TreeFeature;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 
+/**
+ * {@code FoliagePlacer}.
+ */
 public abstract class FoliagePlacer {
-   public static final Codec<FoliagePlacer> TYPE_CODEC = Registries.FOLIAGE_PLACER_TYPE
-      .getCodec()
-      .dispatch(FoliagePlacer::getType, FoliagePlacerType::getCodec);
-   protected final IntProvider radius;
-   protected final IntProvider offset;
 
-   protected static <P extends FoliagePlacer> P2<Mu<P>, IntProvider, IntProvider> fillFoliagePlacerFields(Instance<P> instance) {
-      return instance.group(
-         IntProvider.createValidatingCodec(0, 16).fieldOf("radius").forGetter(placer -> placer.radius),
-         IntProvider.createValidatingCodec(0, 16).fieldOf("offset").forGetter(placer -> placer.offset)
-      );
-   }
+	public static final Codec<FoliagePlacer> TYPE_CODEC = Registries.FOLIAGE_PLACER_TYPE
+			.getCodec()
+			.dispatch(FoliagePlacer::getType, FoliagePlacerType::getCodec);
+	protected final IntProvider radius;
+	protected final IntProvider offset;
 
-   public FoliagePlacer(IntProvider radius, IntProvider offset) {
-      this.radius = radius;
-      this.offset = offset;
-   }
+	protected static <P extends FoliagePlacer> P2<Mu<P>, IntProvider, IntProvider> fillFoliagePlacerFields(Instance<P> instance) {
+		return instance.group(
+				IntProvider.createValidatingCodec(0, 16).fieldOf("radius").forGetter(placer -> placer.radius),
+				IntProvider.createValidatingCodec(0, 16).fieldOf("offset").forGetter(placer -> placer.offset)
+		);
+	}
 
-   protected abstract FoliagePlacerType<?> getType();
+	public FoliagePlacer(IntProvider radius, IntProvider offset) {
+		this.radius = radius;
+		this.offset = offset;
+	}
 
-   public void generate(
-      TestableWorld world,
-      FoliagePlacer.BlockPlacer placer,
-      Random random,
-      TreeFeatureConfig config,
-      int trunkHeight,
-      FoliagePlacer.TreeNode treeNode,
-      int foliageHeight,
-      int radius
-   ) {
-      this.generate(world, placer, random, config, trunkHeight, treeNode, foliageHeight, radius, this.getRandomOffset(random));
-   }
+	protected abstract FoliagePlacerType<?> getType();
 
-   protected abstract void generate(
-      TestableWorld world,
-      FoliagePlacer.BlockPlacer placer,
-      Random random,
-      TreeFeatureConfig config,
-      int trunkHeight,
-      FoliagePlacer.TreeNode treeNode,
-      int foliageHeight,
-      int radius,
-      int offset
-   );
+	public void generate(
+			TestableWorld world,
+			FoliagePlacer.BlockPlacer placer,
+			Random random,
+			TreeFeatureConfig config,
+			int trunkHeight,
+			FoliagePlacer.TreeNode treeNode,
+			int foliageHeight,
+			int radius
+	) {
+		this.generate(
+				world,
+				placer,
+				random,
+				config,
+				trunkHeight,
+				treeNode,
+				foliageHeight,
+				radius,
+				this.getRandomOffset(random)
+		);
+	}
 
-   public abstract int getRandomHeight(Random random, int trunkHeight, TreeFeatureConfig config);
+	protected abstract void generate(
+			TestableWorld world,
+			FoliagePlacer.BlockPlacer placer,
+			Random random,
+			TreeFeatureConfig config,
+			int trunkHeight,
+			FoliagePlacer.TreeNode treeNode,
+			int foliageHeight,
+			int radius,
+			int offset
+	);
 
-   public int getRandomRadius(Random random, int baseHeight) {
-      return this.radius.get(random);
-   }
+	public abstract int getRandomHeight(Random random, int trunkHeight, TreeFeatureConfig config);
 
-   private int getRandomOffset(Random random) {
-      return this.offset.get(random);
-   }
+	public int getRandomRadius(Random random, int baseHeight) {
+		return this.radius.get(random);
+	}
 
-   protected abstract boolean isInvalidForLeaves(Random random, int dx, int y, int dz, int radius, boolean giantTrunk);
+	private int getRandomOffset(Random random) {
+		return this.offset.get(random);
+	}
 
-   protected boolean isPositionInvalid(Random random, int dx, int y, int dz, int radius, boolean giantTrunk) {
-      int i;
-      int j;
-      if (giantTrunk) {
-         i = Math.min(Math.abs(dx), Math.abs(dx - 1));
-         j = Math.min(Math.abs(dz), Math.abs(dz - 1));
-      } else {
-         i = Math.abs(dx);
-         j = Math.abs(dz);
-      }
+	protected abstract boolean isInvalidForLeaves(Random random, int dx, int y, int dz, int radius, boolean giantTrunk);
 
-      return this.isInvalidForLeaves(random, i, y, j, radius, giantTrunk);
-   }
+	protected boolean isPositionInvalid(Random random, int dx, int y, int dz, int radius, boolean giantTrunk) {
+		int i;
+		int j;
+		if (giantTrunk) {
+			i = Math.min(Math.abs(dx), Math.abs(dx - 1));
+			j = Math.min(Math.abs(dz), Math.abs(dz - 1));
+		}
+		else {
+			i = Math.abs(dx);
+			j = Math.abs(dz);
+		}
 
-   protected void generateSquare(
-      TestableWorld world, FoliagePlacer.BlockPlacer placer, Random random, TreeFeatureConfig config, BlockPos centerPos, int radius, int y, boolean giantTrunk
-   ) {
-      int i = giantTrunk ? 1 : 0;
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
+		return this.isInvalidForLeaves(random, i, y, j, radius, giantTrunk);
+	}
 
-      for (int j = -radius; j <= radius + i; j++) {
-         for (int k = -radius; k <= radius + i; k++) {
-            if (!this.isPositionInvalid(random, j, y, k, radius, giantTrunk)) {
-               mutable.set(centerPos, j, y, k);
-               placeFoliageBlock(world, placer, random, config, mutable);
-            }
-         }
-      }
-   }
+	protected void generateSquare(
+			TestableWorld world,
+			FoliagePlacer.BlockPlacer placer,
+			Random random,
+			TreeFeatureConfig config,
+			BlockPos centerPos,
+			int radius,
+			int y,
+			boolean giantTrunk
+	) {
+		int i = giantTrunk ? 1 : 0;
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-   protected final void generateSquareWithHangingLeaves(
-      TestableWorld world,
-      FoliagePlacer.BlockPlacer placer,
-      Random random,
-      TreeFeatureConfig config,
-      BlockPos centerPos,
-      int radius,
-      int y,
-      boolean giantTrunk,
-      float hangingLeavesChance,
-      float hangingLeavesExtensionChance
-   ) {
-      this.generateSquare(world, placer, random, config, centerPos, radius, y, giantTrunk);
-      int i = giantTrunk ? 1 : 0;
-      BlockPos blockPos = centerPos.down();
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
+		for (int j = -radius; j <= radius + i; j++) {
+			for (int k = -radius; k <= radius + i; k++) {
+				if (!this.isPositionInvalid(random, j, y, k, radius, giantTrunk)) {
+					mutable.set(centerPos, j, y, k);
+					placeFoliageBlock(world, placer, random, config, mutable);
+				}
+			}
+		}
+	}
 
-      for (Direction direction : Direction.Type.HORIZONTAL) {
-         Direction direction2 = direction.rotateYClockwise();
-         int j = direction2.getDirection() == Direction.AxisDirection.POSITIVE ? radius + i : radius;
-         mutable.set(centerPos, 0, y - 1, 0).move(direction2, j).move(direction, -radius);
-         int k = -radius;
+	protected final void generateSquareWithHangingLeaves(
+			TestableWorld world,
+			FoliagePlacer.BlockPlacer placer,
+			Random random,
+			TreeFeatureConfig config,
+			BlockPos centerPos,
+			int radius,
+			int y,
+			boolean giantTrunk,
+			float hangingLeavesChance,
+			float hangingLeavesExtensionChance
+	) {
+		this.generateSquare(world, placer, random, config, centerPos, radius, y, giantTrunk);
+		int i = giantTrunk ? 1 : 0;
+		BlockPos blockPos = centerPos.down();
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-         while (k < radius + i) {
-            boolean bl = placer.hasPlacedBlock(mutable.move(Direction.UP));
-            mutable.move(Direction.DOWN);
-            if (bl && placeFoliageBlock(world, placer, random, config, hangingLeavesChance, blockPos, mutable)) {
-               mutable.move(Direction.DOWN);
-               placeFoliageBlock(world, placer, random, config, hangingLeavesExtensionChance, blockPos, mutable);
-               mutable.move(Direction.UP);
-            }
+		for (Direction direction : Direction.Type.HORIZONTAL) {
+			Direction direction2 = direction.rotateYClockwise();
+			int j = direction2.getDirection() == Direction.AxisDirection.POSITIVE ? radius + i : radius;
+			mutable.set(centerPos, 0, y - 1, 0).move(direction2, j).move(direction, -radius);
+			int k = -radius;
 
-            k++;
-            mutable.move(direction);
-         }
-      }
-   }
+			while (k < radius + i) {
+				boolean bl = placer.hasPlacedBlock(mutable.move(Direction.UP));
+				mutable.move(Direction.DOWN);
+				if (bl && placeFoliageBlock(world, placer, random, config, hangingLeavesChance, blockPos, mutable)) {
+					mutable.move(Direction.DOWN);
+					placeFoliageBlock(world, placer, random, config, hangingLeavesExtensionChance, blockPos, mutable);
+					mutable.move(Direction.UP);
+				}
 
-   private static boolean placeFoliageBlock(
-      TestableWorld world, FoliagePlacer.BlockPlacer placer, Random random, TreeFeatureConfig config, float chance, BlockPos origin, BlockPos.Mutable pos
-   ) {
-      if (pos.getManhattanDistance(origin) >= 7) {
-         return false;
-      } else {
-         return random.nextFloat() > chance ? false : placeFoliageBlock(world, placer, random, config, pos);
-      }
-   }
+				k++;
+				mutable.move(direction);
+			}
+		}
+	}
 
-   protected static boolean placeFoliageBlock(TestableWorld world, FoliagePlacer.BlockPlacer placer, Random random, TreeFeatureConfig config, BlockPos pos) {
-      boolean bl = world.testBlockState(pos, state -> state.get(Properties.PERSISTENT, false));
-      if (!bl && TreeFeature.canReplace(world, pos)) {
-         BlockState blockState = config.foliageProvider.get(random, pos);
-         if (blockState.contains(Properties.WATERLOGGED)) {
-            blockState = blockState.with(Properties.WATERLOGGED, world.testFluidState(pos, fluidState -> fluidState.isEqualAndStill(Fluids.WATER)));
-         }
+	private static boolean placeFoliageBlock(
+			TestableWorld world,
+			FoliagePlacer.BlockPlacer placer,
+			Random random,
+			TreeFeatureConfig config,
+			float chance,
+			BlockPos origin,
+			BlockPos.Mutable pos
+	) {
+		if (pos.getManhattanDistance(origin) >= 7) {
+			return false;
+		}
+		else {
+			return random.nextFloat() > chance ? false : placeFoliageBlock(world, placer, random, config, pos);
+		}
+	}
 
-         placer.placeBlock(pos, blockState);
-         return true;
-      } else {
-         return false;
-      }
-   }
+	protected static boolean placeFoliageBlock(
+			TestableWorld world,
+			FoliagePlacer.BlockPlacer placer,
+			Random random,
+			TreeFeatureConfig config,
+			BlockPos pos
+	) {
+		boolean bl = world.testBlockState(pos, state -> state.get(Properties.PERSISTENT, false));
+		if (!bl && TreeFeature.canReplace(world, pos)) {
+			BlockState blockState = config.foliageProvider.get(random, pos);
+			if (blockState.contains(Properties.WATERLOGGED)) {
+				blockState =
+						blockState.with(
+								Properties.WATERLOGGED,
+								world.testFluidState(pos, fluidState -> fluidState.isEqualAndStill(Fluids.WATER))
+						);
+			}
 
-   public interface BlockPlacer {
-      void placeBlock(BlockPos pos, BlockState state);
+			placer.placeBlock(pos, blockState);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-      boolean hasPlacedBlock(BlockPos pos);
-   }
+	/**
+	 * {@code BlockPlacer}.
+	 */
+	public interface BlockPlacer {
 
-   public static final class TreeNode {
-      private final BlockPos center;
-      private final int foliageRadius;
-      private final boolean giantTrunk;
+		void placeBlock(BlockPos pos, BlockState state);
 
-      public TreeNode(BlockPos center, int foliageRadius, boolean giantTrunk) {
-         this.center = center;
-         this.foliageRadius = foliageRadius;
-         this.giantTrunk = giantTrunk;
-      }
+		boolean hasPlacedBlock(BlockPos pos);
+	}
 
-      public BlockPos getCenter() {
-         return this.center;
-      }
+	/**
+	 * {@code TreeNode}.
+	 */
+	public static final class TreeNode {
 
-      public int getFoliageRadius() {
-         return this.foliageRadius;
-      }
+		private final BlockPos center;
+		private final int foliageRadius;
+		private final boolean giantTrunk;
 
-      public boolean isGiantTrunk() {
-         return this.giantTrunk;
-      }
-   }
+		public TreeNode(BlockPos center, int foliageRadius, boolean giantTrunk) {
+			this.center = center;
+			this.foliageRadius = foliageRadius;
+			this.giantTrunk = giantTrunk;
+		}
+
+		public BlockPos getCenter() {
+			return this.center;
+		}
+
+		public int getFoliageRadius() {
+			return this.foliageRadius;
+		}
+
+		public boolean isGiantTrunk() {
+			return this.giantTrunk;
+		}
+	}
 }

@@ -9,27 +9,39 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
+/**
+ * {@code SaveAllCommand}.
+ */
 public class SaveAllCommand {
-   private static final SimpleCommandExceptionType FAILED_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.save.failed"));
 
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("save-all")
-                  .requires(CommandManager.requirePermissionLevel(CommandManager.OWNERS_CHECK)))
-               .executes(context -> saveAll((ServerCommandSource)context.getSource(), false)))
-            .then(CommandManager.literal("flush").executes(context -> saveAll((ServerCommandSource)context.getSource(), true)))
-      );
-   }
+	private static final SimpleCommandExceptionType
+			FAILED_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.save.failed"));
 
-   private static int saveAll(ServerCommandSource source, boolean flush) throws CommandSyntaxException {
-      source.sendFeedback(() -> Text.translatable("commands.save.saving"), false);
-      MinecraftServer minecraftServer = source.getServer();
-      boolean bl = minecraftServer.saveAll(true, flush, true);
-      if (!bl) {
-         throw FAILED_EXCEPTION.create();
-      } else {
-         source.sendFeedback(() -> Text.translatable("commands.save.success"), true);
-         return 1;
-      }
-   }
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
+						.literal("save-all")
+						.requires(CommandManager.requirePermissionLevel(CommandManager.OWNERS_CHECK))
+				)
+						.executes(context -> saveAll((ServerCommandSource) context.getSource(), false))
+				)
+						.then(CommandManager
+								.literal("flush")
+								.executes(context -> saveAll((ServerCommandSource) context.getSource(), true)))
+		);
+	}
+
+	private static int saveAll(ServerCommandSource source, boolean flush) throws CommandSyntaxException {
+		source.sendFeedback(() -> Text.translatable("commands.save.saving"), false);
+		MinecraftServer minecraftServer = source.getServer();
+		boolean bl = minecraftServer.saveAll(true, flush, true);
+		if (!bl) {
+			throw FAILED_EXCEPTION.create();
+		}
+		else {
+			source.sendFeedback(() -> Text.translatable("commands.save.success"), true);
+			return 1;
+		}
+	}
 }

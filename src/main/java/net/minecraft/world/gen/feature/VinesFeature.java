@@ -8,27 +8,40 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+/**
+ * {@code VinesFeature}.
+ */
 public class VinesFeature extends Feature<DefaultFeatureConfig> {
-   public VinesFeature(Codec<DefaultFeatureConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      BlockPos blockPos = context.getOrigin();
-      context.getConfig();
-      if (!structureWorldAccess.isAir(blockPos)) {
-         return false;
-      } else {
-         for (Direction direction : Direction.values()) {
-            if (direction != Direction.DOWN && VineBlock.shouldConnectTo(structureWorldAccess, blockPos.offset(direction), direction)) {
-               structureWorldAccess.setBlockState(blockPos, Blocks.VINE.getDefaultState().with(VineBlock.getFacingProperty(direction), true), 2);
-               return true;
-            }
-         }
+	public VinesFeature(Codec<DefaultFeatureConfig> codec) {
+		super(codec);
+	}
 
-         return false;
-      }
-   }
+	@Override
+	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		BlockPos blockPos = context.getOrigin();
+		context.getConfig();
+		if (!structureWorldAccess.isAir(blockPos)) {
+			return false;
+		}
+		else {
+			for (Direction direction : Direction.values()) {
+				if (direction != Direction.DOWN && VineBlock.shouldConnectTo(
+						structureWorldAccess,
+						blockPos.offset(direction),
+						direction
+				)) {
+					structureWorldAccess.setBlockState(
+							blockPos,
+							Blocks.VINE.getDefaultState().with(VineBlock.getFacingProperty(direction), true),
+							2
+					);
+					return true;
+				}
+			}
+
+			return false;
+		}
+	}
 }

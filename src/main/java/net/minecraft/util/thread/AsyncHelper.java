@@ -1,202 +1,273 @@
 package net.minecraft.util.thread;
 
+import net.minecraft.util.Util;
+import net.minecraft.util.math.MathHelper;
+import org.jspecify.annotations.Nullable;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.BiFunction;
-import net.minecraft.util.Util;
-import net.minecraft.util.math.MathHelper;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code AsyncHelper}.
+ */
 public class AsyncHelper {
-   private static final int MAX_TASKS = 16;
 
-   public static <K, U, V> CompletableFuture<Map<K, V>> mapValues(Map<K, U> futures, BiFunction<K, U, @Nullable V> function, int batchSize, Executor executor) {
-      int i = futures.size();
-      if (i == 0) {
-         return CompletableFuture.completedFuture(Map.of());
-      } else if (i == 1) {
-         Entry<K, U> entry = futures.entrySet().iterator().next();
-         K object = entry.getKey();
-         U object2 = entry.getValue();
-         return CompletableFuture.supplyAsync(() -> {
-            V object3 = function.apply(object, object2);
-            return object3 != null ? Map.of(object, object3) : Map.of();
-         }, executor);
-      } else {
-         AsyncHelper.Batcher<K, U, V> batcher = (AsyncHelper.Batcher<K, U, V>)(i <= batchSize
-            ? new AsyncHelper.Single<>(function, i)
-            : new AsyncHelper.Batch<>(function, i, batchSize));
-         return batcher.mapAsync(futures, executor);
-      }
-   }
+	private static final int MAX_TASKS = 16;
 
-   public static <K, U, V> CompletableFuture<Map<K, V>> mapValues(Map<K, U> futures, BiFunction<K, U, @Nullable V> function, Executor executor) {
-      int i = Util.getAvailableBackgroundThreads() * 16;
-      return mapValues(futures, function, i, executor);
-   }
+	public static <K, U, V> CompletableFuture<Map<K, V>> mapValues(
+			Map<K, U> futures,
+			BiFunction<K, U, @Nullable V> function,
+			int batchSize,
+			Executor executor
+	) {
+		int i = futures.size();
+		if (i == 0) {
+			return CompletableFuture.completedFuture(Map.of());
+		}
+		else if (i == 1) {
+			Entry<K, U> entry = futures.entrySet().iterator().next();
+			K object = entry.getKey();
+			U object2 = entry.getValue();
+			return CompletableFuture.supplyAsync(
+					() -> {
+						V object3 = function.apply(object, object2);
+						return object3 != null ? Map.of(object, object3) : Map.of();
+					}, executor
+			);
+		}
+		else {
+			AsyncHelper.Batcher<K, U, V> batcher = (AsyncHelper.Batcher<K, U, V>) (i <= batchSize
+			                                                                       ? new AsyncHelper.Single<>(
+					function,
+					i
+			)
+			                                                                       : new AsyncHelper.Batch<>(
+					                                                                       function,
+					                                                                       i,
+					                                                                       batchSize
+			                                                                       )
+			);
+			return batcher.mapAsync(futures, executor);
+		}
+	}
 
-   static class Batch<K, U, V> extends AsyncHelper.Batcher<K, U, V> {
-      private final Map<K, V> entries;
-      private final int size;
-      private final int start;
+	public static <K, U, V> CompletableFuture<Map<K, V>> mapValues(
+			Map<K, U> futures,
+			BiFunction<K, U, @Nullable V> function,
+			Executor executor
+	) {
+		int i = Util.getAvailableBackgroundThreads() * 16;
+		return mapValues(futures, function, i, executor);
+	}
 
-      Batch(BiFunction<K, U, V> biFunction, int i, int j) {
-         super(biFunction, i, j);
-         this.entries = new HashMap<>(i);
-         this.size = MathHelper.ceilDiv(i, j);
-         int k = this.size * j;
-         int l = k - i;
-         this.start = j - l;
+	/**
+	 * {@code Batch}.
+	 */
+	static class Batch<K, U, V> extends AsyncHelper.Batcher<K, U, V> {
 
-         assert this.start > 0 && this.start <= j;
-      }
+		private final Map<K, V> entries;
+		private final int size;
+		private final int start;
 
-      @Override
-      protected CompletableFuture<?> newBatch(AsyncHelper.Future<K, U, V> futures, int size, int maxCount, Executor executor) {
-         int i = maxCount - size;
+		Batch(BiFunction<K, U, V> biFunction, int i, int j) {
+			super(biFunction, i, j);
+			this.entries = new HashMap<>(i);
+			this.size = MathHelper.ceilDiv(i, j);
+			int k = this.size * j;
+			int l = k - i;
+			this.start = j - l;
 
-         assert i == this.size || i == this.size - 1;
+			assert this.start > 0 && this.start <= j;
+		}
 
-         return CompletableFuture.runAsync(newTask(this.entries, size, maxCount, futures), executor);
-      }
+		@Override
+		protected CompletableFuture<?> newBatch(
+				AsyncHelper.Future<K, U, V> futures,
+				int size,
+				int maxCount,
+				Executor executor
+		) {
+			int i = maxCount - size;
 
-      @Override
-      protected int getLastIndex(int batch) {
-         return batch < this.start ? this.size : this.size - 1;
-      }
+			assert i == this.size || i == this.size - 1;
 
-      private static <K, U, V> Runnable newTask(Map<K, V> futures, int size, int maxCount, AsyncHelper.Future<K, U, V> entry) {
-         return () -> {
-            for (int k = size; k < maxCount; k++) {
-               entry.apply(k);
-            }
+			return CompletableFuture.runAsync(newTask(this.entries, size, maxCount, futures), executor);
+		}
 
-            synchronized (futures) {
-               for (int l = size; l < maxCount; l++) {
-                  entry.copy(l, futures);
-               }
-            }
-         };
-      }
+		@Override
+		protected int getLastIndex(int batch) {
+			return batch < this.start ? this.size : this.size - 1;
+		}
 
-      @Override
-      protected CompletableFuture<Map<K, V>> addLastTask(CompletableFuture<?> future, AsyncHelper.Future<K, U, V> entry) {
-         Map<K, V> map = this.entries;
-         return future.thenApply(obj -> map);
-      }
-   }
+		private static <K, U, V> Runnable newTask(
+				Map<K, V> futures,
+				int size,
+				int maxCount,
+				AsyncHelper.Future<K, U, V> entry
+		) {
+			return () -> {
+				for (int k = size; k < maxCount; k++) {
+					entry.apply(k);
+				}
 
-   abstract static class Batcher<K, U, V> {
-      private int lastBatch;
-      private int index;
-      private final CompletableFuture<?>[] futures;
-      private int batch;
-      private final AsyncHelper.Future<K, U, V> entry;
+				synchronized (futures) {
+					for (int l = size; l < maxCount; l++) {
+						entry.copy(l, futures);
+					}
+				}
+			};
+		}
 
-      Batcher(BiFunction<K, U, V> function, int size, int startAt) {
-         this.entry = new AsyncHelper.Future<>(function, size);
-         this.futures = new CompletableFuture[startAt];
-      }
+		@Override
+		protected CompletableFuture<Map<K, V>> addLastTask(
+				CompletableFuture<?> future,
+				AsyncHelper.Future<K, U, V> entry
+		) {
+			Map<K, V> map = this.entries;
+			return future.thenApply(obj -> map);
+		}
+	}
 
-      private int nextSize() {
-         return this.index - this.lastBatch;
-      }
+	/**
+	 * {@code Batcher}.
+	 */
+	abstract static class Batcher<K, U, V> {
 
-      public CompletableFuture<Map<K, V>> mapAsync(Map<K, U> future, Executor executor) {
-         future.forEach((key, value) -> {
-            this.entry.put(this.index++, (K)key, (U)value);
-            if (this.nextSize() == this.getLastIndex(this.batch)) {
-               this.futures[this.batch++] = this.newBatch(this.entry, this.lastBatch, this.index, executor);
-               this.lastBatch = this.index;
-            }
-         });
+		private int lastBatch;
+		private int index;
+		private final CompletableFuture<?>[] futures;
+		private int batch;
+		private final AsyncHelper.Future<K, U, V> entry;
 
-         assert this.index == this.entry.keySize();
+		Batcher(BiFunction<K, U, V> function, int size, int startAt) {
+			this.entry = new AsyncHelper.Future<>(function, size);
+			this.futures = new CompletableFuture[startAt];
+		}
 
-         assert this.lastBatch == this.index;
+		private int nextSize() {
+			return this.index - this.lastBatch;
+		}
 
-         assert this.batch == this.futures.length;
+		public CompletableFuture<Map<K, V>> mapAsync(Map<K, U> future, Executor executor) {
+			future.forEach((key, value) -> {
+				this.entry.put(this.index++, (K) key, (U) value);
+				if (this.nextSize() == this.getLastIndex(this.batch)) {
+					this.futures[this.batch++] = this.newBatch(this.entry, this.lastBatch, this.index, executor);
+					this.lastBatch = this.index;
+				}
+			});
 
-         return this.addLastTask(CompletableFuture.allOf(this.futures), this.entry);
-      }
+			assert this.index == this.entry.keySize();
 
-      protected abstract int getLastIndex(int batch);
+			assert this.lastBatch == this.index;
 
-      protected abstract CompletableFuture<?> newBatch(AsyncHelper.Future<K, U, V> futures, int size, int maxCount, Executor executor);
+			assert this.batch == this.futures.length;
 
-      protected abstract CompletableFuture<Map<K, V>> addLastTask(CompletableFuture<?> future, AsyncHelper.Future<K, U, V> entry);
-   }
+			return this.addLastTask(CompletableFuture.allOf(this.futures), this.entry);
+		}
 
-   record Future<K, U, V>(BiFunction<K, U, V> operation, @Nullable Object[] keys, @Nullable Object[] values) {
-      public Future(BiFunction<K, U, V> function, int size) {
-         this(function, new Object[size], new Object[size]);
-      }
+		protected abstract int getLastIndex(int batch);
 
-      public void put(int index, K key, U value) {
-         this.keys[index] = key;
-         this.values[index] = value;
-      }
+		protected abstract CompletableFuture<?> newBatch(
+				AsyncHelper.Future<K, U, V> futures,
+				int size,
+				int maxCount,
+				Executor executor
+		);
 
-      private @Nullable K getKey(int index) {
-         return (K)this.keys[index];
-      }
+		protected abstract CompletableFuture<Map<K, V>> addLastTask(
+				CompletableFuture<?> future,
+				AsyncHelper.Future<K, U, V> entry
+		);
+	}
 
-      private @Nullable V getValue(int index) {
-         return (V)this.values[index];
-      }
+	/**
+	 * {@code Future}.
+	 */
+	record Future<K, U, V>(BiFunction<K, U, V> operation, @Nullable Object[] keys, @Nullable Object[] values) {
 
-      private @Nullable U getUValue(int index) {
-         return (U)this.values[index];
-      }
+		public Future(BiFunction<K, U, V> function, int size) {
+			this(function, new Object[size], new Object[size]);
+		}
 
-      public void apply(int index) {
-         this.values[index] = this.operation.apply(this.getKey(index), this.getUValue(index));
-      }
+		public void put(int index, K key, U value) {
+			this.keys[index] = key;
+			this.values[index] = value;
+		}
 
-      public void copy(int index, Map<K, V> futures) {
-         V object = this.getValue(index);
-         if (object != null) {
-            K object2 = this.getKey(index);
-            futures.put(object2, object);
-         }
-      }
+		private @Nullable K getKey(int index) {
+			return (K) this.keys[index];
+		}
 
-      public int keySize() {
-         return this.keys.length;
-      }
-   }
+		private @Nullable V getValue(int index) {
+			return (V) this.values[index];
+		}
 
-   static class Single<K, U, V> extends AsyncHelper.Batcher<K, U, V> {
-      Single(BiFunction<K, U, V> function, int size) {
-         super(function, size, size);
-      }
+		private @Nullable U getUValue(int index) {
+			return (U) this.values[index];
+		}
 
-      @Override
-      protected int getLastIndex(int batch) {
-         return 1;
-      }
+		public void apply(int index) {
+			this.values[index] = this.operation.apply(this.getKey(index), this.getUValue(index));
+		}
 
-      @Override
-      protected CompletableFuture<?> newBatch(AsyncHelper.Future<K, U, V> futures, int size, int maxCount, Executor executor) {
-         assert size + 1 == maxCount;
+		public void copy(int index, Map<K, V> futures) {
+			V object = this.getValue(index);
+			if (object != null) {
+				K object2 = this.getKey(index);
+				futures.put(object2, object);
+			}
+		}
 
-         return CompletableFuture.runAsync(() -> futures.apply(size), executor);
-      }
+		public int keySize() {
+			return this.keys.length;
+		}
+	}
 
-      @Override
-      protected CompletableFuture<Map<K, V>> addLastTask(CompletableFuture<?> future, AsyncHelper.Future<K, U, V> entry) {
-         return future.thenApply(obj -> {
-            Map<K, V> map = new HashMap<>(entry.keySize());
+	/**
+	 * {@code Single}.
+	 */
+	static class Single<K, U, V> extends AsyncHelper.Batcher<K, U, V> {
 
-            for (int i = 0; i < entry.keySize(); i++) {
-               entry.copy(i, map);
-            }
+		Single(BiFunction<K, U, V> function, int size) {
+			super(function, size, size);
+		}
 
-            return map;
-         });
-      }
-   }
+		@Override
+		protected int getLastIndex(int batch) {
+			return 1;
+		}
+
+		@Override
+		protected CompletableFuture<?> newBatch(
+				AsyncHelper.Future<K, U, V> futures,
+				int size,
+				int maxCount,
+				Executor executor
+		) {
+			assert size + 1 == maxCount;
+
+			return CompletableFuture.runAsync(() -> futures.apply(size), executor);
+		}
+
+		@Override
+		protected CompletableFuture<Map<K, V>> addLastTask(
+				CompletableFuture<?> future,
+				AsyncHelper.Future<K, U, V> entry
+		) {
+			return future.thenApply(obj -> {
+				Map<K, V> map = new HashMap<>(entry.keySize());
+
+				for (int i = 0; i < entry.keySize(); i++) {
+					entry.copy(i, map);
+				}
+
+				return map;
+			});
+		}
+	}
 }

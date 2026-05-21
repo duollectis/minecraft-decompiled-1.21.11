@@ -5,10 +5,6 @@ import com.google.common.collect.ImmutableSet;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
-import java.util.stream.Stream;
 import net.minecraft.entity.Entity;
 import net.minecraft.loot.context.LootContext;
 import net.minecraft.loot.operator.BoundedIntUnaryOperator;
@@ -17,73 +13,106 @@ import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.util.context.ContextParameter;
 
-public record EntityScoresLootCondition(Map<String, BoundedIntUnaryOperator> scores, LootContext.EntityReference entity) implements LootCondition {
-   public static final MapCodec<EntityScoresLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codec.unboundedMap(Codec.STRING, BoundedIntUnaryOperator.CODEC).fieldOf("scores").forGetter(EntityScoresLootCondition::scores),
-            LootContext.EntityReference.CODEC.fieldOf("entity").forGetter(EntityScoresLootCondition::entity)
-         )
-         .apply(instance, EntityScoresLootCondition::new)
-   );
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.stream.Stream;
 
-   @Override
-   public LootConditionType getType() {
-      return LootConditionTypes.ENTITY_SCORES;
-   }
+/**
+ * {@code EntityScoresLootCondition}.
+ */
+public record EntityScoresLootCondition(
+		Map<String, BoundedIntUnaryOperator> scores,
+		LootContext.EntityReference entity
+) implements LootCondition {
 
-   @Override
-   public Set<ContextParameter<?>> getAllowedParameters() {
-      return Stream.concat(Stream.of(this.entity.contextParam()), this.scores.values().stream().flatMap(operator -> operator.getRequiredParameters().stream()))
-         .collect(ImmutableSet.toImmutableSet());
-   }
+	public static final MapCodec<EntityScoresLootCondition> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codec
+							                    .unboundedMap(Codec.STRING, BoundedIntUnaryOperator.CODEC)
+							                    .fieldOf("scores")
+							                    .forGetter(EntityScoresLootCondition::scores),
+					                    LootContext.EntityReference.CODEC.fieldOf("entity").forGetter(EntityScoresLootCondition::entity)
+			                    )
+			                    .apply(instance, EntityScoresLootCondition::new)
+	);
 
-   public boolean test(LootContext lootContext) {
-      Entity entity = lootContext.get(this.entity.contextParam());
-      if (entity == null) {
-         return false;
-      } else {
-         Scoreboard scoreboard = lootContext.getWorld().getScoreboard();
+	@Override
+	public LootConditionType getType() {
+		return LootConditionTypes.ENTITY_SCORES;
+	}
 
-         for (Entry<String, BoundedIntUnaryOperator> entry : this.scores.entrySet()) {
-            if (!this.entityScoreIsInRange(lootContext, entity, scoreboard, entry.getKey(), entry.getValue())) {
-               return false;
-            }
-         }
+	@Override
+	public Set<ContextParameter<?>> getAllowedParameters() {
+		return Stream
+				.concat(
+						Stream.of(this.entity.contextParam()),
+						this.scores.values().stream().flatMap(operator -> operator.getRequiredParameters().stream())
+				)
+				.collect(ImmutableSet.toImmutableSet());
+	}
 
-         return true;
-      }
-   }
+	public boolean test(LootContext lootContext) {
+		Entity entity = lootContext.get(this.entity.contextParam());
+		if (entity == null) {
+			return false;
+		}
+		else {
+			Scoreboard scoreboard = lootContext.getWorld().getScoreboard();
 
-   protected boolean entityScoreIsInRange(LootContext context, Entity entity, Scoreboard scoreboard, String objectiveName, BoundedIntUnaryOperator range) {
-      ScoreboardObjective scoreboardObjective = scoreboard.getNullableObjective(objectiveName);
-      if (scoreboardObjective == null) {
-         return false;
-      } else {
-         ReadableScoreboardScore readableScoreboardScore = scoreboard.getScore(entity, scoreboardObjective);
-         return readableScoreboardScore == null ? false : range.test(context, readableScoreboardScore.getScore());
-      }
-   }
+			for (Entry<String, BoundedIntUnaryOperator> entry : this.scores.entrySet()) {
+				if (!this.entityScoreIsInRange(lootContext, entity, scoreboard, entry.getKey(), entry.getValue())) {
+					return false;
+				}
+			}
 
-   public static EntityScoresLootCondition.Builder create(LootContext.EntityReference target) {
-      return new EntityScoresLootCondition.Builder(target);
-   }
+			return true;
+		}
+	}
 
-   public static class Builder implements LootCondition.Builder {
-      private final com.google.common.collect.ImmutableMap.Builder<String, BoundedIntUnaryOperator> scores = ImmutableMap.builder();
-      private final LootContext.EntityReference target;
+	protected boolean entityScoreIsInRange(
+			LootContext context,
+			Entity entity,
+			Scoreboard scoreboard,
+			String objectiveName,
+			BoundedIntUnaryOperator range
+	) {
+		ScoreboardObjective scoreboardObjective = scoreboard.getNullableObjective(objectiveName);
+		if (scoreboardObjective == null) {
+			return false;
+		}
+		else {
+			ReadableScoreboardScore readableScoreboardScore = scoreboard.getScore(entity, scoreboardObjective);
+			return readableScoreboardScore == null ? false : range.test(context, readableScoreboardScore.getScore());
+		}
+	}
 
-      public Builder(LootContext.EntityReference target) {
-         this.target = target;
-      }
+	public static EntityScoresLootCondition.Builder create(LootContext.EntityReference target) {
+		return new EntityScoresLootCondition.Builder(target);
+	}
 
-      public EntityScoresLootCondition.Builder score(String name, BoundedIntUnaryOperator value) {
-         this.scores.put(name, value);
-         return this;
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder implements LootCondition.Builder {
 
-      @Override
-      public LootCondition build() {
-         return new EntityScoresLootCondition(this.scores.build(), this.target);
-      }
-   }
+		private final com.google.common.collect.ImmutableMap.Builder<String, BoundedIntUnaryOperator>
+				scores =
+				ImmutableMap.builder();
+		private final LootContext.EntityReference target;
+
+		public Builder(LootContext.EntityReference target) {
+			this.target = target;
+		}
+
+		public EntityScoresLootCondition.Builder score(String name, BoundedIntUnaryOperator value) {
+			this.scores.put(name, value);
+			return this;
+		}
+
+		@Override
+		public LootCondition build() {
+			return new EntityScoresLootCondition(this.scores.build(), this.target);
+		}
+	}
 }

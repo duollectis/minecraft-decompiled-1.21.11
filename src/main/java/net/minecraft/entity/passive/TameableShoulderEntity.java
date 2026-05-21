@@ -8,36 +8,40 @@ import net.minecraft.util.ErrorReporter;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 
+/**
+ * {@code TameableShoulderEntity}.
+ */
 public abstract class TameableShoulderEntity extends TameableEntity {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final int READY_TO_SIT_COOLDOWN = 100;
-   private int ticks;
 
-   protected TameableShoulderEntity(EntityType<? extends TameableShoulderEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int READY_TO_SIT_COOLDOWN = 100;
+	private int ticks;
 
-   public boolean mountOnto(ServerPlayerEntity player) {
-      try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getErrorReporterContext(), LOGGER)) {
-         NbtWriteView nbtWriteView = NbtWriteView.create(logging, this.getRegistryManager());
-         this.writeData(nbtWriteView);
-         nbtWriteView.putString("id", this.getSavedEntityId());
-         if (player.mountOntoShoulder(nbtWriteView.getNbt())) {
-            this.discard();
-            return true;
-         }
-      }
+	protected TameableShoulderEntity(EntityType<? extends TameableShoulderEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-      return false;
-   }
+	public boolean mountOnto(ServerPlayerEntity player) {
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getErrorReporterContext(), LOGGER)) {
+			NbtWriteView nbtWriteView = NbtWriteView.create(logging, this.getRegistryManager());
+			this.writeData(nbtWriteView);
+			nbtWriteView.putString("id", this.getSavedEntityId());
+			if (player.mountOntoShoulder(nbtWriteView.getNbt())) {
+				this.discard();
+				return true;
+			}
+		}
 
-   @Override
-   public void tick() {
-      this.ticks++;
-      super.tick();
-   }
+		return false;
+	}
 
-   public boolean isReadyToSitOnPlayer() {
-      return this.ticks > 100;
-   }
+	@Override
+	public void tick() {
+		this.ticks++;
+		super.tick();
+	}
+
+	public boolean isReadyToSitOnPlayer() {
+		return this.ticks > 100;
+	}
 }

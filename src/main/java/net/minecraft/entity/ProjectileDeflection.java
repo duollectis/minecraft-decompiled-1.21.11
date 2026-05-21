@@ -6,29 +6,36 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 @FunctionalInterface
+/**
+ * {@code ProjectileDeflection}.
+ */
 public interface ProjectileDeflection {
-   ProjectileDeflection NONE = (projectile, hitEntity, random) -> {};
-   ProjectileDeflection SIMPLE = (projectile, hitEntity, random) -> {
-      float f = 170.0F + random.nextFloat() * 20.0F;
-      projectile.setVelocity(projectile.getVelocity().multiply(-0.5));
-      projectile.setYaw(projectile.getYaw() + f);
-      projectile.lastYaw += f;
-      projectile.velocityDirty = true;
-   };
-   ProjectileDeflection REDIRECTED = (projectile, hitEntity, random) -> {
-      if (hitEntity != null) {
-         Vec3d vec3d = hitEntity.getRotationVector();
-         projectile.setVelocity(vec3d);
-         projectile.velocityDirty = true;
-      }
-   };
-   ProjectileDeflection TRANSFER_VELOCITY_DIRECTION = (projectile, hitEntity, random) -> {
-      if (hitEntity != null) {
-         Vec3d vec3d = hitEntity.getVelocity().normalize();
-         projectile.setVelocity(vec3d);
-         projectile.velocityDirty = true;
-      }
-   };
 
-   void deflect(ProjectileEntity projectile, @Nullable Entity hitEntity, Random random);
+	ProjectileDeflection NONE = (projectile, hitEntity, random) -> {};
+
+	ProjectileDeflection SIMPLE = (projectile, hitEntity, random) -> {
+		float f = 170.0F + random.nextFloat() * 20.0F;
+		projectile.setVelocity(projectile.getVelocity().multiply(-0.5));
+		projectile.setYaw(projectile.getYaw() + f);
+		projectile.lastYaw += f;
+		projectile.velocityDirty = true;
+	};
+
+	ProjectileDeflection REDIRECTED = (projectile, hitEntity, random) -> {
+		if (hitEntity != null) {
+			Vec3d vec3d = hitEntity.getRotationVector();
+			projectile.setVelocity(vec3d);
+			projectile.velocityDirty = true;
+		}
+	};
+
+	ProjectileDeflection TRANSFER_VELOCITY_DIRECTION = (projectile, hitEntity, random) -> {
+		if (hitEntity != null) {
+			Vec3d vec3d = hitEntity.getVelocity().normalize();
+			projectile.setVelocity(vec3d);
+			projectile.velocityDirty = true;
+		}
+	};
+
+	void deflect(ProjectileEntity projectile, @Nullable Entity hitEntity, Random random);
 }

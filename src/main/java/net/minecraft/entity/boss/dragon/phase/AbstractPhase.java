@@ -9,57 +9,66 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code AbstractPhase}.
+ */
 public abstract class AbstractPhase implements Phase {
-   protected final EnderDragonEntity dragon;
 
-   public AbstractPhase(EnderDragonEntity dragon) {
-      this.dragon = dragon;
-   }
+	protected final EnderDragonEntity dragon;
 
-   @Override
-   public boolean isSittingOrHovering() {
-      return false;
-   }
+	public AbstractPhase(EnderDragonEntity dragon) {
+		this.dragon = dragon;
+	}
 
-   @Override
-   public void clientTick() {
-   }
+	@Override
+	public boolean isSittingOrHovering() {
+		return false;
+	}
 
-   @Override
-   public void serverTick(ServerWorld world) {
-   }
+	@Override
+	public void clientTick() {
+	}
 
-   @Override
-   public void crystalDestroyed(EndCrystalEntity crystal, BlockPos pos, DamageSource source, @Nullable PlayerEntity player) {
-   }
+	@Override
+	public void serverTick(ServerWorld world) {
+	}
 
-   @Override
-   public void beginPhase() {
-   }
+	@Override
+	public void crystalDestroyed(
+			EndCrystalEntity crystal,
+			BlockPos pos,
+			DamageSource source,
+			@Nullable PlayerEntity player
+	) {
+	}
 
-   @Override
-   public void endPhase() {
-   }
+	@Override
+	public void beginPhase() {
+	}
 
-   @Override
-   public float getMaxYAcceleration() {
-      return 0.6F;
-   }
+	@Override
+	public void endPhase() {
+	}
 
-   @Override
-   public @Nullable Vec3d getPathTarget() {
-      return null;
-   }
+	@Override
+	public float getMaxYAcceleration() {
+		return 0.6F;
+	}
 
-   @Override
-   public float modifyDamageTaken(DamageSource damageSource, float damage) {
-      return damage;
-   }
+	@Override
+	public @Nullable Vec3d getPathTarget() {
+		return null;
+	}
 
-   @Override
-   public float getYawAcceleration() {
-      float f = (float)this.dragon.getVelocity().horizontalLength() + 1.0F;
-      float g = Math.min(f, 40.0F);
-      return 0.7F / g / f;
-   }
+	@Override
+	public float modifyDamageTaken(DamageSource damageSource, float damage) {
+		return damage;
+	}
+
+	@Override
+	public float getYawAcceleration() {
+		float f = (float) this.dragon.getVelocity().horizontalLength() + 1.0F;
+		float g = Math.min(f, 40.0F);
+		return 0.7F / g / f;
+	}
 }

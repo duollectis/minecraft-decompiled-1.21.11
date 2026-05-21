@@ -2,7 +2,6 @@ package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
@@ -16,102 +15,121 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.gen.feature.ConfiguredFeature;
 
+import java.util.Optional;
+
+/**
+ * {@code MushroomPlantBlock}.
+ */
 public class MushroomPlantBlock extends PlantBlock implements Fertilizable {
-   public static final MapCodec<MushroomPlantBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            RegistryKey.createCodec(RegistryKeys.CONFIGURED_FEATURE).fieldOf("feature").forGetter(block -> block.featureKey), createSettingsCodec()
-         )
-         .apply(instance, MushroomPlantBlock::new)
-   );
-   private static final VoxelShape SHAPE = Block.createColumnShape(6.0, 0.0, 6.0);
-   private final RegistryKey<ConfiguredFeature<?, ?>> featureKey;
 
-   @Override
-   public MapCodec<MushroomPlantBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<MushroomPlantBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    RegistryKey
+							                    .createCodec(RegistryKeys.CONFIGURED_FEATURE)
+							                    .fieldOf("feature")
+							                    .forGetter(block -> block.featureKey), createSettingsCodec()
+			                    )
+			                    .apply(instance, MushroomPlantBlock::new)
+	);
+	private static final VoxelShape SHAPE = Block.createColumnShape(6.0, 0.0, 6.0);
+	private final RegistryKey<ConfiguredFeature<?, ?>> featureKey;
 
-   public MushroomPlantBlock(RegistryKey<ConfiguredFeature<?, ?>> featureKey, AbstractBlock.Settings settings) {
-      super(settings);
-      this.featureKey = featureKey;
-   }
+	@Override
+	public MapCodec<MushroomPlantBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	public MushroomPlantBlock(RegistryKey<ConfiguredFeature<?, ?>> featureKey, AbstractBlock.Settings settings) {
+		super(settings);
+		this.featureKey = featureKey;
+	}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (random.nextInt(25) == 0) {
-         int i = 5;
-         int j = 4;
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-         for (BlockPos blockPos : BlockPos.iterate(pos.add(-4, -1, -4), pos.add(4, 1, 4))) {
-            if (world.getBlockState(blockPos).isOf(this)) {
-               if (--i <= 0) {
-                  return;
-               }
-            }
-         }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (random.nextInt(25) == 0) {
+			int i = 5;
+			int j = 4;
 
-         BlockPos blockPos2 = pos.add(random.nextInt(3) - 1, random.nextInt(2) - random.nextInt(2), random.nextInt(3) - 1);
+			for (BlockPos blockPos : BlockPos.iterate(pos.add(-4, -1, -4), pos.add(4, 1, 4))) {
+				if (world.getBlockState(blockPos).isOf(this)) {
+					if (--i <= 0) {
+						return;
+					}
+				}
+			}
 
-         for (int k = 0; k < 4; k++) {
-            if (world.isAir(blockPos2) && state.canPlaceAt(world, blockPos2)) {
-               pos = blockPos2;
-            }
+			BlockPos
+					blockPos2 =
+					pos.add(random.nextInt(3) - 1, random.nextInt(2) - random.nextInt(2), random.nextInt(3) - 1);
 
-            blockPos2 = pos.add(random.nextInt(3) - 1, random.nextInt(2) - random.nextInt(2), random.nextInt(3) - 1);
-         }
+			for (int k = 0; k < 4; k++) {
+				if (world.isAir(blockPos2) && state.canPlaceAt(world, blockPos2)) {
+					pos = blockPos2;
+				}
 
-         if (world.isAir(blockPos2) && state.canPlaceAt(world, blockPos2)) {
-            world.setBlockState(blockPos2, state, 2);
-         }
-      }
-   }
+				blockPos2 =
+						pos.add(random.nextInt(3) - 1, random.nextInt(2) - random.nextInt(2), random.nextInt(3) - 1);
+			}
 
-   @Override
-   protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
-      return floor.isOpaqueFullCube();
-   }
+			if (world.isAir(blockPos2) && state.canPlaceAt(world, blockPos2)) {
+				world.setBlockState(blockPos2, state, 2);
+			}
+		}
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      BlockPos blockPos = pos.down();
-      BlockState blockState = world.getBlockState(blockPos);
-      return blockState.isIn(BlockTags.MUSHROOM_GROW_BLOCK) ? true : world.getBaseLightLevel(pos, 0) < 13 && this.canPlantOnTop(blockState, world, blockPos);
-   }
+	@Override
+	protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
+		return floor.isOpaqueFullCube();
+	}
 
-   public boolean trySpawningBigMushroom(ServerWorld world, BlockPos pos, BlockState state, Random random) {
-      Optional<? extends RegistryEntry<ConfiguredFeature<?, ?>>> optional = world.getRegistryManager()
-         .getOrThrow(RegistryKeys.CONFIGURED_FEATURE)
-         .getOptional(this.featureKey);
-      if (optional.isEmpty()) {
-         return false;
-      } else {
-         world.removeBlock(pos, false);
-         if (optional.get().value().generate(world, world.getChunkManager().getChunkGenerator(), random, pos)) {
-            return true;
-         } else {
-            world.setBlockState(pos, state, 3);
-            return false;
-         }
-      }
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		BlockPos blockPos = pos.down();
+		BlockState blockState = world.getBlockState(blockPos);
+		return blockState.isIn(BlockTags.MUSHROOM_GROW_BLOCK) ? true : world.getBaseLightLevel(pos, 0) < 13
+		                                                               && this.canPlantOnTop(
+				blockState,
+				world,
+				blockPos
+		);
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return true;
-   }
+	public boolean trySpawningBigMushroom(ServerWorld world, BlockPos pos, BlockState state, Random random) {
+		Optional<? extends RegistryEntry<ConfiguredFeature<?, ?>>> optional = world.getRegistryManager()
+		                                                                           .getOrThrow(RegistryKeys.CONFIGURED_FEATURE)
+		                                                                           .getOptional(this.featureKey);
+		if (optional.isEmpty()) {
+			return false;
+		}
+		else {
+			world.removeBlock(pos, false);
+			if (optional.get().value().generate(world, world.getChunkManager().getChunkGenerator(), random, pos)) {
+				return true;
+			}
+			else {
+				world.setBlockState(pos, state, 3);
+				return false;
+			}
+		}
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return random.nextFloat() < 0.4;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return true;
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      this.trySpawningBigMushroom(world, pos, state, random);
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return random.nextFloat() < 0.4;
+	}
+
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		this.trySpawningBigMushroom(world, pos, state, random);
+	}
 }

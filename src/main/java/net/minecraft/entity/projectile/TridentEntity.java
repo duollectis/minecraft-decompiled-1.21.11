@@ -1,7 +1,5 @@
 package net.minecraft.entity.projectile;
 
-import java.util.Collection;
-import java.util.List;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -27,201 +25,232 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collection;
+import java.util.List;
+
+/**
+ * {@code TridentEntity}.
+ */
 public class TridentEntity extends PersistentProjectileEntity {
-   private static final TrackedData<Byte> LOYALTY = DataTracker.registerData(TridentEntity.class, TrackedDataHandlerRegistry.BYTE);
-   private static final TrackedData<Boolean> ENCHANTED = DataTracker.registerData(TridentEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final float DRAG_IN_WATER = 0.99F;
-   private static final boolean DEFAULT_DEALT_DAMAGE = false;
-   private boolean dealtDamage = false;
-   public int returnTimer;
 
-   public TridentEntity(EntityType<? extends TridentEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final TrackedData<Byte>
+			LOYALTY =
+			DataTracker.registerData(TridentEntity.class, TrackedDataHandlerRegistry.BYTE);
+	private static final TrackedData<Boolean>
+			ENCHANTED =
+			DataTracker.registerData(TridentEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final float DRAG_IN_WATER = 0.99F;
+	private static final boolean DEFAULT_DEALT_DAMAGE = false;
+	private boolean dealtDamage = false;
+	public int returnTimer;
 
-   public TridentEntity(World world, LivingEntity owner, ItemStack stack) {
-      super(EntityType.TRIDENT, owner, world, stack, null);
-      this.dataTracker.set(LOYALTY, this.getLoyalty(stack));
-      this.dataTracker.set(ENCHANTED, stack.hasGlint());
-   }
+	public TridentEntity(EntityType<? extends TridentEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public TridentEntity(World world, double x, double y, double z, ItemStack stack) {
-      super(EntityType.TRIDENT, x, y, z, world, stack, stack);
-      this.dataTracker.set(LOYALTY, this.getLoyalty(stack));
-      this.dataTracker.set(ENCHANTED, stack.hasGlint());
-   }
+	public TridentEntity(World world, LivingEntity owner, ItemStack stack) {
+		super(EntityType.TRIDENT, owner, world, stack, null);
+		this.dataTracker.set(LOYALTY, this.getLoyalty(stack));
+		this.dataTracker.set(ENCHANTED, stack.hasGlint());
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(LOYALTY, (byte)0);
-      builder.add(ENCHANTED, false);
-   }
+	public TridentEntity(World world, double x, double y, double z, ItemStack stack) {
+		super(EntityType.TRIDENT, x, y, z, world, stack, stack);
+		this.dataTracker.set(LOYALTY, this.getLoyalty(stack));
+		this.dataTracker.set(ENCHANTED, stack.hasGlint());
+	}
 
-   @Override
-   public void tick() {
-      if (this.inGroundTime > 4) {
-         this.dealtDamage = true;
-      }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(LOYALTY, (byte) 0);
+		builder.add(ENCHANTED, false);
+	}
 
-      Entity entity = this.getOwner();
-      int i = this.dataTracker.get(LOYALTY);
-      if (i > 0 && (this.dealtDamage || this.isNoClip()) && entity != null) {
-         if (!this.isOwnerAlive()) {
-            if (this.getEntityWorld() instanceof ServerWorld serverWorld && this.pickupType == PersistentProjectileEntity.PickupPermission.ALLOWED) {
-               this.dropStack(serverWorld, this.asItemStack(), 0.1F);
-            }
+	@Override
+	public void tick() {
+		if (this.inGroundTime > 4) {
+			this.dealtDamage = true;
+		}
 
-            this.discard();
-         } else {
-            if (!(entity instanceof PlayerEntity) && this.getEntityPos().distanceTo(entity.getEyePos()) < entity.getWidth() + 1.0) {
-               this.discard();
-               return;
-            }
+		Entity entity = this.getOwner();
+		int i = this.dataTracker.get(LOYALTY);
+		if (i > 0 && (this.dealtDamage || this.isNoClip()) && entity != null) {
+			if (!this.isOwnerAlive()) {
+				if (this.getEntityWorld() instanceof ServerWorld serverWorld
+						&& this.pickupType == PersistentProjectileEntity.PickupPermission.ALLOWED) {
+					this.dropStack(serverWorld, this.asItemStack(), 0.1F);
+				}
 
-            this.setNoClip(true);
-            Vec3d vec3d = entity.getEyePos().subtract(this.getEntityPos());
-            this.setPos(this.getX(), this.getY() + vec3d.y * 0.015 * i, this.getZ());
-            double d = 0.05 * i;
-            this.setVelocity(this.getVelocity().multiply(0.95).add(vec3d.normalize().multiply(d)));
-            if (this.returnTimer == 0) {
-               this.playSound(SoundEvents.ITEM_TRIDENT_RETURN, 10.0F, 1.0F);
-            }
+				this.discard();
+			}
+			else {
+				if (!(entity instanceof PlayerEntity)
+						&& this.getEntityPos().distanceTo(entity.getEyePos()) < entity.getWidth() + 1.0) {
+					this.discard();
+					return;
+				}
 
-            this.returnTimer++;
-         }
-      }
+				this.setNoClip(true);
+				Vec3d vec3d = entity.getEyePos().subtract(this.getEntityPos());
+				this.setPos(this.getX(), this.getY() + vec3d.y * 0.015 * i, this.getZ());
+				double d = 0.05 * i;
+				this.setVelocity(this.getVelocity().multiply(0.95).add(vec3d.normalize().multiply(d)));
+				if (this.returnTimer == 0) {
+					this.playSound(SoundEvents.ITEM_TRIDENT_RETURN, 10.0F, 1.0F);
+				}
 
-      super.tick();
-   }
+				this.returnTimer++;
+			}
+		}
 
-   private boolean isOwnerAlive() {
-      Entity entity = this.getOwner();
-      return entity == null || !entity.isAlive() ? false : !(entity instanceof ServerPlayerEntity) || !entity.isSpectator();
-   }
+		super.tick();
+	}
 
-   public boolean isEnchanted() {
-      return this.dataTracker.get(ENCHANTED);
-   }
+	private boolean isOwnerAlive() {
+		Entity entity = this.getOwner();
+		return entity == null || !entity.isAlive() ? false
+		                                           : !(entity instanceof ServerPlayerEntity) || !entity.isSpectator();
+	}
 
-   @Override
-   protected @Nullable EntityHitResult getEntityCollision(Vec3d currentPosition, Vec3d nextPosition) {
-      return this.dealtDamage ? null : super.getEntityCollision(currentPosition, nextPosition);
-   }
+	public boolean isEnchanted() {
+		return this.dataTracker.get(ENCHANTED);
+	}
 
-   @Override
-   protected Collection<EntityHitResult> collectPiercingCollisions(Vec3d from, Vec3d to) {
-      EntityHitResult entityHitResult = this.getEntityCollision(from, to);
-      return entityHitResult != null ? List.of(entityHitResult) : List.of();
-   }
+	@Override
+	protected @Nullable EntityHitResult getEntityCollision(Vec3d currentPosition, Vec3d nextPosition) {
+		return this.dealtDamage ? null : super.getEntityCollision(currentPosition, nextPosition);
+	}
 
-   @Override
-   protected void onEntityHit(EntityHitResult entityHitResult) {
-      Entity entity = entityHitResult.getEntity();
-      float f = 8.0F;
-      Entity entity2 = this.getOwner();
-      DamageSource damageSource = this.getDamageSources().trident(this, (Entity)(entity2 == null ? this : entity2));
-      if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         f = EnchantmentHelper.getDamage(serverWorld, this.getWeaponStack(), entity, damageSource, f);
-      }
+	@Override
+	protected Collection<EntityHitResult> collectPiercingCollisions(Vec3d from, Vec3d to) {
+		EntityHitResult entityHitResult = this.getEntityCollision(from, to);
+		return entityHitResult != null ? List.of(entityHitResult) : List.of();
+	}
 
-      this.dealtDamage = true;
-      if (entity.sidedDamage(damageSource, f)) {
-         if (entity.getType() == EntityType.ENDERMAN) {
-            return;
-         }
+	@Override
+	protected void onEntityHit(EntityHitResult entityHitResult) {
+		Entity entity = entityHitResult.getEntity();
+		float f = 8.0F;
+		Entity entity2 = this.getOwner();
+		DamageSource damageSource = this.getDamageSources().trident(this, (Entity) (entity2 == null ? this : entity2));
+		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			f = EnchantmentHelper.getDamage(serverWorld, this.getWeaponStack(), entity, damageSource, f);
+		}
 
-         if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-            EnchantmentHelper.onTargetDamaged(serverWorld, entity, damageSource, this.getWeaponStack(), item -> this.kill(serverWorld));
-         }
+		this.dealtDamage = true;
+		if (entity.sidedDamage(damageSource, f)) {
+			if (entity.getType() == EntityType.ENDERMAN) {
+				return;
+			}
 
-         if (entity instanceof LivingEntity livingEntity) {
-            this.knockback(livingEntity, damageSource);
-            this.onHit(livingEntity);
-         }
-      }
+			if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+				EnchantmentHelper.onTargetDamaged(
+						serverWorld,
+						entity,
+						damageSource,
+						this.getWeaponStack(),
+						item -> this.kill(serverWorld)
+				);
+			}
 
-      this.deflect(ProjectileDeflection.SIMPLE, entity, this.owner, false);
-      this.setVelocity(this.getVelocity().multiply(0.02, 0.2, 0.02));
-      this.playSound(SoundEvents.ITEM_TRIDENT_HIT, 1.0F, 1.0F);
-   }
+			if (entity instanceof LivingEntity livingEntity) {
+				this.knockback(livingEntity, damageSource);
+				this.onHit(livingEntity);
+			}
+		}
 
-   @Override
-   protected void onBlockHitEnchantmentEffects(ServerWorld world, BlockHitResult blockHitResult, ItemStack weaponStack) {
-      Vec3d vec3d = blockHitResult.getBlockPos().clampToWithin(blockHitResult.getPos());
-      EnchantmentHelper.onHitBlock(
-         world,
-         weaponStack,
-         this.getOwner() instanceof LivingEntity livingEntity ? livingEntity : null,
-         this,
-         null,
-         vec3d,
-         world.getBlockState(blockHitResult.getBlockPos()),
-         item -> this.kill(world)
-      );
-   }
+		this.deflect(ProjectileDeflection.SIMPLE, entity, this.owner, false);
+		this.setVelocity(this.getVelocity().multiply(0.02, 0.2, 0.02));
+		this.playSound(SoundEvents.ITEM_TRIDENT_HIT, 1.0F, 1.0F);
+	}
 
-   @Override
-   public ItemStack getWeaponStack() {
-      return this.getItemStack();
-   }
+	@Override
+	protected void onBlockHitEnchantmentEffects(
+			ServerWorld world,
+			BlockHitResult blockHitResult,
+			ItemStack weaponStack
+	) {
+		Vec3d vec3d = blockHitResult.getBlockPos().clampToWithin(blockHitResult.getPos());
+		EnchantmentHelper.onHitBlock(
+				world,
+				weaponStack,
+				this.getOwner() instanceof LivingEntity livingEntity ? livingEntity : null,
+				this,
+				null,
+				vec3d,
+				world.getBlockState(blockHitResult.getBlockPos()),
+				item -> this.kill(world)
+		);
+	}
 
-   @Override
-   protected boolean tryPickup(PlayerEntity player) {
-      return super.tryPickup(player) || this.isNoClip() && this.isOwner(player) && player.getInventory().insertStack(this.asItemStack());
-   }
+	@Override
+	public ItemStack getWeaponStack() {
+		return this.getItemStack();
+	}
 
-   @Override
-   protected ItemStack getDefaultItemStack() {
-      return new ItemStack(Items.TRIDENT);
-   }
+	@Override
+	protected boolean tryPickup(PlayerEntity player) {
+		return super.tryPickup(player) || this.isNoClip() && this.isOwner(player) && player
+				.getInventory()
+				.insertStack(this.asItemStack());
+	}
 
-   @Override
-   protected SoundEvent getHitSound() {
-      return SoundEvents.ITEM_TRIDENT_HIT_GROUND;
-   }
+	@Override
+	protected ItemStack getDefaultItemStack() {
+		return new ItemStack(Items.TRIDENT);
+	}
 
-   @Override
-   public void onPlayerCollision(PlayerEntity player) {
-      if (this.isOwner(player) || this.getOwner() == null) {
-         super.onPlayerCollision(player);
-      }
-   }
+	@Override
+	protected SoundEvent getHitSound() {
+		return SoundEvents.ITEM_TRIDENT_HIT_GROUND;
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.dealtDamage = view.getBoolean("DealtDamage", false);
-      this.dataTracker.set(LOYALTY, this.getLoyalty(this.getItemStack()));
-   }
+	@Override
+	public void onPlayerCollision(PlayerEntity player) {
+		if (this.isOwner(player) || this.getOwner() == null) {
+			super.onPlayerCollision(player);
+		}
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putBoolean("DealtDamage", this.dealtDamage);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.dealtDamage = view.getBoolean("DealtDamage", false);
+		this.dataTracker.set(LOYALTY, this.getLoyalty(this.getItemStack()));
+	}
 
-   private byte getLoyalty(ItemStack stack) {
-      return this.getEntityWorld() instanceof ServerWorld serverWorld
-         ? (byte)MathHelper.clamp(EnchantmentHelper.getTridentReturnAcceleration(serverWorld, stack, this), 0, 127)
-         : 0;
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putBoolean("DealtDamage", this.dealtDamage);
+	}
 
-   @Override
-   public void age() {
-      int i = this.dataTracker.get(LOYALTY);
-      if (this.pickupType != PersistentProjectileEntity.PickupPermission.ALLOWED || i <= 0) {
-         super.age();
-      }
-   }
+	private byte getLoyalty(ItemStack stack) {
+		return this.getEntityWorld() instanceof ServerWorld serverWorld
+		       ? (byte) MathHelper.clamp(
+				EnchantmentHelper.getTridentReturnAcceleration(serverWorld, stack, this),
+				0,
+				127
+		)
+		       : 0;
+	}
 
-   @Override
-   protected float getDragInWater() {
-      return 0.99F;
-   }
+	@Override
+	public void age() {
+		int i = this.dataTracker.get(LOYALTY);
+		if (this.pickupType != PersistentProjectileEntity.PickupPermission.ALLOWED || i <= 0) {
+			super.age();
+		}
+	}
 
-   @Override
-   public boolean shouldRender(double cameraX, double cameraY, double cameraZ) {
-      return true;
-   }
+	@Override
+	protected float getDragInWater() {
+		return 0.99F;
+	}
+
+	@Override
+	public boolean shouldRender(double cameraX, double cameraY, double cameraZ) {
+		return true;
+	}
 }

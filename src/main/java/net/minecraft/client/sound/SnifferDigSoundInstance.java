@@ -7,34 +7,39 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SnifferDigSoundInstance}.
+ */
 public class SnifferDigSoundInstance extends MovingSoundInstance {
-   private static final float field_42931 = 1.0F;
-   private static final float field_42932 = 1.0F;
-   private final SnifferEntity sniffer;
 
-   public SnifferDigSoundInstance(SnifferEntity sniffer) {
-      super(SoundEvents.ENTITY_SNIFFER_DIGGING, SoundCategory.NEUTRAL, SoundInstance.createRandom());
-      this.sniffer = sniffer;
-      this.attenuationType = SoundInstance.AttenuationType.LINEAR;
-      this.repeat = false;
-      this.repeatDelay = 0;
-   }
+	private static final float PITCH = 1.0F;
+	private static final float VOLUME = 1.0F;
+	private final SnifferEntity sniffer;
 
-   @Override
-   public boolean canPlay() {
-      return !this.sniffer.isSilent();
-   }
+	public SnifferDigSoundInstance(SnifferEntity sniffer) {
+		super(SoundEvents.ENTITY_SNIFFER_DIGGING, SoundCategory.NEUTRAL, SoundInstance.createRandom());
+		this.sniffer = sniffer;
+		this.attenuationType = SoundInstance.AttenuationType.LINEAR;
+		this.repeat = false;
+		this.repeatDelay = 0;
+	}
 
-   @Override
-   public void tick() {
-      if (!this.sniffer.isRemoved() && this.sniffer.getTarget() == null && this.sniffer.isDiggingOrSearching()) {
-         this.x = (float)this.sniffer.getX();
-         this.y = (float)this.sniffer.getY();
-         this.z = (float)this.sniffer.getZ();
-         this.volume = 1.0F;
-         this.pitch = 1.0F;
-      } else {
-         this.setDone();
-      }
-   }
+	@Override
+	public boolean canPlay() {
+		return !this.sniffer.isSilent();
+	}
+
+	@Override
+	public void tick() {
+		if (!this.sniffer.isRemoved() && this.sniffer.getTarget() == null && this.sniffer.isDiggingOrSearching()) {
+			this.x = (float) this.sniffer.getX();
+			this.y = (float) this.sniffer.getY();
+			this.z = (float) this.sniffer.getZ();
+			this.volume = 1.0F;
+			this.pitch = 1.0F;
+		}
+		else {
+			this.setDone();
+		}
+	}
 }

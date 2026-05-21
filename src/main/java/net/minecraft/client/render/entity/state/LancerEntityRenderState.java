@@ -6,9 +6,13 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.Arm;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LancerEntityRenderState}.
+ */
 public class LancerEntityRenderState extends BipedEntityRenderState {
-   @Override
-   public ItemStack getItemStackForArm(Arm arm) {
-      return this.getMainHandItemStack();
-   }
+
+	@Override
+	public ItemStack getItemStackForArm(Arm arm) {
+		return this.getMainHandItemStack();
+	}
 }

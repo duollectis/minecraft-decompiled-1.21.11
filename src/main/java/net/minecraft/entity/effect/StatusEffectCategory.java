@@ -2,18 +2,21 @@ package net.minecraft.entity.effect;
 
 import net.minecraft.util.Formatting;
 
+/**
+ * {@code StatusEffectCategory}.
+ */
 public enum StatusEffectCategory {
-   BENEFICIAL(Formatting.BLUE),
-   HARMFUL(Formatting.RED),
-   NEUTRAL(Formatting.BLUE);
+	BENEFICIAL(Formatting.BLUE),
+	HARMFUL(Formatting.RED),
+	NEUTRAL(Formatting.BLUE);
 
-   private final Formatting formatting;
+	private final Formatting formatting;
 
-   private StatusEffectCategory(final Formatting format) {
-      this.formatting = format;
-   }
+	private StatusEffectCategory(final Formatting format) {
+		this.formatting = format;
+	}
 
-   public Formatting getFormatting() {
-      return this.formatting;
-   }
+	public Formatting getFormatting() {
+		return this.formatting;
+	}
 }

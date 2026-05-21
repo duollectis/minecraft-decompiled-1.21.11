@@ -4,13 +4,17 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.gen.FlatLevelGeneratorPreset;
 
+/**
+ * {@code FlatLevelGeneratorPresetTags}.
+ */
 public class FlatLevelGeneratorPresetTags {
-   public static final TagKey<FlatLevelGeneratorPreset> VISIBLE = of("visible");
 
-   private FlatLevelGeneratorPresetTags() {
-   }
+	public static final TagKey<FlatLevelGeneratorPreset> VISIBLE = of("visible");
 
-   private static TagKey<FlatLevelGeneratorPreset> of(String id) {
-      return TagKey.of(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, Identifier.ofVanilla(id));
-   }
+	private FlatLevelGeneratorPresetTags() {
+	}
+
+	private static TagKey<FlatLevelGeneratorPreset> of(String id) {
+		return TagKey.of(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, Identifier.ofVanilla(id));
+	}
 }

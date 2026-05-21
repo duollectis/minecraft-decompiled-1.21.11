@@ -7,31 +7,42 @@ import net.minecraft.recipe.book.CookingRecipeCategory;
 import net.minecraft.recipe.book.RecipeBookCategories;
 import net.minecraft.recipe.book.RecipeBookCategory;
 
+/**
+ * {@code BlastingRecipe}.
+ */
 public class BlastingRecipe extends AbstractCookingRecipe {
-   public BlastingRecipe(String string, CookingRecipeCategory cookingRecipeCategory, Ingredient ingredient, ItemStack itemStack, float f, int i) {
-      super(string, cookingRecipeCategory, ingredient, itemStack, f, i);
-   }
 
-   @Override
-   protected Item getCookerItem() {
-      return Items.BLAST_FURNACE;
-   }
+	public BlastingRecipe(
+			String string,
+			CookingRecipeCategory cookingRecipeCategory,
+			Ingredient ingredient,
+			ItemStack itemStack,
+			float f,
+			int i
+	) {
+		super(string, cookingRecipeCategory, ingredient, itemStack, f, i);
+	}
 
-   @Override
-   public RecipeSerializer<BlastingRecipe> getSerializer() {
-      return RecipeSerializer.BLASTING;
-   }
+	@Override
+	protected Item getCookerItem() {
+		return Items.BLAST_FURNACE;
+	}
 
-   @Override
-   public RecipeType<BlastingRecipe> getType() {
-      return RecipeType.BLASTING;
-   }
+	@Override
+	public RecipeSerializer<BlastingRecipe> getSerializer() {
+		return RecipeSerializer.BLASTING;
+	}
 
-   @Override
-   public RecipeBookCategory getRecipeBookCategory() {
-      return switch (this.getCategory()) {
-         case BLOCKS -> RecipeBookCategories.BLAST_FURNACE_BLOCKS;
-         case FOOD, MISC -> RecipeBookCategories.BLAST_FURNACE_MISC;
-      };
-   }
+	@Override
+	public RecipeType<BlastingRecipe> getType() {
+		return RecipeType.BLASTING;
+	}
+
+	@Override
+	public RecipeBookCategory getRecipeBookCategory() {
+		return switch (this.getCategory()) {
+			case BLOCKS -> RecipeBookCategories.BLAST_FURNACE_BLOCKS;
+			case FOOD, MISC -> RecipeBookCategories.BLAST_FURNACE_MISC;
+		};
+	}
 }

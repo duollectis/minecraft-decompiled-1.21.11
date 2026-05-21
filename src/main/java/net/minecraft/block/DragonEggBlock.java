@@ -13,78 +13,95 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import net.minecraft.world.border.WorldBorder;
 
+/**
+ * {@code DragonEggBlock}.
+ */
 public class DragonEggBlock extends FallingBlock {
-   public static final MapCodec<DragonEggBlock> CODEC = createCodec(DragonEggBlock::new);
-   private static final VoxelShape SHAPE = Block.createColumnShape(14.0, 0.0, 16.0);
 
-   @Override
-   public MapCodec<DragonEggBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<DragonEggBlock> CODEC = createCodec(DragonEggBlock::new);
+	private static final VoxelShape SHAPE = Block.createColumnShape(14.0, 0.0, 16.0);
 
-   public DragonEggBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<DragonEggBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	public DragonEggBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      this.teleport(state, world, pos);
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   @Override
-   protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
-      this.teleport(state, world, pos);
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		this.teleport(state, world, pos);
+		return ActionResult.SUCCESS;
+	}
 
-   private void teleport(BlockState state, World world, BlockPos pos) {
-      WorldBorder worldBorder = world.getWorldBorder();
+	@Override
+	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
+		this.teleport(state, world, pos);
+	}
 
-      for (int i = 0; i < 1000; i++) {
-         BlockPos blockPos = pos.add(
-            world.random.nextInt(16) - world.random.nextInt(16),
-            world.random.nextInt(8) - world.random.nextInt(8),
-            world.random.nextInt(16) - world.random.nextInt(16)
-         );
-         if (world.getBlockState(blockPos).isAir() && worldBorder.contains(blockPos) && !world.isOutOfHeightLimit(blockPos)) {
-            if (world.isClient()) {
-               for (int j = 0; j < 128; j++) {
-                  double d = world.random.nextDouble();
-                  float f = (world.random.nextFloat() - 0.5F) * 0.2F;
-                  float g = (world.random.nextFloat() - 0.5F) * 0.2F;
-                  float h = (world.random.nextFloat() - 0.5F) * 0.2F;
-                  double e = MathHelper.lerp(d, (double)blockPos.getX(), (double)pos.getX()) + (world.random.nextDouble() - 0.5) + 0.5;
-                  double k = MathHelper.lerp(d, (double)blockPos.getY(), (double)pos.getY()) + world.random.nextDouble() - 0.5;
-                  double l = MathHelper.lerp(d, (double)blockPos.getZ(), (double)pos.getZ()) + (world.random.nextDouble() - 0.5) + 0.5;
-                  world.addParticleClient(ParticleTypes.PORTAL, e, k, l, f, g, h);
-               }
-            } else {
-               world.setBlockState(blockPos, state, 2);
-               world.removeBlock(pos, false);
-            }
+	private void teleport(BlockState state, World world, BlockPos pos) {
+		WorldBorder worldBorder = world.getWorldBorder();
 
-            return;
-         }
-      }
-   }
+		for (int i = 0; i < 1000; i++) {
+			BlockPos blockPos = pos.add(
+					world.random.nextInt(16) - world.random.nextInt(16),
+					world.random.nextInt(8) - world.random.nextInt(8),
+					world.random.nextInt(16) - world.random.nextInt(16)
+			);
+			if (world.getBlockState(blockPos).isAir() && worldBorder.contains(blockPos) && !world.isOutOfHeightLimit(
+					blockPos)) {
+				if (world.isClient()) {
+					for (int j = 0; j < 128; j++) {
+						double d = world.random.nextDouble();
+						float f = (world.random.nextFloat() - 0.5F) * 0.2F;
+						float g = (world.random.nextFloat() - 0.5F) * 0.2F;
+						float h = (world.random.nextFloat() - 0.5F) * 0.2F;
+						double
+								e =
+								MathHelper.lerp(d, (double) blockPos.getX(), (double) pos.getX()) + (
+										world.random.nextDouble() - 0.5
+								) + 0.5;
+						double
+								k =
+								MathHelper.lerp(d, (double) blockPos.getY(), (double) pos.getY())
+										+ world.random.nextDouble() - 0.5;
+						double
+								l =
+								MathHelper.lerp(d, (double) blockPos.getZ(), (double) pos.getZ()) + (
+										world.random.nextDouble() - 0.5
+								) + 0.5;
+						world.addParticleClient(ParticleTypes.PORTAL, e, k, l, f, g, h);
+					}
+				}
+				else {
+					world.setBlockState(blockPos, state, 2);
+					world.removeBlock(pos, false);
+				}
 
-   @Override
-   protected int getFallDelay() {
-      return 5;
-   }
+				return;
+			}
+		}
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected int getFallDelay() {
+		return 5;
+	}
 
-   @Override
-   public int getColor(BlockState state, BlockView world, BlockPos pos) {
-      return -16777216;
-   }
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
+
+	@Override
+	public int getColor(BlockState state, BlockView world, BlockPos pos) {
+		return -16777216;
+	}
 }

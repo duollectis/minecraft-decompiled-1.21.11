@@ -12,26 +12,33 @@ import net.minecraft.world.biome.GrassColors;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GrassTintSource}.
+ */
 public record GrassTintSource(float temperature, float downfall) implements TintSource {
-   public static final MapCodec<GrassTintSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codecs.rangedInclusiveFloat(0.0F, 1.0F).fieldOf("temperature").forGetter(GrassTintSource::temperature),
-            Codecs.rangedInclusiveFloat(0.0F, 1.0F).fieldOf("downfall").forGetter(GrassTintSource::downfall)
-         )
-         .apply(instance, GrassTintSource::new)
-   );
 
-   public GrassTintSource() {
-      this(0.5F, 1.0F);
-   }
+	public static final MapCodec<GrassTintSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codecs
+							                    .rangedInclusiveFloat(0.0F, 1.0F)
+							                    .fieldOf("temperature")
+							                    .forGetter(GrassTintSource::temperature),
+					                    Codecs.rangedInclusiveFloat(0.0F, 1.0F).fieldOf("downfall").forGetter(GrassTintSource::downfall)
+			                    )
+			                    .apply(instance, GrassTintSource::new)
+	);
 
-   @Override
-   public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
-      return GrassColors.getColor(this.temperature, this.downfall);
-   }
+	public GrassTintSource() {
+		this(0.5F, 1.0F);
+	}
 
-   @Override
-   public MapCodec<GrassTintSource> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
+		return GrassColors.getColor(this.temperature, this.downfall);
+	}
+
+	@Override
+	public MapCodec<GrassTintSource> getCodec() {
+		return CODEC;
+	}
 }

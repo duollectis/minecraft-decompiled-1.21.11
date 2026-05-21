@@ -6,6 +6,10 @@ import net.minecraft.client.gui.ScreenRect;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GuiElementRenderState}.
+ */
 public interface GuiElementRenderState {
-   @Nullable ScreenRect bounds();
+
+	@Nullable ScreenRect bounds();
 }

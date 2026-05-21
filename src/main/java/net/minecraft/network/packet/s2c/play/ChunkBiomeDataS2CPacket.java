@@ -2,7 +2,6 @@ package net.minecraft.network.packet.s2c.play;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import java.util.List;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.listener.ClientPlayPacketListener;
@@ -13,76 +12,81 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.chunk.WorldChunk;
 
+import java.util.List;
+
 public record ChunkBiomeDataS2CPacket(List<ChunkBiomeDataS2CPacket.Serialized> chunkBiomeData) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ChunkBiomeDataS2CPacket> CODEC = Packet.createCodec(
-      ChunkBiomeDataS2CPacket::write, ChunkBiomeDataS2CPacket::new
-   );
-   private static final int MAX_SIZE = 2097152;
 
-   private ChunkBiomeDataS2CPacket(PacketByteBuf buf) {
-      this(buf.readList(ChunkBiomeDataS2CPacket.Serialized::new));
-   }
+	public static final PacketCodec<PacketByteBuf, ChunkBiomeDataS2CPacket> CODEC = Packet.createCodec(
+			ChunkBiomeDataS2CPacket::write, ChunkBiomeDataS2CPacket::new
+	);
+	private static final int MAX_SIZE = 2097152;
 
-   public static ChunkBiomeDataS2CPacket create(List<WorldChunk> chunks) {
-      return new ChunkBiomeDataS2CPacket(chunks.stream().map(ChunkBiomeDataS2CPacket.Serialized::new).toList());
-   }
+	private ChunkBiomeDataS2CPacket(PacketByteBuf buf) {
+		this(buf.readList(ChunkBiomeDataS2CPacket.Serialized::new));
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeCollection(this.chunkBiomeData, (bufx, data) -> data.write(bufx));
-   }
+	public static ChunkBiomeDataS2CPacket create(List<WorldChunk> chunks) {
+		return new ChunkBiomeDataS2CPacket(chunks.stream().map(ChunkBiomeDataS2CPacket.Serialized::new).toList());
+	}
 
-   @Override
-   public PacketType<ChunkBiomeDataS2CPacket> getPacketType() {
-      return PlayPackets.CHUNKS_BIOMES;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeCollection(this.chunkBiomeData, (bufx, data) -> data.write(bufx));
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onChunkBiomeData(this);
-   }
+	@Override
+	public PacketType<ChunkBiomeDataS2CPacket> getPacketType() {
+		return PlayPackets.CHUNKS_BIOMES;
+	}
 
-   public record Serialized(ChunkPos pos, byte[] buffer) {
-      public Serialized(WorldChunk chunk) {
-         this(chunk.getPos(), new byte[getTotalPacketSize(chunk)]);
-         write(new PacketByteBuf(this.toWritingBuf()), chunk);
-      }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onChunkBiomeData(this);
+	}
 
-      public Serialized(PacketByteBuf buf) {
-         this(buf.readChunkPos(), buf.readByteArray(2097152));
-      }
+	public record Serialized(ChunkPos pos, byte[] buffer) {
 
-      private static int getTotalPacketSize(WorldChunk chunk) {
-         int i = 0;
+		public Serialized(WorldChunk chunk) {
+			this(chunk.getPos(), new byte[getTotalPacketSize(chunk)]);
+			write(new PacketByteBuf(this.toWritingBuf()), chunk);
+		}
 
-         for (ChunkSection chunkSection : chunk.getSectionArray()) {
-            i += chunkSection.getBiomeContainer().getPacketSize();
-         }
+		public Serialized(PacketByteBuf buf) {
+			this(buf.readChunkPos(), buf.readByteArray(2097152));
+		}
 
-         return i;
-      }
+		private static int getTotalPacketSize(WorldChunk chunk) {
+			int i = 0;
 
-      public PacketByteBuf toReadingBuf() {
-         return new PacketByteBuf(Unpooled.wrappedBuffer(this.buffer));
-      }
+			for (ChunkSection chunkSection : chunk.getSectionArray()) {
+				i += chunkSection.getBiomeContainer().getPacketSize();
+			}
 
-      private ByteBuf toWritingBuf() {
-         ByteBuf byteBuf = Unpooled.wrappedBuffer(this.buffer);
-         byteBuf.writerIndex(0);
-         return byteBuf;
-      }
+			return i;
+		}
 
-      public static void write(PacketByteBuf buf, WorldChunk chunk) {
-         for (ChunkSection chunkSection : chunk.getSectionArray()) {
-            chunkSection.getBiomeContainer().writePacket(buf);
-         }
+		public PacketByteBuf toReadingBuf() {
+			return new PacketByteBuf(Unpooled.wrappedBuffer(this.buffer));
+		}
 
-         if (buf.writerIndex() != buf.capacity()) {
-            throw new IllegalStateException("Didn't fill biome buffer: expected " + buf.capacity() + " bytes, got " + buf.writerIndex());
-         }
-      }
+		private ByteBuf toWritingBuf() {
+			ByteBuf byteBuf = Unpooled.wrappedBuffer(this.buffer);
+			byteBuf.writerIndex(0);
+			return byteBuf;
+		}
 
-      public void write(PacketByteBuf buf) {
-         buf.writeChunkPos(this.pos);
-         buf.writeByteArray(this.buffer);
-      }
-   }
+		public static void write(PacketByteBuf buf, WorldChunk chunk) {
+			for (ChunkSection chunkSection : chunk.getSectionArray()) {
+				chunkSection.getBiomeContainer().writePacket(buf);
+			}
+
+			if (buf.writerIndex() != buf.capacity()) {
+				throw new IllegalStateException(
+						"Didn't fill biome buffer: expected " + buf.capacity() + " bytes, got " + buf.writerIndex());
+			}
+		}
+
+		public void write(PacketByteBuf buf) {
+			buf.writeChunkPos(this.pos);
+			buf.writeByteArray(this.buffer);
+		}
+	}
 }

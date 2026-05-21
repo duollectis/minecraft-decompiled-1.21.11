@@ -21,145 +21,150 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code StorageMinecartEntity}.
+ */
 public abstract class StorageMinecartEntity extends AbstractMinecartEntity implements VehicleInventory {
-   private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(36, ItemStack.EMPTY);
-   private @Nullable RegistryKey<LootTable> lootTable;
-   private long lootTableSeed;
 
-   protected StorageMinecartEntity(EntityType<?> entityType, World world) {
-      super(entityType, world);
-   }
+	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(36, ItemStack.EMPTY);
+	private @Nullable RegistryKey<LootTable> lootTable;
+	private long lootTableSeed;
 
-   @Override
-   public void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
-      super.killAndDropSelf(world, damageSource);
-      this.onBroken(damageSource, world, this);
-   }
+	protected StorageMinecartEntity(EntityType<?> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   public ItemStack getStack(int slot) {
-      return this.getInventoryStack(slot);
-   }
+	@Override
+	public void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
+		super.killAndDropSelf(world, damageSource);
+		this.onBroken(damageSource, world, this);
+	}
 
-   @Override
-   public ItemStack removeStack(int slot, int amount) {
-      return this.removeInventoryStack(slot, amount);
-   }
+	@Override
+	public ItemStack getStack(int slot) {
+		return this.getInventoryStack(slot);
+	}
 
-   @Override
-   public ItemStack removeStack(int slot) {
-      return this.removeInventoryStack(slot);
-   }
+	@Override
+	public ItemStack removeStack(int slot, int amount) {
+		return this.removeInventoryStack(slot, amount);
+	}
 
-   @Override
-   public void setStack(int slot, ItemStack stack) {
-      this.setInventoryStack(slot, stack);
-   }
+	@Override
+	public ItemStack removeStack(int slot) {
+		return this.removeInventoryStack(slot);
+	}
 
-   @Override
-   public StackReference getStackReference(int slot) {
-      return this.getInventoryStackReference(slot);
-   }
+	@Override
+	public void setStack(int slot, ItemStack stack) {
+		this.setInventoryStack(slot, stack);
+	}
 
-   @Override
-   public void markDirty() {
-   }
+	@Override
+	public StackReference getStackReference(int slot) {
+		return this.getInventoryStackReference(slot);
+	}
 
-   @Override
-   public boolean canPlayerUse(PlayerEntity player) {
-      return this.canPlayerAccess(player);
-   }
+	@Override
+	public void markDirty() {
+	}
 
-   @Override
-   public void remove(Entity.RemovalReason reason) {
-      if (!this.getEntityWorld().isClient() && reason.shouldDestroy()) {
-         ItemScatterer.spawn(this.getEntityWorld(), this, this);
-      }
+	@Override
+	public boolean canPlayerUse(PlayerEntity player) {
+		return this.canPlayerAccess(player);
+	}
 
-      super.remove(reason);
-   }
+	@Override
+	public void remove(Entity.RemovalReason reason) {
+		if (!this.getEntityWorld().isClient() && reason.shouldDestroy()) {
+			ItemScatterer.spawn(this.getEntityWorld(), this, this);
+		}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      this.writeInventoryToData(view);
-   }
+		super.remove(reason);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.readInventoryFromData(view);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		this.writeInventoryToData(view);
+	}
 
-   @Override
-   public ActionResult interact(PlayerEntity player, Hand hand) {
-      return this.open(player);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.readInventoryFromData(view);
+	}
 
-   @Override
-   protected Vec3d applySlowdown(Vec3d velocity) {
-      float f = 0.98F;
-      if (this.lootTable == null) {
-         int i = 15 - ScreenHandler.calculateComparatorOutput(this);
-         f += i * 0.001F;
-      }
+	@Override
+	public ActionResult interact(PlayerEntity player, Hand hand) {
+		return this.open(player);
+	}
 
-      if (this.isTouchingWater()) {
-         f *= 0.95F;
-      }
+	@Override
+	protected Vec3d applySlowdown(Vec3d velocity) {
+		float f = 0.98F;
+		if (this.lootTable == null) {
+			int i = 15 - ScreenHandler.calculateComparatorOutput(this);
+			f += i * 0.001F;
+		}
 
-      return velocity.multiply(f, 0.0, f);
-   }
+		if (this.isTouchingWater()) {
+			f *= 0.95F;
+		}
 
-   @Override
-   public void clear() {
-      this.clearInventory();
-   }
+		return velocity.multiply(f, 0.0, f);
+	}
 
-   public void setLootTable(RegistryKey<LootTable> lootTable, long lootSeed) {
-      this.lootTable = lootTable;
-      this.lootTableSeed = lootSeed;
-   }
+	@Override
+	public void clear() {
+		this.clearInventory();
+	}
 
-   @Override
-   public @Nullable ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
-      if (this.lootTable != null && playerEntity.isSpectator()) {
-         return null;
-      } else {
-         this.generateInventoryLoot(playerInventory.player);
-         return this.getScreenHandler(i, playerInventory);
-      }
-   }
+	public void setLootTable(RegistryKey<LootTable> lootTable, long lootSeed) {
+		this.lootTable = lootTable;
+		this.lootTableSeed = lootSeed;
+	}
 
-   protected abstract ScreenHandler getScreenHandler(int syncId, PlayerInventory playerInventory);
+	@Override
+	public @Nullable ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
+		if (this.lootTable != null && playerEntity.isSpectator()) {
+			return null;
+		}
+		else {
+			this.generateInventoryLoot(playerInventory.player);
+			return this.getScreenHandler(i, playerInventory);
+		}
+	}
 
-   @Override
-   public @Nullable RegistryKey<LootTable> getLootTable() {
-      return this.lootTable;
-   }
+	protected abstract ScreenHandler getScreenHandler(int syncId, PlayerInventory playerInventory);
 
-   @Override
-   public void setLootTable(@Nullable RegistryKey<LootTable> lootTable) {
-      this.lootTable = lootTable;
-   }
+	@Override
+	public @Nullable RegistryKey<LootTable> getLootTable() {
+		return this.lootTable;
+	}
 
-   @Override
-   public long getLootTableSeed() {
-      return this.lootTableSeed;
-   }
+	@Override
+	public void setLootTable(@Nullable RegistryKey<LootTable> lootTable) {
+		this.lootTable = lootTable;
+	}
 
-   @Override
-   public void setLootTableSeed(long lootTableSeed) {
-      this.lootTableSeed = lootTableSeed;
-   }
+	@Override
+	public long getLootTableSeed() {
+		return this.lootTableSeed;
+	}
 
-   @Override
-   public DefaultedList<ItemStack> getInventory() {
-      return this.inventory;
-   }
+	@Override
+	public void setLootTableSeed(long lootTableSeed) {
+		this.lootTableSeed = lootTableSeed;
+	}
 
-   @Override
-   public void resetInventory() {
-      this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
-   }
+	@Override
+	public DefaultedList<ItemStack> getInventory() {
+		return this.inventory;
+	}
+
+	@Override
+	public void resetInventory() {
+		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
+	}
 }

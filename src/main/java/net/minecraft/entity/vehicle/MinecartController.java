@@ -8,94 +8,98 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+/**
+ * {@code MinecartController}.
+ */
 public abstract class MinecartController {
-   protected final AbstractMinecartEntity minecart;
 
-   protected MinecartController(AbstractMinecartEntity minecart) {
-      this.minecart = minecart;
-   }
+	protected final AbstractMinecartEntity minecart;
 
-   public PositionInterpolator getInterpolator() {
-      return null;
-   }
+	protected MinecartController(AbstractMinecartEntity minecart) {
+		this.minecart = minecart;
+	}
 
-   public void setLerpTargetVelocity(Vec3d vec3d) {
-      this.setVelocity(vec3d);
-   }
+	public PositionInterpolator getInterpolator() {
+		return null;
+	}
 
-   public abstract void tick();
+	public void setLerpTargetVelocity(Vec3d vec3d) {
+		this.setVelocity(vec3d);
+	}
 
-   public World getWorld() {
-      return this.minecart.getEntityWorld();
-   }
+	public abstract void tick();
 
-   public abstract void moveOnRail(ServerWorld world);
+	public World getWorld() {
+		return this.minecart.getEntityWorld();
+	}
 
-   public abstract double moveAlongTrack(BlockPos blockPos, RailShape railShape, double remainingMovement);
+	public abstract void moveOnRail(ServerWorld world);
 
-   public abstract boolean handleCollision();
+	public abstract double moveAlongTrack(BlockPos blockPos, RailShape railShape, double remainingMovement);
 
-   public Vec3d getVelocity() {
-      return this.minecart.getVelocity();
-   }
+	public abstract boolean handleCollision();
 
-   public void setVelocity(Vec3d velocity) {
-      this.minecart.setVelocity(velocity);
-   }
+	public Vec3d getVelocity() {
+		return this.minecart.getVelocity();
+	}
 
-   public void setVelocity(double x, double y, double z) {
-      this.minecart.setVelocity(x, y, z);
-   }
+	public void setVelocity(Vec3d velocity) {
+		this.minecart.setVelocity(velocity);
+	}
 
-   public Vec3d getPos() {
-      return this.minecart.getEntityPos();
-   }
+	public void setVelocity(double x, double y, double z) {
+		this.minecart.setVelocity(x, y, z);
+	}
 
-   public double getX() {
-      return this.minecart.getX();
-   }
+	public Vec3d getPos() {
+		return this.minecart.getEntityPos();
+	}
 
-   public double getY() {
-      return this.minecart.getY();
-   }
+	public double getX() {
+		return this.minecart.getX();
+	}
 
-   public double getZ() {
-      return this.minecart.getZ();
-   }
+	public double getY() {
+		return this.minecart.getY();
+	}
 
-   public void setPos(Vec3d pos) {
-      this.minecart.setPosition(pos);
-   }
+	public double getZ() {
+		return this.minecart.getZ();
+	}
 
-   public void setPos(double x, double y, double z) {
-      this.minecart.setPosition(x, y, z);
-   }
+	public void setPos(Vec3d pos) {
+		this.minecart.setPosition(pos);
+	}
 
-   public float getPitch() {
-      return this.minecart.getPitch();
-   }
+	public void setPos(double x, double y, double z) {
+		this.minecart.setPosition(x, y, z);
+	}
 
-   public void setPitch(float pitch) {
-      this.minecart.setPitch(pitch);
-   }
+	public float getPitch() {
+		return this.minecart.getPitch();
+	}
 
-   public float getYaw() {
-      return this.minecart.getYaw();
-   }
+	public void setPitch(float pitch) {
+		this.minecart.setPitch(pitch);
+	}
 
-   public void setYaw(float yaw) {
-      this.minecart.setYaw(yaw);
-   }
+	public float getYaw() {
+		return this.minecart.getYaw();
+	}
 
-   public Direction getHorizontalFacing() {
-      return this.minecart.getHorizontalFacing();
-   }
+	public void setYaw(float yaw) {
+		this.minecart.setYaw(yaw);
+	}
 
-   public Vec3d limitSpeed(Vec3d velocity) {
-      return velocity;
-   }
+	public Direction getHorizontalFacing() {
+		return this.minecart.getHorizontalFacing();
+	}
 
-   public abstract double getMaxSpeed(ServerWorld world);
+	public Vec3d limitSpeed(Vec3d velocity) {
+		return velocity;
+	}
 
-   public abstract double getSpeedRetention();
+	public abstract double getMaxSpeed(ServerWorld world);
+
+	public abstract double getSpeedRetention();
 }

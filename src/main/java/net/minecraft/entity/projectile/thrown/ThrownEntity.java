@@ -12,94 +12,113 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+/**
+ * {@code ThrownEntity}.
+ */
 public abstract class ThrownEntity extends ProjectileEntity {
-   private static final float field_52510 = 12.25F;
 
-   protected ThrownEntity(EntityType<? extends ThrownEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final float MIN_RENDER_DISTANCE_SQUARED = 12.25F;
 
-   protected ThrownEntity(EntityType<? extends ThrownEntity> type, double x, double y, double z, World world) {
-      this(type, world);
-      this.setPosition(x, y, z);
-   }
+	protected ThrownEntity(EntityType<? extends ThrownEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   public boolean shouldRender(double distance) {
-      if (this.age < 2 && distance < 12.25) {
-         return false;
-      } else {
-         double d = this.getBoundingBox().getAverageSideLength() * 4.0;
-         if (Double.isNaN(d)) {
-            d = 4.0;
-         }
+	protected ThrownEntity(EntityType<? extends ThrownEntity> type, double x, double y, double z, World world) {
+		this(type, world);
+		this.setPosition(x, y, z);
+	}
 
-         d *= 64.0;
-         return distance < d * d;
-      }
-   }
+	@Override
+	public boolean shouldRender(double distance) {
+		if (this.age < 2 && distance < 12.25) {
+			return false;
+		}
+		else {
+			double d = this.getBoundingBox().getAverageSideLength() * 4.0;
+			if (Double.isNaN(d)) {
+				d = 4.0;
+			}
 
-   @Override
-   public boolean canUsePortals(boolean allowVehicles) {
-      return true;
-   }
+			d *= 64.0;
+			return distance < d * d;
+		}
+	}
 
-   @Override
-   public void tick() {
-      this.tickInitialBubbleColumnCollision();
-      this.applyGravity();
-      this.applyDrag();
-      HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit);
-      Vec3d vec3d;
-      if (hitResult.getType() != HitResult.Type.MISS) {
-         vec3d = hitResult.getPos();
-      } else {
-         vec3d = this.getEntityPos().add(this.getVelocity());
-      }
+	@Override
+	public boolean canUsePortals(boolean allowVehicles) {
+		return true;
+	}
 
-      this.setPosition(vec3d);
-      this.updateRotation();
-      this.tickBlockCollision();
-      super.tick();
-      if (hitResult.getType() != HitResult.Type.MISS && this.isAlive()) {
-         this.hitOrDeflect(hitResult);
-      }
-   }
+	@Override
+	public void tick() {
+		this.tickInitialBubbleColumnCollision();
+		this.applyGravity();
+		this.applyDrag();
+		HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit);
+		Vec3d vec3d;
+		if (hitResult.getType() != HitResult.Type.MISS) {
+			vec3d = hitResult.getPos();
+		}
+		else {
+			vec3d = this.getEntityPos().add(this.getVelocity());
+		}
 
-   private void applyDrag() {
-      Vec3d vec3d = this.getVelocity();
-      Vec3d vec3d2 = this.getEntityPos();
-      float g;
-      if (this.isTouchingWater()) {
-         for (int i = 0; i < 4; i++) {
-            float f = 0.25F;
-            this.getEntityWorld()
-               .addParticleClient(
-                  ParticleTypes.BUBBLE, vec3d2.x - vec3d.x * 0.25, vec3d2.y - vec3d.y * 0.25, vec3d2.z - vec3d.z * 0.25, vec3d.x, vec3d.y, vec3d.z
-               );
-         }
+		this.setPosition(vec3d);
+		this.updateRotation();
+		this.tickBlockCollision();
+		super.tick();
+		if (hitResult.getType() != HitResult.Type.MISS && this.isAlive()) {
+			this.hitOrDeflect(hitResult);
+		}
+	}
 
-         g = 0.8F;
-      } else {
-         g = 0.99F;
-      }
+	private void applyDrag() {
+		Vec3d vec3d = this.getVelocity();
+		Vec3d vec3d2 = this.getEntityPos();
+		float g;
+		if (this.isTouchingWater()) {
+			for (int i = 0; i < 4; i++) {
+				float f = 0.25F;
+				this.getEntityWorld()
+				    .addParticleClient(
+						    ParticleTypes.BUBBLE,
+						    vec3d2.x - vec3d.x * 0.25,
+						    vec3d2.y - vec3d.y * 0.25,
+						    vec3d2.z - vec3d.z * 0.25,
+						    vec3d.x,
+						    vec3d.y,
+						    vec3d.z
+				    );
+			}
 
-      this.setVelocity(vec3d.multiply(g));
-   }
+			g = 0.8F;
+		}
+		else {
+			g = 0.99F;
+		}
 
-   private void tickInitialBubbleColumnCollision() {
-      if (this.firstUpdate) {
-         for (BlockPos blockPos : BlockPos.iterate(this.getBoundingBox())) {
-            BlockState blockState = this.getEntityWorld().getBlockState(blockPos);
-            if (blockState.isOf(Blocks.BUBBLE_COLUMN)) {
-               blockState.onEntityCollision(this.getEntityWorld(), blockPos, this, EntityCollisionHandler.DUMMY, true);
-            }
-         }
-      }
-   }
+		this.setVelocity(vec3d.multiply(g));
+	}
 
-   @Override
-   protected double getGravity() {
-      return 0.03;
-   }
+	private void tickInitialBubbleColumnCollision() {
+		if (this.firstUpdate) {
+			for (BlockPos blockPos : BlockPos.iterate(this.getBoundingBox())) {
+				BlockState blockState = this.getEntityWorld().getBlockState(blockPos);
+				if (blockState.isOf(Blocks.BUBBLE_COLUMN)) {
+					blockState.onEntityCollision(
+							this.getEntityWorld(),
+							blockPos,
+							this,
+							EntityCollisionHandler.DUMMY,
+							true
+					);
+				}
+			}
+		}
+	}
+
+	@Override
+	protected double getGravity() {
+		return 0.03;
+	}
 }

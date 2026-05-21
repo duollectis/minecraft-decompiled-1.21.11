@@ -10,6 +10,16 @@ import org.jspecify.annotations.Nullable;
 
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PropertyTester}.
+ */
 public interface PropertyTester {
-   boolean test(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity entity, int seed, ItemDisplayContext displayContext);
+
+	boolean test(
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity entity,
+			int seed,
+			ItemDisplayContext displayContext
+	);
 }

@@ -13,43 +13,55 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
 
+/**
+ * {@code ExperienceBottleItem}.
+ */
 public class ExperienceBottleItem extends Item implements ProjectileItem {
-   public ExperienceBottleItem(Item.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      world.playSound(
-         null,
-         user.getX(),
-         user.getY(),
-         user.getZ(),
-         SoundEvents.ENTITY_EXPERIENCE_BOTTLE_THROW,
-         SoundCategory.NEUTRAL,
-         0.5F,
-         0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
-      );
-      if (world instanceof ServerWorld serverWorld) {
-         ProjectileEntity.spawnWithVelocity(ExperienceBottleEntity::new, serverWorld, itemStack, user, -20.0F, 0.7F, 1.0F);
-      }
+	public ExperienceBottleItem(Item.Settings settings) {
+		super(settings);
+	}
 
-      user.incrementStat(Stats.USED.getOrCreateStat(this));
-      itemStack.decrementUnlessCreative(1, user);
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		world.playSound(
+				null,
+				user.getX(),
+				user.getY(),
+				user.getZ(),
+				SoundEvents.ENTITY_EXPERIENCE_BOTTLE_THROW,
+				SoundCategory.NEUTRAL,
+				0.5F,
+				0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
+		);
+		if (world instanceof ServerWorld serverWorld) {
+			ProjectileEntity.spawnWithVelocity(
+					ExperienceBottleEntity::new,
+					serverWorld,
+					itemStack,
+					user,
+					-20.0F,
+					0.7F,
+					1.0F
+			);
+		}
 
-   @Override
-   public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-      return new ExperienceBottleEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack);
-   }
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+		itemStack.decrementUnlessCreative(1, user);
+		return ActionResult.SUCCESS;
+	}
 
-   @Override
-   public ProjectileItem.Settings getProjectileSettings() {
-      return ProjectileItem.Settings.builder()
-         .uncertainty(ProjectileItem.Settings.DEFAULT.uncertainty() * 0.5F)
-         .power(ProjectileItem.Settings.DEFAULT.power() * 1.25F)
-         .build();
-   }
+	@Override
+	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
+		return new ExperienceBottleEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack);
+	}
+
+	@Override
+	public ProjectileItem.Settings getProjectileSettings() {
+		return ProjectileItem.Settings.builder()
+		                              .uncertainty(ProjectileItem.Settings.DEFAULT.uncertainty() * 0.5F)
+		                              .power(ProjectileItem.Settings.DEFAULT.power() * 1.25F)
+		                              .build();
+	}
 }

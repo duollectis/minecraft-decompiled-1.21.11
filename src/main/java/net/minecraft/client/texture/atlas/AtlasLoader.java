@@ -6,15 +6,6 @@ import com.google.gson.JsonElement;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.JsonOps;
-import java.io.BufferedReader;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.Predicate;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.texture.MissingSprite;
@@ -25,60 +16,75 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.StrictJsonParser;
 import org.slf4j.Logger;
 
+import java.io.BufferedReader;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.function.Predicate;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AtlasLoader}.
+ */
 public class AtlasLoader {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final ResourceFinder FINDER = new ResourceFinder("atlases", ".json");
-   private final List<AtlasSource> sources;
 
-   private AtlasLoader(List<AtlasSource> sources) {
-      this.sources = sources;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final ResourceFinder FINDER = new ResourceFinder("atlases", ".json");
+	private final List<AtlasSource> sources;
 
-   public List<AtlasSource.SpriteSource> loadSources(ResourceManager resourceManager) {
-      final Map<Identifier, AtlasSource.SpriteRegion> map = new HashMap<>();
-      AtlasSource.SpriteRegions spriteRegions = new AtlasSource.SpriteRegions() {
-         @Override
-         public void add(Identifier arg, AtlasSource.SpriteRegion region) {
-            AtlasSource.SpriteRegion spriteRegion = map.put(arg, region);
-            if (spriteRegion != null) {
-               spriteRegion.close();
-            }
-         }
+	private AtlasLoader(List<AtlasSource> sources) {
+		this.sources = sources;
+	}
 
-         @Override
-         public void removeIf(Predicate<Identifier> predicate) {
-            Iterator<Entry<Identifier, AtlasSource.SpriteRegion>> iterator = map.entrySet().iterator();
+	public List<AtlasSource.SpriteSource> loadSources(ResourceManager resourceManager) {
+		final Map<Identifier, AtlasSource.SpriteRegion> map = new HashMap<>();
+		AtlasSource.SpriteRegions spriteRegions = new AtlasSource.SpriteRegions() {
+			@Override
+			public void add(Identifier arg, AtlasSource.SpriteRegion region) {
+				AtlasSource.SpriteRegion spriteRegion = map.put(arg, region);
+				if (spriteRegion != null) {
+					spriteRegion.close();
+				}
+			}
 
-            while (iterator.hasNext()) {
-               Entry<Identifier, AtlasSource.SpriteRegion> entry = iterator.next();
-               if (predicate.test(entry.getKey())) {
-                  entry.getValue().close();
-                  iterator.remove();
-               }
-            }
-         }
-      };
-      this.sources.forEach(source -> source.load(resourceManager, spriteRegions));
-      Builder<AtlasSource.SpriteSource> builder = ImmutableList.builder();
-      builder.add((AtlasSource.SpriteSource)opener -> MissingSprite.createSpriteContents());
-      builder.addAll(map.values());
-      return builder.build();
-   }
+			@Override
+			public void removeIf(Predicate<Identifier> predicate) {
+				Iterator<Entry<Identifier, AtlasSource.SpriteRegion>> iterator = map.entrySet().iterator();
 
-   public static AtlasLoader of(ResourceManager resourceManager, Identifier id) {
-      Identifier identifier = FINDER.toResourcePath(id);
-      List<AtlasSource> list = new ArrayList<>();
+				while (iterator.hasNext()) {
+					Entry<Identifier, AtlasSource.SpriteRegion> entry = iterator.next();
+					if (predicate.test(entry.getKey())) {
+						entry.getValue().close();
+						iterator.remove();
+					}
+				}
+			}
+		};
+		this.sources.forEach(source -> source.load(resourceManager, spriteRegions));
+		Builder<AtlasSource.SpriteSource> builder = ImmutableList.builder();
+		builder.add((AtlasSource.SpriteSource) opener -> MissingSprite.createSpriteContents());
+		builder.addAll(map.values());
+		return builder.build();
+	}
 
-      for (Resource resource : resourceManager.getAllResources(identifier)) {
-         try (BufferedReader bufferedReader = resource.getReader()) {
-            Dynamic<JsonElement> dynamic = new Dynamic(JsonOps.INSTANCE, StrictJsonParser.parse(bufferedReader));
-            list.addAll((Collection<? extends AtlasSource>)AtlasSourceManager.LIST_CODEC.parse(dynamic).getOrThrow());
-         } catch (Exception var11) {
-            LOGGER.error("Failed to parse atlas definition {} in pack {}", new Object[]{identifier, resource.getPackId(), var11});
-         }
-      }
+	public static AtlasLoader of(ResourceManager resourceManager, Identifier id) {
+		Identifier identifier = FINDER.toResourcePath(id);
+		List<AtlasSource> list = new ArrayList<>();
 
-      return new AtlasLoader(list);
-   }
+		for (Resource resource : resourceManager.getAllResources(identifier)) {
+			try (BufferedReader bufferedReader = resource.getReader()) {
+				Dynamic<JsonElement> dynamic = new Dynamic(JsonOps.INSTANCE, StrictJsonParser.parse(bufferedReader));
+				list.addAll((Collection<? extends AtlasSource>) AtlasSourceManager.LIST_CODEC
+						.parse(dynamic)
+						.getOrThrow());
+			}
+			catch (Exception var11) {
+				LOGGER.error(
+						"Failed to parse atlas definition {} in pack {}",
+						new Object[]{identifier, resource.getPackId(), var11}
+				);
+			}
+		}
+
+		return new AtlasLoader(list);
+	}
 }

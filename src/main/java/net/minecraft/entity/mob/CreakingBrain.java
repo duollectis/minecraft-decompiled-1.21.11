@@ -3,8 +3,6 @@ package net.minecraft.entity.mob;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.mojang.datafixers.util.Pair;
-import java.util.List;
-import java.util.Optional;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.Activity;
 import net.minecraft.entity.ai.brain.Brain;
@@ -12,102 +10,118 @@ import net.minecraft.entity.ai.brain.MemoryModuleState;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.brain.sensor.Sensor;
 import net.minecraft.entity.ai.brain.sensor.SensorType;
-import net.minecraft.entity.ai.brain.task.ForgetAttackTargetTask;
-import net.minecraft.entity.ai.brain.task.GoToLookTargetTask;
-import net.minecraft.entity.ai.brain.task.LookAtMobWithIntervalTask;
-import net.minecraft.entity.ai.brain.task.MeleeAttackTask;
-import net.minecraft.entity.ai.brain.task.MoveToTargetTask;
-import net.minecraft.entity.ai.brain.task.RandomTask;
-import net.minecraft.entity.ai.brain.task.RangedApproachTask;
-import net.minecraft.entity.ai.brain.task.StayAboveWaterTask;
-import net.minecraft.entity.ai.brain.task.StrollTask;
-import net.minecraft.entity.ai.brain.task.UpdateAttackTargetTask;
-import net.minecraft.entity.ai.brain.task.UpdateLookControlTask;
-import net.minecraft.entity.ai.brain.task.WaitTask;
+import net.minecraft.entity.ai.brain.task.*;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.intprovider.UniformIntProvider;
 
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * {@code CreakingBrain}.
+ */
 public class CreakingBrain {
-   protected static final ImmutableList<? extends SensorType<? extends Sensor<? super CreakingEntity>>> SENSORS = ImmutableList.of(
-      SensorType.NEAREST_LIVING_ENTITIES, SensorType.NEAREST_PLAYERS
-   );
-   protected static final ImmutableList<? extends MemoryModuleType<?>> MEMORY_MODULES = ImmutableList.of(
-      MemoryModuleType.MOBS,
-      MemoryModuleType.VISIBLE_MOBS,
-      MemoryModuleType.NEAREST_VISIBLE_PLAYER,
-      MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER,
-      MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYERS,
-      MemoryModuleType.LOOK_TARGET,
-      MemoryModuleType.WALK_TARGET,
-      MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE,
-      MemoryModuleType.PATH,
-      MemoryModuleType.ATTACK_TARGET,
-      MemoryModuleType.ATTACK_COOLING_DOWN
-   );
 
-   static void addCoreTasks(Brain<CreakingEntity> brain) {
-      brain.setTaskList(Activity.CORE, 0, ImmutableList.of(new StayAboveWaterTask<CreakingEntity>(0.8F) {
-         protected boolean shouldRun(ServerWorld serverWorld, CreakingEntity creakingEntity) {
-            return creakingEntity.isUnrooted() && super.shouldRun(serverWorld, (MobEntity)creakingEntity);
-         }
-      }, new UpdateLookControlTask(45, 90), new MoveToTargetTask()));
-   }
+	protected static final ImmutableList<? extends SensorType<? extends Sensor<? super CreakingEntity>>>
+			SENSORS =
+			ImmutableList.of(
+					SensorType.NEAREST_LIVING_ENTITIES, SensorType.NEAREST_PLAYERS
+			);
+	protected static final ImmutableList<? extends MemoryModuleType<?>> MEMORY_MODULES = ImmutableList.of(
+			MemoryModuleType.MOBS,
+			MemoryModuleType.VISIBLE_MOBS,
+			MemoryModuleType.NEAREST_VISIBLE_PLAYER,
+			MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER,
+			MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYERS,
+			MemoryModuleType.LOOK_TARGET,
+			MemoryModuleType.WALK_TARGET,
+			MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE,
+			MemoryModuleType.PATH,
+			MemoryModuleType.ATTACK_TARGET,
+			MemoryModuleType.ATTACK_COOLING_DOWN
+	);
 
-   static void addIdleTasks(Brain<CreakingEntity> brain) {
-      brain.setTaskList(
-         Activity.IDLE,
-         10,
-         ImmutableList.of(
-            UpdateAttackTargetTask.create(
-               (world, creaking) -> creaking.isActive(),
-               (world, creaking) -> creaking.getBrain().getOptionalRegisteredMemory(MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER)
-            ),
-            LookAtMobWithIntervalTask.follow(8.0F, UniformIntProvider.create(30, 60)),
-            new RandomTask<CreakingEntity>(
-               ImmutableList.of(Pair.of(StrollTask.create(0.3F), 2), Pair.of(GoToLookTargetTask.create(0.3F, 3), 2), Pair.of(new WaitTask(30, 60), 1))
-            )
-         )
-      );
-   }
+	static void addCoreTasks(Brain<CreakingEntity> brain) {
+		brain.setTaskList(
+				Activity.CORE, 0, ImmutableList.of(
+						new StayAboveWaterTask<CreakingEntity>(0.8F) {
+							protected boolean shouldRun(ServerWorld serverWorld, CreakingEntity creakingEntity) {
+								return creakingEntity.isUnrooted() && super.shouldRun(
+										serverWorld,
+										(MobEntity) creakingEntity
+								);
+							}
+						}, new UpdateLookControlTask(45, 90), new MoveToTargetTask()
+				)
+		);
+	}
 
-   static void addFightTasks(CreakingEntity creaking, Brain<CreakingEntity> brain) {
-      brain.setTaskList(
-         Activity.FIGHT,
-         10,
-         ImmutableList.of(
-            RangedApproachTask.create(1.0F),
-            MeleeAttackTask.create(CreakingEntity::isUnrooted, 40),
-            ForgetAttackTargetTask.create((world, target) -> !canTarget(creaking, target))
-         ),
-         ImmutableSet.of(Pair.of(MemoryModuleType.ATTACK_TARGET, MemoryModuleState.VALUE_PRESENT))
-      );
-   }
+	static void addIdleTasks(Brain<CreakingEntity> brain) {
+		brain.setTaskList(
+				Activity.IDLE,
+				10,
+				ImmutableList.of(
+						UpdateAttackTargetTask.create(
+								(world, creaking) -> creaking.isActive(),
+								(world, creaking) -> creaking
+										.getBrain()
+										.getOptionalRegisteredMemory(MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYER)
+						),
+						LookAtMobWithIntervalTask.follow(8.0F, UniformIntProvider.create(30, 60)),
+						new RandomTask<CreakingEntity>(
+								ImmutableList.of(
+										Pair.of(StrollTask.create(0.3F), 2),
+										Pair.of(GoToLookTargetTask.create(0.3F, 3), 2),
+										Pair.of(new WaitTask(30, 60), 1)
+								)
+						)
+				)
+		);
+	}
 
-   private static boolean canTarget(CreakingEntity creaking, LivingEntity target) {
-      Optional<List<PlayerEntity>> optional = creaking.getBrain().getOptionalRegisteredMemory(MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYERS);
-      return optional.<Boolean>map(players -> target instanceof PlayerEntity playerEntity && players.contains(playerEntity)).orElse(false);
-   }
+	static void addFightTasks(CreakingEntity creaking, Brain<CreakingEntity> brain) {
+		brain.setTaskList(
+				Activity.FIGHT,
+				10,
+				ImmutableList.of(
+						RangedApproachTask.create(1.0F),
+						MeleeAttackTask.create(CreakingEntity::isUnrooted, 40),
+						ForgetAttackTargetTask.create((world, target) -> !canTarget(creaking, target))
+				),
+				ImmutableSet.of(Pair.of(MemoryModuleType.ATTACK_TARGET, MemoryModuleState.VALUE_PRESENT))
+		);
+	}
 
-   public static Brain.Profile<CreakingEntity> createBrainProfile() {
-      return Brain.createProfile(MEMORY_MODULES, SENSORS);
-   }
+	private static boolean canTarget(CreakingEntity creaking, LivingEntity target) {
+		Optional<List<PlayerEntity>>
+				optional =
+				creaking.getBrain().getOptionalRegisteredMemory(MemoryModuleType.NEAREST_VISIBLE_TARGETABLE_PLAYERS);
+		return optional
+				.<Boolean>map(players -> target instanceof PlayerEntity playerEntity && players.contains(playerEntity))
+				.orElse(false);
+	}
 
-   public static Brain<CreakingEntity> create(CreakingEntity creaking, Brain<CreakingEntity> brain) {
-      addCoreTasks(brain);
-      addIdleTasks(brain);
-      addFightTasks(creaking, brain);
-      brain.setCoreActivities(ImmutableSet.of(Activity.CORE));
-      brain.setDefaultActivity(Activity.IDLE);
-      brain.resetPossibleActivities();
-      return brain;
-   }
+	public static Brain.Profile<CreakingEntity> createBrainProfile() {
+		return Brain.createProfile(MEMORY_MODULES, SENSORS);
+	}
 
-   public static void updateActivities(CreakingEntity creaking) {
-      if (!creaking.isUnrooted()) {
-         creaking.getBrain().resetPossibleActivities();
-      } else {
-         creaking.getBrain().resetPossibleActivities(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
-      }
-   }
+	public static Brain<CreakingEntity> create(CreakingEntity creaking, Brain<CreakingEntity> brain) {
+		addCoreTasks(brain);
+		addIdleTasks(brain);
+		addFightTasks(creaking, brain);
+		brain.setCoreActivities(ImmutableSet.of(Activity.CORE));
+		brain.setDefaultActivity(Activity.IDLE);
+		brain.resetPossibleActivities();
+		return brain;
+	}
+
+	public static void updateActivities(CreakingEntity creaking) {
+		if (!creaking.isUnrooted()) {
+			creaking.getBrain().resetPossibleActivities();
+		}
+		else {
+			creaking.getBrain().resetPossibleActivities(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
+		}
+	}
 }

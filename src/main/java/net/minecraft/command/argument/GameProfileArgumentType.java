@@ -7,13 +7,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.DefaultPermissions;
 import net.minecraft.command.EntitySelector;
@@ -23,100 +16,139 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * {@code GameProfileArgumentType}.
+ */
 public class GameProfileArgumentType implements ArgumentType<GameProfileArgumentType.GameProfileArgument> {
-   private static final Collection<String> EXAMPLES = Arrays.asList("Player", "0123", "dd12be42-52a9-4a91-a8a1-11c01849e498", "@e");
-   public static final SimpleCommandExceptionType UNKNOWN_PLAYER_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("argument.player.unknown"));
 
-   public static Collection<PlayerConfigEntry> getProfileArgument(CommandContext<ServerCommandSource> context, String name) throws CommandSyntaxException {
-      return ((GameProfileArgumentType.GameProfileArgument)context.getArgument(name, GameProfileArgumentType.GameProfileArgument.class))
-         .getNames((ServerCommandSource)context.getSource());
-   }
+	private static final Collection<String>
+			EXAMPLES =
+			Arrays.asList("Player", "0123", "dd12be42-52a9-4a91-a8a1-11c01849e498", "@e");
+	public static final SimpleCommandExceptionType
+			UNKNOWN_PLAYER_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("argument.player.unknown"));
 
-   public static GameProfileArgumentType gameProfile() {
-      return new GameProfileArgumentType();
-   }
+	public static Collection<PlayerConfigEntry> getProfileArgument(
+			CommandContext<ServerCommandSource> context,
+			String name
+	) throws CommandSyntaxException {
+		return ((GameProfileArgumentType.GameProfileArgument) context.getArgument(
+				name,
+				GameProfileArgumentType.GameProfileArgument.class
+		)
+		)
+				.getNames((ServerCommandSource) context.getSource());
+	}
 
-   public <S> GameProfileArgumentType.GameProfileArgument parse(StringReader stringReader, S object) throws CommandSyntaxException {
-      return parse(stringReader, EntitySelectorReader.shouldAllowAtSelectors(object));
-   }
+	public static GameProfileArgumentType gameProfile() {
+		return new GameProfileArgumentType();
+	}
 
-   public GameProfileArgumentType.GameProfileArgument parse(StringReader stringReader) throws CommandSyntaxException {
-      return parse(stringReader, true);
-   }
+	public <S> GameProfileArgumentType.GameProfileArgument parse(StringReader stringReader, S object)
+	throws CommandSyntaxException {
+		return parse(stringReader, EntitySelectorReader.shouldAllowAtSelectors(object));
+	}
 
-   private static GameProfileArgumentType.GameProfileArgument parse(StringReader reader, boolean allowAtSelectors) throws CommandSyntaxException {
-      if (reader.canRead() && reader.peek() == '@') {
-         EntitySelectorReader entitySelectorReader = new EntitySelectorReader(reader, allowAtSelectors);
-         EntitySelector entitySelector = entitySelectorReader.read();
-         if (entitySelector.includesNonPlayers()) {
-            throw EntityArgumentType.PLAYER_SELECTOR_HAS_ENTITIES_EXCEPTION.createWithContext(reader);
-         } else {
-            return new GameProfileArgumentType.SelectorBacked(entitySelector);
-         }
-      } else {
-         int i = reader.getCursor();
+	public GameProfileArgumentType.GameProfileArgument parse(StringReader stringReader) throws CommandSyntaxException {
+		return parse(stringReader, true);
+	}
 
-         while (reader.canRead() && reader.peek() != ' ') {
-            reader.skip();
-         }
+	private static GameProfileArgumentType.GameProfileArgument parse(StringReader reader, boolean allowAtSelectors)
+	throws CommandSyntaxException {
+		if (reader.canRead() && reader.peek() == '@') {
+			EntitySelectorReader entitySelectorReader = new EntitySelectorReader(reader, allowAtSelectors);
+			EntitySelector entitySelector = entitySelectorReader.read();
+			if (entitySelector.includesNonPlayers()) {
+				throw EntityArgumentType.PLAYER_SELECTOR_HAS_ENTITIES_EXCEPTION.createWithContext(reader);
+			}
+			else {
+				return new GameProfileArgumentType.SelectorBacked(entitySelector);
+			}
+		}
+		else {
+			int i = reader.getCursor();
 
-         String string = reader.getString().substring(i, reader.getCursor());
-         return source -> {
-            Optional<PlayerConfigEntry> optional = source.getServer().getApiServices().nameToIdCache().findByName(string);
-            return Collections.singleton(optional.orElseThrow(UNKNOWN_PLAYER_EXCEPTION::create));
-         };
-      }
-   }
+			while (reader.canRead() && reader.peek() != ' ') {
+				reader.skip();
+			}
 
-   public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-      if (context.getSource() instanceof CommandSource commandSource) {
-         StringReader stringReader = new StringReader(builder.getInput());
-         stringReader.setCursor(builder.getStart());
-         EntitySelectorReader entitySelectorReader = new EntitySelectorReader(
-            stringReader, commandSource.getPermissions().hasPermission(DefaultPermissions.ENTITY_SELECTORS)
-         );
+			String string = reader.getString().substring(i, reader.getCursor());
+			return source -> {
+				Optional<PlayerConfigEntry>
+						optional =
+						source.getServer().getApiServices().nameToIdCache().findByName(string);
+				return Collections.singleton(optional.orElseThrow(UNKNOWN_PLAYER_EXCEPTION::create));
+			};
+		}
+	}
 
-         try {
-            entitySelectorReader.read();
-         } catch (CommandSyntaxException var7) {
-         }
+	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
+		if (context.getSource() instanceof CommandSource commandSource) {
+			StringReader stringReader = new StringReader(builder.getInput());
+			stringReader.setCursor(builder.getStart());
+			EntitySelectorReader entitySelectorReader = new EntitySelectorReader(
+					stringReader, commandSource.getPermissions().hasPermission(DefaultPermissions.ENTITY_SELECTORS)
+			);
 
-         return entitySelectorReader.listSuggestions(builder, builderx -> CommandSource.suggestMatching(commandSource.getPlayerNames(), builderx));
-      } else {
-         return Suggestions.empty();
-      }
-   }
+			try {
+				entitySelectorReader.read();
+			}
+			catch (CommandSyntaxException var7) {
+			}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+			return entitySelectorReader.listSuggestions(
+					builder,
+					builderx -> CommandSource.suggestMatching(commandSource.getPlayerNames(), builderx)
+			);
+		}
+		else {
+			return Suggestions.empty();
+		}
+	}
 
-   @FunctionalInterface
-   public interface GameProfileArgument {
-      Collection<PlayerConfigEntry> getNames(ServerCommandSource source) throws CommandSyntaxException;
-   }
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 
-   public static class SelectorBacked implements GameProfileArgumentType.GameProfileArgument {
-      private final EntitySelector selector;
+	@FunctionalInterface
+	/**
+	 * {@code GameProfileArgument}.
+	 */
+	public interface GameProfileArgument {
 
-      public SelectorBacked(EntitySelector selector) {
-         this.selector = selector;
-      }
+		Collection<PlayerConfigEntry> getNames(ServerCommandSource source) throws CommandSyntaxException;
+	}
 
-      @Override
-      public Collection<PlayerConfigEntry> getNames(ServerCommandSource serverCommandSource) throws CommandSyntaxException {
-         List<ServerPlayerEntity> list = this.selector.getPlayers(serverCommandSource);
-         if (list.isEmpty()) {
-            throw EntityArgumentType.PLAYER_NOT_FOUND_EXCEPTION.create();
-         } else {
-            List<PlayerConfigEntry> list2 = new ArrayList<>();
+	/**
+	 * {@code SelectorBacked}.
+	 */
+	public static class SelectorBacked implements GameProfileArgumentType.GameProfileArgument {
 
-            for (ServerPlayerEntity serverPlayerEntity : list) {
-               list2.add(serverPlayerEntity.getPlayerConfigEntry());
-            }
+		private final EntitySelector selector;
 
-            return list2;
-         }
-      }
-   }
+		public SelectorBacked(EntitySelector selector) {
+			this.selector = selector;
+		}
+
+		@Override
+		public Collection<PlayerConfigEntry> getNames(ServerCommandSource serverCommandSource)
+		throws CommandSyntaxException {
+			List<ServerPlayerEntity> list = this.selector.getPlayers(serverCommandSource);
+			if (list.isEmpty()) {
+				throw EntityArgumentType.PLAYER_NOT_FOUND_EXCEPTION.create();
+			}
+			else {
+				List<PlayerConfigEntry> list2 = new ArrayList<>();
+
+				for (ServerPlayerEntity serverPlayerEntity : list) {
+					list2.add(serverPlayerEntity.getPlayerConfigEntry());
+				}
+
+				return list2;
+			}
+		}
+	}
 }

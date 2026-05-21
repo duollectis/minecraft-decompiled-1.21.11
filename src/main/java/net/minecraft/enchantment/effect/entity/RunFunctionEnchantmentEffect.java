@@ -3,7 +3,6 @@ package net.minecraft.enchantment.effect.entity;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
 import net.minecraft.command.permission.LeveledPermissionPredicate;
 import net.minecraft.enchantment.EnchantmentEffectContext;
 import net.minecraft.enchantment.effect.EnchantmentEntityEffect;
@@ -17,34 +16,42 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 
+import java.util.Optional;
+
+/**
+ * {@code RunFunctionEnchantmentEffect}.
+ */
 public record RunFunctionEnchantmentEffect(Identifier function) implements EnchantmentEntityEffect {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final MapCodec<RunFunctionEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Identifier.CODEC.fieldOf("function").forGetter(RunFunctionEnchantmentEffect::function))
-         .apply(instance, RunFunctionEnchantmentEffect::new)
-   );
 
-   @Override
-   public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-      MinecraftServer minecraftServer = world.getServer();
-      CommandFunctionManager commandFunctionManager = minecraftServer.getCommandFunctionManager();
-      Optional<CommandFunction<ServerCommandSource>> optional = commandFunctionManager.getFunction(this.function);
-      if (optional.isPresent()) {
-         ServerCommandSource serverCommandSource = minecraftServer.getCommandSource()
-            .withPermissions(LeveledPermissionPredicate.GAMEMASTERS)
-            .withSilent()
-            .withEntity(user)
-            .withWorld(world)
-            .withPosition(pos)
-            .withRotation(user.getRotationClient());
-         commandFunctionManager.execute(optional.get(), serverCommandSource);
-      } else {
-         LOGGER.error("Enchantment run_function effect failed for non-existent function {}", this.function);
-      }
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final MapCodec<RunFunctionEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Identifier.CODEC.fieldOf("function").forGetter(RunFunctionEnchantmentEffect::function))
+					.apply(instance, RunFunctionEnchantmentEffect::new)
+	);
 
-   @Override
-   public MapCodec<RunFunctionEnchantmentEffect> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
+		MinecraftServer minecraftServer = world.getServer();
+		CommandFunctionManager commandFunctionManager = minecraftServer.getCommandFunctionManager();
+		Optional<CommandFunction<ServerCommandSource>> optional = commandFunctionManager.getFunction(this.function);
+		if (optional.isPresent()) {
+			ServerCommandSource serverCommandSource = minecraftServer.getCommandSource()
+			                                                         .withPermissions(LeveledPermissionPredicate.GAMEMASTERS)
+			                                                         .withSilent()
+			                                                         .withEntity(user)
+			                                                         .withWorld(world)
+			                                                         .withPosition(pos)
+			                                                         .withRotation(user.getRotationClient());
+			commandFunctionManager.execute(optional.get(), serverCommandSource);
+		}
+		else {
+			LOGGER.error("Enchantment run_function effect failed for non-existent function {}", this.function);
+		}
+	}
+
+	@Override
+	public MapCodec<RunFunctionEnchantmentEffect> getCodec() {
+		return CODEC;
+	}
 }

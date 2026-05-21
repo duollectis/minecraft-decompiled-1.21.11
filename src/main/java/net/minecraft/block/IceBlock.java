@@ -14,51 +14,65 @@ import net.minecraft.world.World;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code IceBlock}.
+ */
 public class IceBlock extends TranslucentBlock {
-   public static final MapCodec<IceBlock> CODEC = createCodec(IceBlock::new);
 
-   @Override
-   public MapCodec<? extends IceBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<IceBlock> CODEC = createCodec(IceBlock::new);
 
-   public IceBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<? extends IceBlock> getCodec() {
+		return CODEC;
+	}
 
-   public static BlockState getMeltedState() {
-      return Blocks.WATER.getDefaultState();
-   }
+	public IceBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public void afterBreak(World world, PlayerEntity player, BlockPos pos, BlockState state, @Nullable BlockEntity blockEntity, ItemStack tool) {
-      super.afterBreak(world, player, pos, state, blockEntity, tool);
-      if (!EnchantmentHelper.hasAnyEnchantmentsIn(tool, EnchantmentTags.PREVENTS_ICE_MELTING)) {
-         if (world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY, pos)) {
-            world.removeBlock(pos, false);
-            return;
-         }
+	public static BlockState getMeltedState() {
+		return Blocks.WATER.getDefaultState();
+	}
 
-         BlockState blockState = world.getBlockState(pos.down());
-         if (blockState.blocksMovement() || blockState.isLiquid()) {
-            world.setBlockState(pos, getMeltedState());
-         }
-      }
-   }
+	@Override
+	public void afterBreak(
+			World world,
+			PlayerEntity player,
+			BlockPos pos,
+			BlockState state,
+			@Nullable BlockEntity blockEntity,
+			ItemStack tool
+	) {
+		super.afterBreak(world, player, pos, state, blockEntity, tool);
+		if (!EnchantmentHelper.hasAnyEnchantmentsIn(tool, EnchantmentTags.PREVENTS_ICE_MELTING)) {
+			if (world
+					.getEnvironmentAttributes()
+					.getAttributeValue(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY, pos)) {
+				world.removeBlock(pos, false);
+				return;
+			}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (world.getLightLevel(LightType.BLOCK, pos) > 11 - state.getOpacity()) {
-         this.melt(state, world, pos);
-      }
-   }
+			BlockState blockState = world.getBlockState(pos.down());
+			if (blockState.blocksMovement() || blockState.isLiquid()) {
+				world.setBlockState(pos, getMeltedState());
+			}
+		}
+	}
 
-   protected void melt(BlockState state, World world, BlockPos pos) {
-      if (world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY, pos)) {
-         world.removeBlock(pos, false);
-      } else {
-         world.setBlockState(pos, getMeltedState());
-         world.updateNeighbor(pos, getMeltedState().getBlock(), null);
-      }
-   }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (world.getLightLevel(LightType.BLOCK, pos) > 11 - state.getOpacity()) {
+			this.melt(state, world, pos);
+		}
+	}
+
+	protected void melt(BlockState state, World world, BlockPos pos) {
+		if (world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY, pos)) {
+			world.removeBlock(pos, false);
+		}
+		else {
+			world.setBlockState(pos, getMeltedState());
+			world.updateNeighbor(pos, getMeltedState().getBlock(), null);
+		}
+	}
 }

@@ -12,73 +12,90 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code SporeBlossomBlock}.
+ */
 public class SporeBlossomBlock extends Block {
-   public static final MapCodec<SporeBlossomBlock> CODEC = createCodec(SporeBlossomBlock::new);
-   private static final VoxelShape SHAPE = Block.createColumnShape(12.0, 13.0, 16.0);
-   private static final int field_31252 = 14;
-   private static final int field_31253 = 10;
-   private static final int field_31254 = 10;
 
-   @Override
-   public MapCodec<SporeBlossomBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SporeBlossomBlock> CODEC = createCodec(SporeBlossomBlock::new);
+	private static final VoxelShape SHAPE = Block.createColumnShape(12.0, 13.0, 16.0);
+	private static final int PARTICLE_SPAWN_COUNT = 14;
+	private static final int PARTICLE_SPREAD_HORIZONTAL = 10;
+	private static final int PARTICLE_SPREAD_VERTICAL = 10;
 
-   public SporeBlossomBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<SporeBlossomBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      return Block.sideCoversSmallSquare(world, pos.up(), Direction.DOWN) && !world.isWater(pos);
-   }
+	public SporeBlossomBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      return direction == Direction.UP && !this.canPlaceAt(state, world, pos)
-         ? Blocks.AIR.getDefaultState()
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		return Block.sideCoversSmallSquare(world, pos.up(), Direction.DOWN) && !world.isWater(pos);
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      int i = pos.getX();
-      int j = pos.getY();
-      int k = pos.getZ();
-      double d = i + random.nextDouble();
-      double e = j + 0.7;
-      double f = k + random.nextDouble();
-      world.addParticleClient(ParticleTypes.FALLING_SPORE_BLOSSOM, d, e, f, 0.0, 0.0, 0.0);
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		return direction == Direction.UP && !this.canPlaceAt(state, world, pos)
+		       ? Blocks.AIR.getDefaultState()
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
 
-      for (int l = 0; l < 14; l++) {
-         mutable.set(i + MathHelper.nextInt(random, -10, 10), j - random.nextInt(10), k + MathHelper.nextInt(random, -10, 10));
-         BlockState blockState = world.getBlockState(mutable);
-         if (!blockState.isFullCube(world, mutable)) {
-            world.addParticleClient(
-               ParticleTypes.SPORE_BLOSSOM_AIR,
-               mutable.getX() + random.nextDouble(),
-               mutable.getY() + random.nextDouble(),
-               mutable.getZ() + random.nextDouble(),
-               0.0,
-               0.0,
-               0.0
-            );
-         }
-      }
-   }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		int i = pos.getX();
+		int j = pos.getY();
+		int k = pos.getZ();
+		double d = i + random.nextDouble();
+		double e = j + 0.7;
+		double f = k + random.nextDouble();
+		world.addParticleClient(ParticleTypes.FALLING_SPORE_BLOSSOM, d, e, f, 0.0, 0.0, 0.0);
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+		for (int l = 0; l < 14; l++) {
+			mutable.set(
+					i + MathHelper.nextInt(random, -10, 10),
+					j - random.nextInt(10),
+					k + MathHelper.nextInt(random, -10, 10)
+			);
+			BlockState blockState = world.getBlockState(mutable);
+			if (!blockState.isFullCube(world, mutable)) {
+				world.addParticleClient(
+						ParticleTypes.SPORE_BLOSSOM_AIR,
+						mutable.getX() + random.nextDouble(),
+						mutable.getY() + random.nextDouble(),
+						mutable.getZ() + random.nextDouble(),
+						0.0,
+						0.0,
+						0.0
+				);
+			}
+		}
+	}
+
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 }

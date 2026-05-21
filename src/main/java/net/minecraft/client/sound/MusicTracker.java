@@ -14,180 +14,204 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MusicTracker}.
+ */
 public class MusicTracker {
-   private static final int DEFAULT_TIME_UNTIL_NEXT_SONG = 100;
-   private final Random random = Random.create();
-   private final MinecraftClient client;
-   private @Nullable SoundInstance current;
-   private MusicTracker.MusicFrequency musicFrequency;
-   private float volume = 1.0F;
-   private int timeUntilNextSong = 100;
-   private boolean shownToast = false;
 
-   public MusicTracker(MinecraftClient client) {
-      this.client = client;
-      this.musicFrequency = client.options.getMusicFrequency().getValue();
-   }
+	private static final int DEFAULT_TIME_UNTIL_NEXT_SONG = 100;
+	private final Random random = Random.create();
+	private final MinecraftClient client;
+	private @Nullable SoundInstance current;
+	private MusicTracker.MusicFrequency musicFrequency;
+	private float volume = 1.0F;
+	private int timeUntilNextSong = 100;
+	private boolean shownToast = false;
 
-   public void tick() {
-      float f = this.client.method_75759();
-      if (this.current != null && this.volume != f) {
-         boolean bl = this.canFadeTowardsVolume(f);
-         if (!bl) {
-            return;
-         }
-      }
+	public MusicTracker(MinecraftClient client) {
+		this.client = client;
+		this.musicFrequency = client.options.getMusicFrequency().getValue();
+	}
 
-      MusicSound musicSound = this.client.getMusicInstance();
-      if (musicSound == null) {
-         this.timeUntilNextSong = Math.max(this.timeUntilNextSong, 100);
-      } else {
-         if (this.current != null) {
-            if (method_75844(musicSound, this.current)) {
-               this.client.getSoundManager().stop(this.current);
-               this.timeUntilNextSong = MathHelper.nextInt(this.random, 0, musicSound.minDelay() / 2);
-            }
+	public void tick() {
+		float f = this.client.getMusicVolume();
+		if (this.current != null && this.volume != f) {
+			boolean bl = this.canFadeTowardsVolume(f);
+			if (!bl) {
+				return;
+			}
+		}
 
-            if (!this.client.getSoundManager().isPlaying(this.current)) {
-               this.current = null;
-               this.timeUntilNextSong = Math.min(this.timeUntilNextSong, this.musicFrequency.getDelayBeforePlaying(musicSound, this.random));
-            }
-         }
+		MusicSound musicSound = this.client.getMusicInstance();
+		if (musicSound == null) {
+			this.timeUntilNextSong = Math.max(this.timeUntilNextSong, 100);
+		}
+		else {
+			if (this.current != null) {
+				if (shouldReplaceCurrentMusic(musicSound, this.current)) {
+					this.client.getSoundManager().stop(this.current);
+					this.timeUntilNextSong = MathHelper.nextInt(this.random, 0, musicSound.minDelay() / 2);
+				}
 
-         this.timeUntilNextSong = Math.min(this.timeUntilNextSong, this.musicFrequency.getDelayBeforePlaying(musicSound, this.random));
-         if (this.current == null && this.timeUntilNextSong-- <= 0) {
-            this.play(musicSound);
-         }
-      }
-   }
+				if (!this.client.getSoundManager().isPlaying(this.current)) {
+					this.current = null;
+					this.timeUntilNextSong =
+							Math.min(
+									this.timeUntilNextSong,
+									this.musicFrequency.getDelayBeforePlaying(musicSound, this.random)
+							);
+				}
+			}
 
-   private static boolean method_75844(MusicSound musicSound, SoundInstance soundInstance) {
-      return musicSound.replaceCurrentMusic() && !musicSound.sound().value().id().equals(soundInstance.getId());
-   }
+			this.timeUntilNextSong =
+					Math.min(
+							this.timeUntilNextSong,
+							this.musicFrequency.getDelayBeforePlaying(musicSound, this.random)
+					);
+			if (this.current == null && this.timeUntilNextSong-- <= 0) {
+				this.play(musicSound);
+			}
+		}
+	}
 
-   public void play(MusicSound musicSound) {
-      SoundEvent soundEvent = musicSound.sound().value();
-      this.current = PositionedSoundInstance.music(soundEvent);
-      switch (this.client.getSoundManager().play(this.current)) {
-         case STARTED:
-            this.client.getToastManager().onMusicTrackStart();
-            this.shownToast = true;
-            break;
-         case STARTED_SILENTLY:
-            this.shownToast = false;
-      }
+	private static boolean shouldReplaceCurrentMusic(MusicSound musicSound, SoundInstance soundInstance) {
+		return musicSound.replaceCurrentMusic() && !musicSound.sound().value().id().equals(soundInstance.getId());
+	}
 
-      this.timeUntilNextSong = Integer.MAX_VALUE;
-   }
+	public void play(MusicSound musicSound) {
+		SoundEvent soundEvent = musicSound.sound().value();
+		this.current = PositionedSoundInstance.music(soundEvent);
+		switch (this.client.getSoundManager().play(this.current)) {
+			case STARTED:
+				this.client.getToastManager().onMusicTrackStart();
+				this.shownToast = true;
+				break;
+			case STARTED_SILENTLY:
+				this.shownToast = false;
+		}
 
-   public void tryShowToast() {
-      if (!this.shownToast) {
-         this.client.getToastManager().onMusicTrackStart();
-         this.shownToast = true;
-      }
-   }
+		this.timeUntilNextSong = Integer.MAX_VALUE;
+	}
 
-   public void stop(MusicSound type) {
-      if (this.isPlayingType(type)) {
-         this.stop();
-      }
-   }
+	public void tryShowToast() {
+		if (!this.shownToast) {
+			this.client.getToastManager().onMusicTrackStart();
+			this.shownToast = true;
+		}
+	}
 
-   public void stop() {
-      if (this.current != null) {
-         this.client.getSoundManager().stop(this.current);
-         this.current = null;
-         this.client.getToastManager().onMusicTrackStop();
-      }
+	public void stop(MusicSound type) {
+		if (this.isPlayingType(type)) {
+			this.stop();
+		}
+	}
 
-      this.timeUntilNextSong += 100;
-   }
+	public void stop() {
+		if (this.current != null) {
+			this.client.getSoundManager().stop(this.current);
+			this.current = null;
+			this.client.getToastManager().onMusicTrackStop();
+		}
 
-   private boolean canFadeTowardsVolume(float volume) {
-      if (this.current == null) {
-         return false;
-      } else if (this.volume == volume) {
-         return true;
-      } else {
-         if (this.volume < volume) {
-            this.volume = this.volume + MathHelper.clamp(this.volume, 5.0E-4F, 0.005F);
-            if (this.volume > volume) {
-               this.volume = volume;
-            }
-         } else {
-            this.volume = 0.03F * volume + 0.97F * this.volume;
-            if (Math.abs(this.volume - volume) < 1.0E-4F || this.volume < volume) {
-               this.volume = volume;
-            }
-         }
+		this.timeUntilNextSong += 100;
+	}
 
-         this.volume = MathHelper.clamp(this.volume, 0.0F, 1.0F);
-         if (this.volume <= 1.0E-4F) {
-            this.stop();
-            return false;
-         } else {
-            this.client.getSoundManager().setVolume(SoundCategory.MUSIC, this.volume);
-            return true;
-         }
-      }
-   }
+	private boolean canFadeTowardsVolume(float volume) {
+		if (this.current == null) {
+			return false;
+		}
+		else if (this.volume == volume) {
+			return true;
+		}
+		else {
+			if (this.volume < volume) {
+				this.volume = this.volume + MathHelper.clamp(this.volume, 5.0E-4F, 0.005F);
+				if (this.volume > volume) {
+					this.volume = volume;
+				}
+			}
+			else {
+				this.volume = 0.03F * volume + 0.97F * this.volume;
+				if (Math.abs(this.volume - volume) < 1.0E-4F || this.volume < volume) {
+					this.volume = volume;
+				}
+			}
 
-   public boolean isPlayingType(MusicSound type) {
-      return this.current == null ? false : type.sound().value().id().equals(this.current.getId());
-   }
+			this.volume = MathHelper.clamp(this.volume, 0.0F, 1.0F);
+			if (this.volume <= 1.0E-4F) {
+				this.stop();
+				return false;
+			}
+			else {
+				this.client.getSoundManager().setVolume(SoundCategory.MUSIC, this.volume);
+				return true;
+			}
+		}
+	}
 
-   public @Nullable String getCurrentMusicTranslationKey() {
-      if (this.current != null) {
-         Sound sound = this.current.getSound();
-         if (sound != null) {
-            return sound.getIdentifier().toShortTranslationKey();
-         }
-      }
+	public boolean isPlayingType(MusicSound type) {
+		return this.current == null ? false : type.sound().value().id().equals(this.current.getId());
+	}
 
-      return null;
-   }
+	public @Nullable String getCurrentMusicTranslationKey() {
+		if (this.current != null) {
+			Sound sound = this.current.getSound();
+			if (sound != null) {
+				return sound.getIdentifier().toShortTranslationKey();
+			}
+		}
 
-   public void setMusicFrequency(MusicTracker.MusicFrequency musicFrequency) {
-      this.musicFrequency = musicFrequency;
-      this.timeUntilNextSong = this.musicFrequency.getDelayBeforePlaying(this.client.getMusicInstance(), this.random);
-   }
+		return null;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum MusicFrequency implements StringIdentifiable {
-      DEFAULT("DEFAULT", "options.music_frequency.default", 20),
-      FREQUENT("FREQUENT", "options.music_frequency.frequent", 10),
-      CONSTANT("CONSTANT", "options.music_frequency.constant", 0);
+	public void setMusicFrequency(MusicTracker.MusicFrequency musicFrequency) {
+		this.musicFrequency = musicFrequency;
+		this.timeUntilNextSong = this.musicFrequency.getDelayBeforePlaying(this.client.getMusicInstance(), this.random);
+	}
 
-      public static final Codec<MusicTracker.MusicFrequency> CODEC = StringIdentifiable.createCodec(MusicTracker.MusicFrequency::values);
-      private final String name;
-      private final int delayBetweenTracks;
-      private final Text text;
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code MusicFrequency}.
+	 */
+	public static enum MusicFrequency implements StringIdentifiable {
+		DEFAULT("DEFAULT", "options.music_frequency.default", 20),
+		FREQUENT("FREQUENT", "options.music_frequency.frequent", 10),
+		CONSTANT("CONSTANT", "options.music_frequency.constant", 0);
 
-      private MusicFrequency(final String name, final String translationKey, final int minutesBetweenTracks) {
-         this.name = name;
-         this.delayBetweenTracks = minutesBetweenTracks * 1200;
-         this.text = Text.translatable(translationKey);
-      }
+		public static final Codec<MusicTracker.MusicFrequency>
+				CODEC =
+				StringIdentifiable.createCodec(MusicTracker.MusicFrequency::values);
+		private final String name;
+		private final int delayBetweenTracks;
+		private final Text text;
 
-      int getDelayBeforePlaying(@Nullable MusicSound music, Random random) {
-         if (music == null) {
-            return this.delayBetweenTracks;
-         } else if (this == CONSTANT) {
-            return 100;
-         } else {
-            int i = Math.min(music.minDelay(), this.delayBetweenTracks);
-            int j = Math.min(music.maxDelay(), this.delayBetweenTracks);
-            return MathHelper.nextInt(random, i, j);
-         }
-      }
+		private MusicFrequency(final String name, final String translationKey, final int minutesBetweenTracks) {
+			this.name = name;
+			this.delayBetweenTracks = minutesBetweenTracks * 1200;
+			this.text = Text.translatable(translationKey);
+		}
 
-      public Text getText() {
-         return this.text;
-      }
+		int getDelayBeforePlaying(@Nullable MusicSound music, Random random) {
+			if (music == null) {
+				return this.delayBetweenTracks;
+			}
+			else if (this == CONSTANT) {
+				return 100;
+			}
+			else {
+				int i = Math.min(music.minDelay(), this.delayBetweenTracks);
+				int j = Math.min(music.maxDelay(), this.delayBetweenTracks);
+				return MathHelper.nextInt(random, i, j);
+			}
+		}
 
-      @Override
-      public String asString() {
-         return this.name;
-      }
-   }
+		public Text getText() {
+			return this.text;
+		}
+
+		@Override
+		public String asString() {
+			return this.name;
+		}
+	}
 }

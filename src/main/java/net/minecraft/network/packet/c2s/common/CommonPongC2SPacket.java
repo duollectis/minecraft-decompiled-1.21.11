@@ -8,31 +8,34 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public class CommonPongC2SPacket implements Packet<ServerCommonPacketListener> {
-   public static final PacketCodec<PacketByteBuf, CommonPongC2SPacket> CODEC = Packet.createCodec(CommonPongC2SPacket::write, CommonPongC2SPacket::new);
-   private final int parameter;
 
-   public CommonPongC2SPacket(int parameter) {
-      this.parameter = parameter;
-   }
+	public static final PacketCodec<PacketByteBuf, CommonPongC2SPacket>
+			CODEC =
+			Packet.createCodec(CommonPongC2SPacket::write, CommonPongC2SPacket::new);
+	private final int parameter;
 
-   private CommonPongC2SPacket(PacketByteBuf buf) {
-      this.parameter = buf.readInt();
-   }
+	public CommonPongC2SPacket(int parameter) {
+		this.parameter = parameter;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeInt(this.parameter);
-   }
+	private CommonPongC2SPacket(PacketByteBuf buf) {
+		this.parameter = buf.readInt();
+	}
 
-   @Override
-   public PacketType<CommonPongC2SPacket> getPacketType() {
-      return CommonPackets.PONG;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeInt(this.parameter);
+	}
 
-   public void apply(ServerCommonPacketListener serverCommonPacketListener) {
-      serverCommonPacketListener.onPong(this);
-   }
+	@Override
+	public PacketType<CommonPongC2SPacket> getPacketType() {
+		return CommonPackets.PONG;
+	}
 
-   public int getParameter() {
-      return this.parameter;
-   }
+	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
+		serverCommonPacketListener.onPong(this);
+	}
+
+	public int getParameter() {
+		return this.parameter;
+	}
 }

@@ -15,72 +15,107 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.feature.ConfiguredFeature;
 import net.minecraft.world.gen.feature.NetherConfiguredFeatures;
 
+/**
+ * {@code NyliumBlock}.
+ */
 public class NyliumBlock extends Block implements Fertilizable {
-   public static final MapCodec<NyliumBlock> CODEC = createCodec(NyliumBlock::new);
 
-   @Override
-   public MapCodec<NyliumBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<NyliumBlock> CODEC = createCodec(NyliumBlock::new);
 
-   public NyliumBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<NyliumBlock> getCodec() {
+		return CODEC;
+	}
 
-   private static boolean stayAlive(BlockState state, WorldView world, BlockPos pos) {
-      BlockPos blockPos = pos.up();
-      BlockState blockState = world.getBlockState(blockPos);
-      int i = ChunkLightProvider.getRealisticOpacity(state, blockState, Direction.UP, blockState.getOpacity());
-      return i < 15;
-   }
+	public NyliumBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (!stayAlive(state, world, pos)) {
-         world.setBlockState(pos, Blocks.NETHERRACK.getDefaultState());
-      }
-   }
+	private static boolean stayAlive(BlockState state, WorldView world, BlockPos pos) {
+		BlockPos blockPos = pos.up();
+		BlockState blockState = world.getBlockState(blockPos);
+		int i = ChunkLightProvider.getRealisticOpacity(state, blockState, Direction.UP, blockState.getOpacity());
+		return i < 15;
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return world.getBlockState(pos.up()).isAir();
-   }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (!stayAlive(state, world, pos)) {
+			world.setBlockState(pos, Blocks.NETHERRACK.getDefaultState());
+		}
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return world.getBlockState(pos.up()).isAir();
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      BlockState blockState = world.getBlockState(pos);
-      BlockPos blockPos = pos.up();
-      ChunkGenerator chunkGenerator = world.getChunkManager().getChunkGenerator();
-      Registry<ConfiguredFeature<?, ?>> registry = world.getRegistryManager().getOrThrow(RegistryKeys.CONFIGURED_FEATURE);
-      if (blockState.isOf(Blocks.CRIMSON_NYLIUM)) {
-         this.generate(registry, NetherConfiguredFeatures.CRIMSON_FOREST_VEGETATION_BONEMEAL, world, chunkGenerator, random, blockPos);
-      } else if (blockState.isOf(Blocks.WARPED_NYLIUM)) {
-         this.generate(registry, NetherConfiguredFeatures.WARPED_FOREST_VEGETATION_BONEMEAL, world, chunkGenerator, random, blockPos);
-         this.generate(registry, NetherConfiguredFeatures.NETHER_SPROUTS_BONEMEAL, world, chunkGenerator, random, blockPos);
-         if (random.nextInt(8) == 0) {
-            this.generate(registry, NetherConfiguredFeatures.TWISTING_VINES_BONEMEAL, world, chunkGenerator, random, blockPos);
-         }
-      }
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
 
-   private void generate(
-      Registry<ConfiguredFeature<?, ?>> registry,
-      RegistryKey<ConfiguredFeature<?, ?>> key,
-      ServerWorld world,
-      ChunkGenerator chunkGenerator,
-      Random random,
-      BlockPos pos
-   ) {
-      registry.getOptional(key).ifPresent(entry -> entry.value().generate(world, chunkGenerator, random, pos));
-   }
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		BlockState blockState = world.getBlockState(pos);
+		BlockPos blockPos = pos.up();
+		ChunkGenerator chunkGenerator = world.getChunkManager().getChunkGenerator();
+		Registry<ConfiguredFeature<?, ?>>
+				registry =
+				world.getRegistryManager().getOrThrow(RegistryKeys.CONFIGURED_FEATURE);
+		if (blockState.isOf(Blocks.CRIMSON_NYLIUM)) {
+			this.generate(
+					registry,
+					NetherConfiguredFeatures.CRIMSON_FOREST_VEGETATION_BONEMEAL,
+					world,
+					chunkGenerator,
+					random,
+					blockPos
+			);
+		}
+		else if (blockState.isOf(Blocks.WARPED_NYLIUM)) {
+			this.generate(
+					registry,
+					NetherConfiguredFeatures.WARPED_FOREST_VEGETATION_BONEMEAL,
+					world,
+					chunkGenerator,
+					random,
+					blockPos
+			);
+			this.generate(
+					registry,
+					NetherConfiguredFeatures.NETHER_SPROUTS_BONEMEAL,
+					world,
+					chunkGenerator,
+					random,
+					blockPos
+			);
+			if (random.nextInt(8) == 0) {
+				this.generate(
+						registry,
+						NetherConfiguredFeatures.TWISTING_VINES_BONEMEAL,
+						world,
+						chunkGenerator,
+						random,
+						blockPos
+				);
+			}
+		}
+	}
 
-   @Override
-   public Fertilizable.FertilizableType getFertilizableType() {
-      return Fertilizable.FertilizableType.NEIGHBOR_SPREADER;
-   }
+	private void generate(
+			Registry<ConfiguredFeature<?, ?>> registry,
+			RegistryKey<ConfiguredFeature<?, ?>> key,
+			ServerWorld world,
+			ChunkGenerator chunkGenerator,
+			Random random,
+			BlockPos pos
+	) {
+		registry.getOptional(key).ifPresent(entry -> entry.value().generate(world, chunkGenerator, random, pos));
+	}
+
+	@Override
+	public Fertilizable.FertilizableType getFertilizableType() {
+		return Fertilizable.FertilizableType.NEIGHBOR_SPREADER;
+	}
 }

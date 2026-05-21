@@ -2,73 +2,79 @@ package net.minecraft.recipe;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntList;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * {@code IngredientPlacement}.
+ */
 public class IngredientPlacement {
-   public static final int field_55495 = -1;
-   public static final IngredientPlacement NONE = new IngredientPlacement(List.of(), IntList.of());
-   private final List<Ingredient> ingredients;
-   private final IntList placementSlots;
 
-   private IngredientPlacement(List<Ingredient> ingredients, IntList placementSlots) {
-      this.ingredients = ingredients;
-      this.placementSlots = placementSlots;
-   }
+	public static final int EMPTY_SLOT = -1;
+	public static final IngredientPlacement NONE = new IngredientPlacement(List.of(), IntList.of());
+	private final List<Ingredient> ingredients;
+	private final IntList placementSlots;
 
-   public static IngredientPlacement forSingleSlot(Ingredient ingredient) {
-      return ingredient.isEmpty() ? NONE : new IngredientPlacement(List.of(ingredient), IntList.of(0));
-   }
+	private IngredientPlacement(List<Ingredient> ingredients, IntList placementSlots) {
+		this.ingredients = ingredients;
+		this.placementSlots = placementSlots;
+	}
 
-   public static IngredientPlacement forMultipleSlots(List<Optional<Ingredient>> ingredients) {
-      int i = ingredients.size();
-      List<Ingredient> list = new ArrayList<>(i);
-      IntList intList = new IntArrayList(i);
-      int j = 0;
+	public static IngredientPlacement forSingleSlot(Ingredient ingredient) {
+		return ingredient.isEmpty() ? NONE : new IngredientPlacement(List.of(ingredient), IntList.of(0));
+	}
 
-      for (Optional<Ingredient> optional : ingredients) {
-         if (optional.isPresent()) {
-            Ingredient ingredient = optional.get();
-            if (ingredient.isEmpty()) {
-               return NONE;
-            }
+	public static IngredientPlacement forMultipleSlots(List<Optional<Ingredient>> ingredients) {
+		int i = ingredients.size();
+		List<Ingredient> list = new ArrayList<>(i);
+		IntList intList = new IntArrayList(i);
+		int j = 0;
 
-            list.add(ingredient);
-            intList.add(j++);
-         } else {
-            intList.add(-1);
-         }
-      }
+		for (Optional<Ingredient> optional : ingredients) {
+			if (optional.isPresent()) {
+				Ingredient ingredient = optional.get();
+				if (ingredient.isEmpty()) {
+					return NONE;
+				}
 
-      return new IngredientPlacement(list, intList);
-   }
+				list.add(ingredient);
+				intList.add(j++);
+			}
+			else {
+				intList.add(-1);
+			}
+		}
 
-   public static IngredientPlacement forShapeless(List<Ingredient> ingredients) {
-      int i = ingredients.size();
-      IntList intList = new IntArrayList(i);
+		return new IngredientPlacement(list, intList);
+	}
 
-      for (int j = 0; j < i; j++) {
-         Ingredient ingredient = ingredients.get(j);
-         if (ingredient.isEmpty()) {
-            return NONE;
-         }
+	public static IngredientPlacement forShapeless(List<Ingredient> ingredients) {
+		int i = ingredients.size();
+		IntList intList = new IntArrayList(i);
 
-         intList.add(j);
-      }
+		for (int j = 0; j < i; j++) {
+			Ingredient ingredient = ingredients.get(j);
+			if (ingredient.isEmpty()) {
+				return NONE;
+			}
 
-      return new IngredientPlacement(ingredients, intList);
-   }
+			intList.add(j);
+		}
 
-   public IntList getPlacementSlots() {
-      return this.placementSlots;
-   }
+		return new IngredientPlacement(ingredients, intList);
+	}
 
-   public List<Ingredient> getIngredients() {
-      return this.ingredients;
-   }
+	public IntList getPlacementSlots() {
+		return this.placementSlots;
+	}
 
-   public boolean hasNoPlacement() {
-      return this.placementSlots.isEmpty();
-   }
+	public List<Ingredient> getIngredients() {
+		return this.ingredients;
+	}
+
+	public boolean hasNoPlacement() {
+		return this.placementSlots.isEmpty();
+	}
 }

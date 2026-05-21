@@ -12,41 +12,46 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.ProbabilityConfig;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+/**
+ * {@code SeagrassFeature}.
+ */
 public class SeagrassFeature extends Feature<ProbabilityConfig> {
-   public SeagrassFeature(Codec<ProbabilityConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<ProbabilityConfig> context) {
-      boolean bl = false;
-      Random random = context.getRandom();
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      BlockPos blockPos = context.getOrigin();
-      ProbabilityConfig probabilityConfig = context.getConfig();
-      int i = random.nextInt(8) - random.nextInt(8);
-      int j = random.nextInt(8) - random.nextInt(8);
-      int k = structureWorldAccess.getTopY(Heightmap.Type.OCEAN_FLOOR, blockPos.getX() + i, blockPos.getZ() + j);
-      BlockPos blockPos2 = new BlockPos(blockPos.getX() + i, k, blockPos.getZ() + j);
-      if (structureWorldAccess.getBlockState(blockPos2).isOf(Blocks.WATER)) {
-         boolean bl2 = random.nextDouble() < probabilityConfig.probability;
-         BlockState blockState = bl2 ? Blocks.TALL_SEAGRASS.getDefaultState() : Blocks.SEAGRASS.getDefaultState();
-         if (blockState.canPlaceAt(structureWorldAccess, blockPos2)) {
-            if (bl2) {
-               BlockState blockState2 = blockState.with(TallSeagrassBlock.HALF, DoubleBlockHalf.UPPER);
-               BlockPos blockPos3 = blockPos2.up();
-               if (structureWorldAccess.getBlockState(blockPos3).isOf(Blocks.WATER)) {
-                  structureWorldAccess.setBlockState(blockPos2, blockState, 2);
-                  structureWorldAccess.setBlockState(blockPos3, blockState2, 2);
-               }
-            } else {
-               structureWorldAccess.setBlockState(blockPos2, blockState, 2);
-            }
+	public SeagrassFeature(Codec<ProbabilityConfig> codec) {
+		super(codec);
+	}
 
-            bl = true;
-         }
-      }
+	@Override
+	public boolean generate(FeatureContext<ProbabilityConfig> context) {
+		boolean bl = false;
+		Random random = context.getRandom();
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		BlockPos blockPos = context.getOrigin();
+		ProbabilityConfig probabilityConfig = context.getConfig();
+		int i = random.nextInt(8) - random.nextInt(8);
+		int j = random.nextInt(8) - random.nextInt(8);
+		int k = structureWorldAccess.getTopY(Heightmap.Type.OCEAN_FLOOR, blockPos.getX() + i, blockPos.getZ() + j);
+		BlockPos blockPos2 = new BlockPos(blockPos.getX() + i, k, blockPos.getZ() + j);
+		if (structureWorldAccess.getBlockState(blockPos2).isOf(Blocks.WATER)) {
+			boolean bl2 = random.nextDouble() < probabilityConfig.probability;
+			BlockState blockState = bl2 ? Blocks.TALL_SEAGRASS.getDefaultState() : Blocks.SEAGRASS.getDefaultState();
+			if (blockState.canPlaceAt(structureWorldAccess, blockPos2)) {
+				if (bl2) {
+					BlockState blockState2 = blockState.with(TallSeagrassBlock.HALF, DoubleBlockHalf.UPPER);
+					BlockPos blockPos3 = blockPos2.up();
+					if (structureWorldAccess.getBlockState(blockPos3).isOf(Blocks.WATER)) {
+						structureWorldAccess.setBlockState(blockPos2, blockState, 2);
+						structureWorldAccess.setBlockState(blockPos3, blockState2, 2);
+					}
+				}
+				else {
+					structureWorldAccess.setBlockState(blockPos2, blockState, 2);
+				}
 
-      return bl;
-   }
+				bl = true;
+			}
+		}
+
+		return bl;
+	}
 }

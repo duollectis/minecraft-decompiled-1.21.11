@@ -4,12 +4,16 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TextureDimensions}.
+ */
 public class TextureDimensions {
-   final int width;
-   final int height;
 
-   public TextureDimensions(int width, int height) {
-      this.width = width;
-      this.height = height;
-   }
+	final int width;
+	final int height;
+
+	public TextureDimensions(int width, int height) {
+		this.width = width;
+		this.height = height;
+	}
 }

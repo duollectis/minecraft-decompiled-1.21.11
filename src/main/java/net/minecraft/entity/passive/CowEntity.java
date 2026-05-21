@@ -21,72 +21,87 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CowEntity}.
+ */
 public class CowEntity extends AbstractCowEntity {
-   private static final TrackedData<RegistryEntry<CowVariant>> VARIANT = DataTracker.registerData(CowEntity.class, TrackedDataHandlerRegistry.COW_VARIANT);
 
-   public CowEntity(EntityType<? extends CowEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final TrackedData<RegistryEntry<CowVariant>>
+			VARIANT =
+			DataTracker.registerData(CowEntity.class, TrackedDataHandlerRegistry.COW_VARIANT);
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(VARIANT, Variants.getOrDefaultOrThrow(this.getRegistryManager(), CowVariants.TEMPERATE));
-   }
+	public CowEntity(EntityType<? extends CowEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      Variants.writeData(view, this.getVariant());
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(VARIANT, Variants.getOrDefaultOrThrow(this.getRegistryManager(), CowVariants.TEMPERATE));
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      Variants.fromData(view, RegistryKeys.COW_VARIANT).ifPresent(this::setVariant);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		Variants.writeData(view, this.getVariant());
+	}
 
-   public @Nullable CowEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-      CowEntity cowEntity = EntityType.COW.create(serverWorld, SpawnReason.BREEDING);
-      if (cowEntity != null && passiveEntity instanceof CowEntity cowEntity2) {
-         cowEntity.setVariant(this.random.nextBoolean() ? this.getVariant() : cowEntity2.getVariant());
-      }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		Variants.fromData(view, RegistryKeys.COW_VARIANT).ifPresent(this::setVariant);
+	}
 
-      return cowEntity;
-   }
+	public @Nullable CowEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
+		CowEntity cowEntity = EntityType.COW.create(serverWorld, SpawnReason.BREEDING);
+		if (cowEntity != null && passiveEntity instanceof CowEntity cowEntity2) {
+			cowEntity.setVariant(this.random.nextBoolean() ? this.getVariant() : cowEntity2.getVariant());
+		}
 
-   @Override
-   public EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      Variants.select(SpawnContext.of(world, this.getBlockPos()), RegistryKeys.COW_VARIANT).ifPresent(this::setVariant);
-      return super.initialize(world, difficulty, spawnReason, entityData);
-   }
+		return cowEntity;
+	}
 
-   public void setVariant(RegistryEntry<CowVariant> variant) {
-      this.dataTracker.set(VARIANT, variant);
-   }
+	@Override
+	public EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		Variants
+				.select(SpawnContext.of(world, this.getBlockPos()), RegistryKeys.COW_VARIANT)
+				.ifPresent(this::setVariant);
+		return super.initialize(world, difficulty, spawnReason, entityData);
+	}
 
-   public RegistryEntry<CowVariant> getVariant() {
-      return this.dataTracker.get(VARIANT);
-   }
+	public void setVariant(RegistryEntry<CowVariant> variant) {
+		this.dataTracker.set(VARIANT, variant);
+	}
 
-   @Override
-   public <T> @Nullable T get(ComponentType<? extends T> type) {
-      return type == DataComponentTypes.COW_VARIANT ? castComponentValue((ComponentType<T>)type, this.getVariant()) : super.get(type);
-   }
+	public RegistryEntry<CowVariant> getVariant() {
+		return this.dataTracker.get(VARIANT);
+	}
 
-   @Override
-   protected void copyComponentsFrom(ComponentsAccess from) {
-      this.copyComponentFrom(from, DataComponentTypes.COW_VARIANT);
-      super.copyComponentsFrom(from);
-   }
+	@Override
+	public <T> @Nullable T get(ComponentType<? extends T> type) {
+		return type == DataComponentTypes.COW_VARIANT ? castComponentValue((ComponentType<T>) type, this.getVariant())
+		                                              : super.get(type);
+	}
 
-   @Override
-   protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
-      if (type == DataComponentTypes.COW_VARIANT) {
-         this.setVariant(castComponentValue(DataComponentTypes.COW_VARIANT, value));
-         return true;
-      } else {
-         return super.setApplicableComponent(type, value);
-      }
-   }
+	@Override
+	protected void copyComponentsFrom(ComponentsAccess from) {
+		this.copyComponentFrom(from, DataComponentTypes.COW_VARIANT);
+		super.copyComponentsFrom(from);
+	}
+
+	@Override
+	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
+		if (type == DataComponentTypes.COW_VARIANT) {
+			this.setVariant(castComponentValue(DataComponentTypes.COW_VARIANT, value));
+			return true;
+		}
+		else {
+			return super.setApplicableComponent(type, value);
+		}
+	}
 }

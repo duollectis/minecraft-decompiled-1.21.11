@@ -3,60 +3,68 @@ package net.minecraft.text;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
-import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+import java.util.function.Supplier;
+
+/**
+ * {@code KeybindTextContent}.
+ */
 public class KeybindTextContent implements TextContent {
-   public static final MapCodec<KeybindTextContent> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codec.STRING.fieldOf("keybind").forGetter(content -> content.key)).apply(instance, KeybindTextContent::new)
-   );
-   private final String key;
-   private @Nullable Supplier<Text> translated;
 
-   public KeybindTextContent(String key) {
-      this.key = key;
-   }
+	public static final MapCodec<KeybindTextContent> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codec.STRING.fieldOf("keybind").forGetter(content -> content.key))
+					.apply(instance, KeybindTextContent::new)
+	);
+	private final String key;
+	private @Nullable Supplier<Text> translated;
 
-   private Text getTranslated() {
-      if (this.translated == null) {
-         this.translated = KeybindTranslations.factory.apply(this.key);
-      }
+	public KeybindTextContent(String key) {
+		this.key = key;
+	}
 
-      return this.translated.get();
-   }
+	private Text getTranslated() {
+		if (this.translated == null) {
+			this.translated = KeybindTranslations.factory.apply(this.key);
+		}
 
-   @Override
-   public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
-      return this.getTranslated().visit(visitor);
-   }
+		return this.translated.get();
+	}
 
-   @Override
-   public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
-      return this.getTranslated().visit(visitor, style);
-   }
+	@Override
+	public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
+		return this.getTranslated().visit(visitor);
+	}
 
-   @Override
-   public boolean equals(Object o) {
-      return this == o ? true : o instanceof KeybindTextContent keybindTextContent && this.key.equals(keybindTextContent.key);
-   }
+	@Override
+	public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
+		return this.getTranslated().visit(visitor, style);
+	}
 
-   @Override
-   public int hashCode() {
-      return this.key.hashCode();
-   }
+	@Override
+	public boolean equals(Object o) {
+		return this == o ? true : o instanceof KeybindTextContent keybindTextContent && this.key.equals(
+				keybindTextContent.key);
+	}
 
-   @Override
-   public String toString() {
-      return "keybind{" + this.key + "}";
-   }
+	@Override
+	public int hashCode() {
+		return this.key.hashCode();
+	}
 
-   public String getKey() {
-      return this.key;
-   }
+	@Override
+	public String toString() {
+		return "keybind{" + this.key + "}";
+	}
 
-   @Override
-   public MapCodec<KeybindTextContent> getCodec() {
-      return CODEC;
-   }
+	public String getKey() {
+		return this.key;
+	}
+
+	@Override
+	public MapCodec<KeybindTextContent> getCodec() {
+		return CODEC;
+	}
 }

@@ -5,123 +5,139 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RenderTickCounter}.
+ */
 public interface RenderTickCounter {
-   RenderTickCounter ZERO = new RenderTickCounter.Constant(0.0F);
-   RenderTickCounter ONE = new RenderTickCounter.Constant(1.0F);
 
-   float getDynamicDeltaTicks();
+	RenderTickCounter ZERO = new RenderTickCounter.Constant(0.0F);
 
-   float getTickProgress(boolean ignoreFreeze);
+	RenderTickCounter ONE = new RenderTickCounter.Constant(1.0F);
 
-   float getFixedDeltaTicks();
+	float getDynamicDeltaTicks();
 
-   @Environment(EnvType.CLIENT)
-   public static class Constant implements RenderTickCounter {
-      private final float value;
+	float getTickProgress(boolean ignoreFreeze);
 
-      Constant(float value) {
-         this.value = value;
-      }
+	float getFixedDeltaTicks();
 
-      @Override
-      public float getDynamicDeltaTicks() {
-         return this.value;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Constant}.
+	 */
+	public static class Constant implements RenderTickCounter {
 
-      @Override
-      public float getTickProgress(boolean ignoreFreeze) {
-         return this.value;
-      }
+		private final float value;
 
-      @Override
-      public float getFixedDeltaTicks() {
-         return this.value;
-      }
-   }
+		Constant(float value) {
+			this.value = value;
+		}
 
-   @Environment(EnvType.CLIENT)
-   public static class Dynamic implements RenderTickCounter {
-      private float dynamicDeltaTicks;
-      private float tickProgress;
-      private float fixedDeltaTicks;
-      private float tickProgressBeforePause;
-      private long lastTimeMillis;
-      private long timeMillis;
-      private final float tickTime;
-      private final FloatUnaryOperator targetMillisPerTick;
-      private boolean paused;
-      private boolean tickFrozen;
+		@Override
+		public float getDynamicDeltaTicks() {
+			return this.value;
+		}
 
-      public Dynamic(float tps, long timeMillis, FloatUnaryOperator targetMillisPerTick) {
-         this.tickTime = 1000.0F / tps;
-         this.timeMillis = this.lastTimeMillis = timeMillis;
-         this.targetMillisPerTick = targetMillisPerTick;
-      }
+		@Override
+		public float getTickProgress(boolean ignoreFreeze) {
+			return this.value;
+		}
 
-      public int beginRenderTick(long timeMillis, boolean tick) {
-         this.setTimeMillis(timeMillis);
-         return tick ? this.beginRenderTick(timeMillis) : 0;
-      }
+		@Override
+		public float getFixedDeltaTicks() {
+			return this.value;
+		}
+	}
 
-      private int beginRenderTick(long timeMillis) {
-         this.dynamicDeltaTicks = (float)(timeMillis - this.lastTimeMillis) / this.targetMillisPerTick.apply(this.tickTime);
-         this.lastTimeMillis = timeMillis;
-         this.tickProgress = this.tickProgress + this.dynamicDeltaTicks;
-         int i = (int)this.tickProgress;
-         this.tickProgress -= i;
-         return i;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Dynamic}.
+	 */
+	public static class Dynamic implements RenderTickCounter {
 
-      private void setTimeMillis(long timeMillis) {
-         this.fixedDeltaTicks = (float)(timeMillis - this.timeMillis) / this.tickTime;
-         this.timeMillis = timeMillis;
-      }
+		private float dynamicDeltaTicks;
+		private float tickProgress;
+		private float fixedDeltaTicks;
+		private float tickProgressBeforePause;
+		private long lastTimeMillis;
+		private long timeMillis;
+		private final float tickTime;
+		private final FloatUnaryOperator targetMillisPerTick;
+		private boolean paused;
+		private boolean tickFrozen;
 
-      public void tick(boolean paused) {
-         if (paused) {
-            this.tickPaused();
-         } else {
-            this.tickUnpaused();
-         }
-      }
+		public Dynamic(float tps, long timeMillis, FloatUnaryOperator targetMillisPerTick) {
+			this.tickTime = 1000.0F / tps;
+			this.timeMillis = this.lastTimeMillis = timeMillis;
+			this.targetMillisPerTick = targetMillisPerTick;
+		}
 
-      private void tickPaused() {
-         if (!this.paused) {
-            this.tickProgressBeforePause = this.tickProgress;
-         }
+		public int beginRenderTick(long timeMillis, boolean tick) {
+			this.setTimeMillis(timeMillis);
+			return tick ? this.beginRenderTick(timeMillis) : 0;
+		}
 
-         this.paused = true;
-      }
+		private int beginRenderTick(long timeMillis) {
+			this.dynamicDeltaTicks =
+					(float) (timeMillis - this.lastTimeMillis) / this.targetMillisPerTick.apply(this.tickTime);
+			this.lastTimeMillis = timeMillis;
+			this.tickProgress = this.tickProgress + this.dynamicDeltaTicks;
+			int i = (int) this.tickProgress;
+			this.tickProgress -= i;
+			return i;
+		}
 
-      private void tickUnpaused() {
-         if (this.paused) {
-            this.tickProgress = this.tickProgressBeforePause;
-         }
+		private void setTimeMillis(long timeMillis) {
+			this.fixedDeltaTicks = (float) (timeMillis - this.timeMillis) / this.tickTime;
+			this.timeMillis = timeMillis;
+		}
 
-         this.paused = false;
-      }
+		public void tick(boolean paused) {
+			if (paused) {
+				this.tickPaused();
+			}
+			else {
+				this.tickUnpaused();
+			}
+		}
 
-      public void setTickFrozen(boolean tickFrozen) {
-         this.tickFrozen = tickFrozen;
-      }
+		private void tickPaused() {
+			if (!this.paused) {
+				this.tickProgressBeforePause = this.tickProgress;
+			}
 
-      @Override
-      public float getDynamicDeltaTicks() {
-         return this.dynamicDeltaTicks;
-      }
+			this.paused = true;
+		}
 
-      @Override
-      public float getTickProgress(boolean ignoreFreeze) {
-         if (!ignoreFreeze && this.tickFrozen) {
-            return 1.0F;
-         } else {
-            return this.paused ? this.tickProgressBeforePause : this.tickProgress;
-         }
-      }
+		private void tickUnpaused() {
+			if (this.paused) {
+				this.tickProgress = this.tickProgressBeforePause;
+			}
 
-      @Override
-      public float getFixedDeltaTicks() {
-         return this.fixedDeltaTicks > 7.0F ? 0.5F : this.fixedDeltaTicks;
-      }
-   }
+			this.paused = false;
+		}
+
+		public void setTickFrozen(boolean tickFrozen) {
+			this.tickFrozen = tickFrozen;
+		}
+
+		@Override
+		public float getDynamicDeltaTicks() {
+			return this.dynamicDeltaTicks;
+		}
+
+		@Override
+		public float getTickProgress(boolean ignoreFreeze) {
+			if (!ignoreFreeze && this.tickFrozen) {
+				return 1.0F;
+			}
+			else {
+				return this.paused ? this.tickProgressBeforePause : this.tickProgress;
+			}
+		}
+
+		@Override
+		public float getFixedDeltaTicks() {
+			return this.fixedDeltaTicks > 7.0F ? 0.5F : this.fixedDeltaTicks;
+		}
+	}
 }

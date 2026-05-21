@@ -3,7 +3,6 @@ package net.minecraft.recipe;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.RegistryByteBuf;
@@ -18,99 +17,118 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
+/**
+ * {@code ShapelessRecipe}.
+ */
 public class ShapelessRecipe implements CraftingRecipe {
-   final String group;
-   final CraftingRecipeCategory category;
-   final ItemStack result;
-   final List<Ingredient> ingredients;
-   private @Nullable IngredientPlacement ingredientPlacement;
 
-   public ShapelessRecipe(String group, CraftingRecipeCategory category, ItemStack result, List<Ingredient> ingredients) {
-      this.group = group;
-      this.category = category;
-      this.result = result;
-      this.ingredients = ingredients;
-   }
+	final String group;
+	final CraftingRecipeCategory category;
+	final ItemStack result;
+	final List<Ingredient> ingredients;
+	private @Nullable IngredientPlacement ingredientPlacement;
 
-   @Override
-   public RecipeSerializer<ShapelessRecipe> getSerializer() {
-      return RecipeSerializer.SHAPELESS;
-   }
+	public ShapelessRecipe(
+			String group,
+			CraftingRecipeCategory category,
+			ItemStack result,
+			List<Ingredient> ingredients
+	) {
+		this.group = group;
+		this.category = category;
+		this.result = result;
+		this.ingredients = ingredients;
+	}
 
-   @Override
-   public String getGroup() {
-      return this.group;
-   }
+	@Override
+	public RecipeSerializer<ShapelessRecipe> getSerializer() {
+		return RecipeSerializer.SHAPELESS;
+	}
 
-   @Override
-   public CraftingRecipeCategory getCategory() {
-      return this.category;
-   }
+	@Override
+	public String getGroup() {
+		return this.group;
+	}
 
-   @Override
-   public IngredientPlacement getIngredientPlacement() {
-      if (this.ingredientPlacement == null) {
-         this.ingredientPlacement = IngredientPlacement.forShapeless(this.ingredients);
-      }
+	@Override
+	public CraftingRecipeCategory getCategory() {
+		return this.category;
+	}
 
-      return this.ingredientPlacement;
-   }
+	@Override
+	public IngredientPlacement getIngredientPlacement() {
+		if (this.ingredientPlacement == null) {
+			this.ingredientPlacement = IngredientPlacement.forShapeless(this.ingredients);
+		}
 
-   public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-      if (craftingRecipeInput.getStackCount() != this.ingredients.size()) {
-         return false;
-      } else {
-         return craftingRecipeInput.size() == 1 && this.ingredients.size() == 1
-            ? this.ingredients.getFirst().test(craftingRecipeInput.getStackInSlot(0))
-            : craftingRecipeInput.getRecipeMatcher().isCraftable(this, null);
-      }
-   }
+		return this.ingredientPlacement;
+	}
 
-   public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-      return this.result.copy();
-   }
+	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
+		if (craftingRecipeInput.getStackCount() != this.ingredients.size()) {
+			return false;
+		}
+		else {
+			return craftingRecipeInput.size() == 1 && this.ingredients.size() == 1
+			       ? this.ingredients.getFirst().test(craftingRecipeInput.getStackInSlot(0))
+			       : craftingRecipeInput.getRecipeMatcher().isCraftable(this, null);
+		}
+	}
 
-   @Override
-   public List<RecipeDisplay> getDisplays() {
-      return List.of(
-         new ShapelessCraftingRecipeDisplay(
-            this.ingredients.stream().map(Ingredient::toDisplay).toList(),
-            new SlotDisplay.StackSlotDisplay(this.result),
-            new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE)
-         )
-      );
-   }
+	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
+		return this.result.copy();
+	}
 
-   public static class Serializer implements RecipeSerializer<ShapelessRecipe> {
-      private static final MapCodec<ShapelessRecipe> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(
-               Codec.STRING.optionalFieldOf("group", "").forGetter(recipe -> recipe.group),
-               CraftingRecipeCategory.CODEC.fieldOf("category").orElse(CraftingRecipeCategory.MISC).forGetter(recipe -> recipe.category),
-               ItemStack.VALIDATED_CODEC.fieldOf("result").forGetter(recipe -> recipe.result),
-               Ingredient.CODEC.listOf(1, 9).fieldOf("ingredients").forGetter(recipe -> recipe.ingredients)
-            )
-            .apply(instance, ShapelessRecipe::new)
-      );
-      public static final PacketCodec<RegistryByteBuf, ShapelessRecipe> PACKET_CODEC = PacketCodec.tuple(
-         PacketCodecs.STRING,
-         recipe -> recipe.group,
-         CraftingRecipeCategory.PACKET_CODEC,
-         recipe -> recipe.category,
-         ItemStack.PACKET_CODEC,
-         recipe -> recipe.result,
-         Ingredient.PACKET_CODEC.collect(PacketCodecs.toList()),
-         recipe -> recipe.ingredients,
-         ShapelessRecipe::new
-      );
+	@Override
+	public List<RecipeDisplay> getDisplays() {
+		return List.of(
+				new ShapelessCraftingRecipeDisplay(
+						this.ingredients.stream().map(Ingredient::toDisplay).toList(),
+						new SlotDisplay.StackSlotDisplay(this.result),
+						new SlotDisplay.ItemSlotDisplay(Items.CRAFTING_TABLE)
+				)
+		);
+	}
 
-      @Override
-      public MapCodec<ShapelessRecipe> codec() {
-         return CODEC;
-      }
+	/**
+	 * {@code Serializer}.
+	 */
+	public static class Serializer implements RecipeSerializer<ShapelessRecipe> {
 
-      @Override
-      public PacketCodec<RegistryByteBuf, ShapelessRecipe> packetCodec() {
-         return PACKET_CODEC;
-      }
-   }
+		private static final MapCodec<ShapelessRecipe> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance.group(
+						                    Codec.STRING.optionalFieldOf("group", "").forGetter(recipe -> recipe.group),
+						                    CraftingRecipeCategory.CODEC
+								                    .fieldOf("category")
+								                    .orElse(CraftingRecipeCategory.MISC)
+								                    .forGetter(recipe -> recipe.category),
+						                    ItemStack.VALIDATED_CODEC.fieldOf("result").forGetter(recipe -> recipe.result),
+						                    Ingredient.CODEC.listOf(1, 9).fieldOf("ingredients").forGetter(recipe -> recipe.ingredients)
+				                    )
+				                    .apply(instance, ShapelessRecipe::new)
+		);
+		public static final PacketCodec<RegistryByteBuf, ShapelessRecipe> PACKET_CODEC = PacketCodec.tuple(
+				PacketCodecs.STRING,
+				recipe -> recipe.group,
+				CraftingRecipeCategory.PACKET_CODEC,
+				recipe -> recipe.category,
+				ItemStack.PACKET_CODEC,
+				recipe -> recipe.result,
+				Ingredient.PACKET_CODEC.collect(PacketCodecs.toList()),
+				recipe -> recipe.ingredients,
+				ShapelessRecipe::new
+		);
+
+		@Override
+		public MapCodec<ShapelessRecipe> codec() {
+			return CODEC;
+		}
+
+		@Override
+		public PacketCodec<RegistryByteBuf, ShapelessRecipe> packetCodec() {
+			return PACKET_CODEC;
+		}
+	}
 }

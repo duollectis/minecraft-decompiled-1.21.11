@@ -1,26 +1,30 @@
 package net.minecraft.util;
 
+/**
+ * {@code Cooldown}.
+ */
 public class Cooldown {
-   private final int increment;
-   private final int threshold;
-   private int current;
 
-   public Cooldown(int increment, int threshold) {
-      this.increment = increment;
-      this.threshold = threshold;
-   }
+	private final int increment;
+	private final int threshold;
+	private int current;
 
-   public void increment() {
-      this.current = this.current + this.increment;
-   }
+	public Cooldown(int increment, int threshold) {
+		this.increment = increment;
+		this.threshold = threshold;
+	}
 
-   public void tick() {
-      if (this.current > 0) {
-         this.current--;
-      }
-   }
+	public void increment() {
+		this.current = this.current + this.increment;
+	}
 
-   public boolean canUse() {
-      return this.current < this.threshold;
-   }
+	public void tick() {
+		if (this.current > 0) {
+			this.current--;
+		}
+	}
+
+	public boolean canUse() {
+		return this.current < this.threshold;
+	}
 }

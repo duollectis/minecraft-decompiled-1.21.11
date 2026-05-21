@@ -14,66 +14,73 @@ import net.minecraft.text.Text;
 import org.slf4j.Logger;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code OpenServerTask}.
+ */
 public class OpenServerTask extends LongRunningTask {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final Text TITLE = Text.translatable("mco.configure.world.opening");
-   private final RealmsServer serverData;
-   private final Screen returnScreen;
-   private final boolean join;
-   private final MinecraftClient client;
 
-   public OpenServerTask(RealmsServer realmsServer, Screen returnScreen, boolean join, MinecraftClient client) {
-      this.serverData = realmsServer;
-      this.returnScreen = returnScreen;
-      this.join = join;
-      this.client = client;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final Text TITLE = Text.translatable("mco.configure.world.opening");
+	private final RealmsServer serverData;
+	private final Screen returnScreen;
+	private final boolean join;
+	private final MinecraftClient client;
 
-   @Override
-   public void run() {
-      RealmsClient realmsClient = RealmsClient.create();
+	public OpenServerTask(RealmsServer realmsServer, Screen returnScreen, boolean join, MinecraftClient client) {
+		this.serverData = realmsServer;
+		this.returnScreen = returnScreen;
+		this.join = join;
+		this.client = client;
+	}
 
-      for (int i = 0; i < 25; i++) {
-         if (this.aborted()) {
-            return;
-         }
+	@Override
+	public void run() {
+		RealmsClient realmsClient = RealmsClient.create();
 
-         try {
-            boolean bl = realmsClient.open(this.serverData.id);
-            if (bl) {
-               this.client.execute(() -> {
-                  if (this.returnScreen instanceof RealmsConfigureWorldScreen realmsConfigureWorldScreen) {
-                     realmsConfigureWorldScreen.stateChanged();
-                  }
+		for (int i = 0; i < 25; i++) {
+			if (this.aborted()) {
+				return;
+			}
 
-                  this.serverData.state = RealmsServer.State.OPEN;
-                  if (this.join) {
-                     RealmsMainScreen.play(this.serverData, this.returnScreen);
-                  } else {
-                     this.client.setScreen(this.returnScreen);
-                  }
-               });
-               break;
-            }
-         } catch (RetryCallException var4) {
-            if (this.aborted()) {
-               return;
-            }
+			try {
+				boolean bl = realmsClient.open(this.serverData.id);
+				if (bl) {
+					this.client.execute(() -> {
+						if (this.returnScreen instanceof RealmsConfigureWorldScreen realmsConfigureWorldScreen) {
+							realmsConfigureWorldScreen.stateChanged();
+						}
 
-            pause(var4.delaySeconds);
-         } catch (Exception var5) {
-            if (this.aborted()) {
-               return;
-            }
+						this.serverData.state = RealmsServer.State.OPEN;
+						if (this.join) {
+							RealmsMainScreen.play(this.serverData, this.returnScreen);
+						}
+						else {
+							this.client.setScreen(this.returnScreen);
+						}
+					});
+					break;
+				}
+			}
+			catch (RetryCallException var4) {
+				if (this.aborted()) {
+					return;
+				}
 
-            LOGGER.error("Failed to open server", var5);
-            this.error(var5);
-         }
-      }
-   }
+				pause(var4.delaySeconds);
+			}
+			catch (Exception var5) {
+				if (this.aborted()) {
+					return;
+				}
 
-   @Override
-   public Text getTitle() {
-      return TITLE;
-   }
+				LOGGER.error("Failed to open server", var5);
+				this.error(var5);
+			}
+		}
+	}
+
+	@Override
+	public Text getTitle() {
+		return TITLE;
+	}
 }

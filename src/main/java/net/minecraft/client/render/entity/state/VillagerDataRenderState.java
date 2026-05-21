@@ -6,6 +6,10 @@ import net.minecraft.village.VillagerData;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code VillagerDataRenderState}.
+ */
 public interface VillagerDataRenderState {
-   @Nullable VillagerData getVillagerData();
+
+	@Nullable VillagerData getVillagerData();
 }

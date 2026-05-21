@@ -2,7 +2,6 @@ package net.minecraft.block.jukebox;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.JukeboxPlayableComponent;
 import net.minecraft.item.ItemStack;
@@ -19,43 +18,62 @@ import net.minecraft.text.TextCodecs;
 import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.MathHelper;
 
-public record JukeboxSong(RegistryEntry<SoundEvent> soundEvent, Text description, float lengthInSeconds, int comparatorOutput) {
-   public static final Codec<JukeboxSong> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            SoundEvent.ENTRY_CODEC.fieldOf("sound_event").forGetter(JukeboxSong::soundEvent),
-            TextCodecs.CODEC.fieldOf("description").forGetter(JukeboxSong::description),
-            Codecs.POSITIVE_FLOAT.fieldOf("length_in_seconds").forGetter(JukeboxSong::lengthInSeconds),
-            Codecs.rangedInt(0, 15).fieldOf("comparator_output").forGetter(JukeboxSong::comparatorOutput)
-         )
-         .apply(instance, JukeboxSong::new)
-   );
-   public static final PacketCodec<RegistryByteBuf, JukeboxSong> PACKET_CODEC = PacketCodec.tuple(
-      SoundEvent.ENTRY_PACKET_CODEC,
-      JukeboxSong::soundEvent,
-      TextCodecs.REGISTRY_PACKET_CODEC,
-      JukeboxSong::description,
-      PacketCodecs.FLOAT,
-      JukeboxSong::lengthInSeconds,
-      PacketCodecs.VAR_INT,
-      JukeboxSong::comparatorOutput,
-      JukeboxSong::new
-   );
-   public static final Codec<RegistryEntry<JukeboxSong>> ENTRY_CODEC = RegistryFixedCodec.of(RegistryKeys.JUKEBOX_SONG);
-   public static final PacketCodec<RegistryByteBuf, RegistryEntry<JukeboxSong>> ENTRY_PACKET_CODEC = PacketCodecs.registryEntry(
-      RegistryKeys.JUKEBOX_SONG, PACKET_CODEC
-   );
-   private static final int TICKS_PER_SECOND = 20;
+import java.util.Optional;
 
-   public int getLengthInTicks() {
-      return MathHelper.ceil(this.lengthInSeconds * 20.0F);
-   }
+/**
+ * {@code JukeboxSong}.
+ */
+public record JukeboxSong(
+		RegistryEntry<SoundEvent> soundEvent,
+		Text description,
+		float lengthInSeconds,
+		int comparatorOutput
+) {
 
-   public boolean shouldStopPlaying(long ticksSinceSongStarted) {
-      return ticksSinceSongStarted >= this.getLengthInTicks() + 20;
-   }
+	public static final Codec<JukeboxSong> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    SoundEvent.ENTRY_CODEC.fieldOf("sound_event").forGetter(JukeboxSong::soundEvent),
+					                    TextCodecs.CODEC.fieldOf("description").forGetter(JukeboxSong::description),
+					                    Codecs.POSITIVE_FLOAT.fieldOf("length_in_seconds").forGetter(JukeboxSong::lengthInSeconds),
+					                    Codecs.rangedInt(0, 15).fieldOf("comparator_output").forGetter(JukeboxSong::comparatorOutput)
+			                    )
+			                    .apply(instance, JukeboxSong::new)
+	);
+	public static final PacketCodec<RegistryByteBuf, JukeboxSong> PACKET_CODEC = PacketCodec.tuple(
+			SoundEvent.ENTRY_PACKET_CODEC,
+			JukeboxSong::soundEvent,
+			TextCodecs.REGISTRY_PACKET_CODEC,
+			JukeboxSong::description,
+			PacketCodecs.FLOAT,
+			JukeboxSong::lengthInSeconds,
+			PacketCodecs.VAR_INT,
+			JukeboxSong::comparatorOutput,
+			JukeboxSong::new
+	);
+	public static final Codec<RegistryEntry<JukeboxSong>>
+			ENTRY_CODEC =
+			RegistryFixedCodec.of(RegistryKeys.JUKEBOX_SONG);
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<JukeboxSong>>
+			ENTRY_PACKET_CODEC =
+			PacketCodecs.registryEntry(
+					RegistryKeys.JUKEBOX_SONG, PACKET_CODEC
+			);
+	private static final int TICKS_PER_SECOND = 20;
 
-   public static Optional<RegistryEntry<JukeboxSong>> getSongEntryFromStack(RegistryWrapper.WrapperLookup registries, ItemStack stack) {
-      JukeboxPlayableComponent jukeboxPlayableComponent = stack.get(DataComponentTypes.JUKEBOX_PLAYABLE);
-      return jukeboxPlayableComponent != null ? jukeboxPlayableComponent.song().resolveEntry(registries) : Optional.empty();
-   }
+	public int getLengthInTicks() {
+		return MathHelper.ceil(this.lengthInSeconds * 20.0F);
+	}
+
+	public boolean shouldStopPlaying(long ticksSinceSongStarted) {
+		return ticksSinceSongStarted >= this.getLengthInTicks() + 20;
+	}
+
+	public static Optional<RegistryEntry<JukeboxSong>> getSongEntryFromStack(
+			RegistryWrapper.WrapperLookup registries,
+			ItemStack stack
+	) {
+		JukeboxPlayableComponent jukeboxPlayableComponent = stack.get(DataComponentTypes.JUKEBOX_PLAYABLE);
+		return jukeboxPlayableComponent != null ? jukeboxPlayableComponent.song().resolveEntry(registries)
+		                                        : Optional.empty();
+	}
 }

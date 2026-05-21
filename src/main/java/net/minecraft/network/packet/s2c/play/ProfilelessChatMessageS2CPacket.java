@@ -10,26 +10,30 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
-public record ProfilelessChatMessageS2CPacket(Text message, MessageType.Parameters chatType) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, ProfilelessChatMessageS2CPacket> CODEC = PacketCodec.tuple(
-      TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
-      ProfilelessChatMessageS2CPacket::message,
-      MessageType.Parameters.CODEC,
-      ProfilelessChatMessageS2CPacket::chatType,
-      ProfilelessChatMessageS2CPacket::new
-   );
+public record ProfilelessChatMessageS2CPacket(
+		Text message,
+		MessageType.Parameters chatType
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<ProfilelessChatMessageS2CPacket> getPacketType() {
-      return PlayPackets.DISGUISED_CHAT;
-   }
+	public static final PacketCodec<RegistryByteBuf, ProfilelessChatMessageS2CPacket> CODEC = PacketCodec.tuple(
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
+			ProfilelessChatMessageS2CPacket::message,
+			MessageType.Parameters.CODEC,
+			ProfilelessChatMessageS2CPacket::chatType,
+			ProfilelessChatMessageS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onProfilelessChatMessage(this);
-   }
+	@Override
+	public PacketType<ProfilelessChatMessageS2CPacket> getPacketType() {
+		return PlayPackets.DISGUISED_CHAT;
+	}
 
-   @Override
-   public boolean isWritingErrorSkippable() {
-      return true;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onProfilelessChatMessage(this);
+	}
+
+	@Override
+	public boolean isWritingErrorSkippable() {
+		return true;
+	}
 }

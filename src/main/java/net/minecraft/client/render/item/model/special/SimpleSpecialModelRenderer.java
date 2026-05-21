@@ -9,23 +9,35 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SimpleSpecialModelRenderer}.
+ */
 public interface SimpleSpecialModelRenderer extends SpecialModelRenderer<Void> {
-   default @Nullable Void getData(ItemStack itemStack) {
-      return null;
-   }
 
-   default void render(
-      @Nullable Void void_,
-      ItemDisplayContext itemDisplayContext,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      int i,
-      int j,
-      boolean bl,
-      int k
-   ) {
-      this.render(itemDisplayContext, matrixStack, orderedRenderCommandQueue, i, j, bl, k);
-   }
+	default @Nullable Void getData(ItemStack itemStack) {
+		return null;
+	}
 
-   void render(ItemDisplayContext displayContext, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, int overlay, boolean glint, int i);
+	default void render(
+			@Nullable Void void_,
+			ItemDisplayContext itemDisplayContext,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			int j,
+			boolean bl,
+			int k
+	) {
+		this.render(itemDisplayContext, matrixStack, orderedRenderCommandQueue, i, j, bl, k);
+	}
+
+	void render(
+			ItemDisplayContext displayContext,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			int overlay,
+			boolean glint,
+			int i
+	);
 }

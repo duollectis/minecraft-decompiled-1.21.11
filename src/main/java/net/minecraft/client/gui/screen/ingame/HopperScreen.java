@@ -10,25 +10,40 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code HopperScreen}.
+ */
 public class HopperScreen extends HandledScreen<HopperScreenHandler> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/hopper.png");
 
-   public HopperScreen(HopperScreenHandler handler, PlayerInventory inventory, Text title) {
-      super(handler, inventory, title);
-      this.backgroundHeight = 133;
-      this.playerInventoryTitleY = this.backgroundHeight - 94;
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/hopper.png");
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      this.drawMouseoverTooltip(context, mouseX, mouseY);
-   }
+	public HopperScreen(HopperScreenHandler handler, PlayerInventory inventory, Text title) {
+		super(handler, inventory, title);
+		this.backgroundHeight = 133;
+		this.playerInventoryTitleY = this.backgroundHeight - 94;
+	}
 
-   @Override
-   protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-      int i = (this.width - this.backgroundWidth) / 2;
-      int j = (this.height - this.backgroundHeight) / 2;
-      context.drawTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, i, j, 0.0F, 0.0F, this.backgroundWidth, this.backgroundHeight, 256, 256);
-   }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		this.drawMouseoverTooltip(context, mouseX, mouseY);
+	}
+
+	@Override
+	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
+		int i = (this.width - this.backgroundWidth) / 2;
+		int j = (this.height - this.backgroundHeight) / 2;
+		context.drawTexture(
+				RenderPipelines.GUI_TEXTURED,
+				TEXTURE,
+				i,
+				j,
+				0.0F,
+				0.0F,
+				this.backgroundWidth,
+				this.backgroundHeight,
+				256,
+				256
+		);
+	}
 }

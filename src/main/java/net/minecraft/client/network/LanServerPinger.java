@@ -1,98 +1,147 @@
 package net.minecraft.client.network;
 
 import com.mojang.logging.LogUtils;
-import java.io.IOException;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.nio.charset.StandardCharsets;
-import java.util.concurrent.atomic.AtomicInteger;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.logging.UncaughtExceptionLogger;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * Поток, периодически рассылающий UDP-объявления об открытом LAN-сервере.
+ * <p>Отправляет широковещательные пакеты на мультикаст-адрес {@link #PING_ADDRESS}:{@link #PING_PORT}
+ * каждые {@link #PING_INTERVAL_MS} миллисекунд. Клиенты в той же сети получают эти пакеты
+ * и отображают сервер в списке LAN-серверов.
+ */
 @Environment(EnvType.CLIENT)
 public class LanServerPinger extends Thread {
-   private static final AtomicInteger THREAD_ID = new AtomicInteger(0);
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final String PING_ADDRESS = "224.0.2.60";
-   public static final int PING_PORT = 4445;
-   private static final long PING_INTERVAL = 1500L;
-   private final String motd;
-   private final DatagramSocket socket;
-   private boolean running = true;
-   private final String addressPort;
 
-   public LanServerPinger(String motd, String addressPort) throws IOException {
-      super("LanServerPinger #" + THREAD_ID.incrementAndGet());
-      this.motd = motd;
-      this.addressPort = addressPort;
-      this.setDaemon(true);
-      this.setUncaughtExceptionHandler(new UncaughtExceptionLogger(LOGGER));
-      this.socket = new DatagramSocket();
-   }
+	/**
+	 * Мультикаст-адрес для объявлений LAN-серверов.
+	 */
+	public static final String PING_ADDRESS = "224.0.2.60";
 
-   @Override
-   public void run() {
-      String string = createAnnouncement(this.motd, this.addressPort);
-      byte[] bs = string.getBytes(StandardCharsets.UTF_8);
+	/**
+	 * Порт для объявлений LAN-серверов.
+	 */
+	public static final int PING_PORT = 4445;
 
-      while (!this.isInterrupted() && this.running) {
-         try {
-            InetAddress inetAddress = InetAddress.getByName("224.0.2.60");
-            DatagramPacket datagramPacket = new DatagramPacket(bs, bs.length, inetAddress, 4445);
-            this.socket.send(datagramPacket);
-         } catch (IOException var6) {
-            LOGGER.warn("LanServerPinger: {}", var6.getMessage());
-            break;
-         }
+	private static final long PING_INTERVAL_MS = 1500L;
+	private static final AtomicInteger THREAD_ID = new AtomicInteger(0);
+	private static final Logger LOGGER = LogUtils.getLogger();
 
-         try {
-            sleep(1500L);
-         } catch (InterruptedException var5) {
-         }
-      }
-   }
+	private final String motd;
+	private final String addressPort;
+	private final DatagramSocket socket;
+	private boolean running = true;
 
-   @Override
-   public void interrupt() {
-      super.interrupt();
-      this.running = false;
-   }
+	/**
+	 * Создаёт и настраивает поток пингования LAN.
+	 *
+	 * @param motd        описание сервера для объявления
+	 * @param addressPort адрес и порт сервера в формате {@code "host:port"}
+	 * @throws IOException если не удалось создать UDP-сокет
+	 */
+	public LanServerPinger(String motd, String addressPort) throws IOException {
+		super("LanServerPinger #" + THREAD_ID.incrementAndGet());
+		this.motd = motd;
+		this.addressPort = addressPort;
+		setDaemon(true);
+		setUncaughtExceptionHandler(new UncaughtExceptionLogger(LOGGER));
+		socket = new DatagramSocket();
+	}
 
-   public static String createAnnouncement(String motd, String addressPort) {
-      return "[MOTD]" + motd + "[/MOTD][AD]" + addressPort + "[/AD]";
-   }
+	@Override
+	public void run() {
+		String announcement = createAnnouncement(motd, addressPort);
+		byte[] data = announcement.getBytes(StandardCharsets.UTF_8);
 
-   public static String parseAnnouncementMotd(String announcement) {
-      int i = announcement.indexOf("[MOTD]");
-      if (i < 0) {
-         return "missing no";
-      } else {
-         int j = announcement.indexOf("[/MOTD]", i + "[MOTD]".length());
-         return j < i ? "missing no" : announcement.substring(i + "[MOTD]".length(), j);
-      }
-   }
+		while (isInterrupted() == false && running) {
+			try {
+				InetAddress multicastAddress = InetAddress.getByName(PING_ADDRESS);
+				DatagramPacket packet = new DatagramPacket(data, data.length, multicastAddress, PING_PORT);
+				socket.send(packet);
+			}
+			catch (IOException e) {
+				LOGGER.warn("LanServerPinger: {}", e.getMessage());
+				break;
+			}
 
-   public static @Nullable String parseAnnouncementAddressPort(String announcement) {
-      int i = announcement.indexOf("[/MOTD]");
-      if (i < 0) {
-         return null;
-      } else {
-         int j = announcement.indexOf("[/MOTD]", i + "[/MOTD]".length());
-         if (j >= 0) {
-            return null;
-         } else {
-            int k = announcement.indexOf("[AD]", i + "[/MOTD]".length());
-            if (k < 0) {
-               return null;
-            } else {
-               int l = announcement.indexOf("[/AD]", k + "[AD]".length());
-               return l < k ? null : announcement.substring(k + "[AD]".length(), l);
-            }
-         }
-      }
-   }
+			try {
+				sleep(PING_INTERVAL_MS);
+			}
+			catch (InterruptedException ignored) {
+			}
+		}
+	}
+
+	@Override
+	public void interrupt() {
+		super.interrupt();
+		running = false;
+	}
+
+	/**
+	 * Формирует строку объявления LAN-сервера.
+	 *
+	 * @param motd        описание сервера
+	 * @param addressPort адрес и порт
+	 * @return строка объявления в формате {@code [MOTD]...[/MOTD][AD]...[/AD]}
+	 */
+	public static String createAnnouncement(String motd, String addressPort) {
+		return "[MOTD]" + motd + "[/MOTD][AD]" + addressPort + "[/AD]";
+	}
+
+	/**
+	 * Извлекает MOTD из строки объявления LAN-сервера.
+	 *
+	 * @param announcement строка объявления
+	 * @return MOTD или {@code "missing no"} если формат некорректен
+	 */
+	public static String parseAnnouncementMotd(String announcement) {
+		int start = announcement.indexOf("[MOTD]");
+
+		if (start < 0) {
+			return "missing no";
+		}
+
+		int end = announcement.indexOf("[/MOTD]", start + "[MOTD]".length());
+		return end < start ? "missing no" : announcement.substring(start + "[MOTD]".length(), end);
+	}
+
+	/**
+	 * Извлекает адрес и порт из строки объявления LAN-сервера.
+	 *
+	 * @param announcement строка объявления
+	 * @return строка {@code "host:port"} или {@code null} если формат некорректен
+	 */
+	public static @Nullable String parseAnnouncementAddressPort(String announcement) {
+		int motdEnd = announcement.indexOf("[/MOTD]");
+
+		if (motdEnd < 0) {
+			return null;
+		}
+
+		int duplicateMotdEnd = announcement.indexOf("[/MOTD]", motdEnd + "[/MOTD]".length());
+
+		if (duplicateMotdEnd >= 0) {
+			return null;
+		}
+
+		int adStart = announcement.indexOf("[AD]", motdEnd + "[/MOTD]".length());
+
+		if (adStart < 0) {
+			return null;
+		}
+
+		int adEnd = announcement.indexOf("[/AD]", adStart + "[AD]".length());
+		return adEnd < adStart ? null : announcement.substring(adStart + "[AD]".length(), adEnd);
+	}
 }

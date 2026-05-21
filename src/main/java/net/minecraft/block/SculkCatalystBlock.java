@@ -17,48 +17,63 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SculkCatalystBlock}.
+ */
 public class SculkCatalystBlock extends BlockWithEntity {
-   public static final MapCodec<SculkCatalystBlock> CODEC = createCodec(SculkCatalystBlock::new);
-   public static final BooleanProperty BLOOM = Properties.BLOOM;
-   private final IntProvider experience = ConstantIntProvider.create(5);
 
-   @Override
-   public MapCodec<SculkCatalystBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SculkCatalystBlock> CODEC = createCodec(SculkCatalystBlock::new);
+	public static final BooleanProperty BLOOM = Properties.BLOOM;
+	private final IntProvider experience = ConstantIntProvider.create(5);
 
-   public SculkCatalystBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(BLOOM, false));
-   }
+	@Override
+	public MapCodec<SculkCatalystBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(BLOOM);
-   }
+	public SculkCatalystBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(BLOOM, false));
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (state.get(BLOOM)) {
-         world.setBlockState(pos, state.with(BLOOM, false), 3);
-      }
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(BLOOM);
+	}
 
-   @Override
-   public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new SculkCatalystBlockEntity(pos, state);
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (state.get(BLOOM)) {
+			world.setBlockState(pos, state.with(BLOOM, false), 3);
+		}
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return world.isClient() ? null : validateTicker(type, BlockEntityType.SCULK_CATALYST, SculkCatalystBlockEntity::tick);
-   }
+	@Override
+	public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new SculkCatalystBlockEntity(pos, state);
+	}
 
-   @Override
-   protected void onStacksDropped(BlockState state, ServerWorld world, BlockPos pos, ItemStack tool, boolean dropExperience) {
-      super.onStacksDropped(state, world, pos, tool, dropExperience);
-      if (dropExperience) {
-         this.dropExperienceWhenMined(world, pos, tool, this.experience);
-      }
-   }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return world.isClient() ? null
+		                        : validateTicker(type, BlockEntityType.SCULK_CATALYST, SculkCatalystBlockEntity::tick);
+	}
+
+	@Override
+	protected void onStacksDropped(
+			BlockState state,
+			ServerWorld world,
+			BlockPos pos,
+			ItemStack tool,
+			boolean dropExperience
+	) {
+		super.onStacksDropped(state, world, pos, tool, dropExperience);
+		if (dropExperience) {
+			this.dropExperienceWhenMined(world, pos, tool, this.experience);
+		}
+	}
 }

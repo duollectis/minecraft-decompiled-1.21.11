@@ -7,8 +7,12 @@ import net.minecraft.network.packet.HandshakePackets;
 import net.minecraft.network.packet.c2s.handshake.HandshakeC2SPacket;
 
 public class HandshakeStates {
-   public static final NetworkStateFactory<ServerHandshakePacketListener, PacketByteBuf> C2S_FACTORY = NetworkStateBuilder.c2s(
-      NetworkPhase.HANDSHAKING, builder -> builder.add(HandshakePackets.INTENTION, HandshakeC2SPacket.CODEC)
-   );
-   public static final NetworkState<ServerHandshakePacketListener> C2S = C2S_FACTORY.bind(PacketByteBuf::new);
+
+	public static final NetworkStateFactory<ServerHandshakePacketListener, PacketByteBuf>
+			C2S_FACTORY =
+			NetworkStateBuilder.c2s(
+					NetworkPhase.HANDSHAKING,
+					builder -> builder.add(HandshakePackets.INTENTION, HandshakeC2SPacket.CODEC)
+			);
+	public static final NetworkState<ServerHandshakePacketListener> C2S = C2S_FACTORY.bind(PacketByteBuf::new);
 }

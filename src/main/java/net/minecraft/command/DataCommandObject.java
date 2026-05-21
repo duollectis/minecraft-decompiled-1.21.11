@@ -6,14 +6,18 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.text.Text;
 
+/**
+ * {@code DataCommandObject}.
+ */
 public interface DataCommandObject {
-   void setNbt(NbtCompound nbt) throws CommandSyntaxException;
 
-   NbtCompound getNbt() throws CommandSyntaxException;
+	void setNbt(NbtCompound nbt) throws CommandSyntaxException;
 
-   Text feedbackModify();
+	NbtCompound getNbt() throws CommandSyntaxException;
 
-   Text feedbackQuery(NbtElement element);
+	Text feedbackModify();
 
-   Text feedbackGet(NbtPathArgumentType.NbtPath path, double scale, int result);
+	Text feedbackQuery(NbtElement element);
+
+	Text feedbackGet(NbtPathArgumentType.NbtPath path, double scale, int result);
 }

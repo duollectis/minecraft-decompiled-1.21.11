@@ -1,9 +1,12 @@
 package net.minecraft.block.piston;
 
+/**
+ * {@code PistonBehavior}.
+ */
 public enum PistonBehavior {
-   NORMAL,
-   DESTROY,
-   BLOCK,
-   IGNORE,
-   PUSH_ONLY;
+	NORMAL,
+	DESTROY,
+	BLOCK,
+	IGNORE,
+	PUSH_ONLY;
 }

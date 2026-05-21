@@ -12,48 +12,61 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code SnowyBlock}.
+ */
 public class SnowyBlock extends Block {
-   public static final MapCodec<SnowyBlock> CODEC = createCodec(SnowyBlock::new);
-   public static final BooleanProperty SNOWY = Properties.SNOWY;
 
-   @Override
-   protected MapCodec<? extends SnowyBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SnowyBlock> CODEC = createCodec(SnowyBlock::new);
+	public static final BooleanProperty SNOWY = Properties.SNOWY;
 
-   public SnowyBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(SNOWY, false));
-   }
+	@Override
+	protected MapCodec<? extends SnowyBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      return direction == Direction.UP
-         ? state.with(SNOWY, isSnow(neighborState))
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	public SnowyBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(SNOWY, false));
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos().up());
-      return this.getDefaultState().with(SNOWY, isSnow(blockState));
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		return direction == Direction.UP
+		       ? state.with(SNOWY, isSnow(neighborState))
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
 
-   protected static boolean isSnow(BlockState state) {
-      return state.isIn(BlockTags.SNOW);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos().up());
+		return this.getDefaultState().with(SNOWY, isSnow(blockState));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(SNOWY);
-   }
+	protected static boolean isSnow(BlockState state) {
+		return state.isIn(BlockTags.SNOW);
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(SNOWY);
+	}
 }

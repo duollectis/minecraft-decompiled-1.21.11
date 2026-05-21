@@ -4,31 +4,38 @@ import com.google.common.escape.Escaper;
 import com.google.common.escape.Escapers;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
-import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+
+/**
+ * {@code LockComponentPredicateFix}.
+ */
 public class LockComponentPredicateFix extends ComponentFix {
-   public static final Escaper ESCAPER = Escapers.builder().addEscape('"', "\\\"").addEscape('\\', "\\\\").build();
 
-   public LockComponentPredicateFix(Schema outputSchema) {
-      super(outputSchema, "LockComponentPredicateFix", "minecraft:lock");
-   }
+	public static final Escaper ESCAPER = Escapers.builder().addEscape('"', "\\\"").addEscape('\\', "\\\\").build();
 
-   @Override
-   protected <T> @Nullable Dynamic<T> fixComponent(Dynamic<T> dynamic) {
-      return fixLock(dynamic);
-   }
+	public LockComponentPredicateFix(Schema outputSchema) {
+		super(outputSchema, "LockComponentPredicateFix", "minecraft:lock");
+	}
 
-   public static <T> @Nullable Dynamic<T> fixLock(Dynamic<T> dynamic) {
-      Optional<String> optional = dynamic.asString().result();
-      if (optional.isEmpty()) {
-         return null;
-      } else if (optional.get().isEmpty()) {
-         return null;
-      } else {
-         Dynamic<T> dynamic2 = dynamic.createString("\"" + ESCAPER.escape(optional.get()) + "\"");
-         Dynamic<T> dynamic3 = dynamic.emptyMap().set("minecraft:custom_name", dynamic2);
-         return dynamic.emptyMap().set("components", dynamic3);
-      }
-   }
+	@Override
+	protected <T> @Nullable Dynamic<T> fixComponent(Dynamic<T> dynamic) {
+		return fixLock(dynamic);
+	}
+
+	public static <T> @Nullable Dynamic<T> fixLock(Dynamic<T> dynamic) {
+		Optional<String> optional = dynamic.asString().result();
+		if (optional.isEmpty()) {
+			return null;
+		}
+		else if (optional.get().isEmpty()) {
+			return null;
+		}
+		else {
+			Dynamic<T> dynamic2 = dynamic.createString("\"" + ESCAPER.escape(optional.get()) + "\"");
+			Dynamic<T> dynamic3 = dynamic.emptyMap().set("minecraft:custom_name", dynamic2);
+			return dynamic.emptyMap().set("components", dynamic3);
+		}
+	}
 }

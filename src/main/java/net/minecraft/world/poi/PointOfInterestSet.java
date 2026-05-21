@@ -8,14 +8,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Util;
 import net.minecraft.util.annotation.Debug;
@@ -25,149 +17,193 @@ import net.minecraft.world.debug.data.PoiDebugData;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+
+/**
+ * {@code PointOfInterestSet}.
+ */
 public class PointOfInterestSet {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private final Short2ObjectMap<PointOfInterest> pointsOfInterestByPos = new Short2ObjectOpenHashMap();
-   private final Map<RegistryEntry<PointOfInterestType>, Set<PointOfInterest>> pointsOfInterestByType = Maps.newHashMap();
-   private final Runnable updateListener;
-   private boolean valid;
 
-   public PointOfInterestSet(Runnable updateListener) {
-      this(updateListener, true, ImmutableList.of());
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private final Short2ObjectMap<PointOfInterest> pointsOfInterestByPos = new Short2ObjectOpenHashMap();
+	private final Map<RegistryEntry<PointOfInterestType>, Set<PointOfInterest>>
+			pointsOfInterestByType =
+			Maps.newHashMap();
+	private final Runnable updateListener;
+	private boolean valid;
 
-   PointOfInterestSet(Runnable updateListener, boolean valid, List<PointOfInterest> pois) {
-      this.updateListener = updateListener;
-      this.valid = valid;
-      pois.forEach(this::add);
-   }
+	public PointOfInterestSet(Runnable updateListener) {
+		this(updateListener, true, ImmutableList.of());
+	}
 
-   public PointOfInterestSet.Serialized toSerialized() {
-      return new PointOfInterestSet.Serialized(this.valid, this.pointsOfInterestByPos.values().stream().map(PointOfInterest::toSerialized).toList());
-   }
+	PointOfInterestSet(Runnable updateListener, boolean valid, List<PointOfInterest> pois) {
+		this.updateListener = updateListener;
+		this.valid = valid;
+		pois.forEach(this::add);
+	}
 
-   public Stream<PointOfInterest> get(Predicate<RegistryEntry<PointOfInterestType>> predicate, PointOfInterestStorage.OccupationStatus occupationStatus) {
-      return this.pointsOfInterestByType
-         .entrySet()
-         .stream()
-         .filter(entry -> predicate.test(entry.getKey()))
-         .flatMap(entry -> entry.getValue().stream())
-         .filter(occupationStatus.getPredicate());
-   }
+	public PointOfInterestSet.Serialized toSerialized() {
+		return new PointOfInterestSet.Serialized(
+				this.valid,
+				this.pointsOfInterestByPos.values().stream().map(PointOfInterest::toSerialized).toList()
+		);
+	}
 
-   public @Nullable PointOfInterest add(BlockPos pos, RegistryEntry<PointOfInterestType> type) {
-      PointOfInterest pointOfInterest = new PointOfInterest(pos, type, this.updateListener);
-      if (this.add(pointOfInterest)) {
-         LOGGER.debug("Added POI of type {} @ {}", type.getIdAsString(), pos);
-         this.updateListener.run();
-         return pointOfInterest;
-      } else {
-         return null;
-      }
-   }
+	public Stream<PointOfInterest> get(
+			Predicate<RegistryEntry<PointOfInterestType>> predicate,
+			PointOfInterestStorage.OccupationStatus occupationStatus
+	) {
+		return this.pointsOfInterestByType
+				.entrySet()
+				.stream()
+				.filter(entry -> predicate.test(entry.getKey()))
+				.flatMap(entry -> entry.getValue().stream())
+				.filter(occupationStatus.getPredicate());
+	}
 
-   private boolean add(PointOfInterest poi) {
-      BlockPos blockPos = poi.getPos();
-      RegistryEntry<PointOfInterestType> registryEntry = poi.getType();
-      short s = ChunkSectionPos.packLocal(blockPos);
-      PointOfInterest pointOfInterest = (PointOfInterest)this.pointsOfInterestByPos.get(s);
-      if (pointOfInterest != null) {
-         if (registryEntry.equals(pointOfInterest.getType())) {
-            return false;
-         }
+	public @Nullable PointOfInterest add(BlockPos pos, RegistryEntry<PointOfInterestType> type) {
+		PointOfInterest pointOfInterest = new PointOfInterest(pos, type, this.updateListener);
+		if (this.add(pointOfInterest)) {
+			LOGGER.debug("Added POI of type {} @ {}", type.getIdAsString(), pos);
+			this.updateListener.run();
+			return pointOfInterest;
+		}
+		else {
+			return null;
+		}
+	}
 
-         Util.logErrorOrPause("POI data mismatch: already registered at " + blockPos);
-      }
+	private boolean add(PointOfInterest poi) {
+		BlockPos blockPos = poi.getPos();
+		RegistryEntry<PointOfInterestType> registryEntry = poi.getType();
+		short s = ChunkSectionPos.packLocal(blockPos);
+		PointOfInterest pointOfInterest = (PointOfInterest) this.pointsOfInterestByPos.get(s);
+		if (pointOfInterest != null) {
+			if (registryEntry.equals(pointOfInterest.getType())) {
+				return false;
+			}
 
-      this.pointsOfInterestByPos.put(s, poi);
-      this.pointsOfInterestByType.computeIfAbsent(registryEntry, type -> Sets.newHashSet()).add(poi);
-      return true;
-   }
+			Util.logErrorOrPause("POI data mismatch: already registered at " + blockPos);
+		}
 
-   public void remove(BlockPos pos) {
-      PointOfInterest pointOfInterest = (PointOfInterest)this.pointsOfInterestByPos.remove(ChunkSectionPos.packLocal(pos));
-      if (pointOfInterest == null) {
-         LOGGER.error("POI data mismatch: never registered at {}", pos);
-      } else {
-         this.pointsOfInterestByType.get(pointOfInterest.getType()).remove(pointOfInterest);
-         LOGGER.debug("Removed POI of type {} @ {}", LogUtils.defer(pointOfInterest::getType), LogUtils.defer(pointOfInterest::getPos));
-         this.updateListener.run();
-      }
-   }
+		this.pointsOfInterestByPos.put(s, poi);
+		this.pointsOfInterestByType.computeIfAbsent(registryEntry, type -> Sets.newHashSet()).add(poi);
+		return true;
+	}
 
-   @Deprecated
-   @Debug
-   public int getFreeTickets(BlockPos pos) {
-      return this.get(pos).map(PointOfInterest::getFreeTickets).orElse(0);
-   }
+	public void remove(BlockPos pos) {
+		PointOfInterest
+				pointOfInterest =
+				(PointOfInterest) this.pointsOfInterestByPos.remove(ChunkSectionPos.packLocal(pos));
+		if (pointOfInterest == null) {
+			LOGGER.error("POI data mismatch: never registered at {}", pos);
+		}
+		else {
+			this.pointsOfInterestByType.get(pointOfInterest.getType()).remove(pointOfInterest);
+			LOGGER.debug(
+					"Removed POI of type {} @ {}",
+					LogUtils.defer(pointOfInterest::getType),
+					LogUtils.defer(pointOfInterest::getPos)
+			);
+			this.updateListener.run();
+		}
+	}
 
-   public boolean releaseTicket(BlockPos pos) {
-      PointOfInterest pointOfInterest = (PointOfInterest)this.pointsOfInterestByPos.get(ChunkSectionPos.packLocal(pos));
-      if (pointOfInterest == null) {
-         throw (IllegalStateException)Util.getFatalOrPause(new IllegalStateException("POI never registered at " + pos));
-      } else {
-         boolean bl = pointOfInterest.releaseTicket();
-         this.updateListener.run();
-         return bl;
-      }
-   }
+	@Deprecated
+	@Debug
+	public int getFreeTickets(BlockPos pos) {
+		return this.get(pos).map(PointOfInterest::getFreeTickets).orElse(0);
+	}
 
-   public boolean test(BlockPos pos, Predicate<RegistryEntry<PointOfInterestType>> predicate) {
-      return this.getType(pos).filter(predicate).isPresent();
-   }
+	public boolean releaseTicket(BlockPos pos) {
+		PointOfInterest
+				pointOfInterest =
+				(PointOfInterest) this.pointsOfInterestByPos.get(ChunkSectionPos.packLocal(pos));
+		if (pointOfInterest == null) {
+			throw (IllegalStateException) Util.getFatalOrPause(new IllegalStateException(
+					"POI never registered at " + pos));
+		}
+		else {
+			boolean bl = pointOfInterest.releaseTicket();
+			this.updateListener.run();
+			return bl;
+		}
+	}
 
-   public Optional<RegistryEntry<PointOfInterestType>> getType(BlockPos pos) {
-      return this.get(pos).map(PointOfInterest::getType);
-   }
+	public boolean test(BlockPos pos, Predicate<RegistryEntry<PointOfInterestType>> predicate) {
+		return this.getType(pos).filter(predicate).isPresent();
+	}
 
-   private Optional<PointOfInterest> get(BlockPos pos) {
-      return Optional.ofNullable((PointOfInterest)this.pointsOfInterestByPos.get(ChunkSectionPos.packLocal(pos)));
-   }
+	public Optional<RegistryEntry<PointOfInterestType>> getType(BlockPos pos) {
+		return this.get(pos).map(PointOfInterest::getType);
+	}
 
-   public Optional<PoiDebugData> getDebugData(BlockPos pos) {
-      return this.get(pos).map(PoiDebugData::new);
-   }
+	private Optional<PointOfInterest> get(BlockPos pos) {
+		return Optional.ofNullable((PointOfInterest) this.pointsOfInterestByPos.get(ChunkSectionPos.packLocal(pos)));
+	}
 
-   public void updatePointsOfInterest(Consumer<BiConsumer<BlockPos, RegistryEntry<PointOfInterestType>>> updater) {
-      if (!this.valid) {
-         Short2ObjectMap<PointOfInterest> short2ObjectMap = new Short2ObjectOpenHashMap(this.pointsOfInterestByPos);
-         this.clear();
-         updater.accept(
-            (pos, poiEntry) -> {
-               short s = ChunkSectionPos.packLocal(pos);
-               PointOfInterest pointOfInterest = (PointOfInterest)short2ObjectMap.computeIfAbsent(
-                  s, sx -> new PointOfInterest(pos, poiEntry, this.updateListener)
-               );
-               this.add(pointOfInterest);
-            }
-         );
-         this.valid = true;
-         this.updateListener.run();
-      }
-   }
+	public Optional<PoiDebugData> getDebugData(BlockPos pos) {
+		return this.get(pos).map(PoiDebugData::new);
+	}
 
-   private void clear() {
-      this.pointsOfInterestByPos.clear();
-      this.pointsOfInterestByType.clear();
-   }
+	public void updatePointsOfInterest(Consumer<BiConsumer<BlockPos, RegistryEntry<PointOfInterestType>>> updater) {
+		if (!this.valid) {
+			Short2ObjectMap<PointOfInterest> short2ObjectMap = new Short2ObjectOpenHashMap(this.pointsOfInterestByPos);
+			this.clear();
+			updater.accept(
+					(pos, poiEntry) -> {
+						short s = ChunkSectionPos.packLocal(pos);
+						PointOfInterest pointOfInterest = (PointOfInterest) short2ObjectMap.computeIfAbsent(
+								s, sx -> new PointOfInterest(pos, poiEntry, this.updateListener)
+						);
+						this.add(pointOfInterest);
+					}
+			);
+			this.valid = true;
+			this.updateListener.run();
+		}
+	}
 
-   boolean isValid() {
-      return this.valid;
-   }
+	private void clear() {
+		this.pointsOfInterestByPos.clear();
+		this.pointsOfInterestByType.clear();
+	}
 
-   public record Serialized(boolean isValid, List<PointOfInterest.Serialized> records) {
-      public static final Codec<PointOfInterestSet.Serialized> CODEC = RecordCodecBuilder.create(
-         instance -> instance.group(
-               Codec.BOOL.lenientOptionalFieldOf("Valid", false).forGetter(PointOfInterestSet.Serialized::isValid),
-               PointOfInterest.Serialized.CODEC.listOf().fieldOf("Records").forGetter(PointOfInterestSet.Serialized::records)
-            )
-            .apply(instance, PointOfInterestSet.Serialized::new)
-      );
+	boolean isValid() {
+		return this.valid;
+	}
 
-      public PointOfInterestSet toPointOfInterestSet(Runnable updateListener) {
-         return new PointOfInterestSet(
-            updateListener, this.isValid, this.records.stream().map(serialized -> serialized.toPointOfInterest(updateListener)).toList()
-         );
-      }
-   }
+	/**
+	 * {@code Serialized}.
+	 */
+	public record Serialized(boolean isValid, List<PointOfInterest.Serialized> records) {
+
+		public static final Codec<PointOfInterestSet.Serialized> CODEC = RecordCodecBuilder.create(
+				instance -> instance.group(
+						                    Codec.BOOL
+								                    .lenientOptionalFieldOf("Valid", false)
+								                    .forGetter(PointOfInterestSet.Serialized::isValid),
+						                    PointOfInterest.Serialized.CODEC
+								                    .listOf()
+								                    .fieldOf("Records")
+								                    .forGetter(PointOfInterestSet.Serialized::records)
+				                    )
+				                    .apply(instance, PointOfInterestSet.Serialized::new)
+		);
+
+		public PointOfInterestSet toPointOfInterestSet(Runnable updateListener) {
+			return new PointOfInterestSet(
+					updateListener,
+					this.isValid,
+					this.records.stream().map(serialized -> serialized.toPointOfInterest(updateListener)).toList()
+			);
+		}
+	}
 }

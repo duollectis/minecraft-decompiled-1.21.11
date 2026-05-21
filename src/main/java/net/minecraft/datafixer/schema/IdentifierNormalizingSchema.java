@@ -9,37 +9,41 @@ import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.codecs.PrimitiveCodec;
 import net.minecraft.util.Identifier;
 
+/**
+ * {@code IdentifierNormalizingSchema}.
+ */
 public class IdentifierNormalizingSchema extends Schema {
-   public static final PrimitiveCodec<String> CODEC = new PrimitiveCodec<String>() {
-      public <T> DataResult<String> read(DynamicOps<T> ops, T input) {
-         return ops.getStringValue(input).map(IdentifierNormalizingSchema::normalize);
-      }
 
-      public <T> T write(DynamicOps<T> dynamicOps, String string) {
-         return (T)dynamicOps.createString(string);
-      }
+	public static final PrimitiveCodec<String> CODEC = new PrimitiveCodec<String>() {
+		public <T> DataResult<String> read(DynamicOps<T> ops, T input) {
+			return ops.getStringValue(input).map(IdentifierNormalizingSchema::normalize);
+		}
 
-      @Override
-      public String toString() {
-         return "NamespacedString";
-      }
-   };
-   private static final Type<String> IDENTIFIER_TYPE = new PrimitiveType(CODEC);
+		public <T> T write(DynamicOps<T> dynamicOps, String string) {
+			return (T) dynamicOps.createString(string);
+		}
 
-   public IdentifierNormalizingSchema(int versionKey, Schema parent) {
-      super(versionKey, parent);
-   }
+		@Override
+		public String toString() {
+			return "NamespacedString";
+		}
+	};
+	private static final Type<String> IDENTIFIER_TYPE = new PrimitiveType(CODEC);
 
-   public static String normalize(String id) {
-      Identifier identifier = Identifier.tryParse(id);
-      return identifier != null ? identifier.toString() : id;
-   }
+	public IdentifierNormalizingSchema(int versionKey, Schema parent) {
+		super(versionKey, parent);
+	}
 
-   public static Type<String> getIdentifierType() {
-      return IDENTIFIER_TYPE;
-   }
+	public static String normalize(String id) {
+		Identifier identifier = Identifier.tryParse(id);
+		return identifier != null ? identifier.toString() : id;
+	}
 
-   public Type<?> getChoiceType(TypeReference type, String choiceName) {
-      return super.getChoiceType(type, normalize(choiceName));
-   }
+	public static Type<String> getIdentifierType() {
+		return IDENTIFIER_TYPE;
+	}
+
+	public Type<?> getChoiceType(TypeReference type, String choiceName) {
+		return super.getChoiceType(type, normalize(choiceName));
+	}
 }

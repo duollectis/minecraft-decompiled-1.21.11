@@ -6,13 +6,17 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.state.ZombieEntityRenderState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AbstractZombieModel}.
+ */
 public abstract class AbstractZombieModel<S extends ZombieEntityRenderState> extends BipedEntityModel<S> {
-   protected AbstractZombieModel(ModelPart modelPart) {
-      super(modelPart);
-   }
 
-   public void setAngles(S zombieEntityRenderState) {
-      super.setAngles(zombieEntityRenderState);
-      ArmPosing.zombieArms(this.leftArm, this.rightArm, zombieEntityRenderState.attacking, zombieEntityRenderState);
-   }
+	protected AbstractZombieModel(ModelPart modelPart) {
+		super(modelPart);
+	}
+
+	public void setAngles(S zombieEntityRenderState) {
+		super.setAngles(zombieEntityRenderState);
+		ArmPosing.zombieArms(this.leftArm, this.rightArm, zombieEntityRenderState.attacking, zombieEntityRenderState);
+	}
 }

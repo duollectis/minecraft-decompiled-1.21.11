@@ -1,7 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.function.Function;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.EnumProperty;
@@ -14,59 +13,69 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldView;
 
+import java.util.function.Function;
+
+/**
+ * {@code LeafLitterBlock}.
+ */
 public class LeafLitterBlock extends PlantBlock implements Segmented {
-   public static final MapCodec<LeafLitterBlock> CODEC = createCodec(LeafLitterBlock::new);
-   public static final EnumProperty<Direction> HORIZONTAL_FACING = Properties.HORIZONTAL_FACING;
-   private final Function<BlockState, VoxelShape> shapeFunction;
 
-   public LeafLitterBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(HORIZONTAL_FACING, Direction.NORTH).with(this.getAmountProperty(), 1));
-      this.shapeFunction = this.createShapeFunction();
-   }
+	public static final MapCodec<LeafLitterBlock> CODEC = createCodec(LeafLitterBlock::new);
+	public static final EnumProperty<Direction> HORIZONTAL_FACING = Properties.HORIZONTAL_FACING;
+	private final Function<BlockState, VoxelShape> shapeFunction;
 
-   private Function<BlockState, VoxelShape> createShapeFunction() {
-      return this.createShapeFunction(this.createShapeFunction(HORIZONTAL_FACING, this.getAmountProperty()));
-   }
+	public LeafLitterBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(HORIZONTAL_FACING, Direction.NORTH)
+				.with(this.getAmountProperty(), 1));
+		this.shapeFunction = this.createShapeFunction();
+	}
 
-   @Override
-   protected MapCodec<LeafLitterBlock> getCodec() {
-      return CODEC;
-   }
+	private Function<BlockState, VoxelShape> createShapeFunction() {
+		return this.createShapeFunction(this.createShapeFunction(HORIZONTAL_FACING, this.getAmountProperty()));
+	}
 
-   @Override
-   public BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(HORIZONTAL_FACING, rotation.rotate(state.get(HORIZONTAL_FACING)));
-   }
+	@Override
+	protected MapCodec<LeafLitterBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.rotate(mirror.getRotation(state.get(HORIZONTAL_FACING)));
-   }
+	@Override
+	public BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(HORIZONTAL_FACING, rotation.rotate(state.get(HORIZONTAL_FACING)));
+	}
 
-   @Override
-   public boolean canReplace(BlockState state, ItemPlacementContext context) {
-      return this.shouldAddSegment(state, context, this.getAmountProperty()) ? true : super.canReplace(state, context);
-   }
+	@Override
+	public BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.rotate(mirror.getRotation(state.get(HORIZONTAL_FACING)));
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      BlockPos blockPos = pos.down();
-      return world.getBlockState(blockPos).isSideSolidFullSquare(world, blockPos, Direction.UP);
-   }
+	@Override
+	public boolean canReplace(BlockState state, ItemPlacementContext context) {
+		return this.shouldAddSegment(state, context, this.getAmountProperty()) ? true
+		                                                                       : super.canReplace(state, context);
+	}
 
-   @Override
-   public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return this.shapeFunction.apply(state);
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		BlockPos blockPos = pos.down();
+		return world.getBlockState(blockPos).isSideSolidFullSquare(world, blockPos, Direction.UP);
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getPlacementState(ctx, this, this.getAmountProperty(), HORIZONTAL_FACING);
-   }
+	@Override
+	public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return this.shapeFunction.apply(state);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(HORIZONTAL_FACING, this.getAmountProperty());
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getPlacementState(ctx, this, this.getAmountProperty(), HORIZONTAL_FACING);
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(HORIZONTAL_FACING, this.getAmountProperty());
+	}
 }

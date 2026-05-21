@@ -5,6 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.render.block.MovingBlockRenderState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FallingBlockEntityRenderState}.
+ */
 public class FallingBlockEntityRenderState extends EntityRenderState {
-   public MovingBlockRenderState movingBlockRenderState = new MovingBlockRenderState();
+
+	public MovingBlockRenderState movingBlockRenderState = new MovingBlockRenderState();
 }

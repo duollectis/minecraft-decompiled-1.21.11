@@ -1,9 +1,6 @@
 package net.minecraft.item;
 
 import com.mojang.logging.LogUtils;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.recipe.Recipe;
@@ -16,40 +13,49 @@ import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * {@code KnowledgeBookItem}.
+ */
 public class KnowledgeBookItem extends Item {
-   private static final Logger LOGGER = LogUtils.getLogger();
 
-   public KnowledgeBookItem(Item.Settings settings) {
-      super(settings);
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      List<RegistryKey<Recipe<?>>> list = itemStack.getOrDefault(DataComponentTypes.RECIPES, List.of());
-      itemStack.decrementUnlessCreative(1, user);
-      if (list.isEmpty()) {
-         return ActionResult.FAIL;
-      } else {
-         if (!world.isClient()) {
-            ServerRecipeManager serverRecipeManager = world.getServer().getRecipeManager();
-            List<RecipeEntry<?>> list2 = new ArrayList<>(list.size());
+	public KnowledgeBookItem(Item.Settings settings) {
+		super(settings);
+	}
 
-            for (RegistryKey<Recipe<?>> registryKey : list) {
-               Optional<RecipeEntry<?>> optional = serverRecipeManager.get(registryKey);
-               if (!optional.isPresent()) {
-                  LOGGER.error("Invalid recipe: {}", registryKey);
-                  return ActionResult.FAIL;
-               }
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		List<RegistryKey<Recipe<?>>> list = itemStack.getOrDefault(DataComponentTypes.RECIPES, List.of());
+		itemStack.decrementUnlessCreative(1, user);
+		if (list.isEmpty()) {
+			return ActionResult.FAIL;
+		}
+		else {
+			if (!world.isClient()) {
+				ServerRecipeManager serverRecipeManager = world.getServer().getRecipeManager();
+				List<RecipeEntry<?>> list2 = new ArrayList<>(list.size());
 
-               list2.add(optional.get());
-            }
+				for (RegistryKey<Recipe<?>> registryKey : list) {
+					Optional<RecipeEntry<?>> optional = serverRecipeManager.get(registryKey);
+					if (!optional.isPresent()) {
+						LOGGER.error("Invalid recipe: {}", registryKey);
+						return ActionResult.FAIL;
+					}
 
-            user.unlockRecipes(list2);
-            user.incrementStat(Stats.USED.getOrCreateStat(this));
-         }
+					list2.add(optional.get());
+				}
 
-         return ActionResult.SUCCESS;
-      }
-   }
+				user.unlockRecipes(list2);
+				user.incrementStat(Stats.USED.getOrCreateStat(this));
+			}
+
+			return ActionResult.SUCCESS;
+		}
+	}
 }

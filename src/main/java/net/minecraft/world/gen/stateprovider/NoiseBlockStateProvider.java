@@ -5,7 +5,6 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.mojang.serialization.codecs.RecordCodecBuilder.Instance;
 import com.mojang.serialization.codecs.RecordCodecBuilder.Mu;
-import java.util.List;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.BlockPos;
@@ -13,41 +12,55 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.noise.DoublePerlinNoiseSampler;
 import net.minecraft.util.math.random.Random;
 
+import java.util.List;
+
+/**
+ * {@code NoiseBlockStateProvider}.
+ */
 public class NoiseBlockStateProvider extends AbstractNoiseBlockStateProvider {
-   public static final MapCodec<NoiseBlockStateProvider> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> fillNoiseCodecFields(instance).apply(instance, NoiseBlockStateProvider::new)
-   );
-   protected final List<BlockState> states;
 
-   protected static <P extends NoiseBlockStateProvider> P4<Mu<P>, Long, DoublePerlinNoiseSampler.NoiseParameters, Float, List<BlockState>> fillNoiseCodecFields(
-      Instance<P> instance
-   ) {
-      return fillCodecFields(instance)
-         .and(Codecs.nonEmptyList(BlockState.CODEC.listOf()).fieldOf("states").forGetter(noiseBlockStateProvider -> noiseBlockStateProvider.states));
-   }
+	public static final MapCodec<NoiseBlockStateProvider> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> fillNoiseCodecFields(instance).apply(instance, NoiseBlockStateProvider::new)
+	);
+	protected final List<BlockState> states;
 
-   public NoiseBlockStateProvider(long seed, DoublePerlinNoiseSampler.NoiseParameters noiseParameters, float scale, List<BlockState> states) {
-      super(seed, noiseParameters, scale);
-      this.states = states;
-   }
+	protected static <P extends NoiseBlockStateProvider> P4<Mu<P>, Long, DoublePerlinNoiseSampler.NoiseParameters, Float, List<BlockState>> fillNoiseCodecFields(
+			Instance<P> instance
+	) {
+		return fillCodecFields(instance)
+				.and(Codecs
+						.nonEmptyList(BlockState.CODEC.listOf())
+						.fieldOf("states")
+						.forGetter(noiseBlockStateProvider -> noiseBlockStateProvider.states));
+	}
 
-   @Override
-   protected BlockStateProviderType<?> getType() {
-      return BlockStateProviderType.NOISE_PROVIDER;
-   }
+	public NoiseBlockStateProvider(
+			long seed,
+			DoublePerlinNoiseSampler.NoiseParameters noiseParameters,
+			float scale,
+			List<BlockState> states
+	) {
+		super(seed, noiseParameters, scale);
+		this.states = states;
+	}
 
-   @Override
-   public BlockState get(Random random, BlockPos pos) {
-      return this.getStateFromList(this.states, pos, this.scale);
-   }
+	@Override
+	protected BlockStateProviderType<?> getType() {
+		return BlockStateProviderType.NOISE_PROVIDER;
+	}
 
-   protected BlockState getStateFromList(List<BlockState> states, BlockPos pos, double scale) {
-      double d = this.getNoiseValue(pos, scale);
-      return this.getStateAtValue(states, d);
-   }
+	@Override
+	public BlockState get(Random random, BlockPos pos) {
+		return this.getStateFromList(this.states, pos, this.scale);
+	}
 
-   protected BlockState getStateAtValue(List<BlockState> states, double value) {
-      double d = MathHelper.clamp((1.0 + value) / 2.0, 0.0, 0.9999);
-      return states.get((int)(d * states.size()));
-   }
+	protected BlockState getStateFromList(List<BlockState> states, BlockPos pos, double scale) {
+		double d = this.getNoiseValue(pos, scale);
+		return this.getStateAtValue(states, d);
+	}
+
+	protected BlockState getStateAtValue(List<BlockState> states, double value) {
+		double d = MathHelper.clamp((1.0 + value) / 2.0, 0.0, 0.9999);
+		return states.get((int) (d * states.size()));
+	}
 }

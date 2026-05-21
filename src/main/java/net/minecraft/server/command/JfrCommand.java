@@ -5,8 +5,6 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import net.minecraft.SharedConstants;
 import net.minecraft.text.ClickEvent;
 import net.minecraft.text.HoverEvent;
@@ -15,48 +13,67 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.profiling.jfr.FlightProfiler;
 import net.minecraft.util.profiling.jfr.InstanceType;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+/**
+ * {@code JfrCommand}.
+ */
 public class JfrCommand {
-   private static final SimpleCommandExceptionType JFR_START_FAILED_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.jfr.start.failed"));
-   private static final DynamicCommandExceptionType JFR_DUMP_FAILED_EXCEPTION = new DynamicCommandExceptionType(
-      message -> Text.stringifiedTranslatable("commands.jfr.dump.failed", message)
-   );
 
-   private JfrCommand() {
-   }
+	private static final SimpleCommandExceptionType
+			JFR_START_FAILED_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.jfr.start.failed"));
+	private static final DynamicCommandExceptionType JFR_DUMP_FAILED_EXCEPTION = new DynamicCommandExceptionType(
+			message -> Text.stringifiedTranslatable("commands.jfr.dump.failed", message)
+	);
 
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("jfr")
-                  .requires(CommandManager.requirePermissionLevel(CommandManager.OWNERS_CHECK)))
-               .then(CommandManager.literal("start").executes(context -> executeStart((ServerCommandSource)context.getSource()))))
-            .then(CommandManager.literal("stop").executes(context -> executeStop((ServerCommandSource)context.getSource())))
-      );
-   }
+	private JfrCommand() {
+	}
 
-   private static int executeStart(ServerCommandSource source) throws CommandSyntaxException {
-      InstanceType instanceType = InstanceType.get(source.getServer());
-      if (!FlightProfiler.INSTANCE.start(instanceType)) {
-         throw JFR_START_FAILED_EXCEPTION.create();
-      } else {
-         source.sendFeedback(() -> Text.translatable("commands.jfr.started"), false);
-         return 1;
-      }
-   }
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
+						.literal("jfr")
+						.requires(CommandManager.requirePermissionLevel(CommandManager.OWNERS_CHECK))
+				)
+						.then(CommandManager
+								.literal("start")
+								.executes(context -> executeStart((ServerCommandSource) context.getSource())))
+				)
+						.then(CommandManager
+								.literal("stop")
+								.executes(context -> executeStop((ServerCommandSource) context.getSource())))
+		);
+	}
 
-   private static int executeStop(ServerCommandSource source) throws CommandSyntaxException {
-      try {
-         Path path = Paths.get(".").relativize(FlightProfiler.INSTANCE.stop().normalize());
-         Path path2 = source.getServer().isRemote() && !SharedConstants.isDevelopment ? path : path.toAbsolutePath();
-         Text text = Text.literal(path.toString())
-            .formatted(Formatting.UNDERLINE)
-            .styled(
-               style -> style.withClickEvent(new ClickEvent.CopyToClipboard(path2.toString()))
-                  .withHoverEvent(new HoverEvent.ShowText(Text.translatable("chat.copy.click")))
-            );
-         source.sendFeedback(() -> Text.translatable("commands.jfr.stopped", text), false);
-         return 1;
-      } catch (Throwable var4) {
-         throw JFR_DUMP_FAILED_EXCEPTION.create(var4.getMessage());
-      }
-   }
+	private static int executeStart(ServerCommandSource source) throws CommandSyntaxException {
+		InstanceType instanceType = InstanceType.get(source.getServer());
+		if (!FlightProfiler.INSTANCE.start(instanceType)) {
+			throw JFR_START_FAILED_EXCEPTION.create();
+		}
+		else {
+			source.sendFeedback(() -> Text.translatable("commands.jfr.started"), false);
+			return 1;
+		}
+	}
+
+	private static int executeStop(ServerCommandSource source) throws CommandSyntaxException {
+		try {
+			Path path = Paths.get(".").relativize(FlightProfiler.INSTANCE.stop().normalize());
+			Path path2 = source.getServer().isRemote() && !SharedConstants.isDevelopment ? path : path.toAbsolutePath();
+			Text text = Text.literal(path.toString())
+			                .formatted(Formatting.UNDERLINE)
+			                .styled(
+					                style -> style.withClickEvent(new ClickEvent.CopyToClipboard(path2.toString()))
+					                              .withHoverEvent(new HoverEvent.ShowText(Text.translatable(
+							                              "chat.copy.click")))
+			                );
+			source.sendFeedback(() -> Text.translatable("commands.jfr.stopped", text), false);
+			return 1;
+		}
+		catch (Throwable var4) {
+			throw JFR_DUMP_FAILED_EXCEPTION.create(var4.getMessage());
+		}
+	}
 }

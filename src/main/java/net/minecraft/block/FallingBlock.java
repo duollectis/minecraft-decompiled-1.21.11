@@ -15,62 +15,80 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code FallingBlock}.
+ */
 public abstract class FallingBlock extends Block implements Falling {
-   public FallingBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   protected abstract MapCodec<? extends FallingBlock> getCodec();
+	public FallingBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-      world.scheduleBlockTick(pos, this, this.getFallDelay());
-   }
+	@Override
+	protected abstract MapCodec<? extends FallingBlock> getCodec();
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      tickView.scheduleBlockTick(pos, this, this.getFallDelay());
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
+		world.scheduleBlockTick(pos, this, this.getFallDelay());
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (canFallThrough(world.getBlockState(pos.down())) && pos.getY() >= world.getBottomY()) {
-         FallingBlockEntity fallingBlockEntity = FallingBlockEntity.spawnFromBlock(world, pos, state);
-         this.configureFallingBlockEntity(fallingBlockEntity);
-      }
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		tickView.scheduleBlockTick(pos, this, this.getFallDelay());
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   protected void configureFallingBlockEntity(FallingBlockEntity entity) {
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (canFallThrough(world.getBlockState(pos.down())) && pos.getY() >= world.getBottomY()) {
+			FallingBlockEntity fallingBlockEntity = FallingBlockEntity.spawnFromBlock(world, pos, state);
+			this.configureFallingBlockEntity(fallingBlockEntity);
+		}
+	}
 
-   protected int getFallDelay() {
-      return 2;
-   }
+	protected void configureFallingBlockEntity(FallingBlockEntity entity) {
+	}
 
-   public static boolean canFallThrough(BlockState state) {
-      return state.isAir() || state.isIn(BlockTags.FIRE) || state.isLiquid() || state.isReplaceable();
-   }
+	protected int getFallDelay() {
+		return 2;
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      if (random.nextInt(16) == 0) {
-         BlockPos blockPos = pos.down();
-         if (canFallThrough(world.getBlockState(blockPos))) {
-            ParticleUtil.spawnParticle(world, pos, random, new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, state));
-         }
-      }
-   }
+	public static boolean canFallThrough(BlockState state) {
+		return state.isAir() || state.isIn(BlockTags.FIRE) || state.isLiquid() || state.isReplaceable();
+	}
 
-   public abstract int getColor(BlockState state, BlockView world, BlockPos pos);
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		if (random.nextInt(16) == 0) {
+			BlockPos blockPos = pos.down();
+			if (canFallThrough(world.getBlockState(blockPos))) {
+				ParticleUtil.spawnParticle(
+						world,
+						pos,
+						random,
+						new BlockStateParticleEffect(ParticleTypes.FALLING_DUST, state)
+				);
+			}
+		}
+	}
+
+	public abstract int getColor(BlockState state, BlockView world, BlockPos pos);
 }

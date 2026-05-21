@@ -4,147 +4,155 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Positioner}.
+ */
 public interface Positioner {
-   Positioner margin(int value);
 
-   Positioner margin(int x, int y);
+	Positioner margin(int value);
 
-   Positioner margin(int left, int top, int right, int bottom);
+	Positioner margin(int x, int y);
 
-   Positioner marginLeft(int marginLeft);
+	Positioner margin(int left, int top, int right, int bottom);
 
-   Positioner marginTop(int marginTop);
+	Positioner marginLeft(int marginLeft);
 
-   Positioner marginRight(int marginRight);
+	Positioner marginTop(int marginTop);
 
-   Positioner marginBottom(int marginBottom);
+	Positioner marginRight(int marginRight);
 
-   Positioner marginX(int marginX);
+	Positioner marginBottom(int marginBottom);
 
-   Positioner marginY(int marginY);
+	Positioner marginX(int marginX);
 
-   Positioner relative(float x, float y);
+	Positioner marginY(int marginY);
 
-   Positioner relativeX(float relativeX);
+	Positioner relative(float x, float y);
 
-   Positioner relativeY(float relativeY);
+	Positioner relativeX(float relativeX);
 
-   default Positioner alignLeft() {
-      return this.relativeX(0.0F);
-   }
+	Positioner relativeY(float relativeY);
 
-   default Positioner alignHorizontalCenter() {
-      return this.relativeX(0.5F);
-   }
+	default Positioner alignLeft() {
+		return this.relativeX(0.0F);
+	}
 
-   default Positioner alignRight() {
-      return this.relativeX(1.0F);
-   }
+	default Positioner alignHorizontalCenter() {
+		return this.relativeX(0.5F);
+	}
 
-   default Positioner alignTop() {
-      return this.relativeY(0.0F);
-   }
+	default Positioner alignRight() {
+		return this.relativeX(1.0F);
+	}
 
-   default Positioner alignVerticalCenter() {
-      return this.relativeY(0.5F);
-   }
+	default Positioner alignTop() {
+		return this.relativeY(0.0F);
+	}
 
-   default Positioner alignBottom() {
-      return this.relativeY(1.0F);
-   }
+	default Positioner alignVerticalCenter() {
+		return this.relativeY(0.5F);
+	}
 
-   Positioner copy();
+	default Positioner alignBottom() {
+		return this.relativeY(1.0F);
+	}
 
-   Positioner.Impl toImpl();
+	Positioner copy();
 
-   static Positioner create() {
-      return new Positioner.Impl();
-   }
+	Positioner.Impl toImpl();
 
-   @Environment(EnvType.CLIENT)
-   public static class Impl implements Positioner {
-      public int marginLeft;
-      public int marginTop;
-      public int marginRight;
-      public int marginBottom;
-      public float relativeX;
-      public float relativeY;
+	static Positioner create() {
+		return new Positioner.Impl();
+	}
 
-      public Impl() {
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Impl}.
+	 */
+	public static class Impl implements Positioner {
 
-      public Impl(Positioner.Impl original) {
-         this.marginLeft = original.marginLeft;
-         this.marginTop = original.marginTop;
-         this.marginRight = original.marginRight;
-         this.marginBottom = original.marginBottom;
-         this.relativeX = original.relativeX;
-         this.relativeY = original.relativeY;
-      }
+		public int marginLeft;
+		public int marginTop;
+		public int marginRight;
+		public int marginBottom;
+		public float relativeX;
+		public float relativeY;
 
-      public Positioner.Impl margin(int i) {
-         return this.margin(i, i);
-      }
+		public Impl() {
+		}
 
-      public Positioner.Impl margin(int i, int j) {
-         return this.marginX(i).marginY(j);
-      }
+		public Impl(Positioner.Impl original) {
+			this.marginLeft = original.marginLeft;
+			this.marginTop = original.marginTop;
+			this.marginRight = original.marginRight;
+			this.marginBottom = original.marginBottom;
+			this.relativeX = original.relativeX;
+			this.relativeY = original.relativeY;
+		}
 
-      public Positioner.Impl margin(int i, int j, int k, int l) {
-         return this.marginLeft(i).marginRight(k).marginTop(j).marginBottom(l);
-      }
+		public Positioner.Impl margin(int i) {
+			return this.margin(i, i);
+		}
 
-      public Positioner.Impl marginLeft(int i) {
-         this.marginLeft = i;
-         return this;
-      }
+		public Positioner.Impl margin(int i, int j) {
+			return this.marginX(i).marginY(j);
+		}
 
-      public Positioner.Impl marginTop(int i) {
-         this.marginTop = i;
-         return this;
-      }
+		public Positioner.Impl margin(int i, int j, int k, int l) {
+			return this.marginLeft(i).marginRight(k).marginTop(j).marginBottom(l);
+		}
 
-      public Positioner.Impl marginRight(int i) {
-         this.marginRight = i;
-         return this;
-      }
+		public Positioner.Impl marginLeft(int i) {
+			this.marginLeft = i;
+			return this;
+		}
 
-      public Positioner.Impl marginBottom(int i) {
-         this.marginBottom = i;
-         return this;
-      }
+		public Positioner.Impl marginTop(int i) {
+			this.marginTop = i;
+			return this;
+		}
 
-      public Positioner.Impl marginX(int i) {
-         return this.marginLeft(i).marginRight(i);
-      }
+		public Positioner.Impl marginRight(int i) {
+			this.marginRight = i;
+			return this;
+		}
 
-      public Positioner.Impl marginY(int i) {
-         return this.marginTop(i).marginBottom(i);
-      }
+		public Positioner.Impl marginBottom(int i) {
+			this.marginBottom = i;
+			return this;
+		}
 
-      public Positioner.Impl relative(float f, float g) {
-         this.relativeX = f;
-         this.relativeY = g;
-         return this;
-      }
+		public Positioner.Impl marginX(int i) {
+			return this.marginLeft(i).marginRight(i);
+		}
 
-      public Positioner.Impl relativeX(float f) {
-         this.relativeX = f;
-         return this;
-      }
+		public Positioner.Impl marginY(int i) {
+			return this.marginTop(i).marginBottom(i);
+		}
 
-      public Positioner.Impl relativeY(float f) {
-         this.relativeY = f;
-         return this;
-      }
+		public Positioner.Impl relative(float f, float g) {
+			this.relativeX = f;
+			this.relativeY = g;
+			return this;
+		}
 
-      public Positioner.Impl copy() {
-         return new Positioner.Impl(this);
-      }
+		public Positioner.Impl relativeX(float f) {
+			this.relativeX = f;
+			return this;
+		}
 
-      @Override
-      public Positioner.Impl toImpl() {
-         return this;
-      }
-   }
+		public Positioner.Impl relativeY(float f) {
+			this.relativeY = f;
+			return this;
+		}
+
+		public Positioner.Impl copy() {
+			return new Positioner.Impl(this);
+		}
+
+		@Override
+		public Positioner.Impl toImpl() {
+			return this;
+		}
+	}
 }

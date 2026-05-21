@@ -5,10 +5,14 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ChunkLoadMap}.
+ */
 public interface ChunkLoadMap {
-   void initSpawnPos(RegistryKey<World> world, ChunkPos spawnPos);
 
-   @Nullable ChunkStatus getStatus(int x, int z);
+	void initSpawnPos(RegistryKey<World> world, ChunkPos spawnPos);
 
-   int getRadius();
+	@Nullable ChunkStatus getStatus(int x, int z);
+
+	int getRadius();
 }

@@ -1,107 +1,121 @@
 package net.minecraft.entity.ai.brain.task;
 
-import java.util.Map;
-import java.util.Map.Entry;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.MemoryModuleState;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.server.world.ServerWorld;
 
+import java.util.Map;
+import java.util.Map.Entry;
+
+/**
+ * {@code MultiTickTask}.
+ */
 public abstract class MultiTickTask<E extends LivingEntity> implements Task<E> {
-   public static final int DEFAULT_RUN_TIME = 60;
-   protected final Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryStates;
-   private MultiTickTask.Status status = MultiTickTask.Status.STOPPED;
-   private long endTime;
-   private final int minRunTime;
-   private final int maxRunTime;
 
-   public MultiTickTask(Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryState) {
-      this(requiredMemoryState, 60);
-   }
+	public static final int DEFAULT_RUN_TIME = 60;
+	protected final Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryStates;
+	private MultiTickTask.Status status = MultiTickTask.Status.STOPPED;
+	private long endTime;
+	private final int minRunTime;
+	private final int maxRunTime;
 
-   public MultiTickTask(Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryState, int runTime) {
-      this(requiredMemoryState, runTime, runTime);
-   }
+	public MultiTickTask(Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryState) {
+		this(requiredMemoryState, 60);
+	}
 
-   public MultiTickTask(Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryState, int minRunTime, int maxRunTime) {
-      this.minRunTime = minRunTime;
-      this.maxRunTime = maxRunTime;
-      this.requiredMemoryStates = requiredMemoryState;
-   }
+	public MultiTickTask(Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryState, int runTime) {
+		this(requiredMemoryState, runTime, runTime);
+	}
 
-   @Override
-   public MultiTickTask.Status getStatus() {
-      return this.status;
-   }
+	public MultiTickTask(
+			Map<MemoryModuleType<?>, MemoryModuleState> requiredMemoryState,
+			int minRunTime,
+			int maxRunTime
+	) {
+		this.minRunTime = minRunTime;
+		this.maxRunTime = maxRunTime;
+		this.requiredMemoryStates = requiredMemoryState;
+	}
 
-   @Override
-   public final boolean tryStarting(ServerWorld world, E entity, long time) {
-      if (this.hasRequiredMemoryState(entity) && this.shouldRun(world, entity)) {
-         this.status = MultiTickTask.Status.RUNNING;
-         int i = this.minRunTime + world.getRandom().nextInt(this.maxRunTime + 1 - this.minRunTime);
-         this.endTime = time + i;
-         this.run(world, entity, time);
-         return true;
-      } else {
-         return false;
-      }
-   }
+	@Override
+	public MultiTickTask.Status getStatus() {
+		return this.status;
+	}
 
-   protected void run(ServerWorld world, E entity, long time) {
-   }
+	@Override
+	public final boolean tryStarting(ServerWorld world, E entity, long time) {
+		if (this.hasRequiredMemoryState(entity) && this.shouldRun(world, entity)) {
+			this.status = MultiTickTask.Status.RUNNING;
+			int i = this.minRunTime + world.getRandom().nextInt(this.maxRunTime + 1 - this.minRunTime);
+			this.endTime = time + i;
+			this.run(world, entity, time);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Override
-   public final void tick(ServerWorld world, E entity, long time) {
-      if (!this.isTimeLimitExceeded(time) && this.shouldKeepRunning(world, entity, time)) {
-         this.keepRunning(world, entity, time);
-      } else {
-         this.stop(world, entity, time);
-      }
-   }
+	protected void run(ServerWorld world, E entity, long time) {
+	}
 
-   protected void keepRunning(ServerWorld world, E entity, long time) {
-   }
+	@Override
+	public final void tick(ServerWorld world, E entity, long time) {
+		if (!this.isTimeLimitExceeded(time) && this.shouldKeepRunning(world, entity, time)) {
+			this.keepRunning(world, entity, time);
+		}
+		else {
+			this.stop(world, entity, time);
+		}
+	}
 
-   @Override
-   public final void stop(ServerWorld world, E entity, long time) {
-      this.status = MultiTickTask.Status.STOPPED;
-      this.finishRunning(world, entity, time);
-   }
+	protected void keepRunning(ServerWorld world, E entity, long time) {
+	}
 
-   protected void finishRunning(ServerWorld world, E entity, long time) {
-   }
+	@Override
+	public final void stop(ServerWorld world, E entity, long time) {
+		this.status = MultiTickTask.Status.STOPPED;
+		this.finishRunning(world, entity, time);
+	}
 
-   protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
-      return false;
-   }
+	protected void finishRunning(ServerWorld world, E entity, long time) {
+	}
 
-   protected boolean isTimeLimitExceeded(long time) {
-      return time > this.endTime;
-   }
+	protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
+		return false;
+	}
 
-   protected boolean shouldRun(ServerWorld world, E entity) {
-      return true;
-   }
+	protected boolean isTimeLimitExceeded(long time) {
+		return time > this.endTime;
+	}
 
-   @Override
-   public String getName() {
-      return this.getClass().getSimpleName();
-   }
+	protected boolean shouldRun(ServerWorld world, E entity) {
+		return true;
+	}
 
-   protected boolean hasRequiredMemoryState(E entity) {
-      for (Entry<MemoryModuleType<?>, MemoryModuleState> entry : this.requiredMemoryStates.entrySet()) {
-         MemoryModuleType<?> memoryModuleType = entry.getKey();
-         MemoryModuleState memoryModuleState = entry.getValue();
-         if (!entity.getBrain().isMemoryInState(memoryModuleType, memoryModuleState)) {
-            return false;
-         }
-      }
+	@Override
+	public String getName() {
+		return this.getClass().getSimpleName();
+	}
 
-      return true;
-   }
+	protected boolean hasRequiredMemoryState(E entity) {
+		for (Entry<MemoryModuleType<?>, MemoryModuleState> entry : this.requiredMemoryStates.entrySet()) {
+			MemoryModuleType<?> memoryModuleType = entry.getKey();
+			MemoryModuleState memoryModuleState = entry.getValue();
+			if (!entity.getBrain().isMemoryInState(memoryModuleType, memoryModuleState)) {
+				return false;
+			}
+		}
 
-   public static enum Status {
-      STOPPED,
-      RUNNING;
-   }
+		return true;
+	}
+
+	/**
+	 * {@code Status}.
+	 */
+	public static enum Status {
+		STOPPED,
+		RUNNING;
+	}
 }

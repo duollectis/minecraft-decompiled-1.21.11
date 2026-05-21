@@ -1,6 +1,5 @@
 package net.minecraft.client.gui.widget;
 
-import java.util.OptionalInt;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.font.Alignment;
@@ -11,79 +10,98 @@ import net.minecraft.text.Text;
 import net.minecraft.util.CachedMapper;
 import net.minecraft.util.Util;
 
+import java.util.OptionalInt;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MultilineTextWidget}.
+ */
 public class MultilineTextWidget extends AbstractTextWidget {
-   private OptionalInt maxWidth = OptionalInt.empty();
-   private OptionalInt maxRows = OptionalInt.empty();
-   private final CachedMapper<MultilineTextWidget.CacheKey, MultilineText> cacheKeyToText;
-   private boolean centered = false;
 
-   public MultilineTextWidget(Text message, TextRenderer textRenderer) {
-      this(0, 0, message, textRenderer);
-   }
+	private OptionalInt maxWidth = OptionalInt.empty();
+	private OptionalInt maxRows = OptionalInt.empty();
+	private final CachedMapper<MultilineTextWidget.CacheKey, MultilineText> cacheKeyToText;
+	private boolean centered = false;
 
-   public MultilineTextWidget(int x, int y, Text message, TextRenderer textRenderer) {
-      super(x, y, 0, 0, message, textRenderer);
-      this.cacheKeyToText = Util.cachedMapper(
-         cacheKey -> cacheKey.maxRows.isPresent()
-            ? MultilineText.create(textRenderer, cacheKey.maxWidth, cacheKey.maxRows.getAsInt(), cacheKey.message)
-            : MultilineText.create(textRenderer, cacheKey.message, cacheKey.maxWidth)
-      );
-      this.active = false;
-   }
+	public MultilineTextWidget(Text message, TextRenderer textRenderer) {
+		this(0, 0, message, textRenderer);
+	}
 
-   public MultilineTextWidget setMaxWidth(int maxWidth) {
-      this.maxWidth = OptionalInt.of(maxWidth);
-      return this;
-   }
+	public MultilineTextWidget(int x, int y, Text message, TextRenderer textRenderer) {
+		super(x, y, 0, 0, message, textRenderer);
+		this.cacheKeyToText = Util.cachedMapper(
+				cacheKey -> cacheKey.maxRows.isPresent()
+				            ? MultilineText.create(
+						textRenderer,
+						cacheKey.maxWidth,
+						cacheKey.maxRows.getAsInt(),
+						cacheKey.message
+				)
+				            : MultilineText.create(textRenderer, cacheKey.message, cacheKey.maxWidth)
+		);
+		this.active = false;
+	}
 
-   public MultilineTextWidget setMaxRows(int maxRows) {
-      this.maxRows = OptionalInt.of(maxRows);
-      return this;
-   }
+	public MultilineTextWidget setMaxWidth(int maxWidth) {
+		this.maxWidth = OptionalInt.of(maxWidth);
+		return this;
+	}
 
-   public MultilineTextWidget setCentered(boolean centered) {
-      this.centered = centered;
-      return this;
-   }
+	public MultilineTextWidget setMaxRows(int maxRows) {
+		this.maxRows = OptionalInt.of(maxRows);
+		return this;
+	}
 
-   @Override
-   public int getWidth() {
-      return this.cacheKeyToText.map(this.getCacheKey()).getMaxWidth();
-   }
+	public MultilineTextWidget setCentered(boolean centered) {
+		this.centered = centered;
+		return this;
+	}
 
-   @Override
-   public int getHeight() {
-      return this.cacheKeyToText.map(this.getCacheKey()).getLineCount() * 9;
-   }
+	@Override
+	public int getWidth() {
+		return this.cacheKeyToText.map(this.getCacheKey()).getMaxWidth();
+	}
 
-   @Override
-   public void draw(DrawnTextConsumer textConsumer) {
-      MultilineText multilineText = this.cacheKeyToText.map(this.getCacheKey());
-      int i = this.getTextX();
-      int j = this.getTextY();
-      int k = 9;
-      if (this.centered) {
-         int l = this.getX() + this.getWidth() / 2;
-         multilineText.draw(Alignment.CENTER, l, j, k, textConsumer);
-      } else {
-         multilineText.draw(Alignment.LEFT, i, j, k, textConsumer);
-      }
-   }
+	@Override
+	public int getHeight() {
+		return this.cacheKeyToText.map(this.getCacheKey()).getLineCount() * 9;
+	}
 
-   protected int getTextX() {
-      return this.getX();
-   }
+	@Override
+	public void draw(DrawnTextConsumer textConsumer) {
+		MultilineText multilineText = this.cacheKeyToText.map(this.getCacheKey());
+		int i = this.getTextX();
+		int j = this.getTextY();
+		int k = 9;
+		if (this.centered) {
+			int l = this.getX() + this.getWidth() / 2;
+			multilineText.draw(Alignment.CENTER, l, j, k, textConsumer);
+		}
+		else {
+			multilineText.draw(Alignment.LEFT, i, j, k, textConsumer);
+		}
+	}
 
-   protected int getTextY() {
-      return this.getY();
-   }
+	protected int getTextX() {
+		return this.getX();
+	}
 
-   private MultilineTextWidget.CacheKey getCacheKey() {
-      return new MultilineTextWidget.CacheKey(this.getMessage(), this.maxWidth.orElse(Integer.MAX_VALUE), this.maxRows);
-   }
+	protected int getTextY() {
+		return this.getY();
+	}
 
-   @Environment(EnvType.CLIENT)
-   record CacheKey(Text message, int maxWidth, OptionalInt maxRows) {
-   }
+	private MultilineTextWidget.CacheKey getCacheKey() {
+		return new MultilineTextWidget.CacheKey(
+				this.getMessage(),
+				this.maxWidth.orElse(Integer.MAX_VALUE),
+				this.maxRows
+		);
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code CacheKey}.
+	 */
+	record CacheKey(Text message, int maxWidth, OptionalInt maxRows) {
+	}
 }

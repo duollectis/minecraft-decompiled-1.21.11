@@ -9,16 +9,17 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.debug.DebugSubscriptionType;
 
 public record EventDebugS2CPacket(DebugSubscriptionType.Value<?> event) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, EventDebugS2CPacket> PACKET_CODEC = PacketCodec.tuple(
-      DebugSubscriptionType.Value.PACKET_CODEC, EventDebugS2CPacket::event, EventDebugS2CPacket::new
-   );
 
-   @Override
-   public PacketType<EventDebugS2CPacket> getPacketType() {
-      return PlayPackets.EVENT_DEBUG;
-   }
+	public static final PacketCodec<RegistryByteBuf, EventDebugS2CPacket> PACKET_CODEC = PacketCodec.tuple(
+			DebugSubscriptionType.Value.PACKET_CODEC, EventDebugS2CPacket::event, EventDebugS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEventDebug(this);
-   }
+	@Override
+	public PacketType<EventDebugS2CPacket> getPacketType() {
+		return PlayPackets.EVENT_DEBUG;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEventDebug(this);
+	}
 }

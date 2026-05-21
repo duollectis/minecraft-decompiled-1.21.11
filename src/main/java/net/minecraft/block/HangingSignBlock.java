@@ -2,15 +2,7 @@ package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Map.Entry;
-import java.util.stream.Collectors;
-import net.minecraft.block.entity.BlockEntity;
-import net.minecraft.block.entity.BlockEntityTicker;
-import net.minecraft.block.entity.BlockEntityType;
-import net.minecraft.block.entity.HangingSignBlockEntity;
-import net.minecraft.block.entity.SignBlockEntity;
+import net.minecraft.block.entity.*;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.fluid.Fluids;
@@ -39,128 +31,188 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+/**
+ * {@code HangingSignBlock}.
+ */
 public class HangingSignBlock extends AbstractSignBlock {
-   public static final MapCodec<HangingSignBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(WoodType.CODEC.fieldOf("wood_type").forGetter(block -> block.getWoodType()), createSettingsCodec())
-         .apply(instance, HangingSignBlock::new)
-   );
-   public static final IntProperty ROTATION = Properties.ROTATION;
-   public static final BooleanProperty ATTACHED = Properties.ATTACHED;
-   private static final VoxelShape DEFAULT_SHAPE = Block.createColumnShape(10.0, 0.0, 16.0);
-   private static final Map<Integer, VoxelShape> SHAPES_BY_ROTATION = VoxelShapes.createHorizontalFacingShapeMap(Block.createColumnShape(14.0, 2.0, 0.0, 10.0))
-      .entrySet()
-      .stream()
-      .collect(Collectors.toMap(entry -> RotationPropertyHelper.fromDirection(entry.getKey()), Entry::getValue));
 
-   @Override
-   public MapCodec<HangingSignBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<HangingSignBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(
+							WoodType.CODEC.fieldOf("wood_type").forGetter(block -> block.getWoodType()),
+							createSettingsCodec()
+					)
+					.apply(instance, HangingSignBlock::new)
+	);
+	public static final IntProperty ROTATION = Properties.ROTATION;
+	public static final BooleanProperty ATTACHED = Properties.ATTACHED;
+	private static final VoxelShape DEFAULT_SHAPE = Block.createColumnShape(10.0, 0.0, 16.0);
+	private static final Map<Integer, VoxelShape>
+			SHAPES_BY_ROTATION =
+			VoxelShapes.createHorizontalFacingShapeMap(Block.createColumnShape(14.0, 2.0, 0.0, 10.0))
+			           .entrySet()
+			           .stream()
+			           .collect(Collectors.toMap(
+					           entry -> RotationPropertyHelper.fromDirection(entry.getKey()),
+					           Entry::getValue
+			           ));
 
-   public HangingSignBlock(WoodType woodType, AbstractBlock.Settings settings) {
-      super(woodType, settings.sounds(woodType.hangingSignSoundType()));
-      this.setDefaultState(this.stateManager.getDefaultState().with(ROTATION, 0).with(ATTACHED, false).with(WATERLOGGED, false));
-   }
+	@Override
+	public MapCodec<HangingSignBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      return (ActionResult)(world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity
-            && this.shouldTryAttaching(player, hit, signBlockEntity, stack)
-         ? ActionResult.PASS
-         : super.onUseWithItem(stack, state, world, pos, player, hand, hit));
-   }
+	public HangingSignBlock(WoodType woodType, AbstractBlock.Settings settings) {
+		super(woodType, settings.sounds(woodType.hangingSignSoundType()));
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(ROTATION, 0)
+				.with(ATTACHED, false)
+				.with(WATERLOGGED, false));
+	}
 
-   private boolean shouldTryAttaching(PlayerEntity player, BlockHitResult hitResult, SignBlockEntity sign, ItemStack stack) {
-      return !sign.canRunCommandClickEvent(sign.isPlayerFacingFront(player), player)
-         && stack.getItem() instanceof HangingSignItem
-         && hitResult.getSide().equals(Direction.DOWN);
-   }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		return (ActionResult) (world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity
+				                       && this.shouldTryAttaching(player, hit, signBlockEntity, stack)
+		                       ? ActionResult.PASS
+		                       : super.onUseWithItem(stack, state, world, pos, player, hand, hit)
+		);
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      return world.getBlockState(pos.up()).isSideSolid(world, pos.up(), Direction.DOWN, SideShapeType.CENTER);
-   }
+	private boolean shouldTryAttaching(
+			PlayerEntity player,
+			BlockHitResult hitResult,
+			SignBlockEntity sign,
+			ItemStack stack
+	) {
+		return !sign.canRunCommandClickEvent(sign.isPlayerFacingFront(player), player)
+				&& stack.getItem() instanceof HangingSignItem
+				&& hitResult.getSide().equals(Direction.DOWN);
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      World world = ctx.getWorld();
-      FluidState fluidState = world.getFluidState(ctx.getBlockPos());
-      BlockPos blockPos = ctx.getBlockPos().up();
-      BlockState blockState = world.getBlockState(blockPos);
-      boolean bl = blockState.isIn(BlockTags.ALL_HANGING_SIGNS);
-      Direction direction = Direction.fromHorizontalDegrees(ctx.getPlayerYaw());
-      boolean bl2 = !Block.isFaceFullSquare(blockState.getCollisionShape(world, blockPos), Direction.DOWN) || ctx.shouldCancelInteraction();
-      if (bl && !ctx.shouldCancelInteraction()) {
-         if (blockState.contains(WallHangingSignBlock.FACING)) {
-            Direction direction2 = blockState.get(WallHangingSignBlock.FACING);
-            if (direction2.getAxis().test(direction)) {
-               bl2 = false;
-            }
-         } else if (blockState.contains(ROTATION)) {
-            Optional<Direction> optional = RotationPropertyHelper.toDirection(blockState.get(ROTATION));
-            if (optional.isPresent() && optional.get().getAxis().test(direction)) {
-               bl2 = false;
-            }
-         }
-      }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		return world.getBlockState(pos.up()).isSideSolid(world, pos.up(), Direction.DOWN, SideShapeType.CENTER);
+	}
 
-      int i = !bl2 ? RotationPropertyHelper.fromDirection(direction.getOpposite()) : RotationPropertyHelper.fromYaw(ctx.getPlayerYaw() + 180.0F);
-      return this.getDefaultState().with(ATTACHED, bl2).with(ROTATION, i).with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		World world = ctx.getWorld();
+		FluidState fluidState = world.getFluidState(ctx.getBlockPos());
+		BlockPos blockPos = ctx.getBlockPos().up();
+		BlockState blockState = world.getBlockState(blockPos);
+		boolean bl = blockState.isIn(BlockTags.ALL_HANGING_SIGNS);
+		Direction direction = Direction.fromHorizontalDegrees(ctx.getPlayerYaw());
+		boolean
+				bl2 =
+				!Block.isFaceFullSquare(blockState.getCollisionShape(world, blockPos), Direction.DOWN)
+						|| ctx.shouldCancelInteraction();
+		if (bl && !ctx.shouldCancelInteraction()) {
+			if (blockState.contains(WallHangingSignBlock.FACING)) {
+				Direction direction2 = blockState.get(WallHangingSignBlock.FACING);
+				if (direction2.getAxis().test(direction)) {
+					bl2 = false;
+				}
+			}
+			else if (blockState.contains(ROTATION)) {
+				Optional<Direction> optional = RotationPropertyHelper.toDirection(blockState.get(ROTATION));
+				if (optional.isPresent() && optional.get().getAxis().test(direction)) {
+					bl2 = false;
+				}
+			}
+		}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPES_BY_ROTATION.getOrDefault(state.get(ROTATION), DEFAULT_SHAPE);
-   }
+		int
+				i =
+				!bl2 ? RotationPropertyHelper.fromDirection(direction.getOpposite())
+				     : RotationPropertyHelper.fromYaw(ctx.getPlayerYaw() + 180.0F);
+		return this
+				.getDefaultState()
+				.with(ATTACHED, bl2)
+				.with(ROTATION, i)
+				.with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
+	}
 
-   @Override
-   protected VoxelShape getSidesShape(BlockState state, BlockView world, BlockPos pos) {
-      return this.getOutlineShape(state, world, pos, ShapeContext.absent());
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPES_BY_ROTATION.getOrDefault(state.get(ROTATION), DEFAULT_SHAPE);
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      return direction == Direction.UP && !this.canPlaceAt(state, world, pos)
-         ? Blocks.AIR.getDefaultState()
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected VoxelShape getSidesShape(BlockState state, BlockView world, BlockPos pos) {
+		return this.getOutlineShape(state, world, pos, ShapeContext.absent());
+	}
 
-   @Override
-   public float getRotationDegrees(BlockState state) {
-      return RotationPropertyHelper.toDegrees(state.get(ROTATION));
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		return direction == Direction.UP && !this.canPlaceAt(state, world, pos)
+		       ? Blocks.AIR.getDefaultState()
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(ROTATION, rotation.rotate(state.get(ROTATION), 16));
-   }
+	@Override
+	public float getRotationDegrees(BlockState state) {
+		return RotationPropertyHelper.toDegrees(state.get(ROTATION));
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.with(ROTATION, mirror.mirror(state.get(ROTATION), 16));
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(ROTATION, rotation.rotate(state.get(ROTATION), 16));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(ROTATION, ATTACHED, WATERLOGGED);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.with(ROTATION, mirror.mirror(state.get(ROTATION), 16));
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new HangingSignBlockEntity(pos, state);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(ROTATION, ATTACHED, WATERLOGGED);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return validateTicker(type, BlockEntityType.HANGING_SIGN, SignBlockEntity::tick);
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new HangingSignBlockEntity(pos, state);
+	}
+
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return validateTicker(type, BlockEntityType.HANGING_SIGN, SignBlockEntity::tick);
+	}
 }

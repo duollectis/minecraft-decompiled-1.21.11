@@ -2,35 +2,39 @@ package net.minecraft.entity.ai.goal;
 
 import net.minecraft.entity.mob.MobEntity;
 
+/**
+ * {@code LongDoorInteractGoal}.
+ */
 public class LongDoorInteractGoal extends DoorInteractGoal {
-   private final boolean delayedClose;
-   private int ticksLeft;
 
-   public LongDoorInteractGoal(MobEntity mob, boolean delayedClose) {
-      super(mob);
-      this.mob = mob;
-      this.delayedClose = delayedClose;
-   }
+	private final boolean delayedClose;
+	private int ticksLeft;
 
-   @Override
-   public boolean shouldContinue() {
-      return this.delayedClose && this.ticksLeft > 0 && super.shouldContinue();
-   }
+	public LongDoorInteractGoal(MobEntity mob, boolean delayedClose) {
+		super(mob);
+		this.mob = mob;
+		this.delayedClose = delayedClose;
+	}
 
-   @Override
-   public void start() {
-      this.ticksLeft = 20;
-      this.setDoorOpen(true);
-   }
+	@Override
+	public boolean shouldContinue() {
+		return this.delayedClose && this.ticksLeft > 0 && super.shouldContinue();
+	}
 
-   @Override
-   public void stop() {
-      this.setDoorOpen(false);
-   }
+	@Override
+	public void start() {
+		this.ticksLeft = 20;
+		this.setDoorOpen(true);
+	}
 
-   @Override
-   public void tick() {
-      this.ticksLeft--;
-      super.tick();
-   }
+	@Override
+	public void stop() {
+		this.setDoorOpen(false);
+	}
+
+	@Override
+	public void tick() {
+		this.ticksLeft--;
+		super.tick();
+	}
 }

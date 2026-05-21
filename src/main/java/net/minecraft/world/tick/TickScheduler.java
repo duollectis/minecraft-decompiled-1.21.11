@@ -2,10 +2,14 @@ package net.minecraft.world.tick;
 
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code TickScheduler}.
+ */
 public interface TickScheduler<T> {
-   void scheduleTick(OrderedTick<T> orderedTick);
 
-   boolean isQueued(BlockPos pos, T type);
+	void scheduleTick(OrderedTick<T> orderedTick);
 
-   int getTickCount();
+	boolean isQueued(BlockPos pos, T type);
+
+	int getTickCount();
 }

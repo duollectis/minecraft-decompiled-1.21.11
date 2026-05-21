@@ -8,49 +8,50 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class ItemPickupAnimationS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ItemPickupAnimationS2CPacket> CODEC = Packet.createCodec(
-      ItemPickupAnimationS2CPacket::write, ItemPickupAnimationS2CPacket::new
-   );
-   private final int entityId;
-   private final int collectorEntityId;
-   private final int stackAmount;
 
-   public ItemPickupAnimationS2CPacket(int entityId, int collectorId, int stackAmount) {
-      this.entityId = entityId;
-      this.collectorEntityId = collectorId;
-      this.stackAmount = stackAmount;
-   }
+	public static final PacketCodec<PacketByteBuf, ItemPickupAnimationS2CPacket> CODEC = Packet.createCodec(
+			ItemPickupAnimationS2CPacket::write, ItemPickupAnimationS2CPacket::new
+	);
+	private final int entityId;
+	private final int collectorEntityId;
+	private final int stackAmount;
 
-   private ItemPickupAnimationS2CPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      this.collectorEntityId = buf.readVarInt();
-      this.stackAmount = buf.readVarInt();
-   }
+	public ItemPickupAnimationS2CPacket(int entityId, int collectorId, int stackAmount) {
+		this.entityId = entityId;
+		this.collectorEntityId = collectorId;
+		this.stackAmount = stackAmount;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      buf.writeVarInt(this.collectorEntityId);
-      buf.writeVarInt(this.stackAmount);
-   }
+	private ItemPickupAnimationS2CPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		this.collectorEntityId = buf.readVarInt();
+		this.stackAmount = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<ItemPickupAnimationS2CPacket> getPacketType() {
-      return PlayPackets.TAKE_ITEM_ENTITY;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		buf.writeVarInt(this.collectorEntityId);
+		buf.writeVarInt(this.stackAmount);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onItemPickupAnimation(this);
-   }
+	@Override
+	public PacketType<ItemPickupAnimationS2CPacket> getPacketType() {
+		return PlayPackets.TAKE_ITEM_ENTITY;
+	}
 
-   public int getEntityId() {
-      return this.entityId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onItemPickupAnimation(this);
+	}
 
-   public int getCollectorEntityId() {
-      return this.collectorEntityId;
-   }
+	public int getEntityId() {
+		return this.entityId;
+	}
 
-   public int getStackAmount() {
-      return this.stackAmount;
-   }
+	public int getCollectorEntityId() {
+		return this.collectorEntityId;
+	}
+
+	public int getStackAmount() {
+		return this.stackAmount;
+	}
 }

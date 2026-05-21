@@ -1,26 +1,35 @@
 package net.minecraft.item.tooltip;
 
+/**
+ * {@code TooltipType}.
+ */
 public interface TooltipType {
-   TooltipType.Default BASIC = new TooltipType.Default(false, false);
-   TooltipType.Default ADVANCED = new TooltipType.Default(true, false);
 
-   boolean isAdvanced();
+	TooltipType.Default BASIC = new TooltipType.Default(false, false);
 
-   boolean isCreative();
+	TooltipType.Default ADVANCED = new TooltipType.Default(true, false);
 
-   public record Default(boolean advanced, boolean creative) implements TooltipType {
-      @Override
-      public boolean isAdvanced() {
-         return this.advanced;
-      }
+	boolean isAdvanced();
 
-      @Override
-      public boolean isCreative() {
-         return this.creative;
-      }
+	boolean isCreative();
 
-      public TooltipType.Default withCreative() {
-         return new TooltipType.Default(this.advanced, true);
-      }
-   }
+	/**
+	 * {@code Default}.
+	 */
+	public record Default(boolean advanced, boolean creative) implements TooltipType {
+
+		@Override
+		public boolean isAdvanced() {
+			return this.advanced;
+		}
+
+		@Override
+		public boolean isCreative() {
+			return this.creative;
+		}
+
+		public TooltipType.Default withCreative() {
+			return new TooltipType.Default(this.advanced, true);
+		}
+	}
 }

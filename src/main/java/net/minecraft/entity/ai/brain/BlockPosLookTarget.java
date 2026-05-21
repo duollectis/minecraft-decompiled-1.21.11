@@ -4,37 +4,41 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * {@code BlockPosLookTarget}.
+ */
 public class BlockPosLookTarget implements LookTarget {
-   private final BlockPos blockPos;
-   private final Vec3d pos;
 
-   public BlockPosLookTarget(BlockPos blockPos) {
-      this.blockPos = blockPos.toImmutable();
-      this.pos = Vec3d.ofCenter(blockPos);
-   }
+	private final BlockPos blockPos;
+	private final Vec3d pos;
 
-   public BlockPosLookTarget(Vec3d pos) {
-      this.blockPos = BlockPos.ofFloored(pos);
-      this.pos = pos;
-   }
+	public BlockPosLookTarget(BlockPos blockPos) {
+		this.blockPos = blockPos.toImmutable();
+		this.pos = Vec3d.ofCenter(blockPos);
+	}
 
-   @Override
-   public Vec3d getPos() {
-      return this.pos;
-   }
+	public BlockPosLookTarget(Vec3d pos) {
+		this.blockPos = BlockPos.ofFloored(pos);
+		this.pos = pos;
+	}
 
-   @Override
-   public BlockPos getBlockPos() {
-      return this.blockPos;
-   }
+	@Override
+	public Vec3d getPos() {
+		return this.pos;
+	}
 
-   @Override
-   public boolean isSeenBy(LivingEntity entity) {
-      return true;
-   }
+	@Override
+	public BlockPos getBlockPos() {
+		return this.blockPos;
+	}
 
-   @Override
-   public String toString() {
-      return "BlockPosTracker{blockPos=" + this.blockPos + ", centerPosition=" + this.pos + "}";
-   }
+	@Override
+	public boolean isSeenBy(LivingEntity entity) {
+		return true;
+	}
+
+	@Override
+	public String toString() {
+		return "BlockPosTracker{blockPos=" + this.blockPos + ", centerPosition=" + this.pos + "}";
+	}
 }

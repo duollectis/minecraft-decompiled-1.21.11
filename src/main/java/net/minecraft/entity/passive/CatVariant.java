@@ -2,7 +2,6 @@ package net.minecraft.entity.passive;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
 import net.minecraft.entity.VariantSelectorProvider;
 import net.minecraft.entity.spawn.SpawnCondition;
 import net.minecraft.entity.spawn.SpawnConditionSelectors;
@@ -15,27 +14,37 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryFixedCodec;
 import net.minecraft.util.AssetInfo;
 
+import java.util.List;
+
+/**
+ * {@code CatVariant}.
+ */
 public record CatVariant(AssetInfo.TextureAssetInfo assetInfo, SpawnConditionSelectors spawnConditions)
-   implements VariantSelectorProvider<SpawnContext, SpawnCondition> {
-   public static final Codec<CatVariant> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            AssetInfo.TextureAssetInfo.MAP_CODEC.forGetter(CatVariant::assetInfo),
-            SpawnConditionSelectors.CODEC.fieldOf("spawn_conditions").forGetter(CatVariant::spawnConditions)
-         )
-         .apply(instance, CatVariant::new)
-   );
-   public static final Codec<CatVariant> NETWORK_CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(AssetInfo.TextureAssetInfo.MAP_CODEC.forGetter(CatVariant::assetInfo)).apply(instance, CatVariant::new)
-   );
-   public static final Codec<RegistryEntry<CatVariant>> ENTRY_CODEC = RegistryFixedCodec.of(RegistryKeys.CAT_VARIANT);
-   public static final PacketCodec<RegistryByteBuf, RegistryEntry<CatVariant>> PACKET_CODEC = PacketCodecs.registryEntry(RegistryKeys.CAT_VARIANT);
+		implements VariantSelectorProvider<SpawnContext, SpawnCondition> {
 
-   private CatVariant(AssetInfo.TextureAssetInfo assetInfo) {
-      this(assetInfo, SpawnConditionSelectors.EMPTY);
-   }
+	public static final Codec<CatVariant> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    AssetInfo.TextureAssetInfo.MAP_CODEC.forGetter(CatVariant::assetInfo),
+					                    SpawnConditionSelectors.CODEC.fieldOf("spawn_conditions").forGetter(CatVariant::spawnConditions)
+			                    )
+			                    .apply(instance, CatVariant::new)
+	);
+	public static final Codec<CatVariant> NETWORK_CODEC = RecordCodecBuilder.create(
+			instance -> instance
+					.group(AssetInfo.TextureAssetInfo.MAP_CODEC.forGetter(CatVariant::assetInfo))
+					.apply(instance, CatVariant::new)
+	);
+	public static final Codec<RegistryEntry<CatVariant>> ENTRY_CODEC = RegistryFixedCodec.of(RegistryKeys.CAT_VARIANT);
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<CatVariant>>
+			PACKET_CODEC =
+			PacketCodecs.registryEntry(RegistryKeys.CAT_VARIANT);
 
-   @Override
-   public List<VariantSelectorProvider.Selector<SpawnContext, SpawnCondition>> getSelectors() {
-      return this.spawnConditions.selectors();
-   }
+	private CatVariant(AssetInfo.TextureAssetInfo assetInfo) {
+		this(assetInfo, SpawnConditionSelectors.EMPTY);
+	}
+
+	@Override
+	public List<VariantSelectorProvider.Selector<SpawnContext, SpawnCondition>> getSelectors() {
+		return this.spawnConditions.selectors();
+	}
 }

@@ -5,8 +5,12 @@ import net.fabricmc.api.Environment;
 import net.minecraft.entity.passive.TropicalFishEntity;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TropicalFishEntityRenderState}.
+ */
 public class TropicalFishEntityRenderState extends LivingEntityRenderState {
-   public TropicalFishEntity.Pattern variety = TropicalFishEntity.Pattern.FLOPPER;
-   public int baseColor = -1;
-   public int patternColor = -1;
+
+	public TropicalFishEntity.Pattern variety = TropicalFishEntity.Pattern.FLOPPER;
+	public int baseColor = -1;
+	public int patternColor = -1;
 }

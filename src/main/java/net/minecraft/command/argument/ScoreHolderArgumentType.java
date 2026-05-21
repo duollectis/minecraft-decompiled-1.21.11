@@ -7,18 +7,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-import java.util.function.Supplier;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.command.CommandSource;
-import net.minecraft.command.DefaultPermissions;
-import net.minecraft.command.EntitySelector;
-import net.minecraft.command.EntitySelectorReader;
+import net.minecraft.command.*;
 import net.minecraft.command.argument.serialize.ArgumentSerializer;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.PacketByteBuf;
@@ -29,211 +18,279 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
 
+import java.util.*;
+import java.util.function.Supplier;
+
+/**
+ * {@code ScoreHolderArgumentType}.
+ */
 public class ScoreHolderArgumentType implements ArgumentType<ScoreHolderArgumentType.ScoreHolders> {
-   public static final SuggestionProvider<ServerCommandSource> SUGGESTION_PROVIDER = (context, builder) -> {
-      StringReader stringReader = new StringReader(builder.getInput());
-      stringReader.setCursor(builder.getStart());
-      EntitySelectorReader entitySelectorReader = new EntitySelectorReader(
-         stringReader, ((ServerCommandSource)context.getSource()).getPermissions().hasPermission(DefaultPermissions.ENTITY_SELECTORS)
-      );
 
-      try {
-         entitySelectorReader.read();
-      } catch (CommandSyntaxException var5) {
-      }
+	public static final SuggestionProvider<ServerCommandSource> SUGGESTION_PROVIDER = (context, builder) -> {
+		StringReader stringReader = new StringReader(builder.getInput());
+		stringReader.setCursor(builder.getStart());
+		EntitySelectorReader entitySelectorReader = new EntitySelectorReader(
+				stringReader,
+				((ServerCommandSource) context.getSource())
+						.getPermissions()
+						.hasPermission(DefaultPermissions.ENTITY_SELECTORS)
+		);
 
-      return entitySelectorReader.listSuggestions(
-         builder, builderx -> CommandSource.suggestMatching(((ServerCommandSource)context.getSource()).getPlayerNames(), builderx)
-      );
-   };
-   private static final Collection<String> EXAMPLES = Arrays.asList("Player", "0123", "*", "@e");
-   private static final SimpleCommandExceptionType EMPTY_SCORE_HOLDER_EXCEPTION = new SimpleCommandExceptionType(
-      Text.translatable("argument.scoreHolder.empty")
-   );
-   final boolean multiple;
+		try {
+			entitySelectorReader.read();
+		}
+		catch (CommandSyntaxException var5) {
+		}
 
-   public ScoreHolderArgumentType(boolean multiple) {
-      this.multiple = multiple;
-   }
+		return entitySelectorReader.listSuggestions(
+				builder,
+				builderx -> CommandSource.suggestMatching(
+						((ServerCommandSource) context.getSource()).getPlayerNames(),
+						builderx
+				)
+		);
+	};
+	private static final Collection<String> EXAMPLES = Arrays.asList("Player", "0123", "*", "@e");
+	private static final SimpleCommandExceptionType EMPTY_SCORE_HOLDER_EXCEPTION = new SimpleCommandExceptionType(
+			Text.translatable("argument.scoreHolder.empty")
+	);
+	final boolean multiple;
 
-   public static ScoreHolder getScoreHolder(CommandContext<ServerCommandSource> context, String name) throws CommandSyntaxException {
-      return getScoreHolders(context, name).iterator().next();
-   }
+	public ScoreHolderArgumentType(boolean multiple) {
+		this.multiple = multiple;
+	}
 
-   public static Collection<ScoreHolder> getScoreHolders(CommandContext<ServerCommandSource> context, String name) throws CommandSyntaxException {
-      return getScoreHolders(context, name, Collections::emptyList);
-   }
+	public static ScoreHolder getScoreHolder(CommandContext<ServerCommandSource> context, String name)
+	throws CommandSyntaxException {
+		return getScoreHolders(context, name).iterator().next();
+	}
 
-   public static Collection<ScoreHolder> getScoreboardScoreHolders(CommandContext<ServerCommandSource> context, String name) throws CommandSyntaxException {
-      return getScoreHolders(context, name, ((ServerCommandSource)context.getSource()).getServer().getScoreboard()::getKnownScoreHolders);
-   }
+	public static Collection<ScoreHolder> getScoreHolders(CommandContext<ServerCommandSource> context, String name)
+	throws CommandSyntaxException {
+		return getScoreHolders(context, name, Collections::emptyList);
+	}
 
-   public static Collection<ScoreHolder> getScoreHolders(CommandContext<ServerCommandSource> context, String name, Supplier<Collection<ScoreHolder>> players) throws CommandSyntaxException {
-      Collection<ScoreHolder> collection = ((ScoreHolderArgumentType.ScoreHolders)context.getArgument(name, ScoreHolderArgumentType.ScoreHolders.class))
-         .getNames((ServerCommandSource)context.getSource(), players);
-      if (collection.isEmpty()) {
-         throw EntityArgumentType.ENTITY_NOT_FOUND_EXCEPTION.create();
-      } else {
-         return collection;
-      }
-   }
+	public static Collection<ScoreHolder> getScoreboardScoreHolders(
+			CommandContext<ServerCommandSource> context,
+			String name
+	) throws CommandSyntaxException {
+		return getScoreHolders(
+				context,
+				name,
+				((ServerCommandSource) context.getSource()).getServer().getScoreboard()::getKnownScoreHolders
+		);
+	}
 
-   public static ScoreHolderArgumentType scoreHolder() {
-      return new ScoreHolderArgumentType(false);
-   }
+	public static Collection<ScoreHolder> getScoreHolders(
+			CommandContext<ServerCommandSource> context,
+			String name,
+			Supplier<Collection<ScoreHolder>> players
+	) throws CommandSyntaxException {
+		Collection<ScoreHolder>
+				collection =
+				((ScoreHolderArgumentType.ScoreHolders) context.getArgument(
+						name,
+						ScoreHolderArgumentType.ScoreHolders.class
+				)
+				)
+						.getNames((ServerCommandSource) context.getSource(), players);
+		if (collection.isEmpty()) {
+			throw EntityArgumentType.ENTITY_NOT_FOUND_EXCEPTION.create();
+		}
+		else {
+			return collection;
+		}
+	}
 
-   public static ScoreHolderArgumentType scoreHolders() {
-      return new ScoreHolderArgumentType(true);
-   }
+	public static ScoreHolderArgumentType scoreHolder() {
+		return new ScoreHolderArgumentType(false);
+	}
 
-   public ScoreHolderArgumentType.ScoreHolders parse(StringReader stringReader) throws CommandSyntaxException {
-      return this.parse(stringReader, true);
-   }
+	public static ScoreHolderArgumentType scoreHolders() {
+		return new ScoreHolderArgumentType(true);
+	}
 
-   public <S> ScoreHolderArgumentType.ScoreHolders parse(StringReader stringReader, S object) throws CommandSyntaxException {
-      return this.parse(stringReader, EntitySelectorReader.shouldAllowAtSelectors(object));
-   }
+	public ScoreHolderArgumentType.ScoreHolders parse(StringReader stringReader) throws CommandSyntaxException {
+		return this.parse(stringReader, true);
+	}
 
-   private ScoreHolderArgumentType.ScoreHolders parse(StringReader reader, boolean allowAtSelectors) throws CommandSyntaxException {
-      if (reader.canRead() && reader.peek() == '@') {
-         EntitySelectorReader entitySelectorReader = new EntitySelectorReader(reader, allowAtSelectors);
-         EntitySelector entitySelector = entitySelectorReader.read();
-         if (!this.multiple && entitySelector.getLimit() > 1) {
-            throw EntityArgumentType.TOO_MANY_ENTITIES_EXCEPTION.createWithContext(reader);
-         } else {
-            return new ScoreHolderArgumentType.SelectorScoreHolders(entitySelector);
-         }
-      } else {
-         int i = reader.getCursor();
+	public <S> ScoreHolderArgumentType.ScoreHolders parse(StringReader stringReader, S object)
+	throws CommandSyntaxException {
+		return this.parse(stringReader, EntitySelectorReader.shouldAllowAtSelectors(object));
+	}
 
-         while (reader.canRead() && reader.peek() != ' ') {
-            reader.skip();
-         }
+	private ScoreHolderArgumentType.ScoreHolders parse(StringReader reader, boolean allowAtSelectors)
+	throws CommandSyntaxException {
+		if (reader.canRead() && reader.peek() == '@') {
+			EntitySelectorReader entitySelectorReader = new EntitySelectorReader(reader, allowAtSelectors);
+			EntitySelector entitySelector = entitySelectorReader.read();
+			if (!this.multiple && entitySelector.getLimit() > 1) {
+				throw EntityArgumentType.TOO_MANY_ENTITIES_EXCEPTION.createWithContext(reader);
+			}
+			else {
+				return new ScoreHolderArgumentType.SelectorScoreHolders(entitySelector);
+			}
+		}
+		else {
+			int i = reader.getCursor();
 
-         String string = reader.getString().substring(i, reader.getCursor());
-         if (string.equals("*")) {
-            return (source, players) -> {
-               Collection<ScoreHolder> collection = players.get();
-               if (collection.isEmpty()) {
-                  throw EMPTY_SCORE_HOLDER_EXCEPTION.create();
-               } else {
-                  return collection;
-               }
-            };
-         } else {
-            List<ScoreHolder> list = List.of(ScoreHolder.fromName(string));
-            if (string.startsWith("#")) {
-               return (source, players) -> list;
-            } else {
-               try {
-                  UUID uUID = UUID.fromString(string);
-                  return (source, holders) -> {
-                     MinecraftServer minecraftServer = source.getServer();
-                     ScoreHolder scoreHolder = null;
-                     List<ScoreHolder> list2 = null;
+			while (reader.canRead() && reader.peek() != ' ') {
+				reader.skip();
+			}
 
-                     for (ServerWorld serverWorld : minecraftServer.getWorlds()) {
-                        Entity entity = serverWorld.getEntity(uUID);
-                        if (entity != null) {
-                           if (scoreHolder == null) {
-                              scoreHolder = entity;
-                           } else {
-                              if (list2 == null) {
-                                 list2 = new ArrayList<>();
-                                 list2.add(scoreHolder);
-                              }
+			String string = reader.getString().substring(i, reader.getCursor());
+			if (string.equals("*")) {
+				return (source, players) -> {
+					Collection<ScoreHolder> collection = players.get();
+					if (collection.isEmpty()) {
+						throw EMPTY_SCORE_HOLDER_EXCEPTION.create();
+					}
+					else {
+						return collection;
+					}
+				};
+			}
+			else {
+				List<ScoreHolder> list = List.of(ScoreHolder.fromName(string));
+				if (string.startsWith("#")) {
+					return (source, players) -> list;
+				}
+				else {
+					try {
+						UUID uUID = UUID.fromString(string);
+						return (source, holders) -> {
+							MinecraftServer minecraftServer = source.getServer();
+							ScoreHolder scoreHolder = null;
+							List<ScoreHolder> list2 = null;
 
-                              list2.add(entity);
-                           }
-                        }
-                     }
+							for (ServerWorld serverWorld : minecraftServer.getWorlds()) {
+								Entity entity = serverWorld.getEntity(uUID);
+								if (entity != null) {
+									if (scoreHolder == null) {
+										scoreHolder = entity;
+									}
+									else {
+										if (list2 == null) {
+											list2 = new ArrayList<>();
+											list2.add(scoreHolder);
+										}
 
-                     if (list2 != null) {
-                        return list2;
-                     } else {
-                        return scoreHolder != null ? List.of(scoreHolder) : list;
-                     }
-                  };
-               } catch (IllegalArgumentException var7) {
-                  return (source, holders) -> {
-                     MinecraftServer minecraftServer = source.getServer();
-                     ServerPlayerEntity serverPlayerEntity = minecraftServer.getPlayerManager().getPlayer(string);
-                     return serverPlayerEntity != null ? List.of(serverPlayerEntity) : list;
-                  };
-               }
-            }
-         }
-      }
-   }
+										list2.add(entity);
+									}
+								}
+							}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+							if (list2 != null) {
+								return list2;
+							}
+							else {
+								return scoreHolder != null ? List.of(scoreHolder) : list;
+							}
+						};
+					}
+					catch (IllegalArgumentException var7) {
+						return (source, holders) -> {
+							MinecraftServer minecraftServer = source.getServer();
+							ServerPlayerEntity
+									serverPlayerEntity =
+									minecraftServer.getPlayerManager().getPlayer(string);
+							return serverPlayerEntity != null ? List.of(serverPlayerEntity) : list;
+						};
+					}
+				}
+			}
+		}
+	}
 
-   @FunctionalInterface
-   public interface ScoreHolders {
-      Collection<ScoreHolder> getNames(ServerCommandSource source, Supplier<Collection<ScoreHolder>> holders) throws CommandSyntaxException;
-   }
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 
-   public static class SelectorScoreHolders implements ScoreHolderArgumentType.ScoreHolders {
-      private final EntitySelector selector;
+	@FunctionalInterface
+	/**
+	 * {@code ScoreHolders}.
+	 */
+	public interface ScoreHolders {
 
-      public SelectorScoreHolders(EntitySelector selector) {
-         this.selector = selector;
-      }
+		Collection<ScoreHolder> getNames(ServerCommandSource source, Supplier<Collection<ScoreHolder>> holders)
+		throws CommandSyntaxException;
+	}
 
-      @Override
-      public Collection<ScoreHolder> getNames(ServerCommandSource serverCommandSource, Supplier<Collection<ScoreHolder>> supplier) throws CommandSyntaxException {
-         List<? extends Entity> list = this.selector.getEntities(serverCommandSource);
-         if (list.isEmpty()) {
-            throw EntityArgumentType.ENTITY_NOT_FOUND_EXCEPTION.create();
-         } else {
-            return List.copyOf(list);
-         }
-      }
-   }
+	/**
+	 * {@code SelectorScoreHolders}.
+	 */
+	public static class SelectorScoreHolders implements ScoreHolderArgumentType.ScoreHolders {
 
-   public static class Serializer implements ArgumentSerializer<ScoreHolderArgumentType, ScoreHolderArgumentType.Serializer.Properties> {
-      private static final byte MULTIPLE_FLAG = 1;
+		private final EntitySelector selector;
 
-      public void writePacket(ScoreHolderArgumentType.Serializer.Properties properties, PacketByteBuf packetByteBuf) {
-         int i = 0;
-         if (properties.multiple) {
-            i |= 1;
-         }
+		public SelectorScoreHolders(EntitySelector selector) {
+			this.selector = selector;
+		}
 
-         packetByteBuf.writeByte(i);
-      }
+		@Override
+		public Collection<ScoreHolder> getNames(
+				ServerCommandSource serverCommandSource,
+				Supplier<Collection<ScoreHolder>> supplier
+		) throws CommandSyntaxException {
+			List<? extends Entity> list = this.selector.getEntities(serverCommandSource);
+			if (list.isEmpty()) {
+				throw EntityArgumentType.ENTITY_NOT_FOUND_EXCEPTION.create();
+			}
+			else {
+				return List.copyOf(list);
+			}
+		}
+	}
 
-      public ScoreHolderArgumentType.Serializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
-         byte b = packetByteBuf.readByte();
-         boolean bl = (b & 1) != 0;
-         return new ScoreHolderArgumentType.Serializer.Properties(bl);
-      }
+	/**
+	 * {@code Serializer}.
+	 */
+	public static class Serializer implements ArgumentSerializer<ScoreHolderArgumentType, ScoreHolderArgumentType.Serializer.Properties> {
 
-      public void writeJson(ScoreHolderArgumentType.Serializer.Properties properties, JsonObject jsonObject) {
-         jsonObject.addProperty("amount", properties.multiple ? "multiple" : "single");
-      }
+		private static final byte MULTIPLE_FLAG = 1;
 
-      public ScoreHolderArgumentType.Serializer.Properties getArgumentTypeProperties(ScoreHolderArgumentType scoreHolderArgumentType) {
-         return new ScoreHolderArgumentType.Serializer.Properties(scoreHolderArgumentType.multiple);
-      }
+		public void writePacket(ScoreHolderArgumentType.Serializer.Properties properties, PacketByteBuf packetByteBuf) {
+			int i = 0;
+			if (properties.multiple) {
+				i |= 1;
+			}
 
-      public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<ScoreHolderArgumentType> {
-         final boolean multiple;
+			packetByteBuf.writeByte(i);
+		}
 
-         Properties(final boolean multiple) {
-            this.multiple = multiple;
-         }
+		public ScoreHolderArgumentType.Serializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
+			byte b = packetByteBuf.readByte();
+			boolean bl = (b & 1) != 0;
+			return new ScoreHolderArgumentType.Serializer.Properties(bl);
+		}
 
-         public ScoreHolderArgumentType createType(CommandRegistryAccess commandRegistryAccess) {
-            return new ScoreHolderArgumentType(this.multiple);
-         }
+		public void writeJson(ScoreHolderArgumentType.Serializer.Properties properties, JsonObject jsonObject) {
+			jsonObject.addProperty("amount", properties.multiple ? "multiple" : "single");
+		}
 
-         @Override
-         public ArgumentSerializer<ScoreHolderArgumentType, ?> getSerializer() {
-            return Serializer.this;
-         }
-      }
-   }
+		public ScoreHolderArgumentType.Serializer.Properties getArgumentTypeProperties(ScoreHolderArgumentType scoreHolderArgumentType) {
+			return new ScoreHolderArgumentType.Serializer.Properties(scoreHolderArgumentType.multiple);
+		}
+
+		/**
+		 * {@code Properties}.
+		 */
+		public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<ScoreHolderArgumentType> {
+
+			final boolean multiple;
+
+			Properties(final boolean multiple) {
+				this.multiple = multiple;
+			}
+
+			public ScoreHolderArgumentType createType(CommandRegistryAccess commandRegistryAccess) {
+				return new ScoreHolderArgumentType(this.multiple);
+			}
+
+			@Override
+			public ArgumentSerializer<ScoreHolderArgumentType, ?> getSerializer() {
+				return Serializer.this;
+			}
+		}
+	}
 }

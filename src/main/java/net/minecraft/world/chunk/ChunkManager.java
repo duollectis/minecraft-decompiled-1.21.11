@@ -1,56 +1,61 @@
 package net.minecraft.world.chunk;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
-import java.io.IOException;
-import java.util.function.BooleanSupplier;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.chunk.light.LightSourceView;
 import net.minecraft.world.chunk.light.LightingProvider;
 import org.jspecify.annotations.Nullable;
 
+import java.io.IOException;
+import java.util.function.BooleanSupplier;
+
+/**
+ * {@code ChunkManager}.
+ */
 public abstract class ChunkManager implements ChunkProvider, AutoCloseable {
-   public @Nullable WorldChunk getWorldChunk(int chunkX, int chunkZ, boolean create) {
-      return (WorldChunk)this.getChunk(chunkX, chunkZ, ChunkStatus.FULL, create);
-   }
 
-   public @Nullable WorldChunk getWorldChunk(int chunkX, int chunkZ) {
-      return this.getWorldChunk(chunkX, chunkZ, false);
-   }
+	public @Nullable WorldChunk getWorldChunk(int chunkX, int chunkZ, boolean create) {
+		return (WorldChunk) this.getChunk(chunkX, chunkZ, ChunkStatus.FULL, create);
+	}
 
-   @Override
-   public @Nullable LightSourceView getChunk(int chunkX, int chunkZ) {
-      return this.getChunk(chunkX, chunkZ, ChunkStatus.EMPTY, false);
-   }
+	public @Nullable WorldChunk getWorldChunk(int chunkX, int chunkZ) {
+		return this.getWorldChunk(chunkX, chunkZ, false);
+	}
 
-   public boolean isChunkLoaded(int x, int z) {
-      return this.getChunk(x, z, ChunkStatus.FULL, false) != null;
-   }
+	@Override
+	public @Nullable LightSourceView getChunk(int chunkX, int chunkZ) {
+		return this.getChunk(chunkX, chunkZ, ChunkStatus.EMPTY, false);
+	}
 
-   public abstract @Nullable Chunk getChunk(int x, int z, ChunkStatus leastStatus, boolean create);
+	public boolean isChunkLoaded(int x, int z) {
+		return this.getChunk(x, z, ChunkStatus.FULL, false) != null;
+	}
 
-   public abstract void tick(BooleanSupplier shouldKeepTicking, boolean tickChunks);
+	public abstract @Nullable Chunk getChunk(int x, int z, ChunkStatus leastStatus, boolean create);
 
-   public void onSectionStatusChanged(int x, int sectionY, int z, boolean previouslyEmpty) {
-   }
+	public abstract void tick(BooleanSupplier shouldKeepTicking, boolean tickChunks);
 
-   public abstract String getDebugString();
+	public void onSectionStatusChanged(int x, int sectionY, int z, boolean previouslyEmpty) {
+	}
 
-   public abstract int getLoadedChunkCount();
+	public abstract String getDebugString();
 
-   @Override
-   public void close() throws IOException {
-   }
+	public abstract int getLoadedChunkCount();
 
-   public abstract LightingProvider getLightingProvider();
+	@Override
+	public void close() throws IOException {
+	}
 
-   public void setMobSpawnOptions(boolean spawnMonsters) {
-   }
+	public abstract LightingProvider getLightingProvider();
 
-   public boolean setChunkForced(ChunkPos pos, boolean forced) {
-      return false;
-   }
+	public void setMobSpawnOptions(boolean spawnMonsters) {
+	}
 
-   public LongSet getForcedChunks() {
-      return LongSet.of();
-   }
+	public boolean setChunkForced(ChunkPos pos, boolean forced) {
+		return false;
+	}
+
+	public LongSet getForcedChunks() {
+		return LongSet.of();
+	}
 }

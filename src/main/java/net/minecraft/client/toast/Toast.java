@@ -12,61 +12,70 @@ import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Toast}.
+ */
 public interface Toast {
-   Object TYPE = new Object();
-   int BASE_WIDTH = 160;
-   int BASE_HEIGHT = 32;
 
-   Toast.Visibility getVisibility();
+	Object TYPE = new Object();
 
-   void update(ToastManager manager, long time);
+	int BASE_WIDTH = 160;
 
-   default @Nullable SoundEvent getSoundEvent() {
-      return null;
-   }
+	int BASE_HEIGHT = 32;
 
-   void draw(DrawContext context, TextRenderer textRenderer, long startTime);
+	Toast.Visibility getVisibility();
 
-   default Object getType() {
-      return TYPE;
-   }
+	void update(ToastManager manager, long time);
 
-   default float getXPos(int scaledWindowWidth, float visibleWidthPortion) {
-      return scaledWindowWidth - this.getWidth() * visibleWidthPortion;
-   }
+	default @Nullable SoundEvent getSoundEvent() {
+		return null;
+	}
 
-   default float getYPos(int topIndex) {
-      return topIndex * this.getHeight();
-   }
+	void draw(DrawContext context, TextRenderer textRenderer, long startTime);
 
-   default int getWidth() {
-      return 160;
-   }
+	default Object getType() {
+		return TYPE;
+	}
 
-   default int getHeight() {
-      return 32;
-   }
+	default float getXPos(int scaledWindowWidth, float visibleWidthPortion) {
+		return scaledWindowWidth - this.getWidth() * visibleWidthPortion;
+	}
 
-   default int getRequiredSpaceCount() {
-      return MathHelper.ceilDiv(this.getHeight(), 32);
-   }
+	default float getYPos(int topIndex) {
+		return topIndex * this.getHeight();
+	}
 
-   default void onFinishedRendering() {
-   }
+	default int getWidth() {
+		return 160;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum Visibility {
-      SHOW(SoundEvents.UI_TOAST_IN),
-      HIDE(SoundEvents.UI_TOAST_OUT);
+	default int getHeight() {
+		return 32;
+	}
 
-      private final SoundEvent sound;
+	default int getRequiredSpaceCount() {
+		return MathHelper.ceilDiv(this.getHeight(), 32);
+	}
 
-      private Visibility(final SoundEvent sound) {
-         this.sound = sound;
-      }
+	default void onFinishedRendering() {
+	}
 
-      public void playSound(SoundManager soundManager) {
-         soundManager.play(PositionedSoundInstance.master(this.sound, 1.0F, 1.0F));
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Visibility}.
+	 */
+	public static enum Visibility {
+		SHOW(SoundEvents.UI_TOAST_IN),
+		HIDE(SoundEvents.UI_TOAST_OUT);
+
+		private final SoundEvent sound;
+
+		private Visibility(final SoundEvent sound) {
+			this.sound = sound;
+		}
+
+		public void playSound(SoundManager soundManager) {
+			soundManager.play(PositionedSoundInstance.master(this.sound, 1.0F, 1.0F));
+		}
+	}
 }

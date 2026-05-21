@@ -8,33 +8,37 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.world.World;
 
+/**
+ * {@code CodEntity}.
+ */
 public class CodEntity extends SchoolingFishEntity {
-   public CodEntity(EntityType<? extends CodEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   @Override
-   public ItemStack getBucketItem() {
-      return new ItemStack(Items.COD_BUCKET);
-   }
+	public CodEntity(EntityType<? extends CodEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_COD_AMBIENT;
-   }
+	@Override
+	public ItemStack getBucketItem() {
+		return new ItemStack(Items.COD_BUCKET);
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_COD_DEATH;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_COD_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_COD_HURT;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_COD_DEATH;
+	}
 
-   @Override
-   protected SoundEvent getFlopSound() {
-      return SoundEvents.ENTITY_COD_FLOP;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_COD_HURT;
+	}
+
+	@Override
+	protected SoundEvent getFlopSound() {
+		return SoundEvents.ENTITY_COD_FLOP;
+	}
 }

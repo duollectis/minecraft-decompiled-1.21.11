@@ -7,29 +7,41 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Baker}.
+ */
 public interface Baker {
-   BakedSimpleModel getModel(Identifier id);
 
-   BlockModelPart method_76673();
+	BakedSimpleModel getModel(Identifier id);
 
-   ErrorCollectingSpriteGetter getSpriteGetter();
+	BlockModelPart getMissingBlockPart();
 
-   Baker.class_12356 method_76674();
+	ErrorCollectingSpriteGetter getSpriteGetter();
 
-   <T> T compute(Baker.ResolvableCacheKey<T> key);
+	Baker.VertexInterner getVertexInterner();
 
-   @FunctionalInterface
-   @Environment(EnvType.CLIENT)
-   public interface ResolvableCacheKey<T> {
-      T compute(Baker baker);
-   }
+	<T> T compute(Baker.ResolvableCacheKey<T> key);
 
-   @Environment(EnvType.CLIENT)
-   public interface class_12356 {
-      default Vector3fc method_76675(float f, float g, float h) {
-         return this.method_76676(new Vector3f(f, g, h));
-      }
+	@FunctionalInterface
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ResolvableCacheKey}.
+	 */
+	public interface ResolvableCacheKey<T> {
 
-      Vector3fc method_76676(Vector3fc vector3fc);
-   }
+		T compute(Baker baker);
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code VertexInterner}.
+	 */
+	public interface VertexInterner {
+
+		default Vector3fc intern(float f, float g, float h) {
+			return this.internVector(new Vector3f(f, g, h));
+		}
+
+		Vector3fc internVector(Vector3fc vector3fc);
+	}
 }

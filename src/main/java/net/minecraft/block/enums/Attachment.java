@@ -2,20 +2,23 @@ package net.minecraft.block.enums;
 
 import net.minecraft.util.StringIdentifiable;
 
+/**
+ * {@code Attachment}.
+ */
 public enum Attachment implements StringIdentifiable {
-   FLOOR("floor"),
-   CEILING("ceiling"),
-   SINGLE_WALL("single_wall"),
-   DOUBLE_WALL("double_wall");
+	FLOOR("floor"),
+	CEILING("ceiling"),
+	SINGLE_WALL("single_wall"),
+	DOUBLE_WALL("double_wall");
 
-   private final String name;
+	private final String name;
 
-   private Attachment(final String name) {
-      this.name = name;
-   }
+	private Attachment(final String name) {
+		this.name = name;
+	}
 
-   @Override
-   public String asString() {
-      return this.name;
-   }
+	@Override
+	public String asString() {
+		return this.name;
+	}
 }

@@ -10,24 +10,39 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ShulkerBoxScreen}.
+ */
 public class ShulkerBoxScreen extends HandledScreen<ShulkerBoxScreenHandler> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/shulker_box.png");
 
-   public ShulkerBoxScreen(ShulkerBoxScreenHandler handler, PlayerInventory inventory, Text title) {
-      super(handler, inventory, title);
-      this.backgroundHeight++;
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/shulker_box.png");
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      this.drawMouseoverTooltip(context, mouseX, mouseY);
-   }
+	public ShulkerBoxScreen(ShulkerBoxScreenHandler handler, PlayerInventory inventory, Text title) {
+		super(handler, inventory, title);
+		this.backgroundHeight++;
+	}
 
-   @Override
-   protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-      int i = (this.width - this.backgroundWidth) / 2;
-      int j = (this.height - this.backgroundHeight) / 2;
-      context.drawTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, i, j, 0.0F, 0.0F, this.backgroundWidth, this.backgroundHeight, 256, 256);
-   }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		this.drawMouseoverTooltip(context, mouseX, mouseY);
+	}
+
+	@Override
+	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
+		int i = (this.width - this.backgroundWidth) / 2;
+		int j = (this.height - this.backgroundHeight) / 2;
+		context.drawTexture(
+				RenderPipelines.GUI_TEXTURED,
+				TEXTURE,
+				i,
+				j,
+				0.0F,
+				0.0F,
+				this.backgroundWidth,
+				this.backgroundHeight,
+				256,
+				256
+		);
+	}
 }

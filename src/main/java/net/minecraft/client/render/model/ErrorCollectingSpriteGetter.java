@@ -7,13 +7,17 @@ import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.util.SpriteIdentifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ErrorCollectingSpriteGetter}.
+ */
 public interface ErrorCollectingSpriteGetter extends FabricErrorCollectingSpriteGetter {
-   Sprite get(SpriteIdentifier id, SimpleModel model);
 
-   Sprite getMissing(String name, SimpleModel model);
+	Sprite get(SpriteIdentifier id, SimpleModel model);
 
-   default Sprite get(ModelTextures texture, String name, SimpleModel model) {
-      SpriteIdentifier spriteIdentifier = texture.get(name);
-      return spriteIdentifier != null ? this.get(spriteIdentifier, model) : this.getMissing(name, model);
-   }
+	Sprite getMissing(String name, SimpleModel model);
+
+	default Sprite get(ModelTextures texture, String name, SimpleModel model) {
+		SpriteIdentifier spriteIdentifier = texture.get(name);
+		return spriteIdentifier != null ? this.get(spriteIdentifier, model) : this.getMissing(name, model);
+	}
 }

@@ -5,23 +5,8 @@ import net.minecraft.component.ComponentType;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.EquippableComponent;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.ItemSteerable;
-import net.minecraft.entity.LightningEntity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SaddledComponent;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.Variants;
-import net.minecraft.entity.ai.goal.AnimalMateGoal;
-import net.minecraft.entity.ai.goal.EscapeDangerGoal;
-import net.minecraft.entity.ai.goal.FollowParentGoal;
-import net.minecraft.entity.ai.goal.LookAroundGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.ai.goal.TemptGoal;
-import net.minecraft.entity.ai.goal.WanderAroundFarGoal;
+import net.minecraft.entity.*;
+import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.conversion.EntityConversionContext;
@@ -52,215 +37,261 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code PigEntity}.
+ */
 public class PigEntity extends AnimalEntity implements ItemSteerable {
-   private static final TrackedData<Integer> BOOST_TIME = DataTracker.registerData(PigEntity.class, TrackedDataHandlerRegistry.INTEGER);
-   private static final TrackedData<RegistryEntry<PigVariant>> VARIANT = DataTracker.registerData(PigEntity.class, TrackedDataHandlerRegistry.PIG_VARIANT);
-   private final SaddledComponent saddledComponent = new SaddledComponent(this.dataTracker, BOOST_TIME);
 
-   public PigEntity(EntityType<? extends PigEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final TrackedData<Integer>
+			BOOST_TIME =
+			DataTracker.registerData(PigEntity.class, TrackedDataHandlerRegistry.INTEGER);
+	private static final TrackedData<RegistryEntry<PigVariant>>
+			VARIANT =
+			DataTracker.registerData(PigEntity.class, TrackedDataHandlerRegistry.PIG_VARIANT);
+	private final SaddledComponent saddledComponent = new SaddledComponent(this.dataTracker, BOOST_TIME);
 
-   @Override
-   protected void initGoals() {
-      this.goalSelector.add(0, new SwimGoal(this));
-      this.goalSelector.add(1, new EscapeDangerGoal(this, 1.25));
-      this.goalSelector.add(3, new AnimalMateGoal(this, 1.0));
-      this.goalSelector.add(4, new TemptGoal(this, 1.2, stack -> stack.isOf(Items.CARROT_ON_A_STICK), false));
-      this.goalSelector.add(4, new TemptGoal(this, 1.2, stack -> stack.isIn(ItemTags.PIG_FOOD), false));
-      this.goalSelector.add(5, new FollowParentGoal(this, 1.1));
-      this.goalSelector.add(6, new WanderAroundFarGoal(this, 1.0));
-      this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
-      this.goalSelector.add(8, new LookAroundGoal(this));
-   }
+	public PigEntity(EntityType<? extends PigEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public static DefaultAttributeContainer.Builder createPigAttributes() {
-      return AnimalEntity.createAnimalAttributes().add(EntityAttributes.MAX_HEALTH, 10.0).add(EntityAttributes.MOVEMENT_SPEED, 0.25);
-   }
+	@Override
+	protected void initGoals() {
+		this.goalSelector.add(0, new SwimGoal(this));
+		this.goalSelector.add(1, new EscapeDangerGoal(this, 1.25));
+		this.goalSelector.add(3, new AnimalMateGoal(this, 1.0));
+		this.goalSelector.add(4, new TemptGoal(this, 1.2, stack -> stack.isOf(Items.CARROT_ON_A_STICK), false));
+		this.goalSelector.add(4, new TemptGoal(this, 1.2, stack -> stack.isIn(ItemTags.PIG_FOOD), false));
+		this.goalSelector.add(5, new FollowParentGoal(this, 1.1));
+		this.goalSelector.add(6, new WanderAroundFarGoal(this, 1.0));
+		this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
+		this.goalSelector.add(8, new LookAroundGoal(this));
+	}
 
-   @Override
-   public @Nullable LivingEntity getControllingPassenger() {
-      return (LivingEntity)(this.hasSaddleEquipped()
-            && this.getFirstPassenger() instanceof PlayerEntity playerEntity
-            && playerEntity.isHolding(Items.CARROT_ON_A_STICK)
-         ? playerEntity
-         : super.getControllingPassenger());
-   }
+	public static DefaultAttributeContainer.Builder createPigAttributes() {
+		return AnimalEntity
+				.createAnimalAttributes()
+				.add(EntityAttributes.MAX_HEALTH, 10.0)
+				.add(EntityAttributes.MOVEMENT_SPEED, 0.25);
+	}
 
-   @Override
-   public void onTrackedDataSet(TrackedData<?> data) {
-      if (BOOST_TIME.equals(data) && this.getEntityWorld().isClient()) {
-         this.saddledComponent.boost();
-      }
+	@Override
+	public @Nullable LivingEntity getControllingPassenger() {
+		return (LivingEntity) (this.hasSaddleEquipped()
+				                       && this.getFirstPassenger() instanceof PlayerEntity playerEntity
+				                       && playerEntity.isHolding(Items.CARROT_ON_A_STICK)
+		                       ? playerEntity
+		                       : super.getControllingPassenger()
+		);
+	}
 
-      super.onTrackedDataSet(data);
-   }
+	@Override
+	public void onTrackedDataSet(TrackedData<?> data) {
+		if (BOOST_TIME.equals(data) && this.getEntityWorld().isClient()) {
+			this.saddledComponent.boost();
+		}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(BOOST_TIME, 0);
-      builder.add(VARIANT, Variants.getOrDefaultOrThrow(this.getRegistryManager(), PigVariants.DEFAULT));
-   }
+		super.onTrackedDataSet(data);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      Variants.writeData(view, this.getVariant());
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(BOOST_TIME, 0);
+		builder.add(VARIANT, Variants.getOrDefaultOrThrow(this.getRegistryManager(), PigVariants.DEFAULT));
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      Variants.fromData(view, RegistryKeys.PIG_VARIANT).ifPresent(this::setVariant);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		Variants.writeData(view, this.getVariant());
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_PIG_AMBIENT;
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		Variants.fromData(view, RegistryKeys.PIG_VARIANT).ifPresent(this::setVariant);
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_PIG_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_PIG_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_PIG_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_PIG_HURT;
+	}
 
-   @Override
-   protected void playStepSound(BlockPos pos, BlockState state) {
-      this.playSound(SoundEvents.ENTITY_PIG_STEP, 0.15F, 1.0F);
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_PIG_DEATH;
+	}
 
-   @Override
-   public ActionResult interactMob(PlayerEntity player, Hand hand) {
-      boolean bl = this.isBreedingItem(player.getStackInHand(hand));
-      if (!bl && this.hasSaddleEquipped() && !this.hasPassengers() && !player.shouldCancelInteraction()) {
-         if (!this.getEntityWorld().isClient()) {
-            player.startRiding(this);
-         }
+	@Override
+	protected void playStepSound(BlockPos pos, BlockState state) {
+		this.playSound(SoundEvents.ENTITY_PIG_STEP, 0.15F, 1.0F);
+	}
 
-         return ActionResult.SUCCESS;
-      } else {
-         ActionResult actionResult = super.interactMob(player, hand);
-         if (!actionResult.isAccepted()) {
-            ItemStack itemStack = player.getStackInHand(hand);
-            return (ActionResult)(this.canEquip(itemStack, EquipmentSlot.SADDLE) ? itemStack.useOnEntity(player, this, hand) : ActionResult.PASS);
-         } else {
-            return actionResult;
-         }
-      }
-   }
+	@Override
+	public ActionResult interactMob(PlayerEntity player, Hand hand) {
+		boolean bl = this.isBreedingItem(player.getStackInHand(hand));
+		if (!bl && this.hasSaddleEquipped() && !this.hasPassengers() && !player.shouldCancelInteraction()) {
+			if (!this.getEntityWorld().isClient()) {
+				player.startRiding(this);
+			}
 
-   @Override
-   public boolean canUseSlot(EquipmentSlot slot) {
-      return slot != EquipmentSlot.SADDLE ? super.canUseSlot(slot) : this.isAlive() && !this.isBaby();
-   }
+			return ActionResult.SUCCESS;
+		}
+		else {
+			ActionResult actionResult = super.interactMob(player, hand);
+			if (!actionResult.isAccepted()) {
+				ItemStack itemStack = player.getStackInHand(hand);
+				return (ActionResult) (this.canEquip(itemStack, EquipmentSlot.SADDLE) ? itemStack.useOnEntity(
+						player,
+						this,
+						hand
+				) : ActionResult.PASS
+				);
+			}
+			else {
+				return actionResult;
+			}
+		}
+	}
 
-   @Override
-   protected boolean canDispenserEquipSlot(EquipmentSlot slot) {
-      return slot == EquipmentSlot.SADDLE || super.canDispenserEquipSlot(slot);
-   }
+	@Override
+	public boolean canUseSlot(EquipmentSlot slot) {
+		return slot != EquipmentSlot.SADDLE ? super.canUseSlot(slot) : this.isAlive() && !this.isBaby();
+	}
 
-   @Override
-   protected RegistryEntry<SoundEvent> getEquipSound(EquipmentSlot slot, ItemStack stack, EquippableComponent equippableComponent) {
-      return (RegistryEntry<SoundEvent>)(slot == EquipmentSlot.SADDLE ? SoundEvents.ENTITY_PIG_SADDLE : super.getEquipSound(slot, stack, equippableComponent));
-   }
+	@Override
+	protected boolean canDispenserEquipSlot(EquipmentSlot slot) {
+		return slot == EquipmentSlot.SADDLE || super.canDispenserEquipSlot(slot);
+	}
 
-   @Override
-   public void onStruckByLightning(ServerWorld world, LightningEntity lightning) {
-      if (world.getDifficulty() != Difficulty.PEACEFUL) {
-         ZombifiedPiglinEntity zombifiedPiglinEntity = this.convertTo(
-            EntityType.ZOMBIFIED_PIGLIN, EntityConversionContext.create(this, false, true), zombifiedPiglinEntityx -> {
-               zombifiedPiglinEntityx.initEquipment(this.getRandom(), world.getLocalDifficulty(this.getBlockPos()));
-               zombifiedPiglinEntityx.setPersistent();
-            }
-         );
-         if (zombifiedPiglinEntity == null) {
-            super.onStruckByLightning(world, lightning);
-         }
-      } else {
-         super.onStruckByLightning(world, lightning);
-      }
-   }
+	@Override
+	protected RegistryEntry<SoundEvent> getEquipSound(
+			EquipmentSlot slot,
+			ItemStack stack,
+			EquippableComponent equippableComponent
+	) {
+		return (RegistryEntry<SoundEvent>) (slot == EquipmentSlot.SADDLE ? SoundEvents.ENTITY_PIG_SADDLE
+		                                                                 : super.getEquipSound(
+				                                                                 slot,
+				                                                                 stack,
+				                                                                 equippableComponent
+		                                                                 )
+		);
+	}
 
-   @Override
-   protected void tickControlled(PlayerEntity controllingPlayer, Vec3d movementInput) {
-      super.tickControlled(controllingPlayer, movementInput);
-      this.setRotation(controllingPlayer.getYaw(), controllingPlayer.getPitch() * 0.5F);
-      this.lastYaw = this.bodyYaw = this.headYaw = this.getYaw();
-      this.saddledComponent.tickBoost();
-   }
+	@Override
+	public void onStruckByLightning(ServerWorld world, LightningEntity lightning) {
+		if (world.getDifficulty() != Difficulty.PEACEFUL) {
+			ZombifiedPiglinEntity zombifiedPiglinEntity = this.convertTo(
+					EntityType.ZOMBIFIED_PIGLIN,
+					EntityConversionContext.create(this, false, true),
+					zombifiedPiglinEntityx -> {
+						zombifiedPiglinEntityx.initEquipment(
+								this.getRandom(),
+								world.getLocalDifficulty(this.getBlockPos())
+						);
+						zombifiedPiglinEntityx.setPersistent();
+					}
+			);
+			if (zombifiedPiglinEntity == null) {
+				super.onStruckByLightning(world, lightning);
+			}
+		}
+		else {
+			super.onStruckByLightning(world, lightning);
+		}
+	}
 
-   @Override
-   protected Vec3d getControlledMovementInput(PlayerEntity controllingPlayer, Vec3d movementInput) {
-      return new Vec3d(0.0, 0.0, 1.0);
-   }
+	@Override
+	protected void tickControlled(PlayerEntity controllingPlayer, Vec3d movementInput) {
+		super.tickControlled(controllingPlayer, movementInput);
+		this.setRotation(controllingPlayer.getYaw(), controllingPlayer.getPitch() * 0.5F);
+		this.lastYaw = this.bodyYaw = this.headYaw = this.getYaw();
+		this.saddledComponent.tickBoost();
+	}
 
-   @Override
-   protected float getSaddledSpeed(PlayerEntity controllingPlayer) {
-      return (float)(this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED) * 0.225 * this.saddledComponent.getMovementSpeedMultiplier());
-   }
+	@Override
+	protected Vec3d getControlledMovementInput(PlayerEntity controllingPlayer, Vec3d movementInput) {
+		return new Vec3d(0.0, 0.0, 1.0);
+	}
 
-   @Override
-   public boolean consumeOnAStickItem() {
-      return this.saddledComponent.boost(this.getRandom());
-   }
+	@Override
+	protected float getSaddledSpeed(PlayerEntity controllingPlayer) {
+		return (float) (this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED) * 0.225
+				* this.saddledComponent.getMovementSpeedMultiplier()
+		);
+	}
 
-   public @Nullable PigEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-      PigEntity pigEntity = EntityType.PIG.create(serverWorld, SpawnReason.BREEDING);
-      if (pigEntity != null && passiveEntity instanceof PigEntity pigEntity2) {
-         pigEntity.setVariant(this.random.nextBoolean() ? this.getVariant() : pigEntity2.getVariant());
-      }
+	@Override
+	public boolean consumeOnAStickItem() {
+		return this.saddledComponent.boost(this.getRandom());
+	}
 
-      return pigEntity;
-   }
+	public @Nullable PigEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
+		PigEntity pigEntity = EntityType.PIG.create(serverWorld, SpawnReason.BREEDING);
+		if (pigEntity != null && passiveEntity instanceof PigEntity pigEntity2) {
+			pigEntity.setVariant(this.random.nextBoolean() ? this.getVariant() : pigEntity2.getVariant());
+		}
 
-   @Override
-   public boolean isBreedingItem(ItemStack stack) {
-      return stack.isIn(ItemTags.PIG_FOOD);
-   }
+		return pigEntity;
+	}
 
-   @Override
-   public Vec3d getLeashOffset() {
-      return new Vec3d(0.0, 0.6F * this.getStandingEyeHeight(), this.getWidth() * 0.4F);
-   }
+	@Override
+	public boolean isBreedingItem(ItemStack stack) {
+		return stack.isIn(ItemTags.PIG_FOOD);
+	}
 
-   private void setVariant(RegistryEntry<PigVariant> variant) {
-      this.dataTracker.set(VARIANT, variant);
-   }
+	@Override
+	public Vec3d getLeashOffset() {
+		return new Vec3d(0.0, 0.6F * this.getStandingEyeHeight(), this.getWidth() * 0.4F);
+	}
 
-   public RegistryEntry<PigVariant> getVariant() {
-      return this.dataTracker.get(VARIANT);
-   }
+	private void setVariant(RegistryEntry<PigVariant> variant) {
+		this.dataTracker.set(VARIANT, variant);
+	}
 
-   @Override
-   public <T> @Nullable T get(ComponentType<? extends T> type) {
-      return type == DataComponentTypes.PIG_VARIANT ? castComponentValue((ComponentType<T>)type, this.getVariant()) : super.get(type);
-   }
+	public RegistryEntry<PigVariant> getVariant() {
+		return this.dataTracker.get(VARIANT);
+	}
 
-   @Override
-   protected void copyComponentsFrom(ComponentsAccess from) {
-      this.copyComponentFrom(from, DataComponentTypes.PIG_VARIANT);
-      super.copyComponentsFrom(from);
-   }
+	@Override
+	public <T> @Nullable T get(ComponentType<? extends T> type) {
+		return type == DataComponentTypes.PIG_VARIANT ? castComponentValue((ComponentType<T>) type, this.getVariant())
+		                                              : super.get(type);
+	}
 
-   @Override
-   protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
-      if (type == DataComponentTypes.PIG_VARIANT) {
-         this.setVariant(castComponentValue(DataComponentTypes.PIG_VARIANT, value));
-         return true;
-      } else {
-         return super.setApplicableComponent(type, value);
-      }
-   }
+	@Override
+	protected void copyComponentsFrom(ComponentsAccess from) {
+		this.copyComponentFrom(from, DataComponentTypes.PIG_VARIANT);
+		super.copyComponentsFrom(from);
+	}
 
-   @Override
-   public EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      Variants.select(SpawnContext.of(world, this.getBlockPos()), RegistryKeys.PIG_VARIANT).ifPresent(this::setVariant);
-      return super.initialize(world, difficulty, spawnReason, entityData);
-   }
+	@Override
+	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
+		if (type == DataComponentTypes.PIG_VARIANT) {
+			this.setVariant(castComponentValue(DataComponentTypes.PIG_VARIANT, value));
+			return true;
+		}
+		else {
+			return super.setApplicableComponent(type, value);
+		}
+	}
+
+	@Override
+	public EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		Variants
+				.select(SpawnContext.of(world, this.getBlockPos()), RegistryKeys.PIG_VARIANT)
+				.ifPresent(this::setVariant);
+		return super.initialize(world, difficulty, spawnReason, entityData);
+	}
 }

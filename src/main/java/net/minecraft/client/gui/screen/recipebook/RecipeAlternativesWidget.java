@@ -1,9 +1,6 @@
 package net.minecraft.client.gui.screen.recipebook;
 
 import com.google.common.collect.Lists;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gl.RenderPipelines;
@@ -17,315 +14,404 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.NetworkRecipeId;
 import net.minecraft.recipe.RecipeDisplayEntry;
 import net.minecraft.recipe.RecipeGridAligner;
-import net.minecraft.recipe.display.FurnaceRecipeDisplay;
-import net.minecraft.recipe.display.RecipeDisplay;
-import net.minecraft.recipe.display.ShapedCraftingRecipeDisplay;
-import net.minecraft.recipe.display.ShapelessCraftingRecipeDisplay;
-import net.minecraft.recipe.display.SlotDisplay;
+import net.minecraft.recipe.display.*;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.context.ContextParameterMap;
 import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RecipeAlternativesWidget}.
+ */
 public class RecipeAlternativesWidget implements Drawable, Element {
-   private static final Identifier OVERLAY_RECIPE_TEXTURE = Identifier.ofVanilla("recipe_book/overlay_recipe");
-   private static final int field_32406 = 4;
-   private static final int field_32407 = 5;
-   private static final float field_33739 = 0.375F;
-   public static final int field_42162 = 25;
-   private final List<RecipeAlternativesWidget.AlternativeButtonWidget> alternativeButtons = Lists.newArrayList();
-   private boolean visible;
-   private int buttonX;
-   private int buttonY;
-   private RecipeResultCollection resultCollection = RecipeResultCollection.EMPTY;
-   private @Nullable NetworkRecipeId lastClickedRecipe;
-   final CurrentIndexProvider currentIndexProvider;
-   private final boolean furnace;
 
-   public RecipeAlternativesWidget(CurrentIndexProvider currentIndexProvider, boolean furnace) {
-      this.currentIndexProvider = currentIndexProvider;
-      this.furnace = furnace;
-   }
+	private static final Identifier OVERLAY_RECIPE_TEXTURE = Identifier.ofVanilla("recipe_book/overlay_recipe");
+	private static final int PADDING = 4;
+	private static final int ROW_PADDING = 5;
+	private static final float SCALE = 0.375F;
+	public static final int BUTTON_WIDTH = 25;
+	private final List<RecipeAlternativesWidget.AlternativeButtonWidget> alternativeButtons = Lists.newArrayList();
+	private boolean visible;
+	private int buttonX;
+	private int buttonY;
+	private RecipeResultCollection resultCollection = RecipeResultCollection.EMPTY;
+	private @Nullable NetworkRecipeId lastClickedRecipe;
+	final CurrentIndexProvider currentIndexProvider;
+	private final boolean furnace;
 
-   public void showAlternativesForResult(
-      RecipeResultCollection resultCollection,
-      ContextParameterMap context,
-      boolean filteringCraftable,
-      int buttonX,
-      int buttonY,
-      int areaCenterX,
-      int areaCenterY,
-      float delta
-   ) {
-      this.resultCollection = resultCollection;
-      List<RecipeDisplayEntry> list = resultCollection.filter(RecipeResultCollection.RecipeFilterMode.CRAFTABLE);
-      List<RecipeDisplayEntry> list2 = filteringCraftable
-         ? Collections.emptyList()
-         : resultCollection.filter(RecipeResultCollection.RecipeFilterMode.NOT_CRAFTABLE);
-      int i = list.size();
-      int j = i + list2.size();
-      int k = j <= 16 ? 4 : 5;
-      int l = (int)Math.ceil((float)j / k);
-      this.buttonX = buttonX;
-      this.buttonY = buttonY;
-      float f = this.buttonX + Math.min(j, k) * 25;
-      float g = areaCenterX + 50;
-      if (f > g) {
-         this.buttonX = (int)(this.buttonX - delta * (int)((f - g) / delta));
-      }
+	public RecipeAlternativesWidget(CurrentIndexProvider currentIndexProvider, boolean furnace) {
+		this.currentIndexProvider = currentIndexProvider;
+		this.furnace = furnace;
+	}
 
-      float h = this.buttonY + l * 25;
-      float m = areaCenterY + 50;
-      if (h > m) {
-         this.buttonY = (int)(this.buttonY - delta * MathHelper.ceil((h - m) / delta));
-      }
+	public void showAlternativesForResult(
+			RecipeResultCollection resultCollection,
+			ContextParameterMap context,
+			boolean filteringCraftable,
+			int buttonX,
+			int buttonY,
+			int areaCenterX,
+			int areaCenterY,
+			float delta
+	) {
+		this.resultCollection = resultCollection;
+		List<RecipeDisplayEntry> list = resultCollection.filter(RecipeResultCollection.RecipeFilterMode.CRAFTABLE);
+		List<RecipeDisplayEntry> list2 = filteringCraftable
+		                                 ? Collections.emptyList()
+		                                 : resultCollection.filter(RecipeResultCollection.RecipeFilterMode.NOT_CRAFTABLE);
+		int i = list.size();
+		int j = i + list2.size();
+		int k = j <= 16 ? 4 : 5;
+		int l = (int) Math.ceil((float) j / k);
+		this.buttonX = buttonX;
+		this.buttonY = buttonY;
+		float f = this.buttonX + Math.min(j, k) * 25;
+		float g = areaCenterX + 50;
+		if (f > g) {
+			this.buttonX = (int) (this.buttonX - delta * (int) ((f - g) / delta));
+		}
 
-      float n = this.buttonY;
-      float o = areaCenterY - 100;
-      if (n < o) {
-         this.buttonY = (int)(this.buttonY - delta * MathHelper.ceil((n - o) / delta));
-      }
+		float h = this.buttonY + l * 25;
+		float m = areaCenterY + 50;
+		if (h > m) {
+			this.buttonY = (int) (this.buttonY - delta * MathHelper.ceil((h - m) / delta));
+		}
 
-      this.visible = true;
-      this.alternativeButtons.clear();
+		float n = this.buttonY;
+		float o = areaCenterY - 100;
+		if (n < o) {
+			this.buttonY = (int) (this.buttonY - delta * MathHelper.ceil((n - o) / delta));
+		}
 
-      for (int p = 0; p < j; p++) {
-         boolean bl = p < i;
-         RecipeDisplayEntry recipeDisplayEntry = bl ? list.get(p) : list2.get(p - i);
-         int q = this.buttonX + 4 + 25 * (p % k);
-         int r = this.buttonY + 5 + 25 * (p / k);
-         if (this.furnace) {
-            this.alternativeButtons
-               .add(new RecipeAlternativesWidget.FurnaceAlternativeButtonWidget(q, r, recipeDisplayEntry.id(), recipeDisplayEntry.display(), context, bl));
-         } else {
-            this.alternativeButtons
-               .add(new RecipeAlternativesWidget.CraftingAlternativeButtonWidget(q, r, recipeDisplayEntry.id(), recipeDisplayEntry.display(), context, bl));
-         }
-      }
+		this.visible = true;
+		this.alternativeButtons.clear();
 
-      this.lastClickedRecipe = null;
-   }
+		for (int p = 0; p < j; p++) {
+			boolean bl = p < i;
+			RecipeDisplayEntry recipeDisplayEntry = bl ? list.get(p) : list2.get(p - i);
+			int q = this.buttonX + 4 + 25 * (p % k);
+			int r = this.buttonY + 5 + 25 * (p / k);
+			if (this.furnace) {
+				this.alternativeButtons
+						.add(new RecipeAlternativesWidget.FurnaceAlternativeButtonWidget(
+								q,
+								r,
+								recipeDisplayEntry.id(),
+								recipeDisplayEntry.display(),
+								context,
+								bl
+						));
+			}
+			else {
+				this.alternativeButtons
+						.add(new RecipeAlternativesWidget.CraftingAlternativeButtonWidget(
+								q,
+								r,
+								recipeDisplayEntry.id(),
+								recipeDisplayEntry.display(),
+								context,
+								bl
+						));
+			}
+		}
 
-   public RecipeResultCollection getResults() {
-      return this.resultCollection;
-   }
+		this.lastClickedRecipe = null;
+	}
 
-   public @Nullable NetworkRecipeId getLastClickedRecipe() {
-      return this.lastClickedRecipe;
-   }
+	public RecipeResultCollection getResults() {
+		return this.resultCollection;
+	}
 
-   @Override
-   public boolean mouseClicked(Click click, boolean doubled) {
-      if (click.button() != 0) {
-         return false;
-      } else {
-         for (RecipeAlternativesWidget.AlternativeButtonWidget alternativeButtonWidget : this.alternativeButtons) {
-            if (alternativeButtonWidget.mouseClicked(click, doubled)) {
-               this.lastClickedRecipe = alternativeButtonWidget.recipeId;
-               return true;
-            }
-         }
+	public @Nullable NetworkRecipeId getLastClickedRecipe() {
+		return this.lastClickedRecipe;
+	}
 
-         return false;
-      }
-   }
+	@Override
+	public boolean mouseClicked(Click click, boolean doubled) {
+		if (click.button() != 0) {
+			return false;
+		}
+		else {
+			for (RecipeAlternativesWidget.AlternativeButtonWidget alternativeButtonWidget : this.alternativeButtons) {
+				if (alternativeButtonWidget.mouseClicked(click, doubled)) {
+					this.lastClickedRecipe = alternativeButtonWidget.recipeId;
+					return true;
+				}
+			}
 
-   @Override
-   public boolean isMouseOver(double mouseX, double mouseY) {
-      return false;
-   }
+			return false;
+		}
+	}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      if (this.visible) {
-         int i = this.alternativeButtons.size() <= 16 ? 4 : 5;
-         int j = Math.min(this.alternativeButtons.size(), i);
-         int k = MathHelper.ceil((float)this.alternativeButtons.size() / i);
-         int l = 4;
-         context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, OVERLAY_RECIPE_TEXTURE, this.buttonX, this.buttonY, j * 25 + 8, k * 25 + 8);
+	@Override
+	public boolean isMouseOver(double mouseX, double mouseY) {
+		return false;
+	}
 
-         for (RecipeAlternativesWidget.AlternativeButtonWidget alternativeButtonWidget : this.alternativeButtons) {
-            alternativeButtonWidget.render(context, mouseX, mouseY, deltaTicks);
-         }
-      }
-   }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		if (this.visible) {
+			int i = this.alternativeButtons.size() <= 16 ? 4 : 5;
+			int j = Math.min(this.alternativeButtons.size(), i);
+			int k = MathHelper.ceil((float) this.alternativeButtons.size() / i);
+			int l = 4;
+			context.drawGuiTexture(
+					RenderPipelines.GUI_TEXTURED,
+					OVERLAY_RECIPE_TEXTURE,
+					this.buttonX,
+					this.buttonY,
+					j * 25 + 8,
+					k * 25 + 8
+			);
 
-   public void setVisible(boolean visible) {
-      this.visible = visible;
-   }
+			for (RecipeAlternativesWidget.AlternativeButtonWidget alternativeButtonWidget : this.alternativeButtons) {
+				alternativeButtonWidget.render(context, mouseX, mouseY, deltaTicks);
+			}
+		}
+	}
 
-   public boolean isVisible() {
-      return this.visible;
-   }
+	public void setVisible(boolean visible) {
+		this.visible = visible;
+	}
 
-   @Override
-   public void setFocused(boolean focused) {
-   }
+	public boolean isVisible() {
+		return this.visible;
+	}
 
-   @Override
-   public boolean isFocused() {
-      return false;
-   }
+	@Override
+	public void setFocused(boolean focused) {
+	}
 
-   @Environment(EnvType.CLIENT)
-   abstract class AlternativeButtonWidget extends ClickableWidget {
-      final NetworkRecipeId recipeId;
-      private final boolean craftable;
-      private final List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> inputSlots;
+	@Override
+	public boolean isFocused() {
+		return false;
+	}
 
-      public AlternativeButtonWidget(
-         final int x,
-         final int y,
-         final NetworkRecipeId recipeId,
-         final boolean craftable,
-         final List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> inputSlots
-      ) {
-         super(x, y, 24, 24, ScreenTexts.EMPTY);
-         this.inputSlots = inputSlots;
-         this.recipeId = recipeId;
-         this.craftable = craftable;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code AlternativeButtonWidget}.
+	 */
+	abstract class AlternativeButtonWidget extends ClickableWidget {
 
-      protected static RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot slot(int x, int y, List<ItemStack> stacks) {
-         return new RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot(3 + x * 7, 3 + y * 7, stacks);
-      }
+		final NetworkRecipeId recipeId;
+		private final boolean craftable;
+		private final List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> inputSlots;
 
-      protected abstract Identifier getOverlayTexture(boolean enabled);
+		public AlternativeButtonWidget(
+				final int x,
+				final int y,
+				final NetworkRecipeId recipeId,
+				final boolean craftable,
+				final List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> inputSlots
+		) {
+			super(x, y, 24, 24, ScreenTexts.EMPTY);
+			this.inputSlots = inputSlots;
+			this.recipeId = recipeId;
+			this.craftable = craftable;
+		}
 
-      @Override
-      public void appendClickableNarrations(NarrationMessageBuilder builder) {
-         this.appendDefaultNarrations(builder);
-      }
+		protected static RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot slot(
+				int x,
+				int y,
+				List<ItemStack> stacks
+		) {
+			return new RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot(3 + x * 7, 3 + y * 7, stacks);
+		}
 
-      @Override
-      public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-         context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, this.getOverlayTexture(this.craftable), this.getX(), this.getY(), this.width, this.height);
-         float f = this.getX() + 2;
-         float g = this.getY() + 2;
+		protected abstract Identifier getOverlayTexture(boolean enabled);
 
-         for (RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot inputSlot : this.inputSlots) {
-            context.getMatrices().pushMatrix();
-            context.getMatrices().translate(f + inputSlot.y, g + inputSlot.x);
-            context.getMatrices().scale(0.375F, 0.375F);
-            context.getMatrices().translate(-8.0F, -8.0F);
-            context.drawItem(inputSlot.get(RecipeAlternativesWidget.this.currentIndexProvider.currentIndex()), 0, 0);
-            context.getMatrices().popMatrix();
-         }
-      }
+		@Override
+		public void appendClickableNarrations(NarrationMessageBuilder builder) {
+			this.appendDefaultNarrations(builder);
+		}
 
-      @Environment(EnvType.CLIENT)
-      protected record InputSlot(int y, int x, List<ItemStack> stacks) {
+		@Override
+		public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+			context.drawGuiTexture(
+					RenderPipelines.GUI_TEXTURED,
+					this.getOverlayTexture(this.craftable),
+					this.getX(),
+					this.getY(),
+					this.width,
+					this.height
+			);
+			float f = this.getX() + 2;
+			float g = this.getY() + 2;
 
-         public InputSlot(int y, int x, List<ItemStack> stacks) {
-            if (stacks.isEmpty()) {
-               throw new IllegalArgumentException("Ingredient list must be non-empty");
-            } else {
-               this.y = y;
-               this.x = x;
-               this.stacks = stacks;
-            }
-         }
+			for (RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot inputSlot : this.inputSlots) {
+				context.getMatrices().pushMatrix();
+				context.getMatrices().translate(f + inputSlot.y, g + inputSlot.x);
+				context.getMatrices().scale(0.375F, 0.375F);
+				context.getMatrices().translate(-8.0F, -8.0F);
+				context.drawItem(
+						inputSlot.get(RecipeAlternativesWidget.this.currentIndexProvider.currentIndex()),
+						0,
+						0
+				);
+				context.getMatrices().popMatrix();
+			}
+		}
 
-         public ItemStack get(int index) {
-            return this.stacks.get(index % this.stacks.size());
-         }
-      }
-   }
+		@Environment(EnvType.CLIENT)
+		/**
+		 * {@code InputSlot}.
+		 */
+		protected record InputSlot(int y, int x, List<ItemStack> stacks) {
 
-   @Environment(EnvType.CLIENT)
-   class CraftingAlternativeButtonWidget extends RecipeAlternativesWidget.AlternativeButtonWidget {
-      private static final Identifier CRAFTING_OVERLAY = Identifier.ofVanilla("recipe_book/crafting_overlay");
-      private static final Identifier CRAFTING_OVERLAY_HIGHLIGHTED = Identifier.ofVanilla("recipe_book/crafting_overlay_highlighted");
-      private static final Identifier CRAFTING_OVERLAY_DISABLED = Identifier.ofVanilla("recipe_book/crafting_overlay_disabled");
-      private static final Identifier CRAFTING_OVERLAY_DISABLED_HIGHLIGHTED = Identifier.ofVanilla("recipe_book/crafting_overlay_disabled_highlighted");
-      private static final int field_54828 = 3;
-      private static final int field_54829 = 3;
+			public InputSlot(int y, int x, List<ItemStack> stacks) {
+				if (stacks.isEmpty()) {
+					throw new IllegalArgumentException("Ingredient list must be non-empty");
+				}
+				else {
+					this.y = y;
+					this.x = x;
+					this.stacks = stacks;
+				}
+			}
 
-      public CraftingAlternativeButtonWidget(
-         final int x, final int y, final NetworkRecipeId recipeId, final RecipeDisplay display, final ContextParameterMap context, final boolean craftable
-      ) {
-         super(x, y, recipeId, craftable, collectInputSlots(display, context));
-      }
+			public ItemStack get(int index) {
+				return this.stacks.get(index % this.stacks.size());
+			}
+		}
+	}
 
-      private static List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> collectInputSlots(RecipeDisplay display, ContextParameterMap context) {
-         List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> list = new ArrayList<>();
-         switch (display) {
-            case ShapedCraftingRecipeDisplay shapedCraftingRecipeDisplay:
-               RecipeGridAligner.alignRecipeToGrid(
-                  3,
-                  3,
-                  shapedCraftingRecipeDisplay.width(),
-                  shapedCraftingRecipeDisplay.height(),
-                  shapedCraftingRecipeDisplay.ingredients(),
-                  (slot, index, x, y) -> {
-                     List<ItemStack> list2x = slot.getStacks(context);
-                     if (!list2x.isEmpty()) {
-                        list.add(slot(x, y, list2x));
-                     }
-                  }
-               );
-               break;
-            case ShapelessCraftingRecipeDisplay shapelessCraftingRecipeDisplay:
-               label19: {
-                  List<SlotDisplay> list2 = shapelessCraftingRecipeDisplay.ingredients();
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code CraftingAlternativeButtonWidget}.
+	 */
+	class CraftingAlternativeButtonWidget extends RecipeAlternativesWidget.AlternativeButtonWidget {
 
-                  for (int i = 0; i < list2.size(); i++) {
-                     List<ItemStack> list3 = list2.get(i).getStacks(context);
-                     if (!list3.isEmpty()) {
-                        list.add(slot(i % 3, i / 3, list3));
-                     }
-                  }
-                  break label19;
-               }
-            default:
-         }
+		private static final Identifier CRAFTING_OVERLAY = Identifier.ofVanilla("recipe_book/crafting_overlay");
+		private static final Identifier
+				CRAFTING_OVERLAY_HIGHLIGHTED =
+				Identifier.ofVanilla("recipe_book/crafting_overlay_highlighted");
+		private static final Identifier
+				CRAFTING_OVERLAY_DISABLED =
+				Identifier.ofVanilla("recipe_book/crafting_overlay_disabled");
+		private static final Identifier
+				CRAFTING_OVERLAY_DISABLED_HIGHLIGHTED =
+				Identifier.ofVanilla("recipe_book/crafting_overlay_disabled_highlighted");
+		private static final int ICON_PADDING = 3;
+		private static final int TEXT_PADDING = 3;
 
-         return list;
-      }
+		public CraftingAlternativeButtonWidget(
+				final int x,
+				final int y,
+				final NetworkRecipeId recipeId,
+				final RecipeDisplay display,
+				final ContextParameterMap context,
+				final boolean craftable
+		) {
+			super(x, y, recipeId, craftable, collectInputSlots(display, context));
+		}
 
-      @Override
-      protected Identifier getOverlayTexture(boolean enabled) {
-         if (enabled) {
-            return this.isSelected() ? CRAFTING_OVERLAY_HIGHLIGHTED : CRAFTING_OVERLAY;
-         } else {
-            return this.isSelected() ? CRAFTING_OVERLAY_DISABLED_HIGHLIGHTED : CRAFTING_OVERLAY_DISABLED;
-         }
-      }
-   }
+		private static List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> collectInputSlots(
+				RecipeDisplay display,
+				ContextParameterMap context
+		) {
+			List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> list = new ArrayList<>();
+			switch (display) {
+				case ShapedCraftingRecipeDisplay shapedCraftingRecipeDisplay:
+					RecipeGridAligner.alignRecipeToGrid(
+							3,
+							3,
+							shapedCraftingRecipeDisplay.width(),
+							shapedCraftingRecipeDisplay.height(),
+							shapedCraftingRecipeDisplay.ingredients(),
+							(slot, index, x, y) -> {
+								List<ItemStack> list2x = slot.getStacks(context);
+								if (!list2x.isEmpty()) {
+									list.add(slot(x, y, list2x));
+								}
+							}
+					);
+					break;
+				case ShapelessCraftingRecipeDisplay shapelessCraftingRecipeDisplay:
+					label19:
+					{
+						List<SlotDisplay> list2 = shapelessCraftingRecipeDisplay.ingredients();
 
-   @Environment(EnvType.CLIENT)
-   class FurnaceAlternativeButtonWidget extends RecipeAlternativesWidget.AlternativeButtonWidget {
-      private static final Identifier FURNACE_OVERLAY = Identifier.ofVanilla("recipe_book/furnace_overlay");
-      private static final Identifier FURNACE_OVERLAY_HIGHLIGHTED = Identifier.ofVanilla("recipe_book/furnace_overlay_highlighted");
-      private static final Identifier FURNACE_OVERLAY_DISABLED = Identifier.ofVanilla("recipe_book/furnace_overlay_disabled");
-      private static final Identifier FURNACE_OVERLAY_DISABLED_HIGHLIGHTED = Identifier.ofVanilla("recipe_book/furnace_overlay_disabled_highlighted");
+						for (int i = 0; i < list2.size(); i++) {
+							List<ItemStack> list3 = list2.get(i).getStacks(context);
+							if (!list3.isEmpty()) {
+								list.add(slot(i % 3, i / 3, list3));
+							}
+						}
+						break label19;
+					}
+				default:
+			}
 
-      public FurnaceAlternativeButtonWidget(
-         final int x, final int y, final NetworkRecipeId recipeId, final RecipeDisplay display, final ContextParameterMap context, final boolean craftable
-      ) {
-         super(x, y, recipeId, craftable, alignRecipe(display, context));
-      }
+			return list;
+		}
 
-      private static List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> alignRecipe(RecipeDisplay display, ContextParameterMap context) {
-         if (display instanceof FurnaceRecipeDisplay furnaceRecipeDisplay) {
-            List<ItemStack> list = furnaceRecipeDisplay.ingredient().getStacks(context);
-            if (!list.isEmpty()) {
-               return List.of(slot(1, 1, list));
-            }
-         }
+		@Override
+		protected Identifier getOverlayTexture(boolean enabled) {
+			if (enabled) {
+				return this.isSelected() ? CRAFTING_OVERLAY_HIGHLIGHTED : CRAFTING_OVERLAY;
+			}
+			else {
+				return this.isSelected() ? CRAFTING_OVERLAY_DISABLED_HIGHLIGHTED : CRAFTING_OVERLAY_DISABLED;
+			}
+		}
+	}
 
-         return List.of();
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code FurnaceAlternativeButtonWidget}.
+	 */
+	class FurnaceAlternativeButtonWidget extends RecipeAlternativesWidget.AlternativeButtonWidget {
 
-      @Override
-      protected Identifier getOverlayTexture(boolean enabled) {
-         if (enabled) {
-            return this.isSelected() ? FURNACE_OVERLAY_HIGHLIGHTED : FURNACE_OVERLAY;
-         } else {
-            return this.isSelected() ? FURNACE_OVERLAY_DISABLED_HIGHLIGHTED : FURNACE_OVERLAY_DISABLED;
-         }
-      }
-   }
+		private static final Identifier FURNACE_OVERLAY = Identifier.ofVanilla("recipe_book/furnace_overlay");
+		private static final Identifier
+				FURNACE_OVERLAY_HIGHLIGHTED =
+				Identifier.ofVanilla("recipe_book/furnace_overlay_highlighted");
+		private static final Identifier
+				FURNACE_OVERLAY_DISABLED =
+				Identifier.ofVanilla("recipe_book/furnace_overlay_disabled");
+		private static final Identifier
+				FURNACE_OVERLAY_DISABLED_HIGHLIGHTED =
+				Identifier.ofVanilla("recipe_book/furnace_overlay_disabled_highlighted");
+
+		public FurnaceAlternativeButtonWidget(
+				final int x,
+				final int y,
+				final NetworkRecipeId recipeId,
+				final RecipeDisplay display,
+				final ContextParameterMap context,
+				final boolean craftable
+		) {
+			super(x, y, recipeId, craftable, alignRecipe(display, context));
+		}
+
+		private static List<RecipeAlternativesWidget.AlternativeButtonWidget.InputSlot> alignRecipe(
+				RecipeDisplay display,
+				ContextParameterMap context
+		) {
+			if (display instanceof FurnaceRecipeDisplay furnaceRecipeDisplay) {
+				List<ItemStack> list = furnaceRecipeDisplay.ingredient().getStacks(context);
+				if (!list.isEmpty()) {
+					return List.of(slot(1, 1, list));
+				}
+			}
+
+			return List.of();
+		}
+
+		@Override
+		protected Identifier getOverlayTexture(boolean enabled) {
+			if (enabled) {
+				return this.isSelected() ? FURNACE_OVERLAY_HIGHLIGHTED : FURNACE_OVERLAY;
+			}
+			else {
+				return this.isSelected() ? FURNACE_OVERLAY_DISABLED_HIGHLIGHTED : FURNACE_OVERLAY_DISABLED;
+			}
+		}
+	}
 }

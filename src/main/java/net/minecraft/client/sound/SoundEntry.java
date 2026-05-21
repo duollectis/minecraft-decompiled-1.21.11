@@ -1,31 +1,36 @@
 package net.minecraft.client.sound;
 
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SoundEntry}.
+ */
 public class SoundEntry {
-   private final List<Sound> sounds;
-   private final boolean replace;
-   private final @Nullable String subtitle;
 
-   public SoundEntry(List<Sound> sounds, boolean replace, @Nullable String subtitle) {
-      this.sounds = sounds;
-      this.replace = replace;
-      this.subtitle = subtitle;
-   }
+	private final List<Sound> sounds;
+	private final boolean replace;
+	private final @Nullable String subtitle;
 
-   public List<Sound> getSounds() {
-      return this.sounds;
-   }
+	public SoundEntry(List<Sound> sounds, boolean replace, @Nullable String subtitle) {
+		this.sounds = sounds;
+		this.replace = replace;
+		this.subtitle = subtitle;
+	}
 
-   public boolean canReplace() {
-      return this.replace;
-   }
+	public List<Sound> getSounds() {
+		return this.sounds;
+	}
 
-   public @Nullable String getSubtitle() {
-      return this.subtitle;
-   }
+	public boolean canReplace() {
+		return this.replace;
+	}
+
+	public @Nullable String getSubtitle() {
+		return this.subtitle;
+	}
 }

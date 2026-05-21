@@ -1,7 +1,6 @@
 package net.minecraft.client.render.item.model.special;
 
 import com.mojang.serialization.MapCodec;
-import java.util.function.Consumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
@@ -14,34 +13,62 @@ import net.minecraft.item.ItemStack;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.Consumer;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SpecialModelRenderer}.
+ */
 public interface SpecialModelRenderer<T> {
-   void render(
-      @Nullable T data, ItemDisplayContext displayContext, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, int overlay, boolean glint, int i
-   );
 
-   void collectVertices(Consumer<Vector3fc> consumer);
+	void render(
+			@Nullable T data,
+			ItemDisplayContext displayContext,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			int overlay,
+			boolean glint,
+			int i
+	);
 
-   @Nullable T getData(ItemStack stack);
+	void collectVertices(Consumer<Vector3fc> consumer);
 
-   @Environment(EnvType.CLIENT)
-   public interface BakeContext {
-      LoadedEntityModels entityModelSet();
+	@Nullable T getData(ItemStack stack);
 
-      SpriteHolder spriteHolder();
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code BakeContext}.
+	 */
+	public interface BakeContext {
 
-      PlayerSkinCache playerSkinRenderCache();
+		LoadedEntityModels entityModelSet();
 
-      @Environment(EnvType.CLIENT)
-      public record Simple(LoadedEntityModels entityModelSet, SpriteHolder spriteHolder, PlayerSkinCache playerSkinRenderCache)
-         implements SpecialModelRenderer.BakeContext {
-      }
-   }
+		SpriteHolder spriteHolder();
 
-   @Environment(EnvType.CLIENT)
-   public interface Unbaked {
-      @Nullable SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context);
+		PlayerSkinCache playerSkinRenderCache();
 
-      MapCodec<? extends SpecialModelRenderer.Unbaked> getCodec();
-   }
+		@Environment(EnvType.CLIENT)
+		/**
+		 * {@code Simple}.
+		 */
+		public record Simple(
+				LoadedEntityModels entityModelSet,
+				SpriteHolder spriteHolder,
+				PlayerSkinCache playerSkinRenderCache
+		)
+				implements SpecialModelRenderer.BakeContext {
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Unbaked}.
+	 */
+	public interface Unbaked {
+
+		@Nullable SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context);
+
+		MapCodec<? extends SpecialModelRenderer.Unbaked> getCodec();
+	}
 }

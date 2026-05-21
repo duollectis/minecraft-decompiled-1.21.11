@@ -2,44 +2,57 @@ package net.minecraft.world.chunk;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.mojang.serialization.DataResult;
+import net.minecraft.network.PacketByteBuf;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.LongStream;
-import net.minecraft.network.PacketByteBuf;
 
+/**
+ * {@code ReadableContainer}.
+ */
 public interface ReadableContainer<T> {
-   T get(int x, int y, int z);
 
-   void forEachValue(Consumer<T> action);
+	T get(int x, int y, int z);
 
-   void writePacket(PacketByteBuf buf);
+	void forEachValue(Consumer<T> action);
 
-   int getPacketSize();
+	void writePacket(PacketByteBuf buf);
 
-   @VisibleForTesting
-   int getElementBits();
+	int getPacketSize();
 
-   boolean hasAny(Predicate<T> predicate);
+	@VisibleForTesting
+	int getElementBits();
 
-   void count(PalettedContainer.Counter<T> counter);
+	boolean hasAny(Predicate<T> predicate);
 
-   PalettedContainer<T> copy();
+	void count(PalettedContainer.Counter<T> counter);
 
-   PalettedContainer<T> slice();
+	PalettedContainer<T> copy();
 
-   ReadableContainer.Serialized<T> serialize(PaletteProvider<T> provider);
+	PalettedContainer<T> slice();
 
-   public interface Reader<T, C extends ReadableContainer<T>> {
-      DataResult<C> read(PaletteProvider<T> provider, ReadableContainer.Serialized<T> serialized);
-   }
+	ReadableContainer.Serialized<T> serialize(PaletteProvider<T> provider);
 
-   public record Serialized<T>(List<T> paletteEntries, Optional<LongStream> storage, int bitsPerEntry) {
-      public static final int MISSING_BITS_PER_ENTRY = -1;
+	/**
+	 * {@code Reader}.
+	 */
+	public interface Reader<T, C extends ReadableContainer<T>> {
 
-      public Serialized(List<T> paletteEntries, Optional<LongStream> storage) {
-         this(paletteEntries, storage, -1);
-      }
-   }
+		DataResult<C> read(PaletteProvider<T> provider, ReadableContainer.Serialized<T> serialized);
+	}
+
+	/**
+	 * {@code Serialized}.
+	 */
+	public record Serialized<T>(List<T> paletteEntries, Optional<LongStream> storage, int bitsPerEntry) {
+
+		public static final int MISSING_BITS_PER_ENTRY = -1;
+
+		public Serialized(List<T> paletteEntries, Optional<LongStream> storage) {
+			this(paletteEntries, storage, -1);
+		}
+	}
 }

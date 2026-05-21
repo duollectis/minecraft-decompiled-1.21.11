@@ -8,14 +8,17 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record PlayerLoadedC2SPacket() implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<ByteBuf, PlayerLoadedC2SPacket> CODEC = PacketCodec.unit(new PlayerLoadedC2SPacket());
 
-   @Override
-   public PacketType<PlayerLoadedC2SPacket> getPacketType() {
-      return PlayPackets.PLAYER_LOADED;
-   }
+	public static final PacketCodec<ByteBuf, PlayerLoadedC2SPacket>
+			CODEC =
+			PacketCodec.unit(new PlayerLoadedC2SPacket());
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onPlayerLoaded(this);
-   }
+	@Override
+	public PacketType<PlayerLoadedC2SPacket> getPacketType() {
+		return PlayPackets.PLAYER_LOADED;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onPlayerLoaded(this);
+	}
 }

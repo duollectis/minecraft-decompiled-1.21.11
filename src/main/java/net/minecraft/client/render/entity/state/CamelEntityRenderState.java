@@ -6,13 +6,17 @@ import net.minecraft.entity.AnimationState;
 import net.minecraft.item.ItemStack;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CamelEntityRenderState}.
+ */
 public class CamelEntityRenderState extends LivingEntityRenderState {
-   public ItemStack saddleStack = ItemStack.EMPTY;
-   public boolean hasPassengers;
-   public float jumpCooldown;
-   public final AnimationState sittingTransitionAnimationState = new AnimationState();
-   public final AnimationState sittingAnimationState = new AnimationState();
-   public final AnimationState standingTransitionAnimationState = new AnimationState();
-   public final AnimationState idlingAnimationState = new AnimationState();
-   public final AnimationState dashingAnimationState = new AnimationState();
+
+	public ItemStack saddleStack = ItemStack.EMPTY;
+	public boolean hasPassengers;
+	public float jumpCooldown;
+	public final AnimationState sittingTransitionAnimationState = new AnimationState();
+	public final AnimationState sittingAnimationState = new AnimationState();
+	public final AnimationState standingTransitionAnimationState = new AnimationState();
+	public final AnimationState idlingAnimationState = new AnimationState();
+	public final AnimationState dashingAnimationState = new AnimationState();
 }

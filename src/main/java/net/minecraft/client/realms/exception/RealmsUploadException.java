@@ -6,12 +6,16 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsUploadException}.
+ */
 public abstract class RealmsUploadException extends RuntimeException {
-   public @Nullable Text getStatus() {
-      return null;
-   }
 
-   public Text @Nullable [] getStatusTexts() {
-      return null;
-   }
+	public @Nullable Text getStatus() {
+		return null;
+	}
+
+	public Text @Nullable [] getStatusTexts() {
+		return null;
+	}
 }

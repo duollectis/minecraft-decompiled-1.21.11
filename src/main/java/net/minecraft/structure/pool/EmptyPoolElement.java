@@ -1,8 +1,6 @@
 package net.minecraft.structure.pool;
 
 import com.mojang.serialization.MapCodec;
-import java.util.Collections;
-import java.util.List;
 import net.minecraft.structure.StructureLiquidSettings;
 import net.minecraft.structure.StructureTemplate;
 import net.minecraft.structure.StructureTemplateManager;
@@ -15,55 +13,66 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * {@code EmptyPoolElement}.
+ */
 public class EmptyPoolElement extends StructurePoolElement {
-   public static final MapCodec<EmptyPoolElement> CODEC = MapCodec.unit(() -> EmptyPoolElement.INSTANCE);
-   public static final EmptyPoolElement INSTANCE = new EmptyPoolElement();
 
-   private EmptyPoolElement() {
-      super(StructurePool.Projection.TERRAIN_MATCHING);
-   }
+	public static final MapCodec<EmptyPoolElement> CODEC = MapCodec.unit(() -> EmptyPoolElement.INSTANCE);
+	public static final EmptyPoolElement INSTANCE = new EmptyPoolElement();
 
-   @Override
-   public Vec3i getStart(StructureTemplateManager structureTemplateManager, BlockRotation rotation) {
-      return Vec3i.ZERO;
-   }
+	private EmptyPoolElement() {
+		super(StructurePool.Projection.TERRAIN_MATCHING);
+	}
 
-   @Override
-   public List<StructureTemplate.JigsawBlockInfo> getStructureBlockInfos(
-      StructureTemplateManager structureTemplateManager, BlockPos pos, BlockRotation rotation, Random random
-   ) {
-      return Collections.emptyList();
-   }
+	@Override
+	public Vec3i getStart(StructureTemplateManager structureTemplateManager, BlockRotation rotation) {
+		return Vec3i.ZERO;
+	}
 
-   @Override
-   public BlockBox getBoundingBox(StructureTemplateManager structureTemplateManager, BlockPos pos, BlockRotation rotation) {
-      throw new IllegalStateException("Invalid call to EmptyPoolElement.getBoundingBox, filter me!");
-   }
+	@Override
+	public List<StructureTemplate.JigsawBlockInfo> getStructureBlockInfos(
+			StructureTemplateManager structureTemplateManager, BlockPos pos, BlockRotation rotation, Random random
+	) {
+		return Collections.emptyList();
+	}
 
-   @Override
-   public boolean generate(
-      StructureTemplateManager structureTemplateManager,
-      StructureWorldAccess world,
-      StructureAccessor structureAccessor,
-      ChunkGenerator chunkGenerator,
-      BlockPos pos,
-      BlockPos pivot,
-      BlockRotation rotation,
-      BlockBox box,
-      Random random,
-      StructureLiquidSettings liquidSettings,
-      boolean keepJigsaws
-   ) {
-      return true;
-   }
+	@Override
+	public BlockBox getBoundingBox(
+			StructureTemplateManager structureTemplateManager,
+			BlockPos pos,
+			BlockRotation rotation
+	) {
+		throw new IllegalStateException("Invalid call to EmptyPoolElement.getBoundingBox, filter me!");
+	}
 
-   @Override
-   public StructurePoolElementType<?> getType() {
-      return StructurePoolElementType.EMPTY_POOL_ELEMENT;
-   }
+	@Override
+	public boolean generate(
+			StructureTemplateManager structureTemplateManager,
+			StructureWorldAccess world,
+			StructureAccessor structureAccessor,
+			ChunkGenerator chunkGenerator,
+			BlockPos pos,
+			BlockPos pivot,
+			BlockRotation rotation,
+			BlockBox box,
+			Random random,
+			StructureLiquidSettings liquidSettings,
+			boolean keepJigsaws
+	) {
+		return true;
+	}
 
-   @Override
-   public String toString() {
-      return "Empty";
-   }
+	@Override
+	public StructurePoolElementType<?> getType() {
+		return StructurePoolElementType.EMPTY_POOL_ELEMENT;
+	}
+
+	@Override
+	public String toString() {
+		return "Empty";
+	}
 }

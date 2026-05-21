@@ -3,11 +3,6 @@ package net.minecraft.component.type;
 import com.google.common.collect.Iterables;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.OptionalInt;
-import java.util.function.Consumer;
-import java.util.stream.Stream;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -20,155 +15,184 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.collection.DefaultedList;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.OptionalInt;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
+
+/**
+ * {@code ContainerComponent}.
+ */
 public final class ContainerComponent implements TooltipAppender {
-   private static final int ALL_SLOTS_EMPTY = -1;
-   private static final int MAX_SLOTS = 256;
-   public static final ContainerComponent DEFAULT = new ContainerComponent(DefaultedList.of());
-   public static final Codec<ContainerComponent> CODEC = ContainerComponent.Slot.CODEC
-      .sizeLimitedListOf(256)
-      .xmap(ContainerComponent::fromSlots, ContainerComponent::collectSlots);
-   public static final PacketCodec<RegistryByteBuf, ContainerComponent> PACKET_CODEC = ItemStack.OPTIONAL_PACKET_CODEC
-      .collect(PacketCodecs.toList(256))
-      .xmap(ContainerComponent::new, component -> component.stacks);
-   public final DefaultedList<ItemStack> stacks;
-   private final int hashCode;
 
-   private ContainerComponent(DefaultedList<ItemStack> stacks) {
-      if (stacks.size() > 256) {
-         throw new IllegalArgumentException("Got " + stacks.size() + " items, but maximum is 256");
-      } else {
-         this.stacks = stacks;
-         this.hashCode = ItemStack.listHashCode(stacks);
-      }
-   }
+	private static final int ALL_SLOTS_EMPTY = -1;
+	private static final int MAX_SLOTS = 256;
+	public static final ContainerComponent DEFAULT = new ContainerComponent(DefaultedList.of());
+	public static final Codec<ContainerComponent> CODEC = ContainerComponent.Slot.CODEC
+			.sizeLimitedListOf(256)
+			.xmap(ContainerComponent::fromSlots, ContainerComponent::collectSlots);
+	public static final PacketCodec<RegistryByteBuf, ContainerComponent> PACKET_CODEC = ItemStack.OPTIONAL_PACKET_CODEC
+			.collect(PacketCodecs.toList(256))
+			.xmap(ContainerComponent::new, component -> component.stacks);
+	public final DefaultedList<ItemStack> stacks;
+	private final int hashCode;
 
-   private ContainerComponent(int size) {
-      this(DefaultedList.ofSize(size, ItemStack.EMPTY));
-   }
+	private ContainerComponent(DefaultedList<ItemStack> stacks) {
+		if (stacks.size() > 256) {
+			throw new IllegalArgumentException("Got " + stacks.size() + " items, but maximum is 256");
+		}
+		else {
+			this.stacks = stacks;
+			this.hashCode = ItemStack.listHashCode(stacks);
+		}
+	}
 
-   private ContainerComponent(List<ItemStack> stacks) {
-      this(stacks.size());
+	private ContainerComponent(int size) {
+		this(DefaultedList.ofSize(size, ItemStack.EMPTY));
+	}
 
-      for (int i = 0; i < stacks.size(); i++) {
-         this.stacks.set(i, stacks.get(i));
-      }
-   }
+	private ContainerComponent(List<ItemStack> stacks) {
+		this(stacks.size());
 
-   private static ContainerComponent fromSlots(List<ContainerComponent.Slot> slots) {
-      OptionalInt optionalInt = slots.stream().mapToInt(ContainerComponent.Slot::index).max();
-      if (optionalInt.isEmpty()) {
-         return DEFAULT;
-      } else {
-         ContainerComponent containerComponent = new ContainerComponent(optionalInt.getAsInt() + 1);
+		for (int i = 0; i < stacks.size(); i++) {
+			this.stacks.set(i, stacks.get(i));
+		}
+	}
 
-         for (ContainerComponent.Slot slot : slots) {
-            containerComponent.stacks.set(slot.index(), slot.item());
-         }
+	private static ContainerComponent fromSlots(List<ContainerComponent.Slot> slots) {
+		OptionalInt optionalInt = slots.stream().mapToInt(ContainerComponent.Slot::index).max();
+		if (optionalInt.isEmpty()) {
+			return DEFAULT;
+		}
+		else {
+			ContainerComponent containerComponent = new ContainerComponent(optionalInt.getAsInt() + 1);
 
-         return containerComponent;
-      }
-   }
+			for (ContainerComponent.Slot slot : slots) {
+				containerComponent.stacks.set(slot.index(), slot.item());
+			}
 
-   public static ContainerComponent fromStacks(List<ItemStack> stacks) {
-      int i = findLastNonEmptyIndex(stacks);
-      if (i == -1) {
-         return DEFAULT;
-      } else {
-         ContainerComponent containerComponent = new ContainerComponent(i + 1);
+			return containerComponent;
+		}
+	}
 
-         for (int j = 0; j <= i; j++) {
-            containerComponent.stacks.set(j, stacks.get(j).copy());
-         }
+	public static ContainerComponent fromStacks(List<ItemStack> stacks) {
+		int i = findLastNonEmptyIndex(stacks);
+		if (i == -1) {
+			return DEFAULT;
+		}
+		else {
+			ContainerComponent containerComponent = new ContainerComponent(i + 1);
 
-         return containerComponent;
-      }
-   }
+			for (int j = 0; j <= i; j++) {
+				containerComponent.stacks.set(j, stacks.get(j).copy());
+			}
 
-   private static int findLastNonEmptyIndex(List<ItemStack> stacks) {
-      for (int i = stacks.size() - 1; i >= 0; i--) {
-         if (!stacks.get(i).isEmpty()) {
-            return i;
-         }
-      }
+			return containerComponent;
+		}
+	}
 
-      return -1;
-   }
+	private static int findLastNonEmptyIndex(List<ItemStack> stacks) {
+		for (int i = stacks.size() - 1; i >= 0; i--) {
+			if (!stacks.get(i).isEmpty()) {
+				return i;
+			}
+		}
 
-   private List<ContainerComponent.Slot> collectSlots() {
-      List<ContainerComponent.Slot> list = new ArrayList<>();
+		return -1;
+	}
 
-      for (int i = 0; i < this.stacks.size(); i++) {
-         ItemStack itemStack = this.stacks.get(i);
-         if (!itemStack.isEmpty()) {
-            list.add(new ContainerComponent.Slot(i, itemStack));
-         }
-      }
+	private List<ContainerComponent.Slot> collectSlots() {
+		List<ContainerComponent.Slot> list = new ArrayList<>();
 
-      return list;
-   }
+		for (int i = 0; i < this.stacks.size(); i++) {
+			ItemStack itemStack = this.stacks.get(i);
+			if (!itemStack.isEmpty()) {
+				list.add(new ContainerComponent.Slot(i, itemStack));
+			}
+		}
 
-   public void copyTo(DefaultedList<ItemStack> stacks) {
-      for (int i = 0; i < stacks.size(); i++) {
-         ItemStack itemStack = i < this.stacks.size() ? this.stacks.get(i) : ItemStack.EMPTY;
-         stacks.set(i, itemStack.copy());
-      }
-   }
+		return list;
+	}
 
-   public ItemStack copyFirstStack() {
-      return this.stacks.isEmpty() ? ItemStack.EMPTY : this.stacks.get(0).copy();
-   }
+	public void copyTo(DefaultedList<ItemStack> stacks) {
+		for (int i = 0; i < stacks.size(); i++) {
+			ItemStack itemStack = i < this.stacks.size() ? this.stacks.get(i) : ItemStack.EMPTY;
+			stacks.set(i, itemStack.copy());
+		}
+	}
 
-   public Stream<ItemStack> stream() {
-      return this.stacks.stream().map(ItemStack::copy);
-   }
+	public ItemStack copyFirstStack() {
+		return this.stacks.isEmpty() ? ItemStack.EMPTY : this.stacks.get(0).copy();
+	}
 
-   public Stream<ItemStack> streamNonEmpty() {
-      return this.stacks.stream().filter(stack -> !stack.isEmpty()).map(ItemStack::copy);
-   }
+	public Stream<ItemStack> stream() {
+		return this.stacks.stream().map(ItemStack::copy);
+	}
 
-   public Iterable<ItemStack> iterateNonEmpty() {
-      return Iterables.filter(this.stacks, stack -> !stack.isEmpty());
-   }
+	public Stream<ItemStack> streamNonEmpty() {
+		return this.stacks.stream().filter(stack -> !stack.isEmpty()).map(ItemStack::copy);
+	}
 
-   public Iterable<ItemStack> iterateNonEmptyCopy() {
-      return Iterables.transform(this.iterateNonEmpty(), ItemStack::copy);
-   }
+	public Iterable<ItemStack> iterateNonEmpty() {
+		return Iterables.filter(this.stacks, stack -> !stack.isEmpty());
+	}
 
-   @Override
-   public boolean equals(Object o) {
-      return this == o ? true : o instanceof ContainerComponent containerComponent && ItemStack.stacksEqual(this.stacks, containerComponent.stacks);
-   }
+	public Iterable<ItemStack> iterateNonEmptyCopy() {
+		return Iterables.transform(this.iterateNonEmpty(), ItemStack::copy);
+	}
 
-   @Override
-   public int hashCode() {
-      return this.hashCode;
-   }
+	@Override
+	public boolean equals(Object o) {
+		return this == o ? true : o instanceof ContainerComponent containerComponent && ItemStack.stacksEqual(
+				this.stacks,
+				containerComponent.stacks
+		);
+	}
 
-   @Override
-   public void appendTooltip(Item.TooltipContext context, Consumer<Text> textConsumer, TooltipType type, ComponentsAccess components) {
-      int i = 0;
-      int j = 0;
+	@Override
+	public int hashCode() {
+		return this.hashCode;
+	}
 
-      for (ItemStack itemStack : this.iterateNonEmpty()) {
-         j++;
-         if (i <= 4) {
-            i++;
-            textConsumer.accept(Text.translatable("item.container.item_count", itemStack.getName(), itemStack.getCount()));
-         }
-      }
+	@Override
+	public void appendTooltip(
+			Item.TooltipContext context,
+			Consumer<Text> textConsumer,
+			TooltipType type,
+			ComponentsAccess components
+	) {
+		int i = 0;
+		int j = 0;
 
-      if (j - i > 0) {
-         textConsumer.accept(Text.translatable("item.container.more_items", j - i).formatted(Formatting.ITALIC));
-      }
-   }
+		for (ItemStack itemStack : this.iterateNonEmpty()) {
+			j++;
+			if (i <= 4) {
+				i++;
+				textConsumer.accept(Text.translatable(
+						"item.container.item_count",
+						itemStack.getName(),
+						itemStack.getCount()
+				));
+			}
+		}
 
-   record Slot(int index, ItemStack item) {
-      public static final Codec<ContainerComponent.Slot> CODEC = RecordCodecBuilder.create(
-         instance -> instance.group(
-               Codec.intRange(0, 255).fieldOf("slot").forGetter(ContainerComponent.Slot::index),
-               ItemStack.CODEC.fieldOf("item").forGetter(ContainerComponent.Slot::item)
-            )
-            .apply(instance, ContainerComponent.Slot::new)
-      );
-   }
+		if (j - i > 0) {
+			textConsumer.accept(Text.translatable("item.container.more_items", j - i).formatted(Formatting.ITALIC));
+		}
+	}
+
+	/**
+	 * {@code Slot}.
+	 */
+	record Slot(int index, ItemStack item) {
+
+		public static final Codec<ContainerComponent.Slot> CODEC = RecordCodecBuilder.create(
+				instance -> instance.group(
+						                    Codec.intRange(0, 255).fieldOf("slot").forGetter(ContainerComponent.Slot::index),
+						                    ItemStack.CODEC.fieldOf("item").forGetter(ContainerComponent.Slot::item)
+				                    )
+				                    .apply(instance, ContainerComponent.Slot::new)
+		);
+	}
 }

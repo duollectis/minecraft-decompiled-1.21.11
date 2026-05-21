@@ -1,6 +1,5 @@
 package net.minecraft.client.session.report;
 
-import java.util.function.Predicate;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.session.report.log.ChatLog;
@@ -12,71 +11,88 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.Predicate;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MessagesListAdder}.
+ */
 public class MessagesListAdder {
-   private final ChatLog log;
-   private final ContextMessageCollector contextMessageCollector;
-   private final Predicate<ReceivedMessage.ChatMessage> reportablePredicate;
-   private @Nullable MessageLink link = null;
-   private int maxLogIndex;
-   private int foldedMessageCount;
-   private @Nullable SignedMessage lastMessage;
 
-   public MessagesListAdder(AbuseReportContext context, Predicate<ReceivedMessage.ChatMessage> reportablePredicate) {
-      this.log = context.getChatLog();
-      this.contextMessageCollector = new ContextMessageCollector(context.getSender().getLimits().leadingContextMessageCount());
-      this.reportablePredicate = reportablePredicate;
-      this.maxLogIndex = this.log.getMaxIndex();
-   }
+	private final ChatLog log;
+	private final ContextMessageCollector contextMessageCollector;
+	private final Predicate<ReceivedMessage.ChatMessage> reportablePredicate;
+	private @Nullable MessageLink link = null;
+	private int maxLogIndex;
+	private int foldedMessageCount;
+	private @Nullable SignedMessage lastMessage;
 
-   public void add(int minAmount, MessagesListAdder.MessagesList messages) {
-      int i = 0;
+	public MessagesListAdder(AbuseReportContext context, Predicate<ReceivedMessage.ChatMessage> reportablePredicate) {
+		this.log = context.getChatLog();
+		this.contextMessageCollector =
+				new ContextMessageCollector(context.getSender().getLimits().leadingContextMessageCount());
+		this.reportablePredicate = reportablePredicate;
+		this.maxLogIndex = this.log.getMaxIndex();
+	}
 
-      while (i < minAmount) {
-         ChatLogEntry chatLogEntry = this.log.get(this.maxLogIndex);
-         if (chatLogEntry == null) {
-            break;
-         }
+	public void add(int minAmount, MessagesListAdder.MessagesList messages) {
+		int i = 0;
 
-         int j = this.maxLogIndex--;
-         if (chatLogEntry instanceof ReceivedMessage.ChatMessage chatMessage && !chatMessage.message().equals(this.lastMessage)) {
-            if (this.tryAdd(messages, chatMessage)) {
-               if (this.foldedMessageCount > 0) {
-                  messages.addText(Text.translatable("gui.chatSelection.fold", this.foldedMessageCount));
-                  this.foldedMessageCount = 0;
-               }
+		while (i < minAmount) {
+			ChatLogEntry chatLogEntry = this.log.get(this.maxLogIndex);
+			if (chatLogEntry == null) {
+				break;
+			}
 
-               messages.addMessage(j, chatMessage);
-               i++;
-            } else {
-               this.foldedMessageCount++;
-            }
+			int j = this.maxLogIndex--;
+			if (chatLogEntry instanceof ReceivedMessage.ChatMessage chatMessage && !chatMessage
+					.message()
+					.equals(this.lastMessage)) {
+				if (this.tryAdd(messages, chatMessage)) {
+					if (this.foldedMessageCount > 0) {
+						messages.addText(Text.translatable("gui.chatSelection.fold", this.foldedMessageCount));
+						this.foldedMessageCount = 0;
+					}
 
-            this.lastMessage = chatMessage.message();
-         }
-      }
-   }
+					messages.addMessage(j, chatMessage);
+					i++;
+				}
+				else {
+					this.foldedMessageCount++;
+				}
 
-   private boolean tryAdd(MessagesListAdder.MessagesList messages, ReceivedMessage.ChatMessage message) {
-      SignedMessage signedMessage = message.message();
-      boolean bl = this.contextMessageCollector.tryLink(signedMessage);
-      if (this.reportablePredicate.test(message)) {
-         this.contextMessageCollector.add(signedMessage);
-         if (this.link != null && !this.link.linksTo(signedMessage.link())) {
-            messages.addText(Text.translatable("gui.chatSelection.join", message.profile().name()).formatted(Formatting.YELLOW));
-         }
+				this.lastMessage = chatMessage.message();
+			}
+		}
+	}
 
-         this.link = signedMessage.link();
-         return true;
-      } else {
-         return bl;
-      }
-   }
+	private boolean tryAdd(MessagesListAdder.MessagesList messages, ReceivedMessage.ChatMessage message) {
+		SignedMessage signedMessage = message.message();
+		boolean bl = this.contextMessageCollector.tryLink(signedMessage);
+		if (this.reportablePredicate.test(message)) {
+			this.contextMessageCollector.add(signedMessage);
+			if (this.link != null && !this.link.linksTo(signedMessage.link())) {
+				messages.addText(Text
+						.translatable("gui.chatSelection.join", message.profile().name())
+						.formatted(Formatting.YELLOW));
+			}
 
-   @Environment(EnvType.CLIENT)
-   public interface MessagesList {
-      void addMessage(int index, ReceivedMessage.ChatMessage message);
+			this.link = signedMessage.link();
+			return true;
+		}
+		else {
+			return bl;
+		}
+	}
 
-      void addText(Text text);
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code MessagesList}.
+	 */
+	public interface MessagesList {
+
+		void addMessage(int index, ReceivedMessage.ChatMessage message);
+
+		void addText(Text text);
+	}
 }

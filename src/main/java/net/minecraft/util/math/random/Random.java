@@ -2,70 +2,75 @@ package net.minecraft.util.math.random;
 
 import io.netty.util.internal.ThreadLocalRandom;
 
+/**
+ * {@code Random}.
+ */
 public interface Random {
-   @Deprecated
-   double field_38930 = 2.297;
 
-   static Random create() {
-      return create(RandomSeed.getSeed());
-   }
+	@Deprecated
+	double GOLDEN_RATIO = 2.297;
 
-   @Deprecated
-   static Random createThreadSafe() {
-      return new ThreadSafeRandom(RandomSeed.getSeed());
-   }
+	static Random create() {
+		return create(RandomSeed.getSeed());
+	}
 
-   static Random create(long seed) {
-      return new CheckedRandom(seed);
-   }
+	@Deprecated
+	static Random createThreadSafe() {
+		return new ThreadSafeRandom(RandomSeed.getSeed());
+	}
 
-   static Random createLocal() {
-      return new LocalRandom(ThreadLocalRandom.current().nextLong());
-   }
+	static Random create(long seed) {
+		return new CheckedRandom(seed);
+	}
 
-   Random split();
+	static Random createLocal() {
+		return new LocalRandom(ThreadLocalRandom.current().nextLong());
+	}
 
-   RandomSplitter nextSplitter();
+	Random split();
 
-   void setSeed(long seed);
+	RandomSplitter nextSplitter();
 
-   int nextInt();
+	void setSeed(long seed);
 
-   int nextInt(int bound);
+	int nextInt();
 
-   default int nextBetween(int min, int max) {
-      return this.nextInt(max - min + 1) + min;
-   }
+	int nextInt(int bound);
 
-   long nextLong();
+	default int nextBetween(int min, int max) {
+		return this.nextInt(max - min + 1) + min;
+	}
 
-   boolean nextBoolean();
+	long nextLong();
 
-   float nextFloat();
+	boolean nextBoolean();
 
-   double nextDouble();
+	float nextFloat();
 
-   double nextGaussian();
+	double nextDouble();
 
-   default double nextTriangular(double mode, double deviation) {
-      return mode + deviation * (this.nextDouble() - this.nextDouble());
-   }
+	double nextGaussian();
 
-   default float nextTriangular(float mode, float deviation) {
-      return mode + deviation * (this.nextFloat() - this.nextFloat());
-   }
+	default double nextTriangular(double mode, double deviation) {
+		return mode + deviation * (this.nextDouble() - this.nextDouble());
+	}
 
-   default void skip(int count) {
-      for (int i = 0; i < count; i++) {
-         this.nextInt();
-      }
-   }
+	default float nextTriangular(float mode, float deviation) {
+		return mode + deviation * (this.nextFloat() - this.nextFloat());
+	}
 
-   default int nextBetweenExclusive(int min, int max) {
-      if (min >= max) {
-         throw new IllegalArgumentException("bound - origin is non positive");
-      } else {
-         return min + this.nextInt(max - min);
-      }
-   }
+	default void skip(int count) {
+		for (int i = 0; i < count; i++) {
+			this.nextInt();
+		}
+	}
+
+	default int nextBetweenExclusive(int min, int max) {
+		if (min >= max) {
+			throw new IllegalArgumentException("bound - origin is non positive");
+		}
+		else {
+			return min + this.nextInt(max - min);
+		}
+	}
 }

@@ -4,6 +4,10 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EvokerEntityRenderState}.
+ */
 public class EvokerEntityRenderState extends IllagerEntityRenderState {
-   public boolean spellcasting;
+
+	public boolean spellcasting;
 }

@@ -8,18 +8,22 @@ import net.minecraft.entity.mob.SkeletonEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SkeletonEntityRenderer}.
+ */
 public class SkeletonEntityRenderer extends AbstractSkeletonEntityRenderer<SkeletonEntity, SkeletonEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/skeleton.png");
 
-   public SkeletonEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, EntityModelLayers.SKELETON, EntityModelLayers.SKELETON_EQUIPMENT);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/skeleton.png");
 
-   public Identifier getTexture(SkeletonEntityRenderState skeletonEntityRenderState) {
-      return TEXTURE;
-   }
+	public SkeletonEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, EntityModelLayers.SKELETON, EntityModelLayers.SKELETON_EQUIPMENT);
+	}
 
-   public SkeletonEntityRenderState createRenderState() {
-      return new SkeletonEntityRenderState();
-   }
+	public Identifier getTexture(SkeletonEntityRenderState skeletonEntityRenderState) {
+		return TEXTURE;
+	}
+
+	public SkeletonEntityRenderState createRenderState() {
+		return new SkeletonEntityRenderState();
+	}
 }

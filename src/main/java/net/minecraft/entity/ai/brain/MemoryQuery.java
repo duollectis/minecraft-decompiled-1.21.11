@@ -1,53 +1,75 @@
 package net.minecraft.entity.ai.brain;
 
 import com.mojang.datafixers.kinds.Const;
+import com.mojang.datafixers.kinds.Const.Mu;
 import com.mojang.datafixers.kinds.IdF;
 import com.mojang.datafixers.kinds.K1;
 import com.mojang.datafixers.kinds.OptionalBox;
-import com.mojang.datafixers.kinds.Const.Mu;
 import com.mojang.datafixers.util.Unit;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code MemoryQuery}.
+ */
 public interface MemoryQuery<F extends K1, Val> {
-   MemoryModuleType<Val> memory();
 
-   MemoryModuleState getState();
+	MemoryModuleType<Val> memory();
 
-   @Nullable MemoryQueryResult<F, Val> toQueryResult(Brain<?> brain, java.util.Optional<Val> value);
+	MemoryModuleState getState();
 
-   public record Absent<V>(MemoryModuleType<V> memory) implements MemoryQuery<Mu<Unit>, V> {
-      @Override
-      public MemoryModuleState getState() {
-         return MemoryModuleState.VALUE_ABSENT;
-      }
+	@Nullable MemoryQueryResult<F, Val> toQueryResult(Brain<?> brain, java.util.Optional<Val> value);
 
-      @Override
-      public MemoryQueryResult<Mu<Unit>, V> toQueryResult(Brain<?> brain, java.util.Optional<V> value) {
-         return value.isPresent() ? null : new MemoryQueryResult<>(brain, this.memory, Const.create(Unit.INSTANCE));
-      }
-   }
+	/**
+	 * {@code Absent}.
+	 */
+	public record Absent<V>(MemoryModuleType<V> memory) implements MemoryQuery<Mu<Unit>, V> {
 
-   public record Optional<V>(MemoryModuleType<V> memory) implements MemoryQuery<com.mojang.datafixers.kinds.OptionalBox.Mu, V> {
-      @Override
-      public MemoryModuleState getState() {
-         return MemoryModuleState.REGISTERED;
-      }
+		@Override
+		public MemoryModuleState getState() {
+			return MemoryModuleState.VALUE_ABSENT;
+		}
 
-      @Override
-      public MemoryQueryResult<com.mojang.datafixers.kinds.OptionalBox.Mu, V> toQueryResult(Brain<?> brain, java.util.Optional<V> value) {
-         return new MemoryQueryResult<>(brain, this.memory, OptionalBox.create(value));
-      }
-   }
+		@Override
+		public MemoryQueryResult<Mu<Unit>, V> toQueryResult(Brain<?> brain, java.util.Optional<V> value) {
+			return value.isPresent() ? null : new MemoryQueryResult<>(brain, this.memory, Const.create(Unit.INSTANCE));
+		}
+	}
 
-   public record MemoryValue<V>(MemoryModuleType<V> memory) implements MemoryQuery<com.mojang.datafixers.kinds.IdF.Mu, V> {
-      @Override
-      public MemoryModuleState getState() {
-         return MemoryModuleState.VALUE_PRESENT;
-      }
+	/**
+	 * {@code Optional}.
+	 */
+	public record Optional<V>(MemoryModuleType<V> memory) implements MemoryQuery<com.mojang.datafixers.kinds.OptionalBox.Mu, V> {
 
-      @Override
-      public MemoryQueryResult<com.mojang.datafixers.kinds.IdF.Mu, V> toQueryResult(Brain<?> brain, java.util.Optional<V> value) {
-         return value.isEmpty() ? null : new MemoryQueryResult<>(brain, this.memory, IdF.create(value.get()));
-      }
-   }
+		@Override
+		public MemoryModuleState getState() {
+			return MemoryModuleState.REGISTERED;
+		}
+
+		@Override
+		public MemoryQueryResult<com.mojang.datafixers.kinds.OptionalBox.Mu, V> toQueryResult(
+				Brain<?> brain,
+				java.util.Optional<V> value
+		) {
+			return new MemoryQueryResult<>(brain, this.memory, OptionalBox.create(value));
+		}
+	}
+
+	/**
+	 * {@code MemoryValue}.
+	 */
+	public record MemoryValue<V>(MemoryModuleType<V> memory) implements MemoryQuery<com.mojang.datafixers.kinds.IdF.Mu, V> {
+
+		@Override
+		public MemoryModuleState getState() {
+			return MemoryModuleState.VALUE_PRESENT;
+		}
+
+		@Override
+		public MemoryQueryResult<com.mojang.datafixers.kinds.IdF.Mu, V> toQueryResult(
+				Brain<?> brain,
+				java.util.Optional<V> value
+		) {
+			return value.isEmpty() ? null : new MemoryQueryResult<>(brain, this.memory, IdF.create(value.get()));
+		}
+	}
 }

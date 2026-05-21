@@ -8,187 +8,203 @@ import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.Spliterators;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import net.fabricmc.fabric.api.item.v1.FabricComponentMapBuilder;
 import org.jspecify.annotations.Nullable;
 
+import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+/**
+ * {@code ComponentMap}.
+ */
 public interface ComponentMap extends Iterable<Component<?>>, ComponentsAccess {
-   ComponentMap EMPTY = new ComponentMap() {
-      @Override
-      public <T> @Nullable T get(ComponentType<? extends T> type) {
-         return null;
-      }
 
-      @Override
-      public Set<ComponentType<?>> getTypes() {
-         return Set.of();
-      }
+	ComponentMap EMPTY = new ComponentMap() {
+		@Override
+		public <T> @Nullable T get(ComponentType<? extends T> type) {
+			return null;
+		}
 
-      @Override
-      public Iterator<Component<?>> iterator() {
-         return Collections.emptyIterator();
-      }
-   };
-   Codec<ComponentMap> CODEC = createCodecFromValueMap(ComponentType.TYPE_TO_VALUE_MAP_CODEC);
+		@Override
+		public Set<ComponentType<?>> getTypes() {
+			return Set.of();
+		}
 
-   static Codec<ComponentMap> createCodec(Codec<ComponentType<?>> componentTypeCodec) {
-      return createCodecFromValueMap(Codec.dispatchedMap(componentTypeCodec, ComponentType::getCodecOrThrow));
-   }
+		@Override
+		public Iterator<Component<?>> iterator() {
+			return Collections.emptyIterator();
+		}
+	};
 
-   static Codec<ComponentMap> createCodecFromValueMap(Codec<Map<ComponentType<?>, Object>> typeToValueMapCodec) {
-      return typeToValueMapCodec.flatComapMap(ComponentMap.Builder::build, componentMap -> {
-         int i = componentMap.size();
-         if (i == 0) {
-            return DataResult.success(Reference2ObjectMaps.emptyMap());
-         } else {
-            Reference2ObjectMap<ComponentType<?>, Object> reference2ObjectMap = new Reference2ObjectArrayMap(i);
+	Codec<ComponentMap> CODEC = createCodecFromValueMap(ComponentType.TYPE_TO_VALUE_MAP_CODEC);
 
-            for (Component<?> component : componentMap) {
-               if (!component.type().shouldSkipSerialization()) {
-                  reference2ObjectMap.put(component.type(), component.value());
-               }
-            }
+	static Codec<ComponentMap> createCodec(Codec<ComponentType<?>> componentTypeCodec) {
+		return createCodecFromValueMap(Codec.dispatchedMap(componentTypeCodec, ComponentType::getCodecOrThrow));
+	}
 
-            return DataResult.success(reference2ObjectMap);
-         }
-      });
-   }
+	static Codec<ComponentMap> createCodecFromValueMap(Codec<Map<ComponentType<?>, Object>> typeToValueMapCodec) {
+		return typeToValueMapCodec.flatComapMap(
+				ComponentMap.Builder::build, componentMap -> {
+					int i = componentMap.size();
+					if (i == 0) {
+						return DataResult.success(Reference2ObjectMaps.emptyMap());
+					}
+					else {
+						Reference2ObjectMap<ComponentType<?>, Object>
+								reference2ObjectMap =
+								new Reference2ObjectArrayMap(i);
 
-   static ComponentMap of(ComponentMap base, ComponentMap overrides) {
-      return new ComponentMap() {
-         @Override
-         public <T> @Nullable T get(ComponentType<? extends T> type) {
-            T object = overrides.get(type);
-            return object != null ? object : base.get(type);
-         }
+						for (Component<?> component : componentMap) {
+							if (!component.type().shouldSkipSerialization()) {
+								reference2ObjectMap.put(component.type(), component.value());
+							}
+						}
 
-         @Override
-         public Set<ComponentType<?>> getTypes() {
-            return Sets.union(base.getTypes(), overrides.getTypes());
-         }
-      };
-   }
+						return DataResult.success(reference2ObjectMap);
+					}
+				}
+		);
+	}
 
-   static ComponentMap.Builder builder() {
-      return new ComponentMap.Builder();
-   }
+	static ComponentMap of(ComponentMap base, ComponentMap overrides) {
+		return new ComponentMap() {
+			@Override
+			public <T> @Nullable T get(ComponentType<? extends T> type) {
+				T object = overrides.get(type);
+				return object != null ? object : base.get(type);
+			}
 
-   Set<ComponentType<?>> getTypes();
+			@Override
+			public Set<ComponentType<?>> getTypes() {
+				return Sets.union(base.getTypes(), overrides.getTypes());
+			}
+		};
+	}
 
-   default boolean contains(ComponentType<?> type) {
-      return this.get(type) != null;
-   }
+	static ComponentMap.Builder builder() {
+		return new ComponentMap.Builder();
+	}
 
-   @Override
-   default Iterator<Component<?>> iterator() {
-      return Iterators.transform(this.getTypes().iterator(), type -> Objects.requireNonNull(this.getTyped(type)));
-   }
+	Set<ComponentType<?>> getTypes();
 
-   default Stream<Component<?>> stream() {
-      return StreamSupport.stream(Spliterators.spliterator(this.iterator(), (long)this.size(), 1345), false);
-   }
+	default boolean contains(ComponentType<?> type) {
+		return this.get(type) != null;
+	}
 
-   default int size() {
-      return this.getTypes().size();
-   }
+	@Override
+	default Iterator<Component<?>> iterator() {
+		return Iterators.transform(this.getTypes().iterator(), type -> Objects.requireNonNull(this.getTyped(type)));
+	}
 
-   default boolean isEmpty() {
-      return this.size() == 0;
-   }
+	default Stream<Component<?>> stream() {
+		return StreamSupport.stream(Spliterators.spliterator(this.iterator(), (long) this.size(), 1345), false);
+	}
 
-   default ComponentMap filtered(Predicate<ComponentType<?>> predicate) {
-      return new ComponentMap() {
-         @Override
-         public <T> @Nullable T get(ComponentType<? extends T> type) {
-            return predicate.test(type) ? ComponentMap.this.get(type) : null;
-         }
+	default int size() {
+		return this.getTypes().size();
+	}
 
-         @Override
-         public Set<ComponentType<?>> getTypes() {
-            return Sets.filter(ComponentMap.this.getTypes(), predicate::test);
-         }
-      };
-   }
+	default boolean isEmpty() {
+		return this.size() == 0;
+	}
 
-   public static class Builder implements FabricComponentMapBuilder {
-      private final Reference2ObjectMap<ComponentType<?>, Object> components = new Reference2ObjectArrayMap();
+	default ComponentMap filtered(Predicate<ComponentType<?>> predicate) {
+		return new ComponentMap() {
+			@Override
+			public <T> @Nullable T get(ComponentType<? extends T> type) {
+				return predicate.test(type) ? ComponentMap.this.get(type) : null;
+			}
 
-      Builder() {
-      }
+			@Override
+			public Set<ComponentType<?>> getTypes() {
+				return Sets.filter(ComponentMap.this.getTypes(), predicate::test);
+			}
+		};
+	}
 
-      public <T> ComponentMap.Builder add(ComponentType<T> type, @Nullable T value) {
-         this.put(type, value);
-         return this;
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder implements FabricComponentMapBuilder {
 
-      <T> void put(ComponentType<T> type, @Nullable Object value) {
-         if (value != null) {
-            this.components.put(type, value);
-         } else {
-            this.components.remove(type);
-         }
-      }
+		private final Reference2ObjectMap<ComponentType<?>, Object> components = new Reference2ObjectArrayMap();
 
-      public ComponentMap.Builder addAll(ComponentMap componentSet) {
-         for (Component<?> component : componentSet) {
-            this.components.put(component.type(), component.value());
-         }
+		Builder() {
+		}
 
-         return this;
-      }
+		public <T> ComponentMap.Builder add(ComponentType<T> type, @Nullable T value) {
+			this.put(type, value);
+			return this;
+		}
 
-      public ComponentMap build() {
-         return build(this.components);
-      }
+		<T> void put(ComponentType<T> type, @Nullable Object value) {
+			if (value != null) {
+				this.components.put(type, value);
+			}
+			else {
+				this.components.remove(type);
+			}
+		}
 
-      private static ComponentMap build(Map<ComponentType<?>, Object> components) {
-         if (components.isEmpty()) {
-            return ComponentMap.EMPTY;
-         } else {
-            return components.size() < 8
-               ? new ComponentMap.Builder.SimpleComponentMap(new Reference2ObjectArrayMap(components))
-               : new ComponentMap.Builder.SimpleComponentMap(new Reference2ObjectOpenHashMap(components));
-         }
-      }
+		public ComponentMap.Builder addAll(ComponentMap componentSet) {
+			for (Component<?> component : componentSet) {
+				this.components.put(component.type(), component.value());
+			}
 
-      record SimpleComponentMap(Reference2ObjectMap<ComponentType<?>, Object> map) implements ComponentMap {
-         @Override
-         public <T> @Nullable T get(ComponentType<? extends T> type) {
-            return (T)this.map.get(type);
-         }
+			return this;
+		}
 
-         @Override
-         public boolean contains(ComponentType<?> type) {
-            return this.map.containsKey(type);
-         }
+		public ComponentMap build() {
+			return build(this.components);
+		}
 
-         @Override
-         public Set<ComponentType<?>> getTypes() {
-            return this.map.keySet();
-         }
+		private static ComponentMap build(Map<ComponentType<?>, Object> components) {
+			if (components.isEmpty()) {
+				return ComponentMap.EMPTY;
+			}
+			else {
+				return components.size() < 8
+				       ? new ComponentMap.Builder.SimpleComponentMap(new Reference2ObjectArrayMap(components))
+				       : new ComponentMap.Builder.SimpleComponentMap(new Reference2ObjectOpenHashMap(components));
+			}
+		}
 
-         @Override
-         public Iterator<Component<?>> iterator() {
-            return Iterators.transform(Reference2ObjectMaps.fastIterator(this.map), Component::of);
-         }
+		/**
+		 * {@code SimpleComponentMap}.
+		 */
+		record SimpleComponentMap(Reference2ObjectMap<ComponentType<?>, Object> map) implements ComponentMap {
 
-         @Override
-         public int size() {
-            return this.map.size();
-         }
+			@Override
+			public <T> @Nullable T get(ComponentType<? extends T> type) {
+				return (T) this.map.get(type);
+			}
 
-         @Override
-         public String toString() {
-            return this.map.toString();
-         }
-      }
-   }
+			@Override
+			public boolean contains(ComponentType<?> type) {
+				return this.map.containsKey(type);
+			}
+
+			@Override
+			public Set<ComponentType<?>> getTypes() {
+				return this.map.keySet();
+			}
+
+			@Override
+			public Iterator<Component<?>> iterator() {
+				return Iterators.transform(Reference2ObjectMaps.fastIterator(this.map), Component::of);
+			}
+
+			@Override
+			public int size() {
+				return this.map.size();
+			}
+
+			@Override
+			public String toString() {
+				return this.map.toString();
+			}
+		}
+	}
 }

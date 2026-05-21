@@ -7,40 +7,50 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code OxidizableDoorBlock}.
+ */
 public class OxidizableDoorBlock extends DoorBlock implements Oxidizable {
-   public static final MapCodec<OxidizableDoorBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            BlockSetType.CODEC.fieldOf("block_set_type").forGetter(DoorBlock::getBlockSetType),
-            Oxidizable.OxidationLevel.CODEC.fieldOf("weathering_state").forGetter(OxidizableDoorBlock::getDegradationLevel),
-            createSettingsCodec()
-         )
-         .apply(instance, OxidizableDoorBlock::new)
-   );
-   private final Oxidizable.OxidationLevel oxidationLevel;
 
-   @Override
-   public MapCodec<OxidizableDoorBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<OxidizableDoorBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    BlockSetType.CODEC.fieldOf("block_set_type").forGetter(DoorBlock::getBlockSetType),
+					                    Oxidizable.OxidationLevel.CODEC
+							                    .fieldOf("weathering_state")
+							                    .forGetter(OxidizableDoorBlock::getDegradationLevel),
+					                    createSettingsCodec()
+			                    )
+			                    .apply(instance, OxidizableDoorBlock::new)
+	);
+	private final Oxidizable.OxidationLevel oxidationLevel;
 
-   public OxidizableDoorBlock(BlockSetType type, Oxidizable.OxidationLevel oxidationLevel, AbstractBlock.Settings settings) {
-      super(type, settings);
-      this.oxidationLevel = oxidationLevel;
-   }
+	@Override
+	public MapCodec<OxidizableDoorBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (state.get(DoorBlock.HALF) == DoubleBlockHalf.LOWER) {
-         this.tickDegradation(state, world, pos, random);
-      }
-   }
+	public OxidizableDoorBlock(
+			BlockSetType type,
+			Oxidizable.OxidationLevel oxidationLevel,
+			AbstractBlock.Settings settings
+	) {
+		super(type, settings);
+		this.oxidationLevel = oxidationLevel;
+	}
 
-   @Override
-   protected boolean hasRandomTicks(BlockState state) {
-      return Oxidizable.getIncreasedOxidationBlock(state.getBlock()).isPresent();
-   }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (state.get(DoorBlock.HALF) == DoubleBlockHalf.LOWER) {
+			this.tickDegradation(state, world, pos, random);
+		}
+	}
 
-   public Oxidizable.OxidationLevel getDegradationLevel() {
-      return this.oxidationLevel;
-   }
+	@Override
+	protected boolean hasRandomTicks(BlockState state) {
+		return Oxidizable.getIncreasedOxidationBlock(state.getBlock()).isPresent();
+	}
+
+	public Oxidizable.OxidationLevel getDegradationLevel() {
+		return this.oxidationLevel;
+	}
 }

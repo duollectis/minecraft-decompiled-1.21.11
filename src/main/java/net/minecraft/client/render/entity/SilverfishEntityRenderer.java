@@ -9,24 +9,28 @@ import net.minecraft.entity.mob.SilverfishEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SilverfishEntityRenderer}.
+ */
 public class SilverfishEntityRenderer extends MobEntityRenderer<SilverfishEntity, LivingEntityRenderState, SilverfishEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/silverfish.png");
 
-   public SilverfishEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new SilverfishEntityModel(context.getPart(EntityModelLayers.SILVERFISH)), 0.3F);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/silverfish.png");
 
-   @Override
-   protected float getLyingPositionRotationDegrees() {
-      return 180.0F;
-   }
+	public SilverfishEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new SilverfishEntityModel(context.getPart(EntityModelLayers.SILVERFISH)), 0.3F);
+	}
 
-   @Override
-   public Identifier getTexture(LivingEntityRenderState state) {
-      return TEXTURE;
-   }
+	@Override
+	protected float getLyingPositionRotationDegrees() {
+		return 180.0F;
+	}
 
-   public LivingEntityRenderState createRenderState() {
-      return new LivingEntityRenderState();
-   }
+	@Override
+	public Identifier getTexture(LivingEntityRenderState state) {
+		return TEXTURE;
+	}
+
+	public LivingEntityRenderState createRenderState() {
+		return new LivingEntityRenderState();
+	}
 }

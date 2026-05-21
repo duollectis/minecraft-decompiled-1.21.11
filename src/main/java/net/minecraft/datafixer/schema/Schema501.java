@@ -2,17 +2,22 @@ package net.minecraft.datafixer.schema;
 
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.templates.TypeTemplate;
+
 import java.util.Map;
 import java.util.function.Supplier;
 
+/**
+ * {@code Schema501}.
+ */
 public class Schema501 extends Schema {
-   public Schema501(int versionKey, Schema parent) {
-      super(versionKey, parent);
-   }
 
-   public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
-      Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
-      schema.registerSimple(map, "PolarBear");
-      return map;
-   }
+	public Schema501(int versionKey, Schema parent) {
+		super(versionKey, parent);
+	}
+
+	public Map<String, Supplier<TypeTemplate>> registerEntities(Schema schema) {
+		Map<String, Supplier<TypeTemplate>> map = super.registerEntities(schema);
+		schema.registerSimple(map, "PolarBear");
+		return map;
+	}
 }

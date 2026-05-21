@@ -19,163 +19,188 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code OminousItemSpawnerEntity}.
+ */
 public class OminousItemSpawnerEntity extends Entity {
-   private static final int MIN_SPAWN_ITEM_AFTER_TICKS = 60;
-   private static final int MAX_SPAWN_ITEM_AFTER_TICKS = 120;
-   private static final String SPAWN_ITEM_AFTER_TICKS_NBT_KEY = "spawn_item_after_ticks";
-   private static final String ITEM_NBT_KEY = "item";
-   private static final TrackedData<ItemStack> ITEM = DataTracker.registerData(OminousItemSpawnerEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
-   public static final int field_50128 = 36;
-   private long spawnItemAfterTicks;
 
-   public OminousItemSpawnerEntity(EntityType<? extends OminousItemSpawnerEntity> entityType, World world) {
-      super(entityType, world);
-      this.noClip = true;
-   }
+	private static final int MIN_SPAWN_ITEM_AFTER_TICKS = 60;
+	private static final int MAX_SPAWN_ITEM_AFTER_TICKS = 120;
+	private static final String SPAWN_ITEM_AFTER_TICKS_NBT_KEY = "spawn_item_after_ticks";
+	private static final String ITEM_NBT_KEY = "item";
+	private static final TrackedData<ItemStack>
+			ITEM =
+			DataTracker.registerData(OminousItemSpawnerEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
+	public static final int PRE_SPAWN_SOUND_OFFSET = 36;
+	private long spawnItemAfterTicks;
 
-   public static OminousItemSpawnerEntity create(World world, ItemStack stack) {
-      OminousItemSpawnerEntity ominousItemSpawnerEntity = new OminousItemSpawnerEntity(EntityType.OMINOUS_ITEM_SPAWNER, world);
-      ominousItemSpawnerEntity.spawnItemAfterTicks = world.random.nextBetween(60, 120);
-      ominousItemSpawnerEntity.setItem(stack);
-      return ominousItemSpawnerEntity;
-   }
+	public OminousItemSpawnerEntity(EntityType<? extends OminousItemSpawnerEntity> entityType, World world) {
+		super(entityType, world);
+		this.noClip = true;
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         this.tickServer(serverWorld);
-      } else {
-         this.tickClient();
-      }
-   }
+	public static OminousItemSpawnerEntity create(World world, ItemStack stack) {
+		OminousItemSpawnerEntity
+				ominousItemSpawnerEntity =
+				new OminousItemSpawnerEntity(EntityType.OMINOUS_ITEM_SPAWNER, world);
+		ominousItemSpawnerEntity.spawnItemAfterTicks = world.random.nextBetween(60, 120);
+		ominousItemSpawnerEntity.setItem(stack);
+		return ominousItemSpawnerEntity;
+	}
 
-   private void tickServer(ServerWorld world) {
-      if (this.age == this.spawnItemAfterTicks - 36L) {
-         world.playSound(null, this.getBlockPos(), SoundEvents.BLOCK_TRIAL_SPAWNER_ABOUT_TO_SPAWN_ITEM, SoundCategory.NEUTRAL);
-      }
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			this.tickServer(serverWorld);
+		}
+		else {
+			this.tickClient();
+		}
+	}
 
-      if (this.age >= this.spawnItemAfterTicks) {
-         this.spawnItem();
-         this.kill(world);
-      }
-   }
+	private void tickServer(ServerWorld world) {
+		if (this.age == this.spawnItemAfterTicks - 36L) {
+			world.playSound(
+					null,
+					this.getBlockPos(),
+					SoundEvents.BLOCK_TRIAL_SPAWNER_ABOUT_TO_SPAWN_ITEM,
+					SoundCategory.NEUTRAL
+			);
+		}
 
-   private void tickClient() {
-      if (this.getEntityWorld().getTime() % 5L == 0L) {
-         this.addParticles();
-      }
-   }
+		if (this.age >= this.spawnItemAfterTicks) {
+			this.spawnItem();
+			this.kill(world);
+		}
+	}
 
-   private void spawnItem() {
-      if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         ItemStack itemStack = this.getItem();
-         if (!itemStack.isEmpty()) {
-            Entity entity;
-            if (itemStack.getItem() instanceof ProjectileItem projectileItem) {
-               entity = this.spawnProjectile(serverWorld, projectileItem, itemStack);
-            } else {
-               entity = new ItemEntity(serverWorld, this.getX(), this.getY(), this.getZ(), itemStack);
-               serverWorld.spawnEntity(entity);
-            }
+	private void tickClient() {
+		if (this.getEntityWorld().getTime() % 5L == 0L) {
+			this.addParticles();
+		}
+	}
 
-            serverWorld.syncWorldEvent(3021, this.getBlockPos(), 1);
-            serverWorld.emitGameEvent(entity, GameEvent.ENTITY_PLACE, this.getEntityPos());
-            this.setItem(ItemStack.EMPTY);
-         }
-      }
-   }
+	private void spawnItem() {
+		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			ItemStack itemStack = this.getItem();
+			if (!itemStack.isEmpty()) {
+				Entity entity;
+				if (itemStack.getItem() instanceof ProjectileItem projectileItem) {
+					entity = this.spawnProjectile(serverWorld, projectileItem, itemStack);
+				}
+				else {
+					entity = new ItemEntity(serverWorld, this.getX(), this.getY(), this.getZ(), itemStack);
+					serverWorld.spawnEntity(entity);
+				}
 
-   private Entity spawnProjectile(ServerWorld world, ProjectileItem item, ItemStack stack) {
-      ProjectileItem.Settings settings = item.getProjectileSettings();
-      settings.overrideDispenseEvent().ifPresent(dispenseEvent -> world.syncWorldEvent(dispenseEvent, this.getBlockPos(), 0));
-      Direction direction = Direction.DOWN;
-      ProjectileEntity projectileEntity = ProjectileEntity.spawnWithVelocity(
-         item.createEntity(world, this.getEntityPos(), stack, direction),
-         world,
-         stack,
-         direction.getOffsetX(),
-         direction.getOffsetY(),
-         direction.getOffsetZ(),
-         settings.power(),
-         settings.uncertainty()
-      );
-      projectileEntity.setOwner(this);
-      return projectileEntity;
-   }
+				serverWorld.syncWorldEvent(3021, this.getBlockPos(), 1);
+				serverWorld.emitGameEvent(entity, GameEvent.ENTITY_PLACE, this.getEntityPos());
+				this.setItem(ItemStack.EMPTY);
+			}
+		}
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      builder.add(ITEM, ItemStack.EMPTY);
-   }
+	private Entity spawnProjectile(ServerWorld world, ProjectileItem item, ItemStack stack) {
+		ProjectileItem.Settings settings = item.getProjectileSettings();
+		settings
+				.overrideDispenseEvent()
+				.ifPresent(dispenseEvent -> world.syncWorldEvent(dispenseEvent, this.getBlockPos(), 0));
+		Direction direction = Direction.DOWN;
+		ProjectileEntity projectileEntity = ProjectileEntity.spawnWithVelocity(
+				item.createEntity(world, this.getEntityPos(), stack, direction),
+				world,
+				stack,
+				direction.getOffsetX(),
+				direction.getOffsetY(),
+				direction.getOffsetZ(),
+				settings.power(),
+				settings.uncertainty()
+		);
+		projectileEntity.setOwner(this);
+		return projectileEntity;
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      this.setItem(view.<ItemStack>read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY));
-      this.spawnItemAfterTicks = view.getLong("spawn_item_after_ticks", 0L);
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		builder.add(ITEM, ItemStack.EMPTY);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      if (!this.getItem().isEmpty()) {
-         view.put("item", ItemStack.CODEC, this.getItem());
-      }
+	@Override
+	protected void readCustomData(ReadView view) {
+		this.setItem(view.<ItemStack>read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY));
+		this.spawnItemAfterTicks = view.getLong("spawn_item_after_ticks", 0L);
+	}
 
-      view.putLong("spawn_item_after_ticks", this.spawnItemAfterTicks);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		if (!this.getItem().isEmpty()) {
+			view.put("item", ItemStack.CODEC, this.getItem());
+		}
 
-   @Override
-   protected boolean canAddPassenger(Entity passenger) {
-      return false;
-   }
+		view.putLong("spawn_item_after_ticks", this.spawnItemAfterTicks);
+	}
 
-   @Override
-   protected boolean couldAcceptPassenger() {
-      return false;
-   }
+	@Override
+	protected boolean canAddPassenger(Entity passenger) {
+		return false;
+	}
 
-   @Override
-   protected void addPassenger(Entity passenger) {
-      throw new IllegalStateException("Should never addPassenger without checking couldAcceptPassenger()");
-   }
+	@Override
+	protected boolean couldAcceptPassenger() {
+		return false;
+	}
 
-   @Override
-   public PistonBehavior getPistonBehavior() {
-      return PistonBehavior.IGNORE;
-   }
+	@Override
+	protected void addPassenger(Entity passenger) {
+		throw new IllegalStateException("Should never addPassenger without checking couldAcceptPassenger()");
+	}
 
-   @Override
-   public boolean canAvoidTraps() {
-      return true;
-   }
+	@Override
+	public PistonBehavior getPistonBehavior() {
+		return PistonBehavior.IGNORE;
+	}
 
-   public void addParticles() {
-      Vec3d vec3d = this.getEntityPos();
-      int i = this.random.nextBetween(1, 3);
+	@Override
+	public boolean canAvoidTraps() {
+		return true;
+	}
 
-      for (int j = 0; j < i; j++) {
-         double d = 0.4;
-         Vec3d vec3d2 = new Vec3d(
-            this.getX() + 0.4 * (this.random.nextGaussian() - this.random.nextGaussian()),
-            this.getY() + 0.4 * (this.random.nextGaussian() - this.random.nextGaussian()),
-            this.getZ() + 0.4 * (this.random.nextGaussian() - this.random.nextGaussian())
-         );
-         Vec3d vec3d3 = vec3d.relativize(vec3d2);
-         this.getEntityWorld()
-            .addParticleClient(ParticleTypes.OMINOUS_SPAWNING, vec3d.getX(), vec3d.getY(), vec3d.getZ(), vec3d3.getX(), vec3d3.getY(), vec3d3.getZ());
-      }
-   }
+	public void addParticles() {
+		Vec3d vec3d = this.getEntityPos();
+		int i = this.random.nextBetween(1, 3);
 
-   public ItemStack getItem() {
-      return this.getDataTracker().get(ITEM);
-   }
+		for (int j = 0; j < i; j++) {
+			double d = 0.4;
+			Vec3d vec3d2 = new Vec3d(
+					this.getX() + 0.4 * (this.random.nextGaussian() - this.random.nextGaussian()),
+					this.getY() + 0.4 * (this.random.nextGaussian() - this.random.nextGaussian()),
+					this.getZ() + 0.4 * (this.random.nextGaussian() - this.random.nextGaussian())
+			);
+			Vec3d vec3d3 = vec3d.relativize(vec3d2);
+			this.getEntityWorld()
+			    .addParticleClient(
+					    ParticleTypes.OMINOUS_SPAWNING,
+					    vec3d.getX(),
+					    vec3d.getY(),
+					    vec3d.getZ(),
+					    vec3d3.getX(),
+					    vec3d3.getY(),
+					    vec3d3.getZ()
+			    );
+		}
+	}
 
-   private void setItem(ItemStack stack) {
-      this.getDataTracker().set(ITEM, stack);
-   }
+	public ItemStack getItem() {
+		return this.getDataTracker().get(ITEM);
+	}
 
-   @Override
-   public final boolean damage(ServerWorld world, DamageSource source, float amount) {
-      return false;
-   }
+	private void setItem(ItemStack stack) {
+		this.getDataTracker().set(ITEM, stack);
+	}
+
+	@Override
+	public final boolean damage(ServerWorld world, DamageSource source, float amount) {
+		return false;
+	}
 }

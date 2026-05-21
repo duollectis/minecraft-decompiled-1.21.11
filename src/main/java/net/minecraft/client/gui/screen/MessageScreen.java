@@ -8,42 +8,49 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MessageScreen}.
+ */
 public class MessageScreen extends Screen {
-   private @Nullable NarratedMultilineTextWidget textWidget;
 
-   public MessageScreen(Text text) {
-      super(text);
-   }
+	private @Nullable NarratedMultilineTextWidget textWidget;
 
-   @Override
-   protected void init() {
-      this.textWidget = this.addDrawableChild(
-         NarratedMultilineTextWidget.builder(this.title, this.textRenderer, 12).innerWidth(this.textRenderer.getWidth(this.title)).build()
-      );
-      this.refreshWidgetPositions();
-   }
+	public MessageScreen(Text text) {
+		super(text);
+	}
 
-   @Override
-   protected void refreshWidgetPositions() {
-      if (this.textWidget != null) {
-         this.textWidget.setPosition(this.width / 2 - this.textWidget.getWidth() / 2, this.height / 2 - 9 / 2);
-      }
-   }
+	@Override
+	protected void init() {
+		this.textWidget = this.addDrawableChild(
+				NarratedMultilineTextWidget
+						.builder(this.title, this.textRenderer, 12)
+						.innerWidth(this.textRenderer.getWidth(this.title))
+						.build()
+		);
+		this.refreshWidgetPositions();
+	}
 
-   @Override
-   public boolean shouldCloseOnEsc() {
-      return false;
-   }
+	@Override
+	protected void refreshWidgetPositions() {
+		if (this.textWidget != null) {
+			this.textWidget.setPosition(this.width / 2 - this.textWidget.getWidth() / 2, this.height / 2 - 9 / 2);
+		}
+	}
 
-   @Override
-   protected boolean hasUsageText() {
-      return false;
-   }
+	@Override
+	public boolean shouldCloseOnEsc() {
+		return false;
+	}
 
-   @Override
-   public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      this.renderPanoramaBackground(context, deltaTicks);
-      this.applyBlur(context);
-      this.renderDarkening(context);
-   }
+	@Override
+	protected boolean hasUsageText() {
+		return false;
+	}
+
+	@Override
+	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		this.renderPanoramaBackground(context, deltaTicks);
+		this.applyBlur(context);
+		this.renderDarkening(context);
+	}
 }

@@ -6,7 +6,8 @@ import io.netty.channel.ChannelPromise;
 import net.minecraft.network.OpaqueByteBufHolder;
 
 public class LocalBufPacker extends ChannelOutboundHandlerAdapter {
-   public void write(ChannelHandlerContext context, Object buf, ChannelPromise channelPromise) {
-      context.write(OpaqueByteBufHolder.pack(buf), channelPromise);
-   }
+
+	public void write(ChannelHandlerContext context, Object buf, ChannelPromise channelPromise) {
+		context.write(OpaqueByteBufHolder.pack(buf), channelPromise);
+	}
 }

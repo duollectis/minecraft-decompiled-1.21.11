@@ -4,20 +4,24 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code AlwaysTruePosRuleTest}.
+ */
 public class AlwaysTruePosRuleTest extends PosRuleTest {
-   public static final MapCodec<AlwaysTruePosRuleTest> CODEC = MapCodec.unit(() -> AlwaysTruePosRuleTest.INSTANCE);
-   public static final AlwaysTruePosRuleTest INSTANCE = new AlwaysTruePosRuleTest();
 
-   private AlwaysTruePosRuleTest() {
-   }
+	public static final MapCodec<AlwaysTruePosRuleTest> CODEC = MapCodec.unit(() -> AlwaysTruePosRuleTest.INSTANCE);
+	public static final AlwaysTruePosRuleTest INSTANCE = new AlwaysTruePosRuleTest();
 
-   @Override
-   public boolean test(BlockPos originalPos, BlockPos currentPos, BlockPos pivot, Random random) {
-      return true;
-   }
+	private AlwaysTruePosRuleTest() {
+	}
 
-   @Override
-   protected PosRuleTestType<?> getType() {
-      return PosRuleTestType.ALWAYS_TRUE;
-   }
+	@Override
+	public boolean test(BlockPos originalPos, BlockPos currentPos, BlockPos pivot, Random random) {
+		return true;
+	}
+
+	@Override
+	protected PosRuleTestType<?> getType() {
+		return PosRuleTestType.ALWAYS_TRUE;
+	}
 }

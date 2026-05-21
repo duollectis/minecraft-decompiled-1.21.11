@@ -8,27 +8,32 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.gen.feature.FeaturePlacementContext;
 import net.minecraft.world.gen.feature.PlacedFeature;
 
+/**
+ * {@code BiomePlacementModifier}.
+ */
 public class BiomePlacementModifier extends AbstractConditionalPlacementModifier {
-   private static final BiomePlacementModifier INSTANCE = new BiomePlacementModifier();
-   public static MapCodec<BiomePlacementModifier> MODIFIER_CODEC = MapCodec.unit(() -> INSTANCE);
 
-   private BiomePlacementModifier() {
-   }
+	private static final BiomePlacementModifier INSTANCE = new BiomePlacementModifier();
+	public static MapCodec<BiomePlacementModifier> MODIFIER_CODEC = MapCodec.unit(() -> INSTANCE);
 
-   public static BiomePlacementModifier of() {
-      return INSTANCE;
-   }
+	private BiomePlacementModifier() {
+	}
 
-   @Override
-   protected boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos) {
-      PlacedFeature placedFeature = context.getPlacedFeature()
-         .orElseThrow(() -> new IllegalStateException("Tried to biome check an unregistered feature, or a feature that should not restrict the biome"));
-      RegistryEntry<Biome> registryEntry = context.getWorld().getBiome(pos);
-      return context.getChunkGenerator().getGenerationSettings(registryEntry).isFeatureAllowed(placedFeature);
-   }
+	public static BiomePlacementModifier of() {
+		return INSTANCE;
+	}
 
-   @Override
-   public PlacementModifierType<?> getType() {
-      return PlacementModifierType.BIOME;
-   }
+	@Override
+	protected boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos) {
+		PlacedFeature placedFeature = context.getPlacedFeature()
+		                                     .orElseThrow(() -> new IllegalStateException(
+				                                     "Tried to biome check an unregistered feature, or a feature that should not restrict the biome"));
+		RegistryEntry<Biome> registryEntry = context.getWorld().getBiome(pos);
+		return context.getChunkGenerator().getGenerationSettings(registryEntry).isFeatureAllowed(placedFeature);
+	}
+
+	@Override
+	public PlacementModifierType<?> getType() {
+		return PlacementModifierType.BIOME;
+	}
 }

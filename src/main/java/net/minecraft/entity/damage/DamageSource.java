@@ -12,118 +12,133 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code DamageSource}.
+ */
 public class DamageSource {
-   private final RegistryEntry<DamageType> type;
-   private final @Nullable Entity attacker;
-   private final @Nullable Entity source;
-   private final @Nullable Vec3d position;
 
-   @Override
-   public String toString() {
-      return "DamageSource (" + this.getType().msgId() + ")";
-   }
+	private final RegistryEntry<DamageType> type;
+	private final @Nullable Entity attacker;
+	private final @Nullable Entity source;
+	private final @Nullable Vec3d position;
 
-   public float getExhaustion() {
-      return this.getType().exhaustion();
-   }
+	@Override
+	public String toString() {
+		return "DamageSource (" + this.getType().msgId() + ")";
+	}
 
-   public boolean isDirect() {
-      return this.attacker == this.source;
-   }
+	public float getExhaustion() {
+		return this.getType().exhaustion();
+	}
 
-   private DamageSource(RegistryEntry<DamageType> type, @Nullable Entity source, @Nullable Entity attacker, @Nullable Vec3d position) {
-      this.type = type;
-      this.attacker = attacker;
-      this.source = source;
-      this.position = position;
-   }
+	public boolean isDirect() {
+		return this.attacker == this.source;
+	}
 
-   public DamageSource(RegistryEntry<DamageType> type, @Nullable Entity source, @Nullable Entity attacker) {
-      this(type, source, attacker, null);
-   }
+	private DamageSource(
+			RegistryEntry<DamageType> type,
+			@Nullable Entity source,
+			@Nullable Entity attacker,
+			@Nullable Vec3d position
+	) {
+		this.type = type;
+		this.attacker = attacker;
+		this.source = source;
+		this.position = position;
+	}
 
-   public DamageSource(RegistryEntry<DamageType> type, Vec3d position) {
-      this(type, null, null, position);
-   }
+	public DamageSource(RegistryEntry<DamageType> type, @Nullable Entity source, @Nullable Entity attacker) {
+		this(type, source, attacker, null);
+	}
 
-   public DamageSource(RegistryEntry<DamageType> type, @Nullable Entity attacker) {
-      this(type, attacker, attacker);
-   }
+	public DamageSource(RegistryEntry<DamageType> type, Vec3d position) {
+		this(type, null, null, position);
+	}
 
-   public DamageSource(RegistryEntry<DamageType> type) {
-      this(type, null, null, null);
-   }
+	public DamageSource(RegistryEntry<DamageType> type, @Nullable Entity attacker) {
+		this(type, attacker, attacker);
+	}
 
-   public @Nullable Entity getSource() {
-      return this.source;
-   }
+	public DamageSource(RegistryEntry<DamageType> type) {
+		this(type, null, null, null);
+	}
 
-   public @Nullable Entity getAttacker() {
-      return this.attacker;
-   }
+	public @Nullable Entity getSource() {
+		return this.source;
+	}
 
-   public @Nullable ItemStack getWeaponStack() {
-      return this.source != null ? this.source.getWeaponStack() : null;
-   }
+	public @Nullable Entity getAttacker() {
+		return this.attacker;
+	}
 
-   public Text getDeathMessage(LivingEntity killed) {
-      String string = "death.attack." + this.getType().msgId();
-      if (this.attacker == null && this.source == null) {
-         LivingEntity livingEntity2 = killed.getPrimeAdversary();
-         String string2 = string + ".player";
-         return livingEntity2 != null
-            ? Text.translatable(string2, killed.getDisplayName(), livingEntity2.getDisplayName())
-            : Text.translatable(string, killed.getDisplayName());
-      } else {
-         Text text = this.attacker == null ? this.source.getDisplayName() : this.attacker.getDisplayName();
-         ItemStack itemStack = this.attacker instanceof LivingEntity livingEntity ? livingEntity.getMainHandStack() : ItemStack.EMPTY;
-         return !itemStack.isEmpty() && itemStack.contains(DataComponentTypes.CUSTOM_NAME)
-            ? Text.translatable(string + ".item", killed.getDisplayName(), text, itemStack.toHoverableText())
-            : Text.translatable(string, killed.getDisplayName(), text);
-      }
-   }
+	public @Nullable ItemStack getWeaponStack() {
+		return this.source != null ? this.source.getWeaponStack() : null;
+	}
 
-   public String getName() {
-      return this.getType().msgId();
-   }
+	public Text getDeathMessage(LivingEntity killed) {
+		String string = "death.attack." + this.getType().msgId();
+		if (this.attacker == null && this.source == null) {
+			LivingEntity livingEntity2 = killed.getPrimeAdversary();
+			String string2 = string + ".player";
+			return livingEntity2 != null
+			       ? Text.translatable(string2, killed.getDisplayName(), livingEntity2.getDisplayName())
+			       : Text.translatable(string, killed.getDisplayName());
+		}
+		else {
+			Text text = this.attacker == null ? this.source.getDisplayName() : this.attacker.getDisplayName();
+			ItemStack
+					itemStack =
+					this.attacker instanceof LivingEntity livingEntity ? livingEntity.getMainHandStack()
+					                                                   : ItemStack.EMPTY;
+			return !itemStack.isEmpty() && itemStack.contains(DataComponentTypes.CUSTOM_NAME)
+			       ? Text.translatable(string + ".item", killed.getDisplayName(), text, itemStack.toHoverableText())
+			       : Text.translatable(string, killed.getDisplayName(), text);
+		}
+	}
 
-   public boolean isScaledWithDifficulty() {
-      return switch (this.getType().scaling()) {
-         case NEVER -> false;
-         case WHEN_CAUSED_BY_LIVING_NON_PLAYER -> this.attacker instanceof LivingEntity && !(this.attacker instanceof PlayerEntity);
-         case ALWAYS -> true;
-      };
-   }
+	public String getName() {
+		return this.getType().msgId();
+	}
 
-   public boolean isSourceCreativePlayer() {
-      return this.getAttacker() instanceof PlayerEntity playerEntity && playerEntity.getAbilities().creativeMode;
-   }
+	public boolean isScaledWithDifficulty() {
+		return switch (this.getType().scaling()) {
+			case NEVER -> false;
+			case WHEN_CAUSED_BY_LIVING_NON_PLAYER ->
+					this.attacker instanceof LivingEntity && !(this.attacker instanceof PlayerEntity);
+			case ALWAYS -> true;
+		};
+	}
 
-   public @Nullable Vec3d getPosition() {
-      if (this.position != null) {
-         return this.position;
-      } else {
-         return this.source != null ? this.source.getEntityPos() : null;
-      }
-   }
+	public boolean isSourceCreativePlayer() {
+		return this.getAttacker() instanceof PlayerEntity playerEntity && playerEntity.getAbilities().creativeMode;
+	}
 
-   public @Nullable Vec3d getStoredPosition() {
-      return this.position;
-   }
+	public @Nullable Vec3d getPosition() {
+		if (this.position != null) {
+			return this.position;
+		}
+		else {
+			return this.source != null ? this.source.getEntityPos() : null;
+		}
+	}
 
-   public boolean isIn(TagKey<DamageType> tag) {
-      return this.type.isIn(tag);
-   }
+	public @Nullable Vec3d getStoredPosition() {
+		return this.position;
+	}
 
-   public boolean isOf(RegistryKey<DamageType> typeKey) {
-      return this.type.matchesKey(typeKey);
-   }
+	public boolean isIn(TagKey<DamageType> tag) {
+		return this.type.isIn(tag);
+	}
 
-   public DamageType getType() {
-      return this.type.value();
-   }
+	public boolean isOf(RegistryKey<DamageType> typeKey) {
+		return this.type.matchesKey(typeKey);
+	}
 
-   public RegistryEntry<DamageType> getTypeRegistryEntry() {
-      return this.type;
-   }
+	public DamageType getType() {
+		return this.type.value();
+	}
+
+	public RegistryEntry<DamageType> getTypeRegistryEntry() {
+		return this.type;
+	}
 }

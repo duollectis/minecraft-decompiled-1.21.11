@@ -11,25 +11,38 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import org.slf4j.Logger;
 
+/**
+ * {@code BlockPlacementDispenserBehavior}.
+ */
 public class BlockPlacementDispenserBehavior extends FallibleItemDispenserBehavior {
-   private static final Logger LOGGER = LogUtils.getLogger();
 
-   @Override
-   protected ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
-      this.setSuccess(false);
-      Item item = stack.getItem();
-      if (item instanceof BlockItem) {
-         Direction direction = pointer.state().get(DispenserBlock.FACING);
-         BlockPos blockPos = pointer.pos().offset(direction);
-         Direction direction2 = pointer.world().isAir(blockPos.down()) ? direction : Direction.UP;
+	private static final Logger LOGGER = LogUtils.getLogger();
 
-         try {
-            this.setSuccess(((BlockItem)item).place(new AutomaticItemPlacementContext(pointer.world(), blockPos, direction, stack, direction2)).isAccepted());
-         } catch (Exception var8) {
-            LOGGER.error("Error trying to place shulker box at {}", blockPos, var8);
-         }
-      }
+	@Override
+	protected ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
+		this.setSuccess(false);
+		Item item = stack.getItem();
+		if (item instanceof BlockItem) {
+			Direction direction = pointer.state().get(DispenserBlock.FACING);
+			BlockPos blockPos = pointer.pos().offset(direction);
+			Direction direction2 = pointer.world().isAir(blockPos.down()) ? direction : Direction.UP;
 
-      return stack;
-   }
+			try {
+				this.setSuccess(((BlockItem) item)
+						.place(new AutomaticItemPlacementContext(
+								pointer.world(),
+								blockPos,
+								direction,
+								stack,
+								direction2
+						))
+						.isAccepted());
+			}
+			catch (Exception var8) {
+				LOGGER.error("Error trying to place shulker box at {}", blockPos, var8);
+			}
+		}
+
+		return stack;
+	}
 }

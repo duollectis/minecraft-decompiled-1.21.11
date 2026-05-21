@@ -3,206 +3,214 @@ package net.minecraft.text;
 import com.google.common.collect.Lists;
 import com.mojang.brigadier.Message;
 import com.mojang.datafixers.util.Either;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.object.TextObjectContents;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ChunkPos;
 import org.jspecify.annotations.Nullable;
 
+import java.net.URI;
+import java.util.*;
+
+/**
+ * {@code Text}.
+ */
 public interface Text extends Message, StringVisitable {
-   Style getStyle();
 
-   TextContent getContent();
+	Style getStyle();
 
-   @Override
-   default String getString() {
-      return StringVisitable.super.getString();
-   }
+	TextContent getContent();
 
-   default String asTruncatedString(int length) {
-      StringBuilder stringBuilder = new StringBuilder();
-      this.visit(string -> {
-         int j = length - stringBuilder.length();
-         if (j <= 0) {
-            return TERMINATE_VISIT;
-         } else {
-            stringBuilder.append(string.length() <= j ? string : string.substring(0, j));
-            return Optional.empty();
-         }
-      });
-      return stringBuilder.toString();
-   }
+	@Override
+	default String getString() {
+		return StringVisitable.super.getString();
+	}
 
-   List<Text> getSiblings();
+	default String asTruncatedString(int length) {
+		StringBuilder stringBuilder = new StringBuilder();
+		this.visit(string -> {
+			int j = length - stringBuilder.length();
+			if (j <= 0) {
+				return TERMINATE_VISIT;
+			}
+			else {
+				stringBuilder.append(string.length() <= j ? string : string.substring(0, j));
+				return Optional.empty();
+			}
+		});
+		return stringBuilder.toString();
+	}
 
-   default @Nullable String getLiteralString() {
-      return this.getContent() instanceof PlainTextContent plainTextContent && this.getSiblings().isEmpty() && this.getStyle().isEmpty()
-         ? plainTextContent.string()
-         : null;
-   }
+	List<Text> getSiblings();
 
-   default MutableText copyContentOnly() {
-      return MutableText.of(this.getContent());
-   }
+	default @Nullable String getLiteralString() {
+		return this.getContent() instanceof PlainTextContent plainTextContent && this.getSiblings().isEmpty() && this
+				.getStyle()
+				.isEmpty()
+		       ? plainTextContent.string()
+		       : null;
+	}
 
-   default MutableText copy() {
-      return new MutableText(this.getContent(), new ArrayList<>(this.getSiblings()), this.getStyle());
-   }
+	default MutableText copyContentOnly() {
+		return MutableText.of(this.getContent());
+	}
 
-   OrderedText asOrderedText();
+	default MutableText copy() {
+		return new MutableText(this.getContent(), new ArrayList<>(this.getSiblings()), this.getStyle());
+	}
 
-   @Override
-   default <T> Optional<T> visit(StringVisitable.StyledVisitor<T> styledVisitor, Style style) {
-      Style style2 = this.getStyle().withParent(style);
-      Optional<T> optional = this.getContent().visit(styledVisitor, style2);
-      if (optional.isPresent()) {
-         return optional;
-      } else {
-         for (Text text : this.getSiblings()) {
-            Optional<T> optional2 = text.visit(styledVisitor, style2);
-            if (optional2.isPresent()) {
-               return optional2;
-            }
-         }
+	OrderedText asOrderedText();
 
-         return Optional.empty();
-      }
-   }
+	@Override
+	default <T> Optional<T> visit(StringVisitable.StyledVisitor<T> styledVisitor, Style style) {
+		Style style2 = this.getStyle().withParent(style);
+		Optional<T> optional = this.getContent().visit(styledVisitor, style2);
+		if (optional.isPresent()) {
+			return optional;
+		}
+		else {
+			for (Text text : this.getSiblings()) {
+				Optional<T> optional2 = text.visit(styledVisitor, style2);
+				if (optional2.isPresent()) {
+					return optional2;
+				}
+			}
 
-   @Override
-   default <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
-      Optional<T> optional = this.getContent().visit(visitor);
-      if (optional.isPresent()) {
-         return optional;
-      } else {
-         for (Text text : this.getSiblings()) {
-            Optional<T> optional2 = text.visit(visitor);
-            if (optional2.isPresent()) {
-               return optional2;
-            }
-         }
+			return Optional.empty();
+		}
+	}
 
-         return Optional.empty();
-      }
-   }
+	@Override
+	default <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
+		Optional<T> optional = this.getContent().visit(visitor);
+		if (optional.isPresent()) {
+			return optional;
+		}
+		else {
+			for (Text text : this.getSiblings()) {
+				Optional<T> optional2 = text.visit(visitor);
+				if (optional2.isPresent()) {
+					return optional2;
+				}
+			}
 
-   default List<Text> withoutStyle() {
-      return this.getWithStyle(Style.EMPTY);
-   }
+			return Optional.empty();
+		}
+	}
 
-   default List<Text> getWithStyle(Style style) {
-      List<Text> list = Lists.newArrayList();
-      this.visit((styleOverride, text) -> {
-         if (!text.isEmpty()) {
-            list.add(literal(text).fillStyle(styleOverride));
-         }
+	default List<Text> withoutStyle() {
+		return this.getWithStyle(Style.EMPTY);
+	}
 
-         return Optional.empty();
-      }, style);
-      return list;
-   }
+	default List<Text> getWithStyle(Style style) {
+		List<Text> list = Lists.newArrayList();
+		this.visit(
+				(styleOverride, text) -> {
+					if (!text.isEmpty()) {
+						list.add(literal(text).fillStyle(styleOverride));
+					}
 
-   default boolean contains(Text text) {
-      if (this.equals(text)) {
-         return true;
-      } else {
-         List<Text> list = this.withoutStyle();
-         List<Text> list2 = text.getWithStyle(this.getStyle());
-         return Collections.indexOfSubList(list, list2) != -1;
-      }
-   }
+					return Optional.empty();
+				}, style
+		);
+		return list;
+	}
 
-   static Text of(@Nullable String string) {
-      return (Text)(string != null ? literal(string) : ScreenTexts.EMPTY);
-   }
+	default boolean contains(Text text) {
+		if (this.equals(text)) {
+			return true;
+		}
+		else {
+			List<Text> list = this.withoutStyle();
+			List<Text> list2 = text.getWithStyle(this.getStyle());
+			return Collections.indexOfSubList(list, list2) != -1;
+		}
+	}
 
-   static MutableText literal(String string) {
-      return MutableText.of(PlainTextContent.of(string));
-   }
+	static Text of(@Nullable String string) {
+		return (Text) (string != null ? literal(string) : ScreenTexts.EMPTY);
+	}
 
-   static MutableText translatable(String key) {
-      return MutableText.of(new TranslatableTextContent(key, null, TranslatableTextContent.EMPTY_ARGUMENTS));
-   }
+	static MutableText literal(String string) {
+		return MutableText.of(PlainTextContent.of(string));
+	}
 
-   static MutableText translatable(String key, Object... args) {
-      return MutableText.of(new TranslatableTextContent(key, null, args));
-   }
+	static MutableText translatable(String key) {
+		return MutableText.of(new TranslatableTextContent(key, null, TranslatableTextContent.EMPTY_ARGUMENTS));
+	}
 
-   static MutableText stringifiedTranslatable(String key, Object... args) {
-      for (int i = 0; i < args.length; i++) {
-         Object object = args[i];
-         if (!TranslatableTextContent.isPrimitive(object) && !(object instanceof Text)) {
-            args[i] = String.valueOf(object);
-         }
-      }
+	static MutableText translatable(String key, Object... args) {
+		return MutableText.of(new TranslatableTextContent(key, null, args));
+	}
 
-      return translatable(key, args);
-   }
+	static MutableText stringifiedTranslatable(String key, Object... args) {
+		for (int i = 0; i < args.length; i++) {
+			Object object = args[i];
+			if (!TranslatableTextContent.isPrimitive(object) && !(object instanceof Text)) {
+				args[i] = String.valueOf(object);
+			}
+		}
 
-   static MutableText translatableWithFallback(String key, @Nullable String fallback) {
-      return MutableText.of(new TranslatableTextContent(key, fallback, TranslatableTextContent.EMPTY_ARGUMENTS));
-   }
+		return translatable(key, args);
+	}
 
-   static MutableText translatableWithFallback(String key, @Nullable String fallback, Object... args) {
-      return MutableText.of(new TranslatableTextContent(key, fallback, args));
-   }
+	static MutableText translatableWithFallback(String key, @Nullable String fallback) {
+		return MutableText.of(new TranslatableTextContent(key, fallback, TranslatableTextContent.EMPTY_ARGUMENTS));
+	}
 
-   static MutableText empty() {
-      return MutableText.of(PlainTextContent.EMPTY);
-   }
+	static MutableText translatableWithFallback(String key, @Nullable String fallback, Object... args) {
+		return MutableText.of(new TranslatableTextContent(key, fallback, args));
+	}
 
-   static MutableText keybind(String string) {
-      return MutableText.of(new KeybindTextContent(string));
-   }
+	static MutableText empty() {
+		return MutableText.of(PlainTextContent.EMPTY);
+	}
 
-   static MutableText nbt(String rawPath, boolean interpret, Optional<Text> separator, NbtDataSource dataSource) {
-      return MutableText.of(new NbtTextContent(rawPath, interpret, separator, dataSource));
-   }
+	static MutableText keybind(String string) {
+		return MutableText.of(new KeybindTextContent(string));
+	}
 
-   static MutableText score(ParsedSelector selector, String objective) {
-      return MutableText.of(new ScoreTextContent(Either.left(selector), objective));
-   }
+	static MutableText nbt(String rawPath, boolean interpret, Optional<Text> separator, NbtDataSource dataSource) {
+		return MutableText.of(new NbtTextContent(rawPath, interpret, separator, dataSource));
+	}
 
-   static MutableText score(String name, String objective) {
-      return MutableText.of(new ScoreTextContent(Either.right(name), objective));
-   }
+	static MutableText score(ParsedSelector selector, String objective) {
+		return MutableText.of(new ScoreTextContent(Either.left(selector), objective));
+	}
 
-   static MutableText selector(ParsedSelector selector, Optional<Text> separator) {
-      return MutableText.of(new SelectorTextContent(selector, separator));
-   }
+	static MutableText score(String name, String objective) {
+		return MutableText.of(new ScoreTextContent(Either.right(name), objective));
+	}
 
-   static MutableText object(TextObjectContents object) {
-      return MutableText.of(new ObjectTextContent(object));
-   }
+	static MutableText selector(ParsedSelector selector, Optional<Text> separator) {
+		return MutableText.of(new SelectorTextContent(selector, separator));
+	}
 
-   static Text of(Date date) {
-      return literal(date.toString());
-   }
+	static MutableText object(TextObjectContents object) {
+		return MutableText.of(new ObjectTextContent(object));
+	}
 
-   static Text of(Message message) {
-      return (Text)(message instanceof Text text ? text : literal(message.getString()));
-   }
+	static Text of(Date date) {
+		return literal(date.toString());
+	}
 
-   static Text of(UUID uuid) {
-      return literal(uuid.toString());
-   }
+	static Text of(Message message) {
+		return (Text) (message instanceof Text text ? text : literal(message.getString()));
+	}
 
-   static Text of(Identifier id) {
-      return literal(id.toString());
-   }
+	static Text of(UUID uuid) {
+		return literal(uuid.toString());
+	}
 
-   static Text of(ChunkPos pos) {
-      return literal(pos.toString());
-   }
+	static Text of(Identifier id) {
+		return literal(id.toString());
+	}
 
-   static Text of(URI uri) {
-      return literal(uri.toString());
-   }
+	static Text of(ChunkPos pos) {
+		return literal(pos.toString());
+	}
+
+	static Text of(URI uri) {
+		return literal(uri.toString());
+	}
 }

@@ -9,31 +9,35 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
+/**
+ * {@code DryVegetationBlock}.
+ */
 public class DryVegetationBlock extends PlantBlock {
-   public static final MapCodec<DryVegetationBlock> CODEC = createCodec(DryVegetationBlock::new);
-   private static final VoxelShape SHAPE = Block.createColumnShape(12.0, 0.0, 13.0);
 
-   @Override
-   public MapCodec<? extends DryVegetationBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<DryVegetationBlock> CODEC = createCodec(DryVegetationBlock::new);
+	private static final VoxelShape SHAPE = Block.createColumnShape(12.0, 0.0, 13.0);
 
-   public DryVegetationBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<? extends DryVegetationBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	public DryVegetationBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
-      return floor.isIn(BlockTags.DRY_VEGETATION_MAY_PLACE_ON);
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      AmbientDesertBlockSounds.tryPlayDeadBushSounds(world, pos, random);
-   }
+	@Override
+	protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
+		return floor.isIn(BlockTags.DRY_VEGETATION_MAY_PLACE_ON);
+	}
+
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		AmbientDesertBlockSounds.tryPlayDeadBushSounds(world, pos, random);
+	}
 }

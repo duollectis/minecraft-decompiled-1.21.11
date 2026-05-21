@@ -5,11 +5,6 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.logging.LogUtils;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Locale;
-import java.util.function.Consumer;
 import net.minecraft.SharedConstants;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.CommandManager;
@@ -26,78 +21,112 @@ import net.minecraft.util.profiler.RecordDumper;
 import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Locale;
+import java.util.function.Consumer;
+
+/**
+ * {@code PerfCommand}.
+ */
 public class PerfCommand {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final SimpleCommandExceptionType NOT_RUNNING_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.perf.notRunning"));
-   private static final SimpleCommandExceptionType ALREADY_RUNNING_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.perf.alreadyRunning"));
 
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("perf")
-                  .requires(CommandManager.requirePermissionLevel(CommandManager.OWNERS_CHECK)))
-               .then(CommandManager.literal("start").executes(context -> executeStart((ServerCommandSource)context.getSource()))))
-            .then(CommandManager.literal("stop").executes(context -> executeStop((ServerCommandSource)context.getSource())))
-      );
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final SimpleCommandExceptionType
+			NOT_RUNNING_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.perf.notRunning"));
+	private static final SimpleCommandExceptionType
+			ALREADY_RUNNING_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.perf.alreadyRunning"));
 
-   private static int executeStart(ServerCommandSource source) throws CommandSyntaxException {
-      MinecraftServer minecraftServer = source.getServer();
-      if (minecraftServer.isRecorderActive()) {
-         throw ALREADY_RUNNING_EXCEPTION.create();
-      } else {
-         Consumer<ProfileResult> consumer = result -> sendProfilingStoppedMessage(source, result);
-         Consumer<Path> consumer2 = dumpDirectory -> saveReport(source, dumpDirectory, minecraftServer);
-         minecraftServer.setupRecorder(consumer, consumer2);
-         source.sendFeedback(() -> Text.translatable("commands.perf.started"), false);
-         return 0;
-      }
-   }
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
+						.literal("perf")
+						.requires(CommandManager.requirePermissionLevel(CommandManager.OWNERS_CHECK))
+				)
+						.then(CommandManager
+								.literal("start")
+								.executes(context -> executeStart((ServerCommandSource) context.getSource())))
+				)
+						.then(CommandManager
+								.literal("stop")
+								.executes(context -> executeStop((ServerCommandSource) context.getSource())))
+		);
+	}
 
-   private static int executeStop(ServerCommandSource source) throws CommandSyntaxException {
-      MinecraftServer minecraftServer = source.getServer();
-      if (!minecraftServer.isRecorderActive()) {
-         throw NOT_RUNNING_EXCEPTION.create();
-      } else {
-         minecraftServer.stopRecorder();
-         return 0;
-      }
-   }
+	private static int executeStart(ServerCommandSource source) throws CommandSyntaxException {
+		MinecraftServer minecraftServer = source.getServer();
+		if (minecraftServer.isRecorderActive()) {
+			throw ALREADY_RUNNING_EXCEPTION.create();
+		}
+		else {
+			Consumer<ProfileResult> consumer = result -> sendProfilingStoppedMessage(source, result);
+			Consumer<Path> consumer2 = dumpDirectory -> saveReport(source, dumpDirectory, minecraftServer);
+			minecraftServer.setupRecorder(consumer, consumer2);
+			source.sendFeedback(() -> Text.translatable("commands.perf.started"), false);
+			return 0;
+		}
+	}
 
-   private static void saveReport(ServerCommandSource source, Path tempProfilingDirectory, MinecraftServer server) {
-      String string = String.format(
-         Locale.ROOT, "%s-%s-%s", Util.getFormattedCurrentTime(), server.getSaveProperties().getLevelName(), SharedConstants.getGameVersion().id()
-      );
+	private static int executeStop(ServerCommandSource source) throws CommandSyntaxException {
+		MinecraftServer minecraftServer = source.getServer();
+		if (!minecraftServer.isRecorderActive()) {
+			throw NOT_RUNNING_EXCEPTION.create();
+		}
+		else {
+			minecraftServer.stopRecorder();
+			return 0;
+		}
+	}
 
-      String string2;
-      try {
-         string2 = PathUtil.getNextUniqueName(RecordDumper.DEBUG_PROFILING_DIRECTORY, string, ".zip");
-      } catch (IOException var11) {
-         source.sendError(Text.translatable("commands.perf.reportFailed"));
-         LOGGER.error("Failed to create report name", var11);
-         return;
-      }
+	private static void saveReport(ServerCommandSource source, Path tempProfilingDirectory, MinecraftServer server) {
+		String string = String.format(
+				Locale.ROOT,
+				"%s-%s-%s",
+				Util.getFormattedCurrentTime(),
+				server.getSaveProperties().getLevelName(),
+				SharedConstants.getGameVersion().id()
+		);
 
-      try (ZipCompressor zipCompressor = new ZipCompressor(RecordDumper.DEBUG_PROFILING_DIRECTORY.resolve(string2))) {
-         zipCompressor.write(Paths.get("system.txt"), server.addSystemDetails(new SystemDetails()).collect());
-         zipCompressor.copyAll(tempProfilingDirectory);
-      }
+		String string2;
+		try {
+			string2 = PathUtil.getNextUniqueName(RecordDumper.DEBUG_PROFILING_DIRECTORY, string, ".zip");
+		}
+		catch (IOException var11) {
+			source.sendError(Text.translatable("commands.perf.reportFailed"));
+			LOGGER.error("Failed to create report name", var11);
+			return;
+		}
 
-      try {
-         FileUtils.forceDelete(tempProfilingDirectory.toFile());
-      } catch (IOException var9) {
-         LOGGER.warn("Failed to delete temporary profiling file {}", tempProfilingDirectory, var9);
-      }
+		try (ZipCompressor zipCompressor = new ZipCompressor(RecordDumper.DEBUG_PROFILING_DIRECTORY.resolve(string2))) {
+			zipCompressor.write(Paths.get("system.txt"), server.addSystemDetails(new SystemDetails()).collect());
+			zipCompressor.copyAll(tempProfilingDirectory);
+		}
 
-      source.sendFeedback(() -> Text.translatable("commands.perf.reportSaved", string2), false);
-   }
+		try {
+			FileUtils.forceDelete(tempProfilingDirectory.toFile());
+		}
+		catch (IOException var9) {
+			LOGGER.warn("Failed to delete temporary profiling file {}", tempProfilingDirectory, var9);
+		}
 
-   private static void sendProfilingStoppedMessage(ServerCommandSource source, ProfileResult result) {
-      if (result != EmptyProfileResult.INSTANCE) {
-         int i = result.getTickSpan();
-         double d = (double)result.getTimeSpan() / TimeHelper.SECOND_IN_NANOS;
-         source.sendFeedback(
-            () -> Text.translatable("commands.perf.stopped", String.format(Locale.ROOT, "%.2f", d), i, String.format(Locale.ROOT, "%.2f", i / d)), false
-         );
-      }
-   }
+		source.sendFeedback(() -> Text.translatable("commands.perf.reportSaved", string2), false);
+	}
+
+	private static void sendProfilingStoppedMessage(ServerCommandSource source, ProfileResult result) {
+		if (result != EmptyProfileResult.INSTANCE) {
+			int i = result.getTickSpan();
+			double d = (double) result.getTimeSpan() / TimeHelper.SECOND_IN_NANOS;
+			source.sendFeedback(
+					() -> Text.translatable(
+							"commands.perf.stopped",
+							String.format(Locale.ROOT, "%.2f", d),
+							i,
+							String.format(Locale.ROOT, "%.2f", i / d)
+					), false
+			);
+		}
+	}
 }

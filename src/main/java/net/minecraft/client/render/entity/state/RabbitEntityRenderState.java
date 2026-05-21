@@ -5,8 +5,12 @@ import net.fabricmc.api.Environment;
 import net.minecraft.entity.passive.RabbitEntity;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RabbitEntityRenderState}.
+ */
 public class RabbitEntityRenderState extends LivingEntityRenderState {
-   public float jumpProgress;
-   public boolean isToast;
-   public RabbitEntity.Variant type = RabbitEntity.Variant.DEFAULT;
+
+	public float jumpProgress;
+	public boolean isToast;
+	public RabbitEntity.Variant type = RabbitEntity.Variant.DEFAULT;
 }

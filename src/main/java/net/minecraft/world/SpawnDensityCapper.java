@@ -5,53 +5,66 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import java.util.List;
-import java.util.Map;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerChunkLoadingManager;
 import net.minecraft.util.math.ChunkPos;
 
+import java.util.List;
+import java.util.Map;
+
+/**
+ * {@code SpawnDensityCapper}.
+ */
 public class SpawnDensityCapper {
-   private final Long2ObjectMap<List<ServerPlayerEntity>> chunkPosToMobSpawnablePlayers = new Long2ObjectOpenHashMap();
-   private final Map<ServerPlayerEntity, SpawnDensityCapper.DensityCap> playersToDensityCap = Maps.newHashMap();
-   private final ServerChunkLoadingManager chunkLoadingManager;
 
-   public SpawnDensityCapper(ServerChunkLoadingManager chunkLoadingManager) {
-      this.chunkLoadingManager = chunkLoadingManager;
-   }
+	private final Long2ObjectMap<List<ServerPlayerEntity>> chunkPosToMobSpawnablePlayers = new Long2ObjectOpenHashMap();
+	private final Map<ServerPlayerEntity, SpawnDensityCapper.DensityCap> playersToDensityCap = Maps.newHashMap();
+	private final ServerChunkLoadingManager chunkLoadingManager;
 
-   private List<ServerPlayerEntity> getMobSpawnablePlayers(ChunkPos chunkPos) {
-      return (List<ServerPlayerEntity>)this.chunkPosToMobSpawnablePlayers
-         .computeIfAbsent(chunkPos.toLong(), pos -> this.chunkLoadingManager.getPlayersWatchingChunk(chunkPos));
-   }
+	public SpawnDensityCapper(ServerChunkLoadingManager chunkLoadingManager) {
+		this.chunkLoadingManager = chunkLoadingManager;
+	}
 
-   public void increaseDensity(ChunkPos chunkPos, SpawnGroup spawnGroup) {
-      for (ServerPlayerEntity serverPlayerEntity : this.getMobSpawnablePlayers(chunkPos)) {
-         this.playersToDensityCap.computeIfAbsent(serverPlayerEntity, player -> new SpawnDensityCapper.DensityCap()).increaseDensity(spawnGroup);
-      }
-   }
+	private List<ServerPlayerEntity> getMobSpawnablePlayers(ChunkPos chunkPos) {
+		return (List<ServerPlayerEntity>) this.chunkPosToMobSpawnablePlayers
+				.computeIfAbsent(chunkPos.toLong(), pos -> this.chunkLoadingManager.getPlayersWatchingChunk(chunkPos));
+	}
 
-   public boolean canSpawn(SpawnGroup spawnGroup, ChunkPos chunkPos) {
-      for (ServerPlayerEntity serverPlayerEntity : this.getMobSpawnablePlayers(chunkPos)) {
-         SpawnDensityCapper.DensityCap densityCap = this.playersToDensityCap.get(serverPlayerEntity);
-         if (densityCap == null || densityCap.canSpawn(spawnGroup)) {
-            return true;
-         }
-      }
+	public void increaseDensity(ChunkPos chunkPos, SpawnGroup spawnGroup) {
+		for (ServerPlayerEntity serverPlayerEntity : this.getMobSpawnablePlayers(chunkPos)) {
+			this.playersToDensityCap
+					.computeIfAbsent(serverPlayerEntity, player -> new SpawnDensityCapper.DensityCap())
+					.increaseDensity(spawnGroup);
+		}
+	}
 
-      return false;
-   }
+	public boolean canSpawn(SpawnGroup spawnGroup, ChunkPos chunkPos) {
+		for (ServerPlayerEntity serverPlayerEntity : this.getMobSpawnablePlayers(chunkPos)) {
+			SpawnDensityCapper.DensityCap densityCap = this.playersToDensityCap.get(serverPlayerEntity);
+			if (densityCap == null || densityCap.canSpawn(spawnGroup)) {
+				return true;
+			}
+		}
 
-   static class DensityCap {
-      private final Object2IntMap<SpawnGroup> spawnGroupsToDensity = new Object2IntOpenHashMap(SpawnGroup.values().length);
+		return false;
+	}
 
-      public void increaseDensity(SpawnGroup spawnGroup) {
-         this.spawnGroupsToDensity.computeInt(spawnGroup, (group, density) -> density == null ? 1 : density + 1);
-      }
+	/**
+	 * {@code DensityCap}.
+	 */
+	static class DensityCap {
 
-      public boolean canSpawn(SpawnGroup spawnGroup) {
-         return this.spawnGroupsToDensity.getOrDefault(spawnGroup, 0) < spawnGroup.getCapacity();
-      }
-   }
+		private final Object2IntMap<SpawnGroup>
+				spawnGroupsToDensity =
+				new Object2IntOpenHashMap(SpawnGroup.values().length);
+
+		public void increaseDensity(SpawnGroup spawnGroup) {
+			this.spawnGroupsToDensity.computeInt(spawnGroup, (group, density) -> density == null ? 1 : density + 1);
+		}
+
+		public boolean canSpawn(SpawnGroup spawnGroup) {
+			return this.spawnGroupsToDensity.getOrDefault(spawnGroup, 0) < spawnGroup.getCapacity();
+		}
+	}
 }

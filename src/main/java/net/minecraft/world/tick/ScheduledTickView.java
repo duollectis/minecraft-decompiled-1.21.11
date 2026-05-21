@@ -4,28 +4,32 @@ import net.minecraft.block.Block;
 import net.minecraft.fluid.Fluid;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code ScheduledTickView}.
+ */
 public interface ScheduledTickView {
-   <T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay, TickPriority priority);
 
-   <T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay);
+	<T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay, TickPriority priority);
 
-   QueryableTickScheduler<Block> getBlockTickScheduler();
+	<T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay);
 
-   default void scheduleBlockTick(BlockPos pos, Block block, int delay, TickPriority priority) {
-      this.getBlockTickScheduler().scheduleTick(this.createOrderedTick(pos, block, delay, priority));
-   }
+	QueryableTickScheduler<Block> getBlockTickScheduler();
 
-   default void scheduleBlockTick(BlockPos pos, Block block, int delay) {
-      this.getBlockTickScheduler().scheduleTick(this.createOrderedTick(pos, block, delay));
-   }
+	default void scheduleBlockTick(BlockPos pos, Block block, int delay, TickPriority priority) {
+		this.getBlockTickScheduler().scheduleTick(this.createOrderedTick(pos, block, delay, priority));
+	}
 
-   QueryableTickScheduler<Fluid> getFluidTickScheduler();
+	default void scheduleBlockTick(BlockPos pos, Block block, int delay) {
+		this.getBlockTickScheduler().scheduleTick(this.createOrderedTick(pos, block, delay));
+	}
 
-   default void scheduleFluidTick(BlockPos pos, Fluid fluid, int delay, TickPriority priority) {
-      this.getFluidTickScheduler().scheduleTick(this.createOrderedTick(pos, fluid, delay, priority));
-   }
+	QueryableTickScheduler<Fluid> getFluidTickScheduler();
 
-   default void scheduleFluidTick(BlockPos pos, Fluid fluid, int delay) {
-      this.getFluidTickScheduler().scheduleTick(this.createOrderedTick(pos, fluid, delay));
-   }
+	default void scheduleFluidTick(BlockPos pos, Fluid fluid, int delay, TickPriority priority) {
+		this.getFluidTickScheduler().scheduleTick(this.createOrderedTick(pos, fluid, delay, priority));
+	}
+
+	default void scheduleFluidTick(BlockPos pos, Fluid fluid, int delay) {
+		this.getFluidTickScheduler().scheduleTick(this.createOrderedTick(pos, fluid, delay));
+	}
 }

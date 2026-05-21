@@ -5,60 +5,64 @@ import net.fabricmc.api.Environment;
 import net.minecraft.util.Util;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code UploadProgress}.
+ */
 public class UploadProgress {
-   private volatile long bytesWritten;
-   private volatile long totalBytes;
-   private long startTimeMs = Util.getMeasuringTimeMs();
-   private long lastBytesWritten;
-   private long bytesPerSecond;
 
-   public void setTotalBytes(long totalBytes) {
-      this.totalBytes = totalBytes;
-   }
+	private volatile long bytesWritten;
+	private volatile long totalBytes;
+	private long startTimeMs = Util.getMeasuringTimeMs();
+	private long lastBytesWritten;
+	private long bytesPerSecond;
 
-   public void clear() {
-      this.bytesWritten = 0L;
-      this.startTimeMs = Util.getMeasuringTimeMs();
-      this.lastBytesWritten = 0L;
-      this.bytesPerSecond = 0L;
-   }
+	public void setTotalBytes(long totalBytes) {
+		this.totalBytes = totalBytes;
+	}
 
-   public long getTotalBytes() {
-      return this.totalBytes;
-   }
+	public void clear() {
+		this.bytesWritten = 0L;
+		this.startTimeMs = Util.getMeasuringTimeMs();
+		this.lastBytesWritten = 0L;
+		this.bytesPerSecond = 0L;
+	}
 
-   public long getBytesWritten() {
-      return this.bytesWritten;
-   }
+	public long getTotalBytes() {
+		return this.totalBytes;
+	}
 
-   public void addBytesWritten(long bytesWritten) {
-      this.bytesWritten = bytesWritten;
-   }
+	public long getBytesWritten() {
+		return this.bytesWritten;
+	}
 
-   public boolean hasWrittenBytes() {
-      return this.bytesWritten > 0L;
-   }
+	public void addBytesWritten(long bytesWritten) {
+		this.bytesWritten = bytesWritten;
+	}
 
-   public boolean hasWrittenAllBytes() {
-      return this.bytesWritten >= this.totalBytes;
-   }
+	public boolean hasWrittenBytes() {
+		return this.bytesWritten > 0L;
+	}
 
-   public double getFractionBytesWritten() {
-      return Math.min((double)this.getBytesWritten() / this.getTotalBytes(), 1.0);
-   }
+	public boolean hasWrittenAllBytes() {
+		return this.bytesWritten >= this.totalBytes;
+	}
 
-   public void tick() {
-      long l = Util.getMeasuringTimeMs();
-      long m = l - this.startTimeMs;
-      if (m >= 1000L) {
-         long n = this.bytesWritten;
-         this.bytesPerSecond = 1000L * (n - this.lastBytesWritten) / m;
-         this.lastBytesWritten = n;
-         this.startTimeMs = l;
-      }
-   }
+	public double getFractionBytesWritten() {
+		return Math.min((double) this.getBytesWritten() / this.getTotalBytes(), 1.0);
+	}
 
-   public long getBytesPerSecond() {
-      return this.bytesPerSecond;
-   }
+	public void tick() {
+		long l = Util.getMeasuringTimeMs();
+		long m = l - this.startTimeMs;
+		if (m >= 1000L) {
+			long n = this.bytesWritten;
+			this.bytesPerSecond = 1000L * (n - this.lastBytesWritten) / m;
+			this.lastBytesWritten = n;
+			this.startTimeMs = l;
+		}
+	}
+
+	public long getBytesPerSecond() {
+		return this.bytesPerSecond;
+	}
 }

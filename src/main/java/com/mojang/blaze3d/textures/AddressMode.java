@@ -6,7 +6,10 @@ import net.minecraft.util.annotation.DeobfuscateClass;
 
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
+/**
+ * {@code AddressMode}.
+ */
 public enum AddressMode {
-   REPEAT,
-   CLAMP_TO_EDGE;
+	REPEAT,
+	CLAMP_TO_EDGE;
 }

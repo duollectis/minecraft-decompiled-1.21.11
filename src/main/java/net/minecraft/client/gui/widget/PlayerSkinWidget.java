@@ -1,6 +1,5 @@
 package net.minecraft.client.gui.widget;
 
-import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.Click;
@@ -18,63 +17,76 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.Supplier;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PlayerSkinWidget}.
+ */
 public class PlayerSkinWidget extends ClickableWidget {
-   private static final float field_45997 = 2.125F;
-   private static final float field_59833 = 0.97F;
-   private static final float field_45999 = 2.5F;
-   private static final float field_46000 = -5.0F;
-   private static final float field_46001 = 30.0F;
-   private static final float field_46002 = 50.0F;
-   private final PlayerEntityModel wideModel;
-   private final PlayerEntityModel slimModel;
-   private final Supplier<SkinTextures> skinSupplier;
-   private float xRotation = -5.0F;
-   private float yRotation = 30.0F;
 
-   public PlayerSkinWidget(int width, int height, LoadedEntityModels entityModels, Supplier<SkinTextures> skinSupplier) {
-      super(0, 0, width, height, ScreenTexts.EMPTY);
-      this.wideModel = new PlayerEntityModel(entityModels.getModelPart(EntityModelLayers.PLAYER), false);
-      this.slimModel = new PlayerEntityModel(entityModels.getModelPart(EntityModelLayers.PLAYER_SLIM), true);
-      this.skinSupplier = skinSupplier;
-   }
+	private static final float SCALE = 2.125F;
+	private static final float BODY_SCALE = 0.97F;
+	private static final float Y_OFFSET = 2.5F;
+	private static final float TILT_ANGLE = -5.0F;
+	private static final float ROTATION_ANGLE = 30.0F;
+	private static final float VIEW_ANGLE = 50.0F;
+	private final PlayerEntityModel wideModel;
+	private final PlayerEntityModel slimModel;
+	private final Supplier<SkinTextures> skinSupplier;
+	private float xRotation = -5.0F;
+	private float yRotation = 30.0F;
 
-   @Override
-   protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      float f = 0.97F * this.getHeight() / 2.125F;
-      float g = -1.0625F;
-      SkinTextures skinTextures = this.skinSupplier.get();
-      PlayerEntityModel playerEntityModel = skinTextures.model() == PlayerSkinType.SLIM ? this.slimModel : this.wideModel;
-      context.addPlayerSkin(
-         playerEntityModel,
-         skinTextures.body().texturePath(),
-         f,
-         this.xRotation,
-         this.yRotation,
-         -1.0625F,
-         this.getX(),
-         this.getY(),
-         this.getRight(),
-         this.getBottom()
-      );
-   }
+	public PlayerSkinWidget(
+			int width,
+			int height,
+			LoadedEntityModels entityModels,
+			Supplier<SkinTextures> skinSupplier
+	) {
+		super(0, 0, width, height, ScreenTexts.EMPTY);
+		this.wideModel = new PlayerEntityModel(entityModels.getModelPart(EntityModelLayers.PLAYER), false);
+		this.slimModel = new PlayerEntityModel(entityModels.getModelPart(EntityModelLayers.PLAYER_SLIM), true);
+		this.skinSupplier = skinSupplier;
+	}
 
-   @Override
-   protected void onDrag(Click click, double offsetX, double offsetY) {
-      this.xRotation = MathHelper.clamp(this.xRotation - (float)offsetY * 2.5F, -50.0F, 50.0F);
-      this.yRotation += (float)offsetX * 2.5F;
-   }
+	@Override
+	protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		float f = 0.97F * this.getHeight() / 2.125F;
+		float g = -1.0625F;
+		SkinTextures skinTextures = this.skinSupplier.get();
+		PlayerEntityModel
+				playerEntityModel =
+				skinTextures.model() == PlayerSkinType.SLIM ? this.slimModel : this.wideModel;
+		context.addPlayerSkin(
+				playerEntityModel,
+				skinTextures.body().texturePath(),
+				f,
+				this.xRotation,
+				this.yRotation,
+				-1.0625F,
+				this.getX(),
+				this.getY(),
+				this.getRight(),
+				this.getBottom()
+		);
+	}
 
-   @Override
-   public void playDownSound(SoundManager soundManager) {
-   }
+	@Override
+	protected void onDrag(Click click, double offsetX, double offsetY) {
+		this.xRotation = MathHelper.clamp(this.xRotation - (float) offsetY * 2.5F, -50.0F, 50.0F);
+		this.yRotation += (float) offsetX * 2.5F;
+	}
 
-   @Override
-   protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-   }
+	@Override
+	public void playDownSound(SoundManager soundManager) {
+	}
 
-   @Override
-   public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-      return null;
-   }
+	@Override
+	protected void appendClickableNarrations(NarrationMessageBuilder builder) {
+	}
+
+	@Override
+	public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+		return null;
+	}
 }

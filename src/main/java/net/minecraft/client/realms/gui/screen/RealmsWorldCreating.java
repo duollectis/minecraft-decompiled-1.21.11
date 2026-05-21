@@ -1,11 +1,6 @@
 package net.minecraft.client.realms.gui.screen;
 
 import com.mojang.logging.LogUtils;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-import java.util.concurrent.CompletionException;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.SharedConstants;
@@ -32,89 +27,141 @@ import net.minecraft.world.level.LevelProperties;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.concurrent.CompletionException;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsWorldCreating}.
+ */
 public class RealmsWorldCreating {
-   private static final Logger LOGGER = LogUtils.getLogger();
 
-   public static void showCreateWorldScreen(
-      MinecraftClient client, Screen parent, Screen realmsScreen, int slotId, RealmsServer server, @Nullable WorldCreationTask creationTask
-   ) {
-      CreateWorldScreen.show(
-         client,
-         () -> client.setScreen(parent),
-         (screen, dynamicRegistries, levelProperties, dataPackTempDir) -> {
-            Path path;
-            try {
-               path = saveTempWorld(dynamicRegistries, levelProperties, dataPackTempDir);
-            } catch (IOException var14) {
-               LOGGER.warn("Failed to create temporary world folder.");
-               client.setScreen(new RealmsGenericErrorScreen(Text.translatable("mco.create.world.failed"), realmsScreen));
-               return true;
-            }
+	private static final Logger LOGGER = LogUtils.getLogger();
 
-            RealmsWorldOptions realmsWorldOptions = RealmsWorldOptions.create(levelProperties.getLevelInfo(), SharedConstants.getGameVersion().name());
-            RealmsSlot realmsSlot = new RealmsSlot(
-               slotId, realmsWorldOptions, List.of(RealmsSettingDto.ofHardcore(levelProperties.getLevelInfo().isHardcore()))
-            );
-            RealmsUploader realmsUploader = new RealmsUploader(path, realmsSlot, client.getSession(), server.id, UploadProgressTracker.create());
-            client.setScreenAndRender(
-               new NoticeScreen(realmsUploader::cancel, Text.translatable("mco.create.world.reset.title"), Text.empty(), ScreenTexts.CANCEL, false)
-            );
-            if (creationTask != null) {
-               creationTask.run();
-            }
+	public static void showCreateWorldScreen(
+			MinecraftClient client,
+			Screen parent,
+			Screen realmsScreen,
+			int slotId,
+			RealmsServer server,
+			@Nullable WorldCreationTask creationTask
+	) {
+		CreateWorldScreen.show(
+				client,
+				() -> client.setScreen(parent),
+				(screen, dynamicRegistries, levelProperties, dataPackTempDir) -> {
+					Path path;
+					try {
+						path = saveTempWorld(dynamicRegistries, levelProperties, dataPackTempDir);
+					}
+					catch (IOException var14) {
+						LOGGER.warn("Failed to create temporary world folder.");
+						client.setScreen(new RealmsGenericErrorScreen(
+								Text.translatable("mco.create.world.failed"),
+								realmsScreen
+						));
+						return true;
+					}
 
-            realmsUploader.upload().handleAsync((v, throwable) -> {
-               if (throwable != null) {
-                  if (throwable instanceof CompletionException completionException) {
-                     throwable = completionException.getCause();
-                  }
+					RealmsWorldOptions
+							realmsWorldOptions =
+							RealmsWorldOptions.create(
+									levelProperties.getLevelInfo(),
+									SharedConstants.getGameVersion().name()
+							);
+					RealmsSlot realmsSlot = new RealmsSlot(
+							slotId,
+							realmsWorldOptions,
+							List.of(RealmsSettingDto.ofHardcore(levelProperties.getLevelInfo().isHardcore()))
+					);
+					RealmsUploader
+							realmsUploader =
+							new RealmsUploader(
+									path,
+									realmsSlot,
+									client.getSession(),
+									server.id,
+									UploadProgressTracker.create()
+							);
+					client.setScreenAndRender(
+							new NoticeScreen(
+									realmsUploader::cancel,
+									Text.translatable("mco.create.world.reset.title"),
+									Text.empty(),
+									ScreenTexts.CANCEL,
+									false
+							)
+					);
+					if (creationTask != null) {
+						creationTask.run();
+					}
 
-                  if (throwable instanceof CancelledRealmsUploadException) {
-                     client.setScreenAndRender(realmsScreen);
-                  } else {
-                     if (throwable instanceof FailedRealmsUploadException failedRealmsUploadException) {
-                        LOGGER.warn("Failed to create realms world {}", failedRealmsUploadException.getStatus());
-                     } else {
-                        LOGGER.warn("Failed to create realms world {}", throwable.getMessage());
-                     }
+					realmsUploader.upload().handleAsync(
+							(v, throwable) -> {
+								if (throwable != null) {
+									if (throwable instanceof CompletionException completionException) {
+										throwable = completionException.getCause();
+									}
 
-                     client.setScreenAndRender(new RealmsGenericErrorScreen(Text.translatable("mco.create.world.failed"), realmsScreen));
-                  }
-               } else {
-                  if (parent instanceof RealmsConfigureWorldScreen realmsConfigureWorldScreen) {
-                     realmsConfigureWorldScreen.fetchServerData(server.id);
-                  }
+									if (throwable instanceof CancelledRealmsUploadException) {
+										client.setScreenAndRender(realmsScreen);
+									}
+									else {
+										if (throwable instanceof FailedRealmsUploadException failedRealmsUploadException) {
+											LOGGER.warn(
+													"Failed to create realms world {}",
+													failedRealmsUploadException.getStatus()
+											);
+										}
+										else {
+											LOGGER.warn("Failed to create realms world {}", throwable.getMessage());
+										}
 
-                  if (creationTask != null) {
-                     RealmsMainScreen.play(server, parent, true);
-                  } else {
-                     client.setScreenAndRender(parent);
-                  }
+										client.setScreenAndRender(new RealmsGenericErrorScreen(
+												Text.translatable("mco.create.world.failed"), realmsScreen));
+									}
+								}
+								else {
+									if (parent instanceof RealmsConfigureWorldScreen realmsConfigureWorldScreen) {
+										realmsConfigureWorldScreen.fetchServerData(server.id);
+									}
 
-                  RealmsMainScreen.resetServerList();
-               }
+									if (creationTask != null) {
+										RealmsMainScreen.play(server, parent, true);
+									}
+									else {
+										client.setScreenAndRender(parent);
+									}
 
-               return null;
-            }, client);
-            return true;
-         }
-      );
-   }
+									RealmsMainScreen.resetServerList();
+								}
 
-   private static Path saveTempWorld(
-      CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries, LevelProperties levelProperties, @Nullable Path dataPackTempDir
-   ) throws IOException {
-      Path path = Files.createTempDirectory("minecraft_realms_world_upload");
-      if (dataPackTempDir != null) {
-         Files.move(dataPackTempDir, path.resolve("datapacks"));
-      }
+								return null;
+							}, client
+					);
+					return true;
+				}
+		);
+	}
 
-      NbtCompound nbtCompound = levelProperties.cloneWorldNbt(dynamicRegistries.getCombinedRegistryManager(), null);
-      NbtCompound nbtCompound2 = new NbtCompound();
-      nbtCompound2.put("Data", nbtCompound);
-      Path path2 = Files.createFile(path.resolve("level.dat"));
-      NbtIo.writeCompressed(nbtCompound2, path2);
-      return path;
-   }
+	private static Path saveTempWorld(
+			CombinedDynamicRegistries<ServerDynamicRegistryType> dynamicRegistries,
+			LevelProperties levelProperties,
+			@Nullable Path dataPackTempDir
+	) throws IOException {
+		Path path = Files.createTempDirectory("minecraft_realms_world_upload");
+		if (dataPackTempDir != null) {
+			Files.move(dataPackTempDir, path.resolve("datapacks"));
+		}
+
+		NbtCompound nbtCompound = levelProperties.cloneWorldNbt(dynamicRegistries.getCombinedRegistryManager(), null);
+		NbtCompound nbtCompound2 = new NbtCompound();
+		nbtCompound2.put("Data", nbtCompound);
+		Path path2 = Files.createFile(path.resolve("level.dat"));
+		NbtIo.writeCompressed(nbtCompound2, path2);
+		return path;
+	}
 }

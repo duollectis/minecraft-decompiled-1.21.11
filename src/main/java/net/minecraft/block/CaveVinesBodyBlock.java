@@ -14,56 +14,60 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code CaveVinesBodyBlock}.
+ */
 public class CaveVinesBodyBlock extends AbstractPlantBlock implements CaveVines {
-   public static final MapCodec<CaveVinesBodyBlock> CODEC = createCodec(CaveVinesBodyBlock::new);
 
-   @Override
-   public MapCodec<CaveVinesBodyBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<CaveVinesBodyBlock> CODEC = createCodec(CaveVinesBodyBlock::new);
 
-   public CaveVinesBodyBlock(AbstractBlock.Settings settings) {
-      super(settings, Direction.DOWN, SHAPE, false);
-      this.setDefaultState(this.stateManager.getDefaultState().with(BERRIES, false));
-   }
+	@Override
+	public MapCodec<CaveVinesBodyBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected AbstractPlantStemBlock getStem() {
-      return (AbstractPlantStemBlock)Blocks.CAVE_VINES;
-   }
+	public CaveVinesBodyBlock(AbstractBlock.Settings settings) {
+		super(settings, Direction.DOWN, SHAPE, false);
+		this.setDefaultState(this.stateManager.getDefaultState().with(BERRIES, false));
+	}
 
-   @Override
-   protected BlockState copyState(BlockState from, BlockState to) {
-      return to.with(BERRIES, from.get(BERRIES));
-   }
+	@Override
+	protected AbstractPlantStemBlock getStem() {
+		return (AbstractPlantStemBlock) Blocks.CAVE_VINES;
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return new ItemStack(Items.GLOW_BERRIES);
-   }
+	@Override
+	protected BlockState copyState(BlockState from, BlockState to) {
+		return to.with(BERRIES, from.get(BERRIES));
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      return CaveVines.pickBerries(player, state, world, pos);
-   }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return new ItemStack(Items.GLOW_BERRIES);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(BERRIES);
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		return CaveVines.pickBerries(player, state, world, pos);
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return !state.get(BERRIES);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(BERRIES);
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return !state.get(BERRIES);
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      world.setBlockState(pos, state.with(BERRIES, true), 2);
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
+
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		world.setBlockState(pos, state.with(BERRIES, true), 2);
+	}
 }

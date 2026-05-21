@@ -5,45 +5,53 @@ import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.text.Text;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.Text;
 
+/**
+ * {@code UuidArgumentType}.
+ */
 public class UuidArgumentType implements ArgumentType<UUID> {
-   public static final SimpleCommandExceptionType INVALID_UUID = new SimpleCommandExceptionType(Text.translatable("argument.uuid.invalid"));
-   private static final Collection<String> EXAMPLES = Arrays.asList("dd12be42-52a9-4a91-a8a1-11c01849e498");
-   private static final Pattern VALID_CHARACTERS = Pattern.compile("^([-A-Fa-f0-9]+)");
 
-   public static UUID getUuid(CommandContext<ServerCommandSource> context, String name) {
-      return (UUID)context.getArgument(name, UUID.class);
-   }
+	public static final SimpleCommandExceptionType
+			INVALID_UUID =
+			new SimpleCommandExceptionType(Text.translatable("argument.uuid.invalid"));
+	private static final Collection<String> EXAMPLES = Arrays.asList("dd12be42-52a9-4a91-a8a1-11c01849e498");
+	private static final Pattern VALID_CHARACTERS = Pattern.compile("^([-A-Fa-f0-9]+)");
 
-   public static UuidArgumentType uuid() {
-      return new UuidArgumentType();
-   }
+	public static UUID getUuid(CommandContext<ServerCommandSource> context, String name) {
+		return (UUID) context.getArgument(name, UUID.class);
+	}
 
-   public UUID parse(StringReader stringReader) throws CommandSyntaxException {
-      String string = stringReader.getRemaining();
-      Matcher matcher = VALID_CHARACTERS.matcher(string);
-      if (matcher.find()) {
-         String string2 = matcher.group(1);
+	public static UuidArgumentType uuid() {
+		return new UuidArgumentType();
+	}
 
-         try {
-            UUID uUID = UUID.fromString(string2);
-            stringReader.setCursor(stringReader.getCursor() + string2.length());
-            return uUID;
-         } catch (IllegalArgumentException var6) {
-         }
-      }
+	public UUID parse(StringReader stringReader) throws CommandSyntaxException {
+		String string = stringReader.getRemaining();
+		Matcher matcher = VALID_CHARACTERS.matcher(string);
+		if (matcher.find()) {
+			String string2 = matcher.group(1);
 
-      throw INVALID_UUID.createWithContext(stringReader);
-   }
+			try {
+				UUID uUID = UUID.fromString(string2);
+				stringReader.setCursor(stringReader.getCursor() + string2.length());
+				return uUID;
+			}
+			catch (IllegalArgumentException var6) {
+			}
+		}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+		throw INVALID_UUID.createWithContext(stringReader);
+	}
+
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 }

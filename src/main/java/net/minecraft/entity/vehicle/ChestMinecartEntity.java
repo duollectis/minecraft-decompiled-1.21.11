@@ -20,54 +20,64 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code ChestMinecartEntity}.
+ */
 public class ChestMinecartEntity extends StorageMinecartEntity {
-   public ChestMinecartEntity(EntityType<? extends ChestMinecartEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   @Override
-   protected Item asItem() {
-      return Items.CHEST_MINECART;
-   }
+	public ChestMinecartEntity(EntityType<? extends ChestMinecartEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   public ItemStack getPickBlockStack() {
-      return new ItemStack(Items.CHEST_MINECART);
-   }
+	@Override
+	protected Item asItem() {
+		return Items.CHEST_MINECART;
+	}
 
-   @Override
-   public int size() {
-      return 27;
-   }
+	@Override
+	public ItemStack getPickBlockStack() {
+		return new ItemStack(Items.CHEST_MINECART);
+	}
 
-   @Override
-   public BlockState getDefaultContainedBlock() {
-      return Blocks.CHEST.getDefaultState().with(ChestBlock.FACING, Direction.NORTH);
-   }
+	@Override
+	public int size() {
+		return 27;
+	}
 
-   @Override
-   public int getDefaultBlockOffset() {
-      return 8;
-   }
+	@Override
+	public BlockState getDefaultContainedBlock() {
+		return Blocks.CHEST.getDefaultState().with(ChestBlock.FACING, Direction.NORTH);
+	}
 
-   @Override
-   public ScreenHandler getScreenHandler(int syncId, PlayerInventory playerInventory) {
-      return GenericContainerScreenHandler.createGeneric9x3(syncId, playerInventory, this);
-   }
+	@Override
+	public int getDefaultBlockOffset() {
+		return 8;
+	}
 
-   @Override
-   public void onClose(ContainerUser user) {
-      this.getEntityWorld().emitGameEvent(GameEvent.CONTAINER_CLOSE, this.getEntityPos(), GameEvent.Emitter.of(user.asLivingEntity()));
-   }
+	@Override
+	public ScreenHandler getScreenHandler(int syncId, PlayerInventory playerInventory) {
+		return GenericContainerScreenHandler.createGeneric9x3(syncId, playerInventory, this);
+	}
 
-   @Override
-   public ActionResult interact(PlayerEntity player, Hand hand) {
-      ActionResult actionResult = this.open(player);
-      if (actionResult.isAccepted() && player.getEntityWorld() instanceof ServerWorld serverWorld) {
-         this.emitGameEvent(GameEvent.CONTAINER_OPEN, player);
-         PiglinBrain.onGuardedBlockInteracted(serverWorld, player, true);
-      }
+	@Override
+	public void onClose(ContainerUser user) {
+		this
+				.getEntityWorld()
+				.emitGameEvent(
+						GameEvent.CONTAINER_CLOSE,
+						this.getEntityPos(),
+						GameEvent.Emitter.of(user.asLivingEntity())
+				);
+	}
 
-      return actionResult;
-   }
+	@Override
+	public ActionResult interact(PlayerEntity player, Hand hand) {
+		ActionResult actionResult = this.open(player);
+		if (actionResult.isAccepted() && player.getEntityWorld() instanceof ServerWorld serverWorld) {
+			this.emitGameEvent(GameEvent.CONTAINER_OPEN, player);
+			PiglinBrain.onGuardedBlockInteracted(serverWorld, player, true);
+		}
+
+		return actionResult;
+	}
 }

@@ -7,19 +7,23 @@ import net.minecraft.network.codec.ValueFirstEncoder;
 import net.minecraft.network.listener.PacketListener;
 
 public interface Packet<T extends PacketListener> {
-   PacketType<? extends Packet<T>> getPacketType();
 
-   void apply(T listener);
+	PacketType<? extends Packet<T>> getPacketType();
 
-   default boolean isWritingErrorSkippable() {
-      return false;
-   }
+	void apply(T listener);
 
-   default boolean transitionsNetworkState() {
-      return false;
-   }
+	default boolean isWritingErrorSkippable() {
+		return false;
+	}
 
-   static <B extends ByteBuf, T extends Packet<?>> PacketCodec<B, T> createCodec(ValueFirstEncoder<B, T> encoder, PacketDecoder<B, T> decoder) {
-      return PacketCodec.of(encoder, decoder);
-   }
+	default boolean transitionsNetworkState() {
+		return false;
+	}
+
+	static <B extends ByteBuf, T extends Packet<?>> PacketCodec<B, T> createCodec(
+			ValueFirstEncoder<B, T> encoder,
+			PacketDecoder<B, T> decoder
+	) {
+		return PacketCodec.of(encoder, decoder);
+	}
 }

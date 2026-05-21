@@ -7,46 +7,52 @@ import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * {@code Hoglin}.
+ */
 public interface Hoglin {
-   int field_30546 = 10;
-   float field_52501 = 0.2F;
 
-   int getMovementCooldownTicks();
+	int MIN_MOVEMENT_COOLDOWN = 10;
 
-   static boolean tryAttack(ServerWorld world, LivingEntity attacker, LivingEntity target) {
-      float f = (float)attacker.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
-      float g;
-      if (!attacker.isBaby() && (int)f > 0) {
-         g = f / 2.0F + world.random.nextInt((int)f);
-      } else {
-         g = f;
-      }
+	float BABY_SPAWN_CHANCE = 0.2F;
 
-      DamageSource damageSource = attacker.getDamageSources().mobAttack(attacker);
-      boolean bl = target.damage(world, damageSource, g);
-      if (bl) {
-         EnchantmentHelper.onTargetDamaged(world, target, damageSource);
-         if (!attacker.isBaby()) {
-            knockback(attacker, target);
-         }
-      }
+	int getMovementCooldownTicks();
 
-      return bl;
-   }
+	static boolean tryAttack(ServerWorld world, LivingEntity attacker, LivingEntity target) {
+		float f = (float) attacker.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
+		float g;
+		if (!attacker.isBaby() && (int) f > 0) {
+			g = f / 2.0F + world.random.nextInt((int) f);
+		}
+		else {
+			g = f;
+		}
 
-   static void knockback(LivingEntity attacker, LivingEntity target) {
-      double d = attacker.getAttributeValue(EntityAttributes.ATTACK_KNOCKBACK);
-      double e = target.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE);
-      double f = d - e;
-      if (!(f <= 0.0)) {
-         double g = target.getX() - attacker.getX();
-         double h = target.getZ() - attacker.getZ();
-         float i = attacker.getEntityWorld().random.nextInt(21) - 10;
-         double j = f * (attacker.getEntityWorld().random.nextFloat() * 0.5F + 0.2F);
-         Vec3d vec3d = new Vec3d(g, 0.0, h).normalize().multiply(j).rotateY(i);
-         double k = f * attacker.getEntityWorld().random.nextFloat() * 0.5;
-         target.addVelocity(vec3d.x, k, vec3d.z);
-         target.knockedBack = true;
-      }
-   }
+		DamageSource damageSource = attacker.getDamageSources().mobAttack(attacker);
+		boolean bl = target.damage(world, damageSource, g);
+		if (bl) {
+			EnchantmentHelper.onTargetDamaged(world, target, damageSource);
+			if (!attacker.isBaby()) {
+				knockback(attacker, target);
+			}
+		}
+
+		return bl;
+	}
+
+	static void knockback(LivingEntity attacker, LivingEntity target) {
+		double d = attacker.getAttributeValue(EntityAttributes.ATTACK_KNOCKBACK);
+		double e = target.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE);
+		double f = d - e;
+		if (!(f <= 0.0)) {
+			double g = target.getX() - attacker.getX();
+			double h = target.getZ() - attacker.getZ();
+			float i = attacker.getEntityWorld().random.nextInt(21) - 10;
+			double j = f * (attacker.getEntityWorld().random.nextFloat() * 0.5F + 0.2F);
+			Vec3d vec3d = new Vec3d(g, 0.0, h).normalize().multiply(j).rotateY(i);
+			double k = f * attacker.getEntityWorld().random.nextFloat() * 0.5;
+			target.addVelocity(vec3d.x, k, vec3d.z);
+			target.knockedBack = true;
+		}
+	}
 }

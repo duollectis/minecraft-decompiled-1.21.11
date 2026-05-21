@@ -23,69 +23,84 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code AbstractFurnaceBlock}.
+ */
 public abstract class AbstractFurnaceBlock extends BlockWithEntity {
-   public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
-   public static final BooleanProperty LIT = Properties.LIT;
 
-   protected AbstractFurnaceBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(LIT, false));
-   }
+	public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
+	public static final BooleanProperty LIT = Properties.LIT;
 
-   @Override
-   protected abstract MapCodec<? extends AbstractFurnaceBlock> getCodec();
+	protected AbstractFurnaceBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(LIT, false));
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient()) {
-         this.openScreen(world, pos, player);
-      }
+	@Override
+	protected abstract MapCodec<? extends AbstractFurnaceBlock> getCodec();
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient()) {
+			this.openScreen(world, pos, player);
+		}
 
-   protected abstract void openScreen(World world, BlockPos pos, PlayerEntity player);
+		return ActionResult.SUCCESS;
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
-   }
+	protected abstract void openScreen(World world, BlockPos pos, PlayerEntity player);
 
-   @Override
-   protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-      ItemScatterer.onStateReplaced(state, world, pos);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
+	}
 
-   @Override
-   protected boolean hasComparatorOutput(BlockState state) {
-      return true;
-   }
+	@Override
+	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+		ItemScatterer.onStateReplaced(state, world, pos);
+	}
 
-   @Override
-   protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-      return ScreenHandler.calculateComparatorOutput(world.getBlockEntity(pos));
-   }
+	@Override
+	protected boolean hasComparatorOutput(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(FACING, rotation.rotate(state.get(FACING)));
-   }
+	@Override
+	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
+		return ScreenHandler.calculateComparatorOutput(world.getBlockEntity(pos));
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.rotate(mirror.getRotation(state.get(FACING)));
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(FACING, rotation.rotate(state.get(FACING)));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(FACING, LIT);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.rotate(mirror.getRotation(state.get(FACING)));
+	}
 
-   protected static <T extends BlockEntity> @Nullable BlockEntityTicker<T> validateTicker(
-      World world, BlockEntityType<T> givenType, BlockEntityType<? extends AbstractFurnaceBlockEntity> expectedType
-   ) {
-      return world instanceof ServerWorld serverWorld
-         ? validateTicker(givenType, expectedType, (worldx, pos, state, blockEntity) -> AbstractFurnaceBlockEntity.tick(serverWorld, pos, state, blockEntity))
-         : null;
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(FACING, LIT);
+	}
+
+	protected static <T extends BlockEntity> @Nullable BlockEntityTicker<T> validateTicker(
+			World world,
+			BlockEntityType<T> givenType,
+			BlockEntityType<? extends AbstractFurnaceBlockEntity> expectedType
+	) {
+		return world instanceof ServerWorld serverWorld
+		       ? validateTicker(
+				givenType,
+				expectedType,
+				(worldx, pos, state, blockEntity) -> AbstractFurnaceBlockEntity.tick(
+						serverWorld,
+						pos,
+						state,
+						blockEntity
+				)
+		)
+		       : null;
+	}
 }

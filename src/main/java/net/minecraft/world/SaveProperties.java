@@ -1,8 +1,6 @@
 package net.minecraft.world;
 
 import com.mojang.serialization.Lifecycle;
-import java.util.Locale;
-import java.util.Set;
 import net.minecraft.entity.boss.dragon.EnderDragonFight;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.DynamicRegistryManager;
@@ -15,90 +13,100 @@ import net.minecraft.world.level.ServerWorldProperties;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Locale;
+import java.util.Set;
+
+/**
+ * {@code SaveProperties}.
+ */
 public interface SaveProperties {
-   int ANVIL_FORMAT_ID = 19133;
-   int MCREGION_FORMAT_ID = 19132;
 
-   DataConfiguration getDataConfiguration();
+	int ANVIL_FORMAT_ID = 19133;
 
-   void updateLevelInfo(DataConfiguration dataConfiguration);
+	int MCREGION_FORMAT_ID = 19132;
 
-   boolean isModded();
+	DataConfiguration getDataConfiguration();
 
-   Set<String> getServerBrands();
+	void updateLevelInfo(DataConfiguration dataConfiguration);
 
-   Set<String> getRemovedFeatures();
+	boolean isModded();
 
-   void addServerBrand(String brand, boolean modded);
+	Set<String> getServerBrands();
 
-   default void populateCrashReport(CrashReportSection section) {
-      section.add("Known server brands", () -> String.join(", ", this.getServerBrands()));
-      section.add("Removed feature flags", () -> String.join(", ", this.getRemovedFeatures()));
-      section.add("Level was modded", () -> Boolean.toString(this.isModded()));
-      section.add("Level storage version", () -> {
-         int i = this.getVersion();
-         return String.format(Locale.ROOT, "0x%05X - %s", i, this.getFormatName(i));
-      });
-   }
+	Set<String> getRemovedFeatures();
 
-   default String getFormatName(int id) {
-      switch (id) {
-         case 19132:
-            return "McRegion";
-         case 19133:
-            return "Anvil";
-         default:
-            return "Unknown?";
-      }
-   }
+	void addServerBrand(String brand, boolean modded);
 
-   @Nullable NbtCompound getCustomBossEvents();
+	default void populateCrashReport(CrashReportSection section) {
+		section.add("Known server brands", () -> String.join(", ", this.getServerBrands()));
+		section.add("Removed feature flags", () -> String.join(", ", this.getRemovedFeatures()));
+		section.add("Level was modded", () -> Boolean.toString(this.isModded()));
+		section.add(
+				"Level storage version", () -> {
+					int i = this.getVersion();
+					return String.format(Locale.ROOT, "0x%05X - %s", i, this.getFormatName(i));
+				}
+		);
+	}
 
-   void setCustomBossEvents(@Nullable NbtCompound customBossEvents);
+	default String getFormatName(int id) {
+		switch (id) {
+			case 19132:
+				return "McRegion";
+			case 19133:
+				return "Anvil";
+			default:
+				return "Unknown?";
+		}
+	}
 
-   ServerWorldProperties getMainWorldProperties();
+	@Nullable NbtCompound getCustomBossEvents();
 
-   LevelInfo getLevelInfo();
+	void setCustomBossEvents(@Nullable NbtCompound customBossEvents);
 
-   NbtCompound cloneWorldNbt(DynamicRegistryManager registryManager, @Nullable NbtCompound playerNbt);
+	ServerWorldProperties getMainWorldProperties();
 
-   boolean isHardcore();
+	LevelInfo getLevelInfo();
 
-   int getVersion();
+	NbtCompound cloneWorldNbt(DynamicRegistryManager registryManager, @Nullable NbtCompound playerNbt);
 
-   String getLevelName();
+	boolean isHardcore();
 
-   GameMode getGameMode();
+	int getVersion();
 
-   void setGameMode(GameMode gameMode);
+	String getLevelName();
 
-   boolean areCommandsAllowed();
+	GameMode getGameMode();
 
-   Difficulty getDifficulty();
+	void setGameMode(GameMode gameMode);
 
-   void setDifficulty(Difficulty difficulty);
+	boolean areCommandsAllowed();
 
-   boolean isDifficultyLocked();
+	Difficulty getDifficulty();
 
-   void setDifficultyLocked(boolean difficultyLocked);
+	void setDifficulty(Difficulty difficulty);
 
-   GameRules getGameRules();
+	boolean isDifficultyLocked();
 
-   @Nullable NbtCompound getPlayerData();
+	void setDifficultyLocked(boolean difficultyLocked);
 
-   EnderDragonFight.Data getDragonFight();
+	GameRules getGameRules();
 
-   void setDragonFight(EnderDragonFight.Data dragonFight);
+	@Nullable NbtCompound getPlayerData();
 
-   GeneratorOptions getGeneratorOptions();
+	EnderDragonFight.Data getDragonFight();
 
-   boolean isFlatWorld();
+	void setDragonFight(EnderDragonFight.Data dragonFight);
 
-   boolean isDebugWorld();
+	GeneratorOptions getGeneratorOptions();
 
-   Lifecycle getLifecycle();
+	boolean isFlatWorld();
 
-   default FeatureSet getEnabledFeatures() {
-      return this.getDataConfiguration().enabledFeatures();
-   }
+	boolean isDebugWorld();
+
+	Lifecycle getLifecycle();
+
+	default FeatureSet getEnabledFeatures() {
+		return this.getDataConfiguration().enabledFeatures();
+	}
 }

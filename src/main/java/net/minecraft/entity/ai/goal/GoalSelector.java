@@ -1,131 +1,141 @@
 package net.minecraft.entity.ai.goal;
 
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import net.minecraft.util.profiler.Profiler;
+import net.minecraft.util.profiler.Profilers;
+
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
-import net.minecraft.util.profiler.Profiler;
-import net.minecraft.util.profiler.Profilers;
 
+/**
+ * {@code GoalSelector}.
+ */
 public class GoalSelector {
-   private static final PrioritizedGoal REPLACEABLE_GOAL = new PrioritizedGoal(Integer.MAX_VALUE, new Goal() {
-      @Override
-      public boolean canStart() {
-         return false;
-      }
-   }) {
-      @Override
-      public boolean isRunning() {
-         return false;
-      }
-   };
-   private final Map<Goal.Control, PrioritizedGoal> goalsByControl = new EnumMap<>(Goal.Control.class);
-   private final Set<PrioritizedGoal> goals = new ObjectLinkedOpenHashSet();
-   private final EnumSet<Goal.Control> disabledControls = EnumSet.noneOf(Goal.Control.class);
 
-   public void add(int priority, Goal goal) {
-      this.goals.add(new PrioritizedGoal(priority, goal));
-   }
+	private static final PrioritizedGoal REPLACEABLE_GOAL = new PrioritizedGoal(
+			Integer.MAX_VALUE, new Goal() {
+		@Override
+		public boolean canStart() {
+			return false;
+		}
+	}
+	) {
+		@Override
+		public boolean isRunning() {
+			return false;
+		}
+	};
+	private final Map<Goal.Control, PrioritizedGoal> goalsByControl = new EnumMap<>(Goal.Control.class);
+	private final Set<PrioritizedGoal> goals = new ObjectLinkedOpenHashSet();
+	private final EnumSet<Goal.Control> disabledControls = EnumSet.noneOf(Goal.Control.class);
 
-   public void clear(Predicate<Goal> predicate) {
-      this.goals.removeIf(goal -> predicate.test(goal.getGoal()));
-   }
+	public void add(int priority, Goal goal) {
+		this.goals.add(new PrioritizedGoal(priority, goal));
+	}
 
-   public void remove(Goal goal) {
-      for (PrioritizedGoal prioritizedGoal : this.goals) {
-         if (prioritizedGoal.getGoal() == goal && prioritizedGoal.isRunning()) {
-            prioritizedGoal.stop();
-         }
-      }
+	public void clear(Predicate<Goal> predicate) {
+		this.goals.removeIf(goal -> predicate.test(goal.getGoal()));
+	}
 
-      this.goals.removeIf(prioritizedGoalx -> prioritizedGoalx.getGoal() == goal);
-   }
+	public void remove(Goal goal) {
+		for (PrioritizedGoal prioritizedGoal : this.goals) {
+			if (prioritizedGoal.getGoal() == goal && prioritizedGoal.isRunning()) {
+				prioritizedGoal.stop();
+			}
+		}
 
-   private static boolean usesAny(PrioritizedGoal goal, EnumSet<Goal.Control> controls) {
-      for (Goal.Control control : goal.getControls()) {
-         if (controls.contains(control)) {
-            return true;
-         }
-      }
+		this.goals.removeIf(prioritizedGoalx -> prioritizedGoalx.getGoal() == goal);
+	}
 
-      return false;
-   }
+	private static boolean usesAny(PrioritizedGoal goal, EnumSet<Goal.Control> controls) {
+		for (Goal.Control control : goal.getControls()) {
+			if (controls.contains(control)) {
+				return true;
+			}
+		}
 
-   private static boolean canReplaceAll(PrioritizedGoal goal, Map<Goal.Control, PrioritizedGoal> goalsByControl) {
-      for (Goal.Control control : goal.getControls()) {
-         if (!goalsByControl.getOrDefault(control, REPLACEABLE_GOAL).canBeReplacedBy(goal)) {
-            return false;
-         }
-      }
+		return false;
+	}
 
-      return true;
-   }
+	private static boolean canReplaceAll(PrioritizedGoal goal, Map<Goal.Control, PrioritizedGoal> goalsByControl) {
+		for (Goal.Control control : goal.getControls()) {
+			if (!goalsByControl.getOrDefault(control, REPLACEABLE_GOAL).canBeReplacedBy(goal)) {
+				return false;
+			}
+		}
 
-   public void tick() {
-      Profiler profiler = Profilers.get();
-      profiler.push("goalCleanup");
+		return true;
+	}
 
-      for (PrioritizedGoal prioritizedGoal : this.goals) {
-         if (prioritizedGoal.isRunning() && (usesAny(prioritizedGoal, this.disabledControls) || !prioritizedGoal.shouldContinue())) {
-            prioritizedGoal.stop();
-         }
-      }
+	public void tick() {
+		Profiler profiler = Profilers.get();
+		profiler.push("goalCleanup");
 
-      this.goalsByControl.entrySet().removeIf(entry -> !entry.getValue().isRunning());
-      profiler.pop();
-      profiler.push("goalUpdate");
+		for (PrioritizedGoal prioritizedGoal : this.goals) {
+			if (prioritizedGoal.isRunning() && (usesAny(prioritizedGoal, this.disabledControls)
+					|| !prioritizedGoal.shouldContinue()
+			)) {
+				prioritizedGoal.stop();
+			}
+		}
 
-      for (PrioritizedGoal prioritizedGoalx : this.goals) {
-         if (!prioritizedGoalx.isRunning()
-            && !usesAny(prioritizedGoalx, this.disabledControls)
-            && canReplaceAll(prioritizedGoalx, this.goalsByControl)
-            && prioritizedGoalx.canStart()) {
-            for (Goal.Control control : prioritizedGoalx.getControls()) {
-               PrioritizedGoal prioritizedGoal2 = this.goalsByControl.getOrDefault(control, REPLACEABLE_GOAL);
-               prioritizedGoal2.stop();
-               this.goalsByControl.put(control, prioritizedGoalx);
-            }
+		this.goalsByControl.entrySet().removeIf(entry -> !entry.getValue().isRunning());
+		profiler.pop();
+		profiler.push("goalUpdate");
 
-            prioritizedGoalx.start();
-         }
-      }
+		for (PrioritizedGoal prioritizedGoalx : this.goals) {
+			if (!prioritizedGoalx.isRunning()
+					&& !usesAny(prioritizedGoalx, this.disabledControls)
+					&& canReplaceAll(prioritizedGoalx, this.goalsByControl)
+					&& prioritizedGoalx.canStart()) {
+				for (Goal.Control control : prioritizedGoalx.getControls()) {
+					PrioritizedGoal prioritizedGoal2 = this.goalsByControl.getOrDefault(control, REPLACEABLE_GOAL);
+					prioritizedGoal2.stop();
+					this.goalsByControl.put(control, prioritizedGoalx);
+				}
 
-      profiler.pop();
-      this.tickGoals(true);
-   }
+				prioritizedGoalx.start();
+			}
+		}
 
-   public void tickGoals(boolean tickAll) {
-      Profiler profiler = Profilers.get();
-      profiler.push("goalTick");
+		profiler.pop();
+		this.tickGoals(true);
+	}
 
-      for (PrioritizedGoal prioritizedGoal : this.goals) {
-         if (prioritizedGoal.isRunning() && (tickAll || prioritizedGoal.shouldRunEveryTick())) {
-            prioritizedGoal.tick();
-         }
-      }
+	public void tickGoals(boolean tickAll) {
+		Profiler profiler = Profilers.get();
+		profiler.push("goalTick");
 
-      profiler.pop();
-   }
+		for (PrioritizedGoal prioritizedGoal : this.goals) {
+			if (prioritizedGoal.isRunning() && (tickAll || prioritizedGoal.shouldRunEveryTick())) {
+				prioritizedGoal.tick();
+			}
+		}
 
-   public Set<PrioritizedGoal> getGoals() {
-      return this.goals;
-   }
+		profiler.pop();
+	}
 
-   public void disableControl(Goal.Control control) {
-      this.disabledControls.add(control);
-   }
+	public Set<PrioritizedGoal> getGoals() {
+		return this.goals;
+	}
 
-   public void enableControl(Goal.Control control) {
-      this.disabledControls.remove(control);
-   }
+	public void disableControl(Goal.Control control) {
+		this.disabledControls.add(control);
+	}
 
-   public void setControlEnabled(Goal.Control control, boolean enabled) {
-      if (enabled) {
-         this.enableControl(control);
-      } else {
-         this.disableControl(control);
-      }
-   }
+	public void enableControl(Goal.Control control) {
+		this.disabledControls.remove(control);
+	}
+
+	public void setControlEnabled(Goal.Control control, boolean enabled) {
+		if (enabled) {
+			this.enableControl(control);
+		}
+		else {
+			this.disableControl(control);
+		}
+	}
 }

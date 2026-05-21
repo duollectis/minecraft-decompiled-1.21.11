@@ -1,18 +1,22 @@
 package net.minecraft.util.packrat;
 
+/**
+ * {@code Cut}.
+ */
 public interface Cut {
-   Cut NOOP = new Cut() {
-      @Override
-      public void cut() {
-      }
 
-      @Override
-      public boolean isCut() {
-         return false;
-      }
-   };
+	Cut NOOP = new Cut() {
+		@Override
+		public void cut() {
+		}
 
-   void cut();
+		@Override
+		public boolean isCut() {
+			return false;
+		}
+	};
 
-   boolean isCut();
+	void cut();
+
+	boolean isCut();
 }

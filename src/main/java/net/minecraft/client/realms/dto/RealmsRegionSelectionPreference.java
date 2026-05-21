@@ -8,21 +8,30 @@ import net.minecraft.client.realms.RealmsSerializable;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsRegionSelectionPreference}.
+ */
 public class RealmsRegionSelectionPreference implements RealmsSerializable {
-   public static final RealmsRegionSelectionPreference DEFAULT = new RealmsRegionSelectionPreference(RegionSelectionMethod.AUTOMATIC_OWNER, null);
-   @SerializedName("regionSelectionPreference")
-   @JsonAdapter(RegionSelectionMethod.SelectionMethodTypeAdapter.class)
-   public final RegionSelectionMethod selectionMethod;
-   @SerializedName("preferredRegion")
-   @JsonAdapter(RealmsRegion.RegionTypeAdapter.class)
-   public @Nullable RealmsRegion preferredRegion;
 
-   public RealmsRegionSelectionPreference(RegionSelectionMethod regionSelectionMethod, @Nullable RealmsRegion realmsRegion) {
-      this.selectionMethod = regionSelectionMethod;
-      this.preferredRegion = realmsRegion;
-   }
+	public static final RealmsRegionSelectionPreference
+			DEFAULT =
+			new RealmsRegionSelectionPreference(RegionSelectionMethod.AUTOMATIC_OWNER, null);
+	@SerializedName("regionSelectionPreference")
+	@JsonAdapter(RegionSelectionMethod.SelectionMethodTypeAdapter.class)
+	public final RegionSelectionMethod selectionMethod;
+	@SerializedName("preferredRegion")
+	@JsonAdapter(RealmsRegion.RegionTypeAdapter.class)
+	public @Nullable RealmsRegion preferredRegion;
 
-   public RealmsRegionSelectionPreference method_71188() {
-      return new RealmsRegionSelectionPreference(this.selectionMethod, this.preferredRegion);
-   }
+	public RealmsRegionSelectionPreference(
+			RegionSelectionMethod regionSelectionMethod,
+			@Nullable RealmsRegion realmsRegion
+	) {
+		this.selectionMethod = regionSelectionMethod;
+		this.preferredRegion = realmsRegion;
+	}
+
+	public RealmsRegionSelectionPreference copy() {
+		return new RealmsRegionSelectionPreference(this.selectionMethod, this.preferredRegion);
+	}
 }

@@ -2,34 +2,43 @@ package net.minecraft.dialog.type;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.Optional;
 import net.minecraft.dialog.DialogActionButtonData;
 import net.minecraft.dialog.DialogCommonData;
 import net.minecraft.dialog.action.DialogAction;
 
-public record ConfirmationDialog(DialogCommonData common, DialogActionButtonData yesButton, DialogActionButtonData noButton) implements SimpleDialog {
-   public static final MapCodec<ConfirmationDialog> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            DialogCommonData.CODEC.forGetter(ConfirmationDialog::common),
-            DialogActionButtonData.CODEC.fieldOf("yes").forGetter(ConfirmationDialog::yesButton),
-            DialogActionButtonData.CODEC.fieldOf("no").forGetter(ConfirmationDialog::noButton)
-         )
-         .apply(instance, ConfirmationDialog::new)
-   );
+import java.util.List;
+import java.util.Optional;
 
-   @Override
-   public MapCodec<ConfirmationDialog> getCodec() {
-      return CODEC;
-   }
+/**
+ * {@code ConfirmationDialog}.
+ */
+public record ConfirmationDialog(
+		DialogCommonData common,
+		DialogActionButtonData yesButton,
+		DialogActionButtonData noButton
+) implements SimpleDialog {
 
-   @Override
-   public Optional<DialogAction> getCancelAction() {
-      return this.noButton.action();
-   }
+	public static final MapCodec<ConfirmationDialog> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    DialogCommonData.CODEC.forGetter(ConfirmationDialog::common),
+					                    DialogActionButtonData.CODEC.fieldOf("yes").forGetter(ConfirmationDialog::yesButton),
+					                    DialogActionButtonData.CODEC.fieldOf("no").forGetter(ConfirmationDialog::noButton)
+			                    )
+			                    .apply(instance, ConfirmationDialog::new)
+	);
 
-   @Override
-   public List<DialogActionButtonData> getButtons() {
-      return List.of(this.yesButton, this.noButton);
-   }
+	@Override
+	public MapCodec<ConfirmationDialog> getCodec() {
+		return CODEC;
+	}
+
+	@Override
+	public Optional<DialogAction> getCancelAction() {
+		return this.noButton.action();
+	}
+
+	@Override
+	public List<DialogActionButtonData> getButtons() {
+		return List.of(this.yesButton, this.noButton);
+	}
 }

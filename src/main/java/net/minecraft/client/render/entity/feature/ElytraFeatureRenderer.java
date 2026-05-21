@@ -20,56 +20,71 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ElytraFeatureRenderer}.
+ */
 public class ElytraFeatureRenderer<S extends BipedEntityRenderState, M extends EntityModel<S>> extends FeatureRenderer<S, M> {
-   private final ElytraEntityModel model;
-   private final ElytraEntityModel babyModel;
-   private final EquipmentRenderer equipmentRenderer;
 
-   public ElytraFeatureRenderer(FeatureRendererContext<S, M> context, LoadedEntityModels loader, EquipmentRenderer equipmentRenderer) {
-      super(context);
-      this.model = new ElytraEntityModel(loader.getModelPart(EntityModelLayers.ELYTRA));
-      this.babyModel = new ElytraEntityModel(loader.getModelPart(EntityModelLayers.ELYTRA_BABY));
-      this.equipmentRenderer = equipmentRenderer;
-   }
+	private final ElytraEntityModel model;
+	private final ElytraEntityModel babyModel;
+	private final EquipmentRenderer equipmentRenderer;
 
-   public void render(MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, S bipedEntityRenderState, float f, float g) {
-      ItemStack itemStack = bipedEntityRenderState.equippedChestStack;
-      EquippableComponent equippableComponent = itemStack.get(DataComponentTypes.EQUIPPABLE);
-      if (equippableComponent != null && !equippableComponent.assetId().isEmpty()) {
-         Identifier identifier = getTexture(bipedEntityRenderState);
-         ElytraEntityModel elytraEntityModel = bipedEntityRenderState.baby ? this.babyModel : this.model;
-         matrixStack.push();
-         matrixStack.translate(0.0F, 0.0F, 0.125F);
-         this.equipmentRenderer
-            .render(
-               EquipmentModel.LayerType.WINGS,
-               equippableComponent.assetId().get(),
-               elytraEntityModel,
-               bipedEntityRenderState,
-               itemStack,
-               matrixStack,
-               orderedRenderCommandQueue,
-               i,
-               identifier,
-               bipedEntityRenderState.outlineColor,
-               0
-            );
-         matrixStack.pop();
-      }
-   }
+	public ElytraFeatureRenderer(
+			FeatureRendererContext<S, M> context,
+			LoadedEntityModels loader,
+			EquipmentRenderer equipmentRenderer
+	) {
+		super(context);
+		this.model = new ElytraEntityModel(loader.getModelPart(EntityModelLayers.ELYTRA));
+		this.babyModel = new ElytraEntityModel(loader.getModelPart(EntityModelLayers.ELYTRA_BABY));
+		this.equipmentRenderer = equipmentRenderer;
+	}
 
-   private static @Nullable Identifier getTexture(BipedEntityRenderState state) {
-      if (state instanceof PlayerEntityRenderState playerEntityRenderState) {
-         SkinTextures skinTextures = playerEntityRenderState.skinTextures;
-         if (skinTextures.elytra() != null) {
-            return skinTextures.elytra().texturePath();
-         }
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			S bipedEntityRenderState,
+			float f,
+			float g
+	) {
+		ItemStack itemStack = bipedEntityRenderState.equippedChestStack;
+		EquippableComponent equippableComponent = itemStack.get(DataComponentTypes.EQUIPPABLE);
+		if (equippableComponent != null && !equippableComponent.assetId().isEmpty()) {
+			Identifier identifier = getTexture(bipedEntityRenderState);
+			ElytraEntityModel elytraEntityModel = bipedEntityRenderState.baby ? this.babyModel : this.model;
+			matrixStack.push();
+			matrixStack.translate(0.0F, 0.0F, 0.125F);
+			this.equipmentRenderer
+					.render(
+							EquipmentModel.LayerType.WINGS,
+							equippableComponent.assetId().get(),
+							elytraEntityModel,
+							bipedEntityRenderState,
+							itemStack,
+							matrixStack,
+							orderedRenderCommandQueue,
+							i,
+							identifier,
+							bipedEntityRenderState.outlineColor,
+							0
+					);
+			matrixStack.pop();
+		}
+	}
 
-         if (skinTextures.cape() != null && playerEntityRenderState.capeVisible) {
-            return skinTextures.cape().texturePath();
-         }
-      }
+	private static @Nullable Identifier getTexture(BipedEntityRenderState state) {
+		if (state instanceof PlayerEntityRenderState playerEntityRenderState) {
+			SkinTextures skinTextures = playerEntityRenderState.skinTextures;
+			if (skinTextures.elytra() != null) {
+				return skinTextures.elytra().texturePath();
+			}
 
-      return null;
-   }
+			if (skinTextures.cape() != null && playerEntityRenderState.capeVisible) {
+				return skinTextures.cape().texturePath();
+			}
+		}
+
+		return null;
+	}
 }

@@ -7,18 +7,25 @@ import net.minecraft.util.math.Vec3i;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.StructureWorldAccess;
 
+/**
+ * {@code UnobstructedBlockPredicate}.
+ */
 record UnobstructedBlockPredicate(Vec3i offset) implements BlockPredicate {
-   public static MapCodec<UnobstructedBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Vec3i.CODEC.optionalFieldOf("offset", Vec3i.ZERO).forGetter(UnobstructedBlockPredicate::offset))
-         .apply(instance, UnobstructedBlockPredicate::new)
-   );
 
-   @Override
-   public BlockPredicateType<?> getType() {
-      return BlockPredicateType.UNOBSTRUCTED;
-   }
+	public static MapCodec<UnobstructedBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Vec3i.CODEC
+							.optionalFieldOf("offset", Vec3i.ZERO)
+							.forGetter(UnobstructedBlockPredicate::offset))
+					.apply(instance, UnobstructedBlockPredicate::new)
+	);
 
-   public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
-      return structureWorldAccess.doesNotIntersectEntities(null, VoxelShapes.fullCube().offset(blockPos));
-   }
+	@Override
+	public BlockPredicateType<?> getType() {
+		return BlockPredicateType.UNOBSTRUCTED;
+	}
+
+	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
+		return structureWorldAccess.doesNotIntersectEntities(null, VoxelShapes.fullCube().offset(blockPos));
+	}
 }

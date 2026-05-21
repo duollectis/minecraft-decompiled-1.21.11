@@ -9,65 +9,79 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code HappyGhastRidingSoundInstance}.
+ */
 public class HappyGhastRidingSoundInstance extends MovingSoundInstance {
-   private final PlayerEntity player;
-   private final Entity field_63920;
-   private final boolean field_63921;
-   private final float field_63922;
-   private final float field_63923;
-   private final float field_63924;
 
-   public HappyGhastRidingSoundInstance(
-      PlayerEntity player, Entity entity, boolean bl, SoundEvent soundEvent, SoundCategory soundCategory, float f, float g, float h
-   ) {
-      super(soundEvent, soundCategory, SoundInstance.createRandom());
-      this.player = player;
-      this.field_63920 = entity;
-      this.field_63921 = bl;
-      this.field_63922 = f;
-      this.field_63923 = g;
-      this.field_63924 = h;
-      this.attenuationType = SoundInstance.AttenuationType.NONE;
-      this.repeat = true;
-      this.repeatDelay = 0;
-      this.volume = f;
-   }
+	private final PlayerEntity player;
+	private final Entity vehicle;
+	private final boolean wasSubmerged;
+	private final float minVolume;
+	private final float maxVolume;
+	private final float volumeMultiplier;
 
-   @Override
-   public boolean canPlay() {
-      return !this.field_63920.isSilent();
-   }
+	public HappyGhastRidingSoundInstance(
+			PlayerEntity player,
+			Entity entity,
+			boolean bl,
+			SoundEvent soundEvent,
+			SoundCategory soundCategory,
+			float f,
+			float g,
+			float h
+	) {
+		super(soundEvent, soundCategory, SoundInstance.createRandom());
+		this.player = player;
+		this.vehicle = entity;
+		this.wasSubmerged = bl;
+		this.minVolume = f;
+		this.maxVolume = g;
+		this.volumeMultiplier = h;
+		this.attenuationType = SoundInstance.AttenuationType.NONE;
+		this.repeat = true;
+		this.repeatDelay = 0;
+		this.volume = f;
+	}
 
-   @Override
-   public boolean shouldAlwaysPlay() {
-      return true;
-   }
+	@Override
+	public boolean canPlay() {
+		return !this.vehicle.isSilent();
+	}
 
-   protected boolean method_75841() {
-      return this.field_63921 != this.field_63920.isSubmergedInWater();
-   }
+	@Override
+	public boolean shouldAlwaysPlay() {
+		return true;
+	}
 
-   protected float method_75842() {
-      return (float)this.field_63920.getVelocity().length();
-   }
+	protected boolean shouldSwitchToMinVolume() {
+		return this.wasSubmerged != this.vehicle.isSubmergedInWater();
+	}
 
-   protected boolean method_75843() {
-      return true;
-   }
+	protected float getVehicleSpeed() {
+		return (float) this.vehicle.getVelocity().length();
+	}
 
-   @Override
-   public void tick() {
-      if (this.field_63920.isRemoved() || !this.player.hasVehicle() || this.player.getVehicle() != this.field_63920) {
-         this.setDone();
-      } else if (this.method_75841()) {
-         this.volume = this.field_63922;
-      } else {
-         float f = this.method_75842();
-         if (f >= 0.01F && this.method_75843()) {
-            this.volume = this.field_63924 * MathHelper.clampedLerp(f, this.field_63922, this.field_63923);
-         } else {
-            this.volume = this.field_63922;
-         }
-      }
-   }
+	protected boolean isVolumeScalingEnabled() {
+		return true;
+	}
+
+	@Override
+	public void tick() {
+		if (this.vehicle.isRemoved() || !this.player.hasVehicle() || this.player.getVehicle() != this.vehicle) {
+			this.setDone();
+		}
+		else if (this.shouldSwitchToMinVolume()) {
+			this.volume = this.minVolume;
+		}
+		else {
+			float f = this.getVehicleSpeed();
+			if (f >= 0.01F && this.isVolumeScalingEnabled()) {
+				this.volume = this.volumeMultiplier * MathHelper.clampedLerp(f, this.minVolume, this.maxVolume);
+			}
+			else {
+				this.volume = this.minVolume;
+			}
+		}
+	}
 }

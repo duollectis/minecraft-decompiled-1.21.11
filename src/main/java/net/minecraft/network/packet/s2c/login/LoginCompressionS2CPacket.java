@@ -8,33 +8,34 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public class LoginCompressionS2CPacket implements Packet<ClientLoginPacketListener> {
-   public static final PacketCodec<PacketByteBuf, LoginCompressionS2CPacket> CODEC = Packet.createCodec(
-      LoginCompressionS2CPacket::write, LoginCompressionS2CPacket::new
-   );
-   private final int compressionThreshold;
 
-   public LoginCompressionS2CPacket(int compressionThreshold) {
-      this.compressionThreshold = compressionThreshold;
-   }
+	public static final PacketCodec<PacketByteBuf, LoginCompressionS2CPacket> CODEC = Packet.createCodec(
+			LoginCompressionS2CPacket::write, LoginCompressionS2CPacket::new
+	);
+	private final int compressionThreshold;
 
-   private LoginCompressionS2CPacket(PacketByteBuf buf) {
-      this.compressionThreshold = buf.readVarInt();
-   }
+	public LoginCompressionS2CPacket(int compressionThreshold) {
+		this.compressionThreshold = compressionThreshold;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.compressionThreshold);
-   }
+	private LoginCompressionS2CPacket(PacketByteBuf buf) {
+		this.compressionThreshold = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<LoginCompressionS2CPacket> getPacketType() {
-      return LoginPackets.LOGIN_COMPRESSION;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.compressionThreshold);
+	}
 
-   public void apply(ClientLoginPacketListener clientLoginPacketListener) {
-      clientLoginPacketListener.onCompression(this);
-   }
+	@Override
+	public PacketType<LoginCompressionS2CPacket> getPacketType() {
+		return LoginPackets.LOGIN_COMPRESSION;
+	}
 
-   public int getCompressionThreshold() {
-      return this.compressionThreshold;
-   }
+	public void apply(ClientLoginPacketListener clientLoginPacketListener) {
+		clientLoginPacketListener.onCompression(this);
+	}
+
+	public int getCompressionThreshold() {
+		return this.compressionThreshold;
+	}
 }

@@ -5,45 +5,49 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * {@code DataStreamHelper}.
+ */
 public class DataStreamHelper {
-   private final ByteArrayOutputStream byteArrayOutputStream;
-   private final DataOutputStream dataOutputStream;
 
-   public DataStreamHelper(int size) {
-      this.byteArrayOutputStream = new ByteArrayOutputStream(size);
-      this.dataOutputStream = new DataOutputStream(this.byteArrayOutputStream);
-   }
+	private final ByteArrayOutputStream byteArrayOutputStream;
+	private final DataOutputStream dataOutputStream;
 
-   public void write(byte[] values) throws IOException {
-      this.dataOutputStream.write(values, 0, values.length);
-   }
+	public DataStreamHelper(int size) {
+		this.byteArrayOutputStream = new ByteArrayOutputStream(size);
+		this.dataOutputStream = new DataOutputStream(this.byteArrayOutputStream);
+	}
 
-   public void writeBytes(String value) throws IOException {
-      this.dataOutputStream.write(value.getBytes(StandardCharsets.UTF_8));
-      this.dataOutputStream.write(0);
-   }
+	public void write(byte[] values) throws IOException {
+		this.dataOutputStream.write(values, 0, values.length);
+	}
 
-   public void write(int value) throws IOException {
-      this.dataOutputStream.write(value);
-   }
+	public void writeBytes(String value) throws IOException {
+		this.dataOutputStream.write(value.getBytes(StandardCharsets.UTF_8));
+		this.dataOutputStream.write(0);
+	}
 
-   public void writeShort(short value) throws IOException {
-      this.dataOutputStream.writeShort(Short.reverseBytes(value));
-   }
+	public void write(int value) throws IOException {
+		this.dataOutputStream.write(value);
+	}
 
-   public void writeInt(int value) throws IOException {
-      this.dataOutputStream.writeInt(Integer.reverseBytes(value));
-   }
+	public void writeShort(short value) throws IOException {
+		this.dataOutputStream.writeShort(Short.reverseBytes(value));
+	}
 
-   public void writeFloat(float value) throws IOException {
-      this.dataOutputStream.writeInt(Integer.reverseBytes(Float.floatToIntBits(value)));
-   }
+	public void writeInt(int value) throws IOException {
+		this.dataOutputStream.writeInt(Integer.reverseBytes(value));
+	}
 
-   public byte[] bytes() {
-      return this.byteArrayOutputStream.toByteArray();
-   }
+	public void writeFloat(float value) throws IOException {
+		this.dataOutputStream.writeInt(Integer.reverseBytes(Float.floatToIntBits(value)));
+	}
 
-   public void reset() {
-      this.byteArrayOutputStream.reset();
-   }
+	public byte[] bytes() {
+		return this.byteArrayOutputStream.toByteArray();
+	}
+
+	public void reset() {
+		this.byteArrayOutputStream.reset();
+	}
 }

@@ -7,9 +7,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
 import net.minecraft.nbt.NbtOps;
@@ -24,64 +21,85 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * {@code ParticleEffectArgumentType}.
+ */
 public class ParticleEffectArgumentType implements ArgumentType<ParticleEffect> {
-   private static final Collection<String> EXAMPLES = Arrays.asList("foo", "foo:bar", "particle{foo:bar}");
-   public static final DynamicCommandExceptionType UNKNOWN_PARTICLE_EXCEPTION = new DynamicCommandExceptionType(
-      id -> Text.stringifiedTranslatable("particle.notFound", id)
-   );
-   public static final DynamicCommandExceptionType INVALID_OPTIONS_EXCEPTION = new DynamicCommandExceptionType(
-      error -> Text.stringifiedTranslatable("particle.invalidOptions", error)
-   );
-   private final RegistryWrapper.WrapperLookup registries;
-   private static final StringNbtReader<?> SNBT_READER = StringNbtReader.fromOps(NbtOps.INSTANCE);
 
-   public ParticleEffectArgumentType(CommandRegistryAccess registryAccess) {
-      this.registries = registryAccess;
-   }
+	private static final Collection<String> EXAMPLES = Arrays.asList("foo", "foo:bar", "particle{foo:bar}");
+	public static final DynamicCommandExceptionType UNKNOWN_PARTICLE_EXCEPTION = new DynamicCommandExceptionType(
+			id -> Text.stringifiedTranslatable("particle.notFound", id)
+	);
+	public static final DynamicCommandExceptionType INVALID_OPTIONS_EXCEPTION = new DynamicCommandExceptionType(
+			error -> Text.stringifiedTranslatable("particle.invalidOptions", error)
+	);
+	private final RegistryWrapper.WrapperLookup registries;
+	private static final StringNbtReader<?> SNBT_READER = StringNbtReader.fromOps(NbtOps.INSTANCE);
 
-   public static ParticleEffectArgumentType particleEffect(CommandRegistryAccess registryAccess) {
-      return new ParticleEffectArgumentType(registryAccess);
-   }
+	public ParticleEffectArgumentType(CommandRegistryAccess registryAccess) {
+		this.registries = registryAccess;
+	}
 
-   public static ParticleEffect getParticle(CommandContext<ServerCommandSource> context, String name) {
-      return (ParticleEffect)context.getArgument(name, ParticleEffect.class);
-   }
+	public static ParticleEffectArgumentType particleEffect(CommandRegistryAccess registryAccess) {
+		return new ParticleEffectArgumentType(registryAccess);
+	}
 
-   public ParticleEffect parse(StringReader stringReader) throws CommandSyntaxException {
-      return readParameters(stringReader, this.registries);
-   }
+	public static ParticleEffect getParticle(CommandContext<ServerCommandSource> context, String name) {
+		return (ParticleEffect) context.getArgument(name, ParticleEffect.class);
+	}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+	public ParticleEffect parse(StringReader stringReader) throws CommandSyntaxException {
+		return readParameters(stringReader, this.registries);
+	}
 
-   public static ParticleEffect readParameters(StringReader reader, RegistryWrapper.WrapperLookup registries) throws CommandSyntaxException {
-      ParticleType<?> particleType = getType(reader, registries.getOrThrow(RegistryKeys.PARTICLE_TYPE));
-      return readParameters(SNBT_READER, reader, (ParticleType<ParticleEffect>)particleType, registries);
-   }
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 
-   private static ParticleType<?> getType(StringReader reader, RegistryWrapper<ParticleType<?>> registryWrapper) throws CommandSyntaxException {
-      Identifier identifier = Identifier.fromCommandInput(reader);
-      RegistryKey<ParticleType<?>> registryKey = RegistryKey.of(RegistryKeys.PARTICLE_TYPE, identifier);
-      return registryWrapper.getOptional(registryKey).orElseThrow(() -> UNKNOWN_PARTICLE_EXCEPTION.createWithContext(reader, identifier)).value();
-   }
+	public static ParticleEffect readParameters(StringReader reader, RegistryWrapper.WrapperLookup registries)
+	throws CommandSyntaxException {
+		ParticleType<?> particleType = getType(reader, registries.getOrThrow(RegistryKeys.PARTICLE_TYPE));
+		return readParameters(SNBT_READER, reader, (ParticleType<ParticleEffect>) particleType, registries);
+	}
 
-   private static <T extends ParticleEffect, O> T readParameters(
-      StringNbtReader<O> snbtReader, StringReader reader, ParticleType<T> particleType, RegistryWrapper.WrapperLookup registries
-   ) throws CommandSyntaxException {
-      RegistryOps<O> registryOps = registries.getOps(snbtReader.getOps());
-      O object;
-      if (reader.canRead() && reader.peek() == '{') {
-         object = snbtReader.readAsArgument(reader);
-      } else {
-         object = registryOps.emptyMap();
-      }
+	private static ParticleType<?> getType(StringReader reader, RegistryWrapper<ParticleType<?>> registryWrapper)
+	throws CommandSyntaxException {
+		Identifier identifier = Identifier.fromCommandInput(reader);
+		RegistryKey<ParticleType<?>> registryKey = RegistryKey.of(RegistryKeys.PARTICLE_TYPE, identifier);
+		return registryWrapper
+				.getOptional(registryKey)
+				.orElseThrow(() -> UNKNOWN_PARTICLE_EXCEPTION.createWithContext(reader, identifier))
+				.value();
+	}
 
-      return (T)particleType.getCodec().codec().parse(registryOps, object).getOrThrow(INVALID_OPTIONS_EXCEPTION::create);
-   }
+	private static <T extends ParticleEffect, O> T readParameters(
+			StringNbtReader<O> snbtReader,
+			StringReader reader,
+			ParticleType<T> particleType,
+			RegistryWrapper.WrapperLookup registries
+	) throws CommandSyntaxException {
+		RegistryOps<O> registryOps = registries.getOps(snbtReader.getOps());
+		O object;
+		if (reader.canRead() && reader.peek() == '{') {
+			object = snbtReader.readAsArgument(reader);
+		}
+		else {
+			object = registryOps.emptyMap();
+		}
 
-   public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-      RegistryWrapper.Impl<ParticleType<?>> impl = this.registries.getOrThrow(RegistryKeys.PARTICLE_TYPE);
-      return CommandSource.suggestIdentifiers(impl.streamKeys().map(RegistryKey::getValue), builder);
-   }
+		return (T) particleType
+				.getCodec()
+				.codec()
+				.parse(registryOps, object)
+				.getOrThrow(INVALID_OPTIONS_EXCEPTION::create);
+	}
+
+	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
+		RegistryWrapper.Impl<ParticleType<?>> impl = this.registries.getOrThrow(RegistryKeys.PARTICLE_TYPE);
+		return CommandSource.suggestIdentifiers(impl.streamKeys().map(RegistryKey::getValue), builder);
+	}
 }

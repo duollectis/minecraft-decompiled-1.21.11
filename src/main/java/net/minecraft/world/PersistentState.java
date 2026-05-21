@@ -1,17 +1,21 @@
 package net.minecraft.world;
 
+/**
+ * {@code PersistentState}.
+ */
 public abstract class PersistentState {
-   private boolean dirty;
 
-   public void markDirty() {
-      this.setDirty(true);
-   }
+	private boolean dirty;
 
-   public void setDirty(boolean dirty) {
-      this.dirty = dirty;
-   }
+	public void markDirty() {
+		this.setDirty(true);
+	}
 
-   public boolean isDirty() {
-      return this.dirty;
-   }
+	public void setDirty(boolean dirty) {
+		this.dirty = dirty;
+	}
+
+	public boolean isDirty() {
+		return this.dirty;
+	}
 }

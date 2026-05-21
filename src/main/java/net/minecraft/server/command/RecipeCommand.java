@@ -5,8 +5,6 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
-import java.util.Collection;
-import java.util.Collections;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.RegistryKeyArgumentType;
 import net.minecraft.recipe.RecipeEntry;
@@ -14,110 +12,196 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
+import java.util.Collection;
+import java.util.Collections;
+
+/**
+ * {@code RecipeCommand}.
+ */
 public class RecipeCommand {
-   private static final SimpleCommandExceptionType GIVE_FAILED_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.recipe.give.failed"));
-   private static final SimpleCommandExceptionType TAKE_FAILED_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.recipe.take.failed"));
 
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("recipe")
-                  .requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK)))
-               .then(
-                  CommandManager.literal("give")
-                     .then(
-                        ((RequiredArgumentBuilder)CommandManager.argument("targets", EntityArgumentType.players())
-                              .then(
-                                 CommandManager.argument("recipe", RegistryKeyArgumentType.registryKey(RegistryKeys.RECIPE))
-                                    .executes(
-                                       context -> executeGive(
-                                          (ServerCommandSource)context.getSource(),
-                                          EntityArgumentType.getPlayers(context, "targets"),
-                                          Collections.singleton(RegistryKeyArgumentType.getRecipeEntry(context, "recipe"))
-                                       )
-                                    )
-                              ))
-                           .then(
-                              CommandManager.literal("*")
-                                 .executes(
-                                    context -> executeGive(
-                                       (ServerCommandSource)context.getSource(),
-                                       EntityArgumentType.getPlayers(context, "targets"),
-                                       ((ServerCommandSource)context.getSource()).getServer().getRecipeManager().values()
-                                    )
-                                 )
-                           )
-                     )
-               ))
-            .then(
-               CommandManager.literal("take")
-                  .then(
-                     ((RequiredArgumentBuilder)CommandManager.argument("targets", EntityArgumentType.players())
-                           .then(
-                              CommandManager.argument("recipe", RegistryKeyArgumentType.registryKey(RegistryKeys.RECIPE))
-                                 .executes(
-                                    context -> executeTake(
-                                       (ServerCommandSource)context.getSource(),
-                                       EntityArgumentType.getPlayers(context, "targets"),
-                                       Collections.singleton(RegistryKeyArgumentType.getRecipeEntry(context, "recipe"))
-                                    )
-                                 )
-                           ))
-                        .then(
-                           CommandManager.literal("*")
-                              .executes(
-                                 context -> executeTake(
-                                    (ServerCommandSource)context.getSource(),
-                                    EntityArgumentType.getPlayers(context, "targets"),
-                                    ((ServerCommandSource)context.getSource()).getServer().getRecipeManager().values()
-                                 )
-                              )
-                        )
-                  )
-            )
-      );
-   }
+	private static final SimpleCommandExceptionType
+			GIVE_FAILED_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.recipe.give.failed"));
+	private static final SimpleCommandExceptionType
+			TAKE_FAILED_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.recipe.take.failed"));
 
-   private static int executeGive(ServerCommandSource source, Collection<ServerPlayerEntity> targets, Collection<RecipeEntry<?>> recipes) throws CommandSyntaxException {
-      int i = 0;
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
+						.literal("recipe")
+						.requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK))
+				)
+						.then(
+								CommandManager.literal("give")
+								              .then(
+										              ((RequiredArgumentBuilder) CommandManager
+												              .argument("targets", EntityArgumentType.players())
+												              .then(
+														              CommandManager
+																              .argument(
+																		              "recipe",
+																		              RegistryKeyArgumentType.registryKey(
+																				              RegistryKeys.RECIPE)
+																              )
+																              .executes(
+																		              context -> executeGive(
+																				              (ServerCommandSource) context.getSource(),
+																				              EntityArgumentType.getPlayers(
+																						              context,
+																						              "targets"
+																				              ),
+																				              Collections.singleton(
+																						              RegistryKeyArgumentType.getRecipeEntry(
+																								              context,
+																								              "recipe"
+																						              ))
+																		              )
+																              )
+												              )
+										              )
+												              .then(
+														              CommandManager.literal("*")
+														                            .executes(
+																                            context -> executeGive(
+																		                            (ServerCommandSource) context.getSource(),
+																		                            EntityArgumentType.getPlayers(
+																				                            context,
+																				                            "targets"
+																		                            ),
+																		                            ((ServerCommandSource) context.getSource())
+																				                            .getServer()
+																				                            .getRecipeManager()
+																				                            .values()
+																                            )
+														                            )
+												              )
+								              )
+						)
+				)
+						.then(
+								CommandManager.literal("take")
+								              .then(
+										              ((RequiredArgumentBuilder) CommandManager
+												              .argument("targets", EntityArgumentType.players())
+												              .then(
+														              CommandManager
+																              .argument(
+																		              "recipe",
+																		              RegistryKeyArgumentType.registryKey(
+																				              RegistryKeys.RECIPE)
+																              )
+																              .executes(
+																		              context -> executeTake(
+																				              (ServerCommandSource) context.getSource(),
+																				              EntityArgumentType.getPlayers(
+																						              context,
+																						              "targets"
+																				              ),
+																				              Collections.singleton(
+																						              RegistryKeyArgumentType.getRecipeEntry(
+																								              context,
+																								              "recipe"
+																						              ))
+																		              )
+																              )
+												              )
+										              )
+												              .then(
+														              CommandManager.literal("*")
+														                            .executes(
+																                            context -> executeTake(
+																		                            (ServerCommandSource) context.getSource(),
+																		                            EntityArgumentType.getPlayers(
+																				                            context,
+																				                            "targets"
+																		                            ),
+																		                            ((ServerCommandSource) context.getSource())
+																				                            .getServer()
+																				                            .getRecipeManager()
+																				                            .values()
+																                            )
+														                            )
+												              )
+								              )
+						)
+		);
+	}
 
-      for (ServerPlayerEntity serverPlayerEntity : targets) {
-         i += serverPlayerEntity.unlockRecipes(recipes);
-      }
+	private static int executeGive(
+			ServerCommandSource source,
+			Collection<ServerPlayerEntity> targets,
+			Collection<RecipeEntry<?>> recipes
+	) throws CommandSyntaxException {
+		int i = 0;
 
-      if (i == 0) {
-         throw GIVE_FAILED_EXCEPTION.create();
-      } else {
-         if (targets.size() == 1) {
-            source.sendFeedback(
-               () -> Text.translatable("commands.recipe.give.success.single", recipes.size(), targets.iterator().next().getDisplayName()), true
-            );
-         } else {
-            source.sendFeedback(() -> Text.translatable("commands.recipe.give.success.multiple", recipes.size(), targets.size()), true);
-         }
+		for (ServerPlayerEntity serverPlayerEntity : targets) {
+			i += serverPlayerEntity.unlockRecipes(recipes);
+		}
 
-         return i;
-      }
-   }
+		if (i == 0) {
+			throw GIVE_FAILED_EXCEPTION.create();
+		}
+		else {
+			if (targets.size() == 1) {
+				source.sendFeedback(
+						() -> Text.translatable(
+								"commands.recipe.give.success.single",
+								recipes.size(),
+								targets.iterator().next().getDisplayName()
+						), true
+				);
+			}
+			else {
+				source.sendFeedback(
+						() -> Text.translatable(
+								"commands.recipe.give.success.multiple",
+								recipes.size(),
+								targets.size()
+						), true
+				);
+			}
 
-   private static int executeTake(ServerCommandSource source, Collection<ServerPlayerEntity> targets, Collection<RecipeEntry<?>> recipes) throws CommandSyntaxException {
-      int i = 0;
+			return i;
+		}
+	}
 
-      for (ServerPlayerEntity serverPlayerEntity : targets) {
-         i += serverPlayerEntity.lockRecipes(recipes);
-      }
+	private static int executeTake(
+			ServerCommandSource source,
+			Collection<ServerPlayerEntity> targets,
+			Collection<RecipeEntry<?>> recipes
+	) throws CommandSyntaxException {
+		int i = 0;
 
-      if (i == 0) {
-         throw TAKE_FAILED_EXCEPTION.create();
-      } else {
-         if (targets.size() == 1) {
-            source.sendFeedback(
-               () -> Text.translatable("commands.recipe.take.success.single", recipes.size(), targets.iterator().next().getDisplayName()), true
-            );
-         } else {
-            source.sendFeedback(() -> Text.translatable("commands.recipe.take.success.multiple", recipes.size(), targets.size()), true);
-         }
+		for (ServerPlayerEntity serverPlayerEntity : targets) {
+			i += serverPlayerEntity.lockRecipes(recipes);
+		}
 
-         return i;
-      }
-   }
+		if (i == 0) {
+			throw TAKE_FAILED_EXCEPTION.create();
+		}
+		else {
+			if (targets.size() == 1) {
+				source.sendFeedback(
+						() -> Text.translatable(
+								"commands.recipe.take.success.single",
+								recipes.size(),
+								targets.iterator().next().getDisplayName()
+						), true
+				);
+			}
+			else {
+				source.sendFeedback(
+						() -> Text.translatable(
+								"commands.recipe.take.success.multiple",
+								recipes.size(),
+								targets.size()
+						), true
+				);
+			}
+
+			return i;
+		}
+	}
 }

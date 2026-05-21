@@ -9,39 +9,42 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
 public class QueryBlockNbtC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, QueryBlockNbtC2SPacket> CODEC = Packet.createCodec(QueryBlockNbtC2SPacket::write, QueryBlockNbtC2SPacket::new);
-   private final int transactionId;
-   private final BlockPos pos;
 
-   public QueryBlockNbtC2SPacket(int transactionId, BlockPos pos) {
-      this.transactionId = transactionId;
-      this.pos = pos;
-   }
+	public static final PacketCodec<PacketByteBuf, QueryBlockNbtC2SPacket>
+			CODEC =
+			Packet.createCodec(QueryBlockNbtC2SPacket::write, QueryBlockNbtC2SPacket::new);
+	private final int transactionId;
+	private final BlockPos pos;
 
-   private QueryBlockNbtC2SPacket(PacketByteBuf buf) {
-      this.transactionId = buf.readVarInt();
-      this.pos = buf.readBlockPos();
-   }
+	public QueryBlockNbtC2SPacket(int transactionId, BlockPos pos) {
+		this.transactionId = transactionId;
+		this.pos = pos;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.transactionId);
-      buf.writeBlockPos(this.pos);
-   }
+	private QueryBlockNbtC2SPacket(PacketByteBuf buf) {
+		this.transactionId = buf.readVarInt();
+		this.pos = buf.readBlockPos();
+	}
 
-   @Override
-   public PacketType<QueryBlockNbtC2SPacket> getPacketType() {
-      return PlayPackets.BLOCK_ENTITY_TAG_QUERY;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.transactionId);
+		buf.writeBlockPos(this.pos);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onQueryBlockNbt(this);
-   }
+	@Override
+	public PacketType<QueryBlockNbtC2SPacket> getPacketType() {
+		return PlayPackets.BLOCK_ENTITY_TAG_QUERY;
+	}
 
-   public int getTransactionId() {
-      return this.transactionId;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onQueryBlockNbt(this);
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public int getTransactionId() {
+		return this.transactionId;
+	}
+
+	public BlockPos getPos() {
+		return this.pos;
+	}
 }

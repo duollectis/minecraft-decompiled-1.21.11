@@ -9,15 +9,19 @@ import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SpiderEyesFeatureRenderer}.
+ */
 public class SpiderEyesFeatureRenderer<M extends SpiderEntityModel> extends EyesFeatureRenderer<LivingEntityRenderState, M> {
-   private static final RenderLayer SKIN = RenderLayers.eyes(Identifier.ofVanilla("textures/entity/spider_eyes.png"));
 
-   public SpiderEyesFeatureRenderer(FeatureRendererContext<LivingEntityRenderState, M> featureRendererContext) {
-      super(featureRendererContext);
-   }
+	private static final RenderLayer SKIN = RenderLayers.eyes(Identifier.ofVanilla("textures/entity/spider_eyes.png"));
 
-   @Override
-   public RenderLayer getEyesTexture() {
-      return SKIN;
-   }
+	public SpiderEyesFeatureRenderer(FeatureRendererContext<LivingEntityRenderState, M> featureRendererContext) {
+		super(featureRendererContext);
+	}
+
+	@Override
+	public RenderLayer getEyesTexture() {
+		return SKIN;
+	}
 }

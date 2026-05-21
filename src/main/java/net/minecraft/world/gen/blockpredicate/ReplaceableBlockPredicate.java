@@ -5,22 +5,26 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.Vec3i;
 
+/**
+ * {@code ReplaceableBlockPredicate}.
+ */
 class ReplaceableBlockPredicate extends OffsetPredicate {
-   public static final MapCodec<ReplaceableBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> registerOffsetField(instance).apply(instance, ReplaceableBlockPredicate::new)
-   );
 
-   public ReplaceableBlockPredicate(Vec3i vec3i) {
-      super(vec3i);
-   }
+	public static final MapCodec<ReplaceableBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> registerOffsetField(instance).apply(instance, ReplaceableBlockPredicate::new)
+	);
 
-   @Override
-   protected boolean test(BlockState state) {
-      return state.isReplaceable();
-   }
+	public ReplaceableBlockPredicate(Vec3i vec3i) {
+		super(vec3i);
+	}
 
-   @Override
-   public BlockPredicateType<?> getType() {
-      return BlockPredicateType.REPLACEABLE;
-   }
+	@Override
+	protected boolean test(BlockState state) {
+		return state.isReplaceable();
+	}
+
+	@Override
+	public BlockPredicateType<?> getType() {
+		return BlockPredicateType.REPLACEABLE;
+	}
 }

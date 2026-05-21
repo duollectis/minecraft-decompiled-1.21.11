@@ -12,86 +12,104 @@ import net.minecraft.client.gl.BufferManager;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GlTexture}.
+ */
 public class GlTexture extends GpuTexture {
-   private static final int UNINITIALIZED = -1;
-   public final int glId;
-   private int framebufferId = -1;
-   private int depthGlId = -1;
-   private @Nullable Int2IntMap depthTexToFramebufferIdCache;
-   protected boolean closed;
-   private int refCount;
 
-   public GlTexture(@GpuTexture.Usage int usage, String label, TextureFormat format, int width, int height, int depthOrLayers, int mipLevels, int glId) {
-      super(usage, label, format, width, height, depthOrLayers, mipLevels);
-      this.glId = glId;
-   }
+	private static final int UNINITIALIZED = -1;
+	public final int glId;
+	private int framebufferId = -1;
+	private int depthGlId = -1;
+	private @Nullable Int2IntMap depthTexToFramebufferIdCache;
+	protected boolean closed;
+	private int refCount;
 
-   @Override
-   public void close() {
-      if (!this.closed) {
-         this.closed = true;
-         if (this.refCount == 0) {
-            this.free();
-         }
-      }
-   }
+	public GlTexture(
+			@GpuTexture.Usage int usage,
+			String label,
+			TextureFormat format,
+			int width,
+			int height,
+			int depthOrLayers,
+			int mipLevels,
+			int glId
+	) {
+		super(usage, label, format, width, height, depthOrLayers, mipLevels);
+		this.glId = glId;
+	}
 
-   private void free() {
-      GlStateManager._deleteTexture(this.glId);
-      if (this.framebufferId != -1) {
-         GlStateManager._glDeleteFramebuffers(this.framebufferId);
-      }
+	@Override
+	public void close() {
+		if (!this.closed) {
+			this.closed = true;
+			if (this.refCount == 0) {
+				this.free();
+			}
+		}
+	}
 
-      if (this.depthTexToFramebufferIdCache != null) {
-         IntIterator var1 = this.depthTexToFramebufferIdCache.values().iterator();
+	private void free() {
+		GlStateManager._deleteTexture(this.glId);
+		if (this.framebufferId != -1) {
+			GlStateManager._glDeleteFramebuffers(this.framebufferId);
+		}
 
-         while (var1.hasNext()) {
-            int i = (Integer)var1.next();
-            GlStateManager._glDeleteFramebuffers(i);
-         }
-      }
-   }
+		if (this.depthTexToFramebufferIdCache != null) {
+			IntIterator var1 = this.depthTexToFramebufferIdCache.values().iterator();
 
-   @Override
-   public boolean isClosed() {
-      return this.closed;
-   }
+			while (var1.hasNext()) {
+				int i = (Integer) var1.next();
+				GlStateManager._glDeleteFramebuffers(i);
+			}
+		}
+	}
 
-   public int getOrCreateFramebuffer(BufferManager bufferManager, @Nullable GpuTexture depthTexture) {
-      int i = depthTexture == null ? 0 : ((GlTexture)depthTexture).glId;
-      if (this.depthGlId == i) {
-         return this.framebufferId;
-      } else if (this.framebufferId == -1) {
-         this.framebufferId = this.createFramebuffer(bufferManager, i);
-         this.depthGlId = i;
-         return this.framebufferId;
-      } else {
-         if (this.depthTexToFramebufferIdCache == null) {
-            this.depthTexToFramebufferIdCache = new Int2IntArrayMap();
-         }
+	@Override
+	public boolean isClosed() {
+		return this.closed;
+	}
 
-         return this.depthTexToFramebufferIdCache.computeIfAbsent(i, depthGlId -> this.createFramebuffer(bufferManager, depthGlId));
-      }
-   }
+	public int getOrCreateFramebuffer(BufferManager bufferManager, @Nullable GpuTexture depthTexture) {
+		int i = depthTexture == null ? 0 : ((GlTexture) depthTexture).glId;
+		if (this.depthGlId == i) {
+			return this.framebufferId;
+		}
+		else if (this.framebufferId == -1) {
+			this.framebufferId = this.createFramebuffer(bufferManager, i);
+			this.depthGlId = i;
+			return this.framebufferId;
+		}
+		else {
+			if (this.depthTexToFramebufferIdCache == null) {
+				this.depthTexToFramebufferIdCache = new Int2IntArrayMap();
+			}
 
-   private int createFramebuffer(BufferManager bufferManager, int depthGlId) {
-      int i = bufferManager.createFramebuffer();
-      bufferManager.setupFramebuffer(i, this.glId, depthGlId, 0, 0);
-      return i;
-   }
+			return this.depthTexToFramebufferIdCache.computeIfAbsent(
+					i,
+					depthGlId -> this.createFramebuffer(bufferManager, depthGlId)
+			);
+		}
+	}
 
-   public int getGlId() {
-      return this.glId;
-   }
+	private int createFramebuffer(BufferManager bufferManager, int depthGlId) {
+		int i = bufferManager.createFramebuffer();
+		bufferManager.setupFramebuffer(i, this.glId, depthGlId, 0, 0);
+		return i;
+	}
 
-   public void incrementRefCount() {
-      this.refCount++;
-   }
+	public int getGlId() {
+		return this.glId;
+	}
 
-   public void decrementRefCount() {
-      this.refCount--;
-      if (this.closed && this.refCount == 0) {
-         this.free();
-      }
-   }
+	public void incrementRefCount() {
+		this.refCount++;
+	}
+
+	public void decrementRefCount() {
+		this.refCount--;
+		if (this.closed && this.refCount == 0) {
+			this.free();
+		}
+	}
 }

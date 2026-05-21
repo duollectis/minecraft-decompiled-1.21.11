@@ -11,41 +11,51 @@ import net.minecraft.client.gl.GpuSampler;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AbstractTexture}.
+ */
 public abstract class AbstractTexture implements AutoCloseable {
-   protected @Nullable GpuTexture glTexture;
-   protected @Nullable GpuTextureView glTextureView;
-   protected GpuSampler sampler = RenderSystem.getSamplerCache().get(AddressMode.REPEAT, AddressMode.REPEAT, FilterMode.NEAREST, FilterMode.LINEAR, false);
 
-   @Override
-   public void close() {
-      if (this.glTexture != null) {
-         this.glTexture.close();
-         this.glTexture = null;
-      }
+	protected @Nullable GpuTexture glTexture;
+	protected @Nullable GpuTextureView glTextureView;
+	protected GpuSampler
+			sampler =
+			RenderSystem
+					.getSamplerCache()
+					.get(AddressMode.REPEAT, AddressMode.REPEAT, FilterMode.NEAREST, FilterMode.LINEAR, false);
 
-      if (this.glTextureView != null) {
-         this.glTextureView.close();
-         this.glTextureView = null;
-      }
-   }
+	@Override
+	public void close() {
+		if (this.glTexture != null) {
+			this.glTexture.close();
+			this.glTexture = null;
+		}
 
-   public GpuTexture getGlTexture() {
-      if (this.glTexture == null) {
-         throw new IllegalStateException("Texture does not exist, can't get it before something initializes it");
-      } else {
-         return this.glTexture;
-      }
-   }
+		if (this.glTextureView != null) {
+			this.glTextureView.close();
+			this.glTextureView = null;
+		}
+	}
 
-   public GpuTextureView getGlTextureView() {
-      if (this.glTextureView == null) {
-         throw new IllegalStateException("Texture view does not exist, can't get it before something initializes it");
-      } else {
-         return this.glTextureView;
-      }
-   }
+	public GpuTexture getGlTexture() {
+		if (this.glTexture == null) {
+			throw new IllegalStateException("Texture does not exist, can't get it before something initializes it");
+		}
+		else {
+			return this.glTexture;
+		}
+	}
 
-   public GpuSampler getSampler() {
-      return this.sampler;
-   }
+	public GpuTextureView getGlTextureView() {
+		if (this.glTextureView == null) {
+			throw new IllegalStateException("Texture view does not exist, can't get it before something initializes it");
+		}
+		else {
+			return this.glTextureView;
+		}
+	}
+
+	public GpuSampler getSampler() {
+		return this.sampler;
+	}
 }

@@ -12,21 +12,44 @@ import net.minecraft.world.debug.data.StructureDebugData;
 import net.minecraft.world.debug.gizmo.GizmoDrawing;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code StructureDebugRenderer}.
+ */
 public class StructureDebugRenderer implements DebugRenderer.Renderer {
-   @Override
-   public void render(double cameraX, double cameraY, double cameraZ, DebugDataStore store, Frustum frustum, float tickProgress) {
-      store.forEachChunkData(DebugSubscriptionTypes.STRUCTURES, (chunkPos, list) -> {
-         for (StructureDebugData structureDebugData : list) {
-            GizmoDrawing.box(Box.from(structureDebugData.boundingBox()), DrawStyle.stroked(ColorHelper.fromFloats(1.0F, 1.0F, 1.0F, 1.0F)));
 
-            for (StructureDebugData.Piece piece : structureDebugData.pieces()) {
-               if (piece.isStart()) {
-                  GizmoDrawing.box(Box.from(piece.boundingBox()), DrawStyle.stroked(ColorHelper.fromFloats(1.0F, 0.0F, 1.0F, 0.0F)));
-               } else {
-                  GizmoDrawing.box(Box.from(piece.boundingBox()), DrawStyle.stroked(ColorHelper.fromFloats(1.0F, 0.0F, 0.0F, 1.0F)));
-               }
-            }
-         }
-      });
-   }
+	@Override
+	public void render(
+			double cameraX,
+			double cameraY,
+			double cameraZ,
+			DebugDataStore store,
+			Frustum frustum,
+			float tickProgress
+	) {
+		store.forEachChunkData(
+				DebugSubscriptionTypes.STRUCTURES, (chunkPos, list) -> {
+					for (StructureDebugData structureDebugData : list) {
+						GizmoDrawing.box(
+								Box.from(structureDebugData.boundingBox()),
+								DrawStyle.stroked(ColorHelper.fromFloats(1.0F, 1.0F, 1.0F, 1.0F))
+						);
+
+						for (StructureDebugData.Piece piece : structureDebugData.pieces()) {
+							if (piece.isStart()) {
+								GizmoDrawing.box(
+										Box.from(piece.boundingBox()),
+										DrawStyle.stroked(ColorHelper.fromFloats(1.0F, 0.0F, 1.0F, 0.0F))
+								);
+							}
+							else {
+								GizmoDrawing.box(
+										Box.from(piece.boundingBox()),
+										DrawStyle.stroked(ColorHelper.fromFloats(1.0F, 0.0F, 0.0F, 1.0F))
+								);
+							}
+						}
+					}
+				}
+		);
+	}
 }

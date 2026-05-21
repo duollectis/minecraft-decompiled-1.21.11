@@ -12,29 +12,33 @@ import net.minecraft.util.annotation.Debug;
 import org.jspecify.annotations.Nullable;
 
 public interface NetworkState<T extends PacketListener> {
-   NetworkPhase id();
 
-   NetworkSide side();
+	NetworkPhase id();
 
-   PacketCodec<ByteBuf, Packet<? super T>> codec();
+	NetworkSide side();
 
-   @Nullable PacketBundleHandler bundleHandler();
+	PacketCodec<ByteBuf, Packet<? super T>> codec();
 
-   public interface Factory {
-      NetworkState.Unbound buildUnbound();
-   }
+	@Nullable PacketBundleHandler bundleHandler();
 
-   public interface Unbound {
-      NetworkPhase phase();
+	public interface Factory {
 
-      NetworkSide side();
+		NetworkState.Unbound buildUnbound();
+	}
 
-      @Debug
-      void forEachPacketType(NetworkState.Unbound.PacketTypeConsumer callback);
+	public interface Unbound {
 
-      @FunctionalInterface
-      public interface PacketTypeConsumer {
-         void accept(PacketType<?> type, int protocolId);
-      }
-   }
+		NetworkPhase phase();
+
+		NetworkSide side();
+
+		@Debug
+		void forEachPacketType(NetworkState.Unbound.PacketTypeConsumer callback);
+
+		@FunctionalInterface
+		public interface PacketTypeConsumer {
+
+			void accept(PacketType<?> type, int protocolId);
+		}
+	}
 }

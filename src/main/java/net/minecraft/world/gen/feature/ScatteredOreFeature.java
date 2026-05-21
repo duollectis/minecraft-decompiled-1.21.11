@@ -7,45 +7,56 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+/**
+ * {@code ScatteredOreFeature}.
+ */
 public class ScatteredOreFeature extends Feature<OreFeatureConfig> {
-   private static final int MAX_SPREAD = 7;
 
-   ScatteredOreFeature(Codec<OreFeatureConfig> codec) {
-      super(codec);
-   }
+	private static final int MAX_SPREAD = 7;
 
-   @Override
-   public boolean generate(FeatureContext<OreFeatureConfig> context) {
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      Random random = context.getRandom();
-      OreFeatureConfig oreFeatureConfig = context.getConfig();
-      BlockPos blockPos = context.getOrigin();
-      int i = random.nextInt(oreFeatureConfig.size + 1);
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
+	ScatteredOreFeature(Codec<OreFeatureConfig> codec) {
+		super(codec);
+	}
 
-      for (int j = 0; j < i; j++) {
-         this.setPos(mutable, random, blockPos, Math.min(j, 7));
-         BlockState blockState = structureWorldAccess.getBlockState(mutable);
+	@Override
+	public boolean generate(FeatureContext<OreFeatureConfig> context) {
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		Random random = context.getRandom();
+		OreFeatureConfig oreFeatureConfig = context.getConfig();
+		BlockPos blockPos = context.getOrigin();
+		int i = random.nextInt(oreFeatureConfig.size + 1);
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-         for (OreFeatureConfig.Target target : oreFeatureConfig.targets) {
-            if (OreFeature.shouldPlace(blockState, structureWorldAccess::getBlockState, random, oreFeatureConfig, target, mutable)) {
-               structureWorldAccess.setBlockState(mutable, target.state, 2);
-               break;
-            }
-         }
-      }
+		for (int j = 0; j < i; j++) {
+			this.setPos(mutable, random, blockPos, Math.min(j, 7));
+			BlockState blockState = structureWorldAccess.getBlockState(mutable);
 
-      return true;
-   }
+			for (OreFeatureConfig.Target target : oreFeatureConfig.targets) {
+				if (OreFeature.shouldPlace(
+						blockState,
+						structureWorldAccess::getBlockState,
+						random,
+						oreFeatureConfig,
+						target,
+						mutable
+				)) {
+					structureWorldAccess.setBlockState(mutable, target.state, 2);
+					break;
+				}
+			}
+		}
 
-   private void setPos(BlockPos.Mutable mutable, Random random, BlockPos origin, int spread) {
-      int i = this.getSpread(random, spread);
-      int j = this.getSpread(random, spread);
-      int k = this.getSpread(random, spread);
-      mutable.set(origin, i, j, k);
-   }
+		return true;
+	}
 
-   private int getSpread(Random random, int spread) {
-      return Math.round((random.nextFloat() - random.nextFloat()) * spread);
-   }
+	private void setPos(BlockPos.Mutable mutable, Random random, BlockPos origin, int spread) {
+		int i = this.getSpread(random, spread);
+		int j = this.getSpread(random, spread);
+		int k = this.getSpread(random, spread);
+		mutable.set(origin, i, j, k);
+	}
+
+	private int getSpread(Random random, int spread) {
+		return Math.round((random.nextFloat() - random.nextFloat()) * spread);
+	}
 }

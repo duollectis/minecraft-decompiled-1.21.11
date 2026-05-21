@@ -1,8 +1,6 @@
 package net.minecraft.client.render.debug;
 
 import com.google.common.collect.ImmutableList;
-import java.util.Collections;
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -15,31 +13,48 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.debug.DebugDataStore;
 import net.minecraft.world.debug.gizmo.GizmoDrawing;
 
+import java.util.Collections;
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CollisionDebugRenderer}.
+ */
 public class CollisionDebugRenderer implements DebugRenderer.Renderer {
-   private final MinecraftClient client;
-   private double lastUpdateTime = Double.MIN_VALUE;
-   private List<VoxelShape> collisions = Collections.emptyList();
 
-   public CollisionDebugRenderer(MinecraftClient client) {
-      this.client = client;
-   }
+	private final MinecraftClient client;
+	private double lastUpdateTime = Double.MIN_VALUE;
+	private List<VoxelShape> collisions = Collections.emptyList();
 
-   @Override
-   public void render(double cameraX, double cameraY, double cameraZ, DebugDataStore store, Frustum frustum, float tickProgress) {
-      double d = Util.getMeasuringTimeNano();
-      if (d - this.lastUpdateTime > 1.0E8) {
-         this.lastUpdateTime = d;
-         Entity entity = this.client.gameRenderer.getCamera().getFocusedEntity();
-         this.collisions = ImmutableList.copyOf(entity.getEntityWorld().getCollisions(entity, entity.getBoundingBox().expand(6.0)));
-      }
+	public CollisionDebugRenderer(MinecraftClient client) {
+		this.client = client;
+	}
 
-      for (VoxelShape voxelShape : this.collisions) {
-         DrawStyle drawStyle = DrawStyle.stroked(-1);
+	@Override
+	public void render(
+			double cameraX,
+			double cameraY,
+			double cameraZ,
+			DebugDataStore store,
+			Frustum frustum,
+			float tickProgress
+	) {
+		double d = Util.getMeasuringTimeNano();
+		if (d - this.lastUpdateTime > 1.0E8) {
+			this.lastUpdateTime = d;
+			Entity entity = this.client.gameRenderer.getCamera().getFocusedEntity();
+			this.collisions =
+					ImmutableList.copyOf(entity
+							.getEntityWorld()
+							.getCollisions(entity, entity.getBoundingBox().expand(6.0)));
+		}
 
-         for (Box box : voxelShape.getBoundingBoxes()) {
-            GizmoDrawing.box(box, drawStyle);
-         }
-      }
-   }
+		for (VoxelShape voxelShape : this.collisions) {
+			DrawStyle drawStyle = DrawStyle.stroked(-1);
+
+			for (Box box : voxelShape.getBoundingBoxes()) {
+				GizmoDrawing.box(box, drawStyle);
+			}
+		}
+	}
 }

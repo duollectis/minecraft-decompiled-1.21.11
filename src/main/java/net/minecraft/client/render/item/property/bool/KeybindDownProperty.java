@@ -14,22 +14,37 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code KeybindDownProperty}.
+ */
 public record KeybindDownProperty(KeyBinding keybind) implements BooleanProperty {
-   private static final Codec<KeyBinding> KEY_BINDING_CODEC = Codec.STRING.comapFlatMap(id -> {
-      KeyBinding keyBinding = KeyBinding.byId(id);
-      return keyBinding != null ? DataResult.success(keyBinding) : DataResult.error(() -> "Invalid keybind: " + id);
-   }, KeyBinding::getId);
-   public static final MapCodec<KeybindDownProperty> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(KEY_BINDING_CODEC.fieldOf("keybind").forGetter(KeybindDownProperty::keybind)).apply(instance, KeybindDownProperty::new)
-   );
 
-   @Override
-   public boolean test(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity entity, int seed, ItemDisplayContext displayContext) {
-      return this.keybind.isPressed();
-   }
+	private static final Codec<KeyBinding> KEY_BINDING_CODEC = Codec.STRING.comapFlatMap(
+			id -> {
+				KeyBinding keyBinding = KeyBinding.byId(id);
+				return keyBinding != null ? DataResult.success(keyBinding)
+				                          : DataResult.error(() -> "Invalid keybind: " + id);
+			}, KeyBinding::getId
+	);
+	public static final MapCodec<KeybindDownProperty> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(KEY_BINDING_CODEC.fieldOf("keybind").forGetter(KeybindDownProperty::keybind))
+					.apply(instance, KeybindDownProperty::new)
+	);
 
-   @Override
-   public MapCodec<KeybindDownProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public boolean test(
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity entity,
+			int seed,
+			ItemDisplayContext displayContext
+	) {
+		return this.keybind.isPressed();
+	}
+
+	@Override
+	public MapCodec<KeybindDownProperty> getCodec() {
+		return CODEC;
+	}
 }

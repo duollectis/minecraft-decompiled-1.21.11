@@ -2,25 +2,29 @@ package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
 
+/**
+ * {@code TintedGlassBlock}.
+ */
 public class TintedGlassBlock extends TransparentBlock {
-   public static final MapCodec<TintedGlassBlock> CODEC = createCodec(TintedGlassBlock::new);
 
-   @Override
-   public MapCodec<TintedGlassBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<TintedGlassBlock> CODEC = createCodec(TintedGlassBlock::new);
 
-   public TintedGlassBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<TintedGlassBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected boolean isTransparent(BlockState state) {
-      return false;
-   }
+	public TintedGlassBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected int getOpacity(BlockState state) {
-      return 15;
-   }
+	@Override
+	protected boolean isTransparent(BlockState state) {
+		return false;
+	}
+
+	@Override
+	protected int getOpacity(BlockState state) {
+		return 15;
+	}
 }

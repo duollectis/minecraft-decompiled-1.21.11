@@ -12,48 +12,68 @@ import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import net.minecraft.world.World;
 
+/**
+ * {@code ThrownItemEntity}.
+ */
 public abstract class ThrownItemEntity extends ThrownEntity implements FlyingItemEntity {
-   private static final TrackedData<ItemStack> ITEM = DataTracker.registerData(ThrownItemEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
 
-   public ThrownItemEntity(EntityType<? extends ThrownItemEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final TrackedData<ItemStack>
+			ITEM =
+			DataTracker.registerData(ThrownItemEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
 
-   public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, double x, double y, double z, World world, ItemStack stack) {
-      super(type, x, y, z, world);
-      this.setItem(stack);
-   }
+	public ThrownItemEntity(EntityType<? extends ThrownItemEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public ThrownItemEntity(EntityType<? extends ThrownItemEntity> type, LivingEntity owner, World world, ItemStack stack) {
-      this(type, owner.getX(), owner.getEyeY() - 0.1F, owner.getZ(), world, stack);
-      this.setOwner(owner);
-   }
+	public ThrownItemEntity(
+			EntityType<? extends ThrownItemEntity> type,
+			double x,
+			double y,
+			double z,
+			World world,
+			ItemStack stack
+	) {
+		super(type, x, y, z, world);
+		this.setItem(stack);
+	}
 
-   public void setItem(ItemStack stack) {
-      this.getDataTracker().set(ITEM, stack.copyWithCount(1));
-   }
+	public ThrownItemEntity(
+			EntityType<? extends ThrownItemEntity> type,
+			LivingEntity owner,
+			World world,
+			ItemStack stack
+	) {
+		this(type, owner.getX(), owner.getEyeY() - 0.1F, owner.getZ(), world, stack);
+		this.setOwner(owner);
+	}
 
-   protected abstract Item getDefaultItem();
+	public void setItem(ItemStack stack) {
+		this.getDataTracker().set(ITEM, stack.copyWithCount(1));
+	}
 
-   @Override
-   public ItemStack getStack() {
-      return this.getDataTracker().get(ITEM);
-   }
+	protected abstract Item getDefaultItem();
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      builder.add(ITEM, new ItemStack(this.getDefaultItem()));
-   }
+	@Override
+	public ItemStack getStack() {
+		return this.getDataTracker().get(ITEM);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.put("Item", ItemStack.CODEC, this.getStack());
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		builder.add(ITEM, new ItemStack(this.getDefaultItem()));
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.setItem(view.<ItemStack>read("Item", ItemStack.CODEC).orElseGet(() -> new ItemStack(this.getDefaultItem())));
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.put("Item", ItemStack.CODEC, this.getStack());
+	}
+
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.setItem(view
+				.<ItemStack>read("Item", ItemStack.CODEC)
+				.orElseGet(() -> new ItemStack(this.getDefaultItem())));
+	}
 }

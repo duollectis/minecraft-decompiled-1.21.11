@@ -4,16 +4,20 @@ import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.util.BlockMirror;
 
+/**
+ * {@code BlockMirrorArgumentType}.
+ */
 public class BlockMirrorArgumentType extends EnumArgumentType<BlockMirror> {
-   private BlockMirrorArgumentType() {
-      super(BlockMirror.CODEC, BlockMirror::values);
-   }
 
-   public static EnumArgumentType<BlockMirror> blockMirror() {
-      return new BlockMirrorArgumentType();
-   }
+	private BlockMirrorArgumentType() {
+		super(BlockMirror.CODEC, BlockMirror::values);
+	}
 
-   public static BlockMirror getBlockMirror(CommandContext<ServerCommandSource> context, String id) {
-      return (BlockMirror)context.getArgument(id, BlockMirror.class);
-   }
+	public static EnumArgumentType<BlockMirror> blockMirror() {
+		return new BlockMirrorArgumentType();
+	}
+
+	public static BlockMirror getBlockMirror(CommandContext<ServerCommandSource> context, String id) {
+		return (BlockMirror) context.getArgument(id, BlockMirror.class);
+	}
 }

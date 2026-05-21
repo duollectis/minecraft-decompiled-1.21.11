@@ -2,20 +2,8 @@ package net.minecraft.entity.mob;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.ai.goal.ActiveTargetGoal;
-import net.minecraft.entity.ai.goal.FleeEntityGoal;
-import net.minecraft.entity.ai.goal.LookAroundGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.entity.ai.goal.PounceAtTargetGoal;
-import net.minecraft.entity.ai.goal.RevengeGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.ai.goal.WanderAroundFarGoal;
+import net.minecraft.entity.*;
+import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.ai.pathing.EntityNavigation;
 import net.minecraft.entity.ai.pathing.SpiderNavigation;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
@@ -42,186 +30,229 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SpiderEntity}.
+ */
 public class SpiderEntity extends HostileEntity {
-   private static final TrackedData<Byte> SPIDER_FLAGS = DataTracker.registerData(SpiderEntity.class, TrackedDataHandlerRegistry.BYTE);
-   private static final float field_30498 = 0.1F;
 
-   public SpiderEntity(EntityType<? extends SpiderEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final TrackedData<Byte>
+			SPIDER_FLAGS =
+			DataTracker.registerData(SpiderEntity.class, TrackedDataHandlerRegistry.BYTE);
+	private static final float EFFECT_SPAWN_CHANCE_MULTIPLIER = 0.1F;
 
-   @Override
-   protected void initGoals() {
-      this.goalSelector.add(1, new SwimGoal(this));
-      this.goalSelector.add(2, new FleeEntityGoal<>(this, ArmadilloEntity.class, 6.0F, 1.0, 1.2, entity -> !((ArmadilloEntity)entity).isNotIdle()));
-      this.goalSelector.add(3, new PounceAtTargetGoal(this, 0.4F));
-      this.goalSelector.add(4, new SpiderEntity.AttackGoal(this));
-      this.goalSelector.add(5, new WanderAroundFarGoal(this, 0.8));
-      this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-      this.goalSelector.add(6, new LookAroundGoal(this));
-      this.targetSelector.add(1, new RevengeGoal(this));
-      this.targetSelector.add(2, new SpiderEntity.TargetGoal<>(this, PlayerEntity.class));
-      this.targetSelector.add(3, new SpiderEntity.TargetGoal<>(this, IronGolemEntity.class));
-   }
+	public SpiderEntity(EntityType<? extends SpiderEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected EntityNavigation createNavigation(World world) {
-      return new SpiderNavigation(this, world);
-   }
+	@Override
+	protected void initGoals() {
+		this.goalSelector.add(1, new SwimGoal(this));
+		this.goalSelector.add(
+				2,
+				new FleeEntityGoal<>(
+						this,
+						ArmadilloEntity.class,
+						6.0F,
+						1.0,
+						1.2,
+						entity -> !((ArmadilloEntity) entity).isNotIdle()
+				)
+		);
+		this.goalSelector.add(3, new PounceAtTargetGoal(this, 0.4F));
+		this.goalSelector.add(4, new SpiderEntity.AttackGoal(this));
+		this.goalSelector.add(5, new WanderAroundFarGoal(this, 0.8));
+		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		this.goalSelector.add(6, new LookAroundGoal(this));
+		this.targetSelector.add(1, new RevengeGoal(this));
+		this.targetSelector.add(2, new SpiderEntity.TargetGoal<>(this, PlayerEntity.class));
+		this.targetSelector.add(3, new SpiderEntity.TargetGoal<>(this, IronGolemEntity.class));
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(SPIDER_FLAGS, (byte)0);
-   }
+	@Override
+	protected EntityNavigation createNavigation(World world) {
+		return new SpiderNavigation(this, world);
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      if (!this.getEntityWorld().isClient()) {
-         this.setClimbingWall(this.horizontalCollision);
-      }
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(SPIDER_FLAGS, (byte) 0);
+	}
 
-   public static DefaultAttributeContainer.Builder createSpiderAttributes() {
-      return HostileEntity.createHostileAttributes().add(EntityAttributes.MAX_HEALTH, 16.0).add(EntityAttributes.MOVEMENT_SPEED, 0.3F);
-   }
+	@Override
+	public void tick() {
+		super.tick();
+		if (!this.getEntityWorld().isClient()) {
+			this.setClimbingWall(this.horizontalCollision);
+		}
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_SPIDER_AMBIENT;
-   }
+	public static DefaultAttributeContainer.Builder createSpiderAttributes() {
+		return HostileEntity
+				.createHostileAttributes()
+				.add(EntityAttributes.MAX_HEALTH, 16.0)
+				.add(EntityAttributes.MOVEMENT_SPEED, 0.3F);
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_SPIDER_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_SPIDER_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_SPIDER_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_SPIDER_HURT;
+	}
 
-   @Override
-   protected void playStepSound(BlockPos pos, BlockState state) {
-      this.playSound(SoundEvents.ENTITY_SPIDER_STEP, 0.15F, 1.0F);
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_SPIDER_DEATH;
+	}
 
-   @Override
-   public boolean isClimbing() {
-      return this.isClimbingWall();
-   }
+	@Override
+	protected void playStepSound(BlockPos pos, BlockState state) {
+		this.playSound(SoundEvents.ENTITY_SPIDER_STEP, 0.15F, 1.0F);
+	}
 
-   @Override
-   public void slowMovement(BlockState state, Vec3d multiplier) {
-      if (!state.isOf(Blocks.COBWEB)) {
-         super.slowMovement(state, multiplier);
-      }
-   }
+	@Override
+	public boolean isClimbing() {
+		return this.isClimbingWall();
+	}
 
-   @Override
-   public boolean canHaveStatusEffect(StatusEffectInstance effect) {
-      return effect.equals(StatusEffects.POISON) ? false : super.canHaveStatusEffect(effect);
-   }
+	@Override
+	public void slowMovement(BlockState state, Vec3d multiplier) {
+		if (!state.isOf(Blocks.COBWEB)) {
+			super.slowMovement(state, multiplier);
+		}
+	}
 
-   public boolean isClimbingWall() {
-      return (this.dataTracker.get(SPIDER_FLAGS) & 1) != 0;
-   }
+	@Override
+	public boolean canHaveStatusEffect(StatusEffectInstance effect) {
+		return effect.equals(StatusEffects.POISON) ? false : super.canHaveStatusEffect(effect);
+	}
 
-   public void setClimbingWall(boolean climbing) {
-      byte b = this.dataTracker.get(SPIDER_FLAGS);
-      if (climbing) {
-         b = (byte)(b | 1);
-      } else {
-         b = (byte)(b & -2);
-      }
+	public boolean isClimbingWall() {
+		return (this.dataTracker.get(SPIDER_FLAGS) & 1) != 0;
+	}
 
-      this.dataTracker.set(SPIDER_FLAGS, b);
-   }
+	public void setClimbingWall(boolean climbing) {
+		byte b = this.dataTracker.get(SPIDER_FLAGS);
+		if (climbing) {
+			b = (byte) (b | 1);
+		}
+		else {
+			b = (byte) (b & -2);
+		}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      entityData = super.initialize(world, difficulty, spawnReason, entityData);
-      Random random = world.getRandom();
-      if (random.nextInt(100) == 0) {
-         SkeletonEntity skeletonEntity = EntityType.SKELETON.create(this.getEntityWorld(), SpawnReason.JOCKEY);
-         if (skeletonEntity != null) {
-            skeletonEntity.refreshPositionAndAngles(this.getX(), this.getY(), this.getZ(), this.getYaw(), 0.0F);
-            skeletonEntity.initialize(world, difficulty, spawnReason, null);
-            skeletonEntity.startRiding(this, false, false);
-         }
-      }
+		this.dataTracker.set(SPIDER_FLAGS, b);
+	}
 
-      if (entityData == null) {
-         entityData = new SpiderEntity.SpiderData();
-         if (world.getDifficulty() == Difficulty.HARD && random.nextFloat() < 0.1F * difficulty.getClampedLocalDifficulty()) {
-            ((SpiderEntity.SpiderData)entityData).setEffect(random);
-         }
-      }
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		entityData = super.initialize(world, difficulty, spawnReason, entityData);
+		Random random = world.getRandom();
+		if (random.nextInt(100) == 0) {
+			SkeletonEntity skeletonEntity = EntityType.SKELETON.create(this.getEntityWorld(), SpawnReason.JOCKEY);
+			if (skeletonEntity != null) {
+				skeletonEntity.refreshPositionAndAngles(this.getX(), this.getY(), this.getZ(), this.getYaw(), 0.0F);
+				skeletonEntity.initialize(world, difficulty, spawnReason, null);
+				skeletonEntity.startRiding(this, false, false);
+			}
+		}
 
-      if (entityData instanceof SpiderEntity.SpiderData spiderData) {
-         RegistryEntry<StatusEffect> registryEntry = spiderData.effect;
-         if (registryEntry != null) {
-            this.addStatusEffect(new StatusEffectInstance(registryEntry, -1));
-         }
-      }
+		if (entityData == null) {
+			entityData = new SpiderEntity.SpiderData();
+			if (world.getDifficulty() == Difficulty.HARD
+					&& random.nextFloat() < 0.1F * difficulty.getClampedLocalDifficulty()) {
+				((SpiderEntity.SpiderData) entityData).setEffect(random);
+			}
+		}
 
-      return entityData;
-   }
+		if (entityData instanceof SpiderEntity.SpiderData spiderData) {
+			RegistryEntry<StatusEffect> registryEntry = spiderData.effect;
+			if (registryEntry != null) {
+				this.addStatusEffect(new StatusEffectInstance(registryEntry, -1));
+			}
+		}
 
-   @Override
-   public Vec3d getVehicleAttachmentPos(Entity vehicle) {
-      return vehicle.getWidth() <= this.getWidth() ? new Vec3d(0.0, 0.3125 * this.getScale(), 0.0) : super.getVehicleAttachmentPos(vehicle);
-   }
+		return entityData;
+	}
 
-   static class AttackGoal extends MeleeAttackGoal {
-      public AttackGoal(SpiderEntity spider) {
-         super(spider, 1.0, true);
-      }
+	@Override
+	public Vec3d getVehicleAttachmentPos(Entity vehicle) {
+		return vehicle.getWidth() <= this.getWidth() ? new Vec3d(0.0, 0.3125 * this.getScale(), 0.0)
+		                                             : super.getVehicleAttachmentPos(vehicle);
+	}
 
-      @Override
-      public boolean canStart() {
-         return super.canStart() && !this.mob.hasPassengers();
-      }
+	/**
+	 * {@code AttackGoal}.
+	 */
+	static class AttackGoal extends MeleeAttackGoal {
 
-      @Override
-      public boolean shouldContinue() {
-         float f = this.mob.getBrightnessAtEyes();
-         if (f >= 0.5F && this.mob.getRandom().nextInt(100) == 0) {
-            this.mob.setTarget(null);
-            return false;
-         } else {
-            return super.shouldContinue();
-         }
-      }
-   }
+		public AttackGoal(SpiderEntity spider) {
+			super(spider, 1.0, true);
+		}
 
-   public static class SpiderData implements EntityData {
-      public @Nullable RegistryEntry<StatusEffect> effect;
+		@Override
+		public boolean canStart() {
+			return super.canStart() && !this.mob.hasPassengers();
+		}
 
-      public void setEffect(Random random) {
-         int i = random.nextInt(5);
-         if (i <= 1) {
-            this.effect = StatusEffects.SPEED;
-         } else if (i <= 2) {
-            this.effect = StatusEffects.STRENGTH;
-         } else if (i <= 3) {
-            this.effect = StatusEffects.REGENERATION;
-         } else if (i <= 4) {
-            this.effect = StatusEffects.INVISIBILITY;
-         }
-      }
-   }
+		@Override
+		public boolean shouldContinue() {
+			float f = this.mob.getBrightnessAtEyes();
+			if (f >= 0.5F && this.mob.getRandom().nextInt(100) == 0) {
+				this.mob.setTarget(null);
+				return false;
+			}
+			else {
+				return super.shouldContinue();
+			}
+		}
+	}
 
-   static class TargetGoal<T extends LivingEntity> extends ActiveTargetGoal<T> {
-      public TargetGoal(SpiderEntity spider, Class<T> targetEntityClass) {
-         super(spider, targetEntityClass, true);
-      }
+	/**
+	 * {@code SpiderData}.
+	 */
+	public static class SpiderData implements EntityData {
 
-      @Override
-      public boolean canStart() {
-         float f = this.mob.getBrightnessAtEyes();
-         return f >= 0.5F ? false : super.canStart();
-      }
-   }
+		public @Nullable RegistryEntry<StatusEffect> effect;
+
+		public void setEffect(Random random) {
+			int i = random.nextInt(5);
+			if (i <= 1) {
+				this.effect = StatusEffects.SPEED;
+			}
+			else if (i <= 2) {
+				this.effect = StatusEffects.STRENGTH;
+			}
+			else if (i <= 3) {
+				this.effect = StatusEffects.REGENERATION;
+			}
+			else if (i <= 4) {
+				this.effect = StatusEffects.INVISIBILITY;
+			}
+		}
+	}
+
+	/**
+	 * {@code TargetGoal}.
+	 */
+	static class TargetGoal<T extends LivingEntity> extends ActiveTargetGoal<T> {
+
+		public TargetGoal(SpiderEntity spider, Class<T> targetEntityClass) {
+			super(spider, targetEntityClass, true);
+		}
+
+		@Override
+		public boolean canStart() {
+			float f = this.mob.getBrightnessAtEyes();
+			return f >= 0.5F ? false : super.canStart();
+		}
+	}
 }

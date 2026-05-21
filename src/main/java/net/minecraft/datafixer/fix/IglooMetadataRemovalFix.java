@@ -8,38 +8,47 @@ import com.mojang.datafixers.types.Type;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code IglooMetadataRemovalFix}.
+ */
 public class IglooMetadataRemovalFix extends DataFix {
-   public IglooMetadataRemovalFix(Schema schema, boolean bl) {
-      super(schema, bl);
-   }
 
-   protected TypeRewriteRule makeRule() {
-      Type<?> type = this.getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE);
-      return this.fixTypeEverywhereTyped(
-         "IglooMetadataRemovalFix", type, structureFeatureTyped -> structureFeatureTyped.update(DSL.remainderFinder(), IglooMetadataRemovalFix::removeMetadata)
-      );
-   }
+	public IglooMetadataRemovalFix(Schema schema, boolean bl) {
+		super(schema, bl);
+	}
 
-   private static <T> Dynamic<T> removeMetadata(Dynamic<T> structureFeatureDynamic) {
-      boolean bl = structureFeatureDynamic.get("Children")
-         .asStreamOpt()
-         .map(stream -> stream.allMatch(IglooMetadataRemovalFix::isIgloo))
-         .result()
-         .orElse(false);
-      return bl
-         ? structureFeatureDynamic.set("id", structureFeatureDynamic.createString("Igloo")).remove("Children")
-         : structureFeatureDynamic.update("Children", IglooMetadataRemovalFix::removeIgloos);
-   }
+	protected TypeRewriteRule makeRule() {
+		Type<?> type = this.getInputSchema().getType(TypeReferences.STRUCTURE_FEATURE);
+		return this.fixTypeEverywhereTyped(
+				"IglooMetadataRemovalFix",
+				type,
+				structureFeatureTyped -> structureFeatureTyped.update(
+						DSL.remainderFinder(),
+						IglooMetadataRemovalFix::removeMetadata
+				)
+		);
+	}
 
-   private static <T> Dynamic<T> removeIgloos(Dynamic<T> structureFeatureDynamic) {
-      return structureFeatureDynamic.asStreamOpt()
-         .map(stream -> stream.filter(dynamic -> !isIgloo((Dynamic<?>)dynamic)))
-         .map(structureFeatureDynamic::createList)
-         .result()
-         .orElse(structureFeatureDynamic);
-   }
+	private static <T> Dynamic<T> removeMetadata(Dynamic<T> structureFeatureDynamic) {
+		boolean bl = structureFeatureDynamic.get("Children")
+		                                    .asStreamOpt()
+		                                    .map(stream -> stream.allMatch(IglooMetadataRemovalFix::isIgloo))
+		                                    .result()
+		                                    .orElse(false);
+		return bl
+		       ? structureFeatureDynamic.set("id", structureFeatureDynamic.createString("Igloo")).remove("Children")
+		       : structureFeatureDynamic.update("Children", IglooMetadataRemovalFix::removeIgloos);
+	}
 
-   private static boolean isIgloo(Dynamic<?> structureFeatureDynamic) {
-      return structureFeatureDynamic.get("id").asString("").equals("Iglu");
-   }
+	private static <T> Dynamic<T> removeIgloos(Dynamic<T> structureFeatureDynamic) {
+		return structureFeatureDynamic.asStreamOpt()
+		                              .map(stream -> stream.filter(dynamic -> !isIgloo((Dynamic<?>) dynamic)))
+		                              .map(structureFeatureDynamic::createList)
+		                              .result()
+		                              .orElse(structureFeatureDynamic);
+	}
+
+	private static boolean isIgloo(Dynamic<?> structureFeatureDynamic) {
+		return structureFeatureDynamic.get("id").asString("").equals("Iglu");
+	}
 }

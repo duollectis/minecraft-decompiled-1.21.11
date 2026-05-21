@@ -8,24 +8,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record CommandExecutionC2SPacket(String command) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, CommandExecutionC2SPacket> CODEC = Packet.createCodec(
-      CommandExecutionC2SPacket::write, CommandExecutionC2SPacket::new
-   );
 
-   private CommandExecutionC2SPacket(PacketByteBuf buf) {
-      this(buf.readString());
-   }
+	public static final PacketCodec<PacketByteBuf, CommandExecutionC2SPacket> CODEC = Packet.createCodec(
+			CommandExecutionC2SPacket::write, CommandExecutionC2SPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeString(this.command);
-   }
+	private CommandExecutionC2SPacket(PacketByteBuf buf) {
+		this(buf.readString());
+	}
 
-   @Override
-   public PacketType<CommandExecutionC2SPacket> getPacketType() {
-      return PlayPackets.CHAT_COMMAND;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeString(this.command);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onCommandExecution(this);
-   }
+	@Override
+	public PacketType<CommandExecutionC2SPacket> getPacketType() {
+		return PlayPackets.CHAT_COMMAND;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onCommandExecution(this);
+	}
 }

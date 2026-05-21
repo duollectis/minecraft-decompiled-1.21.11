@@ -8,35 +8,39 @@ import net.minecraft.util.DyeColor;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code AbstractBannerBlock}.
+ */
 public abstract class AbstractBannerBlock extends BlockWithEntity {
-   private final DyeColor color;
 
-   protected AbstractBannerBlock(DyeColor color, AbstractBlock.Settings settings) {
-      super(settings);
-      this.color = color;
-   }
+	private final DyeColor color;
 
-   @Override
-   protected abstract MapCodec<? extends AbstractBannerBlock> getCodec();
+	protected AbstractBannerBlock(DyeColor color, AbstractBlock.Settings settings) {
+		super(settings);
+		this.color = color;
+	}
 
-   @Override
-   public boolean canMobSpawnInside(BlockState state) {
-      return true;
-   }
+	@Override
+	protected abstract MapCodec<? extends AbstractBannerBlock> getCodec();
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new BannerBlockEntity(pos, state, this.color);
-   }
+	@Override
+	public boolean canMobSpawnInside(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return world.getBlockEntity(pos) instanceof BannerBlockEntity bannerBlockEntity
-         ? bannerBlockEntity.getPickStack()
-         : super.getPickStack(world, pos, state, includeData);
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new BannerBlockEntity(pos, state, this.color);
+	}
 
-   public DyeColor getColor() {
-      return this.color;
-   }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return world.getBlockEntity(pos) instanceof BannerBlockEntity bannerBlockEntity
+		       ? bannerBlockEntity.getPickStack()
+		       : super.getPickStack(world, pos, state, includeData);
+	}
+
+	public DyeColor getColor() {
+		return this.color;
+	}
 }

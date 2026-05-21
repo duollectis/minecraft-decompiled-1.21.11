@@ -3,10 +3,6 @@ package net.minecraft.structure.pool;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.structure.StructureLiquidSettings;
@@ -26,109 +22,169 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.feature.PlacedFeature;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+/**
+ * {@code StructurePoolElement}.
+ */
 public abstract class StructurePoolElement {
-   public static final Codec<StructurePoolElement> CODEC = Registries.STRUCTURE_POOL_ELEMENT
-      .getCodec()
-      .dispatch("element_type", StructurePoolElement::getType, StructurePoolElementType::codec);
-   private static final RegistryEntry<StructureProcessorList> EMPTY_PROCESSORS = RegistryEntry.of(new StructureProcessorList(List.of()));
-   private volatile StructurePool.@Nullable Projection projection;
 
-   protected static <E extends StructurePoolElement> RecordCodecBuilder<E, StructurePool.Projection> projectionGetter() {
-      return StructurePool.Projection.CODEC.fieldOf("projection").forGetter(StructurePoolElement::getProjection);
-   }
+	public static final Codec<StructurePoolElement> CODEC = Registries.STRUCTURE_POOL_ELEMENT
+			.getCodec()
+			.dispatch("element_type", StructurePoolElement::getType, StructurePoolElementType::codec);
+	private static final RegistryEntry<StructureProcessorList>
+			EMPTY_PROCESSORS =
+			RegistryEntry.of(new StructureProcessorList(List.of()));
+	private volatile StructurePool.@Nullable Projection projection;
 
-   protected StructurePoolElement(StructurePool.Projection projection) {
-      this.projection = projection;
-   }
+	protected static <E extends StructurePoolElement> RecordCodecBuilder<E, StructurePool.Projection> projectionGetter() {
+		return StructurePool.Projection.CODEC.fieldOf("projection").forGetter(StructurePoolElement::getProjection);
+	}
 
-   public abstract Vec3i getStart(StructureTemplateManager structureTemplateManager, BlockRotation rotation);
+	protected StructurePoolElement(StructurePool.Projection projection) {
+		this.projection = projection;
+	}
 
-   public abstract List<StructureTemplate.JigsawBlockInfo> getStructureBlockInfos(
-      StructureTemplateManager structureTemplateManager, BlockPos pos, BlockRotation rotation, Random random
-   );
+	public abstract Vec3i getStart(StructureTemplateManager structureTemplateManager, BlockRotation rotation);
 
-   public abstract BlockBox getBoundingBox(StructureTemplateManager structureTemplateManager, BlockPos pos, BlockRotation rotation);
+	public abstract List<StructureTemplate.JigsawBlockInfo> getStructureBlockInfos(
+			StructureTemplateManager structureTemplateManager, BlockPos pos, BlockRotation rotation, Random random
+	);
 
-   public abstract boolean generate(
-      StructureTemplateManager structureTemplateManager,
-      StructureWorldAccess world,
-      StructureAccessor structureAccessor,
-      ChunkGenerator chunkGenerator,
-      BlockPos pos,
-      BlockPos pivot,
-      BlockRotation rotation,
-      BlockBox box,
-      Random random,
-      StructureLiquidSettings liquidSettings,
-      boolean keepJigsaws
-   );
+	public abstract BlockBox getBoundingBox(
+			StructureTemplateManager structureTemplateManager,
+			BlockPos pos,
+			BlockRotation rotation
+	);
 
-   public abstract StructurePoolElementType<?> getType();
+	public abstract boolean generate(
+			StructureTemplateManager structureTemplateManager,
+			StructureWorldAccess world,
+			StructureAccessor structureAccessor,
+			ChunkGenerator chunkGenerator,
+			BlockPos pos,
+			BlockPos pivot,
+			BlockRotation rotation,
+			BlockBox box,
+			Random random,
+			StructureLiquidSettings liquidSettings,
+			boolean keepJigsaws
+	);
 
-   public void method_16756(
-      WorldAccess world, StructureTemplate.StructureBlockInfo structureBlockInfo, BlockPos pos, BlockRotation rotation, Random random, BlockBox box
-   ) {
-   }
+	public abstract StructurePoolElementType<?> getType();
 
-   public StructurePoolElement setProjection(StructurePool.Projection projection) {
-      this.projection = projection;
-      return this;
-   }
+	public void handleJigsawBlock(
+			WorldAccess world,
+			StructureTemplate.StructureBlockInfo structureBlockInfo,
+			BlockPos pos,
+			BlockRotation rotation,
+			Random random,
+			BlockBox box
+	) {
+	}
 
-   public StructurePool.Projection getProjection() {
-      StructurePool.Projection projection = this.projection;
-      if (projection == null) {
-         throw new IllegalStateException();
-      } else {
-         return projection;
-      }
-   }
+	public StructurePoolElement setProjection(StructurePool.Projection projection) {
+		this.projection = projection;
+		return this;
+	}
 
-   public int getGroundLevelDelta() {
-      return 1;
-   }
+	public StructurePool.Projection getProjection() {
+		StructurePool.Projection projection = this.projection;
+		if (projection == null) {
+			throw new IllegalStateException();
+		}
+		else {
+			return projection;
+		}
+	}
 
-   public static Function<StructurePool.Projection, EmptyPoolElement> ofEmpty() {
-      return projection -> EmptyPoolElement.INSTANCE;
-   }
+	public int getGroundLevelDelta() {
+		return 1;
+	}
 
-   public static Function<StructurePool.Projection, LegacySinglePoolElement> ofLegacySingle(String id) {
-      return projection -> new LegacySinglePoolElement(Either.left(Identifier.of(id)), EMPTY_PROCESSORS, projection, Optional.empty());
-   }
+	public static Function<StructurePool.Projection, EmptyPoolElement> ofEmpty() {
+		return projection -> EmptyPoolElement.INSTANCE;
+	}
 
-   public static Function<StructurePool.Projection, LegacySinglePoolElement> ofProcessedLegacySingle(
-      String id, RegistryEntry<StructureProcessorList> processorListEntry
-   ) {
-      return projection -> new LegacySinglePoolElement(Either.left(Identifier.of(id)), processorListEntry, projection, Optional.empty());
-   }
+	public static Function<StructurePool.Projection, LegacySinglePoolElement> ofLegacySingle(String id) {
+		return projection -> new LegacySinglePoolElement(
+				Either.left(Identifier.of(id)),
+				EMPTY_PROCESSORS,
+				projection,
+				Optional.empty()
+		);
+	}
 
-   public static Function<StructurePool.Projection, SinglePoolElement> ofSingle(String id) {
-      return projection -> new SinglePoolElement(Either.left(Identifier.of(id)), EMPTY_PROCESSORS, projection, Optional.empty());
-   }
+	public static Function<StructurePool.Projection, LegacySinglePoolElement> ofProcessedLegacySingle(
+			String id, RegistryEntry<StructureProcessorList> processorListEntry
+	) {
+		return projection -> new LegacySinglePoolElement(
+				Either.left(Identifier.of(id)),
+				processorListEntry,
+				projection,
+				Optional.empty()
+		);
+	}
 
-   public static Function<StructurePool.Projection, SinglePoolElement> ofProcessedSingle(String id, RegistryEntry<StructureProcessorList> processorListEntry) {
-      return projection -> new SinglePoolElement(Either.left(Identifier.of(id)), processorListEntry, projection, Optional.empty());
-   }
+	public static Function<StructurePool.Projection, SinglePoolElement> ofSingle(String id) {
+		return projection -> new SinglePoolElement(
+				Either.left(Identifier.of(id)),
+				EMPTY_PROCESSORS,
+				projection,
+				Optional.empty()
+		);
+	}
 
-   public static Function<StructurePool.Projection, SinglePoolElement> ofSingle(String id, StructureLiquidSettings liquidSettings) {
-      return projection -> new SinglePoolElement(Either.left(Identifier.of(id)), EMPTY_PROCESSORS, projection, Optional.of(liquidSettings));
-   }
+	public static Function<StructurePool.Projection, SinglePoolElement> ofProcessedSingle(
+			String id,
+			RegistryEntry<StructureProcessorList> processorListEntry
+	) {
+		return projection -> new SinglePoolElement(
+				Either.left(Identifier.of(id)),
+				processorListEntry,
+				projection,
+				Optional.empty()
+		);
+	}
 
-   public static Function<StructurePool.Projection, SinglePoolElement> ofProcessedSingle(
-      String id, RegistryEntry<StructureProcessorList> processorListEntry, StructureLiquidSettings liquidSettings
-   ) {
-      return projection -> new SinglePoolElement(Either.left(Identifier.of(id)), processorListEntry, projection, Optional.of(liquidSettings));
-   }
+	public static Function<StructurePool.Projection, SinglePoolElement> ofSingle(
+			String id,
+			StructureLiquidSettings liquidSettings
+	) {
+		return projection -> new SinglePoolElement(
+				Either.left(Identifier.of(id)),
+				EMPTY_PROCESSORS,
+				projection,
+				Optional.of(liquidSettings)
+		);
+	}
 
-   public static Function<StructurePool.Projection, FeaturePoolElement> ofFeature(RegistryEntry<PlacedFeature> placedFeatureEntry) {
-      return projection -> new FeaturePoolElement(placedFeatureEntry, projection);
-   }
+	public static Function<StructurePool.Projection, SinglePoolElement> ofProcessedSingle(
+			String id, RegistryEntry<StructureProcessorList> processorListEntry, StructureLiquidSettings liquidSettings
+	) {
+		return projection -> new SinglePoolElement(
+				Either.left(Identifier.of(id)),
+				processorListEntry,
+				projection,
+				Optional.of(liquidSettings)
+		);
+	}
 
-   public static Function<StructurePool.Projection, ListPoolElement> ofList(
-      List<Function<StructurePool.Projection, ? extends StructurePoolElement>> elementGetters
-   ) {
-      return projection -> new ListPoolElement(
-         elementGetters.stream().map(elementGetter -> elementGetter.apply(projection)).collect(Collectors.toList()), projection
-      );
-   }
+	public static Function<StructurePool.Projection, FeaturePoolElement> ofFeature(RegistryEntry<PlacedFeature> placedFeatureEntry) {
+		return projection -> new FeaturePoolElement(placedFeatureEntry, projection);
+	}
+
+	public static Function<StructurePool.Projection, ListPoolElement> ofList(
+			List<Function<StructurePool.Projection, ? extends StructurePoolElement>> elementGetters
+	) {
+		return projection -> new ListPoolElement(
+				elementGetters
+						.stream()
+						.map(elementGetter -> elementGetter.apply(projection))
+						.collect(Collectors.toList()), projection
+		);
+	}
 }

@@ -1,22 +1,9 @@
 package net.minecraft.entity.mob;
 
-import java.util.EnumSet;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LazyEntityReference;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.Ownable;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.ai.TargetPredicate;
 import net.minecraft.entity.ai.control.MoveControl;
-import net.minecraft.entity.ai.goal.ActiveTargetGoal;
-import net.minecraft.entity.ai.goal.Goal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.RevengeGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.ai.goal.TrackTargetGoal;
+import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
@@ -40,322 +27,385 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+
+/**
+ * {@code VexEntity}.
+ */
 public class VexEntity extends HostileEntity implements Ownable {
-   public static final float field_30502 = 45.836624F;
-   public static final int field_28645 = MathHelper.ceil((float) (Math.PI * 5.0 / 4.0));
-   protected static final TrackedData<Byte> VEX_FLAGS = DataTracker.registerData(VexEntity.class, TrackedDataHandlerRegistry.BYTE);
-   private static final int CHARGING_FLAG = 1;
-   private @Nullable LazyEntityReference<MobEntity> owner;
-   private @Nullable BlockPos bounds;
-   private boolean alive;
-   private int lifeTicks;
 
-   public VexEntity(EntityType<? extends VexEntity> entityType, World world) {
-      super(entityType, world);
-      this.moveControl = new VexEntity.VexMoveControl(this);
-      this.experiencePoints = 3;
-   }
+	public static final float WING_FLAP_ANGULAR_VELOCITY = 45.836624F;
+	public static final int WING_FLAP_TICKS = MathHelper.ceil((float) (Math.PI * 5.0 / 4.0));
+	protected static final TrackedData<Byte>
+			VEX_FLAGS =
+			DataTracker.registerData(VexEntity.class, TrackedDataHandlerRegistry.BYTE);
+	private static final int CHARGING_FLAG = 1;
+	private @Nullable LazyEntityReference<MobEntity> owner;
+	private @Nullable BlockPos bounds;
+	private boolean alive;
+	private int lifeTicks;
 
-   @Override
-   public boolean isFlappingWings() {
-      return this.age % field_28645 == 0;
-   }
+	public VexEntity(EntityType<? extends VexEntity> entityType, World world) {
+		super(entityType, world);
+		this.moveControl = new VexEntity.VexMoveControl(this);
+		this.experiencePoints = 3;
+	}
 
-   @Override
-   protected boolean shouldTickBlockCollision() {
-      return !this.isRemoved();
-   }
+	@Override
+	public boolean isFlappingWings() {
+		return this.age % WING_FLAP_TICKS == 0;
+	}
 
-   @Override
-   public void tick() {
-      this.noClip = true;
-      super.tick();
-      this.noClip = false;
-      this.setNoGravity(true);
-      if (this.alive && --this.lifeTicks <= 0) {
-         this.lifeTicks = 20;
-         this.serverDamage(this.getDamageSources().starve(), 1.0F);
-      }
-   }
+	@Override
+	protected boolean shouldTickBlockCollision() {
+		return !this.isRemoved();
+	}
 
-   @Override
-   protected void initGoals() {
-      super.initGoals();
-      this.goalSelector.add(0, new SwimGoal(this));
-      this.goalSelector.add(4, new VexEntity.ChargeTargetGoal());
-      this.goalSelector.add(8, new VexEntity.LookAtTargetGoal());
-      this.goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
-      this.goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
-      this.targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
-      this.targetSelector.add(2, new VexEntity.TrackOwnerTargetGoal(this));
-      this.targetSelector.add(3, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-   }
+	@Override
+	public void tick() {
+		this.noClip = true;
+		super.tick();
+		this.noClip = false;
+		this.setNoGravity(true);
+		if (this.alive && --this.lifeTicks <= 0) {
+			this.lifeTicks = 20;
+			this.serverDamage(this.getDamageSources().starve(), 1.0F);
+		}
+	}
 
-   public static DefaultAttributeContainer.Builder createVexAttributes() {
-      return HostileEntity.createHostileAttributes().add(EntityAttributes.MAX_HEALTH, 14.0).add(EntityAttributes.ATTACK_DAMAGE, 4.0);
-   }
+	@Override
+	protected void initGoals() {
+		super.initGoals();
+		this.goalSelector.add(0, new SwimGoal(this));
+		this.goalSelector.add(4, new VexEntity.ChargeTargetGoal());
+		this.goalSelector.add(8, new VexEntity.LookAtTargetGoal());
+		this.goalSelector.add(9, new LookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
+		this.goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
+		this.targetSelector.add(1, new RevengeGoal(this, RaiderEntity.class).setGroupRevenge());
+		this.targetSelector.add(2, new VexEntity.TrackOwnerTargetGoal(this));
+		this.targetSelector.add(3, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(VEX_FLAGS, (byte)0);
-   }
+	public static DefaultAttributeContainer.Builder createVexAttributes() {
+		return HostileEntity
+				.createHostileAttributes()
+				.add(EntityAttributes.MAX_HEALTH, 14.0)
+				.add(EntityAttributes.ATTACK_DAMAGE, 4.0);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.bounds = view.<BlockPos>read("bound_pos", BlockPos.CODEC).orElse(null);
-      view.getOptionalInt("life_ticks").ifPresentOrElse(this::setLifeTicks, () -> this.alive = false);
-      this.owner = LazyEntityReference.fromData(view, "owner");
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(VEX_FLAGS, (byte) 0);
+	}
 
-   @Override
-   public void copyFrom(Entity original) {
-      super.copyFrom(original);
-      if (original instanceof VexEntity vexEntity) {
-         this.owner = vexEntity.owner;
-      }
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.bounds = view.<BlockPos>read("bound_pos", BlockPos.CODEC).orElse(null);
+		view.getOptionalInt("life_ticks").ifPresentOrElse(this::setLifeTicks, () -> this.alive = false);
+		this.owner = LazyEntityReference.fromData(view, "owner");
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putNullable("bound_pos", BlockPos.CODEC, this.bounds);
-      if (this.alive) {
-         view.putInt("life_ticks", this.lifeTicks);
-      }
+	@Override
+	public void copyFrom(Entity original) {
+		super.copyFrom(original);
+		if (original instanceof VexEntity vexEntity) {
+			this.owner = vexEntity.owner;
+		}
+	}
 
-      LazyEntityReference.writeData(this.owner, view, "owner");
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putNullable("bound_pos", BlockPos.CODEC, this.bounds);
+		if (this.alive) {
+			view.putInt("life_ticks", this.lifeTicks);
+		}
 
-   public @Nullable MobEntity getOwner() {
-      return LazyEntityReference.resolve(this.owner, this.getEntityWorld(), MobEntity.class);
-   }
+		LazyEntityReference.writeData(this.owner, view, "owner");
+	}
 
-   public @Nullable BlockPos getBounds() {
-      return this.bounds;
-   }
+	public @Nullable MobEntity getOwner() {
+		return LazyEntityReference.resolve(this.owner, this.getEntityWorld(), MobEntity.class);
+	}
 
-   public void setBounds(@Nullable BlockPos bounds) {
-      this.bounds = bounds;
-   }
+	public @Nullable BlockPos getBounds() {
+		return this.bounds;
+	}
 
-   private boolean areFlagsSet(int mask) {
-      int i = this.dataTracker.get(VEX_FLAGS);
-      return (i & mask) != 0;
-   }
+	public void setBounds(@Nullable BlockPos bounds) {
+		this.bounds = bounds;
+	}
 
-   private void setVexFlag(int mask, boolean value) {
-      int i = this.dataTracker.get(VEX_FLAGS);
-      if (value) {
-         i |= mask;
-      } else {
-         i &= ~mask;
-      }
+	private boolean areFlagsSet(int mask) {
+		int i = this.dataTracker.get(VEX_FLAGS);
+		return (i & mask) != 0;
+	}
 
-      this.dataTracker.set(VEX_FLAGS, (byte)(i & 0xFF));
-   }
+	private void setVexFlag(int mask, boolean value) {
+		int i = this.dataTracker.get(VEX_FLAGS);
+		if (value) {
+			i |= mask;
+		}
+		else {
+			i &= ~mask;
+		}
 
-   public boolean isCharging() {
-      return this.areFlagsSet(1);
-   }
+		this.dataTracker.set(VEX_FLAGS, (byte) (i & 0xFF));
+	}
 
-   public void setCharging(boolean charging) {
-      this.setVexFlag(1, charging);
-   }
+	public boolean isCharging() {
+		return this.areFlagsSet(1);
+	}
 
-   public void setOwner(MobEntity owner) {
-      this.owner = LazyEntityReference.of(owner);
-   }
+	public void setCharging(boolean charging) {
+		this.setVexFlag(1, charging);
+	}
 
-   public void setLifeTicks(int lifeTicks) {
-      this.alive = true;
-      this.lifeTicks = lifeTicks;
-   }
+	public void setOwner(MobEntity owner) {
+		this.owner = LazyEntityReference.of(owner);
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_VEX_AMBIENT;
-   }
+	public void setLifeTicks(int lifeTicks) {
+		this.alive = true;
+		this.lifeTicks = lifeTicks;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_VEX_DEATH;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_VEX_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_VEX_HURT;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_VEX_DEATH;
+	}
 
-   @Override
-   public float getBrightnessAtEyes() {
-      return 1.0F;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_VEX_HURT;
+	}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      Random random = world.getRandom();
-      this.initEquipment(random, difficulty);
-      this.updateEnchantments(world, random, difficulty);
-      return super.initialize(world, difficulty, spawnReason, entityData);
-   }
+	@Override
+	public float getBrightnessAtEyes() {
+		return 1.0F;
+	}
 
-   @Override
-   protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
-      this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SWORD));
-      this.setEquipmentDropChance(EquipmentSlot.MAINHAND, 0.0F);
-   }
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		Random random = world.getRandom();
+		this.initEquipment(random, difficulty);
+		this.updateEnchantments(world, random, difficulty);
+		return super.initialize(world, difficulty, spawnReason, entityData);
+	}
 
-   class ChargeTargetGoal extends Goal {
-      public ChargeTargetGoal() {
-         this.setControls(EnumSet.of(Goal.Control.MOVE));
-      }
+	@Override
+	protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
+		this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SWORD));
+		this.setEquipmentDropChance(EquipmentSlot.MAINHAND, 0.0F);
+	}
 
-      @Override
-      public boolean canStart() {
-         LivingEntity livingEntity = VexEntity.this.getTarget();
-         return livingEntity != null
-               && livingEntity.isAlive()
-               && !VexEntity.this.getMoveControl().isMoving()
-               && VexEntity.this.random.nextInt(toGoalTicks(7)) == 0
-            ? VexEntity.this.squaredDistanceTo(livingEntity) > 4.0
-            : false;
-      }
+	/**
+	 * {@code ChargeTargetGoal}.
+	 */
+	class ChargeTargetGoal extends Goal {
 
-      @Override
-      public boolean shouldContinue() {
-         return VexEntity.this.getMoveControl().isMoving()
-            && VexEntity.this.isCharging()
-            && VexEntity.this.getTarget() != null
-            && VexEntity.this.getTarget().isAlive();
-      }
+		public ChargeTargetGoal() {
+			this.setControls(EnumSet.of(Goal.Control.MOVE));
+		}
 
-      @Override
-      public void start() {
-         LivingEntity livingEntity = VexEntity.this.getTarget();
-         if (livingEntity != null) {
-            Vec3d vec3d = livingEntity.getEyePos();
-            VexEntity.this.moveControl.moveTo(vec3d.x, vec3d.y, vec3d.z, 1.0);
-         }
+		@Override
+		public boolean canStart() {
+			LivingEntity livingEntity = VexEntity.this.getTarget();
+			return livingEntity != null
+					       && livingEntity.isAlive()
+					       && !VexEntity.this.getMoveControl().isMoving()
+					       && VexEntity.this.random.nextInt(toGoalTicks(7)) == 0
+			       ? VexEntity.this.squaredDistanceTo(livingEntity) > 4.0
+			       : false;
+		}
 
-         VexEntity.this.setCharging(true);
-         VexEntity.this.playSound(SoundEvents.ENTITY_VEX_CHARGE, 1.0F, 1.0F);
-      }
+		@Override
+		public boolean shouldContinue() {
+			return VexEntity.this.getMoveControl().isMoving()
+					&& VexEntity.this.isCharging()
+					&& VexEntity.this.getTarget() != null
+					&& VexEntity.this.getTarget().isAlive();
+		}
 
-      @Override
-      public void stop() {
-         VexEntity.this.setCharging(false);
-      }
+		@Override
+		public void start() {
+			LivingEntity livingEntity = VexEntity.this.getTarget();
+			if (livingEntity != null) {
+				Vec3d vec3d = livingEntity.getEyePos();
+				VexEntity.this.moveControl.moveTo(vec3d.x, vec3d.y, vec3d.z, 1.0);
+			}
 
-      @Override
-      public boolean shouldRunEveryTick() {
-         return true;
-      }
+			VexEntity.this.setCharging(true);
+			VexEntity.this.playSound(SoundEvents.ENTITY_VEX_CHARGE, 1.0F, 1.0F);
+		}
 
-      @Override
-      public void tick() {
-         LivingEntity livingEntity = VexEntity.this.getTarget();
-         if (livingEntity != null) {
-            if (VexEntity.this.getBoundingBox().intersects(livingEntity.getBoundingBox())) {
-               VexEntity.this.tryAttack(castToServerWorld(VexEntity.this.getEntityWorld()), livingEntity);
-               VexEntity.this.setCharging(false);
-            } else {
-               double d = VexEntity.this.squaredDistanceTo(livingEntity);
-               if (d < 9.0) {
-                  Vec3d vec3d = livingEntity.getEyePos();
-                  VexEntity.this.moveControl.moveTo(vec3d.x, vec3d.y, vec3d.z, 1.0);
-               }
-            }
-         }
-      }
-   }
+		@Override
+		public void stop() {
+			VexEntity.this.setCharging(false);
+		}
 
-   class LookAtTargetGoal extends Goal {
-      public LookAtTargetGoal() {
-         this.setControls(EnumSet.of(Goal.Control.MOVE));
-      }
+		@Override
+		public boolean shouldRunEveryTick() {
+			return true;
+		}
 
-      @Override
-      public boolean canStart() {
-         return !VexEntity.this.getMoveControl().isMoving() && VexEntity.this.random.nextInt(toGoalTicks(7)) == 0;
-      }
+		@Override
+		public void tick() {
+			LivingEntity livingEntity = VexEntity.this.getTarget();
+			if (livingEntity != null) {
+				if (VexEntity.this.getBoundingBox().intersects(livingEntity.getBoundingBox())) {
+					VexEntity.this.tryAttack(castToServerWorld(VexEntity.this.getEntityWorld()), livingEntity);
+					VexEntity.this.setCharging(false);
+				}
+				else {
+					double d = VexEntity.this.squaredDistanceTo(livingEntity);
+					if (d < 9.0) {
+						Vec3d vec3d = livingEntity.getEyePos();
+						VexEntity.this.moveControl.moveTo(vec3d.x, vec3d.y, vec3d.z, 1.0);
+					}
+				}
+			}
+		}
+	}
 
-      @Override
-      public boolean shouldContinue() {
-         return false;
-      }
+	/**
+	 * {@code LookAtTargetGoal}.
+	 */
+	class LookAtTargetGoal extends Goal {
 
-      @Override
-      public void tick() {
-         BlockPos blockPos = VexEntity.this.getBounds();
-         if (blockPos == null) {
-            blockPos = VexEntity.this.getBlockPos();
-         }
+		public LookAtTargetGoal() {
+			this.setControls(EnumSet.of(Goal.Control.MOVE));
+		}
 
-         for (int i = 0; i < 3; i++) {
-            BlockPos blockPos2 = blockPos.add(
-               VexEntity.this.random.nextInt(15) - 7, VexEntity.this.random.nextInt(11) - 5, VexEntity.this.random.nextInt(15) - 7
-            );
-            if (VexEntity.this.getEntityWorld().isAir(blockPos2)) {
-               VexEntity.this.moveControl.moveTo(blockPos2.getX() + 0.5, blockPos2.getY() + 0.5, blockPos2.getZ() + 0.5, 0.25);
-               if (VexEntity.this.getTarget() == null) {
-                  VexEntity.this.getLookControl().lookAt(blockPos2.getX() + 0.5, blockPos2.getY() + 0.5, blockPos2.getZ() + 0.5, 180.0F, 20.0F);
-               }
-               break;
-            }
-         }
-      }
-   }
+		@Override
+		public boolean canStart() {
+			return !VexEntity.this.getMoveControl().isMoving() && VexEntity.this.random.nextInt(toGoalTicks(7)) == 0;
+		}
 
-   class TrackOwnerTargetGoal extends TrackTargetGoal {
-      private final TargetPredicate targetPredicate = TargetPredicate.createNonAttackable().ignoreVisibility().ignoreDistanceScalingFactor();
+		@Override
+		public boolean shouldContinue() {
+			return false;
+		}
 
-      public TrackOwnerTargetGoal(final PathAwareEntity mob) {
-         super(mob, false);
-      }
+		@Override
+		public void tick() {
+			BlockPos blockPos = VexEntity.this.getBounds();
+			if (blockPos == null) {
+				blockPos = VexEntity.this.getBlockPos();
+			}
 
-      @Override
-      public boolean canStart() {
-         MobEntity mobEntity = VexEntity.this.getOwner();
-         return mobEntity != null && mobEntity.getTarget() != null && this.canTrack(mobEntity.getTarget(), this.targetPredicate);
-      }
+			for (int i = 0; i < 3; i++) {
+				BlockPos blockPos2 = blockPos.add(
+						VexEntity.this.random.nextInt(15) - 7,
+						VexEntity.this.random.nextInt(11) - 5,
+						VexEntity.this.random.nextInt(15) - 7
+				);
+				if (VexEntity.this.getEntityWorld().isAir(blockPos2)) {
+					VexEntity.this.moveControl.moveTo(
+							blockPos2.getX() + 0.5,
+							blockPos2.getY() + 0.5,
+							blockPos2.getZ() + 0.5,
+							0.25
+					);
+					if (VexEntity.this.getTarget() == null) {
+						VexEntity.this
+								.getLookControl()
+								.lookAt(
+										blockPos2.getX() + 0.5,
+										blockPos2.getY() + 0.5,
+										blockPos2.getZ() + 0.5,
+										180.0F,
+										20.0F
+								);
+					}
+					break;
+				}
+			}
+		}
+	}
 
-      @Override
-      public void start() {
-         MobEntity mobEntity = VexEntity.this.getOwner();
-         VexEntity.this.setTarget(mobEntity != null ? mobEntity.getTarget() : null);
-         super.start();
-      }
-   }
+	/**
+	 * {@code TrackOwnerTargetGoal}.
+	 */
+	class TrackOwnerTargetGoal extends TrackTargetGoal {
 
-   class VexMoveControl extends MoveControl {
-      public VexMoveControl(final VexEntity owner) {
-         super(owner);
-      }
+		private final TargetPredicate
+				targetPredicate =
+				TargetPredicate.createNonAttackable().ignoreVisibility().ignoreDistanceScalingFactor();
 
-      @Override
-      public void tick() {
-         if (this.state == MoveControl.State.MOVE_TO) {
-            Vec3d vec3d = new Vec3d(this.targetX - VexEntity.this.getX(), this.targetY - VexEntity.this.getY(), this.targetZ - VexEntity.this.getZ());
-            double d = vec3d.length();
-            if (d < VexEntity.this.getBoundingBox().getAverageSideLength()) {
-               this.state = MoveControl.State.WAIT;
-               VexEntity.this.setVelocity(VexEntity.this.getVelocity().multiply(0.5));
-            } else {
-               VexEntity.this.setVelocity(VexEntity.this.getVelocity().add(vec3d.multiply(this.speed * 0.05 / d)));
-               if (VexEntity.this.getTarget() == null) {
-                  Vec3d vec3d2 = VexEntity.this.getVelocity();
-                  VexEntity.this.setYaw(-((float)MathHelper.atan2(vec3d2.x, vec3d2.z)) * (180.0F / (float)Math.PI));
-                  VexEntity.this.bodyYaw = VexEntity.this.getYaw();
-               } else {
-                  double e = VexEntity.this.getTarget().getX() - VexEntity.this.getX();
-                  double f = VexEntity.this.getTarget().getZ() - VexEntity.this.getZ();
-                  VexEntity.this.setYaw(-((float)MathHelper.atan2(e, f)) * (180.0F / (float)Math.PI));
-                  VexEntity.this.bodyYaw = VexEntity.this.getYaw();
-               }
-            }
-         }
-      }
-   }
+		public TrackOwnerTargetGoal(final PathAwareEntity mob) {
+			super(mob, false);
+		}
+
+		@Override
+		public boolean canStart() {
+			MobEntity mobEntity = VexEntity.this.getOwner();
+			return mobEntity != null && mobEntity.getTarget() != null && this.canTrack(
+					mobEntity.getTarget(),
+					this.targetPredicate
+			);
+		}
+
+		@Override
+		public void start() {
+			MobEntity mobEntity = VexEntity.this.getOwner();
+			VexEntity.this.setTarget(mobEntity != null ? mobEntity.getTarget() : null);
+			super.start();
+		}
+	}
+
+	/**
+	 * {@code VexMoveControl}.
+	 */
+	class VexMoveControl extends MoveControl {
+
+		public VexMoveControl(final VexEntity owner) {
+			super(owner);
+		}
+
+		@Override
+		public void tick() {
+			if (this.state == MoveControl.State.MOVE_TO) {
+				Vec3d
+						vec3d =
+						new Vec3d(
+								this.targetX - VexEntity.this.getX(),
+								this.targetY - VexEntity.this.getY(),
+								this.targetZ - VexEntity.this.getZ()
+						);
+				double d = vec3d.length();
+				if (d < VexEntity.this.getBoundingBox().getAverageSideLength()) {
+					this.state = MoveControl.State.WAIT;
+					VexEntity.this.setVelocity(VexEntity.this.getVelocity().multiply(0.5));
+				}
+				else {
+					VexEntity.this.setVelocity(VexEntity.this.getVelocity().add(vec3d.multiply(this.speed * 0.05 / d)));
+					if (VexEntity.this.getTarget() == null) {
+						Vec3d vec3d2 = VexEntity.this.getVelocity();
+						VexEntity.this.setYaw(
+								-((float) MathHelper.atan2(vec3d2.x, vec3d2.z)) * (180.0F / (float) Math.PI));
+						VexEntity.this.bodyYaw = VexEntity.this.getYaw();
+					}
+					else {
+						double e = VexEntity.this.getTarget().getX() - VexEntity.this.getX();
+						double f = VexEntity.this.getTarget().getZ() - VexEntity.this.getZ();
+						VexEntity.this.setYaw(-((float) MathHelper.atan2(e, f)) * (180.0F / (float) Math.PI));
+						VexEntity.this.bodyYaw = VexEntity.this.getYaw();
+					}
+				}
+			}
+		}
+	}
 }

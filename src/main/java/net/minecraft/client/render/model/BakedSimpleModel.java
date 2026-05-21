@@ -9,124 +9,139 @@ import net.minecraft.item.ItemDisplayContext;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BakedSimpleModel}.
+ */
 public interface BakedSimpleModel extends SimpleModel {
-   boolean DEFAULT_AMBIENT_OCCLUSION = true;
-   UnbakedModel.GuiLight DEFAULT_GUI_LIGHT = UnbakedModel.GuiLight.BLOCK;
 
-   UnbakedModel getModel();
+	boolean DEFAULT_AMBIENT_OCCLUSION = true;
 
-   @Nullable BakedSimpleModel getParent();
+	UnbakedModel.GuiLight DEFAULT_GUI_LIGHT = UnbakedModel.GuiLight.BLOCK;
 
-   static ModelTextures getTextures(BakedSimpleModel model) {
-      BakedSimpleModel bakedSimpleModel = model;
+	UnbakedModel getModel();
 
-      ModelTextures.Builder builder;
-      for (builder = new ModelTextures.Builder(); bakedSimpleModel != null; bakedSimpleModel = bakedSimpleModel.getParent()) {
-         builder.addLast(bakedSimpleModel.getModel().textures());
-      }
+	@Nullable BakedSimpleModel getParent();
 
-      return builder.build(model);
-   }
+	static ModelTextures getTextures(BakedSimpleModel model) {
+		BakedSimpleModel bakedSimpleModel = model;
 
-   default ModelTextures getTextures() {
-      return getTextures(this);
-   }
+		ModelTextures.Builder builder;
+		for (builder = new ModelTextures.Builder();
+		     bakedSimpleModel != null;
+		     bakedSimpleModel = bakedSimpleModel.getParent()) {
+			builder.addLast(bakedSimpleModel.getModel().textures());
+		}
 
-   static boolean getAmbientOcclusion(BakedSimpleModel model) {
-      while (model != null) {
-         Boolean boolean_ = model.getModel().ambientOcclusion();
-         if (boolean_ != null) {
-            return boolean_;
-         }
+		return builder.build(model);
+	}
 
-         model = model.getParent();
-      }
+	default ModelTextures getTextures() {
+		return getTextures(this);
+	}
 
-      return true;
-   }
+	static boolean getAmbientOcclusion(BakedSimpleModel model) {
+		while (model != null) {
+			Boolean boolean_ = model.getModel().ambientOcclusion();
+			if (boolean_ != null) {
+				return boolean_;
+			}
 
-   default boolean getAmbientOcclusion() {
-      return getAmbientOcclusion(this);
-   }
+			model = model.getParent();
+		}
 
-   static UnbakedModel.GuiLight getGuiLight(BakedSimpleModel model) {
-      while (model != null) {
-         UnbakedModel.GuiLight guiLight = model.getModel().guiLight();
-         if (guiLight != null) {
-            return guiLight;
-         }
+		return true;
+	}
 
-         model = model.getParent();
-      }
+	default boolean getAmbientOcclusion() {
+		return getAmbientOcclusion(this);
+	}
 
-      return DEFAULT_GUI_LIGHT;
-   }
+	static UnbakedModel.GuiLight getGuiLight(BakedSimpleModel model) {
+		while (model != null) {
+			UnbakedModel.GuiLight guiLight = model.getModel().guiLight();
+			if (guiLight != null) {
+				return guiLight;
+			}
 
-   default UnbakedModel.GuiLight getGuiLight() {
-      return getGuiLight(this);
-   }
+			model = model.getParent();
+		}
 
-   static Geometry getGeometry(BakedSimpleModel model) {
-      while (model != null) {
-         Geometry geometry = model.getModel().geometry();
-         if (geometry != null) {
-            return geometry;
-         }
+		return DEFAULT_GUI_LIGHT;
+	}
 
-         model = model.getParent();
-      }
+	default UnbakedModel.GuiLight getGuiLight() {
+		return getGuiLight(this);
+	}
 
-      return Geometry.EMPTY;
-   }
+	static Geometry getGeometry(BakedSimpleModel model) {
+		while (model != null) {
+			Geometry geometry = model.getModel().geometry();
+			if (geometry != null) {
+				return geometry;
+			}
 
-   default Geometry getGeometry() {
-      return getGeometry(this);
-   }
+			model = model.getParent();
+		}
 
-   default BakedGeometry bakeGeometry(ModelTextures textures, Baker baker, ModelBakeSettings settings) {
-      return this.getGeometry().bake(textures, baker, settings, this);
-   }
+		return Geometry.EMPTY;
+	}
 
-   static Sprite getParticleTexture(ModelTextures textures, Baker baker, SimpleModel model) {
-      return baker.getSpriteGetter().get(textures, "particle", model);
-   }
+	default Geometry getGeometry() {
+		return getGeometry(this);
+	}
 
-   default Sprite getParticleTexture(ModelTextures textures, Baker baker) {
-      return getParticleTexture(textures, baker, this);
-   }
+	default BakedGeometry bakeGeometry(ModelTextures textures, Baker baker, ModelBakeSettings settings) {
+		return this.getGeometry().bake(textures, baker, settings, this);
+	}
 
-   static Transformation extractTransformation(BakedSimpleModel model, ItemDisplayContext mode) {
-      while (model != null) {
-         ModelTransformation modelTransformation = model.getModel().transformations();
-         if (modelTransformation != null) {
-            Transformation transformation = modelTransformation.getTransformation(mode);
-            if (transformation != Transformation.IDENTITY) {
-               return transformation;
-            }
-         }
+	static Sprite getParticleTexture(ModelTextures textures, Baker baker, SimpleModel model) {
+		return baker.getSpriteGetter().get(textures, "particle", model);
+	}
 
-         model = model.getParent();
-      }
+	default Sprite getParticleTexture(ModelTextures textures, Baker baker) {
+		return getParticleTexture(textures, baker, this);
+	}
 
-      return Transformation.IDENTITY;
-   }
+	static Transformation extractTransformation(BakedSimpleModel model, ItemDisplayContext mode) {
+		while (model != null) {
+			ModelTransformation modelTransformation = model.getModel().transformations();
+			if (modelTransformation != null) {
+				Transformation transformation = modelTransformation.getTransformation(mode);
+				if (transformation != Transformation.IDENTITY) {
+					return transformation;
+				}
+			}
 
-   static ModelTransformation copyTransformations(BakedSimpleModel model) {
-      Transformation transformation = extractTransformation(model, ItemDisplayContext.THIRD_PERSON_LEFT_HAND);
-      Transformation transformation2 = extractTransformation(model, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND);
-      Transformation transformation3 = extractTransformation(model, ItemDisplayContext.FIRST_PERSON_LEFT_HAND);
-      Transformation transformation4 = extractTransformation(model, ItemDisplayContext.FIRST_PERSON_RIGHT_HAND);
-      Transformation transformation5 = extractTransformation(model, ItemDisplayContext.HEAD);
-      Transformation transformation6 = extractTransformation(model, ItemDisplayContext.GUI);
-      Transformation transformation7 = extractTransformation(model, ItemDisplayContext.GROUND);
-      Transformation transformation8 = extractTransformation(model, ItemDisplayContext.FIXED);
-      Transformation transformation9 = extractTransformation(model, ItemDisplayContext.ON_SHELF);
-      return new ModelTransformation(
-         transformation, transformation2, transformation3, transformation4, transformation5, transformation6, transformation7, transformation8, transformation9
-      );
-   }
+			model = model.getParent();
+		}
 
-   default ModelTransformation getTransformations() {
-      return copyTransformations(this);
-   }
+		return Transformation.IDENTITY;
+	}
+
+	static ModelTransformation copyTransformations(BakedSimpleModel model) {
+		Transformation transformation = extractTransformation(model, ItemDisplayContext.THIRD_PERSON_LEFT_HAND);
+		Transformation transformation2 = extractTransformation(model, ItemDisplayContext.THIRD_PERSON_RIGHT_HAND);
+		Transformation transformation3 = extractTransformation(model, ItemDisplayContext.FIRST_PERSON_LEFT_HAND);
+		Transformation transformation4 = extractTransformation(model, ItemDisplayContext.FIRST_PERSON_RIGHT_HAND);
+		Transformation transformation5 = extractTransformation(model, ItemDisplayContext.HEAD);
+		Transformation transformation6 = extractTransformation(model, ItemDisplayContext.GUI);
+		Transformation transformation7 = extractTransformation(model, ItemDisplayContext.GROUND);
+		Transformation transformation8 = extractTransformation(model, ItemDisplayContext.FIXED);
+		Transformation transformation9 = extractTransformation(model, ItemDisplayContext.ON_SHELF);
+		return new ModelTransformation(
+				transformation,
+				transformation2,
+				transformation3,
+				transformation4,
+				transformation5,
+				transformation6,
+				transformation7,
+				transformation8,
+				transformation9
+		);
+	}
+
+	default ModelTransformation getTransformations() {
+		return copyTransformations(this);
+	}
 }

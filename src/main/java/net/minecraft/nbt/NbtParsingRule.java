@@ -7,22 +7,27 @@ import net.minecraft.util.packrat.ParsingRule;
 import net.minecraft.util.packrat.ParsingState;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code NbtParsingRule}.
+ */
 public class NbtParsingRule<T> implements ParsingRule<StringReader, Dynamic<?>> {
-   private final StringNbtReader<T> nbtReader;
 
-   public NbtParsingRule(DynamicOps<T> ops) {
-      this.nbtReader = StringNbtReader.fromOps(ops);
-   }
+	private final StringNbtReader<T> nbtReader;
 
-   public @Nullable Dynamic<T> parse(ParsingState<StringReader> parsingState) {
-      parsingState.getReader().skipWhitespace();
-      int i = parsingState.getCursor();
+	public NbtParsingRule(DynamicOps<T> ops) {
+		this.nbtReader = StringNbtReader.fromOps(ops);
+	}
 
-      try {
-         return new Dynamic(this.nbtReader.getOps(), this.nbtReader.readAsArgument(parsingState.getReader()));
-      } catch (Exception var4) {
-         parsingState.getErrors().add(i, var4);
-         return null;
-      }
-   }
+	public @Nullable Dynamic<T> parse(ParsingState<StringReader> parsingState) {
+		parsingState.getReader().skipWhitespace();
+		int i = parsingState.getCursor();
+
+		try {
+			return new Dynamic(this.nbtReader.getOps(), this.nbtReader.readAsArgument(parsingState.getReader()));
+		}
+		catch (Exception var4) {
+			parsingState.getErrors().add(i, var4);
+			return null;
+		}
+	}
 }

@@ -1,8 +1,5 @@
 package net.minecraft.item;
 
-import java.util.Collection;
-import java.util.Set;
-import java.util.function.Supplier;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryWrapper;
@@ -11,275 +8,342 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collection;
+import java.util.Set;
+import java.util.function.Supplier;
+
+/**
+ * {@code ItemGroup}.
+ */
 public class ItemGroup {
-   static final Identifier ITEMS = getTabTextureId("items");
-   private final Text displayName;
-   Identifier texture = ITEMS;
-   boolean scrollbar = true;
-   boolean renderName = true;
-   boolean special = false;
-   private final ItemGroup.Row row;
-   private final int column;
-   private final ItemGroup.Type type;
-   private @Nullable ItemStack icon;
-   private Collection<ItemStack> displayStacks = ItemStackSet.create();
-   private Set<ItemStack> searchTabStacks = ItemStackSet.create();
-   private final Supplier<ItemStack> iconSupplier;
-   private final ItemGroup.EntryCollector entryCollector;
 
-   ItemGroup(ItemGroup.Row row, int column, ItemGroup.Type type, Text displayName, Supplier<ItemStack> iconSupplier, ItemGroup.EntryCollector entryCollector) {
-      this.row = row;
-      this.column = column;
-      this.displayName = displayName;
-      this.iconSupplier = iconSupplier;
-      this.entryCollector = entryCollector;
-      this.type = type;
-   }
+	static final Identifier ITEMS = getTabTextureId("items");
+	private final Text displayName;
+	Identifier texture = ITEMS;
+	boolean scrollbar = true;
+	boolean renderName = true;
+	boolean special = false;
+	private final ItemGroup.Row row;
+	private final int column;
+	private final ItemGroup.Type type;
+	private @Nullable ItemStack icon;
+	private Collection<ItemStack> displayStacks = ItemStackSet.create();
+	private Set<ItemStack> searchTabStacks = ItemStackSet.create();
+	private final Supplier<ItemStack> iconSupplier;
+	private final ItemGroup.EntryCollector entryCollector;
 
-   public static Identifier getTabTextureId(String name) {
-      return Identifier.ofVanilla("textures/gui/container/creative_inventory/tab_" + name + ".png");
-   }
+	ItemGroup(
+			ItemGroup.Row row,
+			int column,
+			ItemGroup.Type type,
+			Text displayName,
+			Supplier<ItemStack> iconSupplier,
+			ItemGroup.EntryCollector entryCollector
+	) {
+		this.row = row;
+		this.column = column;
+		this.displayName = displayName;
+		this.iconSupplier = iconSupplier;
+		this.entryCollector = entryCollector;
+		this.type = type;
+	}
 
-   public static ItemGroup.Builder create(ItemGroup.Row location, int column) {
-      return new ItemGroup.Builder(location, column);
-   }
+	public static Identifier getTabTextureId(String name) {
+		return Identifier.ofVanilla("textures/gui/container/creative_inventory/tab_" + name + ".png");
+	}
 
-   public Text getDisplayName() {
-      return this.displayName;
-   }
+	public static ItemGroup.Builder create(ItemGroup.Row location, int column) {
+		return new ItemGroup.Builder(location, column);
+	}
 
-   public ItemStack getIcon() {
-      if (this.icon == null) {
-         this.icon = this.iconSupplier.get();
-      }
+	public Text getDisplayName() {
+		return this.displayName;
+	}
 
-      return this.icon;
-   }
+	public ItemStack getIcon() {
+		if (this.icon == null) {
+			this.icon = this.iconSupplier.get();
+		}
 
-   public Identifier getTexture() {
-      return this.texture;
-   }
+		return this.icon;
+	}
 
-   public boolean shouldRenderName() {
-      return this.renderName;
-   }
+	public Identifier getTexture() {
+		return this.texture;
+	}
 
-   public boolean hasScrollbar() {
-      return this.scrollbar;
-   }
+	public boolean shouldRenderName() {
+		return this.renderName;
+	}
 
-   public int getColumn() {
-      return this.column;
-   }
+	public boolean hasScrollbar() {
+		return this.scrollbar;
+	}
 
-   public ItemGroup.Row getRow() {
-      return this.row;
-   }
+	public int getColumn() {
+		return this.column;
+	}
 
-   public boolean hasStacks() {
-      return !this.displayStacks.isEmpty();
-   }
+	public ItemGroup.Row getRow() {
+		return this.row;
+	}
 
-   public boolean shouldDisplay() {
-      return this.type != ItemGroup.Type.CATEGORY || this.hasStacks();
-   }
+	public boolean hasStacks() {
+		return !this.displayStacks.isEmpty();
+	}
 
-   public boolean isSpecial() {
-      return this.special;
-   }
+	public boolean shouldDisplay() {
+		return this.type != ItemGroup.Type.CATEGORY || this.hasStacks();
+	}
 
-   public ItemGroup.Type getType() {
-      return this.type;
-   }
+	public boolean isSpecial() {
+		return this.special;
+	}
 
-   public void updateEntries(ItemGroup.DisplayContext displayContext) {
-      ItemGroup.EntriesImpl entriesImpl = new ItemGroup.EntriesImpl(this, displayContext.enabledFeatures);
-      RegistryKey<ItemGroup> registryKey = Registries.ITEM_GROUP
-         .getKey(this)
-         .orElseThrow(() -> new IllegalStateException("Unregistered creative tab: " + this));
-      this.entryCollector.accept(displayContext, entriesImpl);
-      this.displayStacks = entriesImpl.parentTabStacks;
-      this.searchTabStacks = entriesImpl.searchTabStacks;
-   }
+	public ItemGroup.Type getType() {
+		return this.type;
+	}
 
-   public Collection<ItemStack> getDisplayStacks() {
-      return this.displayStacks;
-   }
+	public void updateEntries(ItemGroup.DisplayContext displayContext) {
+		ItemGroup.EntriesImpl entriesImpl = new ItemGroup.EntriesImpl(this, displayContext.enabledFeatures);
+		RegistryKey<ItemGroup> registryKey = Registries.ITEM_GROUP
+				.getKey(this)
+				.orElseThrow(() -> new IllegalStateException("Unregistered creative tab: " + this));
+		this.entryCollector.accept(displayContext, entriesImpl);
+		this.displayStacks = entriesImpl.parentTabStacks;
+		this.searchTabStacks = entriesImpl.searchTabStacks;
+	}
 
-   public Collection<ItemStack> getSearchTabStacks() {
-      return this.searchTabStacks;
-   }
+	public Collection<ItemStack> getDisplayStacks() {
+		return this.displayStacks;
+	}
 
-   public boolean contains(ItemStack stack) {
-      return this.searchTabStacks.contains(stack);
-   }
+	public Collection<ItemStack> getSearchTabStacks() {
+		return this.searchTabStacks;
+	}
 
-   public static class Builder {
-      private static final ItemGroup.EntryCollector EMPTY_ENTRIES = (displayContext, entries) -> {};
-      private final ItemGroup.Row row;
-      private final int column;
-      private Text displayName = Text.empty();
-      private Supplier<ItemStack> iconSupplier = () -> ItemStack.EMPTY;
-      private ItemGroup.EntryCollector entryCollector = EMPTY_ENTRIES;
-      private boolean scrollbar = true;
-      private boolean renderName = true;
-      private boolean special = false;
-      private ItemGroup.Type type = ItemGroup.Type.CATEGORY;
-      private Identifier texture = ItemGroup.ITEMS;
+	public boolean contains(ItemStack stack) {
+		return this.searchTabStacks.contains(stack);
+	}
 
-      public Builder(ItemGroup.Row row, int column) {
-         this.row = row;
-         this.column = column;
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder {
 
-      public ItemGroup.Builder displayName(Text displayName) {
-         this.displayName = displayName;
-         return this;
-      }
+		private static final ItemGroup.EntryCollector EMPTY_ENTRIES = (displayContext, entries) -> {};
+		private final ItemGroup.Row row;
+		private final int column;
+		private Text displayName = Text.empty();
+		private Supplier<ItemStack> iconSupplier = () -> ItemStack.EMPTY;
+		private ItemGroup.EntryCollector entryCollector = EMPTY_ENTRIES;
+		private boolean scrollbar = true;
+		private boolean renderName = true;
+		private boolean special = false;
+		private ItemGroup.Type type = ItemGroup.Type.CATEGORY;
+		private Identifier texture = ItemGroup.ITEMS;
 
-      public ItemGroup.Builder icon(Supplier<ItemStack> iconSupplier) {
-         this.iconSupplier = iconSupplier;
-         return this;
-      }
+		public Builder(ItemGroup.Row row, int column) {
+			this.row = row;
+			this.column = column;
+		}
 
-      public ItemGroup.Builder entries(ItemGroup.EntryCollector entryCollector) {
-         this.entryCollector = entryCollector;
-         return this;
-      }
+		public ItemGroup.Builder displayName(Text displayName) {
+			this.displayName = displayName;
+			return this;
+		}
 
-      public ItemGroup.Builder special() {
-         this.special = true;
-         return this;
-      }
+		public ItemGroup.Builder icon(Supplier<ItemStack> iconSupplier) {
+			this.iconSupplier = iconSupplier;
+			return this;
+		}
 
-      public ItemGroup.Builder noRenderedName() {
-         this.renderName = false;
-         return this;
-      }
+		public ItemGroup.Builder entries(ItemGroup.EntryCollector entryCollector) {
+			this.entryCollector = entryCollector;
+			return this;
+		}
 
-      public ItemGroup.Builder noScrollbar() {
-         this.scrollbar = false;
-         return this;
-      }
+		public ItemGroup.Builder special() {
+			this.special = true;
+			return this;
+		}
 
-      protected ItemGroup.Builder type(ItemGroup.Type type) {
-         this.type = type;
-         return this;
-      }
+		public ItemGroup.Builder noRenderedName() {
+			this.renderName = false;
+			return this;
+		}
 
-      public ItemGroup.Builder texture(Identifier texture) {
-         this.texture = texture;
-         return this;
-      }
+		public ItemGroup.Builder noScrollbar() {
+			this.scrollbar = false;
+			return this;
+		}
 
-      public ItemGroup build() {
-         if ((this.type == ItemGroup.Type.HOTBAR || this.type == ItemGroup.Type.INVENTORY) && this.entryCollector != EMPTY_ENTRIES) {
-            throw new IllegalStateException("Special tabs can't have display items");
-         } else {
-            ItemGroup itemGroup = new ItemGroup(this.row, this.column, this.type, this.displayName, this.iconSupplier, this.entryCollector);
-            itemGroup.special = this.special;
-            itemGroup.renderName = this.renderName;
-            itemGroup.scrollbar = this.scrollbar;
-            itemGroup.texture = this.texture;
-            return itemGroup;
-         }
-      }
-   }
+		protected ItemGroup.Builder type(ItemGroup.Type type) {
+			this.type = type;
+			return this;
+		}
 
-   public record DisplayContext(FeatureSet enabledFeatures, boolean hasPermissions, RegistryWrapper.WrapperLookup lookup) {
+		public ItemGroup.Builder texture(Identifier texture) {
+			this.texture = texture;
+			return this;
+		}
 
-      public boolean doesNotMatch(FeatureSet enabledFeatures, boolean hasPermissions, RegistryWrapper.WrapperLookup registries) {
-         return !this.enabledFeatures.equals(enabledFeatures) || this.hasPermissions != hasPermissions || this.lookup != registries;
-      }
-   }
+		public ItemGroup build() {
+			if ((this.type == ItemGroup.Type.HOTBAR || this.type == ItemGroup.Type.INVENTORY)
+					&& this.entryCollector != EMPTY_ENTRIES) {
+				throw new IllegalStateException("Special tabs can't have display items");
+			}
+			else {
+				ItemGroup
+						itemGroup =
+						new ItemGroup(
+								this.row,
+								this.column,
+								this.type,
+								this.displayName,
+								this.iconSupplier,
+								this.entryCollector
+						);
+				itemGroup.special = this.special;
+				itemGroup.renderName = this.renderName;
+				itemGroup.scrollbar = this.scrollbar;
+				itemGroup.texture = this.texture;
+				return itemGroup;
+			}
+		}
+	}
 
-   public interface Entries {
-      void add(ItemStack stack, ItemGroup.StackVisibility visibility);
+	/**
+	 * {@code DisplayContext}.
+	 */
+	public record DisplayContext(
+			FeatureSet enabledFeatures,
+			boolean hasPermissions,
+			RegistryWrapper.WrapperLookup lookup
+	) {
 
-      default void add(ItemStack stack) {
-         this.add(stack, ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
-      }
+		public boolean doesNotMatch(
+				FeatureSet enabledFeatures,
+				boolean hasPermissions,
+				RegistryWrapper.WrapperLookup registries
+		) {
+			return !this.enabledFeatures.equals(enabledFeatures) || this.hasPermissions != hasPermissions
+					|| this.lookup != registries;
+		}
+	}
 
-      default void add(ItemConvertible item, ItemGroup.StackVisibility visibility) {
-         this.add(new ItemStack(item), visibility);
-      }
+	/**
+	 * {@code Entries}.
+	 */
+	public interface Entries {
 
-      default void add(ItemConvertible item) {
-         this.add(new ItemStack(item), ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
-      }
+		void add(ItemStack stack, ItemGroup.StackVisibility visibility);
 
-      default void addAll(Collection<ItemStack> stacks, ItemGroup.StackVisibility visibility) {
-         stacks.forEach(stack -> this.add(stack, visibility));
-      }
+		default void add(ItemStack stack) {
+			this.add(stack, ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
+		}
 
-      default void addAll(Collection<ItemStack> stacks) {
-         this.addAll(stacks, ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
-      }
-   }
+		default void add(ItemConvertible item, ItemGroup.StackVisibility visibility) {
+			this.add(new ItemStack(item), visibility);
+		}
 
-   static class EntriesImpl implements ItemGroup.Entries {
-      public final Collection<ItemStack> parentTabStacks = ItemStackSet.create();
-      public final Set<ItemStack> searchTabStacks = ItemStackSet.create();
-      private final ItemGroup group;
-      private final FeatureSet enabledFeatures;
+		default void add(ItemConvertible item) {
+			this.add(new ItemStack(item), ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
+		}
 
-      public EntriesImpl(ItemGroup group, FeatureSet enabledFeatures) {
-         this.group = group;
-         this.enabledFeatures = enabledFeatures;
-      }
+		default void addAll(Collection<ItemStack> stacks, ItemGroup.StackVisibility visibility) {
+			stacks.forEach(stack -> this.add(stack, visibility));
+		}
 
-      @Override
-      public void add(ItemStack stack, ItemGroup.StackVisibility visibility) {
-         if (stack.getCount() != 1) {
-            throw new IllegalArgumentException("Stack size must be exactly 1");
-         } else {
-            boolean bl = this.parentTabStacks.contains(stack) && visibility != ItemGroup.StackVisibility.SEARCH_TAB_ONLY;
-            if (bl) {
-               throw new IllegalStateException(
-                  "Accidentally adding the same item stack twice "
-                     + stack.toHoverableText().getString()
-                     + " to a Creative Mode Tab: "
-                     + this.group.getDisplayName().getString()
-               );
-            } else {
-               if (stack.getItem().isEnabled(this.enabledFeatures)) {
-                  switch (visibility) {
-                     case PARENT_AND_SEARCH_TABS:
-                        this.parentTabStacks.add(stack);
-                        this.searchTabStacks.add(stack);
-                        break;
-                     case PARENT_TAB_ONLY:
-                        this.parentTabStacks.add(stack);
-                        break;
-                     case SEARCH_TAB_ONLY:
-                        this.searchTabStacks.add(stack);
-                  }
-               }
-            }
-         }
-      }
-   }
+		default void addAll(Collection<ItemStack> stacks) {
+			this.addAll(stacks, ItemGroup.StackVisibility.PARENT_AND_SEARCH_TABS);
+		}
+	}
 
-   @FunctionalInterface
-   public interface EntryCollector {
-      void accept(ItemGroup.DisplayContext displayContext, ItemGroup.Entries entries);
-   }
+	/**
+	 * {@code EntriesImpl}.
+	 */
+	static class EntriesImpl implements ItemGroup.Entries {
 
-   public static enum Row {
-      TOP,
-      BOTTOM;
-   }
+		public final Collection<ItemStack> parentTabStacks = ItemStackSet.create();
+		public final Set<ItemStack> searchTabStacks = ItemStackSet.create();
+		private final ItemGroup group;
+		private final FeatureSet enabledFeatures;
 
-   public static enum StackVisibility {
-      PARENT_AND_SEARCH_TABS,
-      PARENT_TAB_ONLY,
-      SEARCH_TAB_ONLY;
-   }
+		public EntriesImpl(ItemGroup group, FeatureSet enabledFeatures) {
+			this.group = group;
+			this.enabledFeatures = enabledFeatures;
+		}
 
-   public static enum Type {
-      CATEGORY,
-      INVENTORY,
-      HOTBAR,
-      SEARCH;
-   }
+		@Override
+		public void add(ItemStack stack, ItemGroup.StackVisibility visibility) {
+			if (stack.getCount() != 1) {
+				throw new IllegalArgumentException("Stack size must be exactly 1");
+			}
+			else {
+				boolean
+						bl =
+						this.parentTabStacks.contains(stack) && visibility != ItemGroup.StackVisibility.SEARCH_TAB_ONLY;
+				if (bl) {
+					throw new IllegalStateException(
+							"Accidentally adding the same item stack twice "
+									+ stack.toHoverableText().getString()
+									+ " to a Creative Mode Tab: "
+									+ this.group.getDisplayName().getString()
+					);
+				}
+				else {
+					if (stack.getItem().isEnabled(this.enabledFeatures)) {
+						switch (visibility) {
+							case PARENT_AND_SEARCH_TABS:
+								this.parentTabStacks.add(stack);
+								this.searchTabStacks.add(stack);
+								break;
+							case PARENT_TAB_ONLY:
+								this.parentTabStacks.add(stack);
+								break;
+							case SEARCH_TAB_ONLY:
+								this.searchTabStacks.add(stack);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	@FunctionalInterface
+	/**
+	 * {@code EntryCollector}.
+	 */
+	public interface EntryCollector {
+
+		void accept(ItemGroup.DisplayContext displayContext, ItemGroup.Entries entries);
+	}
+
+	/**
+	 * {@code Row}.
+	 */
+	public static enum Row {
+		TOP,
+		BOTTOM;
+	}
+
+	/**
+	 * {@code StackVisibility}.
+	 */
+	public static enum StackVisibility {
+		PARENT_AND_SEARCH_TABS,
+		PARENT_TAB_ONLY,
+		SEARCH_TAB_ONLY;
+	}
+
+	/**
+	 * {@code Type}.
+	 */
+	public static enum Type {
+		CATEGORY,
+		INVENTORY,
+		HOTBAR,
+		SEARCH;
+	}
 }

@@ -2,19 +2,23 @@ package net.minecraft.structure.processor;
 
 import java.util.List;
 
+/**
+ * {@code StructureProcessorList}.
+ */
 public class StructureProcessorList {
-   private final List<StructureProcessor> list;
 
-   public StructureProcessorList(List<StructureProcessor> list) {
-      this.list = list;
-   }
+	private final List<StructureProcessor> list;
 
-   public List<StructureProcessor> getList() {
-      return this.list;
-   }
+	public StructureProcessorList(List<StructureProcessor> list) {
+		this.list = list;
+	}
 
-   @Override
-   public String toString() {
-      return "ProcessorList[" + this.list + "]";
-   }
+	public List<StructureProcessor> getList() {
+		return this.list;
+	}
+
+	@Override
+	public String toString() {
+		return "ProcessorList[" + this.list + "]";
+	}
 }

@@ -1,6 +1,5 @@
 package net.minecraft.network.packet.s2c.play;
 
-import java.util.Objects;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.listener.ClientPlayPacketListener;
@@ -11,46 +10,50 @@ import net.minecraft.scoreboard.ScoreboardDisplaySlot;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+
 public class ScoreboardDisplayS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ScoreboardDisplayS2CPacket> CODEC = Packet.createCodec(
-      ScoreboardDisplayS2CPacket::write, ScoreboardDisplayS2CPacket::new
-   );
-   private final ScoreboardDisplaySlot slot;
-   private final String name;
 
-   public ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot slot, @Nullable ScoreboardObjective objective) {
-      this.slot = slot;
-      if (objective == null) {
-         this.name = "";
-      } else {
-         this.name = objective.getName();
-      }
-   }
+	public static final PacketCodec<PacketByteBuf, ScoreboardDisplayS2CPacket> CODEC = Packet.createCodec(
+			ScoreboardDisplayS2CPacket::write, ScoreboardDisplayS2CPacket::new
+	);
+	private final ScoreboardDisplaySlot slot;
+	private final String name;
 
-   private ScoreboardDisplayS2CPacket(PacketByteBuf buf) {
-      this.slot = buf.decode(ScoreboardDisplaySlot.FROM_ID);
-      this.name = buf.readString();
-   }
+	public ScoreboardDisplayS2CPacket(ScoreboardDisplaySlot slot, @Nullable ScoreboardObjective objective) {
+		this.slot = slot;
+		if (objective == null) {
+			this.name = "";
+		}
+		else {
+			this.name = objective.getName();
+		}
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.encode(ScoreboardDisplaySlot::getId, this.slot);
-      buf.writeString(this.name);
-   }
+	private ScoreboardDisplayS2CPacket(PacketByteBuf buf) {
+		this.slot = buf.decode(ScoreboardDisplaySlot.FROM_ID);
+		this.name = buf.readString();
+	}
 
-   @Override
-   public PacketType<ScoreboardDisplayS2CPacket> getPacketType() {
-      return PlayPackets.SET_DISPLAY_OBJECTIVE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.encode(ScoreboardDisplaySlot::getId, this.slot);
+		buf.writeString(this.name);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onScoreboardDisplay(this);
-   }
+	@Override
+	public PacketType<ScoreboardDisplayS2CPacket> getPacketType() {
+		return PlayPackets.SET_DISPLAY_OBJECTIVE;
+	}
 
-   public ScoreboardDisplaySlot getSlot() {
-      return this.slot;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onScoreboardDisplay(this);
+	}
 
-   public @Nullable String getName() {
-      return Objects.equals(this.name, "") ? null : this.name;
-   }
+	public ScoreboardDisplaySlot getSlot() {
+		return this.slot;
+	}
+
+	public @Nullable String getName() {
+		return Objects.equals(this.name, "") ? null : this.name;
+	}
 }

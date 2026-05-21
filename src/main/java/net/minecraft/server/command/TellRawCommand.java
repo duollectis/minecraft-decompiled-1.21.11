@@ -7,24 +7,44 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.TextArgumentType;
 import net.minecraft.server.network.ServerPlayerEntity;
 
+/**
+ * {@code TellRawCommand}.
+ */
 public class TellRawCommand {
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("tellraw")
-               .requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK)))
-            .then(
-               CommandManager.argument("targets", EntityArgumentType.players())
-                  .then(CommandManager.argument("message", TextArgumentType.text(registryAccess)).executes(context -> {
-                     int i = 0;
 
-                     for (ServerPlayerEntity serverPlayerEntity : EntityArgumentType.getPlayers(context, "targets")) {
-                        serverPlayerEntity.sendMessageToClient(TextArgumentType.parseTextArgument(context, "message", serverPlayerEntity), false);
-                        i++;
-                     }
+	public static void register(
+			CommandDispatcher<ServerCommandSource> dispatcher,
+			CommandRegistryAccess registryAccess
+	) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("tellraw")
+				                                                                 .requires(CommandManager.requirePermissionLevel(
+						                                                                 CommandManager.GAMEMASTERS_CHECK))
+				)
+						.then(
+								CommandManager.argument("targets", EntityArgumentType.players())
+								              .then(CommandManager
+										              .argument("message", TextArgumentType.text(registryAccess))
+										              .executes(context -> {
+											              int i = 0;
 
-                     return i;
-                  }))
-            )
-      );
-   }
+											              for (ServerPlayerEntity serverPlayerEntity : EntityArgumentType.getPlayers(
+													              context,
+													              "targets"
+											              )) {
+												              serverPlayerEntity.sendMessageToClient(
+														              TextArgumentType.parseTextArgument(
+																              context,
+																              "message",
+																              serverPlayerEntity
+														              ), false
+												              );
+												              i++;
+											              }
+
+											              return i;
+										              }))
+						)
+		);
+	}
 }

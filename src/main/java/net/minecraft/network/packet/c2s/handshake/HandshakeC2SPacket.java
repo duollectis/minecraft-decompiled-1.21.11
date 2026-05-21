@@ -7,40 +7,48 @@ import net.minecraft.network.packet.HandshakePackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
-public record HandshakeC2SPacket(int protocolVersion, String address, int port, ConnectionIntent intendedState) implements Packet<ServerHandshakePacketListener> {
-   public static final PacketCodec<PacketByteBuf, HandshakeC2SPacket> CODEC = Packet.createCodec(HandshakeC2SPacket::write, HandshakeC2SPacket::new);
-   private static final int MAX_ADDRESS_LENGTH = 255;
+public record HandshakeC2SPacket(
+		int protocolVersion,
+		String address,
+		int port,
+		ConnectionIntent intendedState
+) implements Packet<ServerHandshakePacketListener> {
 
-   @Deprecated
-   public HandshakeC2SPacket(int protocolVersion, String address, int port, ConnectionIntent intendedState) {
-      this.protocolVersion = protocolVersion;
-      this.address = address;
-      this.port = port;
-      this.intendedState = intendedState;
-   }
+	public static final PacketCodec<PacketByteBuf, HandshakeC2SPacket>
+			CODEC =
+			Packet.createCodec(HandshakeC2SPacket::write, HandshakeC2SPacket::new);
+	private static final int MAX_ADDRESS_LENGTH = 255;
 
-   private HandshakeC2SPacket(PacketByteBuf buf) {
-      this(buf.readVarInt(), buf.readString(255), buf.readUnsignedShort(), ConnectionIntent.byId(buf.readVarInt()));
-   }
+	@Deprecated
+	public HandshakeC2SPacket(int protocolVersion, String address, int port, ConnectionIntent intendedState) {
+		this.protocolVersion = protocolVersion;
+		this.address = address;
+		this.port = port;
+		this.intendedState = intendedState;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.protocolVersion);
-      buf.writeString(this.address);
-      buf.writeShort(this.port);
-      buf.writeVarInt(this.intendedState.getId());
-   }
+	private HandshakeC2SPacket(PacketByteBuf buf) {
+		this(buf.readVarInt(), buf.readString(255), buf.readUnsignedShort(), ConnectionIntent.byId(buf.readVarInt()));
+	}
 
-   @Override
-   public PacketType<HandshakeC2SPacket> getPacketType() {
-      return HandshakePackets.INTENTION;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.protocolVersion);
+		buf.writeString(this.address);
+		buf.writeShort(this.port);
+		buf.writeVarInt(this.intendedState.getId());
+	}
 
-   public void apply(ServerHandshakePacketListener serverHandshakePacketListener) {
-      serverHandshakePacketListener.onHandshake(this);
-   }
+	@Override
+	public PacketType<HandshakeC2SPacket> getPacketType() {
+		return HandshakePackets.INTENTION;
+	}
 
-   @Override
-   public boolean transitionsNetworkState() {
-      return true;
-   }
+	public void apply(ServerHandshakePacketListener serverHandshakePacketListener) {
+		serverHandshakePacketListener.onHandshake(this);
+	}
+
+	@Override
+	public boolean transitionsNetworkState() {
+		return true;
+	}
 }

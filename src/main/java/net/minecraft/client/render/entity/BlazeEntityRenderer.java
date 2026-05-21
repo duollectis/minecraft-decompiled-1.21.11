@@ -10,23 +10,27 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BlazeEntityRenderer}.
+ */
 public class BlazeEntityRenderer extends MobEntityRenderer<BlazeEntity, LivingEntityRenderState, BlazeEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/blaze.png");
 
-   public BlazeEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new BlazeEntityModel(context.getPart(EntityModelLayers.BLAZE)), 0.5F);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/blaze.png");
 
-   protected int getBlockLight(BlazeEntity blazeEntity, BlockPos blockPos) {
-      return 15;
-   }
+	public BlazeEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new BlazeEntityModel(context.getPart(EntityModelLayers.BLAZE)), 0.5F);
+	}
 
-   @Override
-   public Identifier getTexture(LivingEntityRenderState state) {
-      return TEXTURE;
-   }
+	protected int getBlockLight(BlazeEntity blazeEntity, BlockPos blockPos) {
+		return 15;
+	}
 
-   public LivingEntityRenderState createRenderState() {
-      return new LivingEntityRenderState();
-   }
+	@Override
+	public Identifier getTexture(LivingEntityRenderState state) {
+		return TEXTURE;
+	}
+
+	public LivingEntityRenderState createRenderState() {
+		return new LivingEntityRenderState();
+	}
 }

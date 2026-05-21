@@ -13,28 +13,32 @@ import net.minecraft.item.Items;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WitchEntityRenderer}.
+ */
 public class WitchEntityRenderer extends MobEntityRenderer<WitchEntity, WitchEntityRenderState, WitchEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/witch.png");
 
-   public WitchEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new WitchEntityModel(context.getPart(EntityModelLayers.WITCH)), 0.5F);
-      this.addFeature(new WitchHeldItemFeatureRenderer(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/witch.png");
 
-   public Identifier getTexture(WitchEntityRenderState witchEntityRenderState) {
-      return TEXTURE;
-   }
+	public WitchEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new WitchEntityModel(context.getPart(EntityModelLayers.WITCH)), 0.5F);
+		this.addFeature(new WitchHeldItemFeatureRenderer(this));
+	}
 
-   public WitchEntityRenderState createRenderState() {
-      return new WitchEntityRenderState();
-   }
+	public Identifier getTexture(WitchEntityRenderState witchEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(WitchEntity witchEntity, WitchEntityRenderState witchEntityRenderState, float f) {
-      super.updateRenderState(witchEntity, witchEntityRenderState, f);
-      ItemHolderEntityRenderState.update(witchEntity, witchEntityRenderState, this.itemModelResolver);
-      witchEntityRenderState.id = witchEntity.getId();
-      ItemStack itemStack = witchEntity.getMainHandStack();
-      witchEntityRenderState.holdingItem = !itemStack.isEmpty();
-      witchEntityRenderState.holdingPotion = itemStack.isOf(Items.POTION);
-   }
+	public WitchEntityRenderState createRenderState() {
+		return new WitchEntityRenderState();
+	}
+
+	public void updateRenderState(WitchEntity witchEntity, WitchEntityRenderState witchEntityRenderState, float f) {
+		super.updateRenderState(witchEntity, witchEntityRenderState, f);
+		ItemHolderEntityRenderState.update(witchEntity, witchEntityRenderState, this.itemModelResolver);
+		witchEntityRenderState.id = witchEntity.getId();
+		ItemStack itemStack = witchEntity.getMainHandStack();
+		witchEntityRenderState.holdingItem = !itemStack.isEmpty();
+		witchEntityRenderState.holdingPotion = itemStack.isOf(Items.POTION);
+	}
 }

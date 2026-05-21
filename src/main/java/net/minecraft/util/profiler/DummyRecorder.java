@@ -1,31 +1,35 @@
 package net.minecraft.util.profiler;
 
+/**
+ * {@code DummyRecorder}.
+ */
 public class DummyRecorder implements Recorder {
-   public static final Recorder INSTANCE = new DummyRecorder();
 
-   @Override
-   public void stop() {
-   }
+	public static final Recorder INSTANCE = new DummyRecorder();
 
-   @Override
-   public void forceStop() {
-   }
+	@Override
+	public void stop() {
+	}
 
-   @Override
-   public void startTick() {
-   }
+	@Override
+	public void forceStop() {
+	}
 
-   @Override
-   public boolean isActive() {
-      return false;
-   }
+	@Override
+	public void startTick() {
+	}
 
-   @Override
-   public Profiler getProfiler() {
-      return DummyProfiler.INSTANCE;
-   }
+	@Override
+	public boolean isActive() {
+		return false;
+	}
 
-   @Override
-   public void endTick() {
-   }
+	@Override
+	public Profiler getProfiler() {
+		return DummyProfiler.INSTANCE;
+	}
+
+	@Override
+	public void endTick() {
+	}
 }

@@ -2,23 +2,26 @@ package net.minecraft.block.enums;
 
 import net.minecraft.util.StringIdentifiable;
 
+/**
+ * {@code BlockHalf}.
+ */
 public enum BlockHalf implements StringIdentifiable {
-   TOP("top"),
-   BOTTOM("bottom");
+	TOP("top"),
+	BOTTOM("bottom");
 
-   private final String name;
+	private final String name;
 
-   private BlockHalf(final String name) {
-      this.name = name;
-   }
+	private BlockHalf(final String name) {
+		this.name = name;
+	}
 
-   @Override
-   public String toString() {
-      return this.name;
-   }
+	@Override
+	public String toString() {
+		return this.name;
+	}
 
-   @Override
-   public String asString() {
-      return this.name;
-   }
+	@Override
+	public String asString() {
+		return this.name;
+	}
 }

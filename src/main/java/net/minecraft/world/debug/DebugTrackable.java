@@ -3,14 +3,26 @@ package net.minecraft.world.debug;
 import net.minecraft.server.world.ServerWorld;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code DebugTrackable}.
+ */
 public interface DebugTrackable {
-   void registerTracking(ServerWorld world, DebugTrackable.Tracker tracker);
 
-   public interface DebugDataSupplier<T> {
-      @Nullable T get();
-   }
+	void registerTracking(ServerWorld world, DebugTrackable.Tracker tracker);
 
-   public interface Tracker {
-      <T> void track(DebugSubscriptionType<T> type, DebugTrackable.DebugDataSupplier<T> dataSupplier);
-   }
+	/**
+	 * {@code DebugDataSupplier}.
+	 */
+	public interface DebugDataSupplier<T> {
+
+		@Nullable T get();
+	}
+
+	/**
+	 * {@code Tracker}.
+	 */
+	public interface Tracker {
+
+		<T> void track(DebugSubscriptionType<T> type, DebugTrackable.DebugDataSupplier<T> dataSupplier);
+	}
 }

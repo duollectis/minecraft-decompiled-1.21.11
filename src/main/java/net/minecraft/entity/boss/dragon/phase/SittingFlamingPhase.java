@@ -12,105 +12,123 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SittingFlamingPhase}.
+ */
 public class SittingFlamingPhase extends AbstractSittingPhase {
-   private static final int DURATION = 200;
-   private static final int MAX_TIMES_RUN = 4;
-   private static final int DRAGON_BREATH_MAX_TICK = 10;
-   private int ticks;
-   private int timesRun;
-   private @Nullable AreaEffectCloudEntity dragonBreathEntity;
 
-   public SittingFlamingPhase(EnderDragonEntity enderDragonEntity) {
-      super(enderDragonEntity);
-   }
+	private static final int DURATION = 200;
+	private static final int MAX_TIMES_RUN = 4;
+	private static final int DRAGON_BREATH_MAX_TICK = 10;
+	private int ticks;
+	private int timesRun;
+	private @Nullable AreaEffectCloudEntity dragonBreathEntity;
 
-   @Override
-   public void clientTick() {
-      this.ticks++;
-      if (this.ticks % 2 == 0 && this.ticks < 10) {
-         Vec3d vec3d = this.dragon.getRotationVectorFromPhase(1.0F).normalize();
-         vec3d.rotateY((float) (-Math.PI / 4));
-         double d = this.dragon.head.getX();
-         double e = this.dragon.head.getBodyY(0.5);
-         double f = this.dragon.head.getZ();
+	public SittingFlamingPhase(EnderDragonEntity enderDragonEntity) {
+		super(enderDragonEntity);
+	}
 
-         for (int i = 0; i < 8; i++) {
-            double g = d + this.dragon.getRandom().nextGaussian() / 2.0;
-            double h = e + this.dragon.getRandom().nextGaussian() / 2.0;
-            double j = f + this.dragon.getRandom().nextGaussian() / 2.0;
+	@Override
+	public void clientTick() {
+		this.ticks++;
+		if (this.ticks % 2 == 0 && this.ticks < 10) {
+			Vec3d vec3d = this.dragon.getRotationVectorFromPhase(1.0F).normalize();
+			vec3d.rotateY((float) (-Math.PI / 4));
+			double d = this.dragon.head.getX();
+			double e = this.dragon.head.getBodyY(0.5);
+			double f = this.dragon.head.getZ();
 
-            for (int k = 0; k < 6; k++) {
-               this.dragon
-                  .getEntityWorld()
-                  .addParticleClient(
-                     DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F), g, h, j, -vec3d.x * 0.08F * k, -vec3d.y * 0.6F, -vec3d.z * 0.08F * k
-                  );
-            }
+			for (int i = 0; i < 8; i++) {
+				double g = d + this.dragon.getRandom().nextGaussian() / 2.0;
+				double h = e + this.dragon.getRandom().nextGaussian() / 2.0;
+				double j = f + this.dragon.getRandom().nextGaussian() / 2.0;
 
-            vec3d.rotateY((float) (Math.PI / 16));
-         }
-      }
-   }
+				for (int k = 0; k < 6; k++) {
+					this.dragon
+							.getEntityWorld()
+							.addParticleClient(
+									DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F),
+									g,
+									h,
+									j,
+									-vec3d.x * 0.08F * k,
+									-vec3d.y * 0.6F,
+									-vec3d.z * 0.08F * k
+							);
+				}
 
-   @Override
-   public void serverTick(ServerWorld world) {
-      this.ticks++;
-      if (this.ticks >= 200) {
-         if (this.timesRun >= 4) {
-            this.dragon.getPhaseManager().setPhase(PhaseType.TAKEOFF);
-         } else {
-            this.dragon.getPhaseManager().setPhase(PhaseType.SITTING_SCANNING);
-         }
-      } else if (this.ticks == 10) {
-         Vec3d vec3d = new Vec3d(this.dragon.head.getX() - this.dragon.getX(), 0.0, this.dragon.head.getZ() - this.dragon.getZ()).normalize();
-         float f = 5.0F;
-         double d = this.dragon.head.getX() + vec3d.x * 5.0 / 2.0;
-         double e = this.dragon.head.getZ() + vec3d.z * 5.0 / 2.0;
-         double g = this.dragon.head.getBodyY(0.5);
-         double h = g;
-         BlockPos.Mutable mutable = new BlockPos.Mutable(d, g, e);
+				vec3d.rotateY((float) (Math.PI / 16));
+			}
+		}
+	}
 
-         while (world.isAir(mutable)) {
-            if (--h < 0.0) {
-               h = g;
-               break;
-            }
+	@Override
+	public void serverTick(ServerWorld world) {
+		this.ticks++;
+		if (this.ticks >= 200) {
+			if (this.timesRun >= 4) {
+				this.dragon.getPhaseManager().setPhase(PhaseType.TAKEOFF);
+			}
+			else {
+				this.dragon.getPhaseManager().setPhase(PhaseType.SITTING_SCANNING);
+			}
+		}
+		else if (this.ticks == 10) {
+			Vec3d
+					vec3d =
+					new Vec3d(
+							this.dragon.head.getX() - this.dragon.getX(),
+							0.0,
+							this.dragon.head.getZ() - this.dragon.getZ()
+					).normalize();
+			float f = 5.0F;
+			double d = this.dragon.head.getX() + vec3d.x * 5.0 / 2.0;
+			double e = this.dragon.head.getZ() + vec3d.z * 5.0 / 2.0;
+			double g = this.dragon.head.getBodyY(0.5);
+			double h = g;
+			BlockPos.Mutable mutable = new BlockPos.Mutable(d, g, e);
 
-            mutable.set(d, h, e);
-         }
+			while (world.isAir(mutable)) {
+				if (--h < 0.0) {
+					h = g;
+					break;
+				}
 
-         h = MathHelper.floor(h) + 1;
-         this.dragonBreathEntity = new AreaEffectCloudEntity(world, d, h, e);
-         this.dragonBreathEntity.setOwner(this.dragon);
-         this.dragonBreathEntity.setRadius(5.0F);
-         this.dragonBreathEntity.setDuration(200);
-         this.dragonBreathEntity.setParticleType(DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F));
-         this.dragonBreathEntity.setPotionDurationScale(0.25F);
-         this.dragonBreathEntity.addEffect(new StatusEffectInstance(StatusEffects.INSTANT_DAMAGE));
-         world.spawnEntity(this.dragonBreathEntity);
-      }
-   }
+				mutable.set(d, h, e);
+			}
 
-   @Override
-   public void beginPhase() {
-      this.ticks = 0;
-      this.timesRun++;
-   }
+			h = MathHelper.floor(h) + 1;
+			this.dragonBreathEntity = new AreaEffectCloudEntity(world, d, h, e);
+			this.dragonBreathEntity.setOwner(this.dragon);
+			this.dragonBreathEntity.setRadius(5.0F);
+			this.dragonBreathEntity.setDuration(200);
+			this.dragonBreathEntity.setParticleType(DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F));
+			this.dragonBreathEntity.setPotionDurationScale(0.25F);
+			this.dragonBreathEntity.addEffect(new StatusEffectInstance(StatusEffects.INSTANT_DAMAGE));
+			world.spawnEntity(this.dragonBreathEntity);
+		}
+	}
 
-   @Override
-   public void endPhase() {
-      if (this.dragonBreathEntity != null) {
-         this.dragonBreathEntity.discard();
-         this.dragonBreathEntity = null;
-      }
-   }
+	@Override
+	public void beginPhase() {
+		this.ticks = 0;
+		this.timesRun++;
+	}
 
-   @Override
-   public PhaseType<SittingFlamingPhase> getType() {
-      return PhaseType.SITTING_FLAMING;
-   }
+	@Override
+	public void endPhase() {
+		if (this.dragonBreathEntity != null) {
+			this.dragonBreathEntity.discard();
+			this.dragonBreathEntity = null;
+		}
+	}
 
-   public void reset() {
-      this.timesRun = 0;
-   }
+	@Override
+	public PhaseType<SittingFlamingPhase> getType() {
+		return PhaseType.SITTING_FLAMING;
+	}
+
+	public void reset() {
+		this.timesRun = 0;
+	}
 }

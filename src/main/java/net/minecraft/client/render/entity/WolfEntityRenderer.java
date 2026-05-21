@@ -12,36 +12,45 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ColorHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WolfEntityRenderer}.
+ */
 public class WolfEntityRenderer extends AgeableMobEntityRenderer<WolfEntity, WolfEntityRenderState, WolfEntityModel> {
-   public WolfEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new WolfEntityModel(context.getPart(EntityModelLayers.WOLF)), new WolfEntityModel(context.getPart(EntityModelLayers.WOLF_BABY)), 0.5F);
-      this.addFeature(new WolfArmorFeatureRenderer(this, context.getEntityModels(), context.getEquipmentRenderer()));
-      this.addFeature(new WolfCollarFeatureRenderer(this));
-   }
 
-   protected int getMixColor(WolfEntityRenderState wolfEntityRenderState) {
-      float f = wolfEntityRenderState.furWetBrightnessMultiplier;
-      return f == 1.0F ? -1 : ColorHelper.fromFloats(1.0F, f, f, f);
-   }
+	public WolfEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new WolfEntityModel(context.getPart(EntityModelLayers.WOLF)),
+				new WolfEntityModel(context.getPart(EntityModelLayers.WOLF_BABY)),
+				0.5F
+		);
+		this.addFeature(new WolfArmorFeatureRenderer(this, context.getEntityModels(), context.getEquipmentRenderer()));
+		this.addFeature(new WolfCollarFeatureRenderer(this));
+	}
 
-   public Identifier getTexture(WolfEntityRenderState wolfEntityRenderState) {
-      return wolfEntityRenderState.texture;
-   }
+	protected int getMixColor(WolfEntityRenderState wolfEntityRenderState) {
+		float f = wolfEntityRenderState.furWetBrightnessMultiplier;
+		return f == 1.0F ? -1 : ColorHelper.fromFloats(1.0F, f, f, f);
+	}
 
-   public WolfEntityRenderState createRenderState() {
-      return new WolfEntityRenderState();
-   }
+	public Identifier getTexture(WolfEntityRenderState wolfEntityRenderState) {
+		return wolfEntityRenderState.texture;
+	}
 
-   public void updateRenderState(WolfEntity wolfEntity, WolfEntityRenderState wolfEntityRenderState, float f) {
-      super.updateRenderState(wolfEntity, wolfEntityRenderState, f);
-      wolfEntityRenderState.angerTime = wolfEntity.hasAngerTime();
-      wolfEntityRenderState.inSittingPose = wolfEntity.isInSittingPose();
-      wolfEntityRenderState.tailAngle = wolfEntity.getTailAngle();
-      wolfEntityRenderState.begAnimationProgress = wolfEntity.getBegAnimationProgress(f);
-      wolfEntityRenderState.shakeProgress = wolfEntity.getShakeProgress(f);
-      wolfEntityRenderState.texture = wolfEntity.getTextureId();
-      wolfEntityRenderState.furWetBrightnessMultiplier = wolfEntity.getFurWetBrightnessMultiplier(f);
-      wolfEntityRenderState.collarColor = wolfEntity.isTamed() ? wolfEntity.getCollarColor() : null;
-      wolfEntityRenderState.bodyArmor = wolfEntity.getBodyArmor().copy();
-   }
+	public WolfEntityRenderState createRenderState() {
+		return new WolfEntityRenderState();
+	}
+
+	public void updateRenderState(WolfEntity wolfEntity, WolfEntityRenderState wolfEntityRenderState, float f) {
+		super.updateRenderState(wolfEntity, wolfEntityRenderState, f);
+		wolfEntityRenderState.angerTime = wolfEntity.hasAngerTime();
+		wolfEntityRenderState.inSittingPose = wolfEntity.isInSittingPose();
+		wolfEntityRenderState.tailAngle = wolfEntity.getTailAngle();
+		wolfEntityRenderState.begAnimationProgress = wolfEntity.getBegAnimationProgress(f);
+		wolfEntityRenderState.shakeProgress = wolfEntity.getShakeProgress(f);
+		wolfEntityRenderState.texture = wolfEntity.getTextureId();
+		wolfEntityRenderState.furWetBrightnessMultiplier = wolfEntity.getFurWetBrightnessMultiplier(f);
+		wolfEntityRenderState.collarColor = wolfEntity.isTamed() ? wolfEntity.getCollarColor() : null;
+		wolfEntityRenderState.bodyArmor = wolfEntity.getBodyArmor().copy();
+	}
 }

@@ -12,41 +12,47 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CraftingRecipeJsonBuilder}.
+ */
 public interface CraftingRecipeJsonBuilder {
-   Identifier ROOT = Identifier.ofVanilla("recipes/root");
 
-   CraftingRecipeJsonBuilder criterion(String name, AdvancementCriterion<?> criterion);
+	Identifier ROOT = Identifier.ofVanilla("recipes/root");
 
-   CraftingRecipeJsonBuilder group(@Nullable String group);
+	CraftingRecipeJsonBuilder criterion(String name, AdvancementCriterion<?> criterion);
 
-   Item getOutputItem();
+	CraftingRecipeJsonBuilder group(@Nullable String group);
 
-   void offerTo(RecipeExporter exporter, RegistryKey<Recipe<?>> recipeKey);
+	Item getOutputItem();
 
-   default void offerTo(RecipeExporter exporter) {
-      this.offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, getItemId(this.getOutputItem())));
-   }
+	void offerTo(RecipeExporter exporter, RegistryKey<Recipe<?>> recipeKey);
 
-   default void offerTo(RecipeExporter exporter, String recipePath) {
-      Identifier identifier = getItemId(this.getOutputItem());
-      Identifier identifier2 = Identifier.of(recipePath);
-      if (identifier2.equals(identifier)) {
-         throw new IllegalStateException("Recipe " + recipePath + " should remove its 'save' argument as it is equal to default one");
-      } else {
-         this.offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, identifier2));
-      }
-   }
+	default void offerTo(RecipeExporter exporter) {
+		this.offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, getItemId(this.getOutputItem())));
+	}
 
-   static Identifier getItemId(ItemConvertible item) {
-      return Registries.ITEM.getId(item.asItem());
-   }
+	default void offerTo(RecipeExporter exporter, String recipePath) {
+		Identifier identifier = getItemId(this.getOutputItem());
+		Identifier identifier2 = Identifier.of(recipePath);
+		if (identifier2.equals(identifier)) {
+			throw new IllegalStateException(
+					"Recipe " + recipePath + " should remove its 'save' argument as it is equal to default one");
+		}
+		else {
+			this.offerTo(exporter, RegistryKey.of(RegistryKeys.RECIPE, identifier2));
+		}
+	}
 
-   static CraftingRecipeCategory toCraftingCategory(RecipeCategory category) {
-      return switch (category) {
-         case BUILDING_BLOCKS -> CraftingRecipeCategory.BUILDING;
-         case TOOLS, COMBAT -> CraftingRecipeCategory.EQUIPMENT;
-         case REDSTONE -> CraftingRecipeCategory.REDSTONE;
-         default -> CraftingRecipeCategory.MISC;
-      };
-   }
+	static Identifier getItemId(ItemConvertible item) {
+		return Registries.ITEM.getId(item.asItem());
+	}
+
+	static CraftingRecipeCategory toCraftingCategory(RecipeCategory category) {
+		return switch (category) {
+			case BUILDING_BLOCKS -> CraftingRecipeCategory.BUILDING;
+			case TOOLS, COMBAT -> CraftingRecipeCategory.EQUIPMENT;
+			case REDSTONE -> CraftingRecipeCategory.REDSTONE;
+			default -> CraftingRecipeCategory.MISC;
+		};
+	}
 }

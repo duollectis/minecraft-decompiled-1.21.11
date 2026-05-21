@@ -5,48 +5,52 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+/**
+ * {@code AmphibiousSwimNavigation}.
+ */
 public class AmphibiousSwimNavigation extends EntityNavigation {
-   public AmphibiousSwimNavigation(MobEntity mobEntity, World world) {
-      super(mobEntity, world);
-   }
 
-   @Override
-   protected PathNodeNavigator createPathNodeNavigator(int range) {
-      this.nodeMaker = new AmphibiousPathNodeMaker(false);
-      return new PathNodeNavigator(this.nodeMaker, range);
-   }
+	public AmphibiousSwimNavigation(MobEntity mobEntity, World world) {
+		super(mobEntity, world);
+	}
 
-   @Override
-   protected boolean isAtValidPosition() {
-      return true;
-   }
+	@Override
+	protected PathNodeNavigator createPathNodeNavigator(int range) {
+		this.nodeMaker = new AmphibiousPathNodeMaker(false);
+		return new PathNodeNavigator(this.nodeMaker, range);
+	}
 
-   @Override
-   protected Vec3d getPos() {
-      return new Vec3d(this.entity.getX(), this.entity.getBodyY(0.5), this.entity.getZ());
-   }
+	@Override
+	protected boolean isAtValidPosition() {
+		return true;
+	}
 
-   @Override
-   protected double adjustTargetY(Vec3d pos) {
-      return pos.y;
-   }
+	@Override
+	protected Vec3d getPos() {
+		return new Vec3d(this.entity.getX(), this.entity.getBodyY(0.5), this.entity.getZ());
+	}
 
-   @Override
-   protected boolean canPathDirectlyThrough(Vec3d origin, Vec3d target) {
-      return this.entity.isInFluid() ? doesNotCollide(this.entity, origin, target, false) : false;
-   }
+	@Override
+	protected double adjustTargetY(Vec3d pos) {
+		return pos.y;
+	}
 
-   @Override
-   public boolean isValidPosition(BlockPos pos) {
-      return !this.world.getBlockState(pos.down()).isAir();
-   }
+	@Override
+	protected boolean canPathDirectlyThrough(Vec3d origin, Vec3d target) {
+		return this.entity.isInFluid() ? doesNotCollide(this.entity, origin, target, false) : false;
+	}
 
-   @Override
-   public void setCanSwim(boolean canSwim) {
-   }
+	@Override
+	public boolean isValidPosition(BlockPos pos) {
+		return !this.world.getBlockState(pos.down()).isAir();
+	}
 
-   @Override
-   public boolean canControlOpeningDoors() {
-      return true;
-   }
+	@Override
+	public void setCanSwim(boolean canSwim) {
+	}
+
+	@Override
+	public boolean canControlOpeningDoors() {
+		return true;
+	}
 }

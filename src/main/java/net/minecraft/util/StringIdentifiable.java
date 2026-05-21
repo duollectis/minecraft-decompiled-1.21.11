@@ -4,6 +4,9 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.Keyable;
+import net.minecraft.util.dynamic.Codecs;
+import org.jspecify.annotations.Nullable;
+
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
@@ -12,99 +15,120 @@ import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import net.minecraft.util.dynamic.Codecs;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code StringIdentifiable}.
+ */
 public interface StringIdentifiable {
-   int CACHED_MAP_THRESHOLD = 16;
 
-   String asString();
+	int CACHED_MAP_THRESHOLD = 16;
 
-   static <E extends Enum<E> & StringIdentifiable> StringIdentifiable.EnumCodec<E> createCodec(Supplier<E[]> enumValues) {
-      return createCodec(enumValues, id -> id);
-   }
+	String asString();
 
-   static <E extends Enum<E> & StringIdentifiable> StringIdentifiable.EnumCodec<E> createCodec(
-      Supplier<E[]> enumValues, Function<String, String> valueNameTransformer
-   ) {
-      E[] enums = (E[])enumValues.get();
-      Function<String, E> function = createMapper(enums, enum_ -> valueNameTransformer.apply(enum_.asString()));
-      return new StringIdentifiable.EnumCodec<>(enums, function);
-   }
+	static <E extends Enum<E> & StringIdentifiable> StringIdentifiable.EnumCodec<E> createCodec(Supplier<E[]> enumValues) {
+		return createCodec(enumValues, id -> id);
+	}
 
-   static <T extends StringIdentifiable> Codec<T> createBasicCodec(Supplier<T[]> values) {
-      T[] stringIdentifiables = (T[])values.get();
-      Function<String, T> function = createMapper(stringIdentifiables);
-      ToIntFunction<T> toIntFunction = Util.lastIndexGetter(Arrays.asList(stringIdentifiables));
-      return new StringIdentifiable.BasicCodec<>(stringIdentifiables, function, toIntFunction);
-   }
+	static <E extends Enum<E> & StringIdentifiable> StringIdentifiable.EnumCodec<E> createCodec(
+			Supplier<E[]> enumValues, Function<String, String> valueNameTransformer
+	) {
+		E[] enums = (E[]) enumValues.get();
+		Function<String, E> function = createMapper(enums, enum_ -> valueNameTransformer.apply(enum_.asString()));
+		return new StringIdentifiable.EnumCodec<>(enums, function);
+	}
 
-   static <T extends StringIdentifiable> Function<String, @Nullable T> createMapper(T[] values) {
-      return createMapper(values, StringIdentifiable::asString);
-   }
+	static <T extends StringIdentifiable> Codec<T> createBasicCodec(Supplier<T[]> values) {
+		T[] stringIdentifiables = (T[]) values.get();
+		Function<String, T> function = createMapper(stringIdentifiables);
+		ToIntFunction<T> toIntFunction = Util.lastIndexGetter(Arrays.asList(stringIdentifiables));
+		return new StringIdentifiable.BasicCodec<>(stringIdentifiables, function, toIntFunction);
+	}
 
-   static <T> Function<String, @Nullable T> createMapper(T[] values, Function<T, String> valueNameTransformer) {
-      if (values.length > 16) {
-         Map<String, T> map = Arrays.<T>stream(values).collect(Collectors.toMap(valueNameTransformer, object -> (T)object));
-         return map::get;
-      } else {
-         return name -> {
-            for (T object : values) {
-               if (valueNameTransformer.apply(object).equals(name)) {
-                  return object;
-               }
-            }
+	static <T extends StringIdentifiable> Function<String, @Nullable T> createMapper(T[] values) {
+		return createMapper(values, StringIdentifiable::asString);
+	}
 
-            return null;
-         };
-      }
-   }
+	static <T> Function<String, @Nullable T> createMapper(T[] values, Function<T, String> valueNameTransformer) {
+		if (values.length > 16) {
+			Map<String, T>
+					map =
+					Arrays.<T>stream(values).collect(Collectors.toMap(valueNameTransformer, object -> (T) object));
+			return map::get;
+		}
+		else {
+			return name -> {
+				for (T object : values) {
+					if (valueNameTransformer.apply(object).equals(name)) {
+						return object;
+					}
+				}
 
-   static Keyable toKeyable(StringIdentifiable[] values) {
-      return new Keyable() {
-         public <T> Stream<T> keys(DynamicOps<T> ops) {
-            return Arrays.stream(values).map(StringIdentifiable::asString).map(ops::createString);
-         }
-      };
-   }
+				return null;
+			};
+		}
+	}
 
-   public static class BasicCodec<S extends StringIdentifiable> implements Codec<S> {
-      private final Codec<S> codec;
+	static Keyable toKeyable(StringIdentifiable[] values) {
+		return new Keyable() {
+			public <T> Stream<T> keys(DynamicOps<T> ops) {
+				return Arrays.stream(values).map(StringIdentifiable::asString).map(ops::createString);
+			}
+		};
+	}
 
-      public BasicCodec(S[] values, Function<String, @Nullable S> idToIdentifiable, ToIntFunction<S> identifiableToOrdinal) {
-         this.codec = Codecs.orCompressed(
-            Codec.stringResolver(StringIdentifiable::asString, idToIdentifiable),
-            Codecs.rawIdChecked(identifiableToOrdinal, ordinal -> ordinal >= 0 && ordinal < values.length ? values[ordinal] : null, -1)
-         );
-      }
+	/**
+	 * {@code BasicCodec}.
+	 */
+	public static class BasicCodec<S extends StringIdentifiable> implements Codec<S> {
 
-      public <T> DataResult<com.mojang.datafixers.util.Pair<S, T>> decode(DynamicOps<T> ops, T input) {
-         return this.codec.decode(ops, input);
-      }
+		private final Codec<S> codec;
 
-      public <T> DataResult<T> encode(S stringIdentifiable, DynamicOps<T> dynamicOps, T object) {
-         return this.codec.encode(stringIdentifiable, dynamicOps, object);
-      }
-   }
+		public BasicCodec(
+				S[] values,
+				Function<String, @Nullable S> idToIdentifiable,
+				ToIntFunction<S> identifiableToOrdinal
+		) {
+			this.codec = Codecs.orCompressed(
+					Codec.stringResolver(StringIdentifiable::asString, idToIdentifiable),
+					Codecs.rawIdChecked(
+							identifiableToOrdinal,
+							ordinal -> ordinal >= 0 && ordinal < values.length ? values[ordinal] : null,
+							-1
+					)
+			);
+		}
 
-   public static class EnumCodec<E extends Enum<E> & StringIdentifiable> extends StringIdentifiable.BasicCodec<E> {
-      private final Function<String, @Nullable E> idToIdentifiable;
+		public <T> DataResult<com.mojang.datafixers.util.Pair<S, T>> decode(DynamicOps<T> ops, T input) {
+			return this.codec.decode(ops, input);
+		}
 
-      public EnumCodec(E[] values, Function<String, E> idToIdentifiable) {
-         super(values, idToIdentifiable, enum_ -> enum_.ordinal());
-         this.idToIdentifiable = idToIdentifiable;
-      }
+		public <T> DataResult<T> encode(S stringIdentifiable, DynamicOps<T> dynamicOps, T object) {
+			return this.codec.encode(stringIdentifiable, dynamicOps, object);
+		}
+	}
 
-      public @Nullable E byId(String id) {
-         return this.idToIdentifiable.apply(id);
-      }
+	/**
+	 * {@code EnumCodec}.
+	 */
+	public static class EnumCodec<E extends Enum<E> & StringIdentifiable> extends StringIdentifiable.BasicCodec<E> {
 
-      public E byId(String id, E fallback) {
-         return Objects.requireNonNullElse(this.byId(id), fallback);
-      }
+		private final Function<String, @Nullable E> idToIdentifiable;
 
-      public E byId(String id, Supplier<? extends E> fallbackSupplier) {
-         return Objects.requireNonNullElseGet(this.byId(id), fallbackSupplier);
-      }
-   }
+		public EnumCodec(E[] values, Function<String, E> idToIdentifiable) {
+			super(values, idToIdentifiable, enum_ -> enum_.ordinal());
+			this.idToIdentifiable = idToIdentifiable;
+		}
+
+		public @Nullable E byId(String id) {
+			return this.idToIdentifiable.apply(id);
+		}
+
+		public E byId(String id, E fallback) {
+			return Objects.requireNonNullElse(this.byId(id), fallback);
+		}
+
+		public E byId(String id, Supplier<? extends E> fallbackSupplier) {
+			return Objects.requireNonNullElseGet(this.byId(id), fallbackSupplier);
+		}
+	}
 }

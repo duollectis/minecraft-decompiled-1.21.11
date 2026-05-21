@@ -1,12 +1,5 @@
 package net.minecraft.client.gui.screen.world;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.function.Consumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.world.GeneratorOptionsHolder;
@@ -27,302 +20,360 @@ import net.minecraft.world.gen.WorldPresets;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.function.Consumer;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WorldCreator}.
+ */
 public class WorldCreator {
-   private static final Text NEW_WORLD_NAME = Text.translatable("selectWorld.newWorld");
-   private final List<Consumer<WorldCreator>> listeners = new ArrayList<>();
-   private String worldName = NEW_WORLD_NAME.getString();
-   private WorldCreator.Mode gameMode = WorldCreator.Mode.SURVIVAL;
-   private Difficulty difficulty = Difficulty.NORMAL;
-   private @Nullable Boolean cheatsEnabled;
-   private String seed;
-   private boolean generateStructures;
-   private boolean bonusChestEnabled;
-   private final Path savesDirectory;
-   private String worldDirectoryName;
-   private GeneratorOptionsHolder generatorOptionsHolder;
-   private WorldCreator.WorldType worldType;
-   private final List<WorldCreator.WorldType> normalWorldTypes = new ArrayList<>();
-   private final List<WorldCreator.WorldType> extendedWorldTypes = new ArrayList<>();
-   private GameRules gameRules;
 
-   public WorldCreator(
-      Path savesDirectory, GeneratorOptionsHolder generatorOptionsHolder, Optional<RegistryKey<WorldPreset>> defaultWorldType, OptionalLong seed
-   ) {
-      this.savesDirectory = savesDirectory;
-      this.generatorOptionsHolder = generatorOptionsHolder;
-      this.worldType = new WorldCreator.WorldType(getWorldPreset(generatorOptionsHolder, defaultWorldType).orElse(null));
-      this.updateWorldTypeLists();
-      this.seed = seed.isPresent() ? Long.toString(seed.getAsLong()) : "";
-      this.generateStructures = generatorOptionsHolder.generatorOptions().shouldGenerateStructures();
-      this.bonusChestEnabled = generatorOptionsHolder.generatorOptions().hasBonusChest();
-      this.worldDirectoryName = this.toDirectoryName(this.worldName);
-      this.gameMode = generatorOptionsHolder.initialWorldCreationOptions().selectedGameMode();
-      this.gameRules = new GameRules(generatorOptionsHolder.dataConfiguration().enabledFeatures());
-      this.gameRules.copyFrom(generatorOptionsHolder.initialWorldCreationOptions().gameRuleOverwrites(), null);
-      Optional.ofNullable(generatorOptionsHolder.initialWorldCreationOptions().flatLevelPreset())
-         .flatMap(
-            presetKey -> generatorOptionsHolder.getCombinedRegistryManager()
-               .getOptional(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET)
-               .flatMap(registry -> registry.getOptional(presetKey))
-         )
-         .map(preset -> preset.value().settings())
-         .ifPresent(config -> this.applyModifier(LevelScreenProvider.createModifier(config)));
-   }
+	private static final Text NEW_WORLD_NAME = Text.translatable("selectWorld.newWorld");
+	private final List<Consumer<WorldCreator>> listeners = new ArrayList<>();
+	private String worldName = NEW_WORLD_NAME.getString();
+	private WorldCreator.Mode gameMode = WorldCreator.Mode.SURVIVAL;
+	private Difficulty difficulty = Difficulty.NORMAL;
+	private @Nullable Boolean cheatsEnabled;
+	private String seed;
+	private boolean generateStructures;
+	private boolean bonusChestEnabled;
+	private final Path savesDirectory;
+	private String worldDirectoryName;
+	private GeneratorOptionsHolder generatorOptionsHolder;
+	private WorldCreator.WorldType worldType;
+	private final List<WorldCreator.WorldType> normalWorldTypes = new ArrayList<>();
+	private final List<WorldCreator.WorldType> extendedWorldTypes = new ArrayList<>();
+	private GameRules gameRules;
 
-   public void addListener(Consumer<WorldCreator> listener) {
-      this.listeners.add(listener);
-   }
+	public WorldCreator(
+			Path savesDirectory,
+			GeneratorOptionsHolder generatorOptionsHolder,
+			Optional<RegistryKey<WorldPreset>> defaultWorldType,
+			OptionalLong seed
+	) {
+		this.savesDirectory = savesDirectory;
+		this.generatorOptionsHolder = generatorOptionsHolder;
+		this.worldType =
+				new WorldCreator.WorldType(getWorldPreset(generatorOptionsHolder, defaultWorldType).orElse(null));
+		this.updateWorldTypeLists();
+		this.seed = seed.isPresent() ? Long.toString(seed.getAsLong()) : "";
+		this.generateStructures = generatorOptionsHolder.generatorOptions().shouldGenerateStructures();
+		this.bonusChestEnabled = generatorOptionsHolder.generatorOptions().hasBonusChest();
+		this.worldDirectoryName = this.toDirectoryName(this.worldName);
+		this.gameMode = generatorOptionsHolder.initialWorldCreationOptions().selectedGameMode();
+		this.gameRules = new GameRules(generatorOptionsHolder.dataConfiguration().enabledFeatures());
+		this.gameRules.copyFrom(generatorOptionsHolder.initialWorldCreationOptions().gameRuleOverwrites(), null);
+		Optional.ofNullable(generatorOptionsHolder.initialWorldCreationOptions().flatLevelPreset())
+		        .flatMap(
+				        presetKey -> generatorOptionsHolder.getCombinedRegistryManager()
+				                                           .getOptional(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET)
+				                                           .flatMap(registry -> registry.getOptional(presetKey))
+		        )
+		        .map(preset -> preset.value().settings())
+		        .ifPresent(config -> this.applyModifier(LevelScreenProvider.createModifier(config)));
+	}
 
-   public void update() {
-      boolean bl = this.isBonusChestEnabled();
-      if (bl != this.generatorOptionsHolder.generatorOptions().hasBonusChest()) {
-         this.generatorOptionsHolder = this.generatorOptionsHolder.apply(options -> options.withBonusChest(bl));
-      }
+	public void addListener(Consumer<WorldCreator> listener) {
+		this.listeners.add(listener);
+	}
 
-      boolean bl2 = this.shouldGenerateStructures();
-      if (bl2 != this.generatorOptionsHolder.generatorOptions().shouldGenerateStructures()) {
-         this.generatorOptionsHolder = this.generatorOptionsHolder.apply(options -> options.withStructures(bl2));
-      }
+	public void update() {
+		boolean bl = this.isBonusChestEnabled();
+		if (bl != this.generatorOptionsHolder.generatorOptions().hasBonusChest()) {
+			this.generatorOptionsHolder = this.generatorOptionsHolder.apply(options -> options.withBonusChest(bl));
+		}
 
-      for (Consumer<WorldCreator> consumer : this.listeners) {
-         consumer.accept(this);
-      }
-   }
+		boolean bl2 = this.shouldGenerateStructures();
+		if (bl2 != this.generatorOptionsHolder.generatorOptions().shouldGenerateStructures()) {
+			this.generatorOptionsHolder = this.generatorOptionsHolder.apply(options -> options.withStructures(bl2));
+		}
 
-   public void setWorldName(String worldName) {
-      this.worldName = worldName;
-      this.worldDirectoryName = this.toDirectoryName(worldName);
-      this.update();
-   }
+		for (Consumer<WorldCreator> consumer : this.listeners) {
+			consumer.accept(this);
+		}
+	}
 
-   private String toDirectoryName(String worldName) {
-      String string = worldName.trim();
+	public void setWorldName(String worldName) {
+		this.worldName = worldName;
+		this.worldDirectoryName = this.toDirectoryName(worldName);
+		this.update();
+	}
 
-      try {
-         return PathUtil.getNextUniqueName(this.savesDirectory, !string.isEmpty() ? string : NEW_WORLD_NAME.getString(), "");
-      } catch (Exception var5) {
-         try {
-            return PathUtil.getNextUniqueName(this.savesDirectory, "World", "");
-         } catch (IOException var4) {
-            throw new RuntimeException("Could not create save folder", var4);
-         }
-      }
-   }
+	private String toDirectoryName(String worldName) {
+		String string = worldName.trim();
 
-   public String getWorldName() {
-      return this.worldName;
-   }
+		try {
+			return PathUtil.getNextUniqueName(
+					this.savesDirectory,
+					!string.isEmpty() ? string : NEW_WORLD_NAME.getString(),
+					""
+			);
+		}
+		catch (Exception var5) {
+			try {
+				return PathUtil.getNextUniqueName(this.savesDirectory, "World", "");
+			}
+			catch (IOException var4) {
+				throw new RuntimeException("Could not create save folder", var4);
+			}
+		}
+	}
 
-   public String getWorldDirectoryName() {
-      return this.worldDirectoryName;
-   }
+	public String getWorldName() {
+		return this.worldName;
+	}
 
-   public void setGameMode(WorldCreator.Mode gameMode) {
-      this.gameMode = gameMode;
-      this.update();
-   }
+	public String getWorldDirectoryName() {
+		return this.worldDirectoryName;
+	}
 
-   public WorldCreator.Mode getGameMode() {
-      return this.isDebug() ? WorldCreator.Mode.DEBUG : this.gameMode;
-   }
+	public void setGameMode(WorldCreator.Mode gameMode) {
+		this.gameMode = gameMode;
+		this.update();
+	}
 
-   public void setDifficulty(Difficulty difficulty) {
-      this.difficulty = difficulty;
-      this.update();
-   }
+	public WorldCreator.Mode getGameMode() {
+		return this.isDebug() ? WorldCreator.Mode.DEBUG : this.gameMode;
+	}
 
-   public Difficulty getDifficulty() {
-      return this.isHardcore() ? Difficulty.HARD : this.difficulty;
-   }
+	public void setDifficulty(Difficulty difficulty) {
+		this.difficulty = difficulty;
+		this.update();
+	}
 
-   public boolean isHardcore() {
-      return this.getGameMode() == WorldCreator.Mode.HARDCORE;
-   }
+	public Difficulty getDifficulty() {
+		return this.isHardcore() ? Difficulty.HARD : this.difficulty;
+	}
 
-   public void setCheatsEnabled(boolean cheatsEnabled) {
-      this.cheatsEnabled = cheatsEnabled;
-      this.update();
-   }
+	public boolean isHardcore() {
+		return this.getGameMode() == WorldCreator.Mode.HARDCORE;
+	}
 
-   public boolean areCheatsEnabled() {
-      if (this.isDebug()) {
-         return true;
-      } else if (this.isHardcore()) {
-         return false;
-      } else {
-         return this.cheatsEnabled == null ? this.getGameMode() == WorldCreator.Mode.CREATIVE : this.cheatsEnabled;
-      }
-   }
+	public void setCheatsEnabled(boolean cheatsEnabled) {
+		this.cheatsEnabled = cheatsEnabled;
+		this.update();
+	}
 
-   public void setSeed(String seed) {
-      this.seed = seed;
-      this.generatorOptionsHolder = this.generatorOptionsHolder.apply(options -> options.withSeed(GeneratorOptions.parseSeed(this.getSeed())));
-      this.update();
-   }
+	public boolean areCheatsEnabled() {
+		if (this.isDebug()) {
+			return true;
+		}
+		else if (this.isHardcore()) {
+			return false;
+		}
+		else {
+			return this.cheatsEnabled == null ? this.getGameMode() == WorldCreator.Mode.CREATIVE : this.cheatsEnabled;
+		}
+	}
 
-   public String getSeed() {
-      return this.seed;
-   }
+	public void setSeed(String seed) {
+		this.seed = seed;
+		this.generatorOptionsHolder =
+				this.generatorOptionsHolder.apply(options -> options.withSeed(GeneratorOptions.parseSeed(this.getSeed())));
+		this.update();
+	}
 
-   public void setGenerateStructures(boolean generateStructures) {
-      this.generateStructures = generateStructures;
-      this.update();
-   }
+	public String getSeed() {
+		return this.seed;
+	}
 
-   public boolean shouldGenerateStructures() {
-      return this.isDebug() ? false : this.generateStructures;
-   }
+	public void setGenerateStructures(boolean generateStructures) {
+		this.generateStructures = generateStructures;
+		this.update();
+	}
 
-   public void setBonusChestEnabled(boolean bonusChestEnabled) {
-      this.bonusChestEnabled = bonusChestEnabled;
-      this.update();
-   }
+	public boolean shouldGenerateStructures() {
+		return this.isDebug() ? false : this.generateStructures;
+	}
 
-   public boolean isBonusChestEnabled() {
-      return !this.isDebug() && !this.isHardcore() ? this.bonusChestEnabled : false;
-   }
+	public void setBonusChestEnabled(boolean bonusChestEnabled) {
+		this.bonusChestEnabled = bonusChestEnabled;
+		this.update();
+	}
 
-   public void setGeneratorOptionsHolder(GeneratorOptionsHolder generatorOptionsHolder) {
-      this.generatorOptionsHolder = generatorOptionsHolder;
-      this.updateWorldTypeLists();
-      this.update();
-   }
+	public boolean isBonusChestEnabled() {
+		return !this.isDebug() && !this.isHardcore() ? this.bonusChestEnabled : false;
+	}
 
-   public GeneratorOptionsHolder getGeneratorOptionsHolder() {
-      return this.generatorOptionsHolder;
-   }
+	public void setGeneratorOptionsHolder(GeneratorOptionsHolder generatorOptionsHolder) {
+		this.generatorOptionsHolder = generatorOptionsHolder;
+		this.updateWorldTypeLists();
+		this.update();
+	}
 
-   public void applyModifier(GeneratorOptionsHolder.RegistryAwareModifier modifier) {
-      this.generatorOptionsHolder = this.generatorOptionsHolder.apply(modifier);
-      this.update();
-   }
+	public GeneratorOptionsHolder getGeneratorOptionsHolder() {
+		return this.generatorOptionsHolder;
+	}
 
-   protected boolean updateDataConfiguration(DataConfiguration dataConfiguration) {
-      DataConfiguration dataConfiguration2 = this.generatorOptionsHolder.dataConfiguration();
-      if (dataConfiguration2.dataPacks().getEnabled().equals(dataConfiguration.dataPacks().getEnabled())
-         && dataConfiguration2.enabledFeatures().equals(dataConfiguration.enabledFeatures())) {
-         this.generatorOptionsHolder = new GeneratorOptionsHolder(
-            this.generatorOptionsHolder.generatorOptions(),
-            this.generatorOptionsHolder.dimensionOptionsRegistry(),
-            this.generatorOptionsHolder.selectedDimensions(),
-            this.generatorOptionsHolder.combinedDynamicRegistries(),
-            this.generatorOptionsHolder.dataPackContents(),
-            dataConfiguration,
-            this.generatorOptionsHolder.initialWorldCreationOptions()
-         );
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public void applyModifier(GeneratorOptionsHolder.RegistryAwareModifier modifier) {
+		this.generatorOptionsHolder = this.generatorOptionsHolder.apply(modifier);
+		this.update();
+	}
 
-   public boolean isDebug() {
-      return this.generatorOptionsHolder.selectedDimensions().isDebug();
-   }
+	protected boolean updateDataConfiguration(DataConfiguration dataConfiguration) {
+		DataConfiguration dataConfiguration2 = this.generatorOptionsHolder.dataConfiguration();
+		if (dataConfiguration2.dataPacks().getEnabled().equals(dataConfiguration.dataPacks().getEnabled())
+				&& dataConfiguration2.enabledFeatures().equals(dataConfiguration.enabledFeatures())) {
+			this.generatorOptionsHolder = new GeneratorOptionsHolder(
+					this.generatorOptionsHolder.generatorOptions(),
+					this.generatorOptionsHolder.dimensionOptionsRegistry(),
+					this.generatorOptionsHolder.selectedDimensions(),
+					this.generatorOptionsHolder.combinedDynamicRegistries(),
+					this.generatorOptionsHolder.dataPackContents(),
+					dataConfiguration,
+					this.generatorOptionsHolder.initialWorldCreationOptions()
+			);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   public void setWorldType(WorldCreator.WorldType worldType) {
-      this.worldType = worldType;
-      RegistryEntry<WorldPreset> registryEntry = worldType.preset();
-      if (registryEntry != null) {
-         this.applyModifier((registryManager, registryHolder) -> registryEntry.value().createDimensionsRegistryHolder());
-      }
-   }
+	public boolean isDebug() {
+		return this.generatorOptionsHolder.selectedDimensions().isDebug();
+	}
 
-   public WorldCreator.WorldType getWorldType() {
-      return this.worldType;
-   }
+	public void setWorldType(WorldCreator.WorldType worldType) {
+		this.worldType = worldType;
+		RegistryEntry<WorldPreset> registryEntry = worldType.preset();
+		if (registryEntry != null) {
+			this.applyModifier((registryManager, registryHolder) -> registryEntry
+					.value()
+					.createDimensionsRegistryHolder());
+		}
+	}
 
-   public @Nullable LevelScreenProvider getLevelScreenProvider() {
-      RegistryEntry<WorldPreset> registryEntry = this.getWorldType().preset();
-      return registryEntry != null ? LevelScreenProvider.WORLD_PRESET_TO_SCREEN_PROVIDER.get(registryEntry.getKey()) : null;
-   }
+	public WorldCreator.WorldType getWorldType() {
+		return this.worldType;
+	}
 
-   public List<WorldCreator.WorldType> getNormalWorldTypes() {
-      return this.normalWorldTypes;
-   }
+	public @Nullable LevelScreenProvider getLevelScreenProvider() {
+		RegistryEntry<WorldPreset> registryEntry = this.getWorldType().preset();
+		return registryEntry != null ? LevelScreenProvider.WORLD_PRESET_TO_SCREEN_PROVIDER.get(registryEntry.getKey())
+		                             : null;
+	}
 
-   public List<WorldCreator.WorldType> getExtendedWorldTypes() {
-      return this.extendedWorldTypes;
-   }
+	public List<WorldCreator.WorldType> getNormalWorldTypes() {
+		return this.normalWorldTypes;
+	}
 
-   private void updateWorldTypeLists() {
-      Registry<WorldPreset> registry = this.getGeneratorOptionsHolder().getCombinedRegistryManager().getOrThrow(RegistryKeys.WORLD_PRESET);
-      this.normalWorldTypes.clear();
-      this.normalWorldTypes
-         .addAll(getWorldPresetList(registry, WorldPresetTags.NORMAL).orElseGet(() -> registry.streamEntries().map(WorldCreator.WorldType::new).toList()));
-      this.extendedWorldTypes.clear();
-      this.extendedWorldTypes.addAll(getWorldPresetList(registry, WorldPresetTags.EXTENDED).orElse(this.normalWorldTypes));
-      RegistryEntry<WorldPreset> registryEntry = this.worldType.preset();
-      if (registryEntry != null) {
-         WorldCreator.WorldType worldType = getWorldPreset(this.getGeneratorOptionsHolder(), registryEntry.getKey())
-            .map(WorldCreator.WorldType::new)
-            .orElse(this.normalWorldTypes.getFirst());
-         boolean bl = LevelScreenProvider.WORLD_PRESET_TO_SCREEN_PROVIDER.get(registryEntry.getKey()) != null;
-         if (bl) {
-            this.worldType = worldType;
-         } else {
-            this.setWorldType(worldType);
-         }
-      }
-   }
+	public List<WorldCreator.WorldType> getExtendedWorldTypes() {
+		return this.extendedWorldTypes;
+	}
 
-   private static Optional<RegistryEntry<WorldPreset>> getWorldPreset(GeneratorOptionsHolder generatorOptionsHolder, Optional<RegistryKey<WorldPreset>> key) {
-      return key.flatMap(
-         key2 -> generatorOptionsHolder.getCombinedRegistryManager().getOrThrow(RegistryKeys.WORLD_PRESET).getOptional((RegistryKey<WorldPreset>)key2)
-      );
-   }
+	private void updateWorldTypeLists() {
+		Registry<WorldPreset>
+				registry =
+				this.getGeneratorOptionsHolder().getCombinedRegistryManager().getOrThrow(RegistryKeys.WORLD_PRESET);
+		this.normalWorldTypes.clear();
+		this.normalWorldTypes
+				.addAll(getWorldPresetList(registry, WorldPresetTags.NORMAL).orElseGet(() -> registry
+						.streamEntries()
+						.map(WorldCreator.WorldType::new)
+						.toList()));
+		this.extendedWorldTypes.clear();
+		this.extendedWorldTypes.addAll(getWorldPresetList(
+				registry,
+				WorldPresetTags.EXTENDED
+		).orElse(this.normalWorldTypes));
+		RegistryEntry<WorldPreset> registryEntry = this.worldType.preset();
+		if (registryEntry != null) {
+			WorldCreator.WorldType worldType = getWorldPreset(this.getGeneratorOptionsHolder(), registryEntry.getKey())
+					.map(WorldCreator.WorldType::new)
+					.orElse(this.normalWorldTypes.getFirst());
+			boolean bl = LevelScreenProvider.WORLD_PRESET_TO_SCREEN_PROVIDER.get(registryEntry.getKey()) != null;
+			if (bl) {
+				this.worldType = worldType;
+			}
+			else {
+				this.setWorldType(worldType);
+			}
+		}
+	}
 
-   private static Optional<List<WorldCreator.WorldType>> getWorldPresetList(Registry<WorldPreset> registry, TagKey<WorldPreset> tag) {
-      return registry.getOptional(tag)
-         .map(entryList -> entryList.stream().map(WorldCreator.WorldType::new).toList())
-         .filter(worldTypeList -> !worldTypeList.isEmpty());
-   }
+	private static Optional<RegistryEntry<WorldPreset>> getWorldPreset(
+			GeneratorOptionsHolder generatorOptionsHolder,
+			Optional<RegistryKey<WorldPreset>> key
+	) {
+		return key.flatMap(
+				key2 -> generatorOptionsHolder
+						.getCombinedRegistryManager()
+						.getOrThrow(RegistryKeys.WORLD_PRESET)
+						.getOptional((RegistryKey<WorldPreset>) key2)
+		);
+	}
 
-   public void setGameRules(GameRules gameRules) {
-      this.gameRules = gameRules;
-      this.update();
-   }
+	private static Optional<List<WorldCreator.WorldType>> getWorldPresetList(
+			Registry<WorldPreset> registry,
+			TagKey<WorldPreset> tag
+	) {
+		return registry.getOptional(tag)
+		               .map(entryList -> entryList.stream().map(WorldCreator.WorldType::new).toList())
+		               .filter(worldTypeList -> !worldTypeList.isEmpty());
+	}
 
-   public GameRules getGameRules() {
-      return this.gameRules;
-   }
+	public void setGameRules(GameRules gameRules) {
+		this.gameRules = gameRules;
+		this.update();
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum Mode {
-      SURVIVAL("survival", GameMode.SURVIVAL),
-      HARDCORE("hardcore", GameMode.SURVIVAL),
-      CREATIVE("creative", GameMode.CREATIVE),
-      DEBUG("spectator", GameMode.SPECTATOR);
+	public GameRules getGameRules() {
+		return this.gameRules;
+	}
 
-      public final GameMode defaultGameMode;
-      public final Text name;
-      private final Text info;
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Mode}.
+	 */
+	public static enum Mode {
+		SURVIVAL("survival", GameMode.SURVIVAL),
+		HARDCORE("hardcore", GameMode.SURVIVAL),
+		CREATIVE("creative", GameMode.CREATIVE),
+		DEBUG("spectator", GameMode.SPECTATOR);
 
-      private Mode(final String name, final GameMode defaultGameMode) {
-         this.defaultGameMode = defaultGameMode;
-         this.name = Text.translatable("selectWorld.gameMode." + name);
-         this.info = Text.translatable("selectWorld.gameMode." + name + ".info");
-      }
+		public final GameMode defaultGameMode;
+		public final Text name;
+		private final Text info;
 
-      public Text getInfo() {
-         return this.info;
-      }
-   }
+		private Mode(final String name, final GameMode defaultGameMode) {
+			this.defaultGameMode = defaultGameMode;
+			this.name = Text.translatable("selectWorld.gameMode." + name);
+			this.info = Text.translatable("selectWorld.gameMode." + name + ".info");
+		}
 
-   @Environment(EnvType.CLIENT)
-   public record WorldType(@Nullable RegistryEntry<WorldPreset> preset) {
-      private static final Text CUSTOM_GENERATOR_TEXT = Text.translatable("generator.custom");
+		public Text getInfo() {
+			return this.info;
+		}
+	}
 
-      public Text getName() {
-         return Optional.ofNullable(this.preset)
-            .flatMap(RegistryEntry::getKey)
-            .<Text>map(key -> Text.translatable(key.getValue().toTranslationKey("generator")))
-            .orElse(CUSTOM_GENERATOR_TEXT);
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code WorldType}.
+	 */
+	public record WorldType(@Nullable RegistryEntry<WorldPreset> preset) {
 
-      public boolean isAmplified() {
-         return Optional.ofNullable(this.preset).flatMap(RegistryEntry::getKey).filter(key -> key.equals(WorldPresets.AMPLIFIED)).isPresent();
-      }
-   }
+		private static final Text CUSTOM_GENERATOR_TEXT = Text.translatable("generator.custom");
+
+		public Text getName() {
+			return Optional.ofNullable(this.preset)
+			               .flatMap(RegistryEntry::getKey)
+			               .<Text>map(key -> Text.translatable(key.getValue().toTranslationKey("generator")))
+			               .orElse(CUSTOM_GENERATOR_TEXT);
+		}
+
+		public boolean isAmplified() {
+			return Optional
+					.ofNullable(this.preset)
+					.flatMap(RegistryEntry::getKey)
+					.filter(key -> key.equals(WorldPresets.AMPLIFIED))
+					.isPresent();
+		}
+	}
 }

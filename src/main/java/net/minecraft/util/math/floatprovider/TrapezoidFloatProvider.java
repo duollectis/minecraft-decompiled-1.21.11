@@ -6,65 +6,86 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code TrapezoidFloatProvider}.
+ */
 public class TrapezoidFloatProvider extends FloatProvider {
-   public static final MapCodec<TrapezoidFloatProvider> CODEC = RecordCodecBuilder.<TrapezoidFloatProvider>mapCodec(
-         instance -> instance.group(
-               Codec.FLOAT.fieldOf("min").forGetter(provider -> provider.min),
-               Codec.FLOAT.fieldOf("max").forGetter(provider -> provider.max),
-               Codec.FLOAT.fieldOf("plateau").forGetter(provider -> provider.plateau)
-            )
-            .apply(instance, TrapezoidFloatProvider::new)
-      )
-      .validate(
-         (TrapezoidFloatProvider provider) -> {
-            if (provider.max < provider.min) {
-               return DataResult.error(() -> "Max must be larger than min: [" + provider.min + ", " + provider.max + "]");
-            } else {
-               return provider.plateau > provider.max - provider.min
-                  ? DataResult.error(() -> "Plateau can at most be the full span: [" + provider.min + ", " + provider.max + "]")
-                  : DataResult.success(provider);
-            }
-         }
-      );
-   private final float min;
-   private final float max;
-   private final float plateau;
 
-   public static TrapezoidFloatProvider create(float min, float max, float plateau) {
-      return new TrapezoidFloatProvider(min, max, plateau);
-   }
+	public static final MapCodec<TrapezoidFloatProvider> CODEC = RecordCodecBuilder.<TrapezoidFloatProvider>mapCodec(
+			                                                                               instance -> instance.group(
+					                                                                                                   Codec.FLOAT.fieldOf("min").forGetter(provider -> provider.min),
+					                                                                                                   Codec.FLOAT.fieldOf("max").forGetter(provider -> provider.max),
+					                                                                                                   Codec.FLOAT.fieldOf("plateau").forGetter(provider -> provider.plateau)
+			                                                                                                   )
+			                                                                                                   .apply(instance, TrapezoidFloatProvider::new)
+	                                                                               )
+	                                                                               .validate(
+			                                                                               (TrapezoidFloatProvider provider) -> {
+				                                                                               if (provider.max
+						                                                                               < provider.min) {
+					                                                                               return DataResult.error(
+							                                                                               () -> "Max must be larger than min: ["
+									                                                                               + provider.min
+									                                                                               + ", "
+									                                                                               + provider.max
+									                                                                               + "]");
+				                                                                               }
+				                                                                               else {
+					                                                                               return provider.plateau
+							                                                                                      >
+							                                                                                      provider.max
+									                                                                                      - provider.min
+					                                                                                      ? DataResult.error(
+							                                                                               () ->
+							                                                                               "Plateau can at most be the full span: ["
+							                                                                               + provider.min
+							                                                                               + ", "
+							                                                                               + provider.max
+							                                                                               + "]")
+					                                                                                      : DataResult.success(
+							                                                                                      provider);
+				                                                                               }
+			                                                                               }
+	                                                                               );
+	private final float min;
+	private final float max;
+	private final float plateau;
 
-   private TrapezoidFloatProvider(float min, float max, float plateau) {
-      this.min = min;
-      this.max = max;
-      this.plateau = plateau;
-   }
+	public static TrapezoidFloatProvider create(float min, float max, float plateau) {
+		return new TrapezoidFloatProvider(min, max, plateau);
+	}
 
-   @Override
-   public float get(Random random) {
-      float f = this.max - this.min;
-      float g = (f - this.plateau) / 2.0F;
-      float h = f - g;
-      return this.min + random.nextFloat() * h + random.nextFloat() * g;
-   }
+	private TrapezoidFloatProvider(float min, float max, float plateau) {
+		this.min = min;
+		this.max = max;
+		this.plateau = plateau;
+	}
 
-   @Override
-   public float getMin() {
-      return this.min;
-   }
+	@Override
+	public float get(Random random) {
+		float f = this.max - this.min;
+		float g = (f - this.plateau) / 2.0F;
+		float h = f - g;
+		return this.min + random.nextFloat() * h + random.nextFloat() * g;
+	}
 
-   @Override
-   public float getMax() {
-      return this.max;
-   }
+	@Override
+	public float getMin() {
+		return this.min;
+	}
 
-   @Override
-   public FloatProviderType<?> getType() {
-      return FloatProviderType.TRAPEZOID;
-   }
+	@Override
+	public float getMax() {
+		return this.max;
+	}
 
-   @Override
-   public String toString() {
-      return "trapezoid(" + this.plateau + ") in [" + this.min + "-" + this.max + "]";
-   }
+	@Override
+	public FloatProviderType<?> getType() {
+		return FloatProviderType.TRAPEZOID;
+	}
+
+	@Override
+	public String toString() {
+		return "trapezoid(" + this.plateau + ") in [" + this.min + "-" + this.max + "]";
+	}
 }

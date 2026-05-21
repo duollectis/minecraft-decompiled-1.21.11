@@ -6,7 +6,11 @@ import net.minecraft.client.render.item.ItemRenderState;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ShelfBlockEntityRenderState}.
+ */
 public class ShelfBlockEntityRenderState extends BlockEntityRenderState {
-   public @Nullable ItemRenderState[] itemRenderStates = new ItemRenderState[3];
-   public boolean alignItemsToBottom;
+
+	public @Nullable ItemRenderState[] itemRenderStates = new ItemRenderState[3];
+	public boolean alignItemsToBottom;
 }

@@ -2,23 +2,28 @@ package net.minecraft.util.crash;
 
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CrashMemoryReserve}.
+ */
 public class CrashMemoryReserve {
-   private static byte @Nullable [] reservedMemory;
 
-   public static void reserveMemory() {
-      reservedMemory = new byte[10485760];
-   }
+	private static byte @Nullable [] reservedMemory;
 
-   public static void releaseMemory() {
-      if (reservedMemory != null) {
-         reservedMemory = null;
+	public static void reserveMemory() {
+		reservedMemory = new byte[10485760];
+	}
 
-         try {
-            System.gc();
-            System.gc();
-            System.gc();
-         } catch (Throwable var1) {
-         }
-      }
-   }
+	public static void releaseMemory() {
+		if (reservedMemory != null) {
+			reservedMemory = null;
+
+			try {
+				System.gc();
+				System.gc();
+				System.gc();
+			}
+			catch (Throwable var1) {
+			}
+		}
+	}
 }

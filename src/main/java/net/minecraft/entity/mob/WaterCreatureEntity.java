@@ -12,63 +12,76 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code WaterCreatureEntity}.
+ */
 public abstract class WaterCreatureEntity extends PathAwareEntity {
-   public static final int MIN_AMBIENT_SOUND_DELAY = 120;
 
-   protected WaterCreatureEntity(EntityType<? extends WaterCreatureEntity> entityType, World world) {
-      super(entityType, world);
-      this.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
-   }
+	public static final int MIN_AMBIENT_SOUND_DELAY = 120;
 
-   @Override
-   public boolean canSpawn(WorldView world) {
-      return world.doesNotIntersectEntities(this);
-   }
+	protected WaterCreatureEntity(EntityType<? extends WaterCreatureEntity> entityType, World world) {
+		super(entityType, world);
+		this.setPathfindingPenalty(PathNodeType.WATER, 0.0F);
+	}
 
-   @Override
-   public int getMinAmbientSoundDelay() {
-      return 120;
-   }
+	@Override
+	public boolean canSpawn(WorldView world) {
+		return world.doesNotIntersectEntities(this);
+	}
 
-   @Override
-   protected int getExperienceToDrop(ServerWorld world) {
-      return 1 + this.random.nextInt(3);
-   }
+	@Override
+	public int getMinAmbientSoundDelay() {
+		return 120;
+	}
 
-   protected void tickWaterBreathingAir(ServerWorld world, int air) {
-      if (this.isAlive() && !this.isTouchingWater()) {
-         this.setAir(air - 1);
-         if (this.shouldDrown()) {
-            this.setAir(0);
-            this.damage(world, this.getDamageSources().drown(), 2.0F);
-         }
-      } else {
-         this.setAir(300);
-      }
-   }
+	@Override
+	protected int getExperienceToDrop(ServerWorld world) {
+		return 1 + this.random.nextInt(3);
+	}
 
-   @Override
-   public void baseTick() {
-      int i = this.getAir();
-      super.baseTick();
-      if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         this.tickWaterBreathingAir(serverWorld, i);
-      }
-   }
+	protected void tickWaterBreathingAir(ServerWorld world, int air) {
+		if (this.isAlive() && !this.isTouchingWater()) {
+			this.setAir(air - 1);
+			if (this.shouldDrown()) {
+				this.setAir(0);
+				this.damage(world, this.getDamageSources().drown(), 2.0F);
+			}
+		}
+		else {
+			this.setAir(300);
+		}
+	}
 
-   @Override
-   public boolean isPushedByFluids() {
-      return false;
-   }
+	@Override
+	public void baseTick() {
+		int i = this.getAir();
+		super.baseTick();
+		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			this.tickWaterBreathingAir(serverWorld, i);
+		}
+	}
 
-   @Override
-   public boolean canBeLeashed() {
-      return false;
-   }
+	@Override
+	public boolean isPushedByFluids() {
+		return false;
+	}
 
-   public static boolean canSpawn(EntityType<? extends WaterCreatureEntity> type, WorldAccess world, SpawnReason reason, BlockPos pos, Random random) {
-      int i = world.getSeaLevel();
-      int j = i - 13;
-      return pos.getY() >= j && pos.getY() <= i && world.getFluidState(pos.down()).isIn(FluidTags.WATER) && world.getBlockState(pos.up()).isOf(Blocks.WATER);
-   }
+	@Override
+	public boolean canBeLeashed() {
+		return false;
+	}
+
+	public static boolean canSpawn(
+			EntityType<? extends WaterCreatureEntity> type,
+			WorldAccess world,
+			SpawnReason reason,
+			BlockPos pos,
+			Random random
+	) {
+		int i = world.getSeaLevel();
+		int j = i - 13;
+		return pos.getY() >= j && pos.getY() <= i && world.getFluidState(pos.down()).isIn(FluidTags.WATER) && world
+				.getBlockState(pos.up())
+				.isOf(Blocks.WATER);
+	}
 }

@@ -6,17 +6,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LazyEntityReference;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.ai.goal.ActiveTargetGoal;
-import net.minecraft.entity.ai.goal.IronGolemLookGoal;
-import net.minecraft.entity.ai.goal.IronGolemWanderAroundGoal;
-import net.minecraft.entity.ai.goal.LookAroundGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.entity.ai.goal.RevengeGoal;
-import net.minecraft.entity.ai.goal.TrackIronGolemTargetGoal;
-import net.minecraft.entity.ai.goal.UniversalAngerGoal;
-import net.minecraft.entity.ai.goal.WanderAroundPointOfInterestGoal;
-import net.minecraft.entity.ai.goal.WanderNearTargetGoal;
+import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
@@ -47,283 +37,323 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code IronGolemEntity}.
+ */
 public class IronGolemEntity extends GolemEntity implements Angerable {
-   protected static final TrackedData<Byte> IRON_GOLEM_FLAGS = DataTracker.registerData(IronGolemEntity.class, TrackedDataHandlerRegistry.BYTE);
-   private static final int HEALTH_PER_INGOT = 25;
-   private static final boolean DEFAULT_PLAYER_CREATED = false;
-   private int attackTicksLeft;
-   private int lookingAtVillagerTicksLeft;
-   private static final UniformIntProvider ANGER_TIME_RANGE = TimeHelper.betweenSeconds(20, 39);
-   private long angerEndTime;
-   private @Nullable LazyEntityReference<LivingEntity> angryAt;
 
-   public IronGolemEntity(EntityType<? extends IronGolemEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	protected static final TrackedData<Byte>
+			IRON_GOLEM_FLAGS =
+			DataTracker.registerData(IronGolemEntity.class, TrackedDataHandlerRegistry.BYTE);
+	private static final int HEALTH_PER_INGOT = 25;
+	private static final boolean DEFAULT_PLAYER_CREATED = false;
+	private int attackTicksLeft;
+	private int lookingAtVillagerTicksLeft;
+	private static final UniformIntProvider ANGER_TIME_RANGE = TimeHelper.betweenSeconds(20, 39);
+	private long angerEndTime;
+	private @Nullable LazyEntityReference<LivingEntity> angryAt;
 
-   @Override
-   protected void initGoals() {
-      this.goalSelector.add(1, new MeleeAttackGoal(this, 1.0, true));
-      this.goalSelector.add(2, new WanderNearTargetGoal(this, 0.9, 32.0F));
-      this.goalSelector.add(2, new WanderAroundPointOfInterestGoal(this, 0.6, false));
-      this.goalSelector.add(4, new IronGolemWanderAroundGoal(this, 0.6));
-      this.goalSelector.add(5, new IronGolemLookGoal(this));
-      this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
-      this.goalSelector.add(8, new LookAroundGoal(this));
-      this.targetSelector.add(1, new TrackIronGolemTargetGoal(this));
-      this.targetSelector.add(2, new RevengeGoal(this));
-      this.targetSelector.add(3, new ActiveTargetGoal<>(this, PlayerEntity.class, 10, true, false, this::shouldAngerAt));
-      this.targetSelector
-         .add(
-            3,
-            new ActiveTargetGoal<>(this, MobEntity.class, 5, false, false, (entity, world) -> entity instanceof Monster && !(entity instanceof CreeperEntity))
-         );
-      this.targetSelector.add(4, new UniversalAngerGoal<>(this, false));
-   }
+	public IronGolemEntity(EntityType<? extends IronGolemEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(IRON_GOLEM_FLAGS, (byte)0);
-   }
+	@Override
+	protected void initGoals() {
+		this.goalSelector.add(1, new MeleeAttackGoal(this, 1.0, true));
+		this.goalSelector.add(2, new WanderNearTargetGoal(this, 0.9, 32.0F));
+		this.goalSelector.add(2, new WanderAroundPointOfInterestGoal(this, 0.6, false));
+		this.goalSelector.add(4, new IronGolemWanderAroundGoal(this, 0.6));
+		this.goalSelector.add(5, new IronGolemLookGoal(this));
+		this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 6.0F));
+		this.goalSelector.add(8, new LookAroundGoal(this));
+		this.targetSelector.add(1, new TrackIronGolemTargetGoal(this));
+		this.targetSelector.add(2, new RevengeGoal(this));
+		this.targetSelector.add(
+				3,
+				new ActiveTargetGoal<>(this, PlayerEntity.class, 10, true, false, this::shouldAngerAt)
+		);
+		this.targetSelector
+				.add(
+						3,
+						new ActiveTargetGoal<>(
+								this,
+								MobEntity.class,
+								5,
+								false,
+								false,
+								(entity, world) -> entity instanceof Monster && !(entity instanceof CreeperEntity)
+						)
+				);
+		this.targetSelector.add(4, new UniversalAngerGoal<>(this, false));
+	}
 
-   public static DefaultAttributeContainer.Builder createIronGolemAttributes() {
-      return MobEntity.createMobAttributes()
-         .add(EntityAttributes.MAX_HEALTH, 100.0)
-         .add(EntityAttributes.MOVEMENT_SPEED, 0.25)
-         .add(EntityAttributes.KNOCKBACK_RESISTANCE, 1.0)
-         .add(EntityAttributes.ATTACK_DAMAGE, 15.0)
-         .add(EntityAttributes.STEP_HEIGHT, 1.0);
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(IRON_GOLEM_FLAGS, (byte) 0);
+	}
 
-   @Override
-   protected int getNextAirUnderwater(int air) {
-      return air;
-   }
+	public static DefaultAttributeContainer.Builder createIronGolemAttributes() {
+		return MobEntity.createMobAttributes()
+		                .add(EntityAttributes.MAX_HEALTH, 100.0)
+		                .add(EntityAttributes.MOVEMENT_SPEED, 0.25)
+		                .add(EntityAttributes.KNOCKBACK_RESISTANCE, 1.0)
+		                .add(EntityAttributes.ATTACK_DAMAGE, 15.0)
+		                .add(EntityAttributes.STEP_HEIGHT, 1.0);
+	}
 
-   @Override
-   protected void pushAway(Entity entity) {
-      if (entity instanceof Monster && !(entity instanceof CreeperEntity) && this.getRandom().nextInt(20) == 0) {
-         this.setTarget((LivingEntity)entity);
-      }
+	@Override
+	protected int getNextAirUnderwater(int air) {
+		return air;
+	}
 
-      super.pushAway(entity);
-   }
+	@Override
+	protected void pushAway(Entity entity) {
+		if (entity instanceof Monster && !(entity instanceof CreeperEntity) && this.getRandom().nextInt(20) == 0) {
+			this.setTarget((LivingEntity) entity);
+		}
 
-   @Override
-   public void tickMovement() {
-      super.tickMovement();
-      if (this.attackTicksLeft > 0) {
-         this.attackTicksLeft--;
-      }
+		super.pushAway(entity);
+	}
 
-      if (this.lookingAtVillagerTicksLeft > 0) {
-         this.lookingAtVillagerTicksLeft--;
-      }
+	@Override
+	public void tickMovement() {
+		super.tickMovement();
+		if (this.attackTicksLeft > 0) {
+			this.attackTicksLeft--;
+		}
 
-      if (!this.getEntityWorld().isClient()) {
-         this.tickAngerLogic((ServerWorld)this.getEntityWorld(), true);
-      }
-   }
+		if (this.lookingAtVillagerTicksLeft > 0) {
+			this.lookingAtVillagerTicksLeft--;
+		}
 
-   @Override
-   public boolean shouldSpawnSprintingParticles() {
-      return this.getVelocity().horizontalLengthSquared() > 2.5000003E-7F && this.random.nextInt(5) == 0;
-   }
+		if (!this.getEntityWorld().isClient()) {
+			this.tickAngerLogic((ServerWorld) this.getEntityWorld(), true);
+		}
+	}
 
-   @Override
-   public boolean canTarget(EntityType<?> type) {
-      if (this.isPlayerCreated() && type == EntityType.PLAYER) {
-         return false;
-      } else {
-         return type == EntityType.CREEPER ? false : super.canTarget(type);
-      }
-   }
+	@Override
+	public boolean shouldSpawnSprintingParticles() {
+		return this.getVelocity().horizontalLengthSquared() > 2.5000003E-7F && this.random.nextInt(5) == 0;
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putBoolean("PlayerCreated", this.isPlayerCreated());
-      this.writeAngerToData(view);
-   }
+	@Override
+	public boolean canTarget(EntityType<?> type) {
+		if (this.isPlayerCreated() && type == EntityType.PLAYER) {
+			return false;
+		}
+		else {
+			return type == EntityType.CREEPER ? false : super.canTarget(type);
+		}
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.setPlayerCreated(view.getBoolean("PlayerCreated", false));
-      this.readAngerFromData(this.getEntityWorld(), view);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putBoolean("PlayerCreated", this.isPlayerCreated());
+		this.writeAngerToData(view);
+	}
 
-   @Override
-   public void chooseRandomAngerTime() {
-      this.setAngerDuration(ANGER_TIME_RANGE.get(this.random));
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.setPlayerCreated(view.getBoolean("PlayerCreated", false));
+		this.readAngerFromData(this.getEntityWorld(), view);
+	}
 
-   @Override
-   public void setAngerEndTime(long angerEndTime) {
-      this.angerEndTime = angerEndTime;
-   }
+	@Override
+	public void chooseRandomAngerTime() {
+		this.setAngerDuration(ANGER_TIME_RANGE.get(this.random));
+	}
 
-   @Override
-   public long getAngerEndTime() {
-      return this.angerEndTime;
-   }
+	@Override
+	public void setAngerEndTime(long angerEndTime) {
+		this.angerEndTime = angerEndTime;
+	}
 
-   @Override
-   public void setAngryAt(@Nullable LazyEntityReference<LivingEntity> angryAt) {
-      this.angryAt = angryAt;
-   }
+	@Override
+	public long getAngerEndTime() {
+		return this.angerEndTime;
+	}
 
-   @Override
-   public @Nullable LazyEntityReference<LivingEntity> getAngryAt() {
-      return this.angryAt;
-   }
+	@Override
+	public void setAngryAt(@Nullable LazyEntityReference<LivingEntity> angryAt) {
+		this.angryAt = angryAt;
+	}
 
-   private float getAttackDamage() {
-      return (float)this.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
-   }
+	@Override
+	public @Nullable LazyEntityReference<LivingEntity> getAngryAt() {
+		return this.angryAt;
+	}
 
-   @Override
-   public boolean tryAttack(ServerWorld world, Entity target) {
-      this.attackTicksLeft = 10;
-      world.sendEntityStatus(this, (byte)4);
-      float f = this.getAttackDamage();
-      float g = (int)f > 0 ? f / 2.0F + this.random.nextInt((int)f) : f;
-      DamageSource damageSource = this.getDamageSources().mobAttack(this);
-      boolean bl = target.damage(world, damageSource, g);
-      if (bl) {
-         double d = target instanceof LivingEntity livingEntity ? livingEntity.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE) : 0.0;
-         double e = Math.max(0.0, 1.0 - d);
-         target.setVelocity(target.getVelocity().add(0.0, 0.4F * e, 0.0));
-         EnchantmentHelper.onTargetDamaged(world, target, damageSource);
-      }
+	private float getAttackDamage() {
+		return (float) this.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
+	}
 
-      this.playSound(SoundEvents.ENTITY_IRON_GOLEM_ATTACK, 1.0F, 1.0F);
-      return bl;
-   }
+	@Override
+	public boolean tryAttack(ServerWorld world, Entity target) {
+		this.attackTicksLeft = 10;
+		world.sendEntityStatus(this, (byte) 4);
+		float f = this.getAttackDamage();
+		float g = (int) f > 0 ? f / 2.0F + this.random.nextInt((int) f) : f;
+		DamageSource damageSource = this.getDamageSources().mobAttack(this);
+		boolean bl = target.damage(world, damageSource, g);
+		if (bl) {
+			double
+					d =
+					target instanceof LivingEntity livingEntity
+					? livingEntity.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE) : 0.0;
+			double e = Math.max(0.0, 1.0 - d);
+			target.setVelocity(target.getVelocity().add(0.0, 0.4F * e, 0.0));
+			EnchantmentHelper.onTargetDamaged(world, target, damageSource);
+		}
 
-   @Override
-   public boolean damage(ServerWorld world, DamageSource source, float amount) {
-      Cracks.CrackLevel crackLevel = this.getCrackLevel();
-      boolean bl = super.damage(world, source, amount);
-      if (bl && this.getCrackLevel() != crackLevel) {
-         this.playSound(SoundEvents.ENTITY_IRON_GOLEM_DAMAGE, 1.0F, 1.0F);
-      }
+		this.playSound(SoundEvents.ENTITY_IRON_GOLEM_ATTACK, 1.0F, 1.0F);
+		return bl;
+	}
 
-      return bl;
-   }
+	@Override
+	public boolean damage(ServerWorld world, DamageSource source, float amount) {
+		Cracks.CrackLevel crackLevel = this.getCrackLevel();
+		boolean bl = super.damage(world, source, amount);
+		if (bl && this.getCrackLevel() != crackLevel) {
+			this.playSound(SoundEvents.ENTITY_IRON_GOLEM_DAMAGE, 1.0F, 1.0F);
+		}
 
-   public Cracks.CrackLevel getCrackLevel() {
-      return Cracks.IRON_GOLEM.getCrackLevel(this.getHealth() / this.getMaxHealth());
-   }
+		return bl;
+	}
 
-   @Override
-   public void handleStatus(byte status) {
-      if (status == 4) {
-         this.attackTicksLeft = 10;
-         this.playSound(SoundEvents.ENTITY_IRON_GOLEM_ATTACK, 1.0F, 1.0F);
-      } else if (status == 11) {
-         this.lookingAtVillagerTicksLeft = 400;
-      } else if (status == 34) {
-         this.lookingAtVillagerTicksLeft = 0;
-      } else {
-         super.handleStatus(status);
-      }
-   }
+	public Cracks.CrackLevel getCrackLevel() {
+		return Cracks.IRON_GOLEM.getCrackLevel(this.getHealth() / this.getMaxHealth());
+	}
 
-   public int getAttackTicksLeft() {
-      return this.attackTicksLeft;
-   }
+	@Override
+	public void handleStatus(byte status) {
+		if (status == 4) {
+			this.attackTicksLeft = 10;
+			this.playSound(SoundEvents.ENTITY_IRON_GOLEM_ATTACK, 1.0F, 1.0F);
+		}
+		else if (status == 11) {
+			this.lookingAtVillagerTicksLeft = 400;
+		}
+		else if (status == 34) {
+			this.lookingAtVillagerTicksLeft = 0;
+		}
+		else {
+			super.handleStatus(status);
+		}
+	}
 
-   public void setLookingAtVillager(boolean lookingAtVillager) {
-      if (lookingAtVillager) {
-         this.lookingAtVillagerTicksLeft = 400;
-         this.getEntityWorld().sendEntityStatus(this, (byte)11);
-      } else {
-         this.lookingAtVillagerTicksLeft = 0;
-         this.getEntityWorld().sendEntityStatus(this, (byte)34);
-      }
-   }
+	public int getAttackTicksLeft() {
+		return this.attackTicksLeft;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_IRON_GOLEM_HURT;
-   }
+	public void setLookingAtVillager(boolean lookingAtVillager) {
+		if (lookingAtVillager) {
+			this.lookingAtVillagerTicksLeft = 400;
+			this.getEntityWorld().sendEntityStatus(this, (byte) 11);
+		}
+		else {
+			this.lookingAtVillagerTicksLeft = 0;
+			this.getEntityWorld().sendEntityStatus(this, (byte) 34);
+		}
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_IRON_GOLEM_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_IRON_GOLEM_HURT;
+	}
 
-   @Override
-   protected ActionResult interactMob(PlayerEntity player, Hand hand) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if (!itemStack.isOf(Items.IRON_INGOT)) {
-         return ActionResult.PASS;
-      } else {
-         float f = this.getHealth();
-         this.heal(25.0F);
-         if (this.getHealth() == f) {
-            return ActionResult.PASS;
-         } else {
-            float g = 1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.2F;
-            this.playSound(SoundEvents.ENTITY_IRON_GOLEM_REPAIR, 1.0F, g);
-            itemStack.decrementUnlessCreative(1, player);
-            return ActionResult.SUCCESS;
-         }
-      }
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_IRON_GOLEM_DEATH;
+	}
 
-   @Override
-   protected void playStepSound(BlockPos pos, BlockState state) {
-      this.playSound(SoundEvents.ENTITY_IRON_GOLEM_STEP, 1.0F, 1.0F);
-   }
+	@Override
+	protected ActionResult interactMob(PlayerEntity player, Hand hand) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if (!itemStack.isOf(Items.IRON_INGOT)) {
+			return ActionResult.PASS;
+		}
+		else {
+			float f = this.getHealth();
+			this.heal(25.0F);
+			if (this.getHealth() == f) {
+				return ActionResult.PASS;
+			}
+			else {
+				float g = 1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.2F;
+				this.playSound(SoundEvents.ENTITY_IRON_GOLEM_REPAIR, 1.0F, g);
+				itemStack.decrementUnlessCreative(1, player);
+				return ActionResult.SUCCESS;
+			}
+		}
+	}
 
-   public int getLookingAtVillagerTicks() {
-      return this.lookingAtVillagerTicksLeft;
-   }
+	@Override
+	protected void playStepSound(BlockPos pos, BlockState state) {
+		this.playSound(SoundEvents.ENTITY_IRON_GOLEM_STEP, 1.0F, 1.0F);
+	}
 
-   public boolean isPlayerCreated() {
-      return (this.dataTracker.get(IRON_GOLEM_FLAGS) & 1) != 0;
-   }
+	public int getLookingAtVillagerTicks() {
+		return this.lookingAtVillagerTicksLeft;
+	}
 
-   public void setPlayerCreated(boolean playerCreated) {
-      byte b = this.dataTracker.get(IRON_GOLEM_FLAGS);
-      if (playerCreated) {
-         this.dataTracker.set(IRON_GOLEM_FLAGS, (byte)(b | 1));
-      } else {
-         this.dataTracker.set(IRON_GOLEM_FLAGS, (byte)(b & -2));
-      }
-   }
+	public boolean isPlayerCreated() {
+		return (this.dataTracker.get(IRON_GOLEM_FLAGS) & 1) != 0;
+	}
 
-   @Override
-   public void onDeath(DamageSource damageSource) {
-      super.onDeath(damageSource);
-   }
+	public void setPlayerCreated(boolean playerCreated) {
+		byte b = this.dataTracker.get(IRON_GOLEM_FLAGS);
+		if (playerCreated) {
+			this.dataTracker.set(IRON_GOLEM_FLAGS, (byte) (b | 1));
+		}
+		else {
+			this.dataTracker.set(IRON_GOLEM_FLAGS, (byte) (b & -2));
+		}
+	}
 
-   @Override
-   public boolean canSpawn(WorldView world) {
-      BlockPos blockPos = this.getBlockPos();
-      BlockPos blockPos2 = blockPos.down();
-      BlockState blockState = world.getBlockState(blockPos2);
-      if (!blockState.hasSolidTopSurface(world, blockPos2, this)) {
-         return false;
-      } else {
-         for (int i = 1; i < 3; i++) {
-            BlockPos blockPos3 = blockPos.up(i);
-            BlockState blockState2 = world.getBlockState(blockPos3);
-            if (!SpawnHelper.isClearForSpawn(world, blockPos3, blockState2, blockState2.getFluidState(), EntityType.IRON_GOLEM)) {
-               return false;
-            }
-         }
+	@Override
+	public void onDeath(DamageSource damageSource) {
+		super.onDeath(damageSource);
+	}
 
-         return SpawnHelper.isClearForSpawn(world, blockPos, world.getBlockState(blockPos), Fluids.EMPTY.getDefaultState(), EntityType.IRON_GOLEM)
-            && world.doesNotIntersectEntities(this);
-      }
-   }
+	@Override
+	public boolean canSpawn(WorldView world) {
+		BlockPos blockPos = this.getBlockPos();
+		BlockPos blockPos2 = blockPos.down();
+		BlockState blockState = world.getBlockState(blockPos2);
+		if (!blockState.hasSolidTopSurface(world, blockPos2, this)) {
+			return false;
+		}
+		else {
+			for (int i = 1; i < 3; i++) {
+				BlockPos blockPos3 = blockPos.up(i);
+				BlockState blockState2 = world.getBlockState(blockPos3);
+				if (!SpawnHelper.isClearForSpawn(
+						world,
+						blockPos3,
+						blockState2,
+						blockState2.getFluidState(),
+						EntityType.IRON_GOLEM
+				)) {
+					return false;
+				}
+			}
 
-   @Override
-   public Vec3d getLeashOffset() {
-      return new Vec3d(0.0, 0.875F * this.getStandingEyeHeight(), this.getWidth() * 0.4F);
-   }
+			return SpawnHelper.isClearForSpawn(
+					world,
+					blockPos,
+					world.getBlockState(blockPos),
+					Fluids.EMPTY.getDefaultState(),
+					EntityType.IRON_GOLEM
+			)
+					&& world.doesNotIntersectEntities(this);
+		}
+	}
+
+	@Override
+	public Vec3d getLeashOffset() {
+		return new Vec3d(0.0, 0.875F * this.getStandingEyeHeight(), this.getWidth() * 0.4F);
+	}
 }

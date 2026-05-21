@@ -2,12 +2,16 @@ package net.minecraft.util.profiler;
 
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
+/**
+ * {@code ProfileLocationInfo}.
+ */
 public interface ProfileLocationInfo {
-   long getTotalTime();
 
-   long getMaxTime();
+	long getTotalTime();
 
-   long getVisitCount();
+	long getMaxTime();
 
-   Object2LongMap<String> getCounts();
+	long getVisitCount();
+
+	Object2LongMap<String> getCounts();
 }

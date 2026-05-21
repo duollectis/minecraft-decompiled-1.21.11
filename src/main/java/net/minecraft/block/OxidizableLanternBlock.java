@@ -6,36 +6,42 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code OxidizableLanternBlock}.
+ */
 public class OxidizableLanternBlock extends LanternBlock implements Oxidizable {
-   public static final MapCodec<OxidizableLanternBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Oxidizable.OxidationLevel.CODEC.fieldOf("weathering_state").forGetter(OxidizableLanternBlock::getDegradationLevel), createSettingsCodec()
-         )
-         .apply(instance, OxidizableLanternBlock::new)
-   );
-   private final Oxidizable.OxidationLevel oxidationLevel;
 
-   @Override
-   public MapCodec<OxidizableLanternBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<OxidizableLanternBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Oxidizable.OxidationLevel.CODEC
+							                    .fieldOf("weathering_state")
+							                    .forGetter(OxidizableLanternBlock::getDegradationLevel), createSettingsCodec()
+			                    )
+			                    .apply(instance, OxidizableLanternBlock::new)
+	);
+	private final Oxidizable.OxidationLevel oxidationLevel;
 
-   public OxidizableLanternBlock(Oxidizable.OxidationLevel oxidationLevel, AbstractBlock.Settings settings) {
-      super(settings);
-      this.oxidationLevel = oxidationLevel;
-   }
+	@Override
+	public MapCodec<OxidizableLanternBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      this.tickDegradation(state, world, pos, random);
-   }
+	public OxidizableLanternBlock(Oxidizable.OxidationLevel oxidationLevel, AbstractBlock.Settings settings) {
+		super(settings);
+		this.oxidationLevel = oxidationLevel;
+	}
 
-   @Override
-   protected boolean hasRandomTicks(BlockState state) {
-      return Oxidizable.getIncreasedOxidationBlock(state.getBlock()).isPresent();
-   }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		this.tickDegradation(state, world, pos, random);
+	}
 
-   public Oxidizable.OxidationLevel getDegradationLevel() {
-      return this.oxidationLevel;
-   }
+	@Override
+	protected boolean hasRandomTicks(BlockState state) {
+		return Oxidizable.getIncreasedOxidationBlock(state.getBlock()).isPresent();
+	}
+
+	public Oxidizable.OxidationLevel getDegradationLevel() {
+		return this.oxidationLevel;
+	}
 }

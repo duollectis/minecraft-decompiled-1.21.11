@@ -1,11 +1,6 @@
 package net.minecraft.entity.passive;
 
-import java.util.EnumSet;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.ai.TargetPredicate;
 import net.minecraft.entity.ai.goal.ActiveTargetGoal;
 import net.minecraft.entity.ai.goal.EscapeDangerGoal;
@@ -21,134 +16,161 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+
+/**
+ * {@code TraderLlamaEntity}.
+ */
 public class TraderLlamaEntity extends LlamaEntity {
-   private static final int DEFAULT_DESPAWN_DELAY = 47999;
-   private int despawnDelay = 47999;
 
-   public TraderLlamaEntity(EntityType<? extends TraderLlamaEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final int DEFAULT_DESPAWN_DELAY = 47999;
+	private int despawnDelay = 47999;
 
-   @Override
-   public boolean isTrader() {
-      return true;
-   }
+	public TraderLlamaEntity(EntityType<? extends TraderLlamaEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected @Nullable LlamaEntity createChild() {
-      return EntityType.TRADER_LLAMA.create(this.getEntityWorld(), SpawnReason.BREEDING);
-   }
+	@Override
+	public boolean isTrader() {
+		return true;
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putInt("DespawnDelay", this.despawnDelay);
-   }
+	@Override
+	protected @Nullable LlamaEntity createChild() {
+		return EntityType.TRADER_LLAMA.create(this.getEntityWorld(), SpawnReason.BREEDING);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.despawnDelay = view.getInt("DespawnDelay", 47999);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putInt("DespawnDelay", this.despawnDelay);
+	}
 
-   @Override
-   protected void initGoals() {
-      super.initGoals();
-      this.goalSelector.add(1, new EscapeDangerGoal(this, 2.0));
-      this.targetSelector.add(1, new TraderLlamaEntity.DefendTraderGoal(this));
-      this.targetSelector
-         .add(2, new ActiveTargetGoal<>(this, ZombieEntity.class, true, (entity, serverWorld) -> entity.getType() != EntityType.ZOMBIFIED_PIGLIN));
-      this.targetSelector.add(2, new ActiveTargetGoal<>(this, IllagerEntity.class, true));
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.despawnDelay = view.getInt("DespawnDelay", 47999);
+	}
 
-   public void setDespawnDelay(int despawnDelay) {
-      this.despawnDelay = despawnDelay;
-   }
+	@Override
+	protected void initGoals() {
+		super.initGoals();
+		this.goalSelector.add(1, new EscapeDangerGoal(this, 2.0));
+		this.targetSelector.add(1, new TraderLlamaEntity.DefendTraderGoal(this));
+		this.targetSelector
+				.add(
+						2,
+						new ActiveTargetGoal<>(
+								this,
+								ZombieEntity.class,
+								true,
+								(entity, serverWorld) -> entity.getType() != EntityType.ZOMBIFIED_PIGLIN
+						)
+				);
+		this.targetSelector.add(2, new ActiveTargetGoal<>(this, IllagerEntity.class, true));
+	}
 
-   @Override
-   protected void putPlayerOnBack(PlayerEntity player) {
-      Entity entity = this.getLeashHolder();
-      if (!(entity instanceof WanderingTraderEntity)) {
-         super.putPlayerOnBack(player);
-      }
-   }
+	public void setDespawnDelay(int despawnDelay) {
+		this.despawnDelay = despawnDelay;
+	}
 
-   @Override
-   public void tickMovement() {
-      super.tickMovement();
-      if (!this.getEntityWorld().isClient()) {
-         this.tryDespawn();
-      }
-   }
+	@Override
+	protected void putPlayerOnBack(PlayerEntity player) {
+		Entity entity = this.getLeashHolder();
+		if (!(entity instanceof WanderingTraderEntity)) {
+			super.putPlayerOnBack(player);
+		}
+	}
 
-   private void tryDespawn() {
-      if (this.canDespawn()) {
-         this.despawnDelay = this.heldByTrader() ? ((WanderingTraderEntity)this.getLeashHolder()).getDespawnDelay() - 1 : this.despawnDelay - 1;
-         if (this.despawnDelay <= 0) {
-            this.detachLeashWithoutDrop();
-            this.discard();
-         }
-      }
-   }
+	@Override
+	public void tickMovement() {
+		super.tickMovement();
+		if (!this.getEntityWorld().isClient()) {
+			this.tryDespawn();
+		}
+	}
 
-   private boolean canDespawn() {
-      return !this.isTame() && !this.leashedByPlayer() && !this.hasPlayerRider();
-   }
+	private void tryDespawn() {
+		if (this.canDespawn()) {
+			this.despawnDelay =
+					this.heldByTrader() ? ((WanderingTraderEntity) this.getLeashHolder()).getDespawnDelay() - 1
+					                    : this.despawnDelay - 1;
+			if (this.despawnDelay <= 0) {
+				this.detachLeashWithoutDrop();
+				this.discard();
+			}
+		}
+	}
 
-   private boolean heldByTrader() {
-      return this.getLeashHolder() instanceof WanderingTraderEntity;
-   }
+	private boolean canDespawn() {
+		return !this.isTame() && !this.leashedByPlayer() && !this.hasPlayerRider();
+	}
 
-   private boolean leashedByPlayer() {
-      return this.isLeashed() && !this.heldByTrader();
-   }
+	private boolean heldByTrader() {
+		return this.getLeashHolder() instanceof WanderingTraderEntity;
+	}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      if (spawnReason == SpawnReason.EVENT) {
-         this.setBreedingAge(0);
-      }
+	private boolean leashedByPlayer() {
+		return this.isLeashed() && !this.heldByTrader();
+	}
 
-      if (entityData == null) {
-         entityData = new PassiveEntity.PassiveData(false);
-      }
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		if (spawnReason == SpawnReason.EVENT) {
+			this.setBreedingAge(0);
+		}
 
-      return super.initialize(world, difficulty, spawnReason, entityData);
-   }
+		if (entityData == null) {
+			entityData = new PassiveEntity.PassiveData(false);
+		}
 
-   protected static class DefendTraderGoal extends TrackTargetGoal {
-      private final LlamaEntity llama;
-      private LivingEntity offender;
-      private int traderLastAttackedTime;
+		return super.initialize(world, difficulty, spawnReason, entityData);
+	}
 
-      public DefendTraderGoal(LlamaEntity llama) {
-         super(llama, false);
-         this.llama = llama;
-         this.setControls(EnumSet.of(Goal.Control.TARGET));
-      }
+	/**
+	 * {@code DefendTraderGoal}.
+	 */
+	protected static class DefendTraderGoal extends TrackTargetGoal {
 
-      @Override
-      public boolean canStart() {
-         if (!this.llama.isLeashed()) {
-            return false;
-         } else if (!(this.llama.getLeashHolder() instanceof WanderingTraderEntity wanderingTraderEntity)) {
-            return false;
-         } else {
-            this.offender = wanderingTraderEntity.getAttacker();
-            int i = wanderingTraderEntity.getLastAttackedTime();
-            return i != this.traderLastAttackedTime && this.canTrack(this.offender, TargetPredicate.DEFAULT);
-         }
-      }
+		private final LlamaEntity llama;
+		private LivingEntity offender;
+		private int traderLastAttackedTime;
 
-      @Override
-      public void start() {
-         this.mob.setTarget(this.offender);
-         Entity entity = this.llama.getLeashHolder();
-         if (entity instanceof WanderingTraderEntity) {
-            this.traderLastAttackedTime = ((WanderingTraderEntity)entity).getLastAttackedTime();
-         }
+		public DefendTraderGoal(LlamaEntity llama) {
+			super(llama, false);
+			this.llama = llama;
+			this.setControls(EnumSet.of(Goal.Control.TARGET));
+		}
 
-         super.start();
-      }
-   }
+		@Override
+		public boolean canStart() {
+			if (!this.llama.isLeashed()) {
+				return false;
+			}
+			else if (!(this.llama.getLeashHolder() instanceof WanderingTraderEntity wanderingTraderEntity)) {
+				return false;
+			}
+			else {
+				this.offender = wanderingTraderEntity.getAttacker();
+				int i = wanderingTraderEntity.getLastAttackedTime();
+				return i != this.traderLastAttackedTime && this.canTrack(this.offender, TargetPredicate.DEFAULT);
+			}
+		}
+
+		@Override
+		public void start() {
+			this.mob.setTarget(this.offender);
+			Entity entity = this.llama.getLeashHolder();
+			if (entity instanceof WanderingTraderEntity) {
+				this.traderLastAttackedTime = ((WanderingTraderEntity) entity).getLastAttackedTime();
+			}
+
+			super.start();
+		}
+	}
 }

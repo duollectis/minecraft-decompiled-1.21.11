@@ -2,7 +2,6 @@ package net.minecraft.structure;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.logging.LogUtils;
-import java.util.function.Function;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.enums.StructureBlockMode;
@@ -22,120 +21,159 @@ import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 import org.slf4j.Logger;
 
+import java.util.function.Function;
+
+/**
+ * {@code SimpleStructurePiece}.
+ */
 public abstract class SimpleStructurePiece extends StructurePiece {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   protected final String templateIdString;
-   protected StructureTemplate template;
-   protected StructurePlacementData placementData;
-   protected BlockPos pos;
 
-   public SimpleStructurePiece(
-      StructurePieceType type,
-      int length,
-      StructureTemplateManager structureTemplateManager,
-      Identifier id,
-      String template,
-      StructurePlacementData placementData,
-      BlockPos pos
-   ) {
-      super(type, length, structureTemplateManager.getTemplateOrBlank(id).calculateBoundingBox(placementData, pos));
-      this.setOrientation(Direction.NORTH);
-      this.templateIdString = template;
-      this.pos = pos;
-      this.template = structureTemplateManager.getTemplateOrBlank(id);
-      this.placementData = placementData;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	protected final String templateIdString;
+	protected StructureTemplate template;
+	protected StructurePlacementData placementData;
+	protected BlockPos pos;
 
-   public SimpleStructurePiece(
-      StructurePieceType type,
-      NbtCompound nbt,
-      StructureTemplateManager structureTemplateManager,
-      Function<Identifier, StructurePlacementData> placementDataGetter
-   ) {
-      super(type, nbt);
-      this.setOrientation(Direction.NORTH);
-      this.templateIdString = nbt.getString("Template", "");
-      this.pos = new BlockPos(nbt.getInt("TPX", 0), nbt.getInt("TPY", 0), nbt.getInt("TPZ", 0));
-      Identifier identifier = this.getId();
-      this.template = structureTemplateManager.getTemplateOrBlank(identifier);
-      this.placementData = placementDataGetter.apply(identifier);
-      this.boundingBox = this.template.calculateBoundingBox(this.placementData, this.pos);
-   }
+	public SimpleStructurePiece(
+			StructurePieceType type,
+			int length,
+			StructureTemplateManager structureTemplateManager,
+			Identifier id,
+			String template,
+			StructurePlacementData placementData,
+			BlockPos pos
+	) {
+		super(type, length, structureTemplateManager.getTemplateOrBlank(id).calculateBoundingBox(placementData, pos));
+		this.setOrientation(Direction.NORTH);
+		this.templateIdString = template;
+		this.pos = pos;
+		this.template = structureTemplateManager.getTemplateOrBlank(id);
+		this.placementData = placementData;
+	}
 
-   protected Identifier getId() {
-      return Identifier.of(this.templateIdString);
-   }
+	public SimpleStructurePiece(
+			StructurePieceType type,
+			NbtCompound nbt,
+			StructureTemplateManager structureTemplateManager,
+			Function<Identifier, StructurePlacementData> placementDataGetter
+	) {
+		super(type, nbt);
+		this.setOrientation(Direction.NORTH);
+		this.templateIdString = nbt.getString("Template", "");
+		this.pos = new BlockPos(nbt.getInt("TPX", 0), nbt.getInt("TPY", 0), nbt.getInt("TPZ", 0));
+		Identifier identifier = this.getId();
+		this.template = structureTemplateManager.getTemplateOrBlank(identifier);
+		this.placementData = placementDataGetter.apply(identifier);
+		this.boundingBox = this.template.calculateBoundingBox(this.placementData, this.pos);
+	}
 
-   @Override
-   protected void writeNbt(StructureContext context, NbtCompound nbt) {
-      nbt.putInt("TPX", this.pos.getX());
-      nbt.putInt("TPY", this.pos.getY());
-      nbt.putInt("TPZ", this.pos.getZ());
-      nbt.putString("Template", this.templateIdString);
-   }
+	protected Identifier getId() {
+		return Identifier.of(this.templateIdString);
+	}
 
-   @Override
-   public void generate(
-      StructureWorldAccess world,
-      StructureAccessor structureAccessor,
-      ChunkGenerator chunkGenerator,
-      Random random,
-      BlockBox chunkBox,
-      ChunkPos chunkPos,
-      BlockPos pivot
-   ) {
-      this.placementData.setBoundingBox(chunkBox);
-      this.boundingBox = this.template.calculateBoundingBox(this.placementData, this.pos);
-      if (this.template.place(world, this.pos, pivot, this.placementData, random, 2)) {
-         for (StructureTemplate.StructureBlockInfo structureBlockInfo : this.template.getInfosForBlock(this.pos, this.placementData, Blocks.STRUCTURE_BLOCK)) {
-            if (structureBlockInfo.nbt() != null) {
-               StructureBlockMode structureBlockMode = structureBlockInfo.nbt().<StructureBlockMode>get("mode", StructureBlockMode.CODEC).orElseThrow();
-               if (structureBlockMode == StructureBlockMode.DATA) {
-                  this.handleMetadata(structureBlockInfo.nbt().getString("metadata", ""), structureBlockInfo.pos(), world, random, chunkBox);
-               }
-            }
-         }
+	@Override
+	protected void writeNbt(StructureContext context, NbtCompound nbt) {
+		nbt.putInt("TPX", this.pos.getX());
+		nbt.putInt("TPY", this.pos.getY());
+		nbt.putInt("TPZ", this.pos.getZ());
+		nbt.putString("Template", this.templateIdString);
+	}
 
-         for (StructureTemplate.StructureBlockInfo structureBlockInfo2 : this.template.getInfosForBlock(this.pos, this.placementData, Blocks.JIGSAW)) {
-            if (structureBlockInfo2.nbt() != null) {
-               String string = structureBlockInfo2.nbt().getString("final_state", "minecraft:air");
-               BlockState blockState = Blocks.AIR.getDefaultState();
+	@Override
+	public void generate(
+			StructureWorldAccess world,
+			StructureAccessor structureAccessor,
+			ChunkGenerator chunkGenerator,
+			Random random,
+			BlockBox chunkBox,
+			ChunkPos chunkPos,
+			BlockPos pivot
+	) {
+		this.placementData.setBoundingBox(chunkBox);
+		this.boundingBox = this.template.calculateBoundingBox(this.placementData, this.pos);
+		if (this.template.place(world, this.pos, pivot, this.placementData, random, 2)) {
+			for (StructureTemplate.StructureBlockInfo structureBlockInfo : this.template.getInfosForBlock(
+					this.pos,
+					this.placementData,
+					Blocks.STRUCTURE_BLOCK
+			)) {
+				if (structureBlockInfo.nbt() != null) {
+					StructureBlockMode
+							structureBlockMode =
+							structureBlockInfo
+									.nbt()
+									.<StructureBlockMode>get("mode", StructureBlockMode.CODEC)
+									.orElseThrow();
+					if (structureBlockMode == StructureBlockMode.DATA) {
+						this.handleMetadata(
+								structureBlockInfo.nbt().getString("metadata", ""),
+								structureBlockInfo.pos(),
+								world,
+								random,
+								chunkBox
+						);
+					}
+				}
+			}
 
-               try {
-                  blockState = BlockArgumentParser.block(world.createCommandRegistryWrapper(RegistryKeys.BLOCK), string, true).blockState();
-               } catch (CommandSyntaxException var15) {
-                  LOGGER.error("Error while parsing blockstate {} in jigsaw block @ {}", string, structureBlockInfo2.pos());
-               }
+			for (StructureTemplate.StructureBlockInfo structureBlockInfo2 : this.template.getInfosForBlock(
+					this.pos,
+					this.placementData,
+					Blocks.JIGSAW
+			)) {
+				if (structureBlockInfo2.nbt() != null) {
+					String string = structureBlockInfo2.nbt().getString("final_state", "minecraft:air");
+					BlockState blockState = Blocks.AIR.getDefaultState();
 
-               world.setBlockState(structureBlockInfo2.pos(), blockState, 3);
-            }
-         }
-      }
-   }
+					try {
+						blockState =
+								BlockArgumentParser
+										.block(world.createCommandRegistryWrapper(RegistryKeys.BLOCK), string, true)
+										.blockState();
+					}
+					catch (CommandSyntaxException var15) {
+						LOGGER.error(
+								"Error while parsing blockstate {} in jigsaw block @ {}",
+								string,
+								structureBlockInfo2.pos()
+						);
+					}
 
-   protected abstract void handleMetadata(String metadata, BlockPos pos, ServerWorldAccess world, Random random, BlockBox boundingBox);
+					world.setBlockState(structureBlockInfo2.pos(), blockState, 3);
+				}
+			}
+		}
+	}
 
-   @Deprecated
-   @Override
-   public void translate(int x, int y, int z) {
-      super.translate(x, y, z);
-      this.pos = this.pos.add(x, y, z);
-   }
+	protected abstract void handleMetadata(
+			String metadata,
+			BlockPos pos,
+			ServerWorldAccess world,
+			Random random,
+			BlockBox boundingBox
+	);
 
-   @Override
-   public BlockRotation getRotation() {
-      return this.placementData.getRotation();
-   }
+	@Deprecated
+	@Override
+	public void translate(int x, int y, int z) {
+		super.translate(x, y, z);
+		this.pos = this.pos.add(x, y, z);
+	}
 
-   public StructureTemplate getTemplate() {
-      return this.template;
-   }
+	@Override
+	public BlockRotation getRotation() {
+		return this.placementData.getRotation();
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public StructureTemplate getTemplate() {
+		return this.template;
+	}
 
-   public StructurePlacementData getPlacementData() {
-      return this.placementData;
-   }
+	public BlockPos getPos() {
+		return this.pos;
+	}
+
+	public StructurePlacementData getPlacementData() {
+		return this.placementData;
+	}
 }

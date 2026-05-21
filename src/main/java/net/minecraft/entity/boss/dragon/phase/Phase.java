@@ -8,26 +8,30 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code Phase}.
+ */
 public interface Phase {
-   boolean isSittingOrHovering();
 
-   void clientTick();
+	boolean isSittingOrHovering();
 
-   void serverTick(ServerWorld world);
+	void clientTick();
 
-   void crystalDestroyed(EndCrystalEntity crystal, BlockPos pos, DamageSource source, @Nullable PlayerEntity player);
+	void serverTick(ServerWorld world);
 
-   void beginPhase();
+	void crystalDestroyed(EndCrystalEntity crystal, BlockPos pos, DamageSource source, @Nullable PlayerEntity player);
 
-   void endPhase();
+	void beginPhase();
 
-   float getMaxYAcceleration();
+	void endPhase();
 
-   float getYawAcceleration();
+	float getMaxYAcceleration();
 
-   PhaseType<? extends Phase> getType();
+	float getYawAcceleration();
 
-   @Nullable Vec3d getPathTarget();
+	PhaseType<? extends Phase> getType();
 
-   float modifyDamageTaken(DamageSource damageSource, float damage);
+	@Nullable Vec3d getPathTarget();
+
+	float modifyDamageTaken(DamageSource damageSource, float damage);
 }

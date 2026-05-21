@@ -12,156 +12,183 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code PoweredRailBlock}.
+ */
 public class PoweredRailBlock extends AbstractRailBlock {
-   public static final MapCodec<PoweredRailBlock> CODEC = createCodec(PoweredRailBlock::new);
-   public static final EnumProperty<RailShape> SHAPE = Properties.STRAIGHT_RAIL_SHAPE;
-   public static final BooleanProperty POWERED = Properties.POWERED;
 
-   @Override
-   public MapCodec<PoweredRailBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<PoweredRailBlock> CODEC = createCodec(PoweredRailBlock::new);
+	public static final EnumProperty<RailShape> SHAPE = Properties.STRAIGHT_RAIL_SHAPE;
+	public static final BooleanProperty POWERED = Properties.POWERED;
 
-   public PoweredRailBlock(AbstractBlock.Settings settings) {
-      super(true, settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(SHAPE, RailShape.NORTH_SOUTH).with(POWERED, false).with(WATERLOGGED, false));
-   }
+	@Override
+	public MapCodec<PoweredRailBlock> getCodec() {
+		return CODEC;
+	}
 
-   protected boolean isPoweredByOtherRails(World world, BlockPos pos, BlockState state, boolean bl, int distance) {
-      if (distance >= 8) {
-         return false;
-      } else {
-         int i = pos.getX();
-         int j = pos.getY();
-         int k = pos.getZ();
-         boolean bl2 = true;
-         RailShape railShape = state.get(SHAPE);
-         switch (railShape) {
-            case NORTH_SOUTH:
-               if (bl) {
-                  k++;
-               } else {
-                  k--;
-               }
-               break;
-            case EAST_WEST:
-               if (bl) {
-                  i--;
-               } else {
-                  i++;
-               }
-               break;
-            case ASCENDING_EAST:
-               if (bl) {
-                  i--;
-               } else {
-                  i++;
-                  j++;
-                  bl2 = false;
-               }
+	public PoweredRailBlock(AbstractBlock.Settings settings) {
+		super(true, settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(SHAPE, RailShape.NORTH_SOUTH)
+				.with(POWERED, false)
+				.with(WATERLOGGED, false));
+	}
 
-               railShape = RailShape.EAST_WEST;
-               break;
-            case ASCENDING_WEST:
-               if (bl) {
-                  i--;
-                  j++;
-                  bl2 = false;
-               } else {
-                  i++;
-               }
+	protected boolean isPoweredByOtherRails(World world, BlockPos pos, BlockState state, boolean bl, int distance) {
+		if (distance >= 8) {
+			return false;
+		}
+		else {
+			int i = pos.getX();
+			int j = pos.getY();
+			int k = pos.getZ();
+			boolean bl2 = true;
+			RailShape railShape = state.get(SHAPE);
+			switch (railShape) {
+				case NORTH_SOUTH:
+					if (bl) {
+						k++;
+					}
+					else {
+						k--;
+					}
+					break;
+				case EAST_WEST:
+					if (bl) {
+						i--;
+					}
+					else {
+						i++;
+					}
+					break;
+				case ASCENDING_EAST:
+					if (bl) {
+						i--;
+					}
+					else {
+						i++;
+						j++;
+						bl2 = false;
+					}
 
-               railShape = RailShape.EAST_WEST;
-               break;
-            case ASCENDING_NORTH:
-               if (bl) {
-                  k++;
-               } else {
-                  k--;
-                  j++;
-                  bl2 = false;
-               }
+					railShape = RailShape.EAST_WEST;
+					break;
+				case ASCENDING_WEST:
+					if (bl) {
+						i--;
+						j++;
+						bl2 = false;
+					}
+					else {
+						i++;
+					}
 
-               railShape = RailShape.NORTH_SOUTH;
-               break;
-            case ASCENDING_SOUTH:
-               if (bl) {
-                  k++;
-                  j++;
-                  bl2 = false;
-               } else {
-                  k--;
-               }
+					railShape = RailShape.EAST_WEST;
+					break;
+				case ASCENDING_NORTH:
+					if (bl) {
+						k++;
+					}
+					else {
+						k--;
+						j++;
+						bl2 = false;
+					}
 
-               railShape = RailShape.NORTH_SOUTH;
-         }
+					railShape = RailShape.NORTH_SOUTH;
+					break;
+				case ASCENDING_SOUTH:
+					if (bl) {
+						k++;
+						j++;
+						bl2 = false;
+					}
+					else {
+						k--;
+					}
 
-         return this.isPoweredByOtherRails(world, new BlockPos(i, j, k), bl, distance, railShape)
-            ? true
-            : bl2 && this.isPoweredByOtherRails(world, new BlockPos(i, j - 1, k), bl, distance, railShape);
-      }
-   }
+					railShape = RailShape.NORTH_SOUTH;
+			}
 
-   protected boolean isPoweredByOtherRails(World world, BlockPos pos, boolean bl, int distance, RailShape shape) {
-      BlockState blockState = world.getBlockState(pos);
-      if (!blockState.isOf(this)) {
-         return false;
-      } else {
-         RailShape railShape = blockState.get(SHAPE);
-         if (shape != RailShape.EAST_WEST
-            || railShape != RailShape.NORTH_SOUTH && railShape != RailShape.ASCENDING_NORTH && railShape != RailShape.ASCENDING_SOUTH) {
-            if (shape != RailShape.NORTH_SOUTH
-               || railShape != RailShape.EAST_WEST && railShape != RailShape.ASCENDING_EAST && railShape != RailShape.ASCENDING_WEST) {
-               if (!blockState.get(POWERED)) {
-                  return false;
-               } else {
-                  return world.isReceivingRedstonePower(pos) ? true : this.isPoweredByOtherRails(world, pos, blockState, bl, distance + 1);
-               }
-            } else {
-               return false;
-            }
-         } else {
-            return false;
-         }
-      }
-   }
+			return this.isPoweredByOtherRails(world, new BlockPos(i, j, k), bl, distance, railShape)
+			       ? true
+			       : bl2 && this.isPoweredByOtherRails(world, new BlockPos(i, j - 1, k), bl, distance, railShape);
+		}
+	}
 
-   @Override
-   protected void updateBlockState(BlockState state, World world, BlockPos pos, Block neighbor) {
-      boolean bl = state.get(POWERED);
-      boolean bl2 = world.isReceivingRedstonePower(pos)
-         || this.isPoweredByOtherRails(world, pos, state, true, 0)
-         || this.isPoweredByOtherRails(world, pos, state, false, 0);
-      if (bl2 != bl) {
-         world.setBlockState(pos, state.with(POWERED, bl2), 3);
-         world.updateNeighbors(pos.down(), this);
-         if (state.get(SHAPE).isAscending()) {
-            world.updateNeighbors(pos.up(), this);
-         }
-      }
-   }
+	protected boolean isPoweredByOtherRails(World world, BlockPos pos, boolean bl, int distance, RailShape shape) {
+		BlockState blockState = world.getBlockState(pos);
+		if (!blockState.isOf(this)) {
+			return false;
+		}
+		else {
+			RailShape railShape = blockState.get(SHAPE);
+			if (shape != RailShape.EAST_WEST
+					|| railShape != RailShape.NORTH_SOUTH && railShape != RailShape.ASCENDING_NORTH
+					&& railShape != RailShape.ASCENDING_SOUTH) {
+				if (shape != RailShape.NORTH_SOUTH
+						|| railShape != RailShape.EAST_WEST && railShape != RailShape.ASCENDING_EAST
+						&& railShape != RailShape.ASCENDING_WEST) {
+					if (!blockState.get(POWERED)) {
+						return false;
+					}
+					else {
+						return world.isReceivingRedstonePower(pos) ? true : this.isPoweredByOtherRails(
+								world,
+								pos,
+								blockState,
+								bl,
+								distance + 1
+						);
+					}
+				}
+				else {
+					return false;
+				}
+			}
+			else {
+				return false;
+			}
+		}
+	}
 
-   @Override
-   public Property<RailShape> getShapeProperty() {
-      return SHAPE;
-   }
+	@Override
+	protected void updateBlockState(BlockState state, World world, BlockPos pos, Block neighbor) {
+		boolean bl = state.get(POWERED);
+		boolean bl2 = world.isReceivingRedstonePower(pos)
+				|| this.isPoweredByOtherRails(world, pos, state, true, 0)
+				|| this.isPoweredByOtherRails(world, pos, state, false, 0);
+		if (bl2 != bl) {
+			world.setBlockState(pos, state.with(POWERED, bl2), 3);
+			world.updateNeighbors(pos.down(), this);
+			if (state.get(SHAPE).isAscending()) {
+				world.updateNeighbors(pos.up(), this);
+			}
+		}
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      RailShape railShape = state.get(SHAPE);
-      RailShape railShape2 = this.rotateShape(railShape, rotation);
-      return state.with(SHAPE, railShape2);
-   }
+	@Override
+	public Property<RailShape> getShapeProperty() {
+		return SHAPE;
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      RailShape railShape = state.get(SHAPE);
-      RailShape railShape2 = this.mirrorShape(railShape, mirror);
-      return state.with(SHAPE, railShape2);
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		RailShape railShape = state.get(SHAPE);
+		RailShape railShape2 = this.rotateShape(railShape, rotation);
+		return state.with(SHAPE, railShape2);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(SHAPE, POWERED, WATERLOGGED);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		RailShape railShape = state.get(SHAPE);
+		RailShape railShape2 = this.mirrorShape(railShape, mirror);
+		return state.with(SHAPE, railShape2);
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(SHAPE, POWERED, WATERLOGGED);
+	}
 }

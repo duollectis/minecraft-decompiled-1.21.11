@@ -1,7 +1,6 @@
 package net.minecraft.recipe;
 
 import com.mojang.serialization.Codec;
-import java.util.List;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -15,37 +14,50 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.world.World;
 
+import java.util.List;
+
+/**
+ * {@code Recipe}.
+ */
 public interface Recipe<T extends RecipeInput> {
-   Codec<Recipe<?>> CODEC = Registries.RECIPE_SERIALIZER.getCodec().dispatch(Recipe::getSerializer, RecipeSerializer::codec);
-   Codec<RegistryKey<Recipe<?>>> KEY_CODEC = RegistryKey.createCodec(RegistryKeys.RECIPE);
-   PacketCodec<RegistryByteBuf, Recipe<?>> PACKET_CODEC = PacketCodecs.registryValue(RegistryKeys.RECIPE_SERIALIZER)
-      .dispatch(Recipe::getSerializer, RecipeSerializer::packetCodec);
 
-   boolean matches(T input, World world);
+	Codec<Recipe<?>>
+			CODEC =
+			Registries.RECIPE_SERIALIZER.getCodec().dispatch(Recipe::getSerializer, RecipeSerializer::codec);
 
-   ItemStack craft(T input, RegistryWrapper.WrapperLookup registries);
+	Codec<RegistryKey<Recipe<?>>> KEY_CODEC = RegistryKey.createCodec(RegistryKeys.RECIPE);
 
-   default boolean isIgnoredInRecipeBook() {
-      return false;
-   }
+	PacketCodec<RegistryByteBuf, Recipe<?>> PACKET_CODEC = PacketCodecs.registryValue(RegistryKeys.RECIPE_SERIALIZER)
+	                                                                   .dispatch(
+			                                                                   Recipe::getSerializer,
+			                                                                   RecipeSerializer::packetCodec
+	                                                                   );
 
-   default boolean showNotification() {
-      return true;
-   }
+	boolean matches(T input, World world);
 
-   default String getGroup() {
-      return "";
-   }
+	ItemStack craft(T input, RegistryWrapper.WrapperLookup registries);
 
-   RecipeSerializer<? extends Recipe<T>> getSerializer();
+	default boolean isIgnoredInRecipeBook() {
+		return false;
+	}
 
-   RecipeType<? extends Recipe<T>> getType();
+	default boolean showNotification() {
+		return true;
+	}
 
-   IngredientPlacement getIngredientPlacement();
+	default String getGroup() {
+		return "";
+	}
 
-   default List<RecipeDisplay> getDisplays() {
-      return List.of();
-   }
+	RecipeSerializer<? extends Recipe<T>> getSerializer();
 
-   RecipeBookCategory getRecipeBookCategory();
+	RecipeType<? extends Recipe<T>> getType();
+
+	IngredientPlacement getIngredientPlacement();
+
+	default List<RecipeDisplay> getDisplays() {
+		return List.of();
+	}
+
+	RecipeBookCategory getRecipeBookCategory();
 }

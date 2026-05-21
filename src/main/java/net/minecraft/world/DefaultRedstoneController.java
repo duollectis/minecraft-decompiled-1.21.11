@@ -1,7 +1,6 @@
 package net.minecraft.world;
 
 import com.google.common.collect.Sets;
-import java.util.Set;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.RedstoneWireBlock;
 import net.minecraft.util.math.BlockPos;
@@ -9,34 +8,46 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Set;
+
+/**
+ * {@code DefaultRedstoneController}.
+ */
 public class DefaultRedstoneController extends RedstoneController {
-   public DefaultRedstoneController(RedstoneWireBlock redstoneWireBlock) {
-      super(redstoneWireBlock);
-   }
 
-   @Override
-   public void update(World world, BlockPos pos, BlockState state, @Nullable WireOrientation orientation, boolean blockAdded) {
-      int i = this.calculateTotalPowerAt(world, pos);
-      if (state.get(RedstoneWireBlock.POWER) != i) {
-         if (world.getBlockState(pos) == state) {
-            world.setBlockState(pos, state.with(RedstoneWireBlock.POWER, i), 2);
-         }
+	public DefaultRedstoneController(RedstoneWireBlock redstoneWireBlock) {
+		super(redstoneWireBlock);
+	}
 
-         Set<BlockPos> set = Sets.newHashSet();
-         set.add(pos);
+	@Override
+	public void update(
+			World world,
+			BlockPos pos,
+			BlockState state,
+			@Nullable WireOrientation orientation,
+			boolean blockAdded
+	) {
+		int i = this.calculateTotalPowerAt(world, pos);
+		if (state.get(RedstoneWireBlock.POWER) != i) {
+			if (world.getBlockState(pos) == state) {
+				world.setBlockState(pos, state.with(RedstoneWireBlock.POWER, i), 2);
+			}
 
-         for (Direction direction : Direction.values()) {
-            set.add(pos.offset(direction));
-         }
+			Set<BlockPos> set = Sets.newHashSet();
+			set.add(pos);
 
-         for (BlockPos blockPos : set) {
-            world.updateNeighbors(blockPos, this.wire);
-         }
-      }
-   }
+			for (Direction direction : Direction.values()) {
+				set.add(pos.offset(direction));
+			}
 
-   private int calculateTotalPowerAt(World world, BlockPos pos) {
-      int i = this.getStrongPowerAt(world, pos);
-      return i == 15 ? i : Math.max(i, this.calculateWirePowerAt(world, pos));
-   }
+			for (BlockPos blockPos : set) {
+				world.updateNeighbors(blockPos, this.wire);
+			}
+		}
+	}
+
+	private int calculateTotalPowerAt(World world, BlockPos pos) {
+		int i = this.getStrongPowerAt(world, pos);
+		return i == 15 ? i : Math.max(i, this.calculateWirePowerAt(world, pos));
+	}
 }

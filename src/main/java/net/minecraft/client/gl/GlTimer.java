@@ -3,105 +3,122 @@ package net.minecraft.client.gl;
 import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.GpuQuery;
 import com.mojang.blaze3d.systems.RenderSystem;
-import java.util.OptionalLong;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
+import java.util.OptionalLong;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GlTimer}.
+ */
 public class GlTimer {
-   private @Nullable CommandEncoder encoder;
-   private @Nullable GpuQuery query;
 
-   public static GlTimer getInstance() {
-      return GlTimer.InstanceHolder.INSTANCE;
-   }
+	private @Nullable CommandEncoder encoder;
+	private @Nullable GpuQuery query;
 
-   public boolean isRunning() {
-      return this.query != null;
-   }
+	public static GlTimer getInstance() {
+		return GlTimer.InstanceHolder.INSTANCE;
+	}
 
-   public void beginProfile() {
-      RenderSystem.assertOnRenderThread();
-      if (this.query != null) {
-         throw new IllegalStateException("Current profile not ended");
-      } else {
-         this.encoder = RenderSystem.getDevice().createCommandEncoder();
-         this.query = this.encoder.timerQueryBegin();
-      }
-   }
+	public boolean isRunning() {
+		return this.query != null;
+	}
 
-   public GlTimer.Query endProfile() {
-      RenderSystem.assertOnRenderThread();
-      if (this.query != null && this.encoder != null) {
-         this.encoder.timerQueryEnd(this.query);
-         GlTimer.Query query = new GlTimer.Query(this.query);
-         this.query = null;
-         this.encoder = null;
-         return query;
-      } else {
-         throw new IllegalStateException("endProfile called before beginProfile");
-      }
-   }
+	public void beginProfile() {
+		RenderSystem.assertOnRenderThread();
+		if (this.query != null) {
+			throw new IllegalStateException("Current profile not ended");
+		}
+		else {
+			this.encoder = RenderSystem.getDevice().createCommandEncoder();
+			this.query = this.encoder.timerQueryBegin();
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   static class InstanceHolder {
-      static final GlTimer INSTANCE = create();
+	public GlTimer.Query endProfile() {
+		RenderSystem.assertOnRenderThread();
+		if (this.query != null && this.encoder != null) {
+			this.encoder.timerQueryEnd(this.query);
+			GlTimer.Query query = new GlTimer.Query(this.query);
+			this.query = null;
+			this.encoder = null;
+			return query;
+		}
+		else {
+			throw new IllegalStateException("endProfile called before beginProfile");
+		}
+	}
 
-      private InstanceHolder() {
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code InstanceHolder}.
+	 */
+	static class InstanceHolder {
 
-      private static GlTimer create() {
-         return new GlTimer();
-      }
-   }
+		static final GlTimer INSTANCE = create();
 
-   @Environment(EnvType.CLIENT)
-   public static class Query {
-      private static final long MISSING = 0L;
-      private static final long CLOSED = -1L;
-      private final GpuQuery query;
-      private long result = 0L;
+		private InstanceHolder() {
+		}
 
-      Query(GpuQuery query) {
-         this.query = query;
-      }
+		private static GlTimer create() {
+			return new GlTimer();
+		}
+	}
 
-      public void close() {
-         RenderSystem.assertOnRenderThread();
-         if (this.result == 0L) {
-            this.result = -1L;
-            this.query.close();
-         }
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Query}.
+	 */
+	public static class Query {
 
-      public boolean isResultAvailable() {
-         RenderSystem.assertOnRenderThread();
-         if (this.result != 0L) {
-            return true;
-         } else {
-            OptionalLong optionalLong = this.query.getValue();
-            if (optionalLong.isPresent()) {
-               this.result = optionalLong.getAsLong();
-               this.query.close();
-               return true;
-            } else {
-               return false;
-            }
-         }
-      }
+		private static final long MISSING = 0L;
+		private static final long CLOSED = -1L;
+		private final GpuQuery query;
+		private long result = 0L;
 
-      public long queryResult() {
-         RenderSystem.assertOnRenderThread();
-         if (this.result == 0L) {
-            OptionalLong optionalLong = this.query.getValue();
-            if (optionalLong.isPresent()) {
-               this.result = optionalLong.getAsLong();
-               this.query.close();
-            }
-         }
+		Query(GpuQuery query) {
+			this.query = query;
+		}
 
-         return this.result;
-      }
-   }
+		public void close() {
+			RenderSystem.assertOnRenderThread();
+			if (this.result == 0L) {
+				this.result = -1L;
+				this.query.close();
+			}
+		}
+
+		public boolean isResultAvailable() {
+			RenderSystem.assertOnRenderThread();
+			if (this.result != 0L) {
+				return true;
+			}
+			else {
+				OptionalLong optionalLong = this.query.getValue();
+				if (optionalLong.isPresent()) {
+					this.result = optionalLong.getAsLong();
+					this.query.close();
+					return true;
+				}
+				else {
+					return false;
+				}
+			}
+		}
+
+		public long queryResult() {
+			RenderSystem.assertOnRenderThread();
+			if (this.result == 0L) {
+				OptionalLong optionalLong = this.query.getValue();
+				if (optionalLong.isPresent()) {
+					this.result = optionalLong.getAsLong();
+					this.query.close();
+				}
+			}
+
+			return this.result;
+		}
+	}
 }

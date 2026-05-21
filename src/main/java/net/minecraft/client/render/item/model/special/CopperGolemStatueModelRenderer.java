@@ -2,7 +2,6 @@ package net.minecraft.client.render.item.model.special;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.function.Consumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.block.CopperGolemStatueBlock;
@@ -19,68 +18,104 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Direction;
 import org.joml.Vector3fc;
 
+import java.util.function.Consumer;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CopperGolemStatueModelRenderer}.
+ */
 public class CopperGolemStatueModelRenderer implements SimpleSpecialModelRenderer {
-   private static final Direction field_64689 = Direction.SOUTH;
-   private final CopperGolemStatueModel model;
-   private final Identifier texture;
 
-   public CopperGolemStatueModelRenderer(CopperGolemStatueModel model, Identifier texture) {
-      this.model = model;
-      this.texture = texture;
-   }
+	private static final Direction DEFAULT_FACING = Direction.SOUTH;
+	private final CopperGolemStatueModel model;
+	private final Identifier texture;
 
-   @Override
-   public void render(ItemDisplayContext displayContext, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, int overlay, boolean glint, int i) {
-      setAngles(matrices);
-      queue.submitModel(this.model, Direction.SOUTH, matrices, RenderLayers.entityCutoutNoCull(this.texture), light, overlay, -1, null, i, null);
-   }
+	public CopperGolemStatueModelRenderer(CopperGolemStatueModel model, Identifier texture) {
+		this.model = model;
+		this.texture = texture;
+	}
 
-   @Override
-   public void collectVertices(Consumer<Vector3fc> consumer) {
-      MatrixStack matrixStack = new MatrixStack();
-      setAngles(matrixStack);
-      this.model.setAngles(field_64689);
-      this.model.getRootPart().collectVertices(matrixStack, consumer);
-   }
+	@Override
+	public void render(
+			ItemDisplayContext displayContext,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			int overlay,
+			boolean glint,
+			int i
+	) {
+		setAngles(matrices);
+		queue.submitModel(
+				this.model,
+				Direction.SOUTH,
+				matrices,
+				RenderLayers.entityCutoutNoCull(this.texture),
+				light,
+				overlay,
+				-1,
+				null,
+				i,
+				null
+		);
+	}
 
-   private static void setAngles(MatrixStack matrices) {
-      matrices.translate(0.5F, 1.5F, 0.5F);
-      matrices.scale(-1.0F, -1.0F, 1.0F);
-   }
+	@Override
+	public void collectVertices(Consumer<Vector3fc> consumer) {
+		MatrixStack matrixStack = new MatrixStack();
+		setAngles(matrixStack);
+		this.model.setAngles(DEFAULT_FACING);
+		this.model.getRootPart().collectVertices(matrixStack, consumer);
+	}
 
-   @Environment(EnvType.CLIENT)
-   public record Unbaked(Identifier texture, CopperGolemStatueBlock.Pose pose) implements SpecialModelRenderer.Unbaked {
-      public static final MapCodec<CopperGolemStatueModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(
-               Identifier.CODEC.fieldOf("texture").forGetter(CopperGolemStatueModelRenderer.Unbaked::texture),
-               CopperGolemStatueBlock.Pose.CODEC.fieldOf("pose").forGetter(CopperGolemStatueModelRenderer.Unbaked::pose)
-            )
-            .apply(instance, CopperGolemStatueModelRenderer.Unbaked::new)
-      );
+	private static void setAngles(MatrixStack matrices) {
+		matrices.translate(0.5F, 1.5F, 0.5F);
+		matrices.scale(-1.0F, -1.0F, 1.0F);
+	}
 
-      public Unbaked(Oxidizable.OxidationLevel oxidationLevel, CopperGolemStatueBlock.Pose pose) {
-         this(CopperGolemOxidationLevels.get(oxidationLevel).texture(), pose);
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Unbaked}.
+	 */
+	public record Unbaked(
+			Identifier texture,
+			CopperGolemStatueBlock.Pose pose
+	) implements SpecialModelRenderer.Unbaked {
 
-      @Override
-      public MapCodec<CopperGolemStatueModelRenderer.Unbaked> getCodec() {
-         return CODEC;
-      }
+		public static final MapCodec<CopperGolemStatueModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance.group(
+						                    Identifier.CODEC.fieldOf("texture").forGetter(CopperGolemStatueModelRenderer.Unbaked::texture),
+						                    CopperGolemStatueBlock.Pose.CODEC
+								                    .fieldOf("pose")
+								                    .forGetter(CopperGolemStatueModelRenderer.Unbaked::pose)
+				                    )
+				                    .apply(instance, CopperGolemStatueModelRenderer.Unbaked::new)
+		);
 
-      @Override
-      public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-         CopperGolemStatueModel copperGolemStatueModel = new CopperGolemStatueModel(context.entityModelSet().getModelPart(getLayer(this.pose)));
-         return new CopperGolemStatueModelRenderer(copperGolemStatueModel, this.texture);
-      }
+		public Unbaked(Oxidizable.OxidationLevel oxidationLevel, CopperGolemStatueBlock.Pose pose) {
+			this(CopperGolemOxidationLevels.get(oxidationLevel).texture(), pose);
+		}
 
-      private static EntityModelLayer getLayer(CopperGolemStatueBlock.Pose pose) {
-         return switch (pose) {
-            case STANDING -> EntityModelLayers.COPPER_GOLEM;
-            case SITTING -> EntityModelLayers.COPPER_GOLEM_SITTING;
-            case STAR -> EntityModelLayers.COPPER_GOLEM_STAR;
-            case RUNNING -> EntityModelLayers.COPPER_GOLEM_RUNNING;
-         };
-      }
-   }
+		@Override
+		public MapCodec<CopperGolemStatueModelRenderer.Unbaked> getCodec() {
+			return CODEC;
+		}
+
+		@Override
+		public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
+			CopperGolemStatueModel
+					copperGolemStatueModel =
+					new CopperGolemStatueModel(context.entityModelSet().getModelPart(getLayer(this.pose)));
+			return new CopperGolemStatueModelRenderer(copperGolemStatueModel, this.texture);
+		}
+
+		private static EntityModelLayer getLayer(CopperGolemStatueBlock.Pose pose) {
+			return switch (pose) {
+				case STANDING -> EntityModelLayers.COPPER_GOLEM;
+				case SITTING -> EntityModelLayers.COPPER_GOLEM_SITTING;
+				case STAR -> EntityModelLayers.COPPER_GOLEM_STAR;
+				case RUNNING -> EntityModelLayers.COPPER_GOLEM_RUNNING;
+			};
+		}
+	}
 }

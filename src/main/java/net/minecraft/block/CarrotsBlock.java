@@ -7,26 +7,32 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
+/**
+ * {@code CarrotsBlock}.
+ */
 public class CarrotsBlock extends CropBlock {
-   public static final MapCodec<CarrotsBlock> CODEC = createCodec(CarrotsBlock::new);
-   private static final VoxelShape[] SHAPES_BY_AGE = Block.createShapeArray(7, age -> Block.createColumnShape(16.0, 0.0, 2 + age));
 
-   @Override
-   public MapCodec<CarrotsBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<CarrotsBlock> CODEC = createCodec(CarrotsBlock::new);
+	private static final VoxelShape[]
+			SHAPES_BY_AGE =
+			Block.createShapeArray(7, age -> Block.createColumnShape(16.0, 0.0, 2 + age));
 
-   public CarrotsBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<CarrotsBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected ItemConvertible getSeedsItem() {
-      return Items.CARROT;
-   }
+	public CarrotsBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPES_BY_AGE[this.getAge(state)];
-   }
+	@Override
+	protected ItemConvertible getSeedsItem() {
+		return Items.CARROT;
+	}
+
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPES_BY_AGE[this.getAge(state)];
+	}
 }

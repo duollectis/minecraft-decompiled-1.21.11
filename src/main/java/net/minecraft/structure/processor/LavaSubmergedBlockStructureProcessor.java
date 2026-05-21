@@ -9,28 +9,38 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code LavaSubmergedBlockStructureProcessor}.
+ */
 public class LavaSubmergedBlockStructureProcessor extends StructureProcessor {
-   public static final MapCodec<LavaSubmergedBlockStructureProcessor> CODEC = MapCodec.unit(() -> LavaSubmergedBlockStructureProcessor.INSTANCE);
-   public static final LavaSubmergedBlockStructureProcessor INSTANCE = new LavaSubmergedBlockStructureProcessor();
 
-   @Override
-   public StructureTemplate.@Nullable StructureBlockInfo process(
-      WorldView world,
-      BlockPos pos,
-      BlockPos pivot,
-      StructureTemplate.StructureBlockInfo originalBlockInfo,
-      StructureTemplate.StructureBlockInfo currentBlockInfo,
-      StructurePlacementData data
-   ) {
-      BlockPos blockPos = currentBlockInfo.pos();
-      boolean bl = world.getBlockState(blockPos).isOf(Blocks.LAVA);
-      return bl && !Block.isShapeFullCube(currentBlockInfo.state().getOutlineShape(world, blockPos))
-         ? new StructureTemplate.StructureBlockInfo(blockPos, Blocks.LAVA.getDefaultState(), currentBlockInfo.nbt())
-         : currentBlockInfo;
-   }
+	public static final MapCodec<LavaSubmergedBlockStructureProcessor>
+			CODEC =
+			MapCodec.unit(() -> LavaSubmergedBlockStructureProcessor.INSTANCE);
+	public static final LavaSubmergedBlockStructureProcessor INSTANCE = new LavaSubmergedBlockStructureProcessor();
 
-   @Override
-   protected StructureProcessorType<?> getType() {
-      return StructureProcessorType.LAVA_SUBMERGED_BLOCK;
-   }
+	@Override
+	public StructureTemplate.@Nullable StructureBlockInfo process(
+			WorldView world,
+			BlockPos pos,
+			BlockPos pivot,
+			StructureTemplate.StructureBlockInfo originalBlockInfo,
+			StructureTemplate.StructureBlockInfo currentBlockInfo,
+			StructurePlacementData data
+	) {
+		BlockPos blockPos = currentBlockInfo.pos();
+		boolean bl = world.getBlockState(blockPos).isOf(Blocks.LAVA);
+		return bl && !Block.isShapeFullCube(currentBlockInfo.state().getOutlineShape(world, blockPos))
+		       ? new StructureTemplate.StructureBlockInfo(
+				blockPos,
+				Blocks.LAVA.getDefaultState(),
+				currentBlockInfo.nbt()
+		)
+		       : currentBlockInfo;
+	}
+
+	@Override
+	protected StructureProcessorType<?> getType() {
+		return StructureProcessorType.LAVA_SUBMERGED_BLOCK;
+	}
 }

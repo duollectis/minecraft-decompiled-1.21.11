@@ -4,8 +4,6 @@ import com.google.common.collect.Queues;
 import com.mojang.brigadier.context.ContextChain;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.Deque;
-import java.util.List;
 import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.server.function.Procedure;
 import net.minecraft.server.function.Tracer;
@@ -13,138 +11,163 @@ import net.minecraft.util.profiler.Profiler;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.Deque;
+import java.util.List;
+
+/**
+ * {@code CommandExecutionContext}.
+ */
 public class CommandExecutionContext<T> implements AutoCloseable {
-   private static final int MAX_COMMAND_QUEUE_LENGTH = 10000000;
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private final int maxCommandChainLength;
-   private final int forkLimit;
-   private final Profiler profiler;
-   private @Nullable Tracer tracer;
-   private int commandsRemaining;
-   private boolean queueOverflowed;
-   private final Deque<CommandQueueEntry<T>> commandQueue = Queues.newArrayDeque();
-   private final List<CommandQueueEntry<T>> pendingCommands = new ObjectArrayList();
-   private int currentDepth;
 
-   public CommandExecutionContext(int maxCommandChainLength, int maxCommandForkCount, Profiler profiler) {
-      this.maxCommandChainLength = maxCommandChainLength;
-      this.forkLimit = maxCommandForkCount;
-      this.profiler = profiler;
-      this.commandsRemaining = maxCommandChainLength;
-   }
+	private static final int MAX_COMMAND_QUEUE_LENGTH = 10000000;
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private final int maxCommandChainLength;
+	private final int forkLimit;
+	private final Profiler profiler;
+	private @Nullable Tracer tracer;
+	private int commandsRemaining;
+	private boolean queueOverflowed;
+	private final Deque<CommandQueueEntry<T>> commandQueue = Queues.newArrayDeque();
+	private final List<CommandQueueEntry<T>> pendingCommands = new ObjectArrayList();
+	private int currentDepth;
 
-   private static <T extends AbstractServerCommandSource<T>> Frame frame(CommandExecutionContext<T> context, ReturnValueConsumer returnValueConsumer) {
-      if (context.currentDepth == 0) {
-         return new Frame(0, returnValueConsumer, context.commandQueue::clear);
-      } else {
-         int i = context.currentDepth + 1;
-         return new Frame(i, returnValueConsumer, context.getEscapeControl(i));
-      }
-   }
+	public CommandExecutionContext(int maxCommandChainLength, int maxCommandForkCount, Profiler profiler) {
+		this.maxCommandChainLength = maxCommandChainLength;
+		this.forkLimit = maxCommandForkCount;
+		this.profiler = profiler;
+		this.commandsRemaining = maxCommandChainLength;
+	}
 
-   public static <T extends AbstractServerCommandSource<T>> void enqueueProcedureCall(
-      CommandExecutionContext<T> context, Procedure<T> procedure, T source, ReturnValueConsumer returnValueConsumer
-   ) {
-      context.enqueueCommand(
-         new CommandQueueEntry<>(
-            frame(context, returnValueConsumer), new CommandFunctionAction<>(procedure, source.getReturnValueConsumer(), false).bind(source)
-         )
-      );
-   }
+	private static <T extends AbstractServerCommandSource<T>> Frame frame(
+			CommandExecutionContext<T> context,
+			ReturnValueConsumer returnValueConsumer
+	) {
+		if (context.currentDepth == 0) {
+			return new Frame(0, returnValueConsumer, context.commandQueue::clear);
+		}
+		else {
+			int i = context.currentDepth + 1;
+			return new Frame(i, returnValueConsumer, context.getEscapeControl(i));
+		}
+	}
 
-   public static <T extends AbstractServerCommandSource<T>> void enqueueCommand(
-      CommandExecutionContext<T> context, String command, ContextChain<T> contextChain, T source, ReturnValueConsumer returnValueConsumer
-   ) {
-      context.enqueueCommand(
-         new CommandQueueEntry<>(frame(context, returnValueConsumer), new SingleCommandAction.SingleSource<>(command, contextChain, source))
-      );
-   }
+	public static <T extends AbstractServerCommandSource<T>> void enqueueProcedureCall(
+			CommandExecutionContext<T> context,
+			Procedure<T> procedure,
+			T source,
+			ReturnValueConsumer returnValueConsumer
+	) {
+		context.enqueueCommand(
+				new CommandQueueEntry<>(
+						frame(context, returnValueConsumer),
+						new CommandFunctionAction<>(procedure, source.getReturnValueConsumer(), false).bind(source)
+				)
+		);
+	}
 
-   private void markQueueOverflowed() {
-      this.queueOverflowed = true;
-      this.pendingCommands.clear();
-      this.commandQueue.clear();
-   }
+	public static <T extends AbstractServerCommandSource<T>> void enqueueCommand(
+			CommandExecutionContext<T> context,
+			String command,
+			ContextChain<T> contextChain,
+			T source,
+			ReturnValueConsumer returnValueConsumer
+	) {
+		context.enqueueCommand(
+				new CommandQueueEntry<>(
+						frame(context, returnValueConsumer),
+						new SingleCommandAction.SingleSource<>(command, contextChain, source)
+				)
+		);
+	}
 
-   public void enqueueCommand(CommandQueueEntry<T> entry) {
-      if (this.pendingCommands.size() + this.commandQueue.size() > 10000000) {
-         this.markQueueOverflowed();
-      }
+	private void markQueueOverflowed() {
+		this.queueOverflowed = true;
+		this.pendingCommands.clear();
+		this.commandQueue.clear();
+	}
 
-      if (!this.queueOverflowed) {
-         this.pendingCommands.add(entry);
-      }
-   }
+	public void enqueueCommand(CommandQueueEntry<T> entry) {
+		if (this.pendingCommands.size() + this.commandQueue.size() > 10000000) {
+			this.markQueueOverflowed();
+		}
 
-   public void escape(int depth) {
-      while (!this.commandQueue.isEmpty() && this.commandQueue.peek().frame().depth() >= depth) {
-         this.commandQueue.removeFirst();
-      }
-   }
+		if (!this.queueOverflowed) {
+			this.pendingCommands.add(entry);
+		}
+	}
 
-   public Frame.Control getEscapeControl(int depth) {
-      return () -> this.escape(depth);
-   }
+	public void escape(int depth) {
+		while (!this.commandQueue.isEmpty() && this.commandQueue.peek().frame().depth() >= depth) {
+			this.commandQueue.removeFirst();
+		}
+	}
 
-   public void run() {
-      this.queuePendingCommands();
+	public Frame.Control getEscapeControl(int depth) {
+		return () -> this.escape(depth);
+	}
 
-      while (true) {
-         if (this.commandsRemaining <= 0) {
-            LOGGER.info("Command execution stopped due to limit (executed {} commands)", this.maxCommandChainLength);
-            break;
-         }
+	public void run() {
+		this.queuePendingCommands();
 
-         CommandQueueEntry<T> commandQueueEntry = this.commandQueue.pollFirst();
-         if (commandQueueEntry == null) {
-            return;
-         }
+		while (true) {
+			if (this.commandsRemaining <= 0) {
+				LOGGER.info(
+						"Command execution stopped due to limit (executed {} commands)",
+						this.maxCommandChainLength
+				);
+				break;
+			}
 
-         this.currentDepth = commandQueueEntry.frame().depth();
-         commandQueueEntry.execute(this);
-         if (this.queueOverflowed) {
-            LOGGER.error("Command execution stopped due to command queue overflow (max {})", 10000000);
-            break;
-         }
+			CommandQueueEntry<T> commandQueueEntry = this.commandQueue.pollFirst();
+			if (commandQueueEntry == null) {
+				return;
+			}
 
-         this.queuePendingCommands();
-      }
+			this.currentDepth = commandQueueEntry.frame().depth();
+			commandQueueEntry.execute(this);
+			if (this.queueOverflowed) {
+				LOGGER.error("Command execution stopped due to command queue overflow (max {})", 10000000);
+				break;
+			}
 
-      this.currentDepth = 0;
-   }
+			this.queuePendingCommands();
+		}
 
-   private void queuePendingCommands() {
-      for (int i = this.pendingCommands.size() - 1; i >= 0; i--) {
-         this.commandQueue.addFirst(this.pendingCommands.get(i));
-      }
+		this.currentDepth = 0;
+	}
 
-      this.pendingCommands.clear();
-   }
+	private void queuePendingCommands() {
+		for (int i = this.pendingCommands.size() - 1; i >= 0; i--) {
+			this.commandQueue.addFirst(this.pendingCommands.get(i));
+		}
 
-   public void setTracer(@Nullable Tracer tracer) {
-      this.tracer = tracer;
-   }
+		this.pendingCommands.clear();
+	}
 
-   public @Nullable Tracer getTracer() {
-      return this.tracer;
-   }
+	public void setTracer(@Nullable Tracer tracer) {
+		this.tracer = tracer;
+	}
 
-   public Profiler getProfiler() {
-      return this.profiler;
-   }
+	public @Nullable Tracer getTracer() {
+		return this.tracer;
+	}
 
-   public int getForkLimit() {
-      return this.forkLimit;
-   }
+	public Profiler getProfiler() {
+		return this.profiler;
+	}
 
-   public void decrementCommandQuota() {
-      this.commandsRemaining--;
-   }
+	public int getForkLimit() {
+		return this.forkLimit;
+	}
 
-   @Override
-   public void close() {
-      if (this.tracer != null) {
-         this.tracer.close();
-      }
-   }
+	public void decrementCommandQuota() {
+		this.commandsRemaining--;
+	}
+
+	@Override
+	public void close() {
+		if (this.tracer != null) {
+			this.tracer.close();
+		}
+	}
 }

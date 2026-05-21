@@ -5,26 +5,7 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.JsonOps;
-import java.io.Reader;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.SequencedSet;
-import java.util.Map.Entry;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import net.minecraft.registry.DynamicRegistryManager;
-import net.minecraft.registry.MutableRegistry;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryEntryLookup;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.registry.*;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.resource.DependencyTracker;
 import net.minecraft.resource.Resource;
@@ -35,176 +16,239 @@ import net.minecraft.util.StrictJsonParser;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.io.Reader;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
+/**
+ * {@code TagGroupLoader}.
+ */
 public class TagGroupLoader<T> {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   final TagGroupLoader.EntrySupplier<T> entrySupplier;
-   private final String dataType;
 
-   public TagGroupLoader(TagGroupLoader.EntrySupplier<T> entrySupplier, String dataType) {
-      this.entrySupplier = entrySupplier;
-      this.dataType = dataType;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	final TagGroupLoader.EntrySupplier<T> entrySupplier;
+	private final String dataType;
 
-   public Map<Identifier, List<TagGroupLoader.TrackedEntry>> loadTags(ResourceManager resourceManager) {
-      Map<Identifier, List<TagGroupLoader.TrackedEntry>> map = new HashMap<>();
-      ResourceFinder resourceFinder = ResourceFinder.json(this.dataType);
+	public TagGroupLoader(TagGroupLoader.EntrySupplier<T> entrySupplier, String dataType) {
+		this.entrySupplier = entrySupplier;
+		this.dataType = dataType;
+	}
 
-      for (Entry<Identifier, List<Resource>> entry : resourceFinder.findAllResources(resourceManager).entrySet()) {
-         Identifier identifier = entry.getKey();
-         Identifier identifier2 = resourceFinder.toResourceId(identifier);
+	public Map<Identifier, List<TagGroupLoader.TrackedEntry>> loadTags(ResourceManager resourceManager) {
+		Map<Identifier, List<TagGroupLoader.TrackedEntry>> map = new HashMap<>();
+		ResourceFinder resourceFinder = ResourceFinder.json(this.dataType);
 
-         for (Resource resource : entry.getValue()) {
-            try (Reader reader = resource.getReader()) {
-               JsonElement jsonElement = StrictJsonParser.parse(reader);
-               List<TagGroupLoader.TrackedEntry> list = map.computeIfAbsent(identifier2, id -> new ArrayList<>());
-               TagFile tagFile = (TagFile)TagFile.CODEC.parse(new Dynamic(JsonOps.INSTANCE, jsonElement)).getOrThrow();
-               if (tagFile.replace()) {
-                  list.clear();
-               }
+		for (Entry<Identifier, List<Resource>> entry : resourceFinder.findAllResources(resourceManager).entrySet()) {
+			Identifier identifier = entry.getKey();
+			Identifier identifier2 = resourceFinder.toResourceId(identifier);
 
-               String string = resource.getPackId();
-               tagFile.entries().forEach(entryx -> list.add(new TagGroupLoader.TrackedEntry(entryx, string)));
-            } catch (Exception var17) {
-               LOGGER.error("Couldn't read tag list {} from {} in data pack {}", new Object[]{identifier2, identifier, resource.getPackId(), var17});
-            }
-         }
-      }
+			for (Resource resource : entry.getValue()) {
+				try (Reader reader = resource.getReader()) {
+					JsonElement jsonElement = StrictJsonParser.parse(reader);
+					List<TagGroupLoader.TrackedEntry> list = map.computeIfAbsent(identifier2, id -> new ArrayList<>());
+					TagFile
+							tagFile =
+							(TagFile) TagFile.CODEC.parse(new Dynamic(JsonOps.INSTANCE, jsonElement)).getOrThrow();
+					if (tagFile.replace()) {
+						list.clear();
+					}
 
-      return map;
-   }
+					String string = resource.getPackId();
+					tagFile.entries().forEach(entryx -> list.add(new TagGroupLoader.TrackedEntry(entryx, string)));
+				}
+				catch (Exception var17) {
+					LOGGER.error(
+							"Couldn't read tag list {} from {} in data pack {}",
+							new Object[]{identifier2, identifier, resource.getPackId(), var17}
+					);
+				}
+			}
+		}
 
-   private Either<List<TagGroupLoader.TrackedEntry>, List<T>> resolveAll(TagEntry.ValueGetter<T> valueGetter, List<TagGroupLoader.TrackedEntry> entries) {
-      SequencedSet<T> sequencedSet = new LinkedHashSet<>();
-      List<TagGroupLoader.TrackedEntry> list = new ArrayList<>();
+		return map;
+	}
 
-      for (TagGroupLoader.TrackedEntry trackedEntry : entries) {
-         if (!trackedEntry.entry().resolve(valueGetter, sequencedSet::add)) {
-            list.add(trackedEntry);
-         }
-      }
+	private Either<List<TagGroupLoader.TrackedEntry>, List<T>> resolveAll(
+			TagEntry.ValueGetter<T> valueGetter,
+			List<TagGroupLoader.TrackedEntry> entries
+	) {
+		SequencedSet<T> sequencedSet = new LinkedHashSet<>();
+		List<TagGroupLoader.TrackedEntry> list = new ArrayList<>();
 
-      return list.isEmpty() ? Either.right(List.copyOf(sequencedSet)) : Either.left(list);
-   }
+		for (TagGroupLoader.TrackedEntry trackedEntry : entries) {
+			if (!trackedEntry.entry().resolve(valueGetter, sequencedSet::add)) {
+				list.add(trackedEntry);
+			}
+		}
 
-   public Map<Identifier, List<T>> buildGroup(Map<Identifier, List<TagGroupLoader.TrackedEntry>> tags) {
-      final Map<Identifier, List<T>> map = new HashMap<>();
-      TagEntry.ValueGetter<T> valueGetter = new TagEntry.ValueGetter<T>() {
-         @Override
-         public @Nullable T direct(Identifier id, boolean required) {
-            return (T)TagGroupLoader.this.entrySupplier.get(id, required).orElse(null);
-         }
+		return list.isEmpty() ? Either.right(List.copyOf(sequencedSet)) : Either.left(list);
+	}
 
-         @Override
-         public @Nullable Collection<T> tag(Identifier id) {
-            return map.get(id);
-         }
-      };
-      DependencyTracker<Identifier, TagGroupLoader.TagDependencies> dependencyTracker = new DependencyTracker<>();
-      tags.forEach((id, entries) -> dependencyTracker.add(id, new TagGroupLoader.TagDependencies((List<TagGroupLoader.TrackedEntry>)entries)));
-      dependencyTracker.traverse(
-         (id, dependencies) -> this.resolveAll(valueGetter, dependencies.entries)
-            .ifLeft(
-               missingReferences -> LOGGER.error(
-                  "Couldn't load tag {} as it is missing following references: {}",
-                  id,
-                  missingReferences.stream().map(Objects::toString).collect(Collectors.joining(", "))
-               )
-            )
-            .ifRight(values -> map.put(id, values))
-      );
-      return map;
-   }
+	public Map<Identifier, List<T>> buildGroup(Map<Identifier, List<TagGroupLoader.TrackedEntry>> tags) {
+		final Map<Identifier, List<T>> map = new HashMap<>();
+		TagEntry.ValueGetter<T> valueGetter = new TagEntry.ValueGetter<T>() {
+			@Override
+			public @Nullable T direct(Identifier id, boolean required) {
+				return (T) TagGroupLoader.this.entrySupplier.get(id, required).orElse(null);
+			}
 
-   public static <T> void loadFromNetwork(TagPacketSerializer.Serialized tags, MutableRegistry<T> registry) {
-      tags.toRegistryTags(registry).tags.forEach(registry::setEntries);
-   }
+			@Override
+			public @Nullable Collection<T> tag(Identifier id) {
+				return map.get(id);
+			}
+		};
+		DependencyTracker<Identifier, TagGroupLoader.TagDependencies> dependencyTracker = new DependencyTracker<>();
+		tags.forEach((id, entries) -> dependencyTracker.add(
+				id,
+				new TagGroupLoader.TagDependencies((List<TagGroupLoader.TrackedEntry>) entries)
+		));
+		dependencyTracker.traverse(
+				(id, dependencies) -> this.resolveAll(valueGetter, dependencies.entries)
+				                          .ifLeft(
+						                          missingReferences -> LOGGER.error(
+								                          "Couldn't load tag {} as it is missing following references: {}",
+								                          id,
+								                          missingReferences
+										                          .stream()
+										                          .map(Objects::toString)
+										                          .collect(Collectors.joining(", "))
+						                          )
+				                          )
+				                          .ifRight(values -> map.put(id, values))
+		);
+		return map;
+	}
 
-   public static List<Registry.PendingTagLoad<?>> startReload(ResourceManager resourceManager, DynamicRegistryManager registryManager) {
-      return registryManager.streamAllRegistries()
-         .map(registry -> startReload(resourceManager, registry.value()))
-         .flatMap(Optional::stream)
-         .collect(Collectors.toUnmodifiableList());
-   }
+	public static <T> void loadFromNetwork(TagPacketSerializer.Serialized tags, MutableRegistry<T> registry) {
+		tags.toRegistryTags(registry).tags.forEach(registry::setEntries);
+	}
 
-   public static <T> void loadInitial(ResourceManager resourceManager, MutableRegistry<T> registry) {
-      RegistryKey<? extends Registry<T>> registryKey = registry.getKey();
-      TagGroupLoader<RegistryEntry<T>> tagGroupLoader = new TagGroupLoader<>(
-         TagGroupLoader.EntrySupplier.forInitial(registry), RegistryKeys.getTagPath(registryKey)
-      );
-      tagGroupLoader.buildGroup(tagGroupLoader.loadTags(resourceManager))
-         .forEach((id, entries) -> registry.setEntries(TagKey.of(registryKey, id), (List<RegistryEntry<T>>)entries));
-   }
+	public static List<Registry.PendingTagLoad<?>> startReload(
+			ResourceManager resourceManager,
+			DynamicRegistryManager registryManager
+	) {
+		return registryManager.streamAllRegistries()
+		                      .map(registry -> startReload(resourceManager, registry.value()))
+		                      .flatMap(Optional::stream)
+		                      .collect(Collectors.toUnmodifiableList());
+	}
 
-   private static <T> Map<TagKey<T>, List<RegistryEntry<T>>> toTagKeyedMap(
-      RegistryKey<? extends Registry<T>> registryRef, Map<Identifier, List<RegistryEntry<T>>> tags
-   ) {
-      return tags.entrySet().stream().collect(Collectors.toUnmodifiableMap(entry -> TagKey.of(registryRef, entry.getKey()), Entry::getValue));
-   }
+	public static <T> void loadInitial(ResourceManager resourceManager, MutableRegistry<T> registry) {
+		RegistryKey<? extends Registry<T>> registryKey = registry.getKey();
+		TagGroupLoader<RegistryEntry<T>> tagGroupLoader = new TagGroupLoader<>(
+				TagGroupLoader.EntrySupplier.forInitial(registry), RegistryKeys.getTagPath(registryKey)
+		);
+		tagGroupLoader.buildGroup(tagGroupLoader.loadTags(resourceManager))
+		              .forEach((id, entries) -> registry.setEntries(
+				              TagKey.of(registryKey, id),
+				              (List<RegistryEntry<T>>) entries
+		              ));
+	}
 
-   private static <T> Optional<Registry.PendingTagLoad<T>> startReload(ResourceManager resourceManager, Registry<T> registry) {
-      RegistryKey<? extends Registry<T>> registryKey = registry.getKey();
-      TagGroupLoader<RegistryEntry<T>> tagGroupLoader = new TagGroupLoader<>(
-         (TagGroupLoader.EntrySupplier<RegistryEntry<T>>)TagGroupLoader.EntrySupplier.forReload(registry), RegistryKeys.getTagPath(registryKey)
-      );
-      TagGroupLoader.RegistryTags<T> registryTags = new TagGroupLoader.RegistryTags<>(
-         registryKey, toTagKeyedMap(registry.getKey(), tagGroupLoader.buildGroup(tagGroupLoader.loadTags(resourceManager)))
-      );
-      return registryTags.tags().isEmpty() ? Optional.empty() : Optional.of(registry.startTagReload(registryTags));
-   }
+	private static <T> Map<TagKey<T>, List<RegistryEntry<T>>> toTagKeyedMap(
+			RegistryKey<? extends Registry<T>> registryRef, Map<Identifier, List<RegistryEntry<T>>> tags
+	) {
+		return tags
+				.entrySet()
+				.stream()
+				.collect(Collectors.toUnmodifiableMap(
+						entry -> TagKey.of(registryRef, entry.getKey()),
+						Entry::getValue
+				));
+	}
 
-   public static List<RegistryWrapper.Impl<?>> collectRegistries(DynamicRegistryManager.Immutable registryManager, List<Registry.PendingTagLoad<?>> tagLoads) {
-      List<RegistryWrapper.Impl<?>> list = new ArrayList<>();
-      registryManager.streamAllRegistries().forEach(registry -> {
-         Registry.PendingTagLoad<?> pendingTagLoad = find(tagLoads, registry.key());
-         list.add((RegistryWrapper.Impl<?>)(pendingTagLoad != null ? pendingTagLoad.getLookup() : registry.value()));
-      });
-      return list;
-   }
+	private static <T> Optional<Registry.PendingTagLoad<T>> startReload(
+			ResourceManager resourceManager,
+			Registry<T> registry
+	) {
+		RegistryKey<? extends Registry<T>> registryKey = registry.getKey();
+		TagGroupLoader<RegistryEntry<T>> tagGroupLoader = new TagGroupLoader<>(
+				(TagGroupLoader.EntrySupplier<RegistryEntry<T>>) TagGroupLoader.EntrySupplier.forReload(registry),
+				RegistryKeys.getTagPath(registryKey)
+		);
+		TagGroupLoader.RegistryTags<T> registryTags = new TagGroupLoader.RegistryTags<>(
+				registryKey,
+				toTagKeyedMap(registry.getKey(), tagGroupLoader.buildGroup(tagGroupLoader.loadTags(resourceManager)))
+		);
+		return registryTags.tags().isEmpty() ? Optional.empty() : Optional.of(registry.startTagReload(registryTags));
+	}
 
-   private static Registry.@Nullable PendingTagLoad<?> find(List<Registry.PendingTagLoad<?>> pendingTags, RegistryKey<? extends Registry<?>> registryRef) {
-      for (Registry.PendingTagLoad<?> pendingTagLoad : pendingTags) {
-         if (pendingTagLoad.getKey() == registryRef) {
-            return pendingTagLoad;
-         }
-      }
+	public static List<RegistryWrapper.Impl<?>> collectRegistries(
+			DynamicRegistryManager.Immutable registryManager,
+			List<Registry.PendingTagLoad<?>> tagLoads
+	) {
+		List<RegistryWrapper.Impl<?>> list = new ArrayList<>();
+		registryManager.streamAllRegistries().forEach(registry -> {
+			Registry.PendingTagLoad<?> pendingTagLoad = find(tagLoads, registry.key());
+			list.add((RegistryWrapper.Impl<?>) (pendingTagLoad != null ? pendingTagLoad.getLookup() : registry.value()
+			));
+		});
+		return list;
+	}
 
-      return null;
-   }
+	private static Registry.@Nullable PendingTagLoad<?> find(
+			List<Registry.PendingTagLoad<?>> pendingTags,
+			RegistryKey<? extends Registry<?>> registryRef
+	) {
+		for (Registry.PendingTagLoad<?> pendingTagLoad : pendingTags) {
+			if (pendingTagLoad.getKey() == registryRef) {
+				return pendingTagLoad;
+			}
+		}
 
-   public interface EntrySupplier<T> {
-      Optional<? extends T> get(Identifier id, boolean required);
+		return null;
+	}
 
-      static <T> TagGroupLoader.EntrySupplier<? extends RegistryEntry<T>> forReload(Registry<T> registry) {
-         return (id, required) -> registry.getEntry(id);
-      }
+	/**
+	 * {@code EntrySupplier}.
+	 */
+	public interface EntrySupplier<T> {
 
-      static <T> TagGroupLoader.EntrySupplier<RegistryEntry<T>> forInitial(MutableRegistry<T> registry) {
-         RegistryEntryLookup<T> registryEntryLookup = registry.createMutableRegistryLookup();
-         return (id, required) -> ((RegistryEntryLookup<T>)(required ? registryEntryLookup : registry)).getOptional(RegistryKey.of(registry.getKey(), id));
-      }
-   }
+		Optional<? extends T> get(Identifier id, boolean required);
 
-   public record RegistryTags<T>(RegistryKey<? extends Registry<T>> key, Map<TagKey<T>, List<RegistryEntry<T>>> tags) {
-   }
+		static <T> TagGroupLoader.EntrySupplier<? extends RegistryEntry<T>> forReload(Registry<T> registry) {
+			return (id, required) -> registry.getEntry(id);
+		}
 
-   record TagDependencies(List<TagGroupLoader.TrackedEntry> entries) implements DependencyTracker.Dependencies<Identifier> {
+		static <T> TagGroupLoader.EntrySupplier<RegistryEntry<T>> forInitial(MutableRegistry<T> registry) {
+			RegistryEntryLookup<T> registryEntryLookup = registry.createMutableRegistryLookup();
+			return (id, required) -> ((RegistryEntryLookup<T>) (required ? registryEntryLookup : registry)).getOptional(
+					RegistryKey.of(registry.getKey(), id));
+		}
+	}
 
-      @Override
-      public void forDependencies(Consumer<Identifier> callback) {
-         this.entries.forEach(entry -> entry.entry.forEachRequiredTagId(callback));
-      }
+	/**
+	 * {@code RegistryTags}.
+	 */
+	public record RegistryTags<T>(RegistryKey<? extends Registry<T>> key, Map<TagKey<T>, List<RegistryEntry<T>>> tags) {
+	}
 
-      @Override
-      public void forOptionalDependencies(Consumer<Identifier> callback) {
-         this.entries.forEach(entry -> entry.entry.forEachOptionalTagId(callback));
-      }
-   }
+	/**
+	 * {@code TagDependencies}.
+	 */
+	record TagDependencies(List<TagGroupLoader.TrackedEntry> entries) implements DependencyTracker.Dependencies<Identifier> {
 
-   public record TrackedEntry(TagEntry entry, String source) {
+		@Override
+		public void forDependencies(Consumer<Identifier> callback) {
+			this.entries.forEach(entry -> entry.entry.forEachRequiredTagId(callback));
+		}
 
-      @Override
-      public String toString() {
-         return this.entry + " (from " + this.source + ")";
-      }
-   }
+		@Override
+		public void forOptionalDependencies(Consumer<Identifier> callback) {
+			this.entries.forEach(entry -> entry.entry.forEachOptionalTagId(callback));
+		}
+	}
+
+	/**
+	 * {@code TrackedEntry}.
+	 */
+	public record TrackedEntry(TagEntry entry, String source) {
+
+		@Override
+		public String toString() {
+			return this.entry + " (from " + this.source + ")";
+		}
+	}
 }

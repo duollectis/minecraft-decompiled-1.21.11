@@ -1,7 +1,6 @@
 package net.minecraft.client.sound;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
-import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -20,128 +19,155 @@ import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.attribute.WorldEnvironmentAttributeAccess;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BiomeEffectSoundPlayer}.
+ */
 public class BiomeEffectSoundPlayer implements ClientPlayerTickable {
-   private static final int MAX_STRENGTH = 40;
-   private static final float field_32995 = 0.001F;
-   private final ClientPlayerEntity player;
-   private final SoundManager soundManager;
-   private final Random random;
-   private final Object2ObjectArrayMap<RegistryEntry<SoundEvent>, BiomeEffectSoundPlayer.MusicLoop> soundLoops = new Object2ObjectArrayMap();
-   private float moodPercentage;
-   private @Nullable RegistryEntry<SoundEvent> field_63919;
 
-   public BiomeEffectSoundPlayer(ClientPlayerEntity player, SoundManager soundManager) {
-      this.random = player.getEntityWorld().getRandom();
-      this.player = player;
-      this.soundManager = soundManager;
-   }
+	private static final int MAX_STRENGTH = 40;
+	private static final float MOOD_INCREMENT_PER_TICK = 0.001F;
+	private final ClientPlayerEntity player;
+	private final SoundManager soundManager;
+	private final Random random;
+	private final Object2ObjectArrayMap<RegistryEntry<SoundEvent>, BiomeEffectSoundPlayer.MusicLoop>
+			soundLoops =
+			new Object2ObjectArrayMap();
+	private float moodPercentage;
+	private @Nullable RegistryEntry<SoundEvent> currentLoopSound;
 
-   public float getMoodPercentage() {
-      return this.moodPercentage;
-   }
+	public BiomeEffectSoundPlayer(ClientPlayerEntity player, SoundManager soundManager) {
+		this.random = player.getEntityWorld().getRandom();
+		this.player = player;
+		this.soundManager = soundManager;
+	}
 
-   @Override
-   public void tick() {
-      this.soundLoops.values().removeIf(MovingSoundInstance::isDone);
-      World world = this.player.getEntityWorld();
-      WorldEnvironmentAttributeAccess worldEnvironmentAttributeAccess = world.getEnvironmentAttributes();
-      AmbientSounds ambientSounds = worldEnvironmentAttributeAccess.getAttributeValue(EnvironmentAttributes.AMBIENT_SOUNDS_AUDIO, this.player.getEntityPos());
-      RegistryEntry<SoundEvent> registryEntry = ambientSounds.loop().orElse(null);
-      if (!Objects.equals(registryEntry, this.field_63919)) {
-         this.field_63919 = registryEntry;
-         this.soundLoops.values().forEach(BiomeEffectSoundPlayer.MusicLoop::fadeOut);
-         if (registryEntry != null) {
-            this.soundLoops.compute(registryEntry, (registryEntry2, loop) -> {
-               if (loop == null) {
-                  loop = new BiomeEffectSoundPlayer.MusicLoop(registryEntry.value());
-                  this.soundManager.play(loop);
-               }
+	public float getMoodPercentage() {
+		return this.moodPercentage;
+	}
 
-               loop.fadeIn();
-               return loop;
-            });
-         }
-      }
+	@Override
+	public void tick() {
+		this.soundLoops.values().removeIf(MovingSoundInstance::isDone);
+		World world = this.player.getEntityWorld();
+		WorldEnvironmentAttributeAccess worldEnvironmentAttributeAccess = world.getEnvironmentAttributes();
+		AmbientSounds
+				ambientSounds =
+				worldEnvironmentAttributeAccess.getAttributeValue(
+						EnvironmentAttributes.AMBIENT_SOUNDS_AUDIO,
+						this.player.getEntityPos()
+				);
+		RegistryEntry<SoundEvent> registryEntry = ambientSounds.loop().orElse(null);
+		if (!Objects.equals(registryEntry, this.currentLoopSound)) {
+			this.currentLoopSound = registryEntry;
+			this.soundLoops.values().forEach(BiomeEffectSoundPlayer.MusicLoop::fadeOut);
+			if (registryEntry != null) {
+				this.soundLoops.compute(
+						registryEntry, (registryEntry2, loop) -> {
+							if (loop == null) {
+								loop = new BiomeEffectSoundPlayer.MusicLoop(registryEntry.value());
+								this.soundManager.play(loop);
+							}
 
-      for (BiomeAdditionsSound biomeAdditionsSound : ambientSounds.additions()) {
-         if (this.random.nextDouble() < biomeAdditionsSound.tickChance()) {
-            this.soundManager.play(PositionedSoundInstance.ambient(biomeAdditionsSound.sound().value()));
-         }
-      }
+							loop.fadeIn();
+							return loop;
+						}
+				);
+			}
+		}
 
-      ambientSounds.mood()
-         .ifPresent(
-            biomeMoodSound -> {
-               int i = biomeMoodSound.blockSearchExtent() * 2 + 1;
-               BlockPos blockPos = BlockPos.ofFloored(
-                  this.player.getX() + this.random.nextInt(i) - biomeMoodSound.blockSearchExtent(),
-                  this.player.getEyeY() + this.random.nextInt(i) - biomeMoodSound.blockSearchExtent(),
-                  this.player.getZ() + this.random.nextInt(i) - biomeMoodSound.blockSearchExtent()
-               );
-               int j = world.getLightLevel(LightType.SKY, blockPos);
-               if (j > 0) {
-                  this.moodPercentage -= j / 15.0F * 0.001F;
-               } else {
-                  this.moodPercentage = this.moodPercentage - (float)(world.getLightLevel(LightType.BLOCK, blockPos) - 1) / biomeMoodSound.tickDelay();
-               }
+		for (BiomeAdditionsSound biomeAdditionsSound : ambientSounds.additions()) {
+			if (this.random.nextDouble() < biomeAdditionsSound.tickChance()) {
+				this.soundManager.play(PositionedSoundInstance.ambient(biomeAdditionsSound.sound().value()));
+			}
+		}
 
-               if (this.moodPercentage >= 1.0F) {
-                  double d = blockPos.getX() + 0.5;
-                  double e = blockPos.getY() + 0.5;
-                  double f = blockPos.getZ() + 0.5;
-                  double g = d - this.player.getX();
-                  double h = e - this.player.getEyeY();
-                  double k = f - this.player.getZ();
-                  double l = Math.sqrt(g * g + h * h + k * k);
-                  double m = l + biomeMoodSound.offset();
-                  PositionedSoundInstance positionedSoundInstance = PositionedSoundInstance.ambient(
-                     biomeMoodSound.sound().value(),
-                     this.random,
-                     this.player.getX() + g / l * m,
-                     this.player.getEyeY() + h / l * m,
-                     this.player.getZ() + k / l * m
-                  );
-                  this.soundManager.play(positionedSoundInstance);
-                  this.moodPercentage = 0.0F;
-               } else {
-                  this.moodPercentage = Math.max(this.moodPercentage, 0.0F);
-               }
-            }
-         );
-   }
+		ambientSounds.mood()
+		             .ifPresent(
+				             biomeMoodSound -> {
+					             int i = biomeMoodSound.blockSearchExtent() * 2 + 1;
+					             BlockPos blockPos = BlockPos.ofFloored(
+							             this.player.getX() + this.random.nextInt(i)
+									             - biomeMoodSound.blockSearchExtent(),
+							             this.player.getEyeY() + this.random.nextInt(i)
+									             - biomeMoodSound.blockSearchExtent(),
+							             this.player.getZ() + this.random.nextInt(i)
+									             - biomeMoodSound.blockSearchExtent()
+					             );
+					             int j = world.getLightLevel(LightType.SKY, blockPos);
+					             if (j > 0) {
+						             this.moodPercentage -= j / 15.0F * 0.001F;
+					             }
+					             else {
+						             this.moodPercentage =
+								             this.moodPercentage
+										             - (float) (world.getLightLevel(LightType.BLOCK, blockPos) - 1)
+										             / biomeMoodSound.tickDelay();
+					             }
 
-   @Environment(EnvType.CLIENT)
-   public static class MusicLoop extends MovingSoundInstance {
-      private int delta;
-      private int strength;
+					             if (this.moodPercentage >= 1.0F) {
+						             double d = blockPos.getX() + 0.5;
+						             double e = blockPos.getY() + 0.5;
+						             double f = blockPos.getZ() + 0.5;
+						             double g = d - this.player.getX();
+						             double h = e - this.player.getEyeY();
+						             double k = f - this.player.getZ();
+						             double l = Math.sqrt(g * g + h * h + k * k);
+						             double m = l + biomeMoodSound.offset();
+						             PositionedSoundInstance positionedSoundInstance = PositionedSoundInstance.ambient(
+								             biomeMoodSound.sound().value(),
+								             this.random,
+								             this.player.getX() + g / l * m,
+								             this.player.getEyeY() + h / l * m,
+								             this.player.getZ() + k / l * m
+						             );
+						             this.soundManager.play(positionedSoundInstance);
+						             this.moodPercentage = 0.0F;
+					             }
+					             else {
+						             this.moodPercentage = Math.max(this.moodPercentage, 0.0F);
+					             }
+				             }
+		             );
+	}
 
-      public MusicLoop(SoundEvent sound) {
-         super(sound, SoundCategory.AMBIENT, SoundInstance.createRandom());
-         this.repeat = true;
-         this.repeatDelay = 0;
-         this.volume = 1.0F;
-         this.relative = true;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code MusicLoop}.
+	 */
+	public static class MusicLoop extends MovingSoundInstance {
 
-      @Override
-      public void tick() {
-         if (this.strength < 0) {
-            this.setDone();
-         }
+		private int delta;
+		private int strength;
 
-         this.strength = this.strength + this.delta;
-         this.volume = MathHelper.clamp(this.strength / 40.0F, 0.0F, 1.0F);
-      }
+		public MusicLoop(SoundEvent sound) {
+			super(sound, SoundCategory.AMBIENT, SoundInstance.createRandom());
+			this.repeat = true;
+			this.repeatDelay = 0;
+			this.volume = 1.0F;
+			this.relative = true;
+		}
 
-      public void fadeOut() {
-         this.strength = Math.min(this.strength, 40);
-         this.delta = -1;
-      }
+		@Override
+		public void tick() {
+			if (this.strength < 0) {
+				this.setDone();
+			}
 
-      public void fadeIn() {
-         this.strength = Math.max(0, this.strength);
-         this.delta = 1;
-      }
-   }
+			this.strength = this.strength + this.delta;
+			this.volume = MathHelper.clamp(this.strength / 40.0F, 0.0F, 1.0F);
+		}
+
+		public void fadeOut() {
+			this.strength = Math.min(this.strength, 40);
+			this.delta = -1;
+		}
+
+		public void fadeIn() {
+			this.strength = Math.max(0, this.strength);
+			this.delta = 1;
+		}
+	}
 }

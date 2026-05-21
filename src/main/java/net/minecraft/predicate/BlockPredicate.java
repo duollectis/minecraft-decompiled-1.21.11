@@ -2,9 +2,6 @@ package net.minecraft.predicate;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Optional;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
@@ -25,115 +22,142 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Optional;
+
+/**
+ * {@code BlockPredicate}.
+ */
 public record BlockPredicate(
-   Optional<RegistryEntryList<Block>> blocks, Optional<StatePredicate> state, Optional<NbtPredicate> nbt, ComponentsPredicate components
+		Optional<RegistryEntryList<Block>> blocks,
+		Optional<StatePredicate> state,
+		Optional<NbtPredicate> nbt,
+		ComponentsPredicate components
 ) {
-   public static final Codec<BlockPredicate> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            RegistryCodecs.entryList(RegistryKeys.BLOCK).optionalFieldOf("blocks").forGetter(BlockPredicate::blocks),
-            StatePredicate.CODEC.optionalFieldOf("state").forGetter(BlockPredicate::state),
-            NbtPredicate.CODEC.optionalFieldOf("nbt").forGetter(BlockPredicate::nbt),
-            ComponentsPredicate.CODEC.forGetter(BlockPredicate::components)
-         )
-         .apply(instance, BlockPredicate::new)
-   );
-   public static final PacketCodec<RegistryByteBuf, BlockPredicate> PACKET_CODEC = PacketCodec.tuple(
-      PacketCodecs.optional(PacketCodecs.registryEntryList(RegistryKeys.BLOCK)),
-      BlockPredicate::blocks,
-      PacketCodecs.optional(StatePredicate.PACKET_CODEC),
-      BlockPredicate::state,
-      PacketCodecs.optional(NbtPredicate.PACKET_CODEC),
-      BlockPredicate::nbt,
-      ComponentsPredicate.PACKET_CODEC,
-      BlockPredicate::components,
-      BlockPredicate::new
-   );
 
-   public boolean test(ServerWorld world, BlockPos pos) {
-      if (!world.isPosLoaded(pos)) {
-         return false;
-      } else if (!this.testState(world.getBlockState(pos))) {
-         return false;
-      } else {
-         if (this.nbt.isPresent() || !this.components.isEmpty()) {
-            BlockEntity blockEntity = world.getBlockEntity(pos);
-            if (this.nbt.isPresent() && !testNbt(world, blockEntity, this.nbt.get())) {
-               return false;
-            }
+	public static final Codec<BlockPredicate> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    RegistryCodecs
+							                    .entryList(RegistryKeys.BLOCK)
+							                    .optionalFieldOf("blocks")
+							                    .forGetter(BlockPredicate::blocks),
+					                    StatePredicate.CODEC.optionalFieldOf("state").forGetter(BlockPredicate::state),
+					                    NbtPredicate.CODEC.optionalFieldOf("nbt").forGetter(BlockPredicate::nbt),
+					                    ComponentsPredicate.CODEC.forGetter(BlockPredicate::components)
+			                    )
+			                    .apply(instance, BlockPredicate::new)
+	);
+	public static final PacketCodec<RegistryByteBuf, BlockPredicate> PACKET_CODEC = PacketCodec.tuple(
+			PacketCodecs.optional(PacketCodecs.registryEntryList(RegistryKeys.BLOCK)),
+			BlockPredicate::blocks,
+			PacketCodecs.optional(StatePredicate.PACKET_CODEC),
+			BlockPredicate::state,
+			PacketCodecs.optional(NbtPredicate.PACKET_CODEC),
+			BlockPredicate::nbt,
+			ComponentsPredicate.PACKET_CODEC,
+			BlockPredicate::components,
+			BlockPredicate::new
+	);
 
-            if (!this.components.isEmpty() && !testComponents(blockEntity, this.components)) {
-               return false;
-            }
-         }
+	public boolean test(ServerWorld world, BlockPos pos) {
+		if (!world.isPosLoaded(pos)) {
+			return false;
+		}
+		else if (!this.testState(world.getBlockState(pos))) {
+			return false;
+		}
+		else {
+			if (this.nbt.isPresent() || !this.components.isEmpty()) {
+				BlockEntity blockEntity = world.getBlockEntity(pos);
+				if (this.nbt.isPresent() && !testNbt(world, blockEntity, this.nbt.get())) {
+					return false;
+				}
 
-         return true;
-      }
-   }
+				if (!this.components.isEmpty() && !testComponents(blockEntity, this.components)) {
+					return false;
+				}
+			}
 
-   public boolean test(CachedBlockPosition pos) {
-      return !this.testState(pos.getBlockState()) ? false : !this.nbt.isPresent() || testNbt(pos.getWorld(), pos.getBlockEntity(), this.nbt.get());
-   }
+			return true;
+		}
+	}
 
-   private boolean testState(BlockState state) {
-      return this.blocks.isPresent() && !state.isIn(this.blocks.get()) ? false : !this.state.isPresent() || this.state.get().test(state);
-   }
+	public boolean test(CachedBlockPosition pos) {
+		return !this.testState(pos.getBlockState()) ? false : !this.nbt.isPresent() || testNbt(
+				pos.getWorld(),
+				pos.getBlockEntity(),
+				this.nbt.get()
+		);
+	}
 
-   private static boolean testNbt(WorldView world, @Nullable BlockEntity blockEntity, NbtPredicate nbtPredicate) {
-      return blockEntity != null && nbtPredicate.test(blockEntity.createNbtWithIdentifyingData(world.getRegistryManager()));
-   }
+	private boolean testState(BlockState state) {
+		return this.blocks.isPresent() && !state.isIn(this.blocks.get()) ? false : !this.state.isPresent() || this.state
+		                                                                                                      .get()
+		                                                                                                      .test(state);
+	}
 
-   private static boolean testComponents(@Nullable BlockEntity blockEntity, ComponentsPredicate components) {
-      return blockEntity != null && components.test((ComponentsAccess)blockEntity.createComponentMap());
-   }
+	private static boolean testNbt(WorldView world, @Nullable BlockEntity blockEntity, NbtPredicate nbtPredicate) {
+		return blockEntity != null
+				&& nbtPredicate.test(blockEntity.createNbtWithIdentifyingData(world.getRegistryManager()));
+	}
 
-   public boolean hasNbt() {
-      return this.nbt.isPresent();
-   }
+	private static boolean testComponents(@Nullable BlockEntity blockEntity, ComponentsPredicate components) {
+		return blockEntity != null && components.test((ComponentsAccess) blockEntity.createComponentMap());
+	}
 
-   public static class Builder {
-      private Optional<RegistryEntryList<Block>> blocks = Optional.empty();
-      private Optional<StatePredicate> state = Optional.empty();
-      private Optional<NbtPredicate> nbt = Optional.empty();
-      private ComponentsPredicate components = ComponentsPredicate.EMPTY;
+	public boolean hasNbt() {
+		return this.nbt.isPresent();
+	}
 
-      private Builder() {
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder {
 
-      public static BlockPredicate.Builder create() {
-         return new BlockPredicate.Builder();
-      }
+		private Optional<RegistryEntryList<Block>> blocks = Optional.empty();
+		private Optional<StatePredicate> state = Optional.empty();
+		private Optional<NbtPredicate> nbt = Optional.empty();
+		private ComponentsPredicate components = ComponentsPredicate.EMPTY;
 
-      public BlockPredicate.Builder blocks(RegistryEntryLookup<Block> blockRegistry, Block... blocks) {
-         return this.blocks(blockRegistry, Arrays.asList(blocks));
-      }
+		private Builder() {
+		}
 
-      public BlockPredicate.Builder blocks(RegistryEntryLookup<Block> blockRegistry, Collection<Block> blocks) {
-         this.blocks = Optional.of(RegistryEntryList.of(Block::getRegistryEntry, blocks));
-         return this;
-      }
+		public static BlockPredicate.Builder create() {
+			return new BlockPredicate.Builder();
+		}
 
-      public BlockPredicate.Builder tag(RegistryEntryLookup<Block> blockRegistry, TagKey<Block> tag) {
-         this.blocks = Optional.of(blockRegistry.getOrThrow(tag));
-         return this;
-      }
+		public BlockPredicate.Builder blocks(RegistryEntryLookup<Block> blockRegistry, Block... blocks) {
+			return this.blocks(blockRegistry, Arrays.asList(blocks));
+		}
 
-      public BlockPredicate.Builder nbt(NbtCompound nbt) {
-         this.nbt = Optional.of(new NbtPredicate(nbt));
-         return this;
-      }
+		public BlockPredicate.Builder blocks(RegistryEntryLookup<Block> blockRegistry, Collection<Block> blocks) {
+			this.blocks = Optional.of(RegistryEntryList.of(Block::getRegistryEntry, blocks));
+			return this;
+		}
 
-      public BlockPredicate.Builder state(StatePredicate.Builder state) {
-         this.state = state.build();
-         return this;
-      }
+		public BlockPredicate.Builder tag(RegistryEntryLookup<Block> blockRegistry, TagKey<Block> tag) {
+			this.blocks = Optional.of(blockRegistry.getOrThrow(tag));
+			return this;
+		}
 
-      public BlockPredicate.Builder components(ComponentsPredicate components) {
-         this.components = components;
-         return this;
-      }
+		public BlockPredicate.Builder nbt(NbtCompound nbt) {
+			this.nbt = Optional.of(new NbtPredicate(nbt));
+			return this;
+		}
 
-      public BlockPredicate build() {
-         return new BlockPredicate(this.blocks, this.state, this.nbt, this.components);
-      }
-   }
+		public BlockPredicate.Builder state(StatePredicate.Builder state) {
+			this.state = state.build();
+			return this;
+		}
+
+		public BlockPredicate.Builder components(ComponentsPredicate components) {
+			this.components = components;
+			return this;
+		}
+
+		public BlockPredicate build() {
+			return new BlockPredicate(this.blocks, this.state, this.nbt, this.components);
+		}
+	}
 }

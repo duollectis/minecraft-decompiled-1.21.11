@@ -3,8 +3,6 @@ package net.minecraft.entity.boss;
 import com.google.common.collect.Maps;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
-import java.util.Collection;
-import java.util.Map;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.registry.RegistryWrapper;
@@ -15,54 +13,68 @@ import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.Collection;
+import java.util.Map;
+
+/**
+ * {@code BossBarManager}.
+ */
 public class BossBarManager {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final Codec<Map<Identifier, CommandBossBar.Serialized>> CODEC = Codec.unboundedMap(Identifier.CODEC, CommandBossBar.Serialized.CODEC);
-   private final Map<Identifier, CommandBossBar> commandBossBars = Maps.newHashMap();
 
-   public @Nullable CommandBossBar get(Identifier id) {
-      return this.commandBossBars.get(id);
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final Codec<Map<Identifier, CommandBossBar.Serialized>>
+			CODEC =
+			Codec.unboundedMap(Identifier.CODEC, CommandBossBar.Serialized.CODEC);
+	private final Map<Identifier, CommandBossBar> commandBossBars = Maps.newHashMap();
 
-   public CommandBossBar add(Identifier id, Text displayName) {
-      CommandBossBar commandBossBar = new CommandBossBar(id, displayName);
-      this.commandBossBars.put(id, commandBossBar);
-      return commandBossBar;
-   }
+	public @Nullable CommandBossBar get(Identifier id) {
+		return this.commandBossBars.get(id);
+	}
 
-   public void remove(CommandBossBar bossBar) {
-      this.commandBossBars.remove(bossBar.getId());
-   }
+	public CommandBossBar add(Identifier id, Text displayName) {
+		CommandBossBar commandBossBar = new CommandBossBar(id, displayName);
+		this.commandBossBars.put(id, commandBossBar);
+		return commandBossBar;
+	}
 
-   public Collection<Identifier> getIds() {
-      return this.commandBossBars.keySet();
-   }
+	public void remove(CommandBossBar bossBar) {
+		this.commandBossBars.remove(bossBar.getId());
+	}
 
-   public Collection<CommandBossBar> getAll() {
-      return this.commandBossBars.values();
-   }
+	public Collection<Identifier> getIds() {
+		return this.commandBossBars.keySet();
+	}
 
-   public NbtCompound toNbt(RegistryWrapper.WrapperLookup registries) {
-      Map<Identifier, CommandBossBar.Serialized> map = Util.transformMapValues(this.commandBossBars, CommandBossBar::toSerialized);
-      return (NbtCompound)CODEC.encodeStart(registries.getOps(NbtOps.INSTANCE), map).getOrThrow();
-   }
+	public Collection<CommandBossBar> getAll() {
+		return this.commandBossBars.values();
+	}
 
-   public void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-      Map<Identifier, CommandBossBar.Serialized> map = CODEC.parse(registries.getOps(NbtOps.INSTANCE), nbt)
-         .resultOrPartial(error -> LOGGER.error("Failed to parse boss bar events: {}", error))
-         .orElse(Map.of());
-      map.forEach((id, serialized) -> this.commandBossBars.put(id, CommandBossBar.fromSerialized(id, serialized)));
-   }
+	public NbtCompound toNbt(RegistryWrapper.WrapperLookup registries) {
+		Map<Identifier, CommandBossBar.Serialized>
+				map =
+				Util.transformMapValues(this.commandBossBars, CommandBossBar::toSerialized);
+		return (NbtCompound) CODEC.encodeStart(registries.getOps(NbtOps.INSTANCE), map).getOrThrow();
+	}
 
-   public void onPlayerConnect(ServerPlayerEntity player) {
-      for (CommandBossBar commandBossBar : this.commandBossBars.values()) {
-         commandBossBar.onPlayerConnect(player);
-      }
-   }
+	public void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
+		Map<Identifier, CommandBossBar.Serialized> map = CODEC.parse(registries.getOps(NbtOps.INSTANCE), nbt)
+		                                                      .resultOrPartial(error -> LOGGER.error(
+				                                                      "Failed to parse boss bar events: {}",
+				                                                      error
+		                                                      ))
+		                                                      .orElse(Map.of());
+		map.forEach((id, serialized) -> this.commandBossBars.put(id, CommandBossBar.fromSerialized(id, serialized)));
+	}
 
-   public void onPlayerDisconnect(ServerPlayerEntity player) {
-      for (CommandBossBar commandBossBar : this.commandBossBars.values()) {
-         commandBossBar.onPlayerDisconnect(player);
-      }
-   }
+	public void onPlayerConnect(ServerPlayerEntity player) {
+		for (CommandBossBar commandBossBar : this.commandBossBars.values()) {
+			commandBossBar.onPlayerConnect(player);
+		}
+	}
+
+	public void onPlayerDisconnect(ServerPlayerEntity player) {
+		for (CommandBossBar commandBossBar : this.commandBossBars.values()) {
+			commandBossBar.onPlayerDisconnect(player);
+		}
+	}
 }

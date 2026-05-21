@@ -10,30 +10,37 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WitherArmorFeatureRenderer}.
+ */
 public class WitherArmorFeatureRenderer extends EnergySwirlOverlayFeatureRenderer<WitherEntityRenderState, WitherEntityModel> {
-   private static final Identifier SKIN = Identifier.ofVanilla("textures/entity/wither/wither_armor.png");
-   private final WitherEntityModel model;
 
-   public WitherArmorFeatureRenderer(FeatureRendererContext<WitherEntityRenderState, WitherEntityModel> context, LoadedEntityModels loader) {
-      super(context);
-      this.model = new WitherEntityModel(loader.getModelPart(EntityModelLayers.WITHER_ARMOR));
-   }
+	private static final Identifier SKIN = Identifier.ofVanilla("textures/entity/wither/wither_armor.png");
+	private final WitherEntityModel model;
 
-   protected boolean shouldRender(WitherEntityRenderState witherEntityRenderState) {
-      return witherEntityRenderState.armored;
-   }
+	public WitherArmorFeatureRenderer(
+			FeatureRendererContext<WitherEntityRenderState, WitherEntityModel> context,
+			LoadedEntityModels loader
+	) {
+		super(context);
+		this.model = new WitherEntityModel(loader.getModelPart(EntityModelLayers.WITHER_ARMOR));
+	}
 
-   @Override
-   protected float getEnergySwirlX(float partialAge) {
-      return MathHelper.cos(partialAge * 0.02F) * 3.0F;
-   }
+	protected boolean shouldRender(WitherEntityRenderState witherEntityRenderState) {
+		return witherEntityRenderState.armored;
+	}
 
-   @Override
-   protected Identifier getEnergySwirlTexture() {
-      return SKIN;
-   }
+	@Override
+	protected float getEnergySwirlX(float partialAge) {
+		return MathHelper.cos(partialAge * 0.02F) * 3.0F;
+	}
 
-   protected WitherEntityModel getEnergySwirlModel() {
-      return this.model;
-   }
+	@Override
+	protected Identifier getEnergySwirlTexture() {
+		return SKIN;
+	}
+
+	protected WitherEntityModel getEnergySwirlModel() {
+		return this.model;
+	}
 }

@@ -12,30 +12,34 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code VexEntityRenderer}.
+ */
 public class VexEntityRenderer extends MobEntityRenderer<VexEntity, VexEntityRenderState, VexEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/illager/vex.png");
-   private static final Identifier CHARGING_TEXTURE = Identifier.ofVanilla("textures/entity/illager/vex_charging.png");
 
-   public VexEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new VexEntityModel(context.getPart(EntityModelLayers.VEX)), 0.3F);
-      this.addFeature(new HeldItemFeatureRenderer<>(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/illager/vex.png");
+	private static final Identifier CHARGING_TEXTURE = Identifier.ofVanilla("textures/entity/illager/vex_charging.png");
 
-   protected int getBlockLight(VexEntity vexEntity, BlockPos blockPos) {
-      return 15;
-   }
+	public VexEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new VexEntityModel(context.getPart(EntityModelLayers.VEX)), 0.3F);
+		this.addFeature(new HeldItemFeatureRenderer<>(this));
+	}
 
-   public Identifier getTexture(VexEntityRenderState vexEntityRenderState) {
-      return vexEntityRenderState.charging ? CHARGING_TEXTURE : TEXTURE;
-   }
+	protected int getBlockLight(VexEntity vexEntity, BlockPos blockPos) {
+		return 15;
+	}
 
-   public VexEntityRenderState createRenderState() {
-      return new VexEntityRenderState();
-   }
+	public Identifier getTexture(VexEntityRenderState vexEntityRenderState) {
+		return vexEntityRenderState.charging ? CHARGING_TEXTURE : TEXTURE;
+	}
 
-   public void updateRenderState(VexEntity vexEntity, VexEntityRenderState vexEntityRenderState, float f) {
-      super.updateRenderState(vexEntity, vexEntityRenderState, f);
-      ArmedEntityRenderState.updateRenderState(vexEntity, vexEntityRenderState, this.itemModelResolver, f);
-      vexEntityRenderState.charging = vexEntity.isCharging();
-   }
+	public VexEntityRenderState createRenderState() {
+		return new VexEntityRenderState();
+	}
+
+	public void updateRenderState(VexEntity vexEntity, VexEntityRenderState vexEntityRenderState, float f) {
+		super.updateRenderState(vexEntity, vexEntityRenderState, f);
+		ArmedEntityRenderState.updateRenderState(vexEntity, vexEntityRenderState, this.itemModelResolver, f);
+		vexEntityRenderState.charging = vexEntity.isCharging();
+	}
 }

@@ -3,48 +3,50 @@ package net.minecraft.network.encoding;
 import io.netty.buffer.ByteBuf;
 
 public class VarInts {
-   public static final int MAX_BYTES = 5;
-   private static final int DATA_BITS_MASK = 127;
-   private static final int MORE_BITS_MASK = 128;
-   private static final int DATA_BITS_PER_BYTE = 7;
 
-   public static int getSizeInBytes(int i) {
-      for (int j = 1; j < 5; j++) {
-         if ((i & -1 << j * 7) == 0) {
-            return j;
-         }
-      }
+	public static final int MAX_BYTES = 5;
+	private static final int DATA_BITS_MASK = 127;
+	private static final int MORE_BITS_MASK = 128;
+	private static final int DATA_BITS_PER_BYTE = 7;
 
-      return 5;
-   }
+	public static int getSizeInBytes(int i) {
+		for (int j = 1; j < 5; j++) {
+			if ((i & -1 << j * 7) == 0) {
+				return j;
+			}
+		}
 
-   public static boolean shouldContinueRead(byte b) {
-      return (b & 128) == 128;
-   }
+		return 5;
+	}
 
-   public static int read(ByteBuf buf) {
-      int i = 0;
-      int j = 0;
+	public static boolean shouldContinueRead(byte b) {
+		return (b & 128) == 128;
+	}
 
-      byte b;
-      do {
-         b = buf.readByte();
-         i |= (b & 127) << j++ * 7;
-         if (j > 5) {
-            throw new RuntimeException("VarInt too big");
-         }
-      } while (shouldContinueRead(b));
+	public static int read(ByteBuf buf) {
+		int i = 0;
+		int j = 0;
 
-      return i;
-   }
+		byte b;
+		do {
+			b = buf.readByte();
+			i |= (b & 127) << j++ * 7;
+			if (j > 5) {
+				throw new RuntimeException("VarInt too big");
+			}
+		}
+		while (shouldContinueRead(b));
 
-   public static ByteBuf write(ByteBuf buf, int i) {
-      while ((i & -128) != 0) {
-         buf.writeByte(i & 127 | 128);
-         i >>>= 7;
-      }
+		return i;
+	}
 
-      buf.writeByte(i);
-      return buf;
-   }
+	public static ByteBuf write(ByteBuf buf, int i) {
+		while ((i & -128) != 0) {
+			buf.writeByte(i & 127 | 128);
+			i >>>= 7;
+		}
+
+		buf.writeByte(i);
+		return buf;
+	}
 }

@@ -6,26 +6,30 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
+/**
+ * {@code RootsBlock}.
+ */
 public class RootsBlock extends PlantBlock {
-   public static final MapCodec<RootsBlock> CODEC = createCodec(RootsBlock::new);
-   private static final VoxelShape SHAPE = Block.createColumnShape(12.0, 0.0, 13.0);
 
-   @Override
-   public MapCodec<RootsBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<RootsBlock> CODEC = createCodec(RootsBlock::new);
+	private static final VoxelShape SHAPE = Block.createColumnShape(12.0, 0.0, 13.0);
 
-   public RootsBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<RootsBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	public RootsBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
-      return floor.isIn(BlockTags.NYLIUM) || floor.isOf(Blocks.SOUL_SOIL) || super.canPlantOnTop(floor, world, pos);
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
+
+	@Override
+	protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
+		return floor.isIn(BlockTags.NYLIUM) || floor.isOf(Blocks.SOUL_SOIL) || super.canPlantOnTop(floor, world, pos);
+	}
 }

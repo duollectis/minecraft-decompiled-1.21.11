@@ -10,27 +10,44 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GrindstoneScreen}.
+ */
 public class GrindstoneScreen extends HandledScreen<GrindstoneScreenHandler> {
-   private static final Identifier ERROR_TEXTURE = Identifier.ofVanilla("container/grindstone/error");
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/grindstone.png");
 
-   public GrindstoneScreen(GrindstoneScreenHandler handler, PlayerInventory inventory, Text title) {
-      super(handler, inventory, title);
-   }
+	private static final Identifier ERROR_TEXTURE = Identifier.ofVanilla("container/grindstone/error");
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/grindstone.png");
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      this.drawMouseoverTooltip(context, mouseX, mouseY);
-   }
+	public GrindstoneScreen(GrindstoneScreenHandler handler, PlayerInventory inventory, Text title) {
+		super(handler, inventory, title);
+	}
 
-   @Override
-   protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-      int i = (this.width - this.backgroundWidth) / 2;
-      int j = (this.height - this.backgroundHeight) / 2;
-      context.drawTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, i, j, 0.0F, 0.0F, this.backgroundWidth, this.backgroundHeight, 256, 256);
-      if ((this.handler.getSlot(0).hasStack() || this.handler.getSlot(1).hasStack()) && !this.handler.getSlot(2).hasStack()) {
-         context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, ERROR_TEXTURE, i + 92, j + 31, 28, 21);
-      }
-   }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		this.drawMouseoverTooltip(context, mouseX, mouseY);
+	}
+
+	@Override
+	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
+		int i = (this.width - this.backgroundWidth) / 2;
+		int j = (this.height - this.backgroundHeight) / 2;
+		context.drawTexture(
+				RenderPipelines.GUI_TEXTURED,
+				TEXTURE,
+				i,
+				j,
+				0.0F,
+				0.0F,
+				this.backgroundWidth,
+				this.backgroundHeight,
+				256,
+				256
+		);
+		if ((this.handler.getSlot(0).hasStack() || this.handler.getSlot(1).hasStack()) && !this.handler
+				.getSlot(2)
+				.hasStack()) {
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, ERROR_TEXTURE, i + 92, j + 31, 28, 21);
+		}
+	}
 }

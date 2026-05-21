@@ -1,17 +1,10 @@
 package net.minecraft.client.gui.widget;
 
-import java.time.Duration;
-import java.util.function.Consumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.DrawnTextConsumer;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.Drawable;
-import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.ScreenRect;
-import net.minecraft.client.gui.Selectable;
+import net.minecraft.client.gui.*;
 import net.minecraft.client.gui.cursor.StandardCursors;
 import net.minecraft.client.gui.navigation.GuiNavigation;
 import net.minecraft.client.gui.navigation.GuiNavigationPath;
@@ -29,311 +22,328 @@ import net.minecraft.text.Text;
 import net.minecraft.text.Texts;
 import org.jspecify.annotations.Nullable;
 
+import java.time.Duration;
+import java.util.function.Consumer;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ClickableWidget}.
+ */
 public abstract class ClickableWidget implements Drawable, Element, Widget, Selectable {
-   protected int width;
-   protected int height;
-   public int x;
-   private int y;
-   protected Text message;
-   protected boolean hovered;
-   public boolean active = true;
-   public boolean visible = true;
-   protected float alpha = 1.0F;
-   private int navigationOrder;
-   private boolean focused;
-   private final TooltipState tooltip = new TooltipState();
 
-   public ClickableWidget(int x, int y, int width, int height, Text message) {
-      this.x = x;
-      this.y = y;
-      this.width = width;
-      this.height = height;
-      this.message = message;
-   }
+	protected int width;
+	protected int height;
+	public int x;
+	private int y;
+	protected Text message;
+	protected boolean hovered;
+	public boolean active = true;
+	public boolean visible = true;
+	protected float alpha = 1.0F;
+	private int navigationOrder;
+	private boolean focused;
+	private final TooltipState tooltip = new TooltipState();
 
-   @Override
-   public int getHeight() {
-      return this.height;
-   }
+	public ClickableWidget(int x, int y, int width, int height, Text message) {
+		this.x = x;
+		this.y = y;
+		this.width = width;
+		this.height = height;
+		this.message = message;
+	}
 
-   @Override
-   public final void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      if (this.visible) {
-         this.hovered = context.scissorContains(mouseX, mouseY) && this.isInBounds(mouseX, mouseY);
-         this.renderWidget(context, mouseX, mouseY, deltaTicks);
-         this.tooltip.render(context, mouseX, mouseY, this.isHovered(), this.isFocused(), this.getNavigationFocus());
-      }
-   }
+	@Override
+	public int getHeight() {
+		return this.height;
+	}
 
-   protected void setCursor(DrawContext context) {
-      if (this.isHovered()) {
-         context.setCursor(this.isInteractable() ? StandardCursors.POINTING_HAND : StandardCursors.NOT_ALLOWED);
-      }
-   }
+	@Override
+	public final void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		if (this.visible) {
+			this.hovered = context.scissorContains(mouseX, mouseY) && this.isInBounds(mouseX, mouseY);
+			this.renderWidget(context, mouseX, mouseY, deltaTicks);
+			this.tooltip.render(context, mouseX, mouseY, this.isHovered(), this.isFocused(), this.getNavigationFocus());
+		}
+	}
 
-   public void setTooltip(@Nullable Tooltip tooltip) {
-      this.tooltip.setTooltip(tooltip);
-   }
+	protected void setCursor(DrawContext context) {
+		if (this.isHovered()) {
+			context.setCursor(this.isInteractable() ? StandardCursors.POINTING_HAND : StandardCursors.NOT_ALLOWED);
+		}
+	}
 
-   public void setTooltipDelay(Duration tooltipDelay) {
-      this.tooltip.setDelay(tooltipDelay);
-   }
+	public void setTooltip(@Nullable Tooltip tooltip) {
+		this.tooltip.setTooltip(tooltip);
+	}
 
-   protected MutableText getNarrationMessage() {
-      return getNarrationMessage(this.getMessage());
-   }
+	public void setTooltipDelay(Duration tooltipDelay) {
+		this.tooltip.setDelay(tooltipDelay);
+	}
 
-   public static MutableText getNarrationMessage(Text message) {
-      return Text.translatable("gui.narrate.button", message);
-   }
+	protected MutableText getNarrationMessage() {
+		return getNarrationMessage(this.getMessage());
+	}
 
-   protected abstract void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks);
+	public static MutableText getNarrationMessage(Text message) {
+		return Text.translatable("gui.narrate.button", message);
+	}
 
-   protected void drawTextWithMargin(DrawnTextConsumer drawer, Text text, int marginX) {
-      int i = this.getX() + marginX;
-      int j = this.getX() + this.getWidth() - marginX;
-      int k = this.getY();
-      int l = this.getY() + this.getHeight();
-      drawer.text(text, i, j, k, l);
-   }
+	protected abstract void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks);
 
-   public void onClick(Click click, boolean doubled) {
-   }
+	protected void drawTextWithMargin(DrawnTextConsumer drawer, Text text, int marginX) {
+		int i = this.getX() + marginX;
+		int j = this.getX() + this.getWidth() - marginX;
+		int k = this.getY();
+		int l = this.getY() + this.getHeight();
+		drawer.text(text, i, j, k, l);
+	}
 
-   public void onRelease(Click click) {
-   }
+	public void onClick(Click click, boolean doubled) {
+	}
 
-   protected void onDrag(Click click, double offsetX, double offsetY) {
-   }
+	public void onRelease(Click click) {
+	}
 
-   @Override
-   public boolean mouseClicked(Click click, boolean doubled) {
-      if (!this.isInteractable()) {
-         return false;
-      } else {
-         if (this.isValidClickButton(click.buttonInfo())) {
-            boolean bl = this.isMouseOver(click.x(), click.y());
-            if (bl) {
-               this.playDownSound(MinecraftClient.getInstance().getSoundManager());
-               this.onClick(click, doubled);
-               return true;
-            }
-         }
+	protected void onDrag(Click click, double offsetX, double offsetY) {
+	}
 
-         return false;
-      }
-   }
+	@Override
+	public boolean mouseClicked(Click click, boolean doubled) {
+		if (!this.isInteractable()) {
+			return false;
+		}
+		else {
+			if (this.isValidClickButton(click.buttonInfo())) {
+				boolean bl = this.isMouseOver(click.x(), click.y());
+				if (bl) {
+					this.playDownSound(MinecraftClient.getInstance().getSoundManager());
+					this.onClick(click, doubled);
+					return true;
+				}
+			}
 
-   @Override
-   public boolean mouseReleased(Click click) {
-      if (this.isValidClickButton(click.buttonInfo())) {
-         this.onRelease(click);
-         return true;
-      } else {
-         return false;
-      }
-   }
+			return false;
+		}
+	}
 
-   protected boolean isValidClickButton(MouseInput input) {
-      return input.button() == 0;
-   }
+	@Override
+	public boolean mouseReleased(Click click) {
+		if (this.isValidClickButton(click.buttonInfo())) {
+			this.onRelease(click);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Override
-   public boolean mouseDragged(Click click, double offsetX, double offsetY) {
-      if (this.isValidClickButton(click.buttonInfo())) {
-         this.onDrag(click, offsetX, offsetY);
-         return true;
-      } else {
-         return false;
-      }
-   }
+	protected boolean isValidClickButton(MouseInput input) {
+		return input.button() == 0;
+	}
 
-   @Override
-   public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-      if (!this.isInteractable()) {
-         return null;
-      } else {
-         return !this.isFocused() ? GuiNavigationPath.of(this) : null;
-      }
-   }
+	@Override
+	public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+		if (this.isValidClickButton(click.buttonInfo())) {
+			this.onDrag(click, offsetX, offsetY);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Override
-   public boolean isMouseOver(double mouseX, double mouseY) {
-      return this.isInteractable() && this.isInBounds(mouseX, mouseY);
-   }
+	@Override
+	public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+		if (!this.isInteractable()) {
+			return null;
+		}
+		else {
+			return !this.isFocused() ? GuiNavigationPath.of(this) : null;
+		}
+	}
 
-   public void playDownSound(SoundManager soundManager) {
-      playClickSound(soundManager);
-   }
+	@Override
+	public boolean isMouseOver(double mouseX, double mouseY) {
+		return this.isInteractable() && this.isInBounds(mouseX, mouseY);
+	}
 
-   public static void playClickSound(SoundManager soundManager) {
-      soundManager.play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
-   }
+	public void playDownSound(SoundManager soundManager) {
+		playClickSound(soundManager);
+	}
 
-   @Override
-   public int getWidth() {
-      return this.width;
-   }
+	public static void playClickSound(SoundManager soundManager) {
+		soundManager.play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+	}
 
-   public void setWidth(int width) {
-      this.width = width;
-   }
+	@Override
+	public int getWidth() {
+		return this.width;
+	}
 
-   public void setHeight(int height) {
-      this.height = height;
-   }
+	public void setWidth(int width) {
+		this.width = width;
+	}
 
-   public void setAlpha(float alpha) {
-      this.alpha = alpha;
-   }
+	public void setHeight(int height) {
+		this.height = height;
+	}
 
-   public float getAlpha() {
-      return this.alpha;
-   }
+	public void setAlpha(float alpha) {
+		this.alpha = alpha;
+	}
 
-   public void setMessage(Text message) {
-      this.message = message;
-   }
+	public float getAlpha() {
+		return this.alpha;
+	}
 
-   public Text getMessage() {
-      return this.message;
-   }
+	public void setMessage(Text message) {
+		this.message = message;
+	}
 
-   @Override
-   public boolean isFocused() {
-      return this.focused;
-   }
+	public Text getMessage() {
+		return this.message;
+	}
 
-   public boolean isHovered() {
-      return this.hovered;
-   }
+	@Override
+	public boolean isFocused() {
+		return this.focused;
+	}
 
-   public boolean isSelected() {
-      return this.isHovered() || this.isFocused();
-   }
+	public boolean isHovered() {
+		return this.hovered;
+	}
 
-   @Override
-   public boolean isInteractable() {
-      return this.visible && this.active;
-   }
+	public boolean isSelected() {
+		return this.isHovered() || this.isFocused();
+	}
 
-   @Override
-   public void setFocused(boolean focused) {
-      this.focused = focused;
-   }
+	@Override
+	public boolean isInteractable() {
+		return this.visible && this.active;
+	}
 
-   @Override
-   public Selectable.SelectionType getType() {
-      if (this.isFocused()) {
-         return Selectable.SelectionType.FOCUSED;
-      } else {
-         return this.hovered ? Selectable.SelectionType.HOVERED : Selectable.SelectionType.NONE;
-      }
-   }
+	@Override
+	public void setFocused(boolean focused) {
+		this.focused = focused;
+	}
 
-   @Override
-   public final void appendNarrations(NarrationMessageBuilder builder) {
-      this.appendClickableNarrations(builder);
-      this.tooltip.appendNarrations(builder);
-   }
+	@Override
+	public Selectable.SelectionType getType() {
+		if (this.isFocused()) {
+			return Selectable.SelectionType.FOCUSED;
+		}
+		else {
+			return this.hovered ? Selectable.SelectionType.HOVERED : Selectable.SelectionType.NONE;
+		}
+	}
 
-   protected abstract void appendClickableNarrations(NarrationMessageBuilder builder);
+	@Override
+	public final void appendNarrations(NarrationMessageBuilder builder) {
+		this.appendClickableNarrations(builder);
+		this.tooltip.appendNarrations(builder);
+	}
 
-   protected void appendDefaultNarrations(NarrationMessageBuilder builder) {
-      builder.put(NarrationPart.TITLE, this.getNarrationMessage());
-      if (this.active) {
-         if (this.isFocused()) {
-            builder.put(NarrationPart.USAGE, Text.translatable("narration.button.usage.focused"));
-         } else {
-            builder.put(NarrationPart.USAGE, Text.translatable("narration.button.usage.hovered"));
-         }
-      }
-   }
+	protected abstract void appendClickableNarrations(NarrationMessageBuilder builder);
 
-   @Override
-   public int getX() {
-      return this.x;
-   }
+	protected void appendDefaultNarrations(NarrationMessageBuilder builder) {
+		builder.put(NarrationPart.TITLE, this.getNarrationMessage());
+		if (this.active) {
+			if (this.isFocused()) {
+				builder.put(NarrationPart.USAGE, Text.translatable("narration.button.usage.focused"));
+			}
+			else {
+				builder.put(NarrationPart.USAGE, Text.translatable("narration.button.usage.hovered"));
+			}
+		}
+	}
 
-   @Override
-   public void setX(int x) {
-      this.x = x;
-   }
+	@Override
+	public int getX() {
+		return this.x;
+	}
 
-   @Override
-   public int getY() {
-      return this.y;
-   }
+	@Override
+	public void setX(int x) {
+		this.x = x;
+	}
 
-   @Override
-   public void setY(int y) {
-      this.y = y;
-   }
+	@Override
+	public int getY() {
+		return this.y;
+	}
 
-   public int getRight() {
-      return this.getX() + this.getWidth();
-   }
+	@Override
+	public void setY(int y) {
+		this.y = y;
+	}
 
-   public int getBottom() {
-      return this.getY() + this.getHeight();
-   }
+	public int getRight() {
+		return this.getX() + this.getWidth();
+	}
 
-   @Override
-   public void forEachChild(Consumer<ClickableWidget> consumer) {
-      consumer.accept(this);
-   }
+	public int getBottom() {
+		return this.getY() + this.getHeight();
+	}
 
-   public void setDimensions(int width, int height) {
-      this.width = width;
-      this.height = height;
-   }
+	@Override
+	public void forEachChild(Consumer<ClickableWidget> consumer) {
+		consumer.accept(this);
+	}
 
-   @Override
-   public ScreenRect getNavigationFocus() {
-      return Widget.super.getNavigationFocus();
-   }
+	public void setDimensions(int width, int height) {
+		this.width = width;
+		this.height = height;
+	}
 
-   private boolean isInBounds(double x, double y) {
-      return x >= this.getX() && y >= this.getY() && x < this.getRight() && y < this.getBottom();
-   }
+	@Override
+	public ScreenRect getNavigationFocus() {
+		return Widget.super.getNavigationFocus();
+	}
 
-   public void setDimensionsAndPosition(int width, int height, int x, int y) {
-      this.setDimensions(width, height);
-      this.setPosition(x, y);
-   }
+	private boolean isInBounds(double x, double y) {
+		return x >= this.getX() && y >= this.getY() && x < this.getRight() && y < this.getBottom();
+	}
 
-   @Override
-   public int getNavigationOrder() {
-      return this.navigationOrder;
-   }
+	public void setDimensionsAndPosition(int width, int height, int x, int y) {
+		this.setDimensions(width, height);
+		this.setPosition(x, y);
+	}
 
-   public void setNavigationOrder(int navigationOrder) {
-      this.navigationOrder = navigationOrder;
-   }
+	@Override
+	public int getNavigationOrder() {
+		return this.navigationOrder;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public abstract static class InactivityIndicatingWidget extends ClickableWidget {
-      private Text inactiveMessage;
+	public void setNavigationOrder(int navigationOrder) {
+		this.navigationOrder = navigationOrder;
+	}
 
-      public static Text makeInactive(Text text) {
-         return Texts.withStyle(text, Style.EMPTY.withColor(-6250336));
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code InactivityIndicatingWidget}.
+	 */
+	public abstract static class InactivityIndicatingWidget extends ClickableWidget {
 
-      public InactivityIndicatingWidget(int i, int j, int k, int l, Text text) {
-         super(i, j, k, l, text);
-         this.inactiveMessage = makeInactive(text);
-      }
+		private Text inactiveMessage;
 
-      @Override
-      public Text getMessage() {
-         return this.active ? super.getMessage() : this.inactiveMessage;
-      }
+		public static Text makeInactive(Text text) {
+			return Texts.withStyle(text, Style.EMPTY.withColor(-6250336));
+		}
 
-      @Override
-      public void setMessage(Text message) {
-         super.setMessage(message);
-         this.inactiveMessage = makeInactive(message);
-      }
-   }
+		public InactivityIndicatingWidget(int i, int j, int k, int l, Text text) {
+			super(i, j, k, l, text);
+			this.inactiveMessage = makeInactive(text);
+		}
+
+		@Override
+		public Text getMessage() {
+			return this.active ? super.getMessage() : this.inactiveMessage;
+		}
+
+		@Override
+		public void setMessage(Text message) {
+			super.setMessage(message);
+			this.inactiveMessage = makeInactive(message);
+		}
+	}
 }

@@ -12,173 +12,195 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 public abstract class EntityS2CPacket implements Packet<ClientPlayPacketListener> {
-   protected final int id;
-   protected final short deltaX;
-   protected final short deltaY;
-   protected final short deltaZ;
-   protected final byte yaw;
-   protected final byte pitch;
-   protected final boolean onGround;
-   protected final boolean rotate;
-   protected final boolean positionChanged;
 
-   protected EntityS2CPacket(
-      int entityId, short deltaX, short deltaY, short deltaZ, byte yaw, byte pitch, boolean onGround, boolean rotate, boolean positionChanged
-   ) {
-      this.id = entityId;
-      this.deltaX = deltaX;
-      this.deltaY = deltaY;
-      this.deltaZ = deltaZ;
-      this.yaw = yaw;
-      this.pitch = pitch;
-      this.onGround = onGround;
-      this.rotate = rotate;
-      this.positionChanged = positionChanged;
-   }
+	protected final int id;
+	protected final short deltaX;
+	protected final short deltaY;
+	protected final short deltaZ;
+	protected final byte yaw;
+	protected final byte pitch;
+	protected final boolean onGround;
+	protected final boolean rotate;
+	protected final boolean positionChanged;
 
-   @Override
-   public abstract PacketType<? extends EntityS2CPacket> getPacketType();
+	protected EntityS2CPacket(
+			int entityId,
+			short deltaX,
+			short deltaY,
+			short deltaZ,
+			byte yaw,
+			byte pitch,
+			boolean onGround,
+			boolean rotate,
+			boolean positionChanged
+	) {
+		this.id = entityId;
+		this.deltaX = deltaX;
+		this.deltaY = deltaY;
+		this.deltaZ = deltaZ;
+		this.yaw = yaw;
+		this.pitch = pitch;
+		this.onGround = onGround;
+		this.rotate = rotate;
+		this.positionChanged = positionChanged;
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntity(this);
-   }
+	@Override
+	public abstract PacketType<? extends EntityS2CPacket> getPacketType();
 
-   @Override
-   public String toString() {
-      return "Entity_" + super.toString();
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntity(this);
+	}
 
-   public @Nullable Entity getEntity(World world) {
-      return world.getEntityById(this.id);
-   }
+	@Override
+	public String toString() {
+		return "Entity_" + super.toString();
+	}
 
-   public short getDeltaX() {
-      return this.deltaX;
-   }
+	public @Nullable Entity getEntity(World world) {
+		return world.getEntityById(this.id);
+	}
 
-   public short getDeltaY() {
-      return this.deltaY;
-   }
+	public short getDeltaX() {
+		return this.deltaX;
+	}
 
-   public short getDeltaZ() {
-      return this.deltaZ;
-   }
+	public short getDeltaY() {
+		return this.deltaY;
+	}
 
-   public float getYaw() {
-      return MathHelper.unpackDegrees(this.yaw);
-   }
+	public short getDeltaZ() {
+		return this.deltaZ;
+	}
 
-   public float getPitch() {
-      return MathHelper.unpackDegrees(this.pitch);
-   }
+	public float getYaw() {
+		return MathHelper.unpackDegrees(this.yaw);
+	}
 
-   public boolean hasRotation() {
-      return this.rotate;
-   }
+	public float getPitch() {
+		return MathHelper.unpackDegrees(this.pitch);
+	}
 
-   public boolean isPositionChanged() {
-      return this.positionChanged;
-   }
+	public boolean hasRotation() {
+		return this.rotate;
+	}
 
-   public boolean isOnGround() {
-      return this.onGround;
-   }
+	public boolean isPositionChanged() {
+		return this.positionChanged;
+	}
 
-   public static class MoveRelative extends EntityS2CPacket {
-      public static final PacketCodec<PacketByteBuf, EntityS2CPacket.MoveRelative> CODEC = Packet.createCodec(
-         EntityS2CPacket.MoveRelative::write, EntityS2CPacket.MoveRelative::read
-      );
+	public boolean isOnGround() {
+		return this.onGround;
+	}
 
-      public MoveRelative(int entityId, short deltaX, short deltaY, short deltaZ, boolean onGround) {
-         super(entityId, deltaX, deltaY, deltaZ, (byte)0, (byte)0, onGround, false, true);
-      }
+	public static class MoveRelative extends EntityS2CPacket {
 
-      private static EntityS2CPacket.MoveRelative read(PacketByteBuf buf) {
-         int i = buf.readVarInt();
-         short s = buf.readShort();
-         short t = buf.readShort();
-         short u = buf.readShort();
-         boolean bl = buf.readBoolean();
-         return new EntityS2CPacket.MoveRelative(i, s, t, u, bl);
-      }
+		public static final PacketCodec<PacketByteBuf, EntityS2CPacket.MoveRelative> CODEC = Packet.createCodec(
+				EntityS2CPacket.MoveRelative::write, EntityS2CPacket.MoveRelative::read
+		);
 
-      private void write(PacketByteBuf buf) {
-         buf.writeVarInt(this.id);
-         buf.writeShort(this.deltaX);
-         buf.writeShort(this.deltaY);
-         buf.writeShort(this.deltaZ);
-         buf.writeBoolean(this.onGround);
-      }
+		public MoveRelative(int entityId, short deltaX, short deltaY, short deltaZ, boolean onGround) {
+			super(entityId, deltaX, deltaY, deltaZ, (byte) 0, (byte) 0, onGround, false, true);
+		}
 
-      @Override
-      public PacketType<EntityS2CPacket.MoveRelative> getPacketType() {
-         return PlayPackets.MOVE_ENTITY_POS;
-      }
-   }
+		private static EntityS2CPacket.MoveRelative read(PacketByteBuf buf) {
+			int i = buf.readVarInt();
+			short s = buf.readShort();
+			short t = buf.readShort();
+			short u = buf.readShort();
+			boolean bl = buf.readBoolean();
+			return new EntityS2CPacket.MoveRelative(i, s, t, u, bl);
+		}
 
-   public static class Rotate extends EntityS2CPacket {
-      public static final PacketCodec<PacketByteBuf, EntityS2CPacket.Rotate> CODEC = Packet.createCodec(
-         EntityS2CPacket.Rotate::write, EntityS2CPacket.Rotate::read
-      );
+		private void write(PacketByteBuf buf) {
+			buf.writeVarInt(this.id);
+			buf.writeShort(this.deltaX);
+			buf.writeShort(this.deltaY);
+			buf.writeShort(this.deltaZ);
+			buf.writeBoolean(this.onGround);
+		}
 
-      public Rotate(int entityId, byte yaw, byte pitch, boolean onGround) {
-         super(entityId, (short)0, (short)0, (short)0, yaw, pitch, onGround, true, false);
-      }
+		@Override
+		public PacketType<EntityS2CPacket.MoveRelative> getPacketType() {
+			return PlayPackets.MOVE_ENTITY_POS;
+		}
+	}
 
-      private static EntityS2CPacket.Rotate read(PacketByteBuf buf) {
-         int i = buf.readVarInt();
-         byte b = buf.readByte();
-         byte c = buf.readByte();
-         boolean bl = buf.readBoolean();
-         return new EntityS2CPacket.Rotate(i, b, c, bl);
-      }
+	public static class Rotate extends EntityS2CPacket {
 
-      private void write(PacketByteBuf buf) {
-         buf.writeVarInt(this.id);
-         buf.writeByte(this.yaw);
-         buf.writeByte(this.pitch);
-         buf.writeBoolean(this.onGround);
-      }
+		public static final PacketCodec<PacketByteBuf, EntityS2CPacket.Rotate> CODEC = Packet.createCodec(
+				EntityS2CPacket.Rotate::write, EntityS2CPacket.Rotate::read
+		);
 
-      @Override
-      public PacketType<EntityS2CPacket.Rotate> getPacketType() {
-         return PlayPackets.MOVE_ENTITY_ROT;
-      }
-   }
+		public Rotate(int entityId, byte yaw, byte pitch, boolean onGround) {
+			super(entityId, (short) 0, (short) 0, (short) 0, yaw, pitch, onGround, true, false);
+		}
 
-   public static class RotateAndMoveRelative extends EntityS2CPacket {
-      public static final PacketCodec<PacketByteBuf, EntityS2CPacket.RotateAndMoveRelative> CODEC = Packet.createCodec(
-         EntityS2CPacket.RotateAndMoveRelative::write, EntityS2CPacket.RotateAndMoveRelative::read
-      );
+		private static EntityS2CPacket.Rotate read(PacketByteBuf buf) {
+			int i = buf.readVarInt();
+			byte b = buf.readByte();
+			byte c = buf.readByte();
+			boolean bl = buf.readBoolean();
+			return new EntityS2CPacket.Rotate(i, b, c, bl);
+		}
 
-      public RotateAndMoveRelative(int entityId, short deltaX, short deltaY, short deltaZ, byte yaw, byte pitch, boolean onGround) {
-         super(entityId, deltaX, deltaY, deltaZ, yaw, pitch, onGround, true, true);
-      }
+		private void write(PacketByteBuf buf) {
+			buf.writeVarInt(this.id);
+			buf.writeByte(this.yaw);
+			buf.writeByte(this.pitch);
+			buf.writeBoolean(this.onGround);
+		}
 
-      private static EntityS2CPacket.RotateAndMoveRelative read(PacketByteBuf buf) {
-         int i = buf.readVarInt();
-         short s = buf.readShort();
-         short t = buf.readShort();
-         short u = buf.readShort();
-         byte b = buf.readByte();
-         byte c = buf.readByte();
-         boolean bl = buf.readBoolean();
-         return new EntityS2CPacket.RotateAndMoveRelative(i, s, t, u, b, c, bl);
-      }
+		@Override
+		public PacketType<EntityS2CPacket.Rotate> getPacketType() {
+			return PlayPackets.MOVE_ENTITY_ROT;
+		}
+	}
 
-      private void write(PacketByteBuf buf) {
-         buf.writeVarInt(this.id);
-         buf.writeShort(this.deltaX);
-         buf.writeShort(this.deltaY);
-         buf.writeShort(this.deltaZ);
-         buf.writeByte(this.yaw);
-         buf.writeByte(this.pitch);
-         buf.writeBoolean(this.onGround);
-      }
+	public static class RotateAndMoveRelative extends EntityS2CPacket {
 
-      @Override
-      public PacketType<EntityS2CPacket.RotateAndMoveRelative> getPacketType() {
-         return PlayPackets.MOVE_ENTITY_POS_ROT;
-      }
-   }
+		public static final PacketCodec<PacketByteBuf, EntityS2CPacket.RotateAndMoveRelative>
+				CODEC =
+				Packet.createCodec(
+						EntityS2CPacket.RotateAndMoveRelative::write, EntityS2CPacket.RotateAndMoveRelative::read
+				);
+
+		public RotateAndMoveRelative(
+				int entityId,
+				short deltaX,
+				short deltaY,
+				short deltaZ,
+				byte yaw,
+				byte pitch,
+				boolean onGround
+		) {
+			super(entityId, deltaX, deltaY, deltaZ, yaw, pitch, onGround, true, true);
+		}
+
+		private static EntityS2CPacket.RotateAndMoveRelative read(PacketByteBuf buf) {
+			int i = buf.readVarInt();
+			short s = buf.readShort();
+			short t = buf.readShort();
+			short u = buf.readShort();
+			byte b = buf.readByte();
+			byte c = buf.readByte();
+			boolean bl = buf.readBoolean();
+			return new EntityS2CPacket.RotateAndMoveRelative(i, s, t, u, b, c, bl);
+		}
+
+		private void write(PacketByteBuf buf) {
+			buf.writeVarInt(this.id);
+			buf.writeShort(this.deltaX);
+			buf.writeShort(this.deltaY);
+			buf.writeShort(this.deltaZ);
+			buf.writeByte(this.yaw);
+			buf.writeByte(this.pitch);
+			buf.writeBoolean(this.onGround);
+		}
+
+		@Override
+		public PacketType<EntityS2CPacket.RotateAndMoveRelative> getPacketType() {
+			return PlayPackets.MOVE_ENTITY_POS_ROT;
+		}
+	}
 }

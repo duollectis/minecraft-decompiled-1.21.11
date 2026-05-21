@@ -20,90 +20,97 @@ import net.minecraft.util.Nameable;
 import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code BannerBlockEntity}.
+ */
 public class BannerBlockEntity extends BlockEntity implements Nameable {
-   public static final int MAX_PATTERN_COUNT = 6;
-   private static final String PATTERNS_KEY = "patterns";
-   private static final Text BLOCK_NAME = Text.translatable("block.minecraft.banner");
-   private @Nullable Text customName;
-   private final DyeColor baseColor;
-   private BannerPatternsComponent patterns = BannerPatternsComponent.DEFAULT;
 
-   public BannerBlockEntity(BlockPos pos, BlockState state) {
-      this(pos, state, ((AbstractBannerBlock)state.getBlock()).getColor());
-   }
+	public static final int MAX_PATTERN_COUNT = 6;
+	private static final String PATTERNS_KEY = "patterns";
+	private static final Text BLOCK_NAME = Text.translatable("block.minecraft.banner");
+	private @Nullable Text customName;
+	private final DyeColor baseColor;
+	private BannerPatternsComponent patterns = BannerPatternsComponent.DEFAULT;
 
-   public BannerBlockEntity(BlockPos pos, BlockState state, DyeColor baseColor) {
-      super(BlockEntityType.BANNER, pos, state);
-      this.baseColor = baseColor;
-   }
+	public BannerBlockEntity(BlockPos pos, BlockState state) {
+		this(pos, state, ((AbstractBannerBlock) state.getBlock()).getColor());
+	}
 
-   @Override
-   public Text getName() {
-      return this.customName != null ? this.customName : BLOCK_NAME;
-   }
+	public BannerBlockEntity(BlockPos pos, BlockState state, DyeColor baseColor) {
+		super(BlockEntityType.BANNER, pos, state);
+		this.baseColor = baseColor;
+	}
 
-   @Override
-   public @Nullable Text getCustomName() {
-      return this.customName;
-   }
+	@Override
+	public Text getName() {
+		return this.customName != null ? this.customName : BLOCK_NAME;
+	}
 
-   @Override
-   protected void writeData(WriteView view) {
-      super.writeData(view);
-      if (!this.patterns.equals(BannerPatternsComponent.DEFAULT)) {
-         view.put("patterns", BannerPatternsComponent.CODEC, this.patterns);
-      }
+	@Override
+	public @Nullable Text getCustomName() {
+		return this.customName;
+	}
 
-      view.putNullable("CustomName", TextCodecs.CODEC, this.customName);
-   }
+	@Override
+	protected void writeData(WriteView view) {
+		super.writeData(view);
+		if (!this.patterns.equals(BannerPatternsComponent.DEFAULT)) {
+			view.put("patterns", BannerPatternsComponent.CODEC, this.patterns);
+		}
 
-   @Override
-   protected void readData(ReadView view) {
-      super.readData(view);
-      this.customName = tryParseCustomName(view, "CustomName");
-      this.patterns = view.<BannerPatternsComponent>read("patterns", BannerPatternsComponent.CODEC).orElse(BannerPatternsComponent.DEFAULT);
-   }
+		view.putNullable("CustomName", TextCodecs.CODEC, this.customName);
+	}
 
-   public BlockEntityUpdateS2CPacket toUpdatePacket() {
-      return BlockEntityUpdateS2CPacket.create(this);
-   }
+	@Override
+	protected void readData(ReadView view) {
+		super.readData(view);
+		this.customName = tryParseCustomName(view, "CustomName");
+		this.patterns =
+				view
+						.<BannerPatternsComponent>read("patterns", BannerPatternsComponent.CODEC)
+						.orElse(BannerPatternsComponent.DEFAULT);
+	}
 
-   @Override
-   public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-      return this.createNbt(registries);
-   }
+	public BlockEntityUpdateS2CPacket toUpdatePacket() {
+		return BlockEntityUpdateS2CPacket.create(this);
+	}
 
-   public BannerPatternsComponent getPatterns() {
-      return this.patterns;
-   }
+	@Override
+	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
+		return this.createNbt(registries);
+	}
 
-   public ItemStack getPickStack() {
-      ItemStack itemStack = new ItemStack(BannerBlock.getForColor(this.baseColor));
-      itemStack.applyComponentsFrom(this.createComponentMap());
-      return itemStack;
-   }
+	public BannerPatternsComponent getPatterns() {
+		return this.patterns;
+	}
 
-   public DyeColor getColorForState() {
-      return this.baseColor;
-   }
+	public ItemStack getPickStack() {
+		ItemStack itemStack = new ItemStack(BannerBlock.getForColor(this.baseColor));
+		itemStack.applyComponentsFrom(this.createComponentMap());
+		return itemStack;
+	}
 
-   @Override
-   protected void readComponents(ComponentsAccess components) {
-      super.readComponents(components);
-      this.patterns = components.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT);
-      this.customName = components.get(DataComponentTypes.CUSTOM_NAME);
-   }
+	public DyeColor getColorForState() {
+		return this.baseColor;
+	}
 
-   @Override
-   protected void addComponents(ComponentMap.Builder builder) {
-      super.addComponents(builder);
-      builder.add(DataComponentTypes.BANNER_PATTERNS, this.patterns);
-      builder.add(DataComponentTypes.CUSTOM_NAME, this.customName);
-   }
+	@Override
+	protected void readComponents(ComponentsAccess components) {
+		super.readComponents(components);
+		this.patterns = components.getOrDefault(DataComponentTypes.BANNER_PATTERNS, BannerPatternsComponent.DEFAULT);
+		this.customName = components.get(DataComponentTypes.CUSTOM_NAME);
+	}
 
-   @Override
-   public void removeFromCopiedStackData(WriteView view) {
-      view.remove("patterns");
-      view.remove("CustomName");
-   }
+	@Override
+	protected void addComponents(ComponentMap.Builder builder) {
+		super.addComponents(builder);
+		builder.add(DataComponentTypes.BANNER_PATTERNS, this.patterns);
+		builder.add(DataComponentTypes.CUSTOM_NAME, this.customName);
+	}
+
+	@Override
+	public void removeFromCopiedStackData(WriteView view) {
+		view.remove("patterns");
+		view.remove("CustomName");
+	}
 }

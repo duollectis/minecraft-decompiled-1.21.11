@@ -8,33 +8,34 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class CloseHandledScreenC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, CloseHandledScreenC2SPacket> CODEC = Packet.createCodec(
-      CloseHandledScreenC2SPacket::write, CloseHandledScreenC2SPacket::new
-   );
-   private final int syncId;
 
-   public CloseHandledScreenC2SPacket(int syncId) {
-      this.syncId = syncId;
-   }
+	public static final PacketCodec<PacketByteBuf, CloseHandledScreenC2SPacket> CODEC = Packet.createCodec(
+			CloseHandledScreenC2SPacket::write, CloseHandledScreenC2SPacket::new
+	);
+	private final int syncId;
 
-   private CloseHandledScreenC2SPacket(PacketByteBuf buf) {
-      this.syncId = buf.readSyncId();
-   }
+	public CloseHandledScreenC2SPacket(int syncId) {
+		this.syncId = syncId;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeSyncId(this.syncId);
-   }
+	private CloseHandledScreenC2SPacket(PacketByteBuf buf) {
+		this.syncId = buf.readSyncId();
+	}
 
-   @Override
-   public PacketType<CloseHandledScreenC2SPacket> getPacketType() {
-      return PlayPackets.CONTAINER_CLOSE_C2S;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeSyncId(this.syncId);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onCloseHandledScreen(this);
-   }
+	@Override
+	public PacketType<CloseHandledScreenC2SPacket> getPacketType() {
+		return PlayPackets.CONTAINER_CLOSE_C2S;
+	}
 
-   public int getSyncId() {
-      return this.syncId;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onCloseHandledScreen(this);
+	}
+
+	public int getSyncId() {
+		return this.syncId;
+	}
 }

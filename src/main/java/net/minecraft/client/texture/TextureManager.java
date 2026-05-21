@@ -1,19 +1,6 @@
 package net.minecraft.client.texture;
 
 import com.mojang.logging.LogUtils;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.realms.gui.screen.BuyRealmsScreen;
@@ -25,165 +12,208 @@ import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.crash.CrashReportSection;
 import org.slf4j.Logger;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TextureManager}.
+ */
 public class TextureManager implements ResourceReloader, AutoCloseable {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final Identifier MISSING_IDENTIFIER = Identifier.ofVanilla("");
-   private final Map<Identifier, AbstractTexture> textures = new HashMap<>();
-   private final Set<TextureTickListener> tickListeners = new HashSet<>();
-   private final ResourceManager resourceContainer;
 
-   public TextureManager(ResourceManager resourceManager) {
-      this.resourceContainer = resourceManager;
-      NativeImage nativeImage = MissingSprite.createImage();
-      this.registerTexture(MissingSprite.getMissingSpriteId(), new NativeImageBackedTexture(() -> "(intentionally-)Missing Texture", nativeImage));
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final Identifier MISSING_IDENTIFIER = Identifier.ofVanilla("");
+	private final Map<Identifier, AbstractTexture> textures = new HashMap<>();
+	private final Set<TextureTickListener> tickListeners = new HashSet<>();
+	private final ResourceManager resourceContainer;
 
-   public void registerTexture(Identifier id, ReloadableTexture texture) {
-      try {
-         texture.reload(this.loadTexture(id, texture));
-      } catch (Throwable var6) {
-         CrashReport crashReport = CrashReport.create(var6, "Uploading texture");
-         CrashReportSection crashReportSection = crashReport.addElement("Uploaded texture");
-         crashReportSection.add("Resource location", texture.getId());
-         crashReportSection.add("Texture id", id);
-         throw new CrashException(crashReport);
-      }
+	public TextureManager(ResourceManager resourceManager) {
+		this.resourceContainer = resourceManager;
+		NativeImage nativeImage = MissingSprite.createImage();
+		this.registerTexture(
+				MissingSprite.getMissingSpriteId(),
+				new NativeImageBackedTexture(() -> "(intentionally-)Missing Texture", nativeImage)
+		);
+	}
 
-      this.registerTexture(id, (AbstractTexture)texture);
-   }
+	public void registerTexture(Identifier id, ReloadableTexture texture) {
+		try {
+			texture.reload(this.loadTexture(id, texture));
+		}
+		catch (Throwable var6) {
+			CrashReport crashReport = CrashReport.create(var6, "Uploading texture");
+			CrashReportSection crashReportSection = crashReport.addElement("Uploaded texture");
+			crashReportSection.add("Resource location", texture.getId());
+			crashReportSection.add("Texture id", id);
+			throw new CrashException(crashReport);
+		}
 
-   private TextureContents loadTexture(Identifier id, ReloadableTexture texture) {
-      try {
-         return loadTexture(this.resourceContainer, id, texture);
-      } catch (Exception var4) {
-         LOGGER.error("Failed to load texture {} into slot {}", new Object[]{texture.getId(), id, var4});
-         return TextureContents.createMissing();
-      }
-   }
+		this.registerTexture(id, (AbstractTexture) texture);
+	}
 
-   public void registerTexture(Identifier id) {
-      this.registerTexture(id, (AbstractTexture)(new ResourceTexture(id)));
-   }
+	private TextureContents loadTexture(Identifier id, ReloadableTexture texture) {
+		try {
+			return loadTexture(this.resourceContainer, id, texture);
+		}
+		catch (Exception var4) {
+			LOGGER.error("Failed to load texture {} into slot {}", new Object[]{texture.getId(), id, var4});
+			return TextureContents.createMissing();
+		}
+	}
 
-   public void registerTexture(Identifier id, AbstractTexture texture) {
-      AbstractTexture abstractTexture = this.textures.put(id, texture);
-      if (abstractTexture != texture) {
-         if (abstractTexture != null) {
-            this.closeTexture(id, abstractTexture);
-         }
+	public void registerTexture(Identifier id) {
+		this.registerTexture(id, (AbstractTexture) (new ResourceTexture(id)));
+	}
 
-         if (texture instanceof TextureTickListener textureTickListener) {
-            this.tickListeners.add(textureTickListener);
-         }
-      }
-   }
+	public void registerTexture(Identifier id, AbstractTexture texture) {
+		AbstractTexture abstractTexture = this.textures.put(id, texture);
+		if (abstractTexture != texture) {
+			if (abstractTexture != null) {
+				this.closeTexture(id, abstractTexture);
+			}
 
-   private void closeTexture(Identifier id, AbstractTexture texture) {
-      this.tickListeners.remove(texture);
+			if (texture instanceof TextureTickListener textureTickListener) {
+				this.tickListeners.add(textureTickListener);
+			}
+		}
+	}
 
-      try {
-         texture.close();
-      } catch (Exception var4) {
-         LOGGER.warn("Failed to close texture {}", id, var4);
-      }
-   }
+	private void closeTexture(Identifier id, AbstractTexture texture) {
+		this.tickListeners.remove(texture);
 
-   public AbstractTexture getTexture(Identifier id) {
-      AbstractTexture abstractTexture = this.textures.get(id);
-      if (abstractTexture != null) {
-         return abstractTexture;
-      } else {
-         ResourceTexture resourceTexture = new ResourceTexture(id);
-         this.registerTexture(id, (ReloadableTexture)resourceTexture);
-         return resourceTexture;
-      }
-   }
+		try {
+			texture.close();
+		}
+		catch (Exception var4) {
+			LOGGER.warn("Failed to close texture {}", id, var4);
+		}
+	}
 
-   public void method_76322() {
-      for (TextureTickListener textureTickListener : this.tickListeners) {
-         textureTickListener.tick();
-      }
-   }
+	public AbstractTexture getTexture(Identifier id) {
+		AbstractTexture abstractTexture = this.textures.get(id);
+		if (abstractTexture != null) {
+			return abstractTexture;
+		}
+		else {
+			ResourceTexture resourceTexture = new ResourceTexture(id);
+			this.registerTexture(id, (ReloadableTexture) resourceTexture);
+			return resourceTexture;
+		}
+	}
 
-   public void destroyTexture(Identifier id) {
-      AbstractTexture abstractTexture = this.textures.remove(id);
-      if (abstractTexture != null) {
-         this.closeTexture(id, abstractTexture);
-      }
-   }
+	public void tick() {
+		for (TextureTickListener textureTickListener : this.tickListeners) {
+			textureTickListener.tick();
+		}
+	}
 
-   @Override
-   public void close() {
-      this.textures.forEach(this::closeTexture);
-      this.textures.clear();
-      this.tickListeners.clear();
-   }
+	public void destroyTexture(Identifier id) {
+		AbstractTexture abstractTexture = this.textures.remove(id);
+		if (abstractTexture != null) {
+			this.closeTexture(id, abstractTexture);
+		}
+	}
 
-   @Override
-   public CompletableFuture<Void> reload(ResourceReloader.Store store, Executor executor, ResourceReloader.Synchronizer synchronizer, Executor executor2) {
-      ResourceManager resourceManager = store.getResourceManager();
-      List<TextureManager.ReloadedTexture> list = new ArrayList<>();
-      this.textures.forEach((id, texture) -> {
-         if (texture instanceof ReloadableTexture reloadableTexture) {
-            list.add(reloadTexture(resourceManager, id, reloadableTexture, executor));
-         }
-      });
-      return CompletableFuture.allOf(list.stream().map(TextureManager.ReloadedTexture::newContents).toArray(CompletableFuture[]::new))
-         .thenCompose(synchronizer::whenPrepared)
-         .thenAcceptAsync(v -> {
-            BuyRealmsScreen.refreshImages(this.resourceContainer);
+	@Override
+	public void close() {
+		this.textures.forEach(this::closeTexture);
+		this.textures.clear();
+		this.tickListeners.clear();
+	}
 
-            for (TextureManager.ReloadedTexture reloadedTexture : list) {
-               reloadedTexture.texture.reload(reloadedTexture.newContents.join());
-            }
-         }, executor2);
-   }
+	@Override
+	public CompletableFuture<Void> reload(
+			ResourceReloader.Store store,
+			Executor executor,
+			ResourceReloader.Synchronizer synchronizer,
+			Executor executor2
+	) {
+		ResourceManager resourceManager = store.getResourceManager();
+		List<TextureManager.ReloadedTexture> list = new ArrayList<>();
+		this.textures.forEach((id, texture) -> {
+			if (texture instanceof ReloadableTexture reloadableTexture) {
+				list.add(reloadTexture(resourceManager, id, reloadableTexture, executor));
+			}
+		});
+		return CompletableFuture
+				.allOf(list.stream().map(TextureManager.ReloadedTexture::newContents).toArray(CompletableFuture[]::new))
+				.thenCompose(synchronizer::whenPrepared)
+				.thenAcceptAsync(
+						v -> {
+							BuyRealmsScreen.refreshImages(this.resourceContainer);
 
-   public void dumpDynamicTextures(Path path) {
-      try {
-         Files.createDirectories(path);
-      } catch (IOException var3) {
-         LOGGER.error("Failed to create directory {}", path, var3);
-         return;
-      }
+							for (TextureManager.ReloadedTexture reloadedTexture : list) {
+								reloadedTexture.texture.reload(reloadedTexture.newContents.join());
+							}
+						}, executor2
+				);
+	}
 
-      this.textures.forEach((id, texture) -> {
-         if (texture instanceof DynamicTexture dynamicTexture) {
-            try {
-               dynamicTexture.save(id, path);
-            } catch (Exception var5) {
-               LOGGER.error("Failed to dump texture {}", id, var5);
-            }
-         }
-      });
-   }
+	public void dumpDynamicTextures(Path path) {
+		try {
+			Files.createDirectories(path);
+		}
+		catch (IOException var3) {
+			LOGGER.error("Failed to create directory {}", path, var3);
+			return;
+		}
 
-   private static TextureContents loadTexture(ResourceManager resourceManager, Identifier textureId, ReloadableTexture texture) throws IOException {
-      try {
-         return texture.loadContents(resourceManager);
-      } catch (FileNotFoundException var4) {
-         if (textureId != MISSING_IDENTIFIER) {
-            LOGGER.warn("Missing resource {} referenced from {}", texture.getId(), textureId);
-         }
+		this.textures.forEach((id, texture) -> {
+			if (texture instanceof DynamicTexture dynamicTexture) {
+				try {
+					dynamicTexture.save(id, path);
+				}
+				catch (Exception var5) {
+					LOGGER.error("Failed to dump texture {}", id, var5);
+				}
+			}
+		});
+	}
 
-         return TextureContents.createMissing();
-      }
-   }
+	private static TextureContents loadTexture(
+			ResourceManager resourceManager,
+			Identifier textureId,
+			ReloadableTexture texture
+	) throws IOException {
+		try {
+			return texture.loadContents(resourceManager);
+		}
+		catch (FileNotFoundException var4) {
+			if (textureId != MISSING_IDENTIFIER) {
+				LOGGER.warn("Missing resource {} referenced from {}", texture.getId(), textureId);
+			}
 
-   private static TextureManager.ReloadedTexture reloadTexture(
-      ResourceManager resourceManager, Identifier textureId, ReloadableTexture texture, Executor prepareExecutor
-   ) {
-      return new TextureManager.ReloadedTexture(texture, CompletableFuture.supplyAsync(() -> {
-         try {
-            return loadTexture(resourceManager, textureId, texture);
-         } catch (IOException var4) {
-            throw new UncheckedIOException(var4);
-         }
-      }, prepareExecutor));
-   }
+			return TextureContents.createMissing();
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   record ReloadedTexture(ReloadableTexture texture, CompletableFuture<TextureContents> newContents) {
-   }
+	private static TextureManager.ReloadedTexture reloadTexture(
+			ResourceManager resourceManager, Identifier textureId, ReloadableTexture texture, Executor prepareExecutor
+	) {
+		return new TextureManager.ReloadedTexture(
+				texture, CompletableFuture.supplyAsync(
+				() -> {
+					try {
+						return loadTexture(resourceManager, textureId, texture);
+					}
+					catch (IOException var4) {
+						throw new UncheckedIOException(var4);
+					}
+				}, prepareExecutor
+		)
+		);
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ReloadedTexture}.
+	 */
+	record ReloadedTexture(ReloadableTexture texture, CompletableFuture<TextureContents> newContents) {
+	}
 }

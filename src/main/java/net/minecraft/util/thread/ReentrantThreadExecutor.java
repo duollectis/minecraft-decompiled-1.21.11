@@ -1,29 +1,34 @@
 package net.minecraft.util.thread;
 
+/**
+ * {@code ReentrantThreadExecutor}.
+ */
 public abstract class ReentrantThreadExecutor<R extends Runnable> extends ThreadExecutor<R> {
-   private int runningTasks;
 
-   public ReentrantThreadExecutor(String string) {
-      super(string);
-   }
+	private int runningTasks;
 
-   @Override
-   public boolean shouldExecuteAsync() {
-      return this.hasRunningTasks() || super.shouldExecuteAsync();
-   }
+	public ReentrantThreadExecutor(String string) {
+		super(string);
+	}
 
-   protected boolean hasRunningTasks() {
-      return this.runningTasks != 0;
-   }
+	@Override
+	public boolean shouldExecuteAsync() {
+		return this.hasRunningTasks() || super.shouldExecuteAsync();
+	}
 
-   @Override
-   public void executeTask(R task) {
-      this.runningTasks++;
+	protected boolean hasRunningTasks() {
+		return this.runningTasks != 0;
+	}
 
-      try {
-         super.executeTask(task);
-      } finally {
-         this.runningTasks--;
-      }
-   }
+	@Override
+	public void executeTask(R task) {
+		this.runningTasks++;
+
+		try {
+			super.executeTask(task);
+		}
+		finally {
+			this.runningTasks--;
+		}
+	}
 }

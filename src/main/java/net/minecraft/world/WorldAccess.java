@@ -22,78 +22,114 @@ import net.minecraft.world.tick.ScheduledTickView;
 import net.minecraft.world.tick.TickPriority;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code WorldAccess}.
+ */
 public interface WorldAccess extends RegistryWorldView, WorldView, ScheduledTickView {
-   long getTickOrder();
 
-   @Override
-   default <T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay, TickPriority priority) {
-      return new OrderedTick<>(type, pos, this.getTime() + delay, priority, this.getTickOrder());
-   }
+	long getTickOrder();
 
-   @Override
-   default <T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay) {
-      return new OrderedTick<>(type, pos, this.getTime() + delay, this.getTickOrder());
-   }
+	@Override
+	default <T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay, TickPriority priority) {
+		return new OrderedTick<>(type, pos, this.getTime() + delay, priority, this.getTickOrder());
+	}
 
-   WorldProperties getLevelProperties();
+	@Override
+	default <T> OrderedTick<T> createOrderedTick(BlockPos pos, T type, int delay) {
+		return new OrderedTick<>(type, pos, this.getTime() + delay, this.getTickOrder());
+	}
 
-   default long getTime() {
-      return this.getLevelProperties().getTime();
-   }
+	WorldProperties getLevelProperties();
 
-   @Nullable MinecraftServer getServer();
+	default long getTime() {
+		return this.getLevelProperties().getTime();
+	}
 
-   default Difficulty getDifficulty() {
-      return this.getLevelProperties().getDifficulty();
-   }
+	@Nullable MinecraftServer getServer();
 
-   ChunkManager getChunkManager();
+	default Difficulty getDifficulty() {
+		return this.getLevelProperties().getDifficulty();
+	}
 
-   @Override
-   default boolean isChunkLoaded(int chunkX, int chunkZ) {
-      return this.getChunkManager().isChunkLoaded(chunkX, chunkZ);
-   }
+	ChunkManager getChunkManager();
 
-   Random getRandom();
+	@Override
+	default boolean isChunkLoaded(int chunkX, int chunkZ) {
+		return this.getChunkManager().isChunkLoaded(chunkX, chunkZ);
+	}
 
-   default void updateNeighbors(BlockPos pos, Block block) {
-   }
+	Random getRandom();
 
-   default void replaceWithStateForNeighborUpdate(
-      Direction direction, BlockPos pos, BlockPos neighborPos, BlockState neighborState, @Block.SetBlockStateFlag int flags, int maxUpdateDepth
-   ) {
-      NeighborUpdater.replaceWithStateForNeighborUpdate(this, direction, pos, neighborPos, neighborState, flags, maxUpdateDepth - 1);
-   }
+	default void updateNeighbors(BlockPos pos, Block block) {
+	}
 
-   default void playSound(@Nullable Entity source, BlockPos pos, SoundEvent sound, SoundCategory category) {
-      this.playSound(source, pos, sound, category, 1.0F, 1.0F);
-   }
+	default void replaceWithStateForNeighborUpdate(
+			Direction direction,
+			BlockPos pos,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			@Block.SetBlockStateFlag int flags,
+			int maxUpdateDepth
+	) {
+		NeighborUpdater.replaceWithStateForNeighborUpdate(
+				this,
+				direction,
+				pos,
+				neighborPos,
+				neighborState,
+				flags,
+				maxUpdateDepth - 1
+		);
+	}
 
-   void playSound(@Nullable Entity source, BlockPos pos, SoundEvent sound, SoundCategory category, float volume, float pitch);
+	default void playSound(@Nullable Entity source, BlockPos pos, SoundEvent sound, SoundCategory category) {
+		this.playSound(source, pos, sound, category, 1.0F, 1.0F);
+	}
 
-   void addParticleClient(ParticleEffect parameters, double x, double y, double z, double velocityX, double velocityY, double velocityZ);
+	void playSound(
+			@Nullable Entity source,
+			BlockPos pos,
+			SoundEvent sound,
+			SoundCategory category,
+			float volume,
+			float pitch
+	);
 
-   void syncWorldEvent(@Nullable Entity source, int eventId, BlockPos pos, int data);
+	void addParticleClient(
+			ParticleEffect parameters,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ
+	);
 
-   default void syncWorldEvent(int eventId, BlockPos pos, int data) {
-      this.syncWorldEvent(null, eventId, pos, data);
-   }
+	void syncWorldEvent(@Nullable Entity source, int eventId, BlockPos pos, int data);
 
-   void emitGameEvent(RegistryEntry<GameEvent> event, Vec3d emitterPos, GameEvent.Emitter emitter);
+	default void syncWorldEvent(int eventId, BlockPos pos, int data) {
+		this.syncWorldEvent(null, eventId, pos, data);
+	}
 
-   default void emitGameEvent(@Nullable Entity entity, RegistryEntry<GameEvent> event, Vec3d pos) {
-      this.emitGameEvent(event, pos, new GameEvent.Emitter(entity, null));
-   }
+	void emitGameEvent(RegistryEntry<GameEvent> event, Vec3d emitterPos, GameEvent.Emitter emitter);
 
-   default void emitGameEvent(@Nullable Entity entity, RegistryEntry<GameEvent> event, BlockPos pos) {
-      this.emitGameEvent(event, pos, new GameEvent.Emitter(entity, null));
-   }
+	default void emitGameEvent(@Nullable Entity entity, RegistryEntry<GameEvent> event, Vec3d pos) {
+		this.emitGameEvent(event, pos, new GameEvent.Emitter(entity, null));
+	}
 
-   default void emitGameEvent(RegistryEntry<GameEvent> event, BlockPos pos, GameEvent.Emitter emitter) {
-      this.emitGameEvent(event, Vec3d.ofCenter(pos), emitter);
-   }
+	default void emitGameEvent(@Nullable Entity entity, RegistryEntry<GameEvent> event, BlockPos pos) {
+		this.emitGameEvent(event, pos, new GameEvent.Emitter(entity, null));
+	}
 
-   default void emitGameEvent(RegistryKey<GameEvent> event, BlockPos pos, GameEvent.Emitter emitter) {
-      this.emitGameEvent(this.getRegistryManager().getOrThrow(RegistryKeys.GAME_EVENT).getOrThrow(event), pos, emitter);
-   }
+	default void emitGameEvent(RegistryEntry<GameEvent> event, BlockPos pos, GameEvent.Emitter emitter) {
+		this.emitGameEvent(event, Vec3d.ofCenter(pos), emitter);
+	}
+
+	default void emitGameEvent(RegistryKey<GameEvent> event, BlockPos pos, GameEvent.Emitter emitter) {
+		this.emitGameEvent(
+				this.getRegistryManager().getOrThrow(RegistryKeys.GAME_EVENT).getOrThrow(event),
+				pos,
+				emitter
+		);
+	}
 }

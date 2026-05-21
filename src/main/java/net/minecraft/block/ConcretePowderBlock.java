@@ -14,83 +14,107 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code ConcretePowderBlock}.
+ */
 public class ConcretePowderBlock extends FallingBlock {
-   public static final MapCodec<ConcretePowderBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Registries.BLOCK.getCodec().fieldOf("concrete").forGetter(block -> block.hardenedState), createSettingsCodec())
-         .apply(instance, ConcretePowderBlock::new)
-   );
-   private final Block hardenedState;
 
-   @Override
-   public MapCodec<ConcretePowderBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<ConcretePowderBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(
+							Registries.BLOCK.getCodec().fieldOf("concrete").forGetter(block -> block.hardenedState),
+							createSettingsCodec()
+					)
+					.apply(instance, ConcretePowderBlock::new)
+	);
+	private final Block hardenedState;
 
-   public ConcretePowderBlock(Block hardened, AbstractBlock.Settings settings) {
-      super(settings);
-      this.hardenedState = hardened;
-   }
+	@Override
+	public MapCodec<ConcretePowderBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void onLanding(World world, BlockPos pos, BlockState fallingBlockState, BlockState currentStateInPos, FallingBlockEntity fallingBlockEntity) {
-      if (shouldHarden(world, pos, currentStateInPos)) {
-         world.setBlockState(pos, this.hardenedState.getDefaultState(), 3);
-      }
-   }
+	public ConcretePowderBlock(Block hardened, AbstractBlock.Settings settings) {
+		super(settings);
+		this.hardenedState = hardened;
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      BlockView blockView = ctx.getWorld();
-      BlockPos blockPos = ctx.getBlockPos();
-      BlockState blockState = blockView.getBlockState(blockPos);
-      return shouldHarden(blockView, blockPos, blockState) ? this.hardenedState.getDefaultState() : super.getPlacementState(ctx);
-   }
+	@Override
+	public void onLanding(
+			World world,
+			BlockPos pos,
+			BlockState fallingBlockState,
+			BlockState currentStateInPos,
+			FallingBlockEntity fallingBlockEntity
+	) {
+		if (shouldHarden(world, pos, currentStateInPos)) {
+			world.setBlockState(pos, this.hardenedState.getDefaultState(), 3);
+		}
+	}
 
-   private static boolean shouldHarden(BlockView world, BlockPos pos, BlockState state) {
-      return hardensIn(state) || hardensOnAnySide(world, pos);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		BlockView blockView = ctx.getWorld();
+		BlockPos blockPos = ctx.getBlockPos();
+		BlockState blockState = blockView.getBlockState(blockPos);
+		return shouldHarden(blockView, blockPos, blockState) ? this.hardenedState.getDefaultState()
+		                                                     : super.getPlacementState(ctx);
+	}
 
-   private static boolean hardensOnAnySide(BlockView world, BlockPos pos) {
-      boolean bl = false;
-      BlockPos.Mutable mutable = pos.mutableCopy();
+	private static boolean shouldHarden(BlockView world, BlockPos pos, BlockState state) {
+		return hardensIn(state) || hardensOnAnySide(world, pos);
+	}
 
-      for (Direction direction : Direction.values()) {
-         BlockState blockState = world.getBlockState(mutable);
-         if (direction != Direction.DOWN || hardensIn(blockState)) {
-            mutable.set(pos, direction);
-            blockState = world.getBlockState(mutable);
-            if (hardensIn(blockState) && !blockState.isSideSolidFullSquare(world, pos, direction.getOpposite())) {
-               bl = true;
-               break;
-            }
-         }
-      }
+	private static boolean hardensOnAnySide(BlockView world, BlockPos pos) {
+		boolean bl = false;
+		BlockPos.Mutable mutable = pos.mutableCopy();
 
-      return bl;
-   }
+		for (Direction direction : Direction.values()) {
+			BlockState blockState = world.getBlockState(mutable);
+			if (direction != Direction.DOWN || hardensIn(blockState)) {
+				mutable.set(pos, direction);
+				blockState = world.getBlockState(mutable);
+				if (hardensIn(blockState) && !blockState.isSideSolidFullSquare(world, pos, direction.getOpposite())) {
+					bl = true;
+					break;
+				}
+			}
+		}
 
-   private static boolean hardensIn(BlockState state) {
-      return state.getFluidState().isIn(FluidTags.WATER);
-   }
+		return bl;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      return hardensOnAnySide(world, pos)
-         ? this.hardenedState.getDefaultState()
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	private static boolean hardensIn(BlockState state) {
+		return state.getFluidState().isIn(FluidTags.WATER);
+	}
 
-   @Override
-   public int getColor(BlockState state, BlockView world, BlockPos pos) {
-      return state.getMapColor(world, pos).color;
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		return hardensOnAnySide(world, pos)
+		       ? this.hardenedState.getDefaultState()
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
+
+	@Override
+	public int getColor(BlockState state, BlockView world, BlockPos pos) {
+		return state.getMapColor(world, pos).color;
+	}
 }

@@ -1,6 +1,5 @@
 package net.minecraft.client.gui.screen.dialog;
 
-import java.util.Optional;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.screen.Screen;
@@ -12,15 +11,21 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DialogNetworkAccess}.
+ */
 public interface DialogNetworkAccess {
-   void disconnect(Text reason);
 
-   void runClickEventCommand(String command, @Nullable Screen afterActionScreen);
+	void disconnect(Text reason);
 
-   void showDialog(RegistryEntry<Dialog> dialog, @Nullable Screen afterActionScreen);
+	void runClickEventCommand(String command, @Nullable Screen afterActionScreen);
 
-   void sendCustomClickActionPacket(Identifier id, Optional<NbtElement> payload);
+	void showDialog(RegistryEntry<Dialog> dialog, @Nullable Screen afterActionScreen);
 
-   ServerLinks getServerLinks();
+	void sendCustomClickActionPacket(Identifier id, Optional<NbtElement> payload);
+
+	ServerLinks getServerLinks();
 }

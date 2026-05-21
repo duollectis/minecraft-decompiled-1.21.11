@@ -1,6 +1,5 @@
 package net.minecraft.fluid;
 
-import java.util.Optional;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -29,132 +28,159 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+
+/**
+ * {@code WaterFluid}.
+ */
 public abstract class WaterFluid extends FlowableFluid {
-   @Override
-   public Fluid getFlowing() {
-      return Fluids.FLOWING_WATER;
-   }
 
-   @Override
-   public Fluid getStill() {
-      return Fluids.WATER;
-   }
+	@Override
+	public Fluid getFlowing() {
+		return Fluids.FLOWING_WATER;
+	}
 
-   @Override
-   public Item getBucketItem() {
-      return Items.WATER_BUCKET;
-   }
+	@Override
+	public Fluid getStill() {
+		return Fluids.WATER;
+	}
 
-   @Override
-   public void randomDisplayTick(World world, BlockPos pos, FluidState state, Random random) {
-      if (!state.isStill() && !state.get(FALLING)) {
-         if (random.nextInt(64) == 0) {
-            world.playSoundClient(
-               pos.getX() + 0.5,
-               pos.getY() + 0.5,
-               pos.getZ() + 0.5,
-               SoundEvents.BLOCK_WATER_AMBIENT,
-               SoundCategory.AMBIENT,
-               random.nextFloat() * 0.25F + 0.75F,
-               random.nextFloat() + 0.5F,
-               false
-            );
-         }
-      } else if (random.nextInt(10) == 0) {
-         world.addParticleClient(
-            ParticleTypes.UNDERWATER, pos.getX() + random.nextDouble(), pos.getY() + random.nextDouble(), pos.getZ() + random.nextDouble(), 0.0, 0.0, 0.0
-         );
-      }
-   }
+	@Override
+	public Item getBucketItem() {
+		return Items.WATER_BUCKET;
+	}
 
-   @Override
-   public @Nullable ParticleEffect getParticle() {
-      return ParticleTypes.DRIPPING_WATER;
-   }
+	@Override
+	public void randomDisplayTick(World world, BlockPos pos, FluidState state, Random random) {
+		if (!state.isStill() && !state.get(FALLING)) {
+			if (random.nextInt(64) == 0) {
+				world.playSoundClient(
+						pos.getX() + 0.5,
+						pos.getY() + 0.5,
+						pos.getZ() + 0.5,
+						SoundEvents.BLOCK_WATER_AMBIENT,
+						SoundCategory.AMBIENT,
+						random.nextFloat() * 0.25F + 0.75F,
+						random.nextFloat() + 0.5F,
+						false
+				);
+			}
+		}
+		else if (random.nextInt(10) == 0) {
+			world.addParticleClient(
+					ParticleTypes.UNDERWATER,
+					pos.getX() + random.nextDouble(),
+					pos.getY() + random.nextDouble(),
+					pos.getZ() + random.nextDouble(),
+					0.0,
+					0.0,
+					0.0
+			);
+		}
+	}
 
-   @Override
-   protected boolean isInfinite(ServerWorld world) {
-      return world.getGameRules().getValue(GameRules.WATER_SOURCE_CONVERSION);
-   }
+	@Override
+	public @Nullable ParticleEffect getParticle() {
+		return ParticleTypes.DRIPPING_WATER;
+	}
 
-   @Override
-   protected void beforeBreakingBlock(WorldAccess world, BlockPos pos, BlockState state) {
-      BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
-      Block.dropStacks(state, world, pos, blockEntity);
-   }
+	@Override
+	protected boolean isInfinite(ServerWorld world) {
+		return world.getGameRules().getValue(GameRules.WATER_SOURCE_CONVERSION);
+	}
 
-   @Override
-   protected void onEntityCollision(World world, BlockPos pos, Entity entity, EntityCollisionHandler handler) {
-      handler.addEvent(CollisionEvent.EXTINGUISH);
-   }
+	@Override
+	protected void beforeBreakingBlock(WorldAccess world, BlockPos pos, BlockState state) {
+		BlockEntity blockEntity = state.hasBlockEntity() ? world.getBlockEntity(pos) : null;
+		Block.dropStacks(state, world, pos, blockEntity);
+	}
 
-   @Override
-   public int getMaxFlowDistance(WorldView world) {
-      return 4;
-   }
+	@Override
+	protected void onEntityCollision(World world, BlockPos pos, Entity entity, EntityCollisionHandler handler) {
+		handler.addEvent(CollisionEvent.EXTINGUISH);
+	}
 
-   @Override
-   public BlockState toBlockState(FluidState state) {
-      return Blocks.WATER.getDefaultState().with(FluidBlock.LEVEL, getBlockStateLevel(state));
-   }
+	@Override
+	public int getMaxFlowDistance(WorldView world) {
+		return 4;
+	}
 
-   @Override
-   public boolean matchesType(Fluid fluid) {
-      return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
-   }
+	@Override
+	public BlockState toBlockState(FluidState state) {
+		return Blocks.WATER.getDefaultState().with(FluidBlock.LEVEL, getBlockStateLevel(state));
+	}
 
-   @Override
-   public int getLevelDecreasePerBlock(WorldView world) {
-      return 1;
-   }
+	@Override
+	public boolean matchesType(Fluid fluid) {
+		return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
+	}
 
-   @Override
-   public int getTickRate(WorldView world) {
-      return 5;
-   }
+	@Override
+	public int getLevelDecreasePerBlock(WorldView world) {
+		return 1;
+	}
 
-   @Override
-   public boolean canBeReplacedWith(FluidState state, BlockView world, BlockPos pos, Fluid fluid, Direction direction) {
-      return direction == Direction.DOWN && !fluid.isIn(FluidTags.WATER);
-   }
+	@Override
+	public int getTickRate(WorldView world) {
+		return 5;
+	}
 
-   @Override
-   protected float getBlastResistance() {
-      return 100.0F;
-   }
+	@Override
+	public boolean canBeReplacedWith(
+			FluidState state,
+			BlockView world,
+			BlockPos pos,
+			Fluid fluid,
+			Direction direction
+	) {
+		return direction == Direction.DOWN && !fluid.isIn(FluidTags.WATER);
+	}
 
-   @Override
-   public Optional<SoundEvent> getBucketFillSound() {
-      return Optional.of(SoundEvents.ITEM_BUCKET_FILL);
-   }
+	@Override
+	protected float getBlastResistance() {
+		return 100.0F;
+	}
 
-   public static class Flowing extends WaterFluid {
-      @Override
-      protected void appendProperties(StateManager.Builder<Fluid, FluidState> builder) {
-         super.appendProperties(builder);
-         builder.add(LEVEL);
-      }
+	@Override
+	public Optional<SoundEvent> getBucketFillSound() {
+		return Optional.of(SoundEvents.ITEM_BUCKET_FILL);
+	}
 
-      @Override
-      public int getLevel(FluidState state) {
-         return state.get(LEVEL);
-      }
+	/**
+	 * {@code Flowing}.
+	 */
+	public static class Flowing extends WaterFluid {
 
-      @Override
-      public boolean isStill(FluidState state) {
-         return false;
-      }
-   }
+		@Override
+		protected void appendProperties(StateManager.Builder<Fluid, FluidState> builder) {
+			super.appendProperties(builder);
+			builder.add(LEVEL);
+		}
 
-   public static class Still extends WaterFluid {
-      @Override
-      public int getLevel(FluidState state) {
-         return 8;
-      }
+		@Override
+		public int getLevel(FluidState state) {
+			return state.get(LEVEL);
+		}
 
-      @Override
-      public boolean isStill(FluidState state) {
-         return true;
-      }
-   }
+		@Override
+		public boolean isStill(FluidState state) {
+			return false;
+		}
+	}
+
+	/**
+	 * {@code Still}.
+	 */
+	public static class Still extends WaterFluid {
+
+		@Override
+		public int getLevel(FluidState state) {
+			return 8;
+		}
+
+		@Override
+		public boolean isStill(FluidState state) {
+			return true;
+		}
+	}
 }

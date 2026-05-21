@@ -12,37 +12,50 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code HorseScreen}.
+ */
 public class HorseScreen extends MountScreen<HorseScreenHandler> {
-   private static final Identifier SLOT_TEXTURE = Identifier.ofVanilla("container/slot");
-   private static final Identifier CHEST_SLOTS_TEXTURE = Identifier.ofVanilla("container/horse/chest_slots");
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/horse.png");
 
-   public HorseScreen(HorseScreenHandler handler, PlayerInventory inventory, AbstractHorseEntity entity, int slotColumnCount) {
-      super(handler, inventory, entity.getDisplayName(), slotColumnCount, entity);
-   }
+	private static final Identifier SLOT_TEXTURE = Identifier.ofVanilla("container/slot");
+	private static final Identifier CHEST_SLOTS_TEXTURE = Identifier.ofVanilla("container/horse/chest_slots");
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/gui/container/horse.png");
 
-   @Override
-   protected Identifier getTexture() {
-      return TEXTURE;
-   }
+	public HorseScreen(
+			HorseScreenHandler handler,
+			PlayerInventory inventory,
+			AbstractHorseEntity entity,
+			int slotColumnCount
+	) {
+		super(handler, inventory, entity.getDisplayName(), slotColumnCount, entity);
+	}
 
-   @Override
-   protected Identifier getSlotTexture() {
-      return SLOT_TEXTURE;
-   }
+	@Override
+	protected Identifier getTexture() {
+		return TEXTURE;
+	}
 
-   @Override
-   protected @Nullable Identifier getChestSlotsTexture() {
-      return CHEST_SLOTS_TEXTURE;
-   }
+	@Override
+	protected Identifier getSlotTexture() {
+		return SLOT_TEXTURE;
+	}
 
-   @Override
-   protected boolean canEquipSaddle() {
-      return this.mount.canUseSlot(EquipmentSlot.SADDLE) && this.mount.getType().isIn(EntityTypeTags.CAN_EQUIP_SADDLE);
-   }
+	@Override
+	protected @Nullable Identifier getChestSlotsTexture() {
+		return CHEST_SLOTS_TEXTURE;
+	}
 
-   @Override
-   protected boolean canEquipArmor() {
-      return this.mount.canUseSlot(EquipmentSlot.BODY) && (this.mount.getType().isIn(EntityTypeTags.CAN_WEAR_HORSE_ARMOR) || this.mount instanceof LlamaEntity);
-   }
+	@Override
+	protected boolean canEquipSaddle() {
+		return this.mount.canUseSlot(EquipmentSlot.SADDLE) && this.mount
+				.getType()
+				.isIn(EntityTypeTags.CAN_EQUIP_SADDLE);
+	}
+
+	@Override
+	protected boolean canEquipArmor() {
+		return this.mount.canUseSlot(EquipmentSlot.BODY) && (
+				this.mount.getType().isIn(EntityTypeTags.CAN_WEAR_HORSE_ARMOR) || this.mount instanceof LlamaEntity
+		);
+	}
 }

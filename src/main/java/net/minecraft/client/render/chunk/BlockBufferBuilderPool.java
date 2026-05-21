@@ -2,66 +2,78 @@ package net.minecraft.client.render.chunk;
 
 import com.google.common.collect.Queues;
 import com.mojang.logging.LogUtils;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BlockBufferBuilderPool}.
+ */
 public class BlockBufferBuilderPool {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private final Queue<BlockBufferAllocatorStorage> availableBuilders;
-   private volatile int availableBuilderCount;
 
-   private BlockBufferBuilderPool(List<BlockBufferAllocatorStorage> availableBuilders) {
-      this.availableBuilders = Queues.newArrayDeque(availableBuilders);
-      this.availableBuilderCount = this.availableBuilders.size();
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private final Queue<BlockBufferAllocatorStorage> availableBuilders;
+	private volatile int availableBuilderCount;
 
-   public static BlockBufferBuilderPool allocate(int max) {
-      int i = Math.max(1, (int)(Runtime.getRuntime().maxMemory() * 0.3) / BlockBufferAllocatorStorage.EXPECTED_TOTAL_SIZE);
-      int j = Math.max(1, Math.min(max, i));
-      List<BlockBufferAllocatorStorage> list = new ArrayList<>(j);
+	private BlockBufferBuilderPool(List<BlockBufferAllocatorStorage> availableBuilders) {
+		this.availableBuilders = Queues.newArrayDeque(availableBuilders);
+		this.availableBuilderCount = this.availableBuilders.size();
+	}
 
-      try {
-         for (int k = 0; k < j; k++) {
-            list.add(new BlockBufferAllocatorStorage());
-         }
-      } catch (OutOfMemoryError var7) {
-         LOGGER.warn("Allocated only {}/{} buffers", list.size(), j);
-         int l = Math.min(list.size() * 2 / 3, list.size() - 1);
+	public static BlockBufferBuilderPool allocate(int max) {
+		int
+				i =
+				Math.max(
+						1,
+						(int) (Runtime.getRuntime().maxMemory() * 0.3) / BlockBufferAllocatorStorage.EXPECTED_TOTAL_SIZE
+				);
+		int j = Math.max(1, Math.min(max, i));
+		List<BlockBufferAllocatorStorage> list = new ArrayList<>(j);
 
-         for (int m = 0; m < l; m++) {
-            list.remove(list.size() - 1).close();
-         }
-      }
+		try {
+			for (int k = 0; k < j; k++) {
+				list.add(new BlockBufferAllocatorStorage());
+			}
+		}
+		catch (OutOfMemoryError var7) {
+			LOGGER.warn("Allocated only {}/{} buffers", list.size(), j);
+			int l = Math.min(list.size() * 2 / 3, list.size() - 1);
 
-      return new BlockBufferBuilderPool(list);
-   }
+			for (int m = 0; m < l; m++) {
+				list.remove(list.size() - 1).close();
+			}
+		}
 
-   public @Nullable BlockBufferAllocatorStorage acquire() {
-      BlockBufferAllocatorStorage blockBufferAllocatorStorage = this.availableBuilders.poll();
-      if (blockBufferAllocatorStorage != null) {
-         this.availableBuilderCount = this.availableBuilders.size();
-         return blockBufferAllocatorStorage;
-      } else {
-         return null;
-      }
-   }
+		return new BlockBufferBuilderPool(list);
+	}
 
-   public void release(BlockBufferAllocatorStorage builders) {
-      this.availableBuilders.add(builders);
-      this.availableBuilderCount = this.availableBuilders.size();
-   }
+	public @Nullable BlockBufferAllocatorStorage acquire() {
+		BlockBufferAllocatorStorage blockBufferAllocatorStorage = this.availableBuilders.poll();
+		if (blockBufferAllocatorStorage != null) {
+			this.availableBuilderCount = this.availableBuilders.size();
+			return blockBufferAllocatorStorage;
+		}
+		else {
+			return null;
+		}
+	}
 
-   public boolean hasNoAvailableBuilder() {
-      return this.availableBuilders.isEmpty();
-   }
+	public void release(BlockBufferAllocatorStorage builders) {
+		this.availableBuilders.add(builders);
+		this.availableBuilderCount = this.availableBuilders.size();
+	}
 
-   public int getAvailableBuilderCount() {
-      return this.availableBuilderCount;
-   }
+	public boolean hasNoAvailableBuilder() {
+		return this.availableBuilders.isEmpty();
+	}
+
+	public int getAvailableBuilderCount() {
+		return this.availableBuilderCount;
+	}
 }

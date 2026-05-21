@@ -4,6 +4,10 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DolphinEntityRenderState}.
+ */
 public class DolphinEntityRenderState extends ItemHolderEntityRenderState {
-   public boolean moving;
+
+	public boolean moving;
 }

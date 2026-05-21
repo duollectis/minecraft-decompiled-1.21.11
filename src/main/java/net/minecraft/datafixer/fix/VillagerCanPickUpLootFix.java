@@ -6,19 +6,23 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code VillagerCanPickUpLootFix}.
+ */
 public class VillagerCanPickUpLootFix extends ChoiceFix {
-   private static final String FIELD_NAME = "CanPickUpLoot";
 
-   public VillagerCanPickUpLootFix(Schema schema) {
-      super(schema, true, "Villager CanPickUpLoot default value", TypeReferences.ENTITY, "Villager");
-   }
+	private static final String FIELD_NAME = "CanPickUpLoot";
 
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      return inputTyped.update(DSL.remainderFinder(), VillagerCanPickUpLootFix::fix);
-   }
+	public VillagerCanPickUpLootFix(Schema schema) {
+		super(schema, true, "Villager CanPickUpLoot default value", TypeReferences.ENTITY, "Villager");
+	}
 
-   private static Dynamic<?> fix(Dynamic<?> dynamic) {
-      return dynamic.set("CanPickUpLoot", dynamic.createBoolean(true));
-   }
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		return inputTyped.update(DSL.remainderFinder(), VillagerCanPickUpLootFix::fix);
+	}
+
+	private static Dynamic<?> fix(Dynamic<?> dynamic) {
+		return dynamic.set("CanPickUpLoot", dynamic.createBoolean(true));
+	}
 }

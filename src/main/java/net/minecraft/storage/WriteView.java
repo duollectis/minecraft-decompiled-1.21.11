@@ -5,53 +5,65 @@ import com.mojang.serialization.MapCodec;
 import net.fabricmc.fabric.api.serialization.v1.view.FabricWriteView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code WriteView}.
+ */
 public interface WriteView extends FabricWriteView {
-   <T> void put(String key, Codec<T> codec, T value);
 
-   <T> void putNullable(String key, Codec<T> codec, @Nullable T value);
+	<T> void put(String key, Codec<T> codec, T value);
 
-   @Deprecated
-   <T> void put(MapCodec<T> codec, T value);
+	<T> void putNullable(String key, Codec<T> codec, @Nullable T value);
 
-   void putBoolean(String key, boolean value);
+	@Deprecated
+	<T> void put(MapCodec<T> codec, T value);
 
-   void putByte(String key, byte value);
+	void putBoolean(String key, boolean value);
 
-   void putShort(String key, short value);
+	void putByte(String key, byte value);
 
-   void putInt(String key, int value);
+	void putShort(String key, short value);
 
-   void putLong(String key, long value);
+	void putInt(String key, int value);
 
-   void putFloat(String key, float value);
+	void putLong(String key, long value);
 
-   void putDouble(String key, double value);
+	void putFloat(String key, float value);
 
-   void putString(String key, String value);
+	void putDouble(String key, double value);
 
-   void putIntArray(String key, int[] value);
+	void putString(String key, String value);
 
-   WriteView get(String key);
+	void putIntArray(String key, int[] value);
 
-   WriteView.ListView getList(String key);
+	WriteView get(String key);
 
-   <T> WriteView.ListAppender<T> getListAppender(String key, Codec<T> codec);
+	WriteView.ListView getList(String key);
 
-   void remove(String key);
+	<T> WriteView.ListAppender<T> getListAppender(String key, Codec<T> codec);
 
-   boolean isEmpty();
+	void remove(String key);
 
-   public interface ListAppender<T> {
-      void add(T value);
+	boolean isEmpty();
 
-      boolean isEmpty();
-   }
+	/**
+	 * {@code ListAppender}.
+	 */
+	public interface ListAppender<T> {
 
-   public interface ListView {
-      WriteView add();
+		void add(T value);
 
-      void removeLast();
+		boolean isEmpty();
+	}
 
-      boolean isEmpty();
-   }
+	/**
+	 * {@code ListView}.
+	 */
+	public interface ListView {
+
+		WriteView add();
+
+		void removeLast();
+
+		boolean isEmpty();
+	}
 }

@@ -15,58 +15,68 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldAccess;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code KelpBlock}.
+ */
 public class KelpBlock extends AbstractPlantStemBlock implements FluidFillable {
-   public static final MapCodec<KelpBlock> CODEC = createCodec(KelpBlock::new);
-   private static final double GROWTH_CHANCE = 0.14;
-   private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 9.0);
 
-   @Override
-   public MapCodec<KelpBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<KelpBlock> CODEC = createCodec(KelpBlock::new);
+	private static final double GROWTH_CHANCE = 0.14;
+	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 9.0);
 
-   public KelpBlock(AbstractBlock.Settings settings) {
-      super(settings, Direction.UP, SHAPE, true, 0.14);
-   }
+	@Override
+	public MapCodec<KelpBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected boolean chooseStemState(BlockState state) {
-      return state.isOf(Blocks.WATER);
-   }
+	public KelpBlock(AbstractBlock.Settings settings) {
+		super(settings, Direction.UP, SHAPE, true, 0.14);
+	}
 
-   @Override
-   protected Block getPlant() {
-      return Blocks.KELP_PLANT;
-   }
+	@Override
+	protected boolean chooseStemState(BlockState state) {
+		return state.isOf(Blocks.WATER);
+	}
 
-   @Override
-   protected boolean canAttachTo(BlockState state) {
-      return !state.isOf(Blocks.MAGMA_BLOCK);
-   }
+	@Override
+	protected Block getPlant() {
+		return Blocks.KELP_PLANT;
+	}
 
-   @Override
-   public boolean canFillWithFluid(@Nullable LivingEntity filler, BlockView world, BlockPos pos, BlockState state, Fluid fluid) {
-      return false;
-   }
+	@Override
+	protected boolean canAttachTo(BlockState state) {
+		return !state.isOf(Blocks.MAGMA_BLOCK);
+	}
 
-   @Override
-   public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
-      return false;
-   }
+	@Override
+	public boolean canFillWithFluid(
+			@Nullable LivingEntity filler,
+			BlockView world,
+			BlockPos pos,
+			BlockState state,
+			Fluid fluid
+	) {
+		return false;
+	}
 
-   @Override
-   protected int getGrowthLength(Random random) {
-      return 1;
-   }
+	@Override
+	public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
+		return false;
+	}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-      return fluidState.isIn(FluidTags.WATER) && fluidState.getLevel() == 8 ? super.getPlacementState(ctx) : null;
-   }
+	@Override
+	protected int getGrowthLength(Random random) {
+		return 1;
+	}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return Fluids.WATER.getStill(false);
-   }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
+		return fluidState.isIn(FluidTags.WATER) && fluidState.getLevel() == 8 ? super.getPlacementState(ctx) : null;
+	}
+
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return Fluids.WATER.getStill(false);
+	}
 }

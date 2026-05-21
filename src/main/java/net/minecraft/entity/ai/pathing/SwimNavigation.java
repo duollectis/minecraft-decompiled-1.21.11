@@ -6,52 +6,56 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+/**
+ * {@code SwimNavigation}.
+ */
 public class SwimNavigation extends EntityNavigation {
-   private boolean canJumpOutOfWater;
 
-   public SwimNavigation(MobEntity mobEntity, World world) {
-      super(mobEntity, world);
-   }
+	private boolean canJumpOutOfWater;
 
-   @Override
-   protected PathNodeNavigator createPathNodeNavigator(int range) {
-      this.canJumpOutOfWater = this.entity.getType() == EntityType.DOLPHIN;
-      this.nodeMaker = new WaterPathNodeMaker(this.canJumpOutOfWater);
-      this.nodeMaker.setCanEnterOpenDoors(false);
-      return new PathNodeNavigator(this.nodeMaker, range);
-   }
+	public SwimNavigation(MobEntity mobEntity, World world) {
+		super(mobEntity, world);
+	}
 
-   @Override
-   protected boolean isAtValidPosition() {
-      return this.canJumpOutOfWater || this.entity.isInFluid();
-   }
+	@Override
+	protected PathNodeNavigator createPathNodeNavigator(int range) {
+		this.canJumpOutOfWater = this.entity.getType() == EntityType.DOLPHIN;
+		this.nodeMaker = new WaterPathNodeMaker(this.canJumpOutOfWater);
+		this.nodeMaker.setCanEnterOpenDoors(false);
+		return new PathNodeNavigator(this.nodeMaker, range);
+	}
 
-   @Override
-   protected Vec3d getPos() {
-      return new Vec3d(this.entity.getX(), this.entity.getBodyY(0.5), this.entity.getZ());
-   }
+	@Override
+	protected boolean isAtValidPosition() {
+		return this.canJumpOutOfWater || this.entity.isInFluid();
+	}
 
-   @Override
-   protected double adjustTargetY(Vec3d pos) {
-      return pos.y;
-   }
+	@Override
+	protected Vec3d getPos() {
+		return new Vec3d(this.entity.getX(), this.entity.getBodyY(0.5), this.entity.getZ());
+	}
 
-   @Override
-   protected boolean canPathDirectlyThrough(Vec3d origin, Vec3d target) {
-      return doesNotCollide(this.entity, origin, target, false);
-   }
+	@Override
+	protected double adjustTargetY(Vec3d pos) {
+		return pos.y;
+	}
 
-   @Override
-   public boolean isValidPosition(BlockPos pos) {
-      return !this.world.getBlockState(pos).isOpaqueFullCube();
-   }
+	@Override
+	protected boolean canPathDirectlyThrough(Vec3d origin, Vec3d target) {
+		return doesNotCollide(this.entity, origin, target, false);
+	}
 
-   @Override
-   public void setCanSwim(boolean canSwim) {
-   }
+	@Override
+	public boolean isValidPosition(BlockPos pos) {
+		return !this.world.getBlockState(pos).isOpaqueFullCube();
+	}
 
-   @Override
-   public boolean canControlOpeningDoors() {
-      return false;
-   }
+	@Override
+	public void setCanSwim(boolean canSwim) {
+	}
+
+	@Override
+	public boolean canControlOpeningDoors() {
+		return false;
+	}
 }

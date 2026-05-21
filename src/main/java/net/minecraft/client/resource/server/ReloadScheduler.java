@@ -1,25 +1,37 @@
 package net.minecraft.client.resource.server;
 
-import java.nio.file.Path;
-import java.util.List;
-import java.util.UUID;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
+import java.nio.file.Path;
+import java.util.List;
+import java.util.UUID;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ReloadScheduler}.
+ */
 public interface ReloadScheduler {
-   void scheduleReload(ReloadScheduler.ReloadContext context);
 
-   @Environment(EnvType.CLIENT)
-   public record PackInfo(UUID id, Path path) {
-   }
+	void scheduleReload(ReloadScheduler.ReloadContext context);
 
-   @Environment(EnvType.CLIENT)
-   public interface ReloadContext {
-      void onSuccess();
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code PackInfo}.
+	 */
+	public record PackInfo(UUID id, Path path) {
+	}
 
-      void onFailure(boolean force);
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ReloadContext}.
+	 */
+	public interface ReloadContext {
 
-      List<ReloadScheduler.PackInfo> getPacks();
-   }
+		void onSuccess();
+
+		void onFailure(boolean force);
+
+		List<ReloadScheduler.PackInfo> getPacks();
+	}
 }

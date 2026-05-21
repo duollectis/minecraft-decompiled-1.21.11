@@ -1,11 +1,6 @@
 package net.minecraft.util.profiling.jfr.event;
 
-import jdk.jfr.Category;
-import jdk.jfr.Event;
-import jdk.jfr.EventType;
-import jdk.jfr.Label;
-import jdk.jfr.Name;
-import jdk.jfr.StackTrace;
+import jdk.jfr.*;
 import net.minecraft.obfuscate.DontObfuscate;
 
 @Name("minecraft.LoadWorld")
@@ -13,7 +8,11 @@ import net.minecraft.obfuscate.DontObfuscate;
 @Category({"Minecraft", "World Generation"})
 @StackTrace(false)
 @DontObfuscate
+/**
+ * {@code WorldLoadFinishedEvent}.
+ */
 public class WorldLoadFinishedEvent extends Event {
-   public static final String EVENT_NAME = "minecraft.LoadWorld";
-   public static final EventType TYPE = EventType.getEventType(WorldLoadFinishedEvent.class);
+
+	public static final String EVENT_NAME = "minecraft.LoadWorld";
+	public static final EventType TYPE = EventType.getEventType(WorldLoadFinishedEvent.class);
 }

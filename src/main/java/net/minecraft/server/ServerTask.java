@@ -1,20 +1,24 @@
 package net.minecraft.server;
 
+/**
+ * {@code ServerTask}.
+ */
 public class ServerTask implements Runnable {
-   private final int creationTicks;
-   private final Runnable runnable;
 
-   public ServerTask(int creationTicks, Runnable runnable) {
-      this.creationTicks = creationTicks;
-      this.runnable = runnable;
-   }
+	private final int creationTicks;
+	private final Runnable runnable;
 
-   public int getCreationTicks() {
-      return this.creationTicks;
-   }
+	public ServerTask(int creationTicks, Runnable runnable) {
+		this.creationTicks = creationTicks;
+		this.runnable = runnable;
+	}
 
-   @Override
-   public void run() {
-      this.runnable.run();
-   }
+	public int getCreationTicks() {
+		return this.creationTicks;
+	}
+
+	@Override
+	public void run() {
+		this.runnable.run();
+	}
 }

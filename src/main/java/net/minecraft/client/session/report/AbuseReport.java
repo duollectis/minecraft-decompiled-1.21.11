@@ -2,8 +2,6 @@ package net.minecraft.client.session.report;
 
 import com.mojang.authlib.minecraft.report.AbuseReportLimits;
 import com.mojang.datafixers.util.Either;
-import java.time.Instant;
-import java.util.UUID;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.screen.Screen;
@@ -11,100 +9,126 @@ import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
+import java.time.Instant;
+import java.util.UUID;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AbuseReport}.
+ */
 public abstract class AbuseReport {
-   protected final UUID reportId;
-   protected final Instant currentTime;
-   protected final UUID reportedPlayerUuid;
-   protected String opinionComments = "";
-   protected @Nullable AbuseReportReason reason;
-   protected boolean attested;
 
-   public AbuseReport(UUID reportId, Instant currentTime, UUID reportedPlayerUuid) {
-      this.reportId = reportId;
-      this.currentTime = currentTime;
-      this.reportedPlayerUuid = reportedPlayerUuid;
-   }
+	protected final UUID reportId;
+	protected final Instant currentTime;
+	protected final UUID reportedPlayerUuid;
+	protected String opinionComments = "";
+	protected @Nullable AbuseReportReason reason;
+	protected boolean attested;
 
-   public boolean playerUuidEquals(UUID uuid) {
-      return uuid.equals(this.reportedPlayerUuid);
-   }
+	public AbuseReport(UUID reportId, Instant currentTime, UUID reportedPlayerUuid) {
+		this.reportId = reportId;
+		this.currentTime = currentTime;
+		this.reportedPlayerUuid = reportedPlayerUuid;
+	}
 
-   public abstract AbuseReport copy();
+	public boolean playerUuidEquals(UUID uuid) {
+		return uuid.equals(this.reportedPlayerUuid);
+	}
 
-   public abstract Screen createReportScreen(Screen parent, AbuseReportContext context);
+	public abstract AbuseReport copy();
 
-   @Environment(EnvType.CLIENT)
-   public abstract static class Builder<R extends AbuseReport> {
-      protected final R report;
-      protected final AbuseReportLimits limits;
+	public abstract Screen createReportScreen(Screen parent, AbuseReportContext context);
 
-      protected Builder(R report, AbuseReportLimits limits) {
-         this.report = report;
-         this.limits = limits;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Builder}.
+	 */
+	public abstract static class Builder<R extends AbuseReport> {
 
-      public R getReport() {
-         return this.report;
-      }
+		protected final R report;
+		protected final AbuseReportLimits limits;
 
-      public UUID getReportedPlayerUuid() {
-         return this.report.reportedPlayerUuid;
-      }
+		protected Builder(R report, AbuseReportLimits limits) {
+			this.report = report;
+			this.limits = limits;
+		}
 
-      public String getOpinionComments() {
-         return this.report.opinionComments;
-      }
+		public R getReport() {
+			return this.report;
+		}
 
-      public boolean isAttested() {
-         return this.getReport().attested;
-      }
+		public UUID getReportedPlayerUuid() {
+			return this.report.reportedPlayerUuid;
+		}
 
-      public void setOpinionComments(String opinionComments) {
-         this.report.opinionComments = opinionComments;
-      }
+		public String getOpinionComments() {
+			return this.report.opinionComments;
+		}
 
-      public @Nullable AbuseReportReason getReason() {
-         return this.report.reason;
-      }
+		public boolean isAttested() {
+			return this.getReport().attested;
+		}
 
-      public void setReason(AbuseReportReason reason) {
-         this.report.reason = reason;
-      }
+		public void setOpinionComments(String opinionComments) {
+			this.report.opinionComments = opinionComments;
+		}
 
-      public void setAttested(boolean attested) {
-         this.report.attested = attested;
-      }
+		public @Nullable AbuseReportReason getReason() {
+			return this.report.reason;
+		}
 
-      public abstract boolean hasEnoughInfo();
+		public void setReason(AbuseReportReason reason) {
+			this.report.reason = reason;
+		}
 
-      public AbuseReport.@Nullable ValidationError validate() {
-         return !this.getReport().attested ? AbuseReport.ValidationError.NOT_ATTESTED : null;
-      }
+		public void setAttested(boolean attested) {
+			this.report.attested = attested;
+		}
 
-      public abstract Either<AbuseReport.ReportWithId, AbuseReport.ValidationError> build(AbuseReportContext context);
-   }
+		public abstract boolean hasEnoughInfo();
 
-   @Environment(EnvType.CLIENT)
-   public record ReportWithId(UUID id, AbuseReportType reportType, com.mojang.authlib.minecraft.report.AbuseReport report) {
-   }
+		public AbuseReport.@Nullable ValidationError validate() {
+			return !this.getReport().attested ? AbuseReport.ValidationError.NOT_ATTESTED : null;
+		}
 
-   @Environment(EnvType.CLIENT)
-   public record ValidationError(Text message) {
-      public static final AbuseReport.ValidationError NO_REASON = new AbuseReport.ValidationError(Text.translatable("gui.abuseReport.send.no_reason"));
-      public static final AbuseReport.ValidationError NO_REPORTED_MESSAGES = new AbuseReport.ValidationError(
-         Text.translatable("gui.chatReport.send.no_reported_messages")
-      );
-      public static final AbuseReport.ValidationError TOO_MANY_MESSAGES = new AbuseReport.ValidationError(
-         Text.translatable("gui.chatReport.send.too_many_messages")
-      );
-      public static final AbuseReport.ValidationError COMMENTS_TOO_LONG = new AbuseReport.ValidationError(
-         Text.translatable("gui.abuseReport.send.comment_too_long")
-      );
-      public static final AbuseReport.ValidationError NOT_ATTESTED = new AbuseReport.ValidationError(Text.translatable("gui.abuseReport.send.not_attested"));
+		public abstract Either<AbuseReport.ReportWithId, AbuseReport.ValidationError> build(AbuseReportContext context);
+	}
 
-      public Tooltip createTooltip() {
-         return Tooltip.of(this.message);
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ReportWithId}.
+	 */
+	public record ReportWithId(
+			UUID id,
+			AbuseReportType reportType,
+			com.mojang.authlib.minecraft.report.AbuseReport report
+	) {
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ValidationError}.
+	 */
+	public record ValidationError(Text message) {
+
+		public static final AbuseReport.ValidationError
+				NO_REASON =
+				new AbuseReport.ValidationError(Text.translatable("gui.abuseReport.send.no_reason"));
+		public static final AbuseReport.ValidationError NO_REPORTED_MESSAGES = new AbuseReport.ValidationError(
+				Text.translatable("gui.chatReport.send.no_reported_messages")
+		);
+		public static final AbuseReport.ValidationError TOO_MANY_MESSAGES = new AbuseReport.ValidationError(
+				Text.translatable("gui.chatReport.send.too_many_messages")
+		);
+		public static final AbuseReport.ValidationError COMMENTS_TOO_LONG = new AbuseReport.ValidationError(
+				Text.translatable("gui.abuseReport.send.comment_too_long")
+		);
+		public static final AbuseReport.ValidationError
+				NOT_ATTESTED =
+				new AbuseReport.ValidationError(Text.translatable("gui.abuseReport.send.not_attested"));
+
+		public Tooltip createTooltip() {
+			return Tooltip.of(this.message);
+		}
+	}
 }

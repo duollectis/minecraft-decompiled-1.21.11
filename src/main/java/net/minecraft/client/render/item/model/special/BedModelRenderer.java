@@ -2,7 +2,6 @@ package net.minecraft.client.render.item.model.special;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.function.Consumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.render.TexturedRenderLayers;
@@ -15,45 +14,67 @@ import net.minecraft.util.DyeColor;
 import net.minecraft.util.Identifier;
 import org.joml.Vector3fc;
 
+import java.util.function.Consumer;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BedModelRenderer}.
+ */
 public class BedModelRenderer implements SimpleSpecialModelRenderer {
-   private final BedBlockEntityRenderer blockEntityRenderer;
-   private final SpriteIdentifier textureId;
 
-   public BedModelRenderer(BedBlockEntityRenderer blockEntityRenderer, SpriteIdentifier textureId) {
-      this.blockEntityRenderer = blockEntityRenderer;
-      this.textureId = textureId;
-   }
+	private final BedBlockEntityRenderer blockEntityRenderer;
+	private final SpriteIdentifier textureId;
 
-   @Override
-   public void render(ItemDisplayContext displayContext, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, int overlay, boolean glint, int i) {
-      this.blockEntityRenderer.renderAsItem(matrices, queue, light, overlay, this.textureId, i);
-   }
+	public BedModelRenderer(BedBlockEntityRenderer blockEntityRenderer, SpriteIdentifier textureId) {
+		this.blockEntityRenderer = blockEntityRenderer;
+		this.textureId = textureId;
+	}
 
-   @Override
-   public void collectVertices(Consumer<Vector3fc> consumer) {
-      this.blockEntityRenderer.collectVertices(consumer);
-   }
+	@Override
+	public void render(
+			ItemDisplayContext displayContext,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			int overlay,
+			boolean glint,
+			int i
+	) {
+		this.blockEntityRenderer.renderAsItem(matrices, queue, light, overlay, this.textureId, i);
+	}
 
-   @Environment(EnvType.CLIENT)
-   public record Unbaked(Identifier texture) implements SpecialModelRenderer.Unbaked {
-      public static final MapCodec<BedModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(Identifier.CODEC.fieldOf("texture").forGetter(BedModelRenderer.Unbaked::texture))
-            .apply(instance, BedModelRenderer.Unbaked::new)
-      );
+	@Override
+	public void collectVertices(Consumer<Vector3fc> consumer) {
+		this.blockEntityRenderer.collectVertices(consumer);
+	}
 
-      public Unbaked(DyeColor color) {
-         this(TexturedRenderLayers.createColorId(color));
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Unbaked}.
+	 */
+	public record Unbaked(Identifier texture) implements SpecialModelRenderer.Unbaked {
 
-      @Override
-      public MapCodec<BedModelRenderer.Unbaked> getCodec() {
-         return CODEC;
-      }
+		public static final MapCodec<BedModelRenderer.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance
+						.group(Identifier.CODEC.fieldOf("texture").forGetter(BedModelRenderer.Unbaked::texture))
+						.apply(instance, BedModelRenderer.Unbaked::new)
+		);
 
-      @Override
-      public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-         return new BedModelRenderer(new BedBlockEntityRenderer(context), TexturedRenderLayers.BED_SPRITE_MAPPER.map(this.texture));
-      }
-   }
+		public Unbaked(DyeColor color) {
+			this(TexturedRenderLayers.createColorId(color));
+		}
+
+		@Override
+		public MapCodec<BedModelRenderer.Unbaked> getCodec() {
+			return CODEC;
+		}
+
+		@Override
+		public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
+			return new BedModelRenderer(
+					new BedBlockEntityRenderer(context),
+					TexturedRenderLayers.BED_SPRITE_MAPPER.map(this.texture)
+			);
+		}
+	}
 }

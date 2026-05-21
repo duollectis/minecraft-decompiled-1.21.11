@@ -6,21 +6,28 @@ import net.minecraft.recipe.RecipeFinder;
 import net.minecraft.recipe.book.RecipeBookType;
 import net.minecraft.server.world.ServerWorld;
 
+/**
+ * {@code AbstractRecipeScreenHandler}.
+ */
 public abstract class AbstractRecipeScreenHandler extends ScreenHandler {
-   public AbstractRecipeScreenHandler(ScreenHandlerType<?> screenHandlerType, int i) {
-      super(screenHandlerType, i);
-   }
 
-   public abstract AbstractRecipeScreenHandler.PostFillAction fillInputSlots(
-      boolean craftAll, boolean creative, RecipeEntry<?> recipe, ServerWorld world, PlayerInventory inventory
-   );
+	public AbstractRecipeScreenHandler(ScreenHandlerType<?> screenHandlerType, int i) {
+		super(screenHandlerType, i);
+	}
 
-   public abstract void populateRecipeFinder(RecipeFinder finder);
+	public abstract AbstractRecipeScreenHandler.PostFillAction fillInputSlots(
+			boolean craftAll, boolean creative, RecipeEntry<?> recipe, ServerWorld world, PlayerInventory inventory
+	);
 
-   public abstract RecipeBookType getCategory();
+	public abstract void populateRecipeFinder(RecipeFinder finder);
 
-   public static enum PostFillAction {
-      NOTHING,
-      PLACE_GHOST_RECIPE;
-   }
+	public abstract RecipeBookType getCategory();
+
+	/**
+	 * {@code PostFillAction}.
+	 */
+	public static enum PostFillAction {
+		NOTHING,
+		PLACE_GHOST_RECIPE;
+	}
 }

@@ -1,7 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.function.BiConsumer;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
 import net.minecraft.item.ItemStack;
@@ -22,88 +21,113 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.explosion.Explosion;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.BiConsumer;
+
+/**
+ * {@code AbstractCandleBlock}.
+ */
 public abstract class AbstractCandleBlock extends Block {
-   public static final int field_30987 = 3;
-   public static final BooleanProperty LIT = Properties.LIT;
 
-   @Override
-   protected abstract MapCodec<? extends AbstractCandleBlock> getCodec();
+	public static final int LUMINANCE_PER_CANDLE = 3;
+	public static final BooleanProperty LIT = Properties.LIT;
 
-   protected AbstractCandleBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	protected abstract MapCodec<? extends AbstractCandleBlock> getCodec();
 
-   protected abstract Iterable<Vec3d> getParticleOffsets(BlockState state);
+	protected AbstractCandleBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   public static boolean isLitCandle(BlockState state) {
-      return state.contains(LIT) && (state.isIn(BlockTags.CANDLES) || state.isIn(BlockTags.CANDLE_CAKES)) && state.get(LIT);
-   }
+	protected abstract Iterable<Vec3d> getParticleOffsets(BlockState state);
 
-   @Override
-   protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
-      if (!world.isClient() && projectile.isOnFire() && this.isNotLit(state)) {
-         setLit(world, state, hit.getBlockPos(), true);
-      }
-   }
+	public static boolean isLitCandle(BlockState state) {
+		return state.contains(LIT) && (state.isIn(BlockTags.CANDLES) || state.isIn(BlockTags.CANDLE_CAKES))
+				&& state.get(LIT);
+	}
 
-   protected boolean isNotLit(BlockState state) {
-      return !state.get(LIT);
-   }
+	@Override
+	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
+		if (!world.isClient() && projectile.isOnFire() && this.isNotLit(state)) {
+			setLit(world, state, hit.getBlockPos(), true);
+		}
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      if (state.get(LIT)) {
-         this.getParticleOffsets(state).forEach(offset -> spawnCandleParticles(world, offset.add(pos.getX(), pos.getY(), pos.getZ()), random));
-      }
-   }
+	protected boolean isNotLit(BlockState state) {
+		return !state.get(LIT);
+	}
 
-   private static void spawnCandleParticles(World world, Vec3d vec3d, Random random) {
-      float f = random.nextFloat();
-      if (f < 0.3F) {
-         world.addParticleClient(ParticleTypes.SMOKE, vec3d.x, vec3d.y, vec3d.z, 0.0, 0.0, 0.0);
-         if (f < 0.17F) {
-            world.playSoundClient(
-               vec3d.x + 0.5,
-               vec3d.y + 0.5,
-               vec3d.z + 0.5,
-               SoundEvents.BLOCK_CANDLE_AMBIENT,
-               SoundCategory.BLOCKS,
-               1.0F + random.nextFloat(),
-               random.nextFloat() * 0.7F + 0.3F,
-               false
-            );
-         }
-      }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		if (state.get(LIT)) {
+			this
+					.getParticleOffsets(state)
+					.forEach(offset -> spawnCandleParticles(
+							world,
+							offset.add(pos.getX(), pos.getY(), pos.getZ()),
+							random
+					));
+		}
+	}
 
-      world.addParticleClient(ParticleTypes.SMALL_FLAME, vec3d.x, vec3d.y, vec3d.z, 0.0, 0.0, 0.0);
-   }
+	private static void spawnCandleParticles(World world, Vec3d vec3d, Random random) {
+		float f = random.nextFloat();
+		if (f < 0.3F) {
+			world.addParticleClient(ParticleTypes.SMOKE, vec3d.x, vec3d.y, vec3d.z, 0.0, 0.0, 0.0);
+			if (f < 0.17F) {
+				world.playSoundClient(
+						vec3d.x + 0.5,
+						vec3d.y + 0.5,
+						vec3d.z + 0.5,
+						SoundEvents.BLOCK_CANDLE_AMBIENT,
+						SoundCategory.BLOCKS,
+						1.0F + random.nextFloat(),
+						random.nextFloat() * 0.7F + 0.3F,
+						false
+				);
+			}
+		}
 
-   public static void extinguish(@Nullable PlayerEntity player, BlockState state, WorldAccess world, BlockPos pos) {
-      setLit(world, state, pos, false);
-      if (state.getBlock() instanceof AbstractCandleBlock) {
-         ((AbstractCandleBlock)state.getBlock())
-            .getParticleOffsets(state)
-            .forEach(
-               offset -> world.addParticleClient(
-                  ParticleTypes.SMOKE, pos.getX() + offset.getX(), pos.getY() + offset.getY(), pos.getZ() + offset.getZ(), 0.0, 0.1F, 0.0
-               )
-            );
-      }
+		world.addParticleClient(ParticleTypes.SMALL_FLAME, vec3d.x, vec3d.y, vec3d.z, 0.0, 0.0, 0.0);
+	}
 
-      world.playSound(null, pos, SoundEvents.BLOCK_CANDLE_EXTINGUISH, SoundCategory.BLOCKS, 1.0F, 1.0F);
-      world.emitGameEvent(player, GameEvent.BLOCK_CHANGE, pos);
-   }
+	public static void extinguish(@Nullable PlayerEntity player, BlockState state, WorldAccess world, BlockPos pos) {
+		setLit(world, state, pos, false);
+		if (state.getBlock() instanceof AbstractCandleBlock) {
+			((AbstractCandleBlock) state.getBlock())
+					.getParticleOffsets(state)
+					.forEach(
+							offset -> world.addParticleClient(
+									ParticleTypes.SMOKE,
+									pos.getX() + offset.getX(),
+									pos.getY() + offset.getY(),
+									pos.getZ() + offset.getZ(),
+									0.0,
+									0.1F,
+									0.0
+							)
+					);
+		}
 
-   private static void setLit(WorldAccess world, BlockState state, BlockPos pos, boolean lit) {
-      world.setBlockState(pos, state.with(LIT, lit), 11);
-   }
+		world.playSound(null, pos, SoundEvents.BLOCK_CANDLE_EXTINGUISH, SoundCategory.BLOCKS, 1.0F, 1.0F);
+		world.emitGameEvent(player, GameEvent.BLOCK_CHANGE, pos);
+	}
 
-   @Override
-   protected void onExploded(BlockState state, ServerWorld world, BlockPos pos, Explosion explosion, BiConsumer<ItemStack, BlockPos> stackMerger) {
-      if (explosion.canTriggerBlocks() && state.get(LIT)) {
-         extinguish(null, state, world, pos);
-      }
+	private static void setLit(WorldAccess world, BlockState state, BlockPos pos, boolean lit) {
+		world.setBlockState(pos, state.with(LIT, lit), 11);
+	}
 
-      super.onExploded(state, world, pos, explosion, stackMerger);
-   }
+	@Override
+	protected void onExploded(
+			BlockState state,
+			ServerWorld world,
+			BlockPos pos,
+			Explosion explosion,
+			BiConsumer<ItemStack, BlockPos> stackMerger
+	) {
+		if (explosion.canTriggerBlocks() && state.get(LIT)) {
+			extinguish(null, state, world, pos);
+		}
+
+		super.onExploded(state, world, pos, explosion, stackMerger);
+	}
 }

@@ -1,6 +1,5 @@
 package net.minecraft.client.gui.widget;
 
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -19,182 +18,213 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ElementListWidget}.
+ */
 public abstract class ElementListWidget<E extends ElementListWidget.Entry<E>> extends EntryListWidget<E> {
-   public ElementListWidget(MinecraftClient minecraftClient, int i, int j, int k, int l) {
-      super(minecraftClient, i, j, k, l);
-   }
 
-   @Override
-   public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-      if (this.getEntryCount() == 0) {
-         return null;
-      } else if (!(navigation instanceof GuiNavigation.Arrow arrow)) {
-         return super.getNavigationPath(navigation);
-      } else {
-         E entry = this.getFocused();
-         if (arrow.direction().getAxis() == NavigationAxis.HORIZONTAL && entry != null) {
-            return GuiNavigationPath.of(this, entry.getNavigationPath(navigation));
-         } else {
-            int i = -1;
-            NavigationDirection navigationDirection = arrow.direction();
-            if (entry != null) {
-               i = entry.children().indexOf(entry.getFocused());
-            }
+	public ElementListWidget(MinecraftClient minecraftClient, int i, int j, int k, int l) {
+		super(minecraftClient, i, j, k, l);
+	}
 
-            if (i == -1) {
-               switch (navigationDirection) {
-                  case LEFT:
-                     i = Integer.MAX_VALUE;
-                     navigationDirection = NavigationDirection.DOWN;
-                     break;
-                  case RIGHT:
-                     i = 0;
-                     navigationDirection = NavigationDirection.DOWN;
-                     break;
-                  default:
-                     i = 0;
-               }
-            }
+	@Override
+	public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+		if (this.getEntryCount() == 0) {
+			return null;
+		}
+		else if (!(navigation instanceof GuiNavigation.Arrow arrow)) {
+			return super.getNavigationPath(navigation);
+		}
+		else {
+			E entry = this.getFocused();
+			if (arrow.direction().getAxis() == NavigationAxis.HORIZONTAL && entry != null) {
+				return GuiNavigationPath.of(this, entry.getNavigationPath(navigation));
+			}
+			else {
+				int i = -1;
+				NavigationDirection navigationDirection = arrow.direction();
+				if (entry != null) {
+					i = entry.children().indexOf(entry.getFocused());
+				}
 
-            E entry2 = entry;
+				if (i == -1) {
+					switch (navigationDirection) {
+						case LEFT:
+							i = Integer.MAX_VALUE;
+							navigationDirection = NavigationDirection.DOWN;
+							break;
+						case RIGHT:
+							i = 0;
+							navigationDirection = NavigationDirection.DOWN;
+							break;
+						default:
+							i = 0;
+					}
+				}
 
-            GuiNavigationPath guiNavigationPath;
-            do {
-               entry2 = this.getNeighboringEntry(navigationDirection, element -> !element.children().isEmpty(), entry2);
-               if (entry2 == null) {
-                  return null;
-               }
+				E entry2 = entry;
 
-               guiNavigationPath = entry2.getNavigationPath(arrow, i);
-            } while (guiNavigationPath == null);
+				GuiNavigationPath guiNavigationPath;
+				do {
+					entry2 =
+							this.getNeighboringEntry(
+									navigationDirection,
+									element -> !element.children().isEmpty(),
+									entry2
+							);
+					if (entry2 == null) {
+						return null;
+					}
 
-            return GuiNavigationPath.of(this, guiNavigationPath);
-         }
-      }
-   }
+					guiNavigationPath = entry2.getNavigationPath(arrow, i);
+				}
+				while (guiNavigationPath == null);
 
-   @Override
-   public void setFocused(@Nullable Element focused) {
-      if (this.getFocused() != focused) {
-         super.setFocused(focused);
-         if (focused == null) {
-            this.setSelected(null);
-         }
-      }
-   }
+				return GuiNavigationPath.of(this, guiNavigationPath);
+			}
+		}
+	}
 
-   @Override
-   public Selectable.SelectionType getType() {
-      return this.isFocused() ? Selectable.SelectionType.FOCUSED : super.getType();
-   }
+	@Override
+	public void setFocused(@Nullable Element focused) {
+		if (this.getFocused() != focused) {
+			super.setFocused(focused);
+			if (focused == null) {
+				this.setSelected(null);
+			}
+		}
+	}
 
-   @Override
-   protected boolean isEntrySelectionAllowed() {
-      return false;
-   }
+	@Override
+	public Selectable.SelectionType getType() {
+		return this.isFocused() ? Selectable.SelectionType.FOCUSED : super.getType();
+	}
 
-   @Override
-   public void appendClickableNarrations(NarrationMessageBuilder builder) {
-      if (this.getHoveredEntry() instanceof E entry) {
-         entry.appendNarrations(builder.nextMessage());
-         this.appendNarrations(builder, entry);
-      } else if (this.getFocused() instanceof E entry2) {
-         entry2.appendNarrations(builder.nextMessage());
-         this.appendNarrations(builder, entry2);
-      }
-   }
+	@Override
+	protected boolean isEntrySelectionAllowed() {
+		return false;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public abstract static class Entry<E extends ElementListWidget.Entry<E>> extends EntryListWidget.Entry<E> implements ParentElement {
-      private @Nullable Element focused;
-      private @Nullable Selectable focusedSelectable;
-      private boolean dragging;
+	@Override
+	public void appendClickableNarrations(NarrationMessageBuilder builder) {
+		if (this.getHoveredEntry() instanceof E entry) {
+			entry.appendNarrations(builder.nextMessage());
+			this.appendNarrations(builder, entry);
+		}
+		else if (this.getFocused() instanceof E entry2) {
+			entry2.appendNarrations(builder.nextMessage());
+			this.appendNarrations(builder, entry2);
+		}
+	}
 
-      @Override
-      public boolean isDragging() {
-         return this.dragging;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Entry}.
+	 */
+	public abstract static class Entry<E extends ElementListWidget.Entry<E>> extends EntryListWidget.Entry<E> implements ParentElement {
 
-      @Override
-      public void setDragging(boolean dragging) {
-         this.dragging = dragging;
-      }
+		private @Nullable Element focused;
+		private @Nullable Selectable focusedSelectable;
+		private boolean dragging;
 
-      @Override
-      public boolean mouseClicked(Click click, boolean doubled) {
-         return ParentElement.super.mouseClicked(click, doubled);
-      }
+		@Override
+		public boolean isDragging() {
+			return this.dragging;
+		}
 
-      @Override
-      public void setFocused(@Nullable Element focused) {
-         if (this.focused != null) {
-            this.focused.setFocused(false);
-         }
+		@Override
+		public void setDragging(boolean dragging) {
+			this.dragging = dragging;
+		}
 
-         if (focused != null) {
-            focused.setFocused(true);
-         }
+		@Override
+		public boolean mouseClicked(Click click, boolean doubled) {
+			return ParentElement.super.mouseClicked(click, doubled);
+		}
 
-         this.focused = focused;
-      }
+		@Override
+		public void setFocused(@Nullable Element focused) {
+			if (this.focused != null) {
+				this.focused.setFocused(false);
+			}
 
-      @Override
-      public @Nullable Element getFocused() {
-         return this.focused;
-      }
+			if (focused != null) {
+				focused.setFocused(true);
+			}
 
-      public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation, int index) {
-         if (this.children().isEmpty()) {
-            return null;
-         } else {
-            GuiNavigationPath guiNavigationPath = this.children().get(Math.min(index, this.children().size() - 1)).getNavigationPath(navigation);
-            return GuiNavigationPath.of(this, guiNavigationPath);
-         }
-      }
+			this.focused = focused;
+		}
 
-      @Override
-      public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-         if (navigation instanceof GuiNavigation.Arrow arrow) {
-            int i = switch (arrow.direction()) {
-               case LEFT -> -1;
-               case RIGHT -> 1;
-               case UP, DOWN -> 0;
-            };
-            if (i == 0) {
-               return null;
-            }
+		@Override
+		public @Nullable Element getFocused() {
+			return this.focused;
+		}
 
-            int j = MathHelper.clamp(i + this.children().indexOf(this.getFocused()), 0, this.children().size() - 1);
+		public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation, int index) {
+			if (this.children().isEmpty()) {
+				return null;
+			}
+			else {
+				GuiNavigationPath
+						guiNavigationPath =
+						this.children().get(Math.min(index, this.children().size() - 1)).getNavigationPath(navigation);
+				return GuiNavigationPath.of(this, guiNavigationPath);
+			}
+		}
 
-            for (int k = j; k >= 0 && k < this.children().size(); k += i) {
-               Element element = this.children().get(k);
-               GuiNavigationPath guiNavigationPath = element.getNavigationPath(navigation);
-               if (guiNavigationPath != null) {
-                  return GuiNavigationPath.of(this, guiNavigationPath);
-               }
-            }
-         }
+		@Override
+		public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+			if (navigation instanceof GuiNavigation.Arrow arrow) {
+				int i = switch (arrow.direction()) {
+					case LEFT -> -1;
+					case RIGHT -> 1;
+					case UP, DOWN -> 0;
+				};
+				if (i == 0) {
+					return null;
+				}
 
-         return ParentElement.super.getNavigationPath(navigation);
-      }
+				int j = MathHelper.clamp(i + this.children().indexOf(this.getFocused()), 0, this.children().size() - 1);
 
-      public abstract List<? extends Selectable> selectableChildren();
+				for (int k = j; k >= 0 && k < this.children().size(); k += i) {
+					Element element = this.children().get(k);
+					GuiNavigationPath guiNavigationPath = element.getNavigationPath(navigation);
+					if (guiNavigationPath != null) {
+						return GuiNavigationPath.of(this, guiNavigationPath);
+					}
+				}
+			}
 
-      void appendNarrations(NarrationMessageBuilder builder) {
-         List<? extends Selectable> list = this.selectableChildren();
-         Screen.SelectedElementNarrationData selectedElementNarrationData = Screen.findSelectedElementData(list, this.focusedSelectable);
-         if (selectedElementNarrationData != null) {
-            if (selectedElementNarrationData.selectType().isFocused()) {
-               this.focusedSelectable = selectedElementNarrationData.selectable();
-            }
+			return ParentElement.super.getNavigationPath(navigation);
+		}
 
-            if (list.size() > 1) {
-               builder.put(NarrationPart.POSITION, Text.translatable("narrator.position.object_list", selectedElementNarrationData.index() + 1, list.size()));
-            }
+		public abstract List<? extends Selectable> selectableChildren();
 
-            selectedElementNarrationData.selectable().appendNarrations(builder.nextMessage());
-         }
-      }
-   }
+		void appendNarrations(NarrationMessageBuilder builder) {
+			List<? extends Selectable> list = this.selectableChildren();
+			Screen.SelectedElementNarrationData
+					selectedElementNarrationData =
+					Screen.findSelectedElementData(list, this.focusedSelectable);
+			if (selectedElementNarrationData != null) {
+				if (selectedElementNarrationData.selectType().isFocused()) {
+					this.focusedSelectable = selectedElementNarrationData.selectable();
+				}
+
+				if (list.size() > 1) {
+					builder.put(NarrationPart.POSITION,
+							Text.translatable(
+									"narrator.position.object_list",
+									selectedElementNarrationData.index() + 1,
+									list.size()
+							)
+					);
+				}
+
+				selectedElementNarrationData.selectable().appendNarrations(builder.nextMessage());
+			}
+		}
+	}
 }

@@ -3,247 +3,309 @@ package net.minecraft.util.packrat;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * {@code Term}.
+ */
 public interface Term<S> {
-   boolean matches(ParsingState<S> state, ParseResults results, Cut cut);
 
-   static <S, T> Term<S> always(Symbol<T> symbol, T value) {
-      return new Term.AlwaysTerm<>(symbol, value);
-   }
+	boolean matches(ParsingState<S> state, ParseResults results, Cut cut);
 
-   @SafeVarargs
-   static <S> Term<S> sequence(Term<S>... terms) {
-      return new Term.SequenceTerm<>(terms);
-   }
+	static <S, T> Term<S> always(Symbol<T> symbol, T value) {
+		return new Term.AlwaysTerm<>(symbol, value);
+	}
 
-   @SafeVarargs
-   static <S> Term<S> anyOf(Term<S>... terms) {
-      return new Term.AnyOfTerm<>(terms);
-   }
+	@SafeVarargs
+	static <S> Term<S> sequence(Term<S>... terms) {
+		return new Term.SequenceTerm<>(terms);
+	}
 
-   static <S> Term<S> optional(Term<S> term) {
-      return new Term.OptionalTerm<>(term);
-   }
+	@SafeVarargs
+	static <S> Term<S> anyOf(Term<S>... terms) {
+		return new Term.AnyOfTerm<>(terms);
+	}
 
-   static <S, T> Term<S> repeated(ParsingRuleEntry<S, T> element, Symbol<List<T>> listName) {
-      return repeated(element, listName, 0);
-   }
+	static <S> Term<S> optional(Term<S> term) {
+		return new Term.OptionalTerm<>(term);
+	}
 
-   static <S, T> Term<S> repeated(ParsingRuleEntry<S, T> element, Symbol<List<T>> listName, int minRepetitions) {
-      return new Term.RepeatedTerm<>(element, listName, minRepetitions);
-   }
+	static <S, T> Term<S> repeated(ParsingRuleEntry<S, T> element, Symbol<List<T>> listName) {
+		return repeated(element, listName, 0);
+	}
 
-   static <S, T> Term<S> repeatWithPossiblyTrailingSeparator(ParsingRuleEntry<S, T> element, Symbol<List<T>> listName, Term<S> separator) {
-      return repeatWithPossiblyTrailingSeparator(element, listName, separator, 0);
-   }
+	static <S, T> Term<S> repeated(ParsingRuleEntry<S, T> element, Symbol<List<T>> listName, int minRepetitions) {
+		return new Term.RepeatedTerm<>(element, listName, minRepetitions);
+	}
 
-   static <S, T> Term<S> repeatWithPossiblyTrailingSeparator(ParsingRuleEntry<S, T> element, Symbol<List<T>> listName, Term<S> separator, int minRepetitions) {
-      return new Term.RepeatWithSeparatorTerm<>(element, listName, separator, minRepetitions, true);
-   }
+	static <S, T> Term<S> repeatWithPossiblyTrailingSeparator(
+			ParsingRuleEntry<S, T> element,
+			Symbol<List<T>> listName,
+			Term<S> separator
+	) {
+		return repeatWithPossiblyTrailingSeparator(element, listName, separator, 0);
+	}
 
-   static <S, T> Term<S> repeatWithSeparator(ParsingRuleEntry<S, T> element, Symbol<List<T>> listName, Term<S> separator) {
-      return repeatWithSeparator(element, listName, separator, 0);
-   }
+	static <S, T> Term<S> repeatWithPossiblyTrailingSeparator(
+			ParsingRuleEntry<S, T> element,
+			Symbol<List<T>> listName,
+			Term<S> separator,
+			int minRepetitions
+	) {
+		return new Term.RepeatWithSeparatorTerm<>(element, listName, separator, minRepetitions, true);
+	}
 
-   static <S, T> Term<S> repeatWithSeparator(ParsingRuleEntry<S, T> element, Symbol<List<T>> listName, Term<S> separator, int minRepetitions) {
-      return new Term.RepeatWithSeparatorTerm<>(element, listName, separator, minRepetitions, false);
-   }
+	static <S, T> Term<S> repeatWithSeparator(
+			ParsingRuleEntry<S, T> element,
+			Symbol<List<T>> listName,
+			Term<S> separator
+	) {
+		return repeatWithSeparator(element, listName, separator, 0);
+	}
 
-   static <S> Term<S> positiveLookahead(Term<S> term) {
-      return new Term.LookaheadTerm<>(term, true);
-   }
+	static <S, T> Term<S> repeatWithSeparator(
+			ParsingRuleEntry<S, T> element,
+			Symbol<List<T>> listName,
+			Term<S> separator,
+			int minRepetitions
+	) {
+		return new Term.RepeatWithSeparatorTerm<>(element, listName, separator, minRepetitions, false);
+	}
 
-   static <S> Term<S> negativeLookahead(Term<S> term) {
-      return new Term.LookaheadTerm<>(term, false);
-   }
+	static <S> Term<S> positiveLookahead(Term<S> term) {
+		return new Term.LookaheadTerm<>(term, true);
+	}
 
-   static <S> Term<S> cutting() {
-      return new Term<S>() {
-         @Override
-         public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-            cut.cut();
-            return true;
-         }
+	static <S> Term<S> negativeLookahead(Term<S> term) {
+		return new Term.LookaheadTerm<>(term, false);
+	}
 
-         @Override
-         public String toString() {
-            return "↑";
-         }
-      };
-   }
+	static <S> Term<S> cutting() {
+		return new Term<S>() {
+			@Override
+			public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+				cut.cut();
+				return true;
+			}
 
-   static <S> Term<S> epsilon() {
-      return new Term<S>() {
-         @Override
-         public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-            return true;
-         }
+			@Override
+			public String toString() {
+				return "↑";
+			}
+		};
+	}
 
-         @Override
-         public String toString() {
-            return "ε";
-         }
-      };
-   }
+	static <S> Term<S> epsilon() {
+		return new Term<S>() {
+			@Override
+			public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+				return true;
+			}
 
-   static <S> Term<S> fail(Object reason) {
-      return new Term<S>() {
-         @Override
-         public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-            state.getErrors().add(state.getCursor(), reason);
-            return false;
-         }
+			@Override
+			public String toString() {
+				return "ε";
+			}
+		};
+	}
 
-         @Override
-         public String toString() {
-            return "fail";
-         }
-      };
-   }
+	static <S> Term<S> fail(Object reason) {
+		return new Term<S>() {
+			@Override
+			public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+				state.getErrors().add(state.getCursor(), reason);
+				return false;
+			}
 
-   public record AlwaysTerm<S, T>(Symbol<T> name, T value) implements Term<S> {
-      @Override
-      public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-         results.put(this.name, this.value);
-         return true;
-      }
-   }
+			@Override
+			public String toString() {
+				return "fail";
+			}
+		};
+	}
 
-   public record AnyOfTerm<S>(Term<S>[] elements) implements Term<S> {
-      @Override
-      public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-         Cut cut2 = state.pushCutter();
+	/**
+	 * {@code AlwaysTerm}.
+	 */
+	public record AlwaysTerm<S, T>(Symbol<T> name, T value) implements Term<S> {
 
-         try {
-            int i = state.getCursor();
-            results.duplicateFrames();
+		@Override
+		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+			results.put(this.name, this.value);
+			return true;
+		}
+	}
 
-            for (Term<S> term : this.elements) {
-               if (term.matches(state, results, cut2)) {
-                  results.chooseCurrentFrame();
-                  return true;
-               }
+	/**
+	 * {@code AnyOfTerm}.
+	 */
+	public record AnyOfTerm<S>(Term<S>[] elements) implements Term<S> {
 
-               results.clearFrameValues();
-               state.setCursor(i);
-               if (cut2.isCut()) {
-                  break;
-               }
-            }
+		@Override
+		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+			Cut cut2 = state.pushCutter();
 
-            results.popFrame();
-            return false;
-         } finally {
-            state.popCutter();
-         }
-      }
-   }
+			try {
+				int i = state.getCursor();
+				results.duplicateFrames();
 
-   public record LookaheadTerm<S>(Term<S> term, boolean positive) implements Term<S> {
-      @Override
-      public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-         int i = state.getCursor();
-         boolean bl = this.term.matches(state.getErrorSuppressingState(), results, cut);
-         state.setCursor(i);
-         return this.positive == bl;
-      }
-   }
+				for (Term<S> term : this.elements) {
+					if (term.matches(state, results, cut2)) {
+						results.chooseCurrentFrame();
+						return true;
+					}
 
-   public record OptionalTerm<S>(Term<S> term) implements Term<S> {
-      @Override
-      public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-         int i = state.getCursor();
-         if (!this.term.matches(state, results, cut)) {
-            state.setCursor(i);
-         }
+					results.clearFrameValues();
+					state.setCursor(i);
+					if (cut2.isCut()) {
+						break;
+					}
+				}
 
-         return true;
-      }
-   }
+				results.popFrame();
+				return false;
+			}
+			finally {
+				state.popCutter();
+			}
+		}
+	}
 
-   public record RepeatWithSeparatorTerm<S, T>(
-      ParsingRuleEntry<S, T> element, Symbol<List<T>> listName, Term<S> separator, int minRepetitions, boolean allowTrailingSeparator
-   ) implements Term<S> {
-      @Override
-      public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-         int i = state.getCursor();
-         List<T> list = new ArrayList<>(this.minRepetitions);
-         boolean bl = true;
+	/**
+	 * {@code LookaheadTerm}.
+	 */
+	public record LookaheadTerm<S>(Term<S> term, boolean positive) implements Term<S> {
 
-         while (true) {
-            int j = state.getCursor();
-            if (!bl && !this.separator.matches(state, results, cut)) {
-               state.setCursor(j);
-               break;
-            }
+		@Override
+		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+			int i = state.getCursor();
+			boolean bl = this.term.matches(state.getErrorSuppressingState(), results, cut);
+			state.setCursor(i);
+			return this.positive == bl;
+		}
+	}
 
-            int k = state.getCursor();
-            T object = state.parse(this.element);
-            if (object == null) {
-               if (bl) {
-                  state.setCursor(k);
-               } else {
-                  if (!this.allowTrailingSeparator) {
-                     state.setCursor(i);
-                     return false;
-                  }
+	/**
+	 * {@code OptionalTerm}.
+	 */
+	public record OptionalTerm<S>(Term<S> term) implements Term<S> {
 
-                  state.setCursor(k);
-               }
-               break;
-            }
+		@Override
+		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+			int i = state.getCursor();
+			if (!this.term.matches(state, results, cut)) {
+				state.setCursor(i);
+			}
 
-            list.add(object);
-            bl = false;
-         }
+			return true;
+		}
+	}
 
-         if (list.size() < this.minRepetitions) {
-            state.setCursor(i);
-            return false;
-         } else {
-            results.put(this.listName, list);
-            return true;
-         }
-      }
-   }
+	/**
+	 * {@code RepeatWithSeparatorTerm}.
+	 */
+	public record RepeatWithSeparatorTerm<S, T>(
+			ParsingRuleEntry<S, T> element,
+			Symbol<List<T>> listName,
+			Term<S> separator,
+			int minRepetitions,
+			boolean allowTrailingSeparator
+	) implements Term<S> {
 
-   public record RepeatedTerm<S, T>(ParsingRuleEntry<S, T> element, Symbol<List<T>> listName, int minRepetitions) implements Term<S> {
-      @Override
-      public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-         int i = state.getCursor();
-         List<T> list = new ArrayList<>(this.minRepetitions);
+		@Override
+		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+			int i = state.getCursor();
+			List<T> list = new ArrayList<>(this.minRepetitions);
+			boolean bl = true;
 
-         while (true) {
-            int j = state.getCursor();
-            T object = state.parse(this.element);
-            if (object == null) {
-               state.setCursor(j);
-               if (list.size() < this.minRepetitions) {
-                  state.setCursor(i);
-                  return false;
-               } else {
-                  results.put(this.listName, list);
-                  return true;
-               }
-            }
+			while (true) {
+				int j = state.getCursor();
+				if (!bl && !this.separator.matches(state, results, cut)) {
+					state.setCursor(j);
+					break;
+				}
 
-            list.add(object);
-         }
-      }
-   }
+				int k = state.getCursor();
+				T object = state.parse(this.element);
+				if (object == null) {
+					if (bl) {
+						state.setCursor(k);
+					}
+					else {
+						if (!this.allowTrailingSeparator) {
+							state.setCursor(i);
+							return false;
+						}
 
-   public record SequenceTerm<S>(Term<S>[] elements) implements Term<S> {
-      @Override
-      public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
-         int i = state.getCursor();
+						state.setCursor(k);
+					}
+					break;
+				}
 
-         for (Term<S> term : this.elements) {
-            if (!term.matches(state, results, cut)) {
-               state.setCursor(i);
-               return false;
-            }
-         }
+				list.add(object);
+				bl = false;
+			}
 
-         return true;
-      }
-   }
+			if (list.size() < this.minRepetitions) {
+				state.setCursor(i);
+				return false;
+			}
+			else {
+				results.put(this.listName, list);
+				return true;
+			}
+		}
+	}
+
+	/**
+	 * {@code RepeatedTerm}.
+	 */
+	public record RepeatedTerm<S, T>(
+			ParsingRuleEntry<S, T> element,
+			Symbol<List<T>> listName,
+			int minRepetitions
+	) implements Term<S> {
+
+		@Override
+		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+			int i = state.getCursor();
+			List<T> list = new ArrayList<>(this.minRepetitions);
+
+			while (true) {
+				int j = state.getCursor();
+				T object = state.parse(this.element);
+				if (object == null) {
+					state.setCursor(j);
+					if (list.size() < this.minRepetitions) {
+						state.setCursor(i);
+						return false;
+					}
+					else {
+						results.put(this.listName, list);
+						return true;
+					}
+				}
+
+				list.add(object);
+			}
+		}
+	}
+
+	/**
+	 * {@code SequenceTerm}.
+	 */
+	public record SequenceTerm<S>(Term<S>[] elements) implements Term<S> {
+
+		@Override
+		public boolean matches(ParsingState<S> state, ParseResults results, Cut cut) {
+			int i = state.getCursor();
+
+			for (Term<S> term : this.elements) {
+				if (!term.matches(state, results, cut)) {
+					state.setCursor(i);
+					return false;
+				}
+			}
+
+			return true;
+		}
+	}
 }

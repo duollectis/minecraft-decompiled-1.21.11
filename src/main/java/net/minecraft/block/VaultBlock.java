@@ -25,80 +25,119 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code VaultBlock}.
+ */
 public class VaultBlock extends BlockWithEntity {
-   public static final MapCodec<VaultBlock> CODEC = createCodec(VaultBlock::new);
-   public static final Property<VaultState> VAULT_STATE = Properties.VAULT_STATE;
-   public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
-   public static final BooleanProperty OMINOUS = Properties.OMINOUS;
 
-   @Override
-   public MapCodec<VaultBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<VaultBlock> CODEC = createCodec(VaultBlock::new);
+	public static final Property<VaultState> VAULT_STATE = Properties.VAULT_STATE;
+	public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
+	public static final BooleanProperty OMINOUS = Properties.OMINOUS;
 
-   public VaultBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(VAULT_STATE, VaultState.INACTIVE).with(OMINOUS, false));
-   }
+	@Override
+	public MapCodec<VaultBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      if (!stack.isEmpty() && state.get(VAULT_STATE) == VaultState.ACTIVE) {
-         if (world instanceof ServerWorld serverWorld) {
-            if (!(serverWorld.getBlockEntity(pos) instanceof VaultBlockEntity vaultBlockEntity)) {
-               return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-            }
+	public VaultBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(FACING, Direction.NORTH)
+				.with(VAULT_STATE, VaultState.INACTIVE)
+				.with(OMINOUS, false));
+	}
 
-            VaultBlockEntity.Server.tryUnlock(
-               serverWorld, pos, state, vaultBlockEntity.getConfig(), vaultBlockEntity.getServerData(), vaultBlockEntity.getSharedData(), player, stack
-            );
-         }
+	@Override
+	public ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		if (!stack.isEmpty() && state.get(VAULT_STATE) == VaultState.ACTIVE) {
+			if (world instanceof ServerWorld serverWorld) {
+				if (!(serverWorld.getBlockEntity(pos) instanceof VaultBlockEntity vaultBlockEntity)) {
+					return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+				}
 
-         return ActionResult.SUCCESS_SERVER;
-      } else {
-         return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-      }
-   }
+				VaultBlockEntity.Server.tryUnlock(
+						serverWorld,
+						pos,
+						state,
+						vaultBlockEntity.getConfig(),
+						vaultBlockEntity.getServerData(),
+						vaultBlockEntity.getSharedData(),
+						player,
+						stack
+				);
+			}
 
-   @Override
-   public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new VaultBlockEntity(pos, state);
-   }
+			return ActionResult.SUCCESS_SERVER;
+		}
+		else {
+			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+		}
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(FACING, VAULT_STATE, OMINOUS);
-   }
+	@Override
+	public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new VaultBlockEntity(pos, state);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return world instanceof ServerWorld serverWorld
-         ? validateTicker(
-            type,
-            BlockEntityType.VAULT,
-            (worldx, pos, statex, blockEntity) -> VaultBlockEntity.Server.tick(
-               serverWorld, pos, statex, blockEntity.getConfig(), blockEntity.getServerData(), blockEntity.getSharedData()
-            )
-         )
-         : validateTicker(
-            type,
-            BlockEntityType.VAULT,
-            (worldx, pos, statex, blockEntity) -> VaultBlockEntity.Client.tick(worldx, pos, statex, blockEntity.getClientData(), blockEntity.getSharedData())
-         );
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(FACING, VAULT_STATE, OMINOUS);
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
-   }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return world instanceof ServerWorld serverWorld
+		       ? validateTicker(
+				type,
+				BlockEntityType.VAULT,
+				(worldx, pos, statex, blockEntity) -> VaultBlockEntity.Server.tick(
+						serverWorld,
+						pos,
+						statex,
+						blockEntity.getConfig(),
+						blockEntity.getServerData(),
+						blockEntity.getSharedData()
+				)
+		)
+		       : validateTicker(
+				       type,
+				       BlockEntityType.VAULT,
+				       (worldx, pos, statex, blockEntity) -> VaultBlockEntity.Client.tick(
+						       worldx,
+						       pos,
+						       statex,
+						       blockEntity.getClientData(),
+						       blockEntity.getSharedData()
+				       )
+		       );
+	}
 
-   @Override
-   public BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(FACING, rotation.rotate(state.get(FACING)));
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
+	}
 
-   @Override
-   public BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.rotate(mirror.getRotation(state.get(FACING)));
-   }
+	@Override
+	public BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(FACING, rotation.rotate(state.get(FACING)));
+	}
+
+	@Override
+	public BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.rotate(mirror.getRotation(state.get(FACING)));
+	}
 }

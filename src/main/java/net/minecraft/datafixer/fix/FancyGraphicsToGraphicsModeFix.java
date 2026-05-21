@@ -7,20 +7,30 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code FancyGraphicsToGraphicsModeFix}.
+ */
 public class FancyGraphicsToGraphicsModeFix extends DataFix {
-   public FancyGraphicsToGraphicsModeFix(Schema schema) {
-      super(schema, true);
-   }
 
-   public TypeRewriteRule makeRule() {
-      return this.fixTypeEverywhereTyped(
-         "fancyGraphics to graphicsMode",
-         this.getInputSchema().getType(TypeReferences.OPTIONS),
-         typed -> typed.update(DSL.remainderFinder(), options -> options.renameAndFixField("fancyGraphics", "graphicsMode", FancyGraphicsToGraphicsModeFix::fx))
-      );
-   }
+	public FancyGraphicsToGraphicsModeFix(Schema schema) {
+		super(schema, true);
+	}
 
-   private static <T> Dynamic<T> fx(Dynamic<T> value) {
-      return "true".equals(value.asString("true")) ? value.createString("1") : value.createString("0");
-   }
+	public TypeRewriteRule makeRule() {
+		return this.fixTypeEverywhereTyped(
+				"fancyGraphics to graphicsMode",
+				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				typed -> typed.update(DSL.remainderFinder(),
+						options -> options.renameAndFixField(
+								"fancyGraphics",
+								"graphicsMode",
+								FancyGraphicsToGraphicsModeFix::fx
+						)
+				)
+		);
+	}
+
+	private static <T> Dynamic<T> fx(Dynamic<T> value) {
+		return "true".equals(value.asString("true")) ? value.createString("1") : value.createString("0");
+	}
 }

@@ -5,9 +5,17 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resource.featuretoggle.FeatureFlags;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 
+/**
+ * {@code PackFeatureSetMetadata}.
+ */
 public record PackFeatureSetMetadata(FeatureSet flags) {
-   private static final Codec<PackFeatureSetMetadata> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(FeatureFlags.CODEC.fieldOf("enabled").forGetter(PackFeatureSetMetadata::flags)).apply(instance, PackFeatureSetMetadata::new)
-   );
-   public static final ResourceMetadataSerializer<PackFeatureSetMetadata> SERIALIZER = new ResourceMetadataSerializer<>("features", CODEC);
+
+	private static final Codec<PackFeatureSetMetadata> CODEC = RecordCodecBuilder.create(
+			instance -> instance
+					.group(FeatureFlags.CODEC.fieldOf("enabled").forGetter(PackFeatureSetMetadata::flags))
+					.apply(instance, PackFeatureSetMetadata::new)
+	);
+	public static final ResourceMetadataSerializer<PackFeatureSetMetadata>
+			SERIALIZER =
+			new ResourceMetadataSerializer<>("features", CODEC);
 }

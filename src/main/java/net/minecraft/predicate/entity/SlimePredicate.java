@@ -9,23 +9,30 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SlimePredicate}.
+ */
 public record SlimePredicate(NumberRange.IntRange size) implements EntitySubPredicate {
-   public static final MapCodec<SlimePredicate> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(NumberRange.IntRange.CODEC.optionalFieldOf("size", NumberRange.IntRange.ANY).forGetter(SlimePredicate::size))
-         .apply(instance, SlimePredicate::new)
-   );
 
-   public static SlimePredicate of(NumberRange.IntRange size) {
-      return new SlimePredicate(size);
-   }
+	public static final MapCodec<SlimePredicate> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(NumberRange.IntRange.CODEC
+							.optionalFieldOf("size", NumberRange.IntRange.ANY)
+							.forGetter(SlimePredicate::size))
+					.apply(instance, SlimePredicate::new)
+	);
 
-   @Override
-   public boolean test(Entity entity, ServerWorld world, @Nullable Vec3d pos) {
-      return entity instanceof SlimeEntity slimeEntity ? this.size.test(slimeEntity.getSize()) : false;
-   }
+	public static SlimePredicate of(NumberRange.IntRange size) {
+		return new SlimePredicate(size);
+	}
 
-   @Override
-   public MapCodec<SlimePredicate> getCodec() {
-      return EntitySubPredicateTypes.SLIME;
-   }
+	@Override
+	public boolean test(Entity entity, ServerWorld world, @Nullable Vec3d pos) {
+		return entity instanceof SlimeEntity slimeEntity ? this.size.test(slimeEntity.getSize()) : false;
+	}
+
+	@Override
+	public MapCodec<SlimePredicate> getCodec() {
+		return EntitySubPredicateTypes.SLIME;
+	}
 }

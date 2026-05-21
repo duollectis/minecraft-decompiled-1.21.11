@@ -2,7 +2,6 @@ package net.minecraft.predicate.item;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
 import net.minecraft.block.jukebox.JukeboxSong;
 import net.minecraft.component.ComponentType;
 import net.minecraft.component.DataComponentTypes;
@@ -14,36 +13,47 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
 
+import java.util.Optional;
+
+/**
+ * {@code JukeboxPlayablePredicate}.
+ */
 public record JukeboxPlayablePredicate(Optional<RegistryEntryList<JukeboxSong>> song) implements ComponentSubPredicate<JukeboxPlayableComponent> {
-   public static final Codec<JukeboxPlayablePredicate> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(RegistryCodecs.entryList(RegistryKeys.JUKEBOX_SONG).optionalFieldOf("song").forGetter(JukeboxPlayablePredicate::song))
-         .apply(instance, JukeboxPlayablePredicate::new)
-   );
 
-   @Override
-   public ComponentType<JukeboxPlayableComponent> getComponentType() {
-      return DataComponentTypes.JUKEBOX_PLAYABLE;
-   }
+	public static final Codec<JukeboxPlayablePredicate> CODEC = RecordCodecBuilder.create(
+			instance -> instance
+					.group(RegistryCodecs
+							.entryList(RegistryKeys.JUKEBOX_SONG)
+							.optionalFieldOf("song")
+							.forGetter(JukeboxPlayablePredicate::song))
+					.apply(instance, JukeboxPlayablePredicate::new)
+	);
 
-   public boolean test(JukeboxPlayableComponent jukeboxPlayableComponent) {
-      if (!this.song.isPresent()) {
-         return true;
-      } else {
-         boolean bl = false;
+	@Override
+	public ComponentType<JukeboxPlayableComponent> getComponentType() {
+		return DataComponentTypes.JUKEBOX_PLAYABLE;
+	}
 
-         for (RegistryEntry<JukeboxSong> registryEntry : this.song.get()) {
-            Optional<RegistryKey<JukeboxSong>> optional = registryEntry.getKey();
-            if (!optional.isEmpty() && optional.equals(jukeboxPlayableComponent.song().getKey())) {
-               bl = true;
-               break;
-            }
-         }
+	public boolean test(JukeboxPlayableComponent jukeboxPlayableComponent) {
+		if (!this.song.isPresent()) {
+			return true;
+		}
+		else {
+			boolean bl = false;
 
-         return bl;
-      }
-   }
+			for (RegistryEntry<JukeboxSong> registryEntry : this.song.get()) {
+				Optional<RegistryKey<JukeboxSong>> optional = registryEntry.getKey();
+				if (!optional.isEmpty() && optional.equals(jukeboxPlayableComponent.song().getKey())) {
+					bl = true;
+					break;
+				}
+			}
 
-   public static JukeboxPlayablePredicate empty() {
-      return new JukeboxPlayablePredicate(Optional.empty());
-   }
+			return bl;
+		}
+	}
+
+	public static JukeboxPlayablePredicate empty() {
+		return new JukeboxPlayablePredicate(Optional.empty());
+	}
 }

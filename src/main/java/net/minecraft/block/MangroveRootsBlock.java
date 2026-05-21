@@ -14,57 +14,70 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code MangroveRootsBlock}.
+ */
 public class MangroveRootsBlock extends Block implements Waterloggable {
-   public static final MapCodec<MangroveRootsBlock> CODEC = createCodec(MangroveRootsBlock::new);
-   public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
 
-   @Override
-   public MapCodec<MangroveRootsBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<MangroveRootsBlock> CODEC = createCodec(MangroveRootsBlock::new);
+	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
 
-   public MangroveRootsBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(WATERLOGGED, false));
-   }
+	@Override
+	public MapCodec<MangroveRootsBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected boolean isSideInvisible(BlockState state, BlockState stateFrom, Direction direction) {
-      return stateFrom.isOf(Blocks.MANGROVE_ROOTS) && direction.getAxis() == Direction.Axis.Y;
-   }
+	public MangroveRootsBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(WATERLOGGED, false));
+	}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-      boolean bl = fluidState.getFluid() == Fluids.WATER;
-      return super.getPlacementState(ctx).with(WATERLOGGED, bl);
-   }
+	@Override
+	protected boolean isSideInvisible(BlockState state, BlockState stateFrom, Direction direction) {
+		return stateFrom.isOf(Blocks.MANGROVE_ROOTS) && direction.getAxis() == Direction.Axis.Y;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (state.get(WATERLOGGED)) {
-         tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-      }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
+		boolean bl = fluidState.getFluid() == Fluids.WATER;
+		return super.getPlacementState(ctx).with(WATERLOGGED, bl);
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(WATERLOGGED);
-   }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(WATERLOGGED);
+	}
 }

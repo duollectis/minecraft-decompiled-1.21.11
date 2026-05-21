@@ -9,26 +9,35 @@ import com.mojang.serialization.OptionalDynamic;
 import net.minecraft.datafixer.FixUtil;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code LegacyDragonFightFix}.
+ */
 public class LegacyDragonFightFix extends DataFix {
-   public LegacyDragonFightFix(Schema outputSchema) {
-      super(outputSchema, false);
-   }
 
-   private static <T> Dynamic<T> updateExitPortalLocation(Dynamic<T> dynamic) {
-      return dynamic.update("ExitPortalLocation", FixUtil::fixBlockPos);
-   }
+	public LegacyDragonFightFix(Schema outputSchema) {
+		super(outputSchema, false);
+	}
 
-   protected TypeRewriteRule makeRule() {
-      return this.fixTypeEverywhereTyped(
-         "LegacyDragonFightFix", this.getInputSchema().getType(TypeReferences.LEVEL), typed -> typed.update(DSL.remainderFinder(), levelData -> {
-            OptionalDynamic<?> optionalDynamic = levelData.get("DragonFight");
-            if (optionalDynamic.result().isPresent()) {
-               return levelData;
-            } else {
-               Dynamic<?> dynamic = levelData.get("DimensionData").get("1").get("DragonFight").orElseEmptyMap();
-               return levelData.set("DragonFight", updateExitPortalLocation(dynamic));
-            }
-         })
-      );
-   }
+	private static <T> Dynamic<T> updateExitPortalLocation(Dynamic<T> dynamic) {
+		return dynamic.update("ExitPortalLocation", FixUtil::fixBlockPos);
+	}
+
+	protected TypeRewriteRule makeRule() {
+		return this.fixTypeEverywhereTyped(
+				"LegacyDragonFightFix", this.getInputSchema().getType(TypeReferences.LEVEL), typed -> typed.update(
+						DSL.remainderFinder(), levelData -> {
+							OptionalDynamic<?> optionalDynamic = levelData.get("DragonFight");
+							if (optionalDynamic.result().isPresent()) {
+								return levelData;
+							}
+							else {
+								Dynamic<?>
+										dynamic =
+										levelData.get("DimensionData").get("1").get("DragonFight").orElseEmptyMap();
+								return levelData.set("DragonFight", updateExitPortalLocation(dynamic));
+							}
+						}
+				)
+		);
+	}
 }

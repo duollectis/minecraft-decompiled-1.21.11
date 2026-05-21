@@ -9,22 +9,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record PlayerSessionC2SPacket(PublicPlayerSession.Serialized chatSession) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, PlayerSessionC2SPacket> CODEC = Packet.createCodec(PlayerSessionC2SPacket::write, PlayerSessionC2SPacket::new);
 
-   private PlayerSessionC2SPacket(PacketByteBuf buf) {
-      this(PublicPlayerSession.Serialized.fromBuf(buf));
-   }
+	public static final PacketCodec<PacketByteBuf, PlayerSessionC2SPacket>
+			CODEC =
+			Packet.createCodec(PlayerSessionC2SPacket::write, PlayerSessionC2SPacket::new);
 
-   private void write(PacketByteBuf buf) {
-      PublicPlayerSession.Serialized.write(buf, this.chatSession);
-   }
+	private PlayerSessionC2SPacket(PacketByteBuf buf) {
+		this(PublicPlayerSession.Serialized.fromBuf(buf));
+	}
 
-   @Override
-   public PacketType<PlayerSessionC2SPacket> getPacketType() {
-      return PlayPackets.CHAT_SESSION_UPDATE;
-   }
+	private void write(PacketByteBuf buf) {
+		PublicPlayerSession.Serialized.write(buf, this.chatSession);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onPlayerSession(this);
-   }
+	@Override
+	public PacketType<PlayerSessionC2SPacket> getPacketType() {
+		return PlayPackets.CHAT_SESSION_UPDATE;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onPlayerSession(this);
+	}
 }

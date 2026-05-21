@@ -8,24 +8,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record PlayerActionResponseS2CPacket(int sequence) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, PlayerActionResponseS2CPacket> CODEC = Packet.createCodec(
-      PlayerActionResponseS2CPacket::write, PlayerActionResponseS2CPacket::new
-   );
 
-   private PlayerActionResponseS2CPacket(PacketByteBuf buf) {
-      this(buf.readVarInt());
-   }
+	public static final PacketCodec<PacketByteBuf, PlayerActionResponseS2CPacket> CODEC = Packet.createCodec(
+			PlayerActionResponseS2CPacket::write, PlayerActionResponseS2CPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.sequence);
-   }
+	private PlayerActionResponseS2CPacket(PacketByteBuf buf) {
+		this(buf.readVarInt());
+	}
 
-   @Override
-   public PacketType<PlayerActionResponseS2CPacket> getPacketType() {
-      return PlayPackets.BLOCK_CHANGED_ACK;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.sequence);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onPlayerActionResponse(this);
-   }
+	@Override
+	public PacketType<PlayerActionResponseS2CPacket> getPacketType() {
+		return PlayPackets.BLOCK_CHANGED_ACK;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onPlayerActionResponse(this);
+	}
 }

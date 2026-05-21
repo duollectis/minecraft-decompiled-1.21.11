@@ -9,26 +9,37 @@ import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.passive.AxolotlEntity;
 import net.minecraft.server.world.ServerWorld;
 
+/**
+ * {@code PlayDeadTask}.
+ */
 public class PlayDeadTask extends MultiTickTask<AxolotlEntity> {
-   public PlayDeadTask() {
-      super(
-         ImmutableMap.of(MemoryModuleType.PLAY_DEAD_TICKS, MemoryModuleState.VALUE_PRESENT, MemoryModuleType.HURT_BY_ENTITY, MemoryModuleState.VALUE_PRESENT),
-         200
-      );
-   }
 
-   protected boolean shouldRun(ServerWorld serverWorld, AxolotlEntity axolotlEntity) {
-      return axolotlEntity.isTouchingWater();
-   }
+	public PlayDeadTask() {
+		super(
+				ImmutableMap.of(
+						MemoryModuleType.PLAY_DEAD_TICKS,
+						MemoryModuleState.VALUE_PRESENT,
+						MemoryModuleType.HURT_BY_ENTITY,
+						MemoryModuleState.VALUE_PRESENT
+				),
+				200
+		);
+	}
 
-   protected boolean shouldKeepRunning(ServerWorld serverWorld, AxolotlEntity axolotlEntity, long l) {
-      return axolotlEntity.isTouchingWater() && axolotlEntity.getBrain().hasMemoryModule(MemoryModuleType.PLAY_DEAD_TICKS);
-   }
+	protected boolean shouldRun(ServerWorld serverWorld, AxolotlEntity axolotlEntity) {
+		return axolotlEntity.isTouchingWater();
+	}
 
-   protected void run(ServerWorld serverWorld, AxolotlEntity axolotlEntity, long l) {
-      Brain<AxolotlEntity> brain = axolotlEntity.getBrain();
-      brain.forget(MemoryModuleType.WALK_TARGET);
-      brain.forget(MemoryModuleType.LOOK_TARGET);
-      axolotlEntity.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 200, 0));
-   }
+	protected boolean shouldKeepRunning(ServerWorld serverWorld, AxolotlEntity axolotlEntity, long l) {
+		return axolotlEntity.isTouchingWater() && axolotlEntity
+				.getBrain()
+				.hasMemoryModule(MemoryModuleType.PLAY_DEAD_TICKS);
+	}
+
+	protected void run(ServerWorld serverWorld, AxolotlEntity axolotlEntity, long l) {
+		Brain<AxolotlEntity> brain = axolotlEntity.getBrain();
+		brain.forget(MemoryModuleType.WALK_TARGET);
+		brain.forget(MemoryModuleType.LOOK_TARGET);
+		axolotlEntity.addStatusEffect(new StatusEffectInstance(StatusEffects.REGENERATION, 200, 0));
+	}
 }

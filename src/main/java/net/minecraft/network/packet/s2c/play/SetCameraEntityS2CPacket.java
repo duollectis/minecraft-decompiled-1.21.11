@@ -11,33 +11,34 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 public class SetCameraEntityS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, SetCameraEntityS2CPacket> CODEC = Packet.createCodec(
-      SetCameraEntityS2CPacket::write, SetCameraEntityS2CPacket::new
-   );
-   private final int entityId;
 
-   public SetCameraEntityS2CPacket(Entity entity) {
-      this.entityId = entity.getId();
-   }
+	public static final PacketCodec<PacketByteBuf, SetCameraEntityS2CPacket> CODEC = Packet.createCodec(
+			SetCameraEntityS2CPacket::write, SetCameraEntityS2CPacket::new
+	);
+	private final int entityId;
 
-   private SetCameraEntityS2CPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-   }
+	public SetCameraEntityS2CPacket(Entity entity) {
+		this.entityId = entity.getId();
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-   }
+	private SetCameraEntityS2CPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<SetCameraEntityS2CPacket> getPacketType() {
-      return PlayPackets.SET_CAMERA;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onSetCameraEntity(this);
-   }
+	@Override
+	public PacketType<SetCameraEntityS2CPacket> getPacketType() {
+		return PlayPackets.SET_CAMERA;
+	}
 
-   public @Nullable Entity getEntity(World world) {
-      return world.getEntityById(this.entityId);
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onSetCameraEntity(this);
+	}
+
+	public @Nullable Entity getEntity(World world) {
+		return world.getEntityById(this.entityId);
+	}
 }

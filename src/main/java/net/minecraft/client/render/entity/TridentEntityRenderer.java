@@ -1,6 +1,5 @@
 package net.minecraft.client.render.entity;
 
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.render.OverlayTexture;
@@ -17,55 +16,71 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Unit;
 import net.minecraft.util.math.RotationAxis;
 
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TridentEntityRenderer}.
+ */
 public class TridentEntityRenderer extends EntityRenderer<TridentEntity, TridentEntityRenderState> {
-   public static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/trident.png");
-   private final TridentEntityModel model;
 
-   public TridentEntityRenderer(EntityRendererFactory.Context context) {
-      super(context);
-      this.model = new TridentEntityModel(context.getPart(EntityModelLayers.TRIDENT));
-   }
+	public static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/trident.png");
+	private final TridentEntityModel model;
 
-   public void render(
-      TridentEntityRenderState tridentEntityRenderState,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      CameraRenderState cameraRenderState
-   ) {
-      matrixStack.push();
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(tridentEntityRenderState.yaw - 90.0F));
-      matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(tridentEntityRenderState.pitch + 90.0F));
-      List<RenderLayer> list = ItemRenderer.getGlintRenderLayers(this.model.getLayer(TEXTURE), false, tridentEntityRenderState.enchanted);
+	public TridentEntityRenderer(EntityRendererFactory.Context context) {
+		super(context);
+		this.model = new TridentEntityModel(context.getPart(EntityModelLayers.TRIDENT));
+	}
 
-      for (int i = 0; i < list.size(); i++) {
-         orderedRenderCommandQueue.getBatchingQueue(i)
-            .submitModel(
-               this.model,
-               Unit.INSTANCE,
-               matrixStack,
-               list.get(i),
-               tridentEntityRenderState.light,
-               OverlayTexture.DEFAULT_UV,
-               -1,
-               null,
-               tridentEntityRenderState.outlineColor,
-               null
-            );
-      }
+	public void render(
+			TridentEntityRenderState tridentEntityRenderState,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			CameraRenderState cameraRenderState
+	) {
+		matrixStack.push();
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(tridentEntityRenderState.yaw - 90.0F));
+		matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(tridentEntityRenderState.pitch + 90.0F));
+		List<RenderLayer>
+				list =
+				ItemRenderer.getGlintRenderLayers(
+						this.model.getLayer(TEXTURE),
+						false,
+						tridentEntityRenderState.enchanted
+				);
 
-      matrixStack.pop();
-      super.render(tridentEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
-   }
+		for (int i = 0; i < list.size(); i++) {
+			orderedRenderCommandQueue.getBatchingQueue(i)
+			                         .submitModel(
+					                         this.model,
+					                         Unit.INSTANCE,
+					                         matrixStack,
+					                         list.get(i),
+					                         tridentEntityRenderState.light,
+					                         OverlayTexture.DEFAULT_UV,
+					                         -1,
+					                         null,
+					                         tridentEntityRenderState.outlineColor,
+					                         null
+			                         );
+		}
 
-   public TridentEntityRenderState createRenderState() {
-      return new TridentEntityRenderState();
-   }
+		matrixStack.pop();
+		super.render(tridentEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
+	}
 
-   public void updateRenderState(TridentEntity tridentEntity, TridentEntityRenderState tridentEntityRenderState, float f) {
-      super.updateRenderState(tridentEntity, tridentEntityRenderState, f);
-      tridentEntityRenderState.yaw = tridentEntity.getLerpedYaw(f);
-      tridentEntityRenderState.pitch = tridentEntity.getLerpedPitch(f);
-      tridentEntityRenderState.enchanted = tridentEntity.isEnchanted();
-   }
+	public TridentEntityRenderState createRenderState() {
+		return new TridentEntityRenderState();
+	}
+
+	public void updateRenderState(
+			TridentEntity tridentEntity,
+			TridentEntityRenderState tridentEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(tridentEntity, tridentEntityRenderState, f);
+		tridentEntityRenderState.yaw = tridentEntity.getLerpedYaw(f);
+		tridentEntityRenderState.pitch = tridentEntity.getLerpedPitch(f);
+		tridentEntityRenderState.enchanted = tridentEntity.isEnchanted();
+	}
 }

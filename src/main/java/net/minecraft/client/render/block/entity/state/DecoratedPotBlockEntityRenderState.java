@@ -8,10 +8,14 @@ import net.minecraft.util.math.Direction;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DecoratedPotBlockEntityRenderState}.
+ */
 public class DecoratedPotBlockEntityRenderState extends BlockEntityRenderState {
-   public float field_62713;
-   public DecoratedPotBlockEntity.@Nullable WobbleType wobbleType;
-   public float wobbleAnimationProgress;
-   public Sherds sherds = Sherds.DEFAULT;
-   public Direction facing = Direction.NORTH;
+
+	public float wobble;
+	public DecoratedPotBlockEntity.@Nullable WobbleType wobbleType;
+	public float wobbleAnimationProgress;
+	public Sherds sherds = Sherds.DEFAULT;
+	public Direction facing = Direction.NORTH;
 }

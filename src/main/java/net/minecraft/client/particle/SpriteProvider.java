@@ -6,10 +6,14 @@ import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SpriteProvider}.
+ */
 public interface SpriteProvider {
-   Sprite getSprite(int age, int maxAge);
 
-   Sprite getSprite(Random random);
+	Sprite getSprite(int age, int maxAge);
 
-   Sprite getFirst();
+	Sprite getSprite(Random random);
+
+	Sprite getFirst();
 }

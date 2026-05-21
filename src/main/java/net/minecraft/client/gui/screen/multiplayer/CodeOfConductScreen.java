@@ -17,57 +17,79 @@ import net.minecraft.util.Formatting;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CodeOfConductScreen}.
+ */
 public class CodeOfConductScreen extends WarningScreen {
-   private static final Text TITLE_TEXT = Text.translatable("multiplayer.codeOfConduct.title").formatted(Formatting.BOLD);
-   private static final Text CHECK_TEXT = Text.translatable("multiplayer.codeOfConduct.check");
-   private final @Nullable ServerInfo serverInfo;
-   private final String rawCodeOfConduct;
-   private final BooleanConsumer callback;
-   private final Screen field_62585;
 
-   private CodeOfConductScreen(@Nullable ServerInfo serverInfo, Screen screen, Text text, String string, BooleanConsumer booleanConsumer) {
-      super(TITLE_TEXT, text, CHECK_TEXT, TITLE_TEXT.copy().append("\n").append(text));
-      this.serverInfo = serverInfo;
-      this.field_62585 = screen;
-      this.rawCodeOfConduct = string;
-      this.callback = booleanConsumer;
-   }
+	private static final Text
+			TITLE_TEXT =
+			Text.translatable("multiplayer.codeOfConduct.title").formatted(Formatting.BOLD);
+	private static final Text CHECK_TEXT = Text.translatable("multiplayer.codeOfConduct.check");
+	private final @Nullable ServerInfo serverInfo;
+	private final String rawCodeOfConduct;
+	private final BooleanConsumer callback;
+	private final Screen backgroundScreen;
 
-   public CodeOfConductScreen(@Nullable ServerInfo serverInfo, Screen screen, String string, BooleanConsumer booleanConsumer) {
-      this(serverInfo, screen, Text.literal(string), string, booleanConsumer);
-   }
+	private CodeOfConductScreen(
+			@Nullable ServerInfo serverInfo,
+			Screen screen,
+			Text text,
+			String string,
+			BooleanConsumer booleanConsumer
+	) {
+		super(TITLE_TEXT, text, CHECK_TEXT, TITLE_TEXT.copy().append("\n").append(text));
+		this.serverInfo = serverInfo;
+		this.backgroundScreen = screen;
+		this.rawCodeOfConduct = string;
+		this.callback = booleanConsumer;
+	}
 
-   @Override
-   protected LayoutWidget getLayout() {
-      DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(8);
-      directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.ACKNOWLEDGE, button -> this.onAnswer(true)).build());
-      directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.DISCONNECT, button -> this.onAnswer(false)).build());
-      return directionalLayoutWidget;
-   }
+	public CodeOfConductScreen(
+			@Nullable ServerInfo serverInfo,
+			Screen screen,
+			String string,
+			BooleanConsumer booleanConsumer
+	) {
+		this(serverInfo, screen, Text.literal(string), string, booleanConsumer);
+	}
 
-   private void onAnswer(boolean acknowledged) {
-      this.callback.accept(acknowledged);
-      if (this.serverInfo != null) {
-         if (acknowledged && this.checkbox.isChecked()) {
-            this.serverInfo.setAcceptedCodeOfConduct(this.rawCodeOfConduct);
-         } else {
-            this.serverInfo.resetAcceptedCodeOfConduct();
-         }
+	@Override
+	protected LayoutWidget getLayout() {
+		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(8);
+		directionalLayoutWidget.add(ButtonWidget
+				.builder(ScreenTexts.ACKNOWLEDGE, button -> this.onAnswer(true))
+				.build());
+		directionalLayoutWidget.add(ButtonWidget
+				.builder(ScreenTexts.DISCONNECT, button -> this.onAnswer(false))
+				.build());
+		return directionalLayoutWidget;
+	}
 
-         ServerList.updateServerListEntry(this.serverInfo);
-      }
-   }
+	private void onAnswer(boolean acknowledged) {
+		this.callback.accept(acknowledged);
+		if (this.serverInfo != null) {
+			if (acknowledged && this.checkbox.isChecked()) {
+				this.serverInfo.setAcceptedCodeOfConduct(this.rawCodeOfConduct);
+			}
+			else {
+				this.serverInfo.resetAcceptedCodeOfConduct();
+			}
 
-   @Override
-   public boolean shouldCloseOnEsc() {
-      return false;
-   }
+			ServerList.updateServerListEntry(this.serverInfo);
+		}
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      if (this.field_62585 instanceof ConnectScreen || this.field_62585 instanceof ReconfiguringScreen) {
-         this.field_62585.tick();
-      }
-   }
+	@Override
+	public boolean shouldCloseOnEsc() {
+		return false;
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.backgroundScreen instanceof ConnectScreen || this.backgroundScreen instanceof ReconfiguringScreen) {
+			this.backgroundScreen.tick();
+		}
+	}
 }

@@ -11,60 +11,64 @@ import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import net.minecraft.world.World;
 
+/**
+ * {@code MarkerEntity}.
+ */
 public class MarkerEntity extends Entity {
-   public MarkerEntity(EntityType<?> entityType, World world) {
-      super(entityType, world);
-      this.noClip = true;
-   }
 
-   @Override
-   public void tick() {
-   }
+	public MarkerEntity(EntityType<?> entityType, World world) {
+		super(entityType, world);
+		this.noClip = true;
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-   }
+	@Override
+	public void tick() {
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+	}
 
-   @Override
-   public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
-      throw new IllegalStateException("Markers should never be sent");
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+	}
 
-   @Override
-   protected boolean canAddPassenger(Entity passenger) {
-      return false;
-   }
+	@Override
+	public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
+		throw new IllegalStateException("Markers should never be sent");
+	}
 
-   @Override
-   protected boolean couldAcceptPassenger() {
-      return false;
-   }
+	@Override
+	protected boolean canAddPassenger(Entity passenger) {
+		return false;
+	}
 
-   @Override
-   protected void addPassenger(Entity passenger) {
-      throw new IllegalStateException("Should never addPassenger without checking couldAcceptPassenger()");
-   }
+	@Override
+	protected boolean couldAcceptPassenger() {
+		return false;
+	}
 
-   @Override
-   public PistonBehavior getPistonBehavior() {
-      return PistonBehavior.IGNORE;
-   }
+	@Override
+	protected void addPassenger(Entity passenger) {
+		throw new IllegalStateException("Should never addPassenger without checking couldAcceptPassenger()");
+	}
 
-   @Override
-   public boolean canAvoidTraps() {
-      return true;
-   }
+	@Override
+	public PistonBehavior getPistonBehavior() {
+		return PistonBehavior.IGNORE;
+	}
 
-   @Override
-   public final boolean damage(ServerWorld world, DamageSource source, float amount) {
-      return false;
-   }
+	@Override
+	public boolean canAvoidTraps() {
+		return true;
+	}
+
+	@Override
+	public final boolean damage(ServerWorld world, DamageSource source, float amount) {
+		return false;
+	}
 }

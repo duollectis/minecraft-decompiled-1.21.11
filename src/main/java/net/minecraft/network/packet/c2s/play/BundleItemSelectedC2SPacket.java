@@ -7,29 +7,33 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
-public record BundleItemSelectedC2SPacket(int slotId, int selectedItemIndex) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, BundleItemSelectedC2SPacket> CODEC = Packet.createCodec(
-      BundleItemSelectedC2SPacket::write, BundleItemSelectedC2SPacket::new
-   );
+public record BundleItemSelectedC2SPacket(
+		int slotId,
+		int selectedItemIndex
+) implements Packet<ServerPlayPacketListener> {
 
-   private BundleItemSelectedC2SPacket(PacketByteBuf buf) {
-      this(buf.readVarInt(), buf.readVarInt());
-      if (this.selectedItemIndex < 0 && this.selectedItemIndex != -1) {
-         throw new IllegalArgumentException("Invalid selectedItemIndex: " + this.selectedItemIndex);
-      }
-   }
+	public static final PacketCodec<PacketByteBuf, BundleItemSelectedC2SPacket> CODEC = Packet.createCodec(
+			BundleItemSelectedC2SPacket::write, BundleItemSelectedC2SPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.slotId);
-      buf.writeVarInt(this.selectedItemIndex);
-   }
+	private BundleItemSelectedC2SPacket(PacketByteBuf buf) {
+		this(buf.readVarInt(), buf.readVarInt());
+		if (this.selectedItemIndex < 0 && this.selectedItemIndex != -1) {
+			throw new IllegalArgumentException("Invalid selectedItemIndex: " + this.selectedItemIndex);
+		}
+	}
 
-   @Override
-   public PacketType<BundleItemSelectedC2SPacket> getPacketType() {
-      return PlayPackets.BUNDLE_ITEM_SELECTED;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.slotId);
+		buf.writeVarInt(this.selectedItemIndex);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onBundleItemSelected(this);
-   }
+	@Override
+	public PacketType<BundleItemSelectedC2SPacket> getPacketType() {
+		return PlayPackets.BUNDLE_ITEM_SELECTED;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onBundleItemSelected(this);
+	}
 }

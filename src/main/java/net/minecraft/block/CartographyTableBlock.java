@@ -14,33 +14,45 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CartographyTableBlock}.
+ */
 public class CartographyTableBlock extends Block {
-   public static final MapCodec<CartographyTableBlock> CODEC = createCodec(CartographyTableBlock::new);
-   private static final Text TITLE = Text.translatable("container.cartography_table");
 
-   @Override
-   public MapCodec<CartographyTableBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<CartographyTableBlock> CODEC = createCodec(CartographyTableBlock::new);
+	private static final Text TITLE = Text.translatable("container.cartography_table");
 
-   public CartographyTableBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<CartographyTableBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient()) {
-         player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
-         player.incrementStat(Stats.INTERACT_WITH_CARTOGRAPHY_TABLE);
-      }
+	public CartographyTableBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient()) {
+			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
+			player.incrementStat(Stats.INTERACT_WITH_CARTOGRAPHY_TABLE);
+		}
 
-   @Override
-   protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
-      return new SimpleNamedScreenHandlerFactory(
-         (syncId, inventory, player) -> new CartographyTableScreenHandler(syncId, inventory, ScreenHandlerContext.create(world, pos)), TITLE
-      );
-   }
+		return ActionResult.SUCCESS;
+	}
+
+	@Override
+	protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(
+			BlockState state,
+			World world,
+			BlockPos pos
+	) {
+		return new SimpleNamedScreenHandlerFactory(
+				(syncId, inventory, player) -> new CartographyTableScreenHandler(
+						syncId,
+						inventory,
+						ScreenHandlerContext.create(world, pos)
+				), TITLE
+		);
+	}
 }

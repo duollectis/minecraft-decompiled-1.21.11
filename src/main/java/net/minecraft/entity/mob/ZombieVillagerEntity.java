@@ -1,10 +1,6 @@
 package net.minecraft.entity.mob;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.EnumSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.block.BedBlock;
 import net.minecraft.block.BlockState;
@@ -14,11 +10,7 @@ import net.minecraft.component.ComponentsAccess;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.EnchantmentEffectComponentTypes;
 import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityInteraction;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.conversion.EntityConversionContext;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
@@ -43,319 +35,367 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Uuids;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.village.TradeOfferList;
-import net.minecraft.village.VillagerData;
-import net.minecraft.village.VillagerDataContainer;
-import net.minecraft.village.VillagerGossips;
-import net.minecraft.village.VillagerProfession;
-import net.minecraft.village.VillagerType;
+import net.minecraft.village.*;
 import net.minecraft.world.LocalDifficulty;
 import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * {@code ZombieVillagerEntity}.
+ */
 public class ZombieVillagerEntity extends ZombieEntity implements VillagerDataContainer {
-   private static final TrackedData<Boolean> CONVERTING = DataTracker.registerData(ZombieVillagerEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final TrackedData<VillagerData> VILLAGER_DATA = DataTracker.registerData(ZombieVillagerEntity.class, TrackedDataHandlerRegistry.VILLAGER_DATA);
-   private static final int BASE_CONVERSION_DELAY = 3600;
-   private static final int field_30520 = 6000;
-   private static final int field_30521 = 14;
-   private static final int field_30522 = 4;
-   private static final int DEFAULT_CONVERSION_TIME = -1;
-   private static final int DEFAULT_EXPERIENCE = 0;
-   private static final Set<SpawnReason> field_64691 = EnumSet.of(
-      SpawnReason.LOAD, SpawnReason.DIMENSION_TRAVEL, SpawnReason.CONVERSION, SpawnReason.SPAWN_ITEM_USE, SpawnReason.SPAWNER, SpawnReason.TRIAL_SPAWNER
-   );
-   private int conversionTimer;
-   private @Nullable UUID converter;
-   private @Nullable VillagerGossips gossip;
-   private @Nullable TradeOfferList offerData;
-   private int experience = 0;
 
-   public ZombieVillagerEntity(EntityType<? extends ZombieVillagerEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final TrackedData<Boolean>
+			CONVERTING =
+			DataTracker.registerData(ZombieVillagerEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final TrackedData<VillagerData>
+			VILLAGER_DATA =
+			DataTracker.registerData(ZombieVillagerEntity.class, TrackedDataHandlerRegistry.VILLAGER_DATA);
+	private static final int BASE_CONVERSION_DELAY = 3600;
+	private static final int MAX_CONVERSION_DELAY = 6000;
+	private static final int MAX_CONVERSION_BOOST_BLOCKS = 14;
+	private static final int CONVERSION_BOOST_RADIUS = 4;
+	private static final int DEFAULT_CONVERSION_TIME = -1;
+	private static final int DEFAULT_EXPERIENCE = 0;
+	private static final Set<SpawnReason> SPAWN_REASONS_WITHOUT_PROFESSION = EnumSet.of(
+			SpawnReason.LOAD,
+			SpawnReason.DIMENSION_TRAVEL,
+			SpawnReason.CONVERSION,
+			SpawnReason.SPAWN_ITEM_USE,
+			SpawnReason.SPAWNER,
+			SpawnReason.TRIAL_SPAWNER
+	);
+	private int conversionTimer;
+	private @Nullable UUID converter;
+	private @Nullable VillagerGossips gossip;
+	private @Nullable TradeOfferList offerData;
+	private int experience = 0;
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(CONVERTING, false);
-      builder.add(VILLAGER_DATA, this.createVillagerData());
-   }
+	public ZombieVillagerEntity(EntityType<? extends ZombieVillagerEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.put("VillagerData", VillagerData.CODEC, this.getVillagerData());
-      view.putNullable("Offers", TradeOfferList.CODEC, this.offerData);
-      view.putNullable("Gossips", VillagerGossips.CODEC, this.gossip);
-      view.putInt("ConversionTime", this.isConverting() ? this.conversionTimer : -1);
-      view.putNullable("ConversionPlayer", Uuids.INT_STREAM_CODEC, this.converter);
-      view.putInt("Xp", this.experience);
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(CONVERTING, false);
+		builder.add(VILLAGER_DATA, this.createVillagerData());
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.dataTracker.set(VILLAGER_DATA, view.<VillagerData>read("VillagerData", VillagerData.CODEC).orElseGet(this::createVillagerData));
-      this.offerData = view.<TradeOfferList>read("Offers", TradeOfferList.CODEC).orElse(null);
-      this.gossip = view.<VillagerGossips>read("Gossips", VillagerGossips.CODEC).orElse(null);
-      int i = view.getInt("ConversionTime", -1);
-      if (i != -1) {
-         UUID uUID = view.<UUID>read("ConversionPlayer", Uuids.INT_STREAM_CODEC).orElse(null);
-         this.setConverting(uUID, i);
-      } else {
-         this.getDataTracker().set(CONVERTING, false);
-         this.conversionTimer = -1;
-      }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.put("VillagerData", VillagerData.CODEC, this.getVillagerData());
+		view.putNullable("Offers", TradeOfferList.CODEC, this.offerData);
+		view.putNullable("Gossips", VillagerGossips.CODEC, this.gossip);
+		view.putInt("ConversionTime", this.isConverting() ? this.conversionTimer : -1);
+		view.putNullable("ConversionPlayer", Uuids.INT_STREAM_CODEC, this.converter);
+		view.putInt("Xp", this.experience);
+	}
 
-      this.experience = view.getInt("Xp", 0);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.dataTracker.set(
+				VILLAGER_DATA,
+				view.<VillagerData>read("VillagerData", VillagerData.CODEC).orElseGet(this::createVillagerData)
+		);
+		this.offerData = view.<TradeOfferList>read("Offers", TradeOfferList.CODEC).orElse(null);
+		this.gossip = view.<VillagerGossips>read("Gossips", VillagerGossips.CODEC).orElse(null);
+		int i = view.getInt("ConversionTime", -1);
+		if (i != -1) {
+			UUID uUID = view.<UUID>read("ConversionPlayer", Uuids.INT_STREAM_CODEC).orElse(null);
+			this.setConverting(uUID, i);
+		}
+		else {
+			this.getDataTracker().set(CONVERTING, false);
+			this.conversionTimer = -1;
+		}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      if (!field_64691.contains(spawnReason)) {
-         this.setVillagerData(this.getVillagerData().withType(world.getRegistryManager(), VillagerType.forBiome(world.getBiome(this.getBlockPos()))));
-      }
+		this.experience = view.getInt("Xp", 0);
+	}
 
-      return super.initialize(world, difficulty, spawnReason, entityData);
-   }
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		if (!SPAWN_REASONS_WITHOUT_PROFESSION.contains(spawnReason)) {
+			this.setVillagerData(this
+					.getVillagerData()
+					.withType(world.getRegistryManager(), VillagerType.forBiome(world.getBiome(this.getBlockPos()))));
+		}
 
-   private VillagerData createVillagerData() {
-      Optional<RegistryEntry.Reference<VillagerProfession>> optional = Registries.VILLAGER_PROFESSION.getRandom(this.random);
-      VillagerData villagerData = VillagerEntity.createVillagerData();
-      if (optional.isPresent()) {
-         villagerData = villagerData.withProfession(optional.get());
-      }
+		return super.initialize(world, difficulty, spawnReason, entityData);
+	}
 
-      return villagerData;
-   }
+	private VillagerData createVillagerData() {
+		Optional<RegistryEntry.Reference<VillagerProfession>>
+				optional =
+				Registries.VILLAGER_PROFESSION.getRandom(this.random);
+		VillagerData villagerData = VillagerEntity.createVillagerData();
+		if (optional.isPresent()) {
+			villagerData = villagerData.withProfession(optional.get());
+		}
 
-   @Override
-   public void tick() {
-      if (!this.getEntityWorld().isClient() && this.isAlive() && this.isConverting()) {
-         int i = this.getConversionRate();
-         this.conversionTimer -= i;
-         if (this.conversionTimer <= 0) {
-            this.finishConversion((ServerWorld)this.getEntityWorld());
-         }
-      }
+		return villagerData;
+	}
 
-      super.tick();
-   }
+	@Override
+	public void tick() {
+		if (!this.getEntityWorld().isClient() && this.isAlive() && this.isConverting()) {
+			int i = this.getConversionRate();
+			this.conversionTimer -= i;
+			if (this.conversionTimer <= 0) {
+				this.finishConversion((ServerWorld) this.getEntityWorld());
+			}
+		}
 
-   @Override
-   public ActionResult interactMob(PlayerEntity player, Hand hand) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if (itemStack.isOf(Items.GOLDEN_APPLE)) {
-         if (this.hasStatusEffect(StatusEffects.WEAKNESS)) {
-            itemStack.decrementUnlessCreative(1, player);
-            if (!this.getEntityWorld().isClient()) {
-               this.setConverting(player.getUuid(), this.random.nextInt(2401) + 3600);
-            }
+		super.tick();
+	}
 
-            return ActionResult.SUCCESS_SERVER;
-         } else {
-            return ActionResult.CONSUME;
-         }
-      } else {
-         return super.interactMob(player, hand);
-      }
-   }
+	@Override
+	public ActionResult interactMob(PlayerEntity player, Hand hand) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if (itemStack.isOf(Items.GOLDEN_APPLE)) {
+			if (this.hasStatusEffect(StatusEffects.WEAKNESS)) {
+				itemStack.decrementUnlessCreative(1, player);
+				if (!this.getEntityWorld().isClient()) {
+					this.setConverting(player.getUuid(), this.random.nextInt(2401) + 3600);
+				}
 
-   @Override
-   protected boolean canConvertInWater() {
-      return false;
-   }
+				return ActionResult.SUCCESS_SERVER;
+			}
+			else {
+				return ActionResult.CONSUME;
+			}
+		}
+		else {
+			return super.interactMob(player, hand);
+		}
+	}
 
-   @Override
-   public boolean canImmediatelyDespawn(double distanceSquared) {
-      return !this.isConverting() && this.experience == 0;
-   }
+	@Override
+	protected boolean canConvertInWater() {
+		return false;
+	}
 
-   public boolean isConverting() {
-      return this.getDataTracker().get(CONVERTING);
-   }
+	@Override
+	public boolean canImmediatelyDespawn(double distanceSquared) {
+		return !this.isConverting() && this.experience == 0;
+	}
 
-   private void setConverting(@Nullable UUID uuid, int delay) {
-      this.converter = uuid;
-      this.conversionTimer = delay;
-      this.getDataTracker().set(CONVERTING, true);
-      this.removeStatusEffect(StatusEffects.WEAKNESS);
-      this.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, delay, Math.min(this.getEntityWorld().getDifficulty().getId() - 1, 0)));
-      this.getEntityWorld().sendEntityStatus(this, (byte)16);
-   }
+	public boolean isConverting() {
+		return this.getDataTracker().get(CONVERTING);
+	}
 
-   @Override
-   public void handleStatus(byte status) {
-      if (status == 16) {
-         if (!this.isSilent()) {
-            this.getEntityWorld()
-               .playSoundClient(
-                  this.getX(),
-                  this.getEyeY(),
-                  this.getZ(),
-                  SoundEvents.ENTITY_ZOMBIE_VILLAGER_CURE,
-                  this.getSoundCategory(),
-                  1.0F + this.random.nextFloat(),
-                  this.random.nextFloat() * 0.7F + 0.3F,
-                  false
-               );
-         }
-      } else {
-         super.handleStatus(status);
-      }
-   }
+	private void setConverting(@Nullable UUID uuid, int delay) {
+		this.converter = uuid;
+		this.conversionTimer = delay;
+		this.getDataTracker().set(CONVERTING, true);
+		this.removeStatusEffect(StatusEffects.WEAKNESS);
+		this.addStatusEffect(new StatusEffectInstance(
+				StatusEffects.STRENGTH,
+				delay,
+				Math.min(this.getEntityWorld().getDifficulty().getId() - 1, 0)
+		));
+		this.getEntityWorld().sendEntityStatus(this, (byte) 16);
+	}
 
-   private void finishConversion(ServerWorld world) {
-      this.convertTo(
-         EntityType.VILLAGER,
-         EntityConversionContext.create(this, false, false),
-         villager -> {
-            for (EquipmentSlot equipmentSlot : this.dropForeignEquipment(
-               world, stack -> !EnchantmentHelper.hasAnyEnchantmentsWith(stack, EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE)
-            )) {
-               StackReference stackReference = villager.getStackReference(equipmentSlot.getEntitySlotId() + 300);
-               if (stackReference != null) {
-                  stackReference.set(this.getEquippedStack(equipmentSlot));
-               }
-            }
+	@Override
+	public void handleStatus(byte status) {
+		if (status == 16) {
+			if (!this.isSilent()) {
+				this.getEntityWorld()
+				    .playSoundClient(
+						    this.getX(),
+						    this.getEyeY(),
+						    this.getZ(),
+						    SoundEvents.ENTITY_ZOMBIE_VILLAGER_CURE,
+						    this.getSoundCategory(),
+						    1.0F + this.random.nextFloat(),
+						    this.random.nextFloat() * 0.7F + 0.3F,
+						    false
+				    );
+			}
+		}
+		else {
+			super.handleStatus(status);
+		}
+	}
 
-            villager.setVillagerData(this.getVillagerData());
-            if (this.gossip != null) {
-               villager.readGossipData(this.gossip);
-            }
+	private void finishConversion(ServerWorld world) {
+		this.convertTo(
+				EntityType.VILLAGER,
+				EntityConversionContext.create(this, false, false),
+				villager -> {
+					for (EquipmentSlot equipmentSlot : this.dropForeignEquipment(
+							world,
+							stack -> !EnchantmentHelper.hasAnyEnchantmentsWith(
+									stack,
+									EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE
+							)
+					)) {
+						StackReference
+								stackReference =
+								villager.getStackReference(equipmentSlot.getEntitySlotId() + 300);
+						if (stackReference != null) {
+							stackReference.set(this.getEquippedStack(equipmentSlot));
+						}
+					}
 
-            if (this.offerData != null) {
-               villager.setOffers(this.offerData.copy());
-            }
+					villager.setVillagerData(this.getVillagerData());
+					if (this.gossip != null) {
+						villager.readGossipData(this.gossip);
+					}
 
-            villager.setExperience(this.experience);
-            villager.initialize(world, world.getLocalDifficulty(villager.getBlockPos()), SpawnReason.CONVERSION, null);
-            villager.reinitializeBrain(world);
-            if (this.converter != null) {
-               PlayerEntity playerEntity = world.getPlayerByUuid(this.converter);
-               if (playerEntity instanceof ServerPlayerEntity) {
-                  Criteria.CURED_ZOMBIE_VILLAGER.trigger((ServerPlayerEntity)playerEntity, this, villager);
-                  world.handleInteraction(EntityInteraction.ZOMBIE_VILLAGER_CURED, playerEntity, villager);
-               }
-            }
+					if (this.offerData != null) {
+						villager.setOffers(this.offerData.copy());
+					}
 
-            villager.addStatusEffect(new StatusEffectInstance(StatusEffects.NAUSEA, 200, 0));
-            if (!this.isSilent()) {
-               world.syncWorldEvent(null, 1027, this.getBlockPos(), 0);
-            }
-         }
-      );
-   }
+					villager.setExperience(this.experience);
+					villager.initialize(
+							world,
+							world.getLocalDifficulty(villager.getBlockPos()),
+							SpawnReason.CONVERSION,
+							null
+					);
+					villager.reinitializeBrain(world);
+					if (this.converter != null) {
+						PlayerEntity playerEntity = world.getPlayerByUuid(this.converter);
+						if (playerEntity instanceof ServerPlayerEntity) {
+							Criteria.CURED_ZOMBIE_VILLAGER.trigger((ServerPlayerEntity) playerEntity, this, villager);
+							world.handleInteraction(EntityInteraction.ZOMBIE_VILLAGER_CURED, playerEntity, villager);
+						}
+					}
 
-   @VisibleForTesting
-   public void setConversionTimer(int conversionTimer) {
-      this.conversionTimer = conversionTimer;
-   }
+					villager.addStatusEffect(new StatusEffectInstance(StatusEffects.NAUSEA, 200, 0));
+					if (!this.isSilent()) {
+						world.syncWorldEvent(null, 1027, this.getBlockPos(), 0);
+					}
+				}
+		);
+	}
 
-   private int getConversionRate() {
-      int i = 1;
-      if (this.random.nextFloat() < 0.01F) {
-         int j = 0;
-         BlockPos.Mutable mutable = new BlockPos.Mutable();
+	@VisibleForTesting
+	public void setConversionTimer(int conversionTimer) {
+		this.conversionTimer = conversionTimer;
+	}
 
-         for (int k = (int)this.getX() - 4; k < (int)this.getX() + 4 && j < 14; k++) {
-            for (int l = (int)this.getY() - 4; l < (int)this.getY() + 4 && j < 14; l++) {
-               for (int m = (int)this.getZ() - 4; m < (int)this.getZ() + 4 && j < 14; m++) {
-                  BlockState blockState = this.getEntityWorld().getBlockState(mutable.set(k, l, m));
-                  if (blockState.isOf(Blocks.IRON_BARS) || blockState.getBlock() instanceof BedBlock) {
-                     if (this.random.nextFloat() < 0.3F) {
-                        i++;
-                     }
+	private int getConversionRate() {
+		int i = 1;
+		if (this.random.nextFloat() < 0.01F) {
+			int j = 0;
+			BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-                     j++;
-                  }
-               }
-            }
-         }
-      }
+			for (int k = (int) this.getX() - 4; k < (int) this.getX() + 4 && j < 14; k++) {
+				for (int l = (int) this.getY() - 4; l < (int) this.getY() + 4 && j < 14; l++) {
+					for (int m = (int) this.getZ() - 4; m < (int) this.getZ() + 4 && j < 14; m++) {
+						BlockState blockState = this.getEntityWorld().getBlockState(mutable.set(k, l, m));
+						if (blockState.isOf(Blocks.IRON_BARS) || blockState.getBlock() instanceof BedBlock) {
+							if (this.random.nextFloat() < 0.3F) {
+								i++;
+							}
 
-      return i;
-   }
+							j++;
+						}
+					}
+				}
+			}
+		}
 
-   @Override
-   public float getSoundPitch() {
-      return this.isBaby()
-         ? (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 2.0F
-         : (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F;
-   }
+		return i;
+	}
 
-   @Override
-   public SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_ZOMBIE_VILLAGER_AMBIENT;
-   }
+	@Override
+	public float getSoundPitch() {
+		return this.isBaby()
+		       ? (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 2.0F
+		       : (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F;
+	}
 
-   @Override
-   public SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_ZOMBIE_VILLAGER_HURT;
-   }
+	@Override
+	public SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_ZOMBIE_VILLAGER_AMBIENT;
+	}
 
-   @Override
-   public SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_ZOMBIE_VILLAGER_DEATH;
-   }
+	@Override
+	public SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_ZOMBIE_VILLAGER_HURT;
+	}
 
-   @Override
-   public SoundEvent getStepSound() {
-      return SoundEvents.ENTITY_ZOMBIE_VILLAGER_STEP;
-   }
+	@Override
+	public SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_ZOMBIE_VILLAGER_DEATH;
+	}
 
-   public void setOfferData(TradeOfferList offerData) {
-      this.offerData = offerData;
-   }
+	@Override
+	public SoundEvent getStepSound() {
+		return SoundEvents.ENTITY_ZOMBIE_VILLAGER_STEP;
+	}
 
-   public void setGossip(VillagerGossips gossip) {
-      this.gossip = gossip;
-   }
+	public void setOfferData(TradeOfferList offerData) {
+		this.offerData = offerData;
+	}
 
-   @Override
-   public void setVillagerData(VillagerData villagerData) {
-      VillagerData villagerData2 = this.getVillagerData();
-      if (!villagerData2.profession().equals(villagerData.profession())) {
-         this.offerData = null;
-      }
+	public void setGossip(VillagerGossips gossip) {
+		this.gossip = gossip;
+	}
 
-      this.dataTracker.set(VILLAGER_DATA, villagerData);
-   }
+	@Override
+	public void setVillagerData(VillagerData villagerData) {
+		VillagerData villagerData2 = this.getVillagerData();
+		if (!villagerData2.profession().equals(villagerData.profession())) {
+			this.offerData = null;
+		}
 
-   @Override
-   public VillagerData getVillagerData() {
-      return this.dataTracker.get(VILLAGER_DATA);
-   }
+		this.dataTracker.set(VILLAGER_DATA, villagerData);
+	}
 
-   public int getExperience() {
-      return this.experience;
-   }
+	@Override
+	public VillagerData getVillagerData() {
+		return this.dataTracker.get(VILLAGER_DATA);
+	}
 
-   public void setExperience(int experience) {
-      this.experience = experience;
-   }
+	public int getExperience() {
+		return this.experience;
+	}
 
-   @Override
-   public <T> @Nullable T get(ComponentType<? extends T> type) {
-      return type == DataComponentTypes.VILLAGER_VARIANT ? castComponentValue((ComponentType<T>)type, this.getVillagerData().type()) : super.get(type);
-   }
+	public void setExperience(int experience) {
+		this.experience = experience;
+	}
 
-   @Override
-   protected void copyComponentsFrom(ComponentsAccess from) {
-      this.copyComponentFrom(from, DataComponentTypes.VILLAGER_VARIANT);
-      super.copyComponentsFrom(from);
-   }
+	@Override
+	public <T> @Nullable T get(ComponentType<? extends T> type) {
+		return type == DataComponentTypes.VILLAGER_VARIANT ? castComponentValue(
+				(ComponentType<T>) type,
+				this.getVillagerData().type()
+		) : super.get(type);
+	}
 
-   @Override
-   protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
-      if (type == DataComponentTypes.VILLAGER_VARIANT) {
-         RegistryEntry<VillagerType> registryEntry = castComponentValue(DataComponentTypes.VILLAGER_VARIANT, value);
-         this.setVillagerData(this.getVillagerData().withType(registryEntry));
-         return true;
-      } else {
-         return super.setApplicableComponent(type, value);
-      }
-   }
+	@Override
+	protected void copyComponentsFrom(ComponentsAccess from) {
+		this.copyComponentFrom(from, DataComponentTypes.VILLAGER_VARIANT);
+		super.copyComponentsFrom(from);
+	}
+
+	@Override
+	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
+		if (type == DataComponentTypes.VILLAGER_VARIANT) {
+			RegistryEntry<VillagerType> registryEntry = castComponentValue(DataComponentTypes.VILLAGER_VARIANT, value);
+			this.setVillagerData(this.getVillagerData().withType(registryEntry));
+			return true;
+		}
+		else {
+			return super.setApplicableComponent(type, value);
+		}
+	}
 }

@@ -1,6 +1,5 @@
 package net.minecraft.network.packet.s2c.play;
 
-import java.util.function.BiFunction;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.nbt.NbtCompound;
@@ -15,53 +14,63 @@ import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.function.BiFunction;
+
 public class BlockEntityUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, BlockEntityUpdateS2CPacket> CODEC = PacketCodec.tuple(
-      BlockPos.PACKET_CODEC,
-      BlockEntityUpdateS2CPacket::getPos,
-      PacketCodecs.registryValue(RegistryKeys.BLOCK_ENTITY_TYPE),
-      BlockEntityUpdateS2CPacket::getBlockEntityType,
-      PacketCodecs.UNLIMITED_NBT_COMPOUND,
-      BlockEntityUpdateS2CPacket::getNbt,
-      BlockEntityUpdateS2CPacket::new
-   );
-   private final BlockPos pos;
-   private final BlockEntityType<?> blockEntityType;
-   private final NbtCompound nbt;
 
-   public static BlockEntityUpdateS2CPacket create(BlockEntity blockEntity, BiFunction<BlockEntity, DynamicRegistryManager, NbtCompound> nbtGetter) {
-      DynamicRegistryManager dynamicRegistryManager = blockEntity.getWorld().getRegistryManager();
-      return new BlockEntityUpdateS2CPacket(blockEntity.getPos(), blockEntity.getType(), nbtGetter.apply(blockEntity, dynamicRegistryManager));
-   }
+	public static final PacketCodec<RegistryByteBuf, BlockEntityUpdateS2CPacket> CODEC = PacketCodec.tuple(
+			BlockPos.PACKET_CODEC,
+			BlockEntityUpdateS2CPacket::getPos,
+			PacketCodecs.registryValue(RegistryKeys.BLOCK_ENTITY_TYPE),
+			BlockEntityUpdateS2CPacket::getBlockEntityType,
+			PacketCodecs.UNLIMITED_NBT_COMPOUND,
+			BlockEntityUpdateS2CPacket::getNbt,
+			BlockEntityUpdateS2CPacket::new
+	);
+	private final BlockPos pos;
+	private final BlockEntityType<?> blockEntityType;
+	private final NbtCompound nbt;
 
-   public static BlockEntityUpdateS2CPacket create(BlockEntity blockEntity) {
-      return create(blockEntity, BlockEntity::toInitialChunkDataNbt);
-   }
+	public static BlockEntityUpdateS2CPacket create(
+			BlockEntity blockEntity,
+			BiFunction<BlockEntity, DynamicRegistryManager, NbtCompound> nbtGetter
+	) {
+		DynamicRegistryManager dynamicRegistryManager = blockEntity.getWorld().getRegistryManager();
+		return new BlockEntityUpdateS2CPacket(
+				blockEntity.getPos(),
+				blockEntity.getType(),
+				nbtGetter.apply(blockEntity, dynamicRegistryManager)
+		);
+	}
 
-   private BlockEntityUpdateS2CPacket(BlockPos pos, BlockEntityType<?> blockEntityType, NbtCompound nbt) {
-      this.pos = pos;
-      this.blockEntityType = blockEntityType;
-      this.nbt = nbt;
-   }
+	public static BlockEntityUpdateS2CPacket create(BlockEntity blockEntity) {
+		return create(blockEntity, BlockEntity::toInitialChunkDataNbt);
+	}
 
-   @Override
-   public PacketType<BlockEntityUpdateS2CPacket> getPacketType() {
-      return PlayPackets.BLOCK_ENTITY_DATA;
-   }
+	private BlockEntityUpdateS2CPacket(BlockPos pos, BlockEntityType<?> blockEntityType, NbtCompound nbt) {
+		this.pos = pos;
+		this.blockEntityType = blockEntityType;
+		this.nbt = nbt;
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onBlockEntityUpdate(this);
-   }
+	@Override
+	public PacketType<BlockEntityUpdateS2CPacket> getPacketType() {
+		return PlayPackets.BLOCK_ENTITY_DATA;
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onBlockEntityUpdate(this);
+	}
 
-   public BlockEntityType<?> getBlockEntityType() {
-      return this.blockEntityType;
-   }
+	public BlockPos getPos() {
+		return this.pos;
+	}
 
-   public NbtCompound getNbt() {
-      return this.nbt;
-   }
+	public BlockEntityType<?> getBlockEntityType() {
+		return this.blockEntityType;
+	}
+
+	public NbtCompound getNbt() {
+		return this.nbt;
+	}
 }

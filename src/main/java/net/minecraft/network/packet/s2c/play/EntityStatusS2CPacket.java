@@ -11,39 +11,42 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 public class EntityStatusS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, EntityStatusS2CPacket> CODEC = Packet.createCodec(EntityStatusS2CPacket::write, EntityStatusS2CPacket::new);
-   private final int entityId;
-   private final byte status;
 
-   public EntityStatusS2CPacket(Entity entity, byte status) {
-      this.entityId = entity.getId();
-      this.status = status;
-   }
+	public static final PacketCodec<PacketByteBuf, EntityStatusS2CPacket>
+			CODEC =
+			Packet.createCodec(EntityStatusS2CPacket::write, EntityStatusS2CPacket::new);
+	private final int entityId;
+	private final byte status;
 
-   private EntityStatusS2CPacket(PacketByteBuf buf) {
-      this.entityId = buf.readInt();
-      this.status = buf.readByte();
-   }
+	public EntityStatusS2CPacket(Entity entity, byte status) {
+		this.entityId = entity.getId();
+		this.status = status;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeInt(this.entityId);
-      buf.writeByte(this.status);
-   }
+	private EntityStatusS2CPacket(PacketByteBuf buf) {
+		this.entityId = buf.readInt();
+		this.status = buf.readByte();
+	}
 
-   @Override
-   public PacketType<EntityStatusS2CPacket> getPacketType() {
-      return PlayPackets.ENTITY_EVENT;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeInt(this.entityId);
+		buf.writeByte(this.status);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntityStatus(this);
-   }
+	@Override
+	public PacketType<EntityStatusS2CPacket> getPacketType() {
+		return PlayPackets.ENTITY_EVENT;
+	}
 
-   public @Nullable Entity getEntity(World world) {
-      return world.getEntityById(this.entityId);
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntityStatus(this);
+	}
 
-   public byte getStatus() {
-      return this.status;
-   }
+	public @Nullable Entity getEntity(World world) {
+		return world.getEntityById(this.entityId);
+	}
+
+	public byte getStatus() {
+		return this.status;
+	}
 }

@@ -6,7 +6,11 @@ import net.minecraft.util.math.Direction;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BellBlockEntityRenderState}.
+ */
 public class BellBlockEntityRenderState extends BlockEntityRenderState {
-   public @Nullable Direction shakeDirection;
-   public float ringTicks;
+
+	public @Nullable Direction shakeDirection;
+	public float ringTicks;
 }

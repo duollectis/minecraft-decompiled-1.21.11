@@ -8,41 +8,42 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class ChunkRenderDistanceCenterS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ChunkRenderDistanceCenterS2CPacket> CODEC = Packet.createCodec(
-      ChunkRenderDistanceCenterS2CPacket::write, ChunkRenderDistanceCenterS2CPacket::new
-   );
-   private final int chunkX;
-   private final int chunkZ;
 
-   public ChunkRenderDistanceCenterS2CPacket(int x, int z) {
-      this.chunkX = x;
-      this.chunkZ = z;
-   }
+	public static final PacketCodec<PacketByteBuf, ChunkRenderDistanceCenterS2CPacket> CODEC = Packet.createCodec(
+			ChunkRenderDistanceCenterS2CPacket::write, ChunkRenderDistanceCenterS2CPacket::new
+	);
+	private final int chunkX;
+	private final int chunkZ;
 
-   private ChunkRenderDistanceCenterS2CPacket(PacketByteBuf buf) {
-      this.chunkX = buf.readVarInt();
-      this.chunkZ = buf.readVarInt();
-   }
+	public ChunkRenderDistanceCenterS2CPacket(int x, int z) {
+		this.chunkX = x;
+		this.chunkZ = z;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.chunkX);
-      buf.writeVarInt(this.chunkZ);
-   }
+	private ChunkRenderDistanceCenterS2CPacket(PacketByteBuf buf) {
+		this.chunkX = buf.readVarInt();
+		this.chunkZ = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<ChunkRenderDistanceCenterS2CPacket> getPacketType() {
-      return PlayPackets.SET_CHUNK_CACHE_CENTER;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.chunkX);
+		buf.writeVarInt(this.chunkZ);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onChunkRenderDistanceCenter(this);
-   }
+	@Override
+	public PacketType<ChunkRenderDistanceCenterS2CPacket> getPacketType() {
+		return PlayPackets.SET_CHUNK_CACHE_CENTER;
+	}
 
-   public int getChunkX() {
-      return this.chunkX;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onChunkRenderDistanceCenter(this);
+	}
 
-   public int getChunkZ() {
-      return this.chunkZ;
-   }
+	public int getChunkX() {
+		return this.chunkX;
+	}
+
+	public int getChunkZ() {
+		return this.chunkZ;
+	}
 }

@@ -1,26 +1,31 @@
 package net.minecraft.world.entity;
 
-import java.util.stream.Stream;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 
+import java.util.stream.Stream;
+
+/**
+ * {@code EntityLike}.
+ */
 public interface EntityLike extends UniquelyIdentifiable {
-   int getId();
 
-   BlockPos getBlockPos();
+	int getId();
 
-   Box getBoundingBox();
+	BlockPos getBlockPos();
 
-   void setChangeListener(EntityChangeListener changeListener);
+	Box getBoundingBox();
 
-   Stream<? extends EntityLike> streamSelfAndPassengers();
+	void setChangeListener(EntityChangeListener changeListener);
 
-   Stream<? extends EntityLike> streamPassengersAndSelf();
+	Stream<? extends EntityLike> streamSelfAndPassengers();
 
-   void setRemoved(Entity.RemovalReason reason);
+	Stream<? extends EntityLike> streamPassengersAndSelf();
 
-   boolean shouldSave();
+	void setRemoved(Entity.RemovalReason reason);
 
-   boolean isPlayer();
+	boolean shouldSave();
+
+	boolean isPlayer();
 }

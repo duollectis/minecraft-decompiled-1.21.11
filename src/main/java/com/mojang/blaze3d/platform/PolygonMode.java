@@ -6,7 +6,10 @@ import net.minecraft.util.annotation.DeobfuscateClass;
 
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
+/**
+ * {@code PolygonMode}.
+ */
 public enum PolygonMode {
-   FILL,
-   WIREFRAME;
+	FILL,
+	WIREFRAME;
 }

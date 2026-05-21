@@ -9,24 +9,28 @@ import net.minecraft.entity.mob.EndermiteEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EndermiteEntityRenderer}.
+ */
 public class EndermiteEntityRenderer extends MobEntityRenderer<EndermiteEntity, LivingEntityRenderState, EndermiteEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/endermite.png");
 
-   public EndermiteEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new EndermiteEntityModel(context.getPart(EntityModelLayers.ENDERMITE)), 0.3F);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/endermite.png");
 
-   @Override
-   protected float getLyingPositionRotationDegrees() {
-      return 180.0F;
-   }
+	public EndermiteEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new EndermiteEntityModel(context.getPart(EntityModelLayers.ENDERMITE)), 0.3F);
+	}
 
-   @Override
-   public Identifier getTexture(LivingEntityRenderState state) {
-      return TEXTURE;
-   }
+	@Override
+	protected float getLyingPositionRotationDegrees() {
+		return 180.0F;
+	}
 
-   public LivingEntityRenderState createRenderState() {
-      return new LivingEntityRenderState();
-   }
+	@Override
+	public Identifier getTexture(LivingEntityRenderState state) {
+		return TEXTURE;
+	}
+
+	public LivingEntityRenderState createRenderState() {
+		return new LivingEntityRenderState();
+	}
 }

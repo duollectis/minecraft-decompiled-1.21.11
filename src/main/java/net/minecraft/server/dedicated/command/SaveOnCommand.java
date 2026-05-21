@@ -7,23 +7,35 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
+/**
+ * {@code SaveOnCommand}.
+ */
 public class SaveOnCommand {
-   private static final SimpleCommandExceptionType ALREADY_ON_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.save.alreadyOn"));
 
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("save-on")
-               .requires(CommandManager.requirePermissionLevel(CommandManager.OWNERS_CHECK)))
-            .executes(context -> {
-               ServerCommandSource serverCommandSource = (ServerCommandSource)context.getSource();
-               boolean bl = serverCommandSource.getServer().setAutosave(true);
-               if (!bl) {
-                  throw ALREADY_ON_EXCEPTION.create();
-               } else {
-                  serverCommandSource.sendFeedback(() -> Text.translatable("commands.save.enabled"), true);
-                  return 1;
-               }
-            })
-      );
-   }
+	private static final SimpleCommandExceptionType
+			ALREADY_ON_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.save.alreadyOn"));
+
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("save-on")
+				                                                                 .requires(CommandManager.requirePermissionLevel(
+						                                                                 CommandManager.OWNERS_CHECK))
+				)
+						.executes(context -> {
+							ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
+							boolean bl = serverCommandSource.getServer().setAutosave(true);
+							if (!bl) {
+								throw ALREADY_ON_EXCEPTION.create();
+							}
+							else {
+								serverCommandSource.sendFeedback(
+										() -> Text.translatable("commands.save.enabled"),
+										true
+								);
+								return 1;
+							}
+						})
+		);
+	}
 }

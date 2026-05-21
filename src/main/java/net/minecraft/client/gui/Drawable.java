@@ -4,6 +4,10 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Drawable}.
+ */
 public interface Drawable {
-   void render(DrawContext context, int mouseX, int mouseY, float deltaTicks);
+
+	void render(DrawContext context, int mouseX, int mouseY, float deltaTicks);
 }

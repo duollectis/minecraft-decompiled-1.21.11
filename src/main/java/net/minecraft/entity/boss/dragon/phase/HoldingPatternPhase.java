@@ -14,122 +14,158 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.gen.feature.EndPortalFeature;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code HoldingPatternPhase}.
+ */
 public class HoldingPatternPhase extends AbstractPhase {
-   private static final TargetPredicate PLAYERS_IN_RANGE_PREDICATE = TargetPredicate.createAttackable().ignoreVisibility();
-   private @Nullable Path path;
-   private @Nullable Vec3d pathTarget;
-   private boolean shouldFindNewPath;
 
-   public HoldingPatternPhase(EnderDragonEntity enderDragonEntity) {
-      super(enderDragonEntity);
-   }
+	private static final TargetPredicate
+			PLAYERS_IN_RANGE_PREDICATE =
+			TargetPredicate.createAttackable().ignoreVisibility();
+	private @Nullable Path path;
+	private @Nullable Vec3d pathTarget;
+	private boolean shouldFindNewPath;
 
-   @Override
-   public PhaseType<HoldingPatternPhase> getType() {
-      return PhaseType.HOLDING_PATTERN;
-   }
+	public HoldingPatternPhase(EnderDragonEntity enderDragonEntity) {
+		super(enderDragonEntity);
+	}
 
-   @Override
-   public void serverTick(ServerWorld world) {
-      double d = this.pathTarget == null ? 0.0 : this.pathTarget.squaredDistanceTo(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ());
-      if (d < 100.0 || d > 22500.0 || this.dragon.horizontalCollision || this.dragon.verticalCollision) {
-         this.tickInRange(world);
-      }
-   }
+	@Override
+	public PhaseType<HoldingPatternPhase> getType() {
+		return PhaseType.HOLDING_PATTERN;
+	}
 
-   @Override
-   public void beginPhase() {
-      this.path = null;
-      this.pathTarget = null;
-   }
+	@Override
+	public void serverTick(ServerWorld world) {
+		double
+				d =
+				this.pathTarget == null ? 0.0 : this.pathTarget.squaredDistanceTo(
+						this.dragon.getX(),
+						this.dragon.getY(),
+						this.dragon.getZ()
+				);
+		if (d < 100.0 || d > 22500.0 || this.dragon.horizontalCollision || this.dragon.verticalCollision) {
+			this.tickInRange(world);
+		}
+	}
 
-   @Override
-   public @Nullable Vec3d getPathTarget() {
-      return this.pathTarget;
-   }
+	@Override
+	public void beginPhase() {
+		this.path = null;
+		this.pathTarget = null;
+	}
 
-   private void tickInRange(ServerWorld world) {
-      if (this.path != null && this.path.isFinished()) {
-         BlockPos blockPos = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin()));
-         int i = this.dragon.getFight() == null ? 0 : this.dragon.getFight().getAliveEndCrystals();
-         if (this.dragon.getRandom().nextInt(i + 3) == 0) {
-            this.dragon.getPhaseManager().setPhase(PhaseType.LANDING_APPROACH);
-            return;
-         }
+	@Override
+	public @Nullable Vec3d getPathTarget() {
+		return this.pathTarget;
+	}
 
-         PlayerEntity playerEntity = world.getClosestPlayer(PLAYERS_IN_RANGE_PREDICATE, this.dragon, blockPos.getX(), blockPos.getY(), blockPos.getZ());
-         double d;
-         if (playerEntity != null) {
-            d = blockPos.getSquaredDistance(playerEntity.getEntityPos()) / 512.0;
-         } else {
-            d = 64.0;
-         }
+	private void tickInRange(ServerWorld world) {
+		if (this.path != null && this.path.isFinished()) {
+			BlockPos
+					blockPos =
+					world.getTopPosition(
+							Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+							EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin())
+					);
+			int i = this.dragon.getFight() == null ? 0 : this.dragon.getFight().getAliveEndCrystals();
+			if (this.dragon.getRandom().nextInt(i + 3) == 0) {
+				this.dragon.getPhaseManager().setPhase(PhaseType.LANDING_APPROACH);
+				return;
+			}
 
-         if (playerEntity != null && (this.dragon.getRandom().nextInt((int)(d + 2.0)) == 0 || this.dragon.getRandom().nextInt(i + 2) == 0)) {
-            this.strafePlayer(playerEntity);
-            return;
-         }
-      }
+			PlayerEntity
+					playerEntity =
+					world.getClosestPlayer(
+							PLAYERS_IN_RANGE_PREDICATE,
+							this.dragon,
+							blockPos.getX(),
+							blockPos.getY(),
+							blockPos.getZ()
+					);
+			double d;
+			if (playerEntity != null) {
+				d = blockPos.getSquaredDistance(playerEntity.getEntityPos()) / 512.0;
+			}
+			else {
+				d = 64.0;
+			}
 
-      if (this.path == null || this.path.isFinished()) {
-         int j = this.dragon.getNearestPathNodeIndex();
-         int ix = j;
-         if (this.dragon.getRandom().nextInt(8) == 0) {
-            this.shouldFindNewPath = !this.shouldFindNewPath;
-            ix = j + 6;
-         }
+			if (playerEntity != null && (this.dragon.getRandom().nextInt((int) (d + 2.0)) == 0
+					|| this.dragon.getRandom().nextInt(i + 2) == 0
+			)) {
+				this.strafePlayer(playerEntity);
+				return;
+			}
+		}
 
-         if (this.shouldFindNewPath) {
-            ix++;
-         } else {
-            ix--;
-         }
+		if (this.path == null || this.path.isFinished()) {
+			int j = this.dragon.getNearestPathNodeIndex();
+			int ix = j;
+			if (this.dragon.getRandom().nextInt(8) == 0) {
+				this.shouldFindNewPath = !this.shouldFindNewPath;
+				ix = j + 6;
+			}
 
-         if (this.dragon.getFight() != null && this.dragon.getFight().getAliveEndCrystals() >= 0) {
-            ix %= 12;
-            if (ix < 0) {
-               ix += 12;
-            }
-         } else {
-            ix -= 12;
-            ix &= 7;
-            ix += 12;
-         }
+			if (this.shouldFindNewPath) {
+				ix++;
+			}
+			else {
+				ix--;
+			}
 
-         this.path = this.dragon.findPath(j, ix, null);
-         if (this.path != null) {
-            this.path.next();
-         }
-      }
+			if (this.dragon.getFight() != null && this.dragon.getFight().getAliveEndCrystals() >= 0) {
+				ix %= 12;
+				if (ix < 0) {
+					ix += 12;
+				}
+			}
+			else {
+				ix -= 12;
+				ix &= 7;
+				ix += 12;
+			}
 
-      this.followPath();
-   }
+			this.path = this.dragon.findPath(j, ix, null);
+			if (this.path != null) {
+				this.path.next();
+			}
+		}
 
-   private void strafePlayer(PlayerEntity player) {
-      this.dragon.getPhaseManager().setPhase(PhaseType.STRAFE_PLAYER);
-      this.dragon.getPhaseManager().create(PhaseType.STRAFE_PLAYER).setTargetEntity(player);
-   }
+		this.followPath();
+	}
 
-   private void followPath() {
-      if (this.path != null && !this.path.isFinished()) {
-         Vec3i vec3i = this.path.getCurrentNodePos();
-         this.path.next();
-         double d = vec3i.getX();
-         double e = vec3i.getZ();
+	private void strafePlayer(PlayerEntity player) {
+		this.dragon.getPhaseManager().setPhase(PhaseType.STRAFE_PLAYER);
+		this.dragon.getPhaseManager().create(PhaseType.STRAFE_PLAYER).setTargetEntity(player);
+	}
 
-         double f;
-         do {
-            f = vec3i.getY() + this.dragon.getRandom().nextFloat() * 20.0F;
-         } while (f < vec3i.getY());
+	private void followPath() {
+		if (this.path != null && !this.path.isFinished()) {
+			Vec3i vec3i = this.path.getCurrentNodePos();
+			this.path.next();
+			double d = vec3i.getX();
+			double e = vec3i.getZ();
 
-         this.pathTarget = new Vec3d(d, f, e);
-      }
-   }
+			double f;
+			do {
+				f = vec3i.getY() + this.dragon.getRandom().nextFloat() * 20.0F;
+			}
+			while (f < vec3i.getY());
 
-   @Override
-   public void crystalDestroyed(EndCrystalEntity crystal, BlockPos pos, DamageSource source, @Nullable PlayerEntity player) {
-      if (player != null && this.dragon.canTarget(player)) {
-         this.strafePlayer(player);
-      }
-   }
+			this.pathTarget = new Vec3d(d, f, e);
+		}
+	}
+
+	@Override
+	public void crystalDestroyed(
+			EndCrystalEntity crystal,
+			BlockPos pos,
+			DamageSource source,
+			@Nullable PlayerEntity player
+	) {
+		if (player != null && this.dragon.canTarget(player)) {
+			this.strafePlayer(player);
+		}
+	}
 }

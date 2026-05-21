@@ -1,6 +1,5 @@
 package net.minecraft.item;
 
-import java.util.List;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
@@ -13,45 +12,54 @@ import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+import java.util.List;
+
+/**
+ * {@code EndCrystalItem}.
+ */
 public class EndCrystalItem extends Item {
-   public EndCrystalItem(Item.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   public ActionResult useOnBlock(ItemUsageContext context) {
-      World world = context.getWorld();
-      BlockPos blockPos = context.getBlockPos();
-      BlockState blockState = world.getBlockState(blockPos);
-      if (!blockState.isOf(Blocks.OBSIDIAN) && !blockState.isOf(Blocks.BEDROCK)) {
-         return ActionResult.FAIL;
-      } else {
-         BlockPos blockPos2 = blockPos.up();
-         if (!world.isAir(blockPos2)) {
-            return ActionResult.FAIL;
-         } else {
-            double d = blockPos2.getX();
-            double e = blockPos2.getY();
-            double f = blockPos2.getZ();
-            List<Entity> list = world.getOtherEntities(null, new Box(d, e, f, d + 1.0, e + 2.0, f + 1.0));
-            if (!list.isEmpty()) {
-               return ActionResult.FAIL;
-            } else {
-               if (world instanceof ServerWorld) {
-                  EndCrystalEntity endCrystalEntity = new EndCrystalEntity(world, d + 0.5, e, f + 0.5);
-                  endCrystalEntity.setShowBottom(false);
-                  world.spawnEntity(endCrystalEntity);
-                  world.emitGameEvent(context.getPlayer(), GameEvent.ENTITY_PLACE, blockPos2);
-                  EnderDragonFight enderDragonFight = ((ServerWorld)world).getEnderDragonFight();
-                  if (enderDragonFight != null) {
-                     enderDragonFight.respawnDragon();
-                  }
-               }
+	public EndCrystalItem(Item.Settings settings) {
+		super(settings);
+	}
 
-               context.getStack().decrement(1);
-               return ActionResult.SUCCESS;
-            }
-         }
-      }
-   }
+	@Override
+	public ActionResult useOnBlock(ItemUsageContext context) {
+		World world = context.getWorld();
+		BlockPos blockPos = context.getBlockPos();
+		BlockState blockState = world.getBlockState(blockPos);
+		if (!blockState.isOf(Blocks.OBSIDIAN) && !blockState.isOf(Blocks.BEDROCK)) {
+			return ActionResult.FAIL;
+		}
+		else {
+			BlockPos blockPos2 = blockPos.up();
+			if (!world.isAir(blockPos2)) {
+				return ActionResult.FAIL;
+			}
+			else {
+				double d = blockPos2.getX();
+				double e = blockPos2.getY();
+				double f = blockPos2.getZ();
+				List<Entity> list = world.getOtherEntities(null, new Box(d, e, f, d + 1.0, e + 2.0, f + 1.0));
+				if (!list.isEmpty()) {
+					return ActionResult.FAIL;
+				}
+				else {
+					if (world instanceof ServerWorld) {
+						EndCrystalEntity endCrystalEntity = new EndCrystalEntity(world, d + 0.5, e, f + 0.5);
+						endCrystalEntity.setShowBottom(false);
+						world.spawnEntity(endCrystalEntity);
+						world.emitGameEvent(context.getPlayer(), GameEvent.ENTITY_PLACE, blockPos2);
+						EnderDragonFight enderDragonFight = ((ServerWorld) world).getEnderDragonFight();
+						if (enderDragonFight != null) {
+							enderDragonFight.respawnDragon();
+						}
+					}
+
+					context.getStack().decrement(1);
+					return ActionResult.SUCCESS;
+				}
+			}
+		}
+	}
 }

@@ -5,6 +5,11 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hasher;
 import com.mojang.logging.LogUtils;
+import net.minecraft.util.path.PathUtil;
+import org.apache.commons.io.IOUtils;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -22,222 +27,251 @@ import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.util.Map;
 import java.util.OptionalLong;
-import net.minecraft.util.path.PathUtil;
-import org.apache.commons.io.IOUtils;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
+/**
+ * {@code NetworkUtils}.
+ */
 public class NetworkUtils {
-   private static final Logger LOGGER = LogUtils.getLogger();
 
-   private NetworkUtils() {
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
 
-   public static Path download(
-      Path path,
-      URL url,
-      Map<String, String> headers,
-      HashFunction hashFunction,
-      @Nullable HashCode hashCode,
-      int maxBytes,
-      Proxy proxy,
-      NetworkUtils.DownloadListener listener
-   ) {
-      HttpURLConnection httpURLConnection = null;
-      InputStream inputStream = null;
-      listener.onStart();
-      Path path2;
-      if (hashCode != null) {
-         path2 = resolve(path, hashCode);
+	private NetworkUtils() {
+	}
 
-         try {
-            if (validateHash(path2, hashFunction, hashCode)) {
-               LOGGER.info("Returning cached file since actual hash matches requested");
-               listener.onFinish(true);
-               updateModificationTime(path2);
-               return path2;
-            }
-         } catch (IOException var35) {
-            LOGGER.warn("Failed to check cached file {}", path2, var35);
-         }
+	public static Path download(
+			Path path,
+			URL url,
+			Map<String, String> headers,
+			HashFunction hashFunction,
+			@Nullable HashCode hashCode,
+			int maxBytes,
+			Proxy proxy,
+			NetworkUtils.DownloadListener listener
+	) {
+		HttpURLConnection httpURLConnection = null;
+		InputStream inputStream = null;
+		listener.onStart();
+		Path path2;
+		if (hashCode != null) {
+			path2 = resolve(path, hashCode);
 
-         try {
-            LOGGER.warn("Existing file {} not found or had mismatched hash", path2);
-            Files.deleteIfExists(path2);
-         } catch (IOException var34) {
-            listener.onFinish(false);
-            throw new UncheckedIOException("Failed to remove existing file " + path2, var34);
-         }
-      } else {
-         path2 = null;
-      }
+			try {
+				if (validateHash(path2, hashFunction, hashCode)) {
+					LOGGER.info("Returning cached file since actual hash matches requested");
+					listener.onFinish(true);
+					updateModificationTime(path2);
+					return path2;
+				}
+			}
+			catch (IOException var35) {
+				LOGGER.warn("Failed to check cached file {}", path2, var35);
+			}
 
-      Path hashCode3;
-      try {
-         httpURLConnection = (HttpURLConnection)url.openConnection(proxy);
-         httpURLConnection.setInstanceFollowRedirects(true);
-         headers.forEach(httpURLConnection::setRequestProperty);
-         inputStream = httpURLConnection.getInputStream();
-         long l = httpURLConnection.getContentLengthLong();
-         OptionalLong optionalLong = l != -1L ? OptionalLong.of(l) : OptionalLong.empty();
-         PathUtil.createDirectories(path);
-         listener.onContentLength(optionalLong);
-         if (optionalLong.isPresent() && optionalLong.getAsLong() > maxBytes) {
-            throw new IOException("Filesize is bigger than maximum allowed (file is " + optionalLong + ", limit is " + maxBytes + ")");
-         }
+			try {
+				LOGGER.warn("Existing file {} not found or had mismatched hash", path2);
+				Files.deleteIfExists(path2);
+			}
+			catch (IOException var34) {
+				listener.onFinish(false);
+				throw new UncheckedIOException("Failed to remove existing file " + path2, var34);
+			}
+		}
+		else {
+			path2 = null;
+		}
 
-         if (path2 == null) {
-            Path path3 = Files.createTempFile(path, "download", ".tmp");
+		Path hashCode3;
+		try {
+			httpURLConnection = (HttpURLConnection) url.openConnection(proxy);
+			httpURLConnection.setInstanceFollowRedirects(true);
+			headers.forEach(httpURLConnection::setRequestProperty);
+			inputStream = httpURLConnection.getInputStream();
+			long l = httpURLConnection.getContentLengthLong();
+			OptionalLong optionalLong = l != -1L ? OptionalLong.of(l) : OptionalLong.empty();
+			PathUtil.createDirectories(path);
+			listener.onContentLength(optionalLong);
+			if (optionalLong.isPresent() && optionalLong.getAsLong() > maxBytes) {
+				throw new IOException(
+						"Filesize is bigger than maximum allowed (file is " + optionalLong + ", limit is " + maxBytes
+								+ ")");
+			}
 
-            try {
-               HashCode hashCode3x = write(hashFunction, maxBytes, listener, inputStream, path3);
-               Path path4 = resolve(path, hashCode3x);
-               if (!validateHash(path4, hashFunction, hashCode3x)) {
-                  Files.move(path3, path4, StandardCopyOption.REPLACE_EXISTING);
-               } else {
-                  updateModificationTime(path4);
-               }
+			if (path2 == null) {
+				Path path3 = Files.createTempFile(path, "download", ".tmp");
 
-               listener.onFinish(true);
-               return path4;
-            } finally {
-               Files.deleteIfExists(path3);
-            }
-         }
+				try {
+					HashCode hashCode3x = write(hashFunction, maxBytes, listener, inputStream, path3);
+					Path path4 = resolve(path, hashCode3x);
+					if (!validateHash(path4, hashFunction, hashCode3x)) {
+						Files.move(path3, path4, StandardCopyOption.REPLACE_EXISTING);
+					}
+					else {
+						updateModificationTime(path4);
+					}
 
-         HashCode hashCode2 = write(hashFunction, maxBytes, listener, inputStream, path2);
-         if (!hashCode2.equals(hashCode)) {
-            throw new IOException("Hash of downloaded file (" + hashCode2 + ") did not match requested (" + hashCode + ")");
-         }
+					listener.onFinish(true);
+					return path4;
+				}
+				finally {
+					Files.deleteIfExists(path3);
+				}
+			}
 
-         listener.onFinish(true);
-         hashCode3 = path2;
-      } catch (Throwable var36) {
-         if (httpURLConnection != null) {
-            InputStream inputStream2 = httpURLConnection.getErrorStream();
-            if (inputStream2 != null) {
-               try {
-                  LOGGER.error("HTTP response error: {}", IOUtils.toString(inputStream2, StandardCharsets.UTF_8));
-               } catch (Exception var32) {
-                  LOGGER.error("Failed to read response from server");
-               }
-            }
-         }
+			HashCode hashCode2 = write(hashFunction, maxBytes, listener, inputStream, path2);
+			if (!hashCode2.equals(hashCode)) {
+				throw new IOException(
+						"Hash of downloaded file (" + hashCode2 + ") did not match requested (" + hashCode + ")");
+			}
 
-         listener.onFinish(false);
-         throw new IllegalStateException("Failed to download file " + url, var36);
-      } finally {
-         IOUtils.closeQuietly(inputStream);
-      }
+			listener.onFinish(true);
+			hashCode3 = path2;
+		}
+		catch (Throwable var36) {
+			if (httpURLConnection != null) {
+				InputStream inputStream2 = httpURLConnection.getErrorStream();
+				if (inputStream2 != null) {
+					try {
+						LOGGER.error("HTTP response error: {}", IOUtils.toString(inputStream2, StandardCharsets.UTF_8));
+					}
+					catch (Exception var32) {
+						LOGGER.error("Failed to read response from server");
+					}
+				}
+			}
 
-      return hashCode3;
-   }
+			listener.onFinish(false);
+			throw new IllegalStateException("Failed to download file " + url, var36);
+		}
+		finally {
+			IOUtils.closeQuietly(inputStream);
+		}
 
-   private static void updateModificationTime(Path path) {
-      try {
-         Files.setLastModifiedTime(path, FileTime.from(Instant.now()));
-      } catch (IOException var2) {
-         LOGGER.warn("Failed to update modification time of {}", path, var2);
-      }
-   }
+		return hashCode3;
+	}
 
-   private static HashCode hash(Path path, HashFunction hashFunction) throws IOException {
-      Hasher hasher = hashFunction.newHasher();
+	private static void updateModificationTime(Path path) {
+		try {
+			Files.setLastModifiedTime(path, FileTime.from(Instant.now()));
+		}
+		catch (IOException var2) {
+			LOGGER.warn("Failed to update modification time of {}", path, var2);
+		}
+	}
 
-      try (
-         OutputStream outputStream = Funnels.asOutputStream(hasher);
-         InputStream inputStream = Files.newInputStream(path);
-      ) {
-         inputStream.transferTo(outputStream);
-      }
+	private static HashCode hash(Path path, HashFunction hashFunction) throws IOException {
+		Hasher hasher = hashFunction.newHasher();
 
-      return hasher.hash();
-   }
+		try (
+				OutputStream outputStream = Funnels.asOutputStream(hasher);
+				InputStream inputStream = Files.newInputStream(path);
+		) {
+			inputStream.transferTo(outputStream);
+		}
 
-   private static boolean validateHash(Path path, HashFunction hashFunction, HashCode hashCode) throws IOException {
-      if (Files.exists(path)) {
-         HashCode hashCode2 = hash(path, hashFunction);
-         if (hashCode2.equals(hashCode)) {
-            return true;
-         }
+		return hasher.hash();
+	}
 
-         LOGGER.warn("Mismatched hash of file {}, expected {} but found {}", new Object[]{path, hashCode, hashCode2});
-      }
+	private static boolean validateHash(Path path, HashFunction hashFunction, HashCode hashCode) throws IOException {
+		if (Files.exists(path)) {
+			HashCode hashCode2 = hash(path, hashFunction);
+			if (hashCode2.equals(hashCode)) {
+				return true;
+			}
 
-      return false;
-   }
+			LOGGER.warn(
+					"Mismatched hash of file {}, expected {} but found {}",
+					new Object[]{path, hashCode, hashCode2}
+			);
+		}
 
-   private static Path resolve(Path path, HashCode hashCode) {
-      return path.resolve(hashCode.toString());
-   }
+		return false;
+	}
 
-   private static HashCode write(HashFunction hashFunction, int maxBytes, NetworkUtils.DownloadListener listener, InputStream stream, Path path) throws IOException {
-      HashCode var11;
-      try (OutputStream outputStream = Files.newOutputStream(path, StandardOpenOption.CREATE)) {
-         Hasher hasher = hashFunction.newHasher();
-         byte[] bs = new byte[8196];
-         long l = 0L;
+	private static Path resolve(Path path, HashCode hashCode) {
+		return path.resolve(hashCode.toString());
+	}
 
-         int i;
-         while ((i = stream.read(bs)) >= 0) {
-            l += i;
-            listener.onProgress(l);
-            if (l > maxBytes) {
-               throw new IOException("Filesize was bigger than maximum allowed (got >= " + l + ", limit was " + maxBytes + ")");
-            }
+	private static HashCode write(
+			HashFunction hashFunction,
+			int maxBytes,
+			NetworkUtils.DownloadListener listener,
+			InputStream stream,
+			Path path
+	) throws IOException {
+		HashCode var11;
+		try (OutputStream outputStream = Files.newOutputStream(path, StandardOpenOption.CREATE)) {
+			Hasher hasher = hashFunction.newHasher();
+			byte[] bs = new byte[8196];
+			long l = 0L;
 
-            if (Thread.interrupted()) {
-               LOGGER.error("INTERRUPTED");
-               throw new IOException("Download interrupted");
-            }
+			int i;
+			while ((i = stream.read(bs)) >= 0) {
+				l += i;
+				listener.onProgress(l);
+				if (l > maxBytes) {
+					throw new IOException(
+							"Filesize was bigger than maximum allowed (got >= " + l + ", limit was " + maxBytes + ")");
+				}
 
-            outputStream.write(bs, 0, i);
-            hasher.putBytes(bs, 0, i);
-         }
+				if (Thread.interrupted()) {
+					LOGGER.error("INTERRUPTED");
+					throw new IOException("Download interrupted");
+				}
 
-         var11 = hasher.hash();
-      }
+				outputStream.write(bs, 0, i);
+				hasher.putBytes(bs, 0, i);
+			}
 
-      return var11;
-   }
+			var11 = hasher.hash();
+		}
 
-   public static int findLocalPort() {
-      try {
-         int var1;
-         try (ServerSocket serverSocket = new ServerSocket(0)) {
-            var1 = serverSocket.getLocalPort();
-         }
+		return var11;
+	}
 
-         return var1;
-      } catch (IOException var5) {
-         return 25564;
-      }
-   }
+	public static int findLocalPort() {
+		try {
+			int var1;
+			try (ServerSocket serverSocket = new ServerSocket(0)) {
+				var1 = serverSocket.getLocalPort();
+			}
 
-   public static boolean isPortAvailable(int port) {
-      if (port >= 0 && port <= 65535) {
-         try {
-            boolean var2;
-            try (ServerSocket serverSocket = new ServerSocket(port)) {
-               var2 = serverSocket.getLocalPort() == port;
-            }
+			return var1;
+		}
+		catch (IOException var5) {
+			return 25564;
+		}
+	}
 
-            return var2;
-         } catch (IOException var6) {
-            return false;
-         }
-      } else {
-         return false;
-      }
-   }
+	public static boolean isPortAvailable(int port) {
+		if (port >= 0 && port <= 65535) {
+			try {
+				boolean var2;
+				try (ServerSocket serverSocket = new ServerSocket(port)) {
+					var2 = serverSocket.getLocalPort() == port;
+				}
 
-   public interface DownloadListener {
-      void onStart();
+				return var2;
+			}
+			catch (IOException var6) {
+				return false;
+			}
+		}
+		else {
+			return false;
+		}
+	}
 
-      void onContentLength(OptionalLong contentLength);
+	/**
+	 * {@code DownloadListener}.
+	 */
+	public interface DownloadListener {
 
-      void onProgress(long writtenBytes);
+		void onStart();
 
-      void onFinish(boolean success);
-   }
+		void onContentLength(OptionalLong contentLength);
+
+		void onProgress(long writtenBytes);
+
+		void onFinish(boolean success);
+	}
 }

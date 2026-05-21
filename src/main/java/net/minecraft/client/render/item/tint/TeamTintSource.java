@@ -14,28 +14,34 @@ import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TeamTintSource}.
+ */
 public record TeamTintSource(int defaultColor) implements TintSource {
-   public static final MapCodec<TeamTintSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codecs.RGB.fieldOf("default").forGetter(TeamTintSource::defaultColor)).apply(instance, TeamTintSource::new)
-   );
 
-   @Override
-   public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
-      if (user != null) {
-         AbstractTeam abstractTeam = user.getScoreboardTeam();
-         if (abstractTeam != null) {
-            Formatting formatting = abstractTeam.getColor();
-            if (formatting.getColorValue() != null) {
-               return ColorHelper.fullAlpha(formatting.getColorValue());
-            }
-         }
-      }
+	public static final MapCodec<TeamTintSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codecs.RGB.fieldOf("default").forGetter(TeamTintSource::defaultColor))
+					.apply(instance, TeamTintSource::new)
+	);
 
-      return ColorHelper.fullAlpha(this.defaultColor);
-   }
+	@Override
+	public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
+		if (user != null) {
+			AbstractTeam abstractTeam = user.getScoreboardTeam();
+			if (abstractTeam != null) {
+				Formatting formatting = abstractTeam.getColor();
+				if (formatting.getColorValue() != null) {
+					return ColorHelper.fullAlpha(formatting.getColorValue());
+				}
+			}
+		}
 
-   @Override
-   public MapCodec<TeamTintSource> getCodec() {
-      return CODEC;
-   }
+		return ColorHelper.fullAlpha(this.defaultColor);
+	}
+
+	@Override
+	public MapCodec<TeamTintSource> getCodec() {
+		return CODEC;
+	}
 }

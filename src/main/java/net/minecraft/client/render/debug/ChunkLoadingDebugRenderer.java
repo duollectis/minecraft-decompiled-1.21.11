@@ -2,9 +2,6 @@ package net.minecraft.client.render.debug;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMap.Builder;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.CompletableFuture;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -26,106 +23,135 @@ import net.minecraft.world.debug.gizmo.GizmoDrawing;
 import net.minecraft.world.debug.gizmo.TextGizmo;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.CompletableFuture;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ChunkLoadingDebugRenderer}.
+ */
 public class ChunkLoadingDebugRenderer implements DebugRenderer.Renderer {
-   final MinecraftClient client;
-   private double lastUpdateTime = Double.MIN_VALUE;
-   private final int LOADING_DATA_CHUNK_RANGE = 12;
-   private ChunkLoadingDebugRenderer.@Nullable ChunkLoadingStatus loadingData;
 
-   public ChunkLoadingDebugRenderer(MinecraftClient client) {
-      this.client = client;
-   }
+	final MinecraftClient client;
+	private double lastUpdateTime = Double.MIN_VALUE;
+	private final int LOADING_DATA_CHUNK_RANGE = 12;
+	private ChunkLoadingDebugRenderer.@Nullable ChunkLoadingStatus loadingData;
 
-   @Override
-   public void render(double cameraX, double cameraY, double cameraZ, DebugDataStore store, Frustum frustum, float tickProgress) {
-      double d = Util.getMeasuringTimeNano();
-      if (d - this.lastUpdateTime > 3.0E9) {
-         this.lastUpdateTime = d;
-         IntegratedServer integratedServer = this.client.getServer();
-         if (integratedServer != null) {
-            this.loadingData = new ChunkLoadingDebugRenderer.ChunkLoadingStatus(integratedServer, cameraX, cameraZ);
-         } else {
-            this.loadingData = null;
-         }
-      }
+	public ChunkLoadingDebugRenderer(MinecraftClient client) {
+		this.client = client;
+	}
 
-      if (this.loadingData != null) {
-         Map<ChunkPos, String> map = this.loadingData.serverStates.getNow(null);
-         double e = this.client.gameRenderer.getCamera().getCameraPos().y * 0.85;
+	@Override
+	public void render(
+			double cameraX,
+			double cameraY,
+			double cameraZ,
+			DebugDataStore store,
+			Frustum frustum,
+			float tickProgress
+	) {
+		double d = Util.getMeasuringTimeNano();
+		if (d - this.lastUpdateTime > 3.0E9) {
+			this.lastUpdateTime = d;
+			IntegratedServer integratedServer = this.client.getServer();
+			if (integratedServer != null) {
+				this.loadingData = new ChunkLoadingDebugRenderer.ChunkLoadingStatus(integratedServer, cameraX, cameraZ);
+			}
+			else {
+				this.loadingData = null;
+			}
+		}
 
-         for (Entry<ChunkPos, String> entry : this.loadingData.clientStates.entrySet()) {
-            ChunkPos chunkPos = entry.getKey();
-            String string = entry.getValue();
-            if (map != null) {
-               string = string + map.get(chunkPos);
-            }
+		if (this.loadingData != null) {
+			Map<ChunkPos, String> map = this.loadingData.serverStates.getNow(null);
+			double e = this.client.gameRenderer.getCamera().getCameraPos().y * 0.85;
 
-            String[] strings = string.split("\n");
-            int i = 0;
+			for (Entry<ChunkPos, String> entry : this.loadingData.clientStates.entrySet()) {
+				ChunkPos chunkPos = entry.getKey();
+				String string = entry.getValue();
+				if (map != null) {
+					string = string + map.get(chunkPos);
+				}
 
-            for (String string2 : strings) {
-               GizmoDrawing.text(
-                     string2,
-                     new Vec3d(ChunkSectionPos.getOffsetPos(chunkPos.x, 8), e + i, ChunkSectionPos.getOffsetPos(chunkPos.z, 8)),
-                     TextGizmo.Style.left().scaled(2.4F)
-                  )
-                  .ignoreOcclusion();
-               i -= 2;
-            }
-         }
-      }
-   }
+				String[] strings = string.split("\n");
+				int i = 0;
 
-   @Environment(EnvType.CLIENT)
-   final class ChunkLoadingStatus {
-      final Map<ChunkPos, String> clientStates;
-      final CompletableFuture<Map<ChunkPos, String>> serverStates;
+				for (String string2 : strings) {
+					GizmoDrawing.text(
+							            string2,
+							            new Vec3d(
+									            ChunkSectionPos.getOffsetPos(chunkPos.x, 8),
+									            e + i,
+									            ChunkSectionPos.getOffsetPos(chunkPos.z, 8)
+							            ),
+							            TextGizmo.Style.left().scaled(2.4F)
+					            )
+					            .ignoreOcclusion();
+					i -= 2;
+				}
+			}
+		}
+	}
 
-      ChunkLoadingStatus(final IntegratedServer server, final double x, final double z) {
-         ClientWorld clientWorld = ChunkLoadingDebugRenderer.this.client.world;
-         RegistryKey<World> registryKey = clientWorld.getRegistryKey();
-         int i = ChunkSectionPos.getSectionCoord(x);
-         int j = ChunkSectionPos.getSectionCoord(z);
-         Builder<ChunkPos, String> builder = ImmutableMap.builder();
-         ClientChunkManager clientChunkManager = clientWorld.getChunkManager();
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ChunkLoadingStatus}.
+	 */
+	final class ChunkLoadingStatus {
 
-         for (int k = i - 12; k <= i + 12; k++) {
-            for (int l = j - 12; l <= j + 12; l++) {
-               ChunkPos chunkPos = new ChunkPos(k, l);
-               String string = "";
-               WorldChunk worldChunk = clientChunkManager.getWorldChunk(k, l, false);
-               string = string + "Client: ";
-               if (worldChunk == null) {
-                  string = string + "0n/a\n";
-               } else {
-                  string = string + (worldChunk.isEmpty() ? " E" : "");
-                  string = string + "\n";
-               }
+		final Map<ChunkPos, String> clientStates;
+		final CompletableFuture<Map<ChunkPos, String>> serverStates;
 
-               builder.put(chunkPos, string);
-            }
-         }
+		ChunkLoadingStatus(final IntegratedServer server, final double x, final double z) {
+			ClientWorld clientWorld = ChunkLoadingDebugRenderer.this.client.world;
+			RegistryKey<World> registryKey = clientWorld.getRegistryKey();
+			int i = ChunkSectionPos.getSectionCoord(x);
+			int j = ChunkSectionPos.getSectionCoord(z);
+			Builder<ChunkPos, String> builder = ImmutableMap.builder();
+			ClientChunkManager clientChunkManager = clientWorld.getChunkManager();
 
-         this.clientStates = builder.build();
-         this.serverStates = server.submit(() -> {
-            ServerWorld serverWorld = server.getWorld(registryKey);
-            if (serverWorld == null) {
-               return ImmutableMap.of();
-            } else {
-               Builder<ChunkPos, String> builderx = ImmutableMap.builder();
-               ServerChunkManager serverChunkManager = serverWorld.getChunkManager();
+			for (int k = i - 12; k <= i + 12; k++) {
+				for (int l = j - 12; l <= j + 12; l++) {
+					ChunkPos chunkPos = new ChunkPos(k, l);
+					String string = "";
+					WorldChunk worldChunk = clientChunkManager.getWorldChunk(k, l, false);
+					string = string + "Client: ";
+					if (worldChunk == null) {
+						string = string + "0n/a\n";
+					}
+					else {
+						string = string + (worldChunk.isEmpty() ? " E" : "");
+						string = string + "\n";
+					}
 
-               for (int kx = i - 12; kx <= i + 12; kx++) {
-                  for (int lx = j - 12; lx <= j + 12; lx++) {
-                     ChunkPos chunkPosx = new ChunkPos(kx, lx);
-                     builderx.put(chunkPosx, "Server: " + serverChunkManager.getChunkLoadingDebugInfo(chunkPosx));
-                  }
-               }
+					builder.put(chunkPos, string);
+				}
+			}
 
-               return builderx.build();
-            }
-         });
-      }
-   }
+			this.clientStates = builder.build();
+			this.serverStates = server.submit(() -> {
+				ServerWorld serverWorld = server.getWorld(registryKey);
+				if (serverWorld == null) {
+					return ImmutableMap.of();
+				}
+				else {
+					Builder<ChunkPos, String> builderx = ImmutableMap.builder();
+					ServerChunkManager serverChunkManager = serverWorld.getChunkManager();
+
+					for (int kx = i - 12; kx <= i + 12; kx++) {
+						for (int lx = j - 12; lx <= j + 12; lx++) {
+							ChunkPos chunkPosx = new ChunkPos(kx, lx);
+							builderx.put(
+									chunkPosx,
+									"Server: " + serverChunkManager.getChunkLoadingDebugInfo(chunkPosx)
+							);
+						}
+					}
+
+					return builderx.build();
+				}
+			});
+		}
+	}
 }

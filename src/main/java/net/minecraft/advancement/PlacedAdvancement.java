@@ -2,70 +2,76 @@ package net.minecraft.advancement;
 
 import com.google.common.annotations.VisibleForTesting;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
-import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Set;
+
+/**
+ * {@code PlacedAdvancement}.
+ */
 public class PlacedAdvancement {
-   private final AdvancementEntry advancementEntry;
-   private final @Nullable PlacedAdvancement parent;
-   private final Set<PlacedAdvancement> children = new ReferenceOpenHashSet();
 
-   @VisibleForTesting
-   public PlacedAdvancement(AdvancementEntry advancementEntry, @Nullable PlacedAdvancement parent) {
-      this.advancementEntry = advancementEntry;
-      this.parent = parent;
-   }
+	private final AdvancementEntry advancementEntry;
+	private final @Nullable PlacedAdvancement parent;
+	private final Set<PlacedAdvancement> children = new ReferenceOpenHashSet();
 
-   public Advancement getAdvancement() {
-      return this.advancementEntry.value();
-   }
+	@VisibleForTesting
+	public PlacedAdvancement(AdvancementEntry advancementEntry, @Nullable PlacedAdvancement parent) {
+		this.advancementEntry = advancementEntry;
+		this.parent = parent;
+	}
 
-   public AdvancementEntry getAdvancementEntry() {
-      return this.advancementEntry;
-   }
+	public Advancement getAdvancement() {
+		return this.advancementEntry.value();
+	}
 
-   public @Nullable PlacedAdvancement getParent() {
-      return this.parent;
-   }
+	public AdvancementEntry getAdvancementEntry() {
+		return this.advancementEntry;
+	}
 
-   public PlacedAdvancement getRoot() {
-      return findRoot(this);
-   }
+	public @Nullable PlacedAdvancement getParent() {
+		return this.parent;
+	}
 
-   public static PlacedAdvancement findRoot(PlacedAdvancement advancement) {
-      PlacedAdvancement placedAdvancement = advancement;
+	public PlacedAdvancement getRoot() {
+		return findRoot(this);
+	}
 
-      while (true) {
-         PlacedAdvancement placedAdvancement2 = placedAdvancement.getParent();
-         if (placedAdvancement2 == null) {
-            return placedAdvancement;
-         }
+	public static PlacedAdvancement findRoot(PlacedAdvancement advancement) {
+		PlacedAdvancement placedAdvancement = advancement;
 
-         placedAdvancement = placedAdvancement2;
-      }
-   }
+		while (true) {
+			PlacedAdvancement placedAdvancement2 = placedAdvancement.getParent();
+			if (placedAdvancement2 == null) {
+				return placedAdvancement;
+			}
 
-   public Iterable<PlacedAdvancement> getChildren() {
-      return this.children;
-   }
+			placedAdvancement = placedAdvancement2;
+		}
+	}
 
-   @VisibleForTesting
-   public void addChild(PlacedAdvancement advancement) {
-      this.children.add(advancement);
-   }
+	public Iterable<PlacedAdvancement> getChildren() {
+		return this.children;
+	}
 
-   @Override
-   public boolean equals(Object o) {
-      return this == o ? true : o instanceof PlacedAdvancement placedAdvancement && this.advancementEntry.equals(placedAdvancement.advancementEntry);
-   }
+	@VisibleForTesting
+	public void addChild(PlacedAdvancement advancement) {
+		this.children.add(advancement);
+	}
 
-   @Override
-   public int hashCode() {
-      return this.advancementEntry.hashCode();
-   }
+	@Override
+	public boolean equals(Object o) {
+		return this == o ? true : o instanceof PlacedAdvancement placedAdvancement && this.advancementEntry.equals(
+				placedAdvancement.advancementEntry);
+	}
 
-   @Override
-   public String toString() {
-      return this.advancementEntry.id().toString();
-   }
+	@Override
+	public int hashCode() {
+		return this.advancementEntry.hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return this.advancementEntry.id().toString();
+	}
 }

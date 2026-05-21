@@ -1,23 +1,27 @@
 package net.minecraft.util.crash;
 
+/**
+ * {@code CrashException}.
+ */
 public class CrashException extends RuntimeException {
-   private final CrashReport report;
 
-   public CrashException(CrashReport report) {
-      this.report = report;
-   }
+	private final CrashReport report;
 
-   public CrashReport getReport() {
-      return this.report;
-   }
+	public CrashException(CrashReport report) {
+		this.report = report;
+	}
 
-   @Override
-   public Throwable getCause() {
-      return this.report.getCause();
-   }
+	public CrashReport getReport() {
+		return this.report;
+	}
 
-   @Override
-   public String getMessage() {
-      return this.report.getMessage();
-   }
+	@Override
+	public Throwable getCause() {
+		return this.report.getCause();
+	}
+
+	@Override
+	public String getMessage() {
+		return this.report.getMessage();
+	}
 }

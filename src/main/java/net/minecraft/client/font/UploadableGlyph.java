@@ -5,38 +5,42 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code UploadableGlyph}.
+ */
 public interface UploadableGlyph {
-   int getWidth();
 
-   int getHeight();
+	int getWidth();
 
-   void upload(int x, int y, GpuTexture texture);
+	int getHeight();
 
-   boolean hasColor();
+	void upload(int x, int y, GpuTexture texture);
 
-   float getOversample();
+	boolean hasColor();
 
-   default float getXMin() {
-      return this.getBearingX();
-   }
+	float getOversample();
 
-   default float getXMax() {
-      return this.getXMin() + this.getWidth() / this.getOversample();
-   }
+	default float getXMin() {
+		return this.getBearingX();
+	}
 
-   default float getYMin() {
-      return 7.0F - this.getAscent();
-   }
+	default float getXMax() {
+		return this.getXMin() + this.getWidth() / this.getOversample();
+	}
 
-   default float getYMax() {
-      return this.getYMin() + this.getHeight() / this.getOversample();
-   }
+	default float getYMin() {
+		return 7.0F - this.getAscent();
+	}
 
-   default float getBearingX() {
-      return 0.0F;
-   }
+	default float getYMax() {
+		return this.getYMin() + this.getHeight() / this.getOversample();
+	}
 
-   default float getAscent() {
-      return 7.0F;
-   }
+	default float getBearingX() {
+		return 0.0F;
+	}
+
+	default float getAscent() {
+		return 7.0F;
+	}
 }

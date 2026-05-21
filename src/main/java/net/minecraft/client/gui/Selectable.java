@@ -1,31 +1,39 @@
 package net.minecraft.client.gui;
 
-import java.util.Collection;
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.navigation.Navigable;
 
+import java.util.Collection;
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Selectable}.
+ */
 public interface Selectable extends Navigable, Narratable {
-   Selectable.SelectionType getType();
 
-   default boolean isInteractable() {
-      return true;
-   }
+	Selectable.SelectionType getType();
 
-   default Collection<? extends Selectable> getNarratedParts() {
-      return List.of(this);
-   }
+	default boolean isInteractable() {
+		return true;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum SelectionType {
-      NONE,
-      HOVERED,
-      FOCUSED;
+	default Collection<? extends Selectable> getNarratedParts() {
+		return List.of(this);
+	}
 
-      public boolean isFocused() {
-         return this == FOCUSED;
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code SelectionType}.
+	 */
+	public static enum SelectionType {
+		NONE,
+		HOVERED,
+		FOCUSED;
+
+		public boolean isFocused() {
+			return this == FOCUSED;
+		}
+	}
 }

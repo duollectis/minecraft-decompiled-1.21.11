@@ -6,7 +6,10 @@ import net.minecraft.util.annotation.DeobfuscateClass;
 
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
+/**
+ * {@code LogicOp}.
+ */
 public enum LogicOp {
-   NONE,
-   OR_REVERSE;
+	NONE,
+	OR_REVERSE;
 }

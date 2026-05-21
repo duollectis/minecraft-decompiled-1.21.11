@@ -20,79 +20,100 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code BarrierBlock}.
+ */
 public class BarrierBlock extends Block implements Waterloggable {
-   public static final MapCodec<BarrierBlock> CODEC = createCodec(BarrierBlock::new);
-   public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
 
-   @Override
-   public MapCodec<BarrierBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<BarrierBlock> CODEC = createCodec(BarrierBlock::new);
+	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
 
-   public BarrierBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.getDefaultState().with(WATERLOGGED, false));
-   }
+	@Override
+	public MapCodec<BarrierBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected boolean isTransparent(BlockState state) {
-      return state.getFluidState().isEmpty();
-   }
+	public BarrierBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.getDefaultState().with(WATERLOGGED, false));
+	}
 
-   @Override
-   protected BlockRenderType getRenderType(BlockState state) {
-      return BlockRenderType.INVISIBLE;
-   }
+	@Override
+	protected boolean isTransparent(BlockState state) {
+		return state.getFluidState().isEmpty();
+	}
 
-   @Override
-   protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
-      return 1.0F;
-   }
+	@Override
+	protected BlockRenderType getRenderType(BlockState state) {
+		return BlockRenderType.INVISIBLE;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (state.get(WATERLOGGED)) {
-         tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-      }
+	@Override
+	protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
+		return 1.0F;
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(WATERLOGGED, ctx.getWorld().getFluidState(ctx.getBlockPos()).getFluid() == Fluids.WATER);
-   }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(WATERLOGGED);
-   }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this
+				.getDefaultState()
+				.with(WATERLOGGED, ctx.getWorld().getFluidState(ctx.getBlockPos()).getFluid() == Fluids.WATER);
+	}
 
-   @Override
-   public ItemStack tryDrainFluid(@Nullable LivingEntity drainer, WorldAccess world, BlockPos pos, BlockState state) {
-      return drainer instanceof PlayerEntity playerEntity && playerEntity.isCreative()
-         ? Waterloggable.super.tryDrainFluid(drainer, world, pos, state)
-         : ItemStack.EMPTY;
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(WATERLOGGED);
+	}
 
-   @Override
-   public boolean canFillWithFluid(@Nullable LivingEntity filler, BlockView world, BlockPos pos, BlockState state, Fluid fluid) {
-      return filler instanceof PlayerEntity playerEntity && playerEntity.isCreative()
-         ? Waterloggable.super.canFillWithFluid(filler, world, pos, state, fluid)
-         : false;
-   }
+	@Override
+	public ItemStack tryDrainFluid(@Nullable LivingEntity drainer, WorldAccess world, BlockPos pos, BlockState state) {
+		return drainer instanceof PlayerEntity playerEntity && playerEntity.isCreative()
+		       ? Waterloggable.super.tryDrainFluid(drainer, world, pos, state)
+		       : ItemStack.EMPTY;
+	}
+
+	@Override
+	public boolean canFillWithFluid(
+			@Nullable LivingEntity filler,
+			BlockView world,
+			BlockPos pos,
+			BlockState state,
+			Fluid fluid
+	) {
+		return filler instanceof PlayerEntity playerEntity && playerEntity.isCreative()
+		       ? Waterloggable.super.canFillWithFluid(filler, world, pos, state, fluid)
+		       : false;
+	}
 }

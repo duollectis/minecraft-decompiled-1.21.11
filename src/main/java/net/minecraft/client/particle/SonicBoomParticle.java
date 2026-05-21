@@ -7,26 +7,49 @@ import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SonicBoomParticle}.
+ */
 public class SonicBoomParticle extends ExplosionLargeParticle {
-   protected SonicBoomParticle(ClientWorld clientWorld, double d, double e, double f, double g, SpriteProvider spriteProvider) {
-      super(clientWorld, d, e, f, g, spriteProvider);
-      this.maxAge = 16;
-      this.scale = 1.5F;
-      this.updateSprite(spriteProvider);
-   }
 
-   @Environment(EnvType.CLIENT)
-   public static class Factory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+	protected SonicBoomParticle(
+			ClientWorld clientWorld,
+			double d,
+			double e,
+			double f,
+			double g,
+			SpriteProvider spriteProvider
+	) {
+		super(clientWorld, d, e, f, g, spriteProvider);
+		this.maxAge = 16;
+		this.scale = 1.5F;
+		this.updateSprite(spriteProvider);
+	}
 
-      public Factory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Factory}.
+	 */
+	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new SonicBoomParticle(clientWorld, d, e, f, g, this.spriteProvider);
-      }
-   }
+		private final SpriteProvider spriteProvider;
+
+		public Factory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
+
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new SonicBoomParticle(clientWorld, d, e, f, g, this.spriteProvider);
+		}
+	}
 }

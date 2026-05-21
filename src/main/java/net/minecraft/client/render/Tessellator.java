@@ -7,40 +7,46 @@ import net.minecraft.client.util.BufferAllocator;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Tessellator}.
+ */
 public class Tessellator {
-   private static final int MAX_BUFFER_SIZE = 786432;
-   private final BufferAllocator allocator;
-   private static @Nullable Tessellator INSTANCE;
 
-   public static void initialize() {
-      if (INSTANCE != null) {
-         throw new IllegalStateException("Tesselator has already been initialized");
-      } else {
-         INSTANCE = new Tessellator();
-      }
-   }
+	private static final int MAX_BUFFER_SIZE = 786432;
+	private final BufferAllocator allocator;
+	private static @Nullable Tessellator INSTANCE;
 
-   public static Tessellator getInstance() {
-      if (INSTANCE == null) {
-         throw new IllegalStateException("Tesselator has not been initialized");
-      } else {
-         return INSTANCE;
-      }
-   }
+	public static void initialize() {
+		if (INSTANCE != null) {
+			throw new IllegalStateException("Tesselator has already been initialized");
+		}
+		else {
+			INSTANCE = new Tessellator();
+		}
+	}
 
-   public Tessellator(int bufferCapacity) {
-      this.allocator = new BufferAllocator(bufferCapacity);
-   }
+	public static Tessellator getInstance() {
+		if (INSTANCE == null) {
+			throw new IllegalStateException("Tesselator has not been initialized");
+		}
+		else {
+			return INSTANCE;
+		}
+	}
 
-   public Tessellator() {
-      this(786432);
-   }
+	public Tessellator(int bufferCapacity) {
+		this.allocator = new BufferAllocator(bufferCapacity);
+	}
 
-   public BufferBuilder begin(VertexFormat.DrawMode drawMode, VertexFormat format) {
-      return new BufferBuilder(this.allocator, drawMode, format);
-   }
+	public Tessellator() {
+		this(786432);
+	}
 
-   public void clear() {
-      this.allocator.clear();
-   }
+	public BufferBuilder begin(VertexFormat.DrawMode drawMode, VertexFormat format) {
+		return new BufferBuilder(this.allocator, drawMode, format);
+	}
+
+	public void clear() {
+		this.allocator.clear();
+	}
 }

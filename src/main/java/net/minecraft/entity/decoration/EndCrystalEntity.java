@@ -1,6 +1,5 @@
 package net.minecraft.entity.decoration;
 
-import java.util.Optional;
 import net.minecraft.block.AbstractFireBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -20,128 +19,156 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+
+/**
+ * {@code EndCrystalEntity}.
+ */
 public class EndCrystalEntity extends Entity {
-   private static final TrackedData<Optional<BlockPos>> BEAM_TARGET = DataTracker.registerData(
-      EndCrystalEntity.class, TrackedDataHandlerRegistry.OPTIONAL_BLOCK_POS
-   );
-   private static final TrackedData<Boolean> SHOW_BOTTOM = DataTracker.registerData(EndCrystalEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final boolean DEFAULT_SHOW_BOTTOM = true;
-   public int endCrystalAge;
 
-   public EndCrystalEntity(EntityType<? extends EndCrystalEntity> entityType, World world) {
-      super(entityType, world);
-      this.intersectionChecked = true;
-      this.endCrystalAge = this.random.nextInt(100000);
-   }
+	private static final TrackedData<Optional<BlockPos>> BEAM_TARGET = DataTracker.registerData(
+			EndCrystalEntity.class, TrackedDataHandlerRegistry.OPTIONAL_BLOCK_POS
+	);
+	private static final TrackedData<Boolean>
+			SHOW_BOTTOM =
+			DataTracker.registerData(EndCrystalEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final boolean DEFAULT_SHOW_BOTTOM = true;
+	public int endCrystalAge;
 
-   public EndCrystalEntity(World world, double x, double y, double z) {
-      this(EntityType.END_CRYSTAL, world);
-      this.setPosition(x, y, z);
-   }
+	public EndCrystalEntity(EntityType<? extends EndCrystalEntity> entityType, World world) {
+		super(entityType, world);
+		this.intersectionChecked = true;
+		this.endCrystalAge = this.random.nextInt(100000);
+	}
 
-   @Override
-   protected Entity.MoveEffect getMoveEffect() {
-      return Entity.MoveEffect.NONE;
-   }
+	public EndCrystalEntity(World world, double x, double y, double z) {
+		this(EntityType.END_CRYSTAL, world);
+		this.setPosition(x, y, z);
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      builder.add(BEAM_TARGET, Optional.empty());
-      builder.add(SHOW_BOTTOM, true);
-   }
+	@Override
+	protected Entity.MoveEffect getMoveEffect() {
+		return Entity.MoveEffect.NONE;
+	}
 
-   @Override
-   public void tick() {
-      this.endCrystalAge++;
-      this.tickBlockCollision();
-      this.tickPortalTeleportation();
-      if (this.getEntityWorld() instanceof ServerWorld) {
-         BlockPos blockPos = this.getBlockPos();
-         if (((ServerWorld)this.getEntityWorld()).getEnderDragonFight() != null && this.getEntityWorld().getBlockState(blockPos).isAir()) {
-            this.getEntityWorld().setBlockState(blockPos, AbstractFireBlock.getState(this.getEntityWorld(), blockPos));
-         }
-      }
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		builder.add(BEAM_TARGET, Optional.empty());
+		builder.add(SHOW_BOTTOM, true);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      view.putNullable("beam_target", BlockPos.CODEC, this.getBeamTarget());
-      view.putBoolean("ShowBottom", this.shouldShowBottom());
-   }
+	@Override
+	public void tick() {
+		this.endCrystalAge++;
+		this.tickBlockCollision();
+		this.tickPortalTeleportation();
+		if (this.getEntityWorld() instanceof ServerWorld) {
+			BlockPos blockPos = this.getBlockPos();
+			if (((ServerWorld) this.getEntityWorld()).getEnderDragonFight() != null && this
+					.getEntityWorld()
+					.getBlockState(blockPos)
+					.isAir()) {
+				this
+						.getEntityWorld()
+						.setBlockState(blockPos, AbstractFireBlock.getState(this.getEntityWorld(), blockPos));
+			}
+		}
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      this.setBeamTarget(view.<BlockPos>read("beam_target", BlockPos.CODEC).orElse(null));
-      this.setShowBottom(view.getBoolean("ShowBottom", true));
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		view.putNullable("beam_target", BlockPos.CODEC, this.getBeamTarget());
+		view.putBoolean("ShowBottom", this.shouldShowBottom());
+	}
 
-   @Override
-   public boolean canHit() {
-      return true;
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		this.setBeamTarget(view.<BlockPos>read("beam_target", BlockPos.CODEC).orElse(null));
+		this.setShowBottom(view.getBoolean("ShowBottom", true));
+	}
 
-   @Override
-   public final boolean clientDamage(DamageSource source) {
-      return this.isAlwaysInvulnerableTo(source) ? false : !(source.getAttacker() instanceof EnderDragonEntity);
-   }
+	@Override
+	public boolean canHit() {
+		return true;
+	}
 
-   @Override
-   public final boolean damage(ServerWorld world, DamageSource source, float amount) {
-      if (this.isAlwaysInvulnerableTo(source)) {
-         return false;
-      } else if (source.getAttacker() instanceof EnderDragonEntity) {
-         return false;
-      } else {
-         if (!this.isRemoved()) {
-            this.remove(Entity.RemovalReason.KILLED);
-            if (!source.isIn(DamageTypeTags.IS_EXPLOSION)) {
-               DamageSource damageSource = source.getAttacker() != null ? this.getDamageSources().explosion(this, source.getAttacker()) : null;
-               world.createExplosion(this, damageSource, null, this.getX(), this.getY(), this.getZ(), 6.0F, false, World.ExplosionSourceType.BLOCK);
-            }
+	@Override
+	public final boolean clientDamage(DamageSource source) {
+		return this.isAlwaysInvulnerableTo(source) ? false : !(source.getAttacker() instanceof EnderDragonEntity);
+	}
 
-            this.crystalDestroyed(world, source);
-         }
+	@Override
+	public final boolean damage(ServerWorld world, DamageSource source, float amount) {
+		if (this.isAlwaysInvulnerableTo(source)) {
+			return false;
+		}
+		else if (source.getAttacker() instanceof EnderDragonEntity) {
+			return false;
+		}
+		else {
+			if (!this.isRemoved()) {
+				this.remove(Entity.RemovalReason.KILLED);
+				if (!source.isIn(DamageTypeTags.IS_EXPLOSION)) {
+					DamageSource
+							damageSource =
+							source.getAttacker() != null ? this.getDamageSources().explosion(this, source.getAttacker())
+							                             : null;
+					world.createExplosion(
+							this,
+							damageSource,
+							null,
+							this.getX(),
+							this.getY(),
+							this.getZ(),
+							6.0F,
+							false,
+							World.ExplosionSourceType.BLOCK
+					);
+				}
 
-         return true;
-      }
-   }
+				this.crystalDestroyed(world, source);
+			}
 
-   @Override
-   public void kill(ServerWorld world) {
-      this.crystalDestroyed(world, this.getDamageSources().generic());
-      super.kill(world);
-   }
+			return true;
+		}
+	}
 
-   private void crystalDestroyed(ServerWorld world, DamageSource source) {
-      EnderDragonFight enderDragonFight = world.getEnderDragonFight();
-      if (enderDragonFight != null) {
-         enderDragonFight.crystalDestroyed(this, source);
-      }
-   }
+	@Override
+	public void kill(ServerWorld world) {
+		this.crystalDestroyed(world, this.getDamageSources().generic());
+		super.kill(world);
+	}
 
-   public void setBeamTarget(@Nullable BlockPos beamTarget) {
-      this.getDataTracker().set(BEAM_TARGET, Optional.ofNullable(beamTarget));
-   }
+	private void crystalDestroyed(ServerWorld world, DamageSource source) {
+		EnderDragonFight enderDragonFight = world.getEnderDragonFight();
+		if (enderDragonFight != null) {
+			enderDragonFight.crystalDestroyed(this, source);
+		}
+	}
 
-   public @Nullable BlockPos getBeamTarget() {
-      return this.getDataTracker().get(BEAM_TARGET).orElse(null);
-   }
+	public void setBeamTarget(@Nullable BlockPos beamTarget) {
+		this.getDataTracker().set(BEAM_TARGET, Optional.ofNullable(beamTarget));
+	}
 
-   public void setShowBottom(boolean showBottom) {
-      this.getDataTracker().set(SHOW_BOTTOM, showBottom);
-   }
+	public @Nullable BlockPos getBeamTarget() {
+		return this.getDataTracker().get(BEAM_TARGET).orElse(null);
+	}
 
-   public boolean shouldShowBottom() {
-      return this.getDataTracker().get(SHOW_BOTTOM);
-   }
+	public void setShowBottom(boolean showBottom) {
+		this.getDataTracker().set(SHOW_BOTTOM, showBottom);
+	}
 
-   @Override
-   public boolean shouldRender(double distance) {
-      return super.shouldRender(distance) || this.getBeamTarget() != null;
-   }
+	public boolean shouldShowBottom() {
+		return this.getDataTracker().get(SHOW_BOTTOM);
+	}
 
-   @Override
-   public ItemStack getPickBlockStack() {
-      return new ItemStack(Items.END_CRYSTAL);
-   }
+	@Override
+	public boolean shouldRender(double distance) {
+		return super.shouldRender(distance) || this.getBeamTarget() != null;
+	}
+
+	@Override
+	public ItemStack getPickBlockStack() {
+		return new ItemStack(Items.END_CRYSTAL);
+	}
 }

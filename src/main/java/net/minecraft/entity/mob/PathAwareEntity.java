@@ -13,69 +13,83 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code PathAwareEntity}.
+ */
 public abstract class PathAwareEntity extends MobEntity {
-   protected static final float DEFAULT_PATHFINDING_FAVOR = 0.0F;
 
-   protected PathAwareEntity(EntityType<? extends PathAwareEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	protected static final float DEFAULT_PATHFINDING_FAVOR = 0.0F;
 
-   public float getPathfindingFavor(BlockPos pos) {
-      return this.getPathfindingFavor(pos, this.getEntityWorld());
-   }
+	protected PathAwareEntity(EntityType<? extends PathAwareEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public float getPathfindingFavor(BlockPos pos, WorldView world) {
-      return 0.0F;
-   }
+	public float getPathfindingFavor(BlockPos pos) {
+		return this.getPathfindingFavor(pos, this.getEntityWorld());
+	}
 
-   @Override
-   public boolean canSpawn(WorldAccess world, SpawnReason spawnReason) {
-      return this.getPathfindingFavor(this.getBlockPos(), world) >= 0.0F;
-   }
+	public float getPathfindingFavor(BlockPos pos, WorldView world) {
+		return 0.0F;
+	}
 
-   public boolean isNavigating() {
-      return !this.getNavigation().isIdle();
-   }
+	@Override
+	public boolean canSpawn(WorldAccess world, SpawnReason spawnReason) {
+		return this.getPathfindingFavor(this.getBlockPos(), world) >= 0.0F;
+	}
 
-   public boolean isPanicking() {
-      if (this.brain.hasMemoryModule(MemoryModuleType.IS_PANICKING)) {
-         return this.brain.getOptionalRegisteredMemory(MemoryModuleType.IS_PANICKING).isPresent();
-      } else {
-         for (PrioritizedGoal prioritizedGoal : this.goalSelector.getGoals()) {
-            if (prioritizedGoal.isRunning() && prioritizedGoal.getGoal() instanceof EscapeDangerGoal) {
-               return true;
-            }
-         }
+	public boolean isNavigating() {
+		return !this.getNavigation().isIdle();
+	}
 
-         return false;
-      }
-   }
+	public boolean isPanicking() {
+		if (this.brain.hasMemoryModule(MemoryModuleType.IS_PANICKING)) {
+			return this.brain.getOptionalRegisteredMemory(MemoryModuleType.IS_PANICKING).isPresent();
+		}
+		else {
+			for (PrioritizedGoal prioritizedGoal : this.goalSelector.getGoals()) {
+				if (prioritizedGoal.isRunning() && prioritizedGoal.getGoal() instanceof EscapeDangerGoal) {
+					return true;
+				}
+			}
 
-   protected boolean shouldFollowLeash() {
-      return true;
-   }
+			return false;
+		}
+	}
 
-   @Override
-   public void onShortLeashTick(Entity entity) {
-      super.onShortLeashTick(entity);
-      if (this.shouldFollowLeash() && !this.isPanicking()) {
-         this.goalSelector.enableControl(Goal.Control.MOVE);
-         float f = 2.0F;
-         float g = this.distanceTo(entity);
-         Vec3d vec3d = new Vec3d(entity.getX() - this.getX(), entity.getY() - this.getY(), entity.getZ() - this.getZ())
-            .normalize()
-            .multiply(Math.max(g - 2.0F, 0.0F));
-         this.getNavigation().startMovingTo(this.getX() + vec3d.x, this.getY() + vec3d.y, this.getZ() + vec3d.z, this.getFollowLeashSpeed());
-      }
-   }
+	protected boolean shouldFollowLeash() {
+		return true;
+	}
 
-   @Override
-   public void beforeLeashTick(Entity leashHolder) {
-      this.setPositionTarget(leashHolder.getBlockPos(), (int)this.getElasticLeashDistance() - 1);
-      super.beforeLeashTick(leashHolder);
-   }
+	@Override
+	public void onShortLeashTick(Entity entity) {
+		super.onShortLeashTick(entity);
+		if (this.shouldFollowLeash() && !this.isPanicking()) {
+			this.goalSelector.enableControl(Goal.Control.MOVE);
+			float f = 2.0F;
+			float g = this.distanceTo(entity);
+			Vec3d
+					vec3d =
+					new Vec3d(entity.getX() - this.getX(), entity.getY() - this.getY(), entity.getZ() - this.getZ())
+							.normalize()
+							.multiply(Math.max(g - 2.0F, 0.0F));
+			this
+					.getNavigation()
+					.startMovingTo(
+							this.getX() + vec3d.x,
+							this.getY() + vec3d.y,
+							this.getZ() + vec3d.z,
+							this.getFollowLeashSpeed()
+					);
+		}
+	}
 
-   protected double getFollowLeashSpeed() {
-      return 1.0;
-   }
+	@Override
+	public void beforeLeashTick(Entity leashHolder) {
+		this.setPositionTarget(leashHolder.getBlockPos(), (int) this.getElasticLeashDistance() - 1);
+		super.beforeLeashTick(leashHolder);
+	}
+
+	protected double getFollowLeashSpeed() {
+		return 1.0;
+	}
 }

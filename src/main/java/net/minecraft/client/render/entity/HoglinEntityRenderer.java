@@ -8,23 +8,27 @@ import net.minecraft.entity.mob.HoglinEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code HoglinEntityRenderer}.
+ */
 public class HoglinEntityRenderer extends AbstractHoglinEntityRenderer<HoglinEntity> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/hoglin/hoglin.png");
 
-   public HoglinEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, EntityModelLayers.HOGLIN, EntityModelLayers.HOGLIN_BABY, 0.7F);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/hoglin/hoglin.png");
 
-   public Identifier getTexture(HoglinEntityRenderState hoglinEntityRenderState) {
-      return TEXTURE;
-   }
+	public HoglinEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, EntityModelLayers.HOGLIN, EntityModelLayers.HOGLIN_BABY, 0.7F);
+	}
 
-   public void updateRenderState(HoglinEntity hoglinEntity, HoglinEntityRenderState hoglinEntityRenderState, float f) {
-      super.updateRenderState(hoglinEntity, hoglinEntityRenderState, f);
-      hoglinEntityRenderState.canConvert = hoglinEntity.canConvert();
-   }
+	public Identifier getTexture(HoglinEntityRenderState hoglinEntityRenderState) {
+		return TEXTURE;
+	}
 
-   protected boolean isShaking(HoglinEntityRenderState hoglinEntityRenderState) {
-      return super.isShaking(hoglinEntityRenderState) || hoglinEntityRenderState.canConvert;
-   }
+	public void updateRenderState(HoglinEntity hoglinEntity, HoglinEntityRenderState hoglinEntityRenderState, float f) {
+		super.updateRenderState(hoglinEntity, hoglinEntityRenderState, f);
+		hoglinEntityRenderState.canConvert = hoglinEntity.canConvert();
+	}
+
+	protected boolean isShaking(HoglinEntityRenderState hoglinEntityRenderState) {
+		return super.isShaking(hoglinEntityRenderState) || hoglinEntityRenderState.canConvert;
+	}
 }

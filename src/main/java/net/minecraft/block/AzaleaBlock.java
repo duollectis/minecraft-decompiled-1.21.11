@@ -11,46 +11,52 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code AzaleaBlock}.
+ */
 public class AzaleaBlock extends PlantBlock implements Fertilizable {
-   public static final MapCodec<AzaleaBlock> CODEC = createCodec(AzaleaBlock::new);
-   private static final VoxelShape SHAPE = VoxelShapes.union(Block.createColumnShape(16.0, 8.0, 16.0), Block.createColumnShape(4.0, 0.0, 8.0));
 
-   @Override
-   public MapCodec<AzaleaBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<AzaleaBlock> CODEC = createCodec(AzaleaBlock::new);
+	private static final VoxelShape
+			SHAPE =
+			VoxelShapes.union(Block.createColumnShape(16.0, 8.0, 16.0), Block.createColumnShape(4.0, 0.0, 8.0));
 
-   public AzaleaBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<AzaleaBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	public AzaleaBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
-      return floor.isOf(Blocks.CLAY) || super.canPlantOnTop(floor, world, pos);
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return world.getFluidState(pos.up()).isEmpty();
-   }
+	@Override
+	protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
+		return floor.isOf(Blocks.CLAY) || super.canPlantOnTop(floor, world, pos);
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return world.random.nextFloat() < 0.45;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return world.getFluidState(pos.up()).isEmpty();
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      SaplingGenerator.AZALEA.generate(world, world.getChunkManager().getChunkGenerator(), pos, state, random);
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return world.random.nextFloat() < 0.45;
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		SaplingGenerator.AZALEA.generate(world, world.getChunkManager().getChunkGenerator(), pos, state, random);
+	}
+
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 }

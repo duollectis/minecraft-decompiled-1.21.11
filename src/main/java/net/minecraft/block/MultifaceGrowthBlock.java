@@ -2,13 +2,17 @@ package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
 
+/**
+ * {@code MultifaceGrowthBlock}.
+ */
 public abstract class MultifaceGrowthBlock extends MultifaceBlock {
-   public MultifaceGrowthBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   public abstract MapCodec<? extends MultifaceGrowthBlock> getCodec();
+	public MultifaceGrowthBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   public abstract MultifaceGrower getGrower();
+	@Override
+	public abstract MapCodec<? extends MultifaceGrowthBlock> getCodec();
+
+	public abstract MultifaceGrower getGrower();
 }

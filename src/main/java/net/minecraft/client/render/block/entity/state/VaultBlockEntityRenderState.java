@@ -6,7 +6,11 @@ import net.minecraft.client.render.entity.state.ItemStackEntityRenderState;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code VaultBlockEntityRenderState}.
+ */
 public class VaultBlockEntityRenderState extends BlockEntityRenderState {
-   public @Nullable ItemStackEntityRenderState displayItemStackState;
-   public float displayRotationDegrees;
+
+	public @Nullable ItemStackEntityRenderState displayItemStackState;
+	public float displayRotationDegrees;
 }

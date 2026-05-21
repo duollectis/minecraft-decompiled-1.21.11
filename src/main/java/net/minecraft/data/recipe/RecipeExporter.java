@@ -7,10 +7,14 @@ import net.minecraft.recipe.Recipe;
 import net.minecraft.registry.RegistryKey;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code RecipeExporter}.
+ */
 public interface RecipeExporter extends FabricRecipeExporter {
-   void accept(RegistryKey<Recipe<?>> key, Recipe<?> recipe, @Nullable AdvancementEntry advancement);
 
-   Advancement.Builder getAdvancementBuilder();
+	void accept(RegistryKey<Recipe<?>> key, Recipe<?> recipe, @Nullable AdvancementEntry advancement);
 
-   void addRootAdvancement();
+	Advancement.Builder getAdvancementBuilder();
+
+	void addRootAdvancement();
 }

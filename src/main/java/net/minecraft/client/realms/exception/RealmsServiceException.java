@@ -5,15 +5,19 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.realms.RealmsError;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsServiceException}.
+ */
 public class RealmsServiceException extends Exception {
-   public final RealmsError error;
 
-   public RealmsServiceException(RealmsError error) {
-      this.error = error;
-   }
+	public final RealmsError error;
 
-   @Override
-   public String getMessage() {
-      return this.error.getErrorMessage();
-   }
+	public RealmsServiceException(RealmsError error) {
+		this.error = error;
+	}
+
+	@Override
+	public String getMessage() {
+		return this.error.getErrorMessage();
+	}
 }

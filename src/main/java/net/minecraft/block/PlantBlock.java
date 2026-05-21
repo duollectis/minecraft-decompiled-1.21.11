@@ -10,47 +10,60 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code PlantBlock}.
+ */
 public abstract class PlantBlock extends Block {
-   protected PlantBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   protected abstract MapCodec<? extends PlantBlock> getCodec();
+	protected PlantBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
-      return floor.isIn(BlockTags.DIRT) || floor.isOf(Blocks.FARMLAND);
-   }
+	@Override
+	protected abstract MapCodec<? extends PlantBlock> getCodec();
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      return !state.canPlaceAt(world, pos)
-         ? Blocks.AIR.getDefaultState()
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
+		return floor.isIn(BlockTags.DIRT) || floor.isOf(Blocks.FARMLAND);
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      BlockPos blockPos = pos.down();
-      return this.canPlantOnTop(world.getBlockState(blockPos), world, blockPos);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		return !state.canPlaceAt(world, pos)
+		       ? Blocks.AIR.getDefaultState()
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
 
-   @Override
-   protected boolean isTransparent(BlockState state) {
-      return state.getFluidState().isEmpty();
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		BlockPos blockPos = pos.down();
+		return this.canPlantOnTop(world.getBlockState(blockPos), world, blockPos);
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return type == NavigationType.AIR && !this.collidable ? true : super.canPathfindThrough(state, type);
-   }
+	@Override
+	protected boolean isTransparent(BlockState state) {
+		return state.getFluidState().isEmpty();
+	}
+
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return type == NavigationType.AIR && !this.collidable ? true : super.canPathfindThrough(state, type);
+	}
 }

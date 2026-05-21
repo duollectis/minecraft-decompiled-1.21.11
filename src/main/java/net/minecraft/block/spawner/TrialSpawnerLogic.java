@@ -7,8 +7,6 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectListIterator;
-import java.util.Optional;
-import java.util.UUID;
 import net.minecraft.block.ShapeContext;
 import net.minecraft.block.TrialSpawnerBlock;
 import net.minecraft.block.dispenser.ItemDispenserBehavior;
@@ -50,375 +48,456 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.rule.GameRules;
 import org.slf4j.Logger;
 
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * {@code TrialSpawnerLogic}.
+ */
 public final class TrialSpawnerLogic {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final int field_47358 = 40;
-   private static final int DEFAULT_COOLDOWN_LENGTH = 36000;
-   private static final int DEFAULT_ENTITY_DETECTION_RANGE = 14;
-   private static final int MAX_ENTITY_DISTANCE = 47;
-   private static final int MAX_ENTITY_DISTANCE_SQUARED = MathHelper.square(47);
-   private static final float SOUND_RATE_PER_TICK = 0.02F;
-   private final TrialSpawnerData data = new TrialSpawnerData();
-   private TrialSpawnerLogic.FullConfig fullConfig;
-   private final TrialSpawnerLogic.TrialSpawner trialSpawner;
-   private EntityDetector entityDetector;
-   private final EntityDetector.Selector entitySelector;
-   private boolean forceActivate;
-   private boolean ominous;
 
-   public TrialSpawnerLogic(
-      TrialSpawnerLogic.FullConfig fullConfig,
-      TrialSpawnerLogic.TrialSpawner trialSpawner,
-      EntityDetector entityDetector,
-      EntityDetector.Selector entitySelector
-   ) {
-      this.fullConfig = fullConfig;
-      this.trialSpawner = trialSpawner;
-      this.entityDetector = entityDetector;
-      this.entitySelector = entitySelector;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final int OMINOUS_ACTIVATION_DELAY_TICKS = 40;
+	private static final int DEFAULT_COOLDOWN_LENGTH = 36000;
+	private static final int DEFAULT_ENTITY_DETECTION_RANGE = 14;
+	private static final int MAX_ENTITY_DISTANCE = 47;
+	private static final int MAX_ENTITY_DISTANCE_SQUARED = MathHelper.square(47);
+	private static final float SOUND_RATE_PER_TICK = 0.02F;
+	private final TrialSpawnerData data = new TrialSpawnerData();
+	private TrialSpawnerLogic.FullConfig fullConfig;
+	private final TrialSpawnerLogic.TrialSpawner trialSpawner;
+	private EntityDetector entityDetector;
+	private final EntityDetector.Selector entitySelector;
+	private boolean forceActivate;
+	private boolean ominous;
 
-   public TrialSpawnerConfig getConfig() {
-      return this.ominous ? this.fullConfig.ominous().value() : this.fullConfig.normal.value();
-   }
+	public TrialSpawnerLogic(
+			TrialSpawnerLogic.FullConfig fullConfig,
+			TrialSpawnerLogic.TrialSpawner trialSpawner,
+			EntityDetector entityDetector,
+			EntityDetector.Selector entitySelector
+	) {
+		this.fullConfig = fullConfig;
+		this.trialSpawner = trialSpawner;
+		this.entityDetector = entityDetector;
+		this.entitySelector = entitySelector;
+	}
 
-   public TrialSpawnerConfig getNormalConfig() {
-      return this.fullConfig.normal.value();
-   }
+	public TrialSpawnerConfig getConfig() {
+		return this.ominous ? this.fullConfig.ominous().value() : this.fullConfig.normal.value();
+	}
 
-   public TrialSpawnerConfig getOminousConfig() {
-      return this.fullConfig.ominous.value();
-   }
+	public TrialSpawnerConfig getNormalConfig() {
+		return this.fullConfig.normal.value();
+	}
 
-   public void readData(ReadView view) {
-      view.<TrialSpawnerData.Packed>read(TrialSpawnerData.Packed.CODEC).ifPresent(this.data::unpack);
-      this.fullConfig = view.<TrialSpawnerLogic.FullConfig>read(TrialSpawnerLogic.FullConfig.CODEC).orElse(TrialSpawnerLogic.FullConfig.DEFAULT);
-   }
+	public TrialSpawnerConfig getOminousConfig() {
+		return this.fullConfig.ominous.value();
+	}
 
-   public void writeData(WriteView view) {
-      view.put(TrialSpawnerData.Packed.CODEC, this.data.pack());
-      view.put(TrialSpawnerLogic.FullConfig.CODEC, this.fullConfig);
-   }
+	public void readData(ReadView view) {
+		view.<TrialSpawnerData.Packed>read(TrialSpawnerData.Packed.CODEC).ifPresent(this.data::unpack);
+		this.fullConfig =
+				view
+						.<TrialSpawnerLogic.FullConfig>read(TrialSpawnerLogic.FullConfig.CODEC)
+						.orElse(TrialSpawnerLogic.FullConfig.DEFAULT);
+	}
 
-   public void setOminous(ServerWorld world, BlockPos pos) {
-      world.setBlockState(pos, world.getBlockState(pos).with(TrialSpawnerBlock.OMINOUS, true), 3);
-      world.syncWorldEvent(3020, pos, 1);
-      this.ominous = true;
-      this.data.resetAndClearMobs(this, world);
-   }
+	public void writeData(WriteView view) {
+		view.put(TrialSpawnerData.Packed.CODEC, this.data.pack());
+		view.put(TrialSpawnerLogic.FullConfig.CODEC, this.fullConfig);
+	}
 
-   public void setNotOminous(ServerWorld world, BlockPos pos) {
-      world.setBlockState(pos, world.getBlockState(pos).with(TrialSpawnerBlock.OMINOUS, false), 3);
-      this.ominous = false;
-   }
+	public void setOminous(ServerWorld world, BlockPos pos) {
+		world.setBlockState(pos, world.getBlockState(pos).with(TrialSpawnerBlock.OMINOUS, true), 3);
+		world.syncWorldEvent(3020, pos, 1);
+		this.ominous = true;
+		this.data.resetAndClearMobs(this, world);
+	}
 
-   public boolean isOminous() {
-      return this.ominous;
-   }
+	public void setNotOminous(ServerWorld world, BlockPos pos) {
+		world.setBlockState(pos, world.getBlockState(pos).with(TrialSpawnerBlock.OMINOUS, false), 3);
+		this.ominous = false;
+	}
 
-   public int getCooldownLength() {
-      return this.fullConfig.targetCooldownLength;
-   }
+	public boolean isOminous() {
+		return this.ominous;
+	}
 
-   public int getDetectionRadius() {
-      return this.fullConfig.requiredPlayerRange;
-   }
+	public int getCooldownLength() {
+		return this.fullConfig.targetCooldownLength;
+	}
 
-   public TrialSpawnerState getSpawnerState() {
-      return this.trialSpawner.getSpawnerState();
-   }
+	public int getDetectionRadius() {
+		return this.fullConfig.requiredPlayerRange;
+	}
 
-   public TrialSpawnerData getData() {
-      return this.data;
-   }
+	public TrialSpawnerState getSpawnerState() {
+		return this.trialSpawner.getSpawnerState();
+	}
 
-   public void setSpawnerState(World world, TrialSpawnerState spawnerState) {
-      this.trialSpawner.setSpawnerState(world, spawnerState);
-   }
+	public TrialSpawnerData getData() {
+		return this.data;
+	}
 
-   public void updateListeners() {
-      this.trialSpawner.updateListeners();
-   }
+	public void setSpawnerState(World world, TrialSpawnerState spawnerState) {
+		this.trialSpawner.setSpawnerState(world, spawnerState);
+	}
 
-   public EntityDetector getEntityDetector() {
-      return this.entityDetector;
-   }
+	public void updateListeners() {
+		this.trialSpawner.updateListeners();
+	}
 
-   public EntityDetector.Selector getEntitySelector() {
-      return this.entitySelector;
-   }
+	public EntityDetector getEntityDetector() {
+		return this.entityDetector;
+	}
 
-   public boolean canActivate(ServerWorld world) {
-      if (!world.getGameRules().getValue(GameRules.SPAWNER_BLOCKS_WORK)) {
-         return false;
-      } else if (this.forceActivate) {
-         return true;
-      } else {
-         return world.getDifficulty() == Difficulty.PEACEFUL ? false : world.getGameRules().getValue(GameRules.DO_MOB_SPAWNING);
-      }
-   }
+	public EntityDetector.Selector getEntitySelector() {
+		return this.entitySelector;
+	}
 
-   public Optional<UUID> trySpawnMob(ServerWorld world, BlockPos pos) {
-      Random random = world.getRandom();
-      MobSpawnerEntry mobSpawnerEntry = this.data.getSpawnData(this, world.getRandom());
+	public boolean canActivate(ServerWorld world) {
+		if (!world.getGameRules().getValue(GameRules.SPAWNER_BLOCKS_WORK)) {
+			return false;
+		}
+		else if (this.forceActivate) {
+			return true;
+		}
+		else {
+			return world.getDifficulty() == Difficulty.PEACEFUL ? false : world
+			                                                              .getGameRules()
+			                                                              .getValue(GameRules.DO_MOB_SPAWNING);
+		}
+	}
 
-      Optional var24;
-      try (ErrorReporter.Logging logging = new ErrorReporter.Logging(() -> "spawner@" + pos, LOGGER)) {
-         ReadView readView = NbtReadView.create(logging, world.getRegistryManager(), mobSpawnerEntry.entity());
-         Optional<EntityType<?>> optional = EntityType.fromData(readView);
-         if (optional.isEmpty()) {
-            return Optional.empty();
-         }
+	public Optional<UUID> trySpawnMob(ServerWorld world, BlockPos pos) {
+		Random random = world.getRandom();
+		MobSpawnerEntry mobSpawnerEntry = this.data.getSpawnData(this, world.getRandom());
 
-         Vec3d vec3d = readView.<Vec3d>read("Pos", Vec3d.CODEC)
-            .orElseGet(
-               () -> {
-                  TrialSpawnerConfig trialSpawnerConfig = this.getConfig();
-                  return new Vec3d(
-                     pos.getX() + (random.nextDouble() - random.nextDouble()) * trialSpawnerConfig.spawnRange() + 0.5,
-                     pos.getY() + random.nextInt(3) - 1,
-                     pos.getZ() + (random.nextDouble() - random.nextDouble()) * trialSpawnerConfig.spawnRange() + 0.5
-                  );
-               }
-            );
-         if (!world.isSpaceEmpty(optional.get().getSpawnBox(vec3d.x, vec3d.y, vec3d.z))) {
-            return Optional.empty();
-         }
+		Optional var24;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(() -> "spawner@" + pos, LOGGER)) {
+			ReadView readView = NbtReadView.create(logging, world.getRegistryManager(), mobSpawnerEntry.entity());
+			Optional<EntityType<?>> optional = EntityType.fromData(readView);
+			if (optional.isEmpty()) {
+				return Optional.empty();
+			}
 
-         if (!hasLineOfSight(world, pos.toCenterPos(), vec3d)) {
-            return Optional.empty();
-         }
+			Vec3d vec3d = readView.<Vec3d>read("Pos", Vec3d.CODEC)
+			                      .orElseGet(
+					                      () -> {
+						                      TrialSpawnerConfig trialSpawnerConfig = this.getConfig();
+						                      return new Vec3d(
+								                      pos.getX() + (random.nextDouble() - random.nextDouble())
+										                      * trialSpawnerConfig.spawnRange() + 0.5,
+								                      pos.getY() + random.nextInt(3) - 1,
+								                      pos.getZ() + (random.nextDouble() - random.nextDouble())
+										                      * trialSpawnerConfig.spawnRange() + 0.5
+						                      );
+					                      }
+			                      );
+			if (!world.isSpaceEmpty(optional.get().getSpawnBox(vec3d.x, vec3d.y, vec3d.z))) {
+				return Optional.empty();
+			}
 
-         BlockPos blockPos = BlockPos.ofFloored(vec3d);
-         if (!SpawnRestriction.canSpawn(optional.get(), world, SpawnReason.TRIAL_SPAWNER, blockPos, world.getRandom())) {
-            return Optional.empty();
-         }
+			if (!hasLineOfSight(world, pos.toCenterPos(), vec3d)) {
+				return Optional.empty();
+			}
 
-         if (mobSpawnerEntry.getCustomSpawnRules().isPresent()) {
-            MobSpawnerEntry.CustomSpawnRules customSpawnRules = mobSpawnerEntry.getCustomSpawnRules().get();
-            if (!customSpawnRules.canSpawn(blockPos, world)) {
-               return Optional.empty();
-            }
-         }
+			BlockPos blockPos = BlockPos.ofFloored(vec3d);
+			if (!SpawnRestriction.canSpawn(
+					optional.get(),
+					world,
+					SpawnReason.TRIAL_SPAWNER,
+					blockPos,
+					world.getRandom()
+			)) {
+				return Optional.empty();
+			}
 
-         Entity entity = EntityType.loadEntityWithPassengers(readView, world, SpawnReason.TRIAL_SPAWNER, entityx -> {
-            entityx.refreshPositionAndAngles(vec3d.x, vec3d.y, vec3d.z, random.nextFloat() * 360.0F, 0.0F);
-            return entityx;
-         });
-         if (entity == null) {
-            return Optional.empty();
-         }
+			if (mobSpawnerEntry.getCustomSpawnRules().isPresent()) {
+				MobSpawnerEntry.CustomSpawnRules customSpawnRules = mobSpawnerEntry.getCustomSpawnRules().get();
+				if (!customSpawnRules.canSpawn(blockPos, world)) {
+					return Optional.empty();
+				}
+			}
 
-         if (entity instanceof MobEntity mobEntity) {
-            if (!mobEntity.canSpawn(world)) {
-               return Optional.empty();
-            }
+			Entity entity = EntityType.loadEntityWithPassengers(
+					readView, world, SpawnReason.TRIAL_SPAWNER, entityx -> {
+						entityx.refreshPositionAndAngles(vec3d.x, vec3d.y, vec3d.z, random.nextFloat() * 360.0F, 0.0F);
+						return entityx;
+					}
+			);
+			if (entity == null) {
+				return Optional.empty();
+			}
 
-            boolean bl = mobSpawnerEntry.getNbt().getSize() == 1 && mobSpawnerEntry.getNbt().getString("id").isPresent();
-            if (bl) {
-               mobEntity.initialize(world, world.getLocalDifficulty(mobEntity.getBlockPos()), SpawnReason.TRIAL_SPAWNER, null);
-            }
+			if (entity instanceof MobEntity mobEntity) {
+				if (!mobEntity.canSpawn(world)) {
+					return Optional.empty();
+				}
 
-            mobEntity.setPersistent();
-            mobSpawnerEntry.getEquipment().ifPresent(mobEntity::setEquipmentFromTable);
-         }
+				boolean
+						bl =
+						mobSpawnerEntry.getNbt().getSize() == 1 && mobSpawnerEntry.getNbt().getString("id").isPresent();
+				if (bl) {
+					mobEntity.initialize(
+							world,
+							world.getLocalDifficulty(mobEntity.getBlockPos()),
+							SpawnReason.TRIAL_SPAWNER,
+							null
+					);
+				}
 
-         if (!world.spawnNewEntityAndPassengers(entity)) {
-            return Optional.empty();
-         }
+				mobEntity.setPersistent();
+				mobSpawnerEntry.getEquipment().ifPresent(mobEntity::setEquipmentFromTable);
+			}
 
-         TrialSpawnerLogic.Type type = this.ominous ? TrialSpawnerLogic.Type.OMINOUS : TrialSpawnerLogic.Type.NORMAL;
-         world.syncWorldEvent(3011, pos, type.getIndex());
-         world.syncWorldEvent(3012, blockPos, type.getIndex());
-         world.emitGameEvent(entity, GameEvent.ENTITY_PLACE, blockPos);
-         var24 = Optional.of(entity.getUuid());
-      }
+			if (!world.spawnNewEntityAndPassengers(entity)) {
+				return Optional.empty();
+			}
 
-      return var24;
-   }
+			TrialSpawnerLogic.Type type = this.ominous ? TrialSpawnerLogic.Type.OMINOUS : TrialSpawnerLogic.Type.NORMAL;
+			world.syncWorldEvent(3011, pos, type.getIndex());
+			world.syncWorldEvent(3012, blockPos, type.getIndex());
+			world.emitGameEvent(entity, GameEvent.ENTITY_PLACE, blockPos);
+			var24 = Optional.of(entity.getUuid());
+		}
 
-   public void ejectLootTable(ServerWorld world, BlockPos pos, RegistryKey<LootTable> lootTable) {
-      LootTable lootTable2 = world.getServer().getReloadableRegistries().getLootTable(lootTable);
-      LootWorldContext lootWorldContext = new LootWorldContext.Builder(world).build(LootContextTypes.EMPTY);
-      ObjectArrayList<ItemStack> objectArrayList = lootTable2.generateLoot(lootWorldContext);
-      if (!objectArrayList.isEmpty()) {
-         ObjectListIterator var7 = objectArrayList.iterator();
+		return var24;
+	}
 
-         while (var7.hasNext()) {
-            ItemStack itemStack = (ItemStack)var7.next();
-            ItemDispenserBehavior.spawnItem(world, itemStack, 2, Direction.UP, Vec3d.ofBottomCenter(pos).offset(Direction.UP, 1.2));
-         }
+	public void ejectLootTable(ServerWorld world, BlockPos pos, RegistryKey<LootTable> lootTable) {
+		LootTable lootTable2 = world.getServer().getReloadableRegistries().getLootTable(lootTable);
+		LootWorldContext lootWorldContext = new LootWorldContext.Builder(world).build(LootContextTypes.EMPTY);
+		ObjectArrayList<ItemStack> objectArrayList = lootTable2.generateLoot(lootWorldContext);
+		if (!objectArrayList.isEmpty()) {
+			ObjectListIterator var7 = objectArrayList.iterator();
 
-         world.syncWorldEvent(3014, pos, 0);
-      }
-   }
+			while (var7.hasNext()) {
+				ItemStack itemStack = (ItemStack) var7.next();
+				ItemDispenserBehavior.spawnItem(
+						world,
+						itemStack,
+						2,
+						Direction.UP,
+						Vec3d.ofBottomCenter(pos).offset(Direction.UP, 1.2)
+				);
+			}
 
-   public void tickClient(World world, BlockPos pos, boolean ominous) {
-      TrialSpawnerState trialSpawnerState = this.getSpawnerState();
-      trialSpawnerState.emitParticles(world, pos, ominous);
-      if (trialSpawnerState.doesDisplayRotate()) {
-         double d = Math.max(0L, this.data.nextMobSpawnsAt - world.getTime());
-         this.data.lastDisplayEntityRotation = this.data.displayEntityRotation;
-         this.data.displayEntityRotation = (this.data.displayEntityRotation + trialSpawnerState.getDisplayRotationSpeed() / (d + 200.0)) % 360.0;
-      }
+			world.syncWorldEvent(3014, pos, 0);
+		}
+	}
 
-      if (trialSpawnerState.playsSound()) {
-         Random random = world.getRandom();
-         if (random.nextFloat() <= 0.02F) {
-            SoundEvent soundEvent = ominous ? SoundEvents.BLOCK_TRIAL_SPAWNER_AMBIENT_OMINOUS : SoundEvents.BLOCK_TRIAL_SPAWNER_AMBIENT;
-            world.playSoundAtBlockCenterClient(pos, soundEvent, SoundCategory.BLOCKS, random.nextFloat() * 0.25F + 0.75F, random.nextFloat() + 0.5F, false);
-         }
-      }
-   }
+	public void tickClient(World world, BlockPos pos, boolean ominous) {
+		TrialSpawnerState trialSpawnerState = this.getSpawnerState();
+		trialSpawnerState.emitParticles(world, pos, ominous);
+		if (trialSpawnerState.doesDisplayRotate()) {
+			double d = Math.max(0L, this.data.nextMobSpawnsAt - world.getTime());
+			this.data.lastDisplayEntityRotation = this.data.displayEntityRotation;
+			this.data.displayEntityRotation =
+					(this.data.displayEntityRotation + trialSpawnerState.getDisplayRotationSpeed() / (d + 200.0))
+							% 360.0;
+		}
 
-   public void tickServer(ServerWorld world, BlockPos pos, boolean ominous) {
-      this.ominous = ominous;
-      TrialSpawnerState trialSpawnerState = this.getSpawnerState();
-      if (this.data.spawnedMobsAlive.removeIf(uuid -> shouldRemoveMobFromData(world, pos, uuid))) {
-         this.data.nextMobSpawnsAt = world.getTime() + this.getConfig().ticksBetweenSpawn();
-      }
+		if (trialSpawnerState.playsSound()) {
+			Random random = world.getRandom();
+			if (random.nextFloat() <= 0.02F) {
+				SoundEvent
+						soundEvent =
+						ominous ? SoundEvents.BLOCK_TRIAL_SPAWNER_AMBIENT_OMINOUS
+						        : SoundEvents.BLOCK_TRIAL_SPAWNER_AMBIENT;
+				world.playSoundAtBlockCenterClient(
+						pos,
+						soundEvent,
+						SoundCategory.BLOCKS,
+						random.nextFloat() * 0.25F + 0.75F,
+						random.nextFloat() + 0.5F,
+						false
+				);
+			}
+		}
+	}
 
-      TrialSpawnerState trialSpawnerState2 = trialSpawnerState.tick(pos, this, world);
-      if (trialSpawnerState2 != trialSpawnerState) {
-         this.setSpawnerState(world, trialSpawnerState2);
-      }
-   }
+	public void tickServer(ServerWorld world, BlockPos pos, boolean ominous) {
+		this.ominous = ominous;
+		TrialSpawnerState trialSpawnerState = this.getSpawnerState();
+		if (this.data.spawnedMobsAlive.removeIf(uuid -> shouldRemoveMobFromData(world, pos, uuid))) {
+			this.data.nextMobSpawnsAt = world.getTime() + this.getConfig().ticksBetweenSpawn();
+		}
 
-   private static boolean shouldRemoveMobFromData(ServerWorld world, BlockPos pos, UUID uuid) {
-      Entity entity = world.getEntity(uuid);
-      return entity == null
-         || !entity.isAlive()
-         || !entity.getEntityWorld().getRegistryKey().equals(world.getRegistryKey())
-         || entity.getBlockPos().getSquaredDistance(pos) > MAX_ENTITY_DISTANCE_SQUARED;
-   }
+		TrialSpawnerState trialSpawnerState2 = trialSpawnerState.tick(pos, this, world);
+		if (trialSpawnerState2 != trialSpawnerState) {
+			this.setSpawnerState(world, trialSpawnerState2);
+		}
+	}
 
-   private static boolean hasLineOfSight(World world, Vec3d spawnerPos, Vec3d spawnPos) {
-      BlockHitResult blockHitResult = world.raycast(
-         new RaycastContext(spawnPos, spawnerPos, RaycastContext.ShapeType.VISUAL, RaycastContext.FluidHandling.NONE, ShapeContext.absent())
-      );
-      return blockHitResult.getBlockPos().equals(BlockPos.ofFloored(spawnerPos)) || blockHitResult.getType() == HitResult.Type.MISS;
-   }
+	private static boolean shouldRemoveMobFromData(ServerWorld world, BlockPos pos, UUID uuid) {
+		Entity entity = world.getEntity(uuid);
+		return entity == null
+				|| !entity.isAlive()
+				|| !entity.getEntityWorld().getRegistryKey().equals(world.getRegistryKey())
+				|| entity.getBlockPos().getSquaredDistance(pos) > MAX_ENTITY_DISTANCE_SQUARED;
+	}
 
-   public static void addMobSpawnParticles(World world, BlockPos pos, Random random, SimpleParticleType particle) {
-      for (int i = 0; i < 20; i++) {
-         double d = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
-         double e = pos.getY() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
-         double f = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
-         world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
-         world.addParticleClient(particle, d, e, f, 0.0, 0.0, 0.0);
-      }
-   }
+	private static boolean hasLineOfSight(World world, Vec3d spawnerPos, Vec3d spawnPos) {
+		BlockHitResult blockHitResult = world.raycast(
+				new RaycastContext(
+						spawnPos,
+						spawnerPos,
+						RaycastContext.ShapeType.VISUAL,
+						RaycastContext.FluidHandling.NONE,
+						ShapeContext.absent()
+				)
+		);
+		return blockHitResult.getBlockPos().equals(BlockPos.ofFloored(spawnerPos))
+				|| blockHitResult.getType() == HitResult.Type.MISS;
+	}
 
-   public static void addTrialOmenParticles(World world, BlockPos pos, Random random) {
-      for (int i = 0; i < 20; i++) {
-         double d = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
-         double e = pos.getY() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
-         double f = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
-         double g = random.nextGaussian() * 0.02;
-         double h = random.nextGaussian() * 0.02;
-         double j = random.nextGaussian() * 0.02;
-         world.addParticleClient(ParticleTypes.TRIAL_OMEN, d, e, f, g, h, j);
-         world.addParticleClient(ParticleTypes.SOUL_FIRE_FLAME, d, e, f, g, h, j);
-      }
-   }
+	public static void addMobSpawnParticles(World world, BlockPos pos, Random random, SimpleParticleType particle) {
+		for (int i = 0; i < 20; i++) {
+			double d = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
+			double e = pos.getY() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
+			double f = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
+			world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
+			world.addParticleClient(particle, d, e, f, 0.0, 0.0, 0.0);
+		}
+	}
 
-   public static void addDetectionParticles(World world, BlockPos pos, Random random, int playerCount, ParticleEffect particle) {
-      for (int i = 0; i < 30 + Math.min(playerCount, 10) * 5; i++) {
-         double d = (2.0F * random.nextFloat() - 1.0F) * 0.65;
-         double e = (2.0F * random.nextFloat() - 1.0F) * 0.65;
-         double f = pos.getX() + 0.5 + d;
-         double g = pos.getY() + 0.1 + random.nextFloat() * 0.8;
-         double h = pos.getZ() + 0.5 + e;
-         world.addParticleClient(particle, f, g, h, 0.0, 0.0, 0.0);
-      }
-   }
+	public static void addTrialOmenParticles(World world, BlockPos pos, Random random) {
+		for (int i = 0; i < 20; i++) {
+			double d = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
+			double e = pos.getY() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
+			double f = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
+			double g = random.nextGaussian() * 0.02;
+			double h = random.nextGaussian() * 0.02;
+			double j = random.nextGaussian() * 0.02;
+			world.addParticleClient(ParticleTypes.TRIAL_OMEN, d, e, f, g, h, j);
+			world.addParticleClient(ParticleTypes.SOUL_FIRE_FLAME, d, e, f, g, h, j);
+		}
+	}
 
-   public static void addEjectItemParticles(World world, BlockPos pos, Random random) {
-      for (int i = 0; i < 20; i++) {
-         double d = pos.getX() + 0.4 + random.nextDouble() * 0.2;
-         double e = pos.getY() + 0.4 + random.nextDouble() * 0.2;
-         double f = pos.getZ() + 0.4 + random.nextDouble() * 0.2;
-         double g = random.nextGaussian() * 0.02;
-         double h = random.nextGaussian() * 0.02;
-         double j = random.nextGaussian() * 0.02;
-         world.addParticleClient(ParticleTypes.SMALL_FLAME, d, e, f, g, h, j * 0.25);
-         world.addParticleClient(ParticleTypes.SMOKE, d, e, f, g, h, j);
-      }
-   }
+	public static void addDetectionParticles(
+			World world,
+			BlockPos pos,
+			Random random,
+			int playerCount,
+			ParticleEffect particle
+	) {
+		for (int i = 0; i < 30 + Math.min(playerCount, 10) * 5; i++) {
+			double d = (2.0F * random.nextFloat() - 1.0F) * 0.65;
+			double e = (2.0F * random.nextFloat() - 1.0F) * 0.65;
+			double f = pos.getX() + 0.5 + d;
+			double g = pos.getY() + 0.1 + random.nextFloat() * 0.8;
+			double h = pos.getZ() + 0.5 + e;
+			world.addParticleClient(particle, f, g, h, 0.0, 0.0, 0.0);
+		}
+	}
 
-   public void setEntityType(EntityType<?> entityType, World world) {
-      this.data.reset();
-      this.fullConfig = this.fullConfig.withEntityType(entityType);
-      this.setSpawnerState(world, TrialSpawnerState.INACTIVE);
-   }
+	public static void addEjectItemParticles(World world, BlockPos pos, Random random) {
+		for (int i = 0; i < 20; i++) {
+			double d = pos.getX() + 0.4 + random.nextDouble() * 0.2;
+			double e = pos.getY() + 0.4 + random.nextDouble() * 0.2;
+			double f = pos.getZ() + 0.4 + random.nextDouble() * 0.2;
+			double g = random.nextGaussian() * 0.02;
+			double h = random.nextGaussian() * 0.02;
+			double j = random.nextGaussian() * 0.02;
+			world.addParticleClient(ParticleTypes.SMALL_FLAME, d, e, f, g, h, j * 0.25);
+			world.addParticleClient(ParticleTypes.SMOKE, d, e, f, g, h, j);
+		}
+	}
 
-   @Deprecated(forRemoval = true)
-   @VisibleForTesting
-   public void setEntityDetector(EntityDetector detector) {
-      this.entityDetector = detector;
-   }
+	public void setEntityType(EntityType<?> entityType, World world) {
+		this.data.reset();
+		this.fullConfig = this.fullConfig.withEntityType(entityType);
+		this.setSpawnerState(world, TrialSpawnerState.INACTIVE);
+	}
 
-   @Deprecated(forRemoval = true)
-   @VisibleForTesting
-   public void forceActivate() {
-      this.forceActivate = true;
-   }
+	@Deprecated(forRemoval = true)
+	@VisibleForTesting
+	public void setEntityDetector(EntityDetector detector) {
+		this.entityDetector = detector;
+	}
 
-   public record FullConfig(
-      RegistryEntry<TrialSpawnerConfig> normal, RegistryEntry<TrialSpawnerConfig> ominous, int targetCooldownLength, int requiredPlayerRange
-   ) {
-      public static final MapCodec<TrialSpawnerLogic.FullConfig> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(
-               TrialSpawnerConfig.ENTRY_CODEC
-                  .optionalFieldOf("normal_config", RegistryEntry.of(TrialSpawnerConfig.DEFAULT))
-                  .forGetter(TrialSpawnerLogic.FullConfig::normal),
-               TrialSpawnerConfig.ENTRY_CODEC
-                  .optionalFieldOf("ominous_config", RegistryEntry.of(TrialSpawnerConfig.DEFAULT))
-                  .forGetter(TrialSpawnerLogic.FullConfig::ominous),
-               Codecs.NON_NEGATIVE_INT.optionalFieldOf("target_cooldown_length", 36000).forGetter(TrialSpawnerLogic.FullConfig::targetCooldownLength),
-               Codec.intRange(1, 128).optionalFieldOf("required_player_range", 14).forGetter(TrialSpawnerLogic.FullConfig::requiredPlayerRange)
-            )
-            .apply(instance, TrialSpawnerLogic.FullConfig::new)
-      );
-      public static final TrialSpawnerLogic.FullConfig DEFAULT = new TrialSpawnerLogic.FullConfig(
-         RegistryEntry.of(TrialSpawnerConfig.DEFAULT), RegistryEntry.of(TrialSpawnerConfig.DEFAULT), 36000, 14
-      );
+	@Deprecated(forRemoval = true)
+	@VisibleForTesting
+	public void forceActivate() {
+		this.forceActivate = true;
+	}
 
-      public TrialSpawnerLogic.FullConfig withEntityType(EntityType<?> entityType) {
-         return new TrialSpawnerLogic.FullConfig(
-            RegistryEntry.of(this.normal.value().withSpawnPotential(entityType)),
-            RegistryEntry.of(this.ominous.value().withSpawnPotential(entityType)),
-            this.targetCooldownLength,
-            this.requiredPlayerRange
-         );
-      }
-   }
+	/**
+	 * {@code FullConfig}.
+	 */
+	public record FullConfig(
+			RegistryEntry<TrialSpawnerConfig> normal,
+			RegistryEntry<TrialSpawnerConfig> ominous,
+			int targetCooldownLength,
+			int requiredPlayerRange
+	) {
 
-   public interface TrialSpawner {
-      void setSpawnerState(World world, TrialSpawnerState spawnerState);
+		public static final MapCodec<TrialSpawnerLogic.FullConfig> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance.group(
+						                    TrialSpawnerConfig.ENTRY_CODEC
+								                    .optionalFieldOf("normal_config", RegistryEntry.of(TrialSpawnerConfig.DEFAULT))
+								                    .forGetter(TrialSpawnerLogic.FullConfig::normal),
+						                    TrialSpawnerConfig.ENTRY_CODEC
+								                    .optionalFieldOf("ominous_config", RegistryEntry.of(TrialSpawnerConfig.DEFAULT))
+								                    .forGetter(TrialSpawnerLogic.FullConfig::ominous),
+						                    Codecs.NON_NEGATIVE_INT
+								                    .optionalFieldOf("target_cooldown_length", 36000)
+								                    .forGetter(TrialSpawnerLogic.FullConfig::targetCooldownLength),
+						                    Codec
+								                    .intRange(1, 128)
+								                    .optionalFieldOf("required_player_range", 14)
+								                    .forGetter(TrialSpawnerLogic.FullConfig::requiredPlayerRange)
+				                    )
+				                    .apply(instance, TrialSpawnerLogic.FullConfig::new)
+		);
+		public static final TrialSpawnerLogic.FullConfig DEFAULT = new TrialSpawnerLogic.FullConfig(
+				RegistryEntry.of(TrialSpawnerConfig.DEFAULT), RegistryEntry.of(TrialSpawnerConfig.DEFAULT), 36000, 14
+		);
 
-      TrialSpawnerState getSpawnerState();
+		public TrialSpawnerLogic.FullConfig withEntityType(EntityType<?> entityType) {
+			return new TrialSpawnerLogic.FullConfig(
+					RegistryEntry.of(this.normal.value().withSpawnPotential(entityType)),
+					RegistryEntry.of(this.ominous.value().withSpawnPotential(entityType)),
+					this.targetCooldownLength,
+					this.requiredPlayerRange
+			);
+		}
+	}
 
-      void updateListeners();
-   }
+	/**
+	 * {@code TrialSpawner}.
+	 */
+	public interface TrialSpawner {
 
-   public static enum Type {
-      NORMAL(ParticleTypes.FLAME),
-      OMINOUS(ParticleTypes.SOUL_FIRE_FLAME);
+		void setSpawnerState(World world, TrialSpawnerState spawnerState);
 
-      public final SimpleParticleType particle;
+		TrialSpawnerState getSpawnerState();
 
-      private Type(final SimpleParticleType particle) {
-         this.particle = particle;
-      }
+		void updateListeners();
+	}
 
-      public static TrialSpawnerLogic.Type fromIndex(int index) {
-         TrialSpawnerLogic.Type[] types = values();
-         return index <= types.length && index >= 0 ? types[index] : NORMAL;
-      }
+	/**
+	 * {@code Type}.
+	 */
+	public static enum Type {
+		NORMAL(ParticleTypes.FLAME),
+		OMINOUS(ParticleTypes.SOUL_FIRE_FLAME);
 
-      public int getIndex() {
-         return this.ordinal();
-      }
-   }
+		public final SimpleParticleType particle;
+
+		private Type(final SimpleParticleType particle) {
+			this.particle = particle;
+		}
+
+		public static TrialSpawnerLogic.Type fromIndex(int index) {
+			TrialSpawnerLogic.Type[] types = values();
+			return index <= types.length && index >= 0 ? types[index] : NORMAL;
+		}
+
+		public int getIndex() {
+			return this.ordinal();
+		}
+	}
 }

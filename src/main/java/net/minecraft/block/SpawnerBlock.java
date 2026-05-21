@@ -11,34 +11,52 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SpawnerBlock}.
+ */
 public class SpawnerBlock extends BlockWithEntity {
-   public static final MapCodec<SpawnerBlock> CODEC = createCodec(SpawnerBlock::new);
 
-   @Override
-   public MapCodec<SpawnerBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SpawnerBlock> CODEC = createCodec(SpawnerBlock::new);
 
-   public SpawnerBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<SpawnerBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new MobSpawnerBlockEntity(pos, state);
-   }
+	public SpawnerBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return validateTicker(type, BlockEntityType.MOB_SPAWNER, world.isClient() ? MobSpawnerBlockEntity::clientTick : MobSpawnerBlockEntity::serverTick);
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new MobSpawnerBlockEntity(pos, state);
+	}
 
-   @Override
-   protected void onStacksDropped(BlockState state, ServerWorld world, BlockPos pos, ItemStack tool, boolean dropExperience) {
-      super.onStacksDropped(state, world, pos, tool, dropExperience);
-      if (dropExperience) {
-         int i = 15 + world.random.nextInt(15) + world.random.nextInt(15);
-         this.dropExperience(world, pos, i);
-      }
-   }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return validateTicker(
+				type,
+				BlockEntityType.MOB_SPAWNER,
+				world.isClient() ? MobSpawnerBlockEntity::clientTick : MobSpawnerBlockEntity::serverTick
+		);
+	}
+
+	@Override
+	protected void onStacksDropped(
+			BlockState state,
+			ServerWorld world,
+			BlockPos pos,
+			ItemStack tool,
+			boolean dropExperience
+	) {
+		super.onStacksDropped(state, world, pos, tool, dropExperience);
+		if (dropExperience) {
+			int i = 15 + world.random.nextInt(15) + world.random.nextInt(15);
+			this.dropExperience(world, pos, i);
+		}
+	}
 }

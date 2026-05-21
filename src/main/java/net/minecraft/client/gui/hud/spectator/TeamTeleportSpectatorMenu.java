@@ -1,9 +1,5 @@
 package net.minecraft.client.gui.hud.spectator;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -20,108 +16,155 @@ import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.GameMode;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Supplier;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TeamTeleportSpectatorMenu}.
+ */
 public class TeamTeleportSpectatorMenu implements SpectatorMenuCommandGroup, SpectatorMenuCommand {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("spectator/teleport_to_team");
-   private static final Text TEAM_TELEPORT_TEXT = Text.translatable("spectatorMenu.team_teleport");
-   private static final Text PROMPT_TEXT = Text.translatable("spectatorMenu.team_teleport.prompt");
-   private final List<SpectatorMenuCommand> commands;
 
-   public TeamTeleportSpectatorMenu() {
-      MinecraftClient minecraftClient = MinecraftClient.getInstance();
-      this.commands = getCommands(minecraftClient, minecraftClient.world.getScoreboard());
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("spectator/teleport_to_team");
+	private static final Text TEAM_TELEPORT_TEXT = Text.translatable("spectatorMenu.team_teleport");
+	private static final Text PROMPT_TEXT = Text.translatable("spectatorMenu.team_teleport.prompt");
+	private final List<SpectatorMenuCommand> commands;
 
-   private static List<SpectatorMenuCommand> getCommands(MinecraftClient client, Scoreboard scoreboard) {
-      return scoreboard.getTeams().stream().flatMap(team -> TeamTeleportSpectatorMenu.TeleportToSpecificTeamCommand.create(client, team).stream()).toList();
-   }
+	public TeamTeleportSpectatorMenu() {
+		MinecraftClient minecraftClient = MinecraftClient.getInstance();
+		this.commands = getCommands(minecraftClient, minecraftClient.world.getScoreboard());
+	}
 
-   @Override
-   public List<SpectatorMenuCommand> getCommands() {
-      return this.commands;
-   }
+	private static List<SpectatorMenuCommand> getCommands(MinecraftClient client, Scoreboard scoreboard) {
+		return scoreboard
+				.getTeams()
+				.stream()
+				.flatMap(team -> TeamTeleportSpectatorMenu.TeleportToSpecificTeamCommand.create(client, team).stream())
+				.toList();
+	}
 
-   @Override
-   public Text getPrompt() {
-      return PROMPT_TEXT;
-   }
+	@Override
+	public List<SpectatorMenuCommand> getCommands() {
+		return this.commands;
+	}
 
-   @Override
-   public void use(SpectatorMenu menu) {
-      menu.selectElement(this);
-   }
+	@Override
+	public Text getPrompt() {
+		return PROMPT_TEXT;
+	}
 
-   @Override
-   public Text getName() {
-      return TEAM_TELEPORT_TEXT;
-   }
+	@Override
+	public void use(SpectatorMenu menu) {
+		menu.selectElement(this);
+	}
 
-   @Override
-   public void renderIcon(DrawContext context, float brightness, float alpha) {
-      context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, 16, 16, ColorHelper.fromFloats(alpha, brightness, brightness, brightness));
-   }
+	@Override
+	public Text getName() {
+		return TEAM_TELEPORT_TEXT;
+	}
 
-   @Override
-   public boolean isEnabled() {
-      return !this.commands.isEmpty();
-   }
+	@Override
+	public void renderIcon(DrawContext context, float brightness, float alpha) {
+		context.drawGuiTexture(
+				RenderPipelines.GUI_TEXTURED,
+				TEXTURE,
+				0,
+				0,
+				16,
+				16,
+				ColorHelper.fromFloats(alpha, brightness, brightness, brightness)
+		);
+	}
 
-   @Environment(EnvType.CLIENT)
-   static class TeleportToSpecificTeamCommand implements SpectatorMenuCommand {
-      private final Team team;
-      private final Supplier<SkinTextures> skinTexturesSupplier;
-      private final List<PlayerListEntry> scoreboardEntries;
+	@Override
+	public boolean isEnabled() {
+		return !this.commands.isEmpty();
+	}
 
-      private TeleportToSpecificTeamCommand(Team team, List<PlayerListEntry> scoreboardEntries, Supplier<SkinTextures> skinTexturesSupplier) {
-         this.team = team;
-         this.scoreboardEntries = scoreboardEntries;
-         this.skinTexturesSupplier = skinTexturesSupplier;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code TeleportToSpecificTeamCommand}.
+	 */
+	static class TeleportToSpecificTeamCommand implements SpectatorMenuCommand {
 
-      public static Optional<SpectatorMenuCommand> create(MinecraftClient client, Team team) {
-         List<PlayerListEntry> list = new ArrayList<>();
+		private final Team team;
+		private final Supplier<SkinTextures> skinTexturesSupplier;
+		private final List<PlayerListEntry> scoreboardEntries;
 
-         for (String string : team.getPlayerList()) {
-            PlayerListEntry playerListEntry = client.getNetworkHandler().getPlayerListEntry(string);
-            if (playerListEntry != null && playerListEntry.getGameMode() != GameMode.SPECTATOR) {
-               list.add(playerListEntry);
-            }
-         }
+		private TeleportToSpecificTeamCommand(
+				Team team,
+				List<PlayerListEntry> scoreboardEntries,
+				Supplier<SkinTextures> skinTexturesSupplier
+		) {
+			this.team = team;
+			this.scoreboardEntries = scoreboardEntries;
+			this.skinTexturesSupplier = skinTexturesSupplier;
+		}
 
-         if (list.isEmpty()) {
-            return Optional.empty();
-         } else {
-            PlayerListEntry playerListEntry2 = list.get(Random.create().nextInt(list.size()));
-            return Optional.of(new TeamTeleportSpectatorMenu.TeleportToSpecificTeamCommand(team, list, playerListEntry2::getSkinTextures));
-         }
-      }
+		public static Optional<SpectatorMenuCommand> create(MinecraftClient client, Team team) {
+			List<PlayerListEntry> list = new ArrayList<>();
 
-      @Override
-      public void use(SpectatorMenu menu) {
-         menu.selectElement(new TeleportSpectatorMenu(this.scoreboardEntries));
-      }
+			for (String string : team.getPlayerList()) {
+				PlayerListEntry playerListEntry = client.getNetworkHandler().getPlayerListEntry(string);
+				if (playerListEntry != null && playerListEntry.getGameMode() != GameMode.SPECTATOR) {
+					list.add(playerListEntry);
+				}
+			}
 
-      @Override
-      public Text getName() {
-         return this.team.getDisplayName();
-      }
+			if (list.isEmpty()) {
+				return Optional.empty();
+			}
+			else {
+				PlayerListEntry playerListEntry2 = list.get(Random.create().nextInt(list.size()));
+				return Optional.of(new TeamTeleportSpectatorMenu.TeleportToSpecificTeamCommand(
+						team,
+						list,
+						playerListEntry2::getSkinTextures
+				));
+			}
+		}
 
-      @Override
-      public void renderIcon(DrawContext context, float brightness, float alpha) {
-         Integer integer = this.team.getColor().getColorValue();
-         if (integer != null) {
-            float f = (integer >> 16 & 0xFF) / 255.0F;
-            float g = (integer >> 8 & 0xFF) / 255.0F;
-            float h = (integer & 0xFF) / 255.0F;
-            context.fill(1, 1, 15, 15, ColorHelper.fromFloats(alpha, f * brightness, g * brightness, h * brightness));
-         }
+		@Override
+		public void use(SpectatorMenu menu) {
+			menu.selectElement(new TeleportSpectatorMenu(this.scoreboardEntries));
+		}
 
-         PlayerSkinDrawer.draw(context, this.skinTexturesSupplier.get(), 2, 2, 12, ColorHelper.fromFloats(alpha, brightness, brightness, brightness));
-      }
+		@Override
+		public Text getName() {
+			return this.team.getDisplayName();
+		}
 
-      @Override
-      public boolean isEnabled() {
-         return true;
-      }
-   }
+		@Override
+		public void renderIcon(DrawContext context, float brightness, float alpha) {
+			Integer integer = this.team.getColor().getColorValue();
+			if (integer != null) {
+				float f = (integer >> 16 & 0xFF) / 255.0F;
+				float g = (integer >> 8 & 0xFF) / 255.0F;
+				float h = (integer & 0xFF) / 255.0F;
+				context.fill(
+						1,
+						1,
+						15,
+						15,
+						ColorHelper.fromFloats(alpha, f * brightness, g * brightness, h * brightness)
+				);
+			}
+
+			PlayerSkinDrawer.draw(
+					context,
+					this.skinTexturesSupplier.get(),
+					2,
+					2,
+					12,
+					ColorHelper.fromFloats(alpha, brightness, brightness, brightness)
+			);
+		}
+
+		@Override
+		public boolean isEnabled() {
+			return true;
+		}
+	}
 }

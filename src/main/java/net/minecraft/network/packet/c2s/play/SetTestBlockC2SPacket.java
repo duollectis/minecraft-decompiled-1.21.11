@@ -10,23 +10,28 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
-public record SetTestBlockC2SPacket(BlockPos position, TestBlockMode mode, String message) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, SetTestBlockC2SPacket> CODEC = PacketCodec.tuple(
-      BlockPos.PACKET_CODEC,
-      SetTestBlockC2SPacket::position,
-      TestBlockMode.PACKET_CODEC,
-      SetTestBlockC2SPacket::mode,
-      PacketCodecs.STRING,
-      SetTestBlockC2SPacket::message,
-      SetTestBlockC2SPacket::new
-   );
+public record SetTestBlockC2SPacket(
+		BlockPos position,
+		TestBlockMode mode,
+		String message
+) implements Packet<ServerPlayPacketListener> {
 
-   @Override
-   public PacketType<SetTestBlockC2SPacket> getPacketType() {
-      return PlayPackets.SET_TEST_BLOCK;
-   }
+	public static final PacketCodec<PacketByteBuf, SetTestBlockC2SPacket> CODEC = PacketCodec.tuple(
+			BlockPos.PACKET_CODEC,
+			SetTestBlockC2SPacket::position,
+			TestBlockMode.PACKET_CODEC,
+			SetTestBlockC2SPacket::mode,
+			PacketCodecs.STRING,
+			SetTestBlockC2SPacket::message,
+			SetTestBlockC2SPacket::new
+	);
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onSetTestBlock(this);
-   }
+	@Override
+	public PacketType<SetTestBlockC2SPacket> getPacketType() {
+		return PlayPackets.SET_TEST_BLOCK;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onSetTestBlock(this);
+	}
 }

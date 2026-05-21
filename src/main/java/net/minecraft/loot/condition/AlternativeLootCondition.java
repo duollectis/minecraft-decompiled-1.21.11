@@ -4,63 +4,74 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import net.minecraft.loot.LootTableReporter;
 import net.minecraft.loot.context.LootContext;
 import net.minecraft.util.ErrorReporter;
 
+import java.util.List;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
+/**
+ * {@code AlternativeLootCondition}.
+ */
 public abstract class AlternativeLootCondition implements LootCondition {
-   protected final List<LootCondition> terms;
-   private final Predicate<LootContext> predicate;
 
-   protected AlternativeLootCondition(List<LootCondition> terms, Predicate<LootContext> predicate) {
-      this.terms = terms;
-      this.predicate = predicate;
-   }
+	protected final List<LootCondition> terms;
+	private final Predicate<LootContext> predicate;
 
-   protected static <T extends AlternativeLootCondition> MapCodec<T> createCodec(Function<List<LootCondition>, T> termsToCondition) {
-      return RecordCodecBuilder.mapCodec(
-         instance -> instance.group(LootCondition.CODEC.listOf().fieldOf("terms").forGetter(condition -> condition.terms)).apply(instance, termsToCondition)
-      );
-   }
+	protected AlternativeLootCondition(List<LootCondition> terms, Predicate<LootContext> predicate) {
+		this.terms = terms;
+		this.predicate = predicate;
+	}
 
-   protected static <T extends AlternativeLootCondition> Codec<T> createInlineCodec(Function<List<LootCondition>, T> termsToCondition) {
-      return LootCondition.CODEC.listOf().xmap(termsToCondition, condition -> condition.terms);
-   }
+	protected static <T extends AlternativeLootCondition> MapCodec<T> createCodec(Function<List<LootCondition>, T> termsToCondition) {
+		return RecordCodecBuilder.mapCodec(
+				instance -> instance
+						.group(LootCondition.CODEC.listOf().fieldOf("terms").forGetter(condition -> condition.terms))
+						.apply(instance, termsToCondition)
+		);
+	}
 
-   public final boolean test(LootContext lootContext) {
-      return this.predicate.test(lootContext);
-   }
+	protected static <T extends AlternativeLootCondition> Codec<T> createInlineCodec(Function<List<LootCondition>, T> termsToCondition) {
+		return LootCondition.CODEC.listOf().xmap(termsToCondition, condition -> condition.terms);
+	}
 
-   @Override
-   public void validate(LootTableReporter reporter) {
-      LootCondition.super.validate(reporter);
+	public final boolean test(LootContext lootContext) {
+		return this.predicate.test(lootContext);
+	}
 
-      for (int i = 0; i < this.terms.size(); i++) {
-         this.terms.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("terms", i)));
-      }
-   }
+	@Override
+	public void validate(LootTableReporter reporter) {
+		LootCondition.super.validate(reporter);
 
-   public abstract static class Builder implements LootCondition.Builder {
-      private final com.google.common.collect.ImmutableList.Builder<LootCondition> terms = ImmutableList.builder();
+		for (int i = 0; i < this.terms.size(); i++) {
+			this.terms.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("terms", i)));
+		}
+	}
 
-      protected Builder(LootCondition.Builder... terms) {
-         for (LootCondition.Builder builder : terms) {
-            this.terms.add(builder.build());
-         }
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public abstract static class Builder implements LootCondition.Builder {
 
-      public void add(LootCondition.Builder builder) {
-         this.terms.add(builder.build());
-      }
+		private final com.google.common.collect.ImmutableList.Builder<LootCondition> terms = ImmutableList.builder();
 
-      @Override
-      public LootCondition build() {
-         return this.build(this.terms.build());
-      }
+		protected Builder(LootCondition.Builder... terms) {
+			for (LootCondition.Builder builder : terms) {
+				this.terms.add(builder.build());
+			}
+		}
 
-      protected abstract LootCondition build(List<LootCondition> terms);
-   }
+		public void add(LootCondition.Builder builder) {
+			this.terms.add(builder.build());
+		}
+
+		@Override
+		public LootCondition build() {
+			return this.build(this.terms.build());
+		}
+
+		protected abstract LootCondition build(List<LootCondition> terms);
+	}
 }

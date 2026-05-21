@@ -1,12 +1,19 @@
 package net.minecraft.command.permission;
 
+/**
+ * {@code PermissionPredicate}.
+ */
 public interface PermissionPredicate {
-   PermissionPredicate NONE = perm -> false;
-   PermissionPredicate ALL = perm -> true;
 
-   boolean hasPermission(Permission perm);
+	PermissionPredicate NONE = perm -> false;
 
-   default PermissionPredicate or(PermissionPredicate other) {
-      return (PermissionPredicate)(other instanceof OrPermissionPredicate ? other.or(this) : new OrPermissionPredicate(this, other));
-   }
+	PermissionPredicate ALL = perm -> true;
+
+	boolean hasPermission(Permission perm);
+
+	default PermissionPredicate or(PermissionPredicate other) {
+		return (PermissionPredicate) (other instanceof OrPermissionPredicate ? other.or(this)
+		                                                                     : new OrPermissionPredicate(this, other)
+		);
+	}
 }

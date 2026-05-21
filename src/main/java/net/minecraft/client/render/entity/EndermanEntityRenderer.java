@@ -13,38 +13,52 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EndermanEntityRenderer}.
+ */
 public class EndermanEntityRenderer extends MobEntityRenderer<EndermanEntity, EndermanEntityRenderState, EndermanEntityModel<EndermanEntityRenderState>> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/enderman/enderman.png");
-   private final Random random = Random.create();
 
-   public EndermanEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new EndermanEntityModel<>(context.getPart(EntityModelLayers.ENDERMAN)), 0.5F);
-      this.addFeature(new EndermanEyesFeatureRenderer(this));
-      this.addFeature(new EndermanBlockFeatureRenderer(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/enderman/enderman.png");
+	private final Random random = Random.create();
 
-   public Vec3d getPositionOffset(EndermanEntityRenderState endermanEntityRenderState) {
-      Vec3d vec3d = super.getPositionOffset(endermanEntityRenderState);
-      if (endermanEntityRenderState.angry) {
-         double d = 0.02 * endermanEntityRenderState.baseScale;
-         return vec3d.add(this.random.nextGaussian() * d, 0.0, this.random.nextGaussian() * d);
-      } else {
-         return vec3d;
-      }
-   }
+	public EndermanEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new EndermanEntityModel<>(context.getPart(EntityModelLayers.ENDERMAN)), 0.5F);
+		this.addFeature(new EndermanEyesFeatureRenderer(this));
+		this.addFeature(new EndermanBlockFeatureRenderer(this));
+	}
 
-   public Identifier getTexture(EndermanEntityRenderState endermanEntityRenderState) {
-      return TEXTURE;
-   }
+	public Vec3d getPositionOffset(EndermanEntityRenderState endermanEntityRenderState) {
+		Vec3d vec3d = super.getPositionOffset(endermanEntityRenderState);
+		if (endermanEntityRenderState.angry) {
+			double d = 0.02 * endermanEntityRenderState.baseScale;
+			return vec3d.add(this.random.nextGaussian() * d, 0.0, this.random.nextGaussian() * d);
+		}
+		else {
+			return vec3d;
+		}
+	}
 
-   public EndermanEntityRenderState createRenderState() {
-      return new EndermanEntityRenderState();
-   }
+	public Identifier getTexture(EndermanEntityRenderState endermanEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(EndermanEntity endermanEntity, EndermanEntityRenderState endermanEntityRenderState, float f) {
-      super.updateRenderState(endermanEntity, endermanEntityRenderState, f);
-      BipedEntityRenderer.updateBipedRenderState(endermanEntity, endermanEntityRenderState, f, this.itemModelResolver);
-      endermanEntityRenderState.angry = endermanEntity.isAngry();
-      endermanEntityRenderState.carriedBlock = endermanEntity.getCarriedBlock();
-   }
+	public EndermanEntityRenderState createRenderState() {
+		return new EndermanEntityRenderState();
+	}
+
+	public void updateRenderState(
+			EndermanEntity endermanEntity,
+			EndermanEntityRenderState endermanEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(endermanEntity, endermanEntityRenderState, f);
+		BipedEntityRenderer.updateBipedRenderState(
+				endermanEntity,
+				endermanEntityRenderState,
+				f,
+				this.itemModelResolver
+		);
+		endermanEntityRenderState.angry = endermanEntity.isAngry();
+		endermanEntityRenderState.carriedBlock = endermanEntity.getCarriedBlock();
+	}
 }

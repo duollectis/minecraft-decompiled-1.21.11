@@ -7,18 +7,26 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.world.biome.Biome;
 
+/**
+ * {@code BiomeSpawnCondition}.
+ */
 public record BiomeSpawnCondition(RegistryEntryList<Biome> requiredBiomes) implements SpawnCondition {
-   public static final MapCodec<BiomeSpawnCondition> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(RegistryCodecs.entryList(RegistryKeys.BIOME).fieldOf("biomes").forGetter(BiomeSpawnCondition::requiredBiomes))
-         .apply(instance, BiomeSpawnCondition::new)
-   );
 
-   public boolean test(SpawnContext spawnContext) {
-      return this.requiredBiomes.contains(spawnContext.biome());
-   }
+	public static final MapCodec<BiomeSpawnCondition> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(RegistryCodecs
+							.entryList(RegistryKeys.BIOME)
+							.fieldOf("biomes")
+							.forGetter(BiomeSpawnCondition::requiredBiomes))
+					.apply(instance, BiomeSpawnCondition::new)
+	);
 
-   @Override
-   public MapCodec<BiomeSpawnCondition> getCodec() {
-      return CODEC;
-   }
+	public boolean test(SpawnContext spawnContext) {
+		return this.requiredBiomes.contains(spawnContext.biome());
+	}
+
+	@Override
+	public MapCodec<BiomeSpawnCondition> getCodec() {
+		return CODEC;
+	}
 }

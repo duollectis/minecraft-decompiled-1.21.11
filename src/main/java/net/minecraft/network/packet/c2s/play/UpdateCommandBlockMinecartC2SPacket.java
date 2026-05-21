@@ -13,50 +13,52 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 public class UpdateCommandBlockMinecartC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, UpdateCommandBlockMinecartC2SPacket> CODEC = Packet.createCodec(
-      UpdateCommandBlockMinecartC2SPacket::write, UpdateCommandBlockMinecartC2SPacket::new
-   );
-   private final int entityId;
-   private final String command;
-   private final boolean trackOutput;
 
-   public UpdateCommandBlockMinecartC2SPacket(int entityId, String command, boolean trackOutput) {
-      this.entityId = entityId;
-      this.command = command;
-      this.trackOutput = trackOutput;
-   }
+	public static final PacketCodec<PacketByteBuf, UpdateCommandBlockMinecartC2SPacket> CODEC = Packet.createCodec(
+			UpdateCommandBlockMinecartC2SPacket::write, UpdateCommandBlockMinecartC2SPacket::new
+	);
+	private final int entityId;
+	private final String command;
+	private final boolean trackOutput;
 
-   private UpdateCommandBlockMinecartC2SPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      this.command = buf.readString();
-      this.trackOutput = buf.readBoolean();
-   }
+	public UpdateCommandBlockMinecartC2SPacket(int entityId, String command, boolean trackOutput) {
+		this.entityId = entityId;
+		this.command = command;
+		this.trackOutput = trackOutput;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      buf.writeString(this.command);
-      buf.writeBoolean(this.trackOutput);
-   }
+	private UpdateCommandBlockMinecartC2SPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		this.command = buf.readString();
+		this.trackOutput = buf.readBoolean();
+	}
 
-   @Override
-   public PacketType<UpdateCommandBlockMinecartC2SPacket> getPacketType() {
-      return PlayPackets.SET_COMMAND_MINECART;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		buf.writeString(this.command);
+		buf.writeBoolean(this.trackOutput);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onUpdateCommandBlockMinecart(this);
-   }
+	@Override
+	public PacketType<UpdateCommandBlockMinecartC2SPacket> getPacketType() {
+		return PlayPackets.SET_COMMAND_MINECART;
+	}
 
-   public @Nullable CommandBlockExecutor getMinecartCommandExecutor(World world) {
-      Entity entity = world.getEntityById(this.entityId);
-      return entity instanceof CommandBlockMinecartEntity ? ((CommandBlockMinecartEntity)entity).getCommandExecutor() : null;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onUpdateCommandBlockMinecart(this);
+	}
 
-   public String getCommand() {
-      return this.command;
-   }
+	public @Nullable CommandBlockExecutor getMinecartCommandExecutor(World world) {
+		Entity entity = world.getEntityById(this.entityId);
+		return entity instanceof CommandBlockMinecartEntity ? ((CommandBlockMinecartEntity) entity).getCommandExecutor()
+		                                                    : null;
+	}
 
-   public boolean shouldTrackOutput() {
-      return this.trackOutput;
-   }
+	public String getCommand() {
+		return this.command;
+	}
+
+	public boolean shouldTrackOutput() {
+		return this.trackOutput;
+	}
 }

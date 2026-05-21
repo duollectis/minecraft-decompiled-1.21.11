@@ -3,148 +3,161 @@ package net.minecraft.entity.attribute;
 import com.google.common.collect.Multimap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * {@code AttributeContainer}.
+ */
 public class AttributeContainer {
-   private final Map<RegistryEntry<EntityAttribute>, EntityAttributeInstance> custom = new Object2ObjectOpenHashMap();
-   private final Set<EntityAttributeInstance> tracked = new ObjectOpenHashSet();
-   private final Set<EntityAttributeInstance> pendingUpdate = new ObjectOpenHashSet();
-   private final DefaultAttributeContainer defaultAttributes;
 
-   public AttributeContainer(DefaultAttributeContainer defaultAttributes) {
-      this.defaultAttributes = defaultAttributes;
-   }
+	private final Map<RegistryEntry<EntityAttribute>, EntityAttributeInstance> custom = new Object2ObjectOpenHashMap();
+	private final Set<EntityAttributeInstance> tracked = new ObjectOpenHashSet();
+	private final Set<EntityAttributeInstance> pendingUpdate = new ObjectOpenHashSet();
+	private final DefaultAttributeContainer defaultAttributes;
 
-   private void updateTrackedStatus(EntityAttributeInstance instance) {
-      this.pendingUpdate.add(instance);
-      if (instance.getAttribute().value().isTracked()) {
-         this.tracked.add(instance);
-      }
-   }
+	public AttributeContainer(DefaultAttributeContainer defaultAttributes) {
+		this.defaultAttributes = defaultAttributes;
+	}
 
-   public Set<EntityAttributeInstance> getTracked() {
-      return this.tracked;
-   }
+	private void updateTrackedStatus(EntityAttributeInstance instance) {
+		this.pendingUpdate.add(instance);
+		if (instance.getAttribute().value().isTracked()) {
+			this.tracked.add(instance);
+		}
+	}
 
-   public Set<EntityAttributeInstance> getPendingUpdate() {
-      return this.pendingUpdate;
-   }
+	public Set<EntityAttributeInstance> getTracked() {
+		return this.tracked;
+	}
 
-   public Collection<EntityAttributeInstance> getAttributesToSend() {
-      return this.custom.values().stream().filter(attribute -> attribute.getAttribute().value().isTracked()).collect(Collectors.toList());
-   }
+	public Set<EntityAttributeInstance> getPendingUpdate() {
+		return this.pendingUpdate;
+	}
 
-   public @Nullable EntityAttributeInstance getCustomInstance(RegistryEntry<EntityAttribute> attribute) {
-      return this.custom.computeIfAbsent(attribute, attributex -> this.defaultAttributes.createOverride(this::updateTrackedStatus, attributex));
-   }
+	public Collection<EntityAttributeInstance> getAttributesToSend() {
+		return this.custom
+				.values()
+				.stream()
+				.filter(attribute -> attribute.getAttribute().value().isTracked())
+				.collect(Collectors.toList());
+	}
 
-   public boolean hasAttribute(RegistryEntry<EntityAttribute> attribute) {
-      return this.custom.get(attribute) != null || this.defaultAttributes.has(attribute);
-   }
+	public @Nullable EntityAttributeInstance getCustomInstance(RegistryEntry<EntityAttribute> attribute) {
+		return this.custom.computeIfAbsent(
+				attribute,
+				attributex -> this.defaultAttributes.createOverride(this::updateTrackedStatus, attributex)
+		);
+	}
 
-   public boolean hasModifierForAttribute(RegistryEntry<EntityAttribute> attribute, Identifier id) {
-      EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-      return entityAttributeInstance != null ? entityAttributeInstance.getModifier(id) != null : this.defaultAttributes.hasModifier(attribute, id);
-   }
+	public boolean hasAttribute(RegistryEntry<EntityAttribute> attribute) {
+		return this.custom.get(attribute) != null || this.defaultAttributes.has(attribute);
+	}
 
-   public double getValue(RegistryEntry<EntityAttribute> attribute) {
-      EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-      return entityAttributeInstance != null ? entityAttributeInstance.getValue() : this.defaultAttributes.getValue(attribute);
-   }
+	public boolean hasModifierForAttribute(RegistryEntry<EntityAttribute> attribute, Identifier id) {
+		EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
+		return entityAttributeInstance != null ? entityAttributeInstance.getModifier(id) != null
+		                                       : this.defaultAttributes.hasModifier(attribute, id);
+	}
 
-   public double getBaseValue(RegistryEntry<EntityAttribute> attribute) {
-      EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-      return entityAttributeInstance != null ? entityAttributeInstance.getBaseValue() : this.defaultAttributes.getBaseValue(attribute);
-   }
+	public double getValue(RegistryEntry<EntityAttribute> attribute) {
+		EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
+		return entityAttributeInstance != null ? entityAttributeInstance.getValue()
+		                                       : this.defaultAttributes.getValue(attribute);
+	}
 
-   public double getModifierValue(RegistryEntry<EntityAttribute> attribute, Identifier id) {
-      EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-      return entityAttributeInstance != null ? entityAttributeInstance.getModifier(id).value() : this.defaultAttributes.getModifierValue(attribute, id);
-   }
+	public double getBaseValue(RegistryEntry<EntityAttribute> attribute) {
+		EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
+		return entityAttributeInstance != null ? entityAttributeInstance.getBaseValue()
+		                                       : this.defaultAttributes.getBaseValue(attribute);
+	}
 
-   public void addTemporaryModifiers(Multimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> modifiersMap) {
-      modifiersMap.forEach((attribute, modifier) -> {
-         EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attribute);
-         if (entityAttributeInstance != null) {
-            entityAttributeInstance.removeModifier(modifier.id());
-            entityAttributeInstance.addTemporaryModifier(modifier);
-         }
-      });
-   }
+	public double getModifierValue(RegistryEntry<EntityAttribute> attribute, Identifier id) {
+		EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
+		return entityAttributeInstance != null ? entityAttributeInstance.getModifier(id).value()
+		                                       : this.defaultAttributes.getModifierValue(attribute, id);
+	}
 
-   public void removeModifiers(Multimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> modifiersMap) {
-      modifiersMap.asMap().forEach((attribute, modifiers) -> {
-         EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-         if (entityAttributeInstance != null) {
-            modifiers.forEach(modifier -> entityAttributeInstance.removeModifier(modifier.id()));
-         }
-      });
-   }
+	public void addTemporaryModifiers(Multimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> modifiersMap) {
+		modifiersMap.forEach((attribute, modifier) -> {
+			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attribute);
+			if (entityAttributeInstance != null) {
+				entityAttributeInstance.removeModifier(modifier.id());
+				entityAttributeInstance.addTemporaryModifier(modifier);
+			}
+		});
+	}
 
-   public void setFrom(AttributeContainer other) {
-      other.custom.values().forEach(attributeInstance -> {
-         EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
-         if (entityAttributeInstance != null) {
-            entityAttributeInstance.setFrom(attributeInstance);
-         }
-      });
-   }
+	public void removeModifiers(Multimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> modifiersMap) {
+		modifiersMap.asMap().forEach((attribute, modifiers) -> {
+			EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
+			if (entityAttributeInstance != null) {
+				modifiers.forEach(modifier -> entityAttributeInstance.removeModifier(modifier.id()));
+			}
+		});
+	}
 
-   public void setBaseFrom(AttributeContainer other) {
-      other.custom.values().forEach(attributeInstance -> {
-         EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
-         if (entityAttributeInstance != null) {
-            entityAttributeInstance.setBaseValue(attributeInstance.getBaseValue());
-         }
-      });
-   }
+	public void setFrom(AttributeContainer other) {
+		other.custom.values().forEach(attributeInstance -> {
+			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
+			if (entityAttributeInstance != null) {
+				entityAttributeInstance.setFrom(attributeInstance);
+			}
+		});
+	}
 
-   public void addPersistentModifiersFrom(AttributeContainer other) {
-      other.custom.values().forEach(attributeInstance -> {
-         EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
-         if (entityAttributeInstance != null) {
-            entityAttributeInstance.addPersistentModifiers(attributeInstance.getPersistentModifiers());
-         }
-      });
-   }
+	public void setBaseFrom(AttributeContainer other) {
+		other.custom.values().forEach(attributeInstance -> {
+			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
+			if (entityAttributeInstance != null) {
+				entityAttributeInstance.setBaseValue(attributeInstance.getBaseValue());
+			}
+		});
+	}
 
-   public boolean resetToBaseValue(RegistryEntry<EntityAttribute> attribute) {
-      if (!this.defaultAttributes.has(attribute)) {
-         return false;
-      } else {
-         EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
-         if (entityAttributeInstance != null) {
-            entityAttributeInstance.setBaseValue(this.defaultAttributes.getBaseValue(attribute));
-         }
+	public void addPersistentModifiersFrom(AttributeContainer other) {
+		other.custom.values().forEach(attributeInstance -> {
+			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
+			if (entityAttributeInstance != null) {
+				entityAttributeInstance.addPersistentModifiers(attributeInstance.getPersistentModifiers());
+			}
+		});
+	}
 
-         return true;
-      }
-   }
+	public boolean resetToBaseValue(RegistryEntry<EntityAttribute> attribute) {
+		if (!this.defaultAttributes.has(attribute)) {
+			return false;
+		}
+		else {
+			EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
+			if (entityAttributeInstance != null) {
+				entityAttributeInstance.setBaseValue(this.defaultAttributes.getBaseValue(attribute));
+			}
 
-   public List<EntityAttributeInstance.Packed> pack() {
-      List<EntityAttributeInstance.Packed> list = new ArrayList<>(this.custom.values().size());
+			return true;
+		}
+	}
 
-      for (EntityAttributeInstance entityAttributeInstance : this.custom.values()) {
-         list.add(entityAttributeInstance.pack());
-      }
+	public List<EntityAttributeInstance.Packed> pack() {
+		List<EntityAttributeInstance.Packed> list = new ArrayList<>(this.custom.values().size());
 
-      return list;
-   }
+		for (EntityAttributeInstance entityAttributeInstance : this.custom.values()) {
+			list.add(entityAttributeInstance.pack());
+		}
 
-   public void unpack(List<EntityAttributeInstance.Packed> packedList) {
-      for (EntityAttributeInstance.Packed packed : packedList) {
-         EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(packed.attribute());
-         if (entityAttributeInstance != null) {
-            entityAttributeInstance.unpack(packed);
-         }
-      }
-   }
+		return list;
+	}
+
+	public void unpack(List<EntityAttributeInstance.Packed> packedList) {
+		for (EntityAttributeInstance.Packed packed : packedList) {
+			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(packed.attribute());
+			if (entityAttributeInstance != null) {
+				entityAttributeInstance.unpack(packed);
+			}
+		}
+	}
 }

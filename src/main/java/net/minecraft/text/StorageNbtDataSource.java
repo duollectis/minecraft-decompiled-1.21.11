@@ -2,29 +2,36 @@ package net.minecraft.text;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.stream.Stream;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.util.Identifier;
 
+import java.util.stream.Stream;
+
+/**
+ * {@code StorageNbtDataSource}.
+ */
 public record StorageNbtDataSource(Identifier id) implements NbtDataSource {
-   public static final MapCodec<StorageNbtDataSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Identifier.CODEC.fieldOf("storage").forGetter(StorageNbtDataSource::id)).apply(instance, StorageNbtDataSource::new)
-   );
 
-   @Override
-   public Stream<NbtCompound> get(ServerCommandSource source) {
-      NbtCompound nbtCompound = source.getServer().getDataCommandStorage().get(this.id);
-      return Stream.of(nbtCompound);
-   }
+	public static final MapCodec<StorageNbtDataSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Identifier.CODEC.fieldOf("storage").forGetter(StorageNbtDataSource::id))
+					.apply(instance, StorageNbtDataSource::new)
+	);
 
-   @Override
-   public MapCodec<StorageNbtDataSource> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public Stream<NbtCompound> get(ServerCommandSource source) {
+		NbtCompound nbtCompound = source.getServer().getDataCommandStorage().get(this.id);
+		return Stream.of(nbtCompound);
+	}
 
-   @Override
-   public String toString() {
-      return "storage=" + this.id;
-   }
+	@Override
+	public MapCodec<StorageNbtDataSource> getCodec() {
+		return CODEC;
+	}
+
+	@Override
+	public String toString() {
+		return "storage=" + this.id;
+	}
 }

@@ -6,31 +6,38 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code EntityItemFrameDirectionFix}.
+ */
 public class EntityItemFrameDirectionFix extends ChoiceFix {
-   public EntityItemFrameDirectionFix(Schema schema, boolean bl) {
-      super(schema, bl, "EntityItemFrameDirectionFix", TypeReferences.ENTITY, "minecraft:item_frame");
-   }
 
-   public Dynamic<?> fixDirection(Dynamic<?> itemFrameDynamic) {
-      return itemFrameDynamic.set("Facing", itemFrameDynamic.createByte(updateDirection(itemFrameDynamic.get("Facing").asByte((byte)0))));
-   }
+	public EntityItemFrameDirectionFix(Schema schema, boolean bl) {
+		super(schema, bl, "EntityItemFrameDirectionFix", TypeReferences.ENTITY, "minecraft:item_frame");
+	}
 
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      return inputTyped.update(DSL.remainderFinder(), this::fixDirection);
-   }
+	public Dynamic<?> fixDirection(Dynamic<?> itemFrameDynamic) {
+		return itemFrameDynamic.set(
+				"Facing",
+				itemFrameDynamic.createByte(updateDirection(itemFrameDynamic.get("Facing").asByte((byte) 0)))
+		);
+	}
 
-   private static byte updateDirection(byte oldDirection) {
-      switch (oldDirection) {
-         case 0:
-            return 3;
-         case 1:
-            return 4;
-         case 2:
-         default:
-            return 2;
-         case 3:
-            return 5;
-      }
-   }
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		return inputTyped.update(DSL.remainderFinder(), this::fixDirection);
+	}
+
+	private static byte updateDirection(byte oldDirection) {
+		switch (oldDirection) {
+			case 0:
+				return 3;
+			case 1:
+				return 4;
+			case 2:
+			default:
+				return 2;
+			case 3:
+				return 5;
+		}
+	}
 }

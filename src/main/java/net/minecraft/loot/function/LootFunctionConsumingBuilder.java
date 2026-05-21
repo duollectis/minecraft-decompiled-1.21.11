@@ -3,22 +3,26 @@ package net.minecraft.loot.function;
 import java.util.Arrays;
 import java.util.function.Function;
 
+/**
+ * {@code LootFunctionConsumingBuilder}.
+ */
 public interface LootFunctionConsumingBuilder<T extends LootFunctionConsumingBuilder<T>> {
-   T apply(LootFunction.Builder function);
 
-   default <E> T apply(Iterable<E> functions, Function<E, LootFunction.Builder> toBuilderFunction) {
-      T lootFunctionConsumingBuilder = this.getThisFunctionConsumingBuilder();
+	T apply(LootFunction.Builder function);
 
-      for (E object : functions) {
-         lootFunctionConsumingBuilder = lootFunctionConsumingBuilder.apply(toBuilderFunction.apply(object));
-      }
+	default <E> T apply(Iterable<E> functions, Function<E, LootFunction.Builder> toBuilderFunction) {
+		T lootFunctionConsumingBuilder = this.getThisFunctionConsumingBuilder();
 
-      return lootFunctionConsumingBuilder;
-   }
+		for (E object : functions) {
+			lootFunctionConsumingBuilder = lootFunctionConsumingBuilder.apply(toBuilderFunction.apply(object));
+		}
 
-   default <E> T apply(E[] functions, Function<E, LootFunction.Builder> toBuilderFunction) {
-      return this.apply(Arrays.asList(functions), toBuilderFunction);
-   }
+		return lootFunctionConsumingBuilder;
+	}
 
-   T getThisFunctionConsumingBuilder();
+	default <E> T apply(E[] functions, Function<E, LootFunction.Builder> toBuilderFunction) {
+		return this.apply(Arrays.asList(functions), toBuilderFunction);
+	}
+
+	T getThisFunctionConsumingBuilder();
 }

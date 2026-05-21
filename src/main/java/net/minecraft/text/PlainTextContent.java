@@ -3,49 +3,61 @@ package net.minecraft.text;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+
 import java.util.Optional;
 
+/**
+ * {@code PlainTextContent}.
+ */
 public interface PlainTextContent extends TextContent {
-   MapCodec<PlainTextContent> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codec.STRING.fieldOf("text").forGetter(PlainTextContent::string)).apply(instance, PlainTextContent::of)
-   );
-   PlainTextContent EMPTY = new PlainTextContent() {
-      @Override
-      public String toString() {
-         return "empty";
-      }
 
-      @Override
-      public String string() {
-         return "";
-      }
-   };
+	MapCodec<PlainTextContent> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codec.STRING.fieldOf("text").forGetter(PlainTextContent::string))
+					.apply(instance, PlainTextContent::of)
+	);
 
-   static PlainTextContent of(String string) {
-      return (PlainTextContent)(string.isEmpty() ? EMPTY : new PlainTextContent.Literal(string));
-   }
+	PlainTextContent EMPTY = new PlainTextContent() {
+		@Override
+		public String toString() {
+			return "empty";
+		}
 
-   String string();
+		@Override
+		public String string() {
+			return "";
+		}
+	};
 
-   @Override
-   default MapCodec<PlainTextContent> getCodec() {
-      return CODEC;
-   }
+	static PlainTextContent of(String string) {
+		return (PlainTextContent) (string.isEmpty() ? EMPTY : new PlainTextContent.Literal(string));
+	}
 
-   public record Literal(String string) implements PlainTextContent {
-      @Override
-      public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
-         return visitor.accept(this.string);
-      }
+	String string();
 
-      @Override
-      public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
-         return visitor.accept(style, this.string);
-      }
+	@Override
+	default MapCodec<PlainTextContent> getCodec() {
+		return CODEC;
+	}
 
-      @Override
-      public String toString() {
-         return "literal{" + this.string + "}";
-      }
-   }
+	/**
+	 * {@code Literal}.
+	 */
+	public record Literal(String string) implements PlainTextContent {
+
+		@Override
+		public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
+			return visitor.accept(this.string);
+		}
+
+		@Override
+		public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
+			return visitor.accept(style, this.string);
+		}
+
+		@Override
+		public String toString() {
+			return "literal{" + this.string + "}";
+		}
+	}
 }

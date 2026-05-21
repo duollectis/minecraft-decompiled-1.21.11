@@ -8,5 +8,6 @@ import net.minecraft.network.packet.Packet;
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
 public interface SequencedPacketCreator {
-   Packet<ServerPlayPacketListener> predict(int sequence);
+
+	Packet<ServerPlayPacketListener> predict(int sequence);
 }

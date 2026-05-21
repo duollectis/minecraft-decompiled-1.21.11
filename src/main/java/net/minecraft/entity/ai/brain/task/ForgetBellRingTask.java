@@ -6,32 +6,49 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.GlobalPos;
 import org.apache.commons.lang3.mutable.MutableInt;
 
+/**
+ * {@code ForgetBellRingTask}.
+ */
 public class ForgetBellRingTask {
-   private static final int MIN_HEARD_BELL_TIME = 300;
 
-   public static Task<LivingEntity> create(int maxHiddenSeconds, int distance) {
-      int i = maxHiddenSeconds * 20;
-      MutableInt mutableInt = new MutableInt(0);
-      return TaskTriggerer.task(
-         context -> context.group(context.queryMemoryValue(MemoryModuleType.HIDING_PLACE), context.queryMemoryValue(MemoryModuleType.HEARD_BELL_TIME))
-            .apply(context, (hidingPlace, heardBellTime) -> (world, entity, time) -> {
-               long l = context.<Long>getValue(heardBellTime);
-               boolean bl = l + 300L <= time;
-               if (mutableInt.intValue() <= i && !bl) {
-                  BlockPos blockPos = context.<GlobalPos>getValue(hidingPlace).pos();
-                  if (blockPos.isWithinDistance(entity.getBlockPos(), distance)) {
-                     mutableInt.increment();
-                  }
+	private static final int MIN_HEARD_BELL_TIME = 300;
 
-                  return true;
-               } else {
-                  heardBellTime.forget();
-                  hidingPlace.forget();
-                  entity.getBrain().refreshActivities(world.getEnvironmentAttributes(), world.getTime(), entity.getEntityPos());
-                  mutableInt.setValue(0);
-                  return true;
-               }
-            })
-      );
-   }
+	public static Task<LivingEntity> create(int maxHiddenSeconds, int distance) {
+		int i = maxHiddenSeconds * 20;
+		MutableInt mutableInt = new MutableInt(0);
+		return TaskTriggerer.task(
+				context -> context
+						.group(
+								context.queryMemoryValue(MemoryModuleType.HIDING_PLACE),
+								context.queryMemoryValue(MemoryModuleType.HEARD_BELL_TIME)
+						)
+						.apply(
+								context, (hidingPlace, heardBellTime) -> (world, entity, time) -> {
+									long l = context.<Long>getValue(heardBellTime);
+									boolean bl = l + 300L <= time;
+									if (mutableInt.intValue() <= i && !bl) {
+										BlockPos blockPos = context.<GlobalPos>getValue(hidingPlace).pos();
+										if (blockPos.isWithinDistance(entity.getBlockPos(), distance)) {
+											mutableInt.increment();
+										}
+
+										return true;
+									}
+									else {
+										heardBellTime.forget();
+										hidingPlace.forget();
+										entity
+												.getBrain()
+												.refreshActivities(
+														world.getEnvironmentAttributes(),
+														world.getTime(),
+														entity.getEntityPos()
+												);
+										mutableInt.setValue(0);
+										return true;
+									}
+								}
+						)
+		);
+	}
 }

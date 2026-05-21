@@ -20,77 +20,91 @@ import net.minecraft.util.hit.HitResult;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FindTreeTutorialStepHandler}.
+ */
 public class FindTreeTutorialStepHandler implements TutorialStepHandler {
-   private static final int DELAY = 6000;
-   private static final Text TITLE = Text.translatable("tutorial.find_tree.title");
-   private static final Text DESCRIPTION = Text.translatable("tutorial.find_tree.description");
-   private final TutorialManager manager;
-   private @Nullable TutorialToast toast;
-   private int ticks;
 
-   public FindTreeTutorialStepHandler(TutorialManager manager) {
-      this.manager = manager;
-   }
+	private static final int DELAY = 6000;
+	private static final Text TITLE = Text.translatable("tutorial.find_tree.title");
+	private static final Text DESCRIPTION = Text.translatable("tutorial.find_tree.description");
+	private final TutorialManager manager;
+	private @Nullable TutorialToast toast;
+	private int ticks;
 
-   @Override
-   public void tick() {
-      this.ticks++;
-      if (!this.manager.isInSurvival()) {
-         this.manager.setStep(TutorialStep.NONE);
-      } else {
-         MinecraftClient minecraftClient = this.manager.getClient();
-         if (this.ticks == 1) {
-            ClientPlayerEntity clientPlayerEntity = minecraftClient.player;
-            if (clientPlayerEntity != null && (hasItem(clientPlayerEntity) || hasBrokenTreeBlocks(clientPlayerEntity))) {
-               this.manager.setStep(TutorialStep.CRAFT_PLANKS);
-               return;
-            }
-         }
+	public FindTreeTutorialStepHandler(TutorialManager manager) {
+		this.manager = manager;
+	}
 
-         if (this.ticks >= 6000 && this.toast == null) {
-            this.toast = new TutorialToast(minecraftClient.textRenderer, TutorialToast.Type.TREE, TITLE, DESCRIPTION, false);
-            minecraftClient.getToastManager().add(this.toast);
-         }
-      }
-   }
+	@Override
+	public void tick() {
+		this.ticks++;
+		if (!this.manager.isInSurvival()) {
+			this.manager.setStep(TutorialStep.NONE);
+		}
+		else {
+			MinecraftClient minecraftClient = this.manager.getClient();
+			if (this.ticks == 1) {
+				ClientPlayerEntity clientPlayerEntity = minecraftClient.player;
+				if (clientPlayerEntity != null && (hasItem(clientPlayerEntity)
+						|| hasBrokenTreeBlocks(clientPlayerEntity)
+				)) {
+					this.manager.setStep(TutorialStep.CRAFT_PLANKS);
+					return;
+				}
+			}
 
-   @Override
-   public void destroy() {
-      if (this.toast != null) {
-         this.toast.hide();
-         this.toast = null;
-      }
-   }
+			if (this.ticks >= 6000 && this.toast == null) {
+				this.toast =
+						new TutorialToast(
+								minecraftClient.textRenderer,
+								TutorialToast.Type.TREE,
+								TITLE,
+								DESCRIPTION,
+								false
+						);
+				minecraftClient.getToastManager().add(this.toast);
+			}
+		}
+	}
 
-   @Override
-   public void onTarget(ClientWorld world, HitResult hitResult) {
-      if (hitResult.getType() == HitResult.Type.BLOCK) {
-         BlockState blockState = world.getBlockState(((BlockHitResult)hitResult).getBlockPos());
-         if (blockState.isIn(BlockTags.COMPLETES_FIND_TREE_TUTORIAL)) {
-            this.manager.setStep(TutorialStep.PUNCH_TREE);
-         }
-      }
-   }
+	@Override
+	public void destroy() {
+		if (this.toast != null) {
+			this.toast.hide();
+			this.toast = null;
+		}
+	}
 
-   @Override
-   public void onSlotUpdate(ItemStack stack) {
-      if (stack.isIn(ItemTags.COMPLETES_FIND_TREE_TUTORIAL)) {
-         this.manager.setStep(TutorialStep.CRAFT_PLANKS);
-      }
-   }
+	@Override
+	public void onTarget(ClientWorld world, HitResult hitResult) {
+		if (hitResult.getType() == HitResult.Type.BLOCK) {
+			BlockState blockState = world.getBlockState(((BlockHitResult) hitResult).getBlockPos());
+			if (blockState.isIn(BlockTags.COMPLETES_FIND_TREE_TUTORIAL)) {
+				this.manager.setStep(TutorialStep.PUNCH_TREE);
+			}
+		}
+	}
 
-   private static boolean hasItem(ClientPlayerEntity player) {
-      return player.getInventory().containsAny(stack -> stack.isIn(ItemTags.COMPLETES_FIND_TREE_TUTORIAL));
-   }
+	@Override
+	public void onSlotUpdate(ItemStack stack) {
+		if (stack.isIn(ItemTags.COMPLETES_FIND_TREE_TUTORIAL)) {
+			this.manager.setStep(TutorialStep.CRAFT_PLANKS);
+		}
+	}
 
-   public static boolean hasBrokenTreeBlocks(ClientPlayerEntity player) {
-      for (RegistryEntry<Block> registryEntry : Registries.BLOCK.iterateEntries(BlockTags.COMPLETES_FIND_TREE_TUTORIAL)) {
-         Block block = registryEntry.value();
-         if (player.getStatHandler().getStat(Stats.MINED.getOrCreateStat(block)) > 0) {
-            return true;
-         }
-      }
+	private static boolean hasItem(ClientPlayerEntity player) {
+		return player.getInventory().containsAny(stack -> stack.isIn(ItemTags.COMPLETES_FIND_TREE_TUTORIAL));
+	}
 
-      return false;
-   }
+	public static boolean hasBrokenTreeBlocks(ClientPlayerEntity player) {
+		for (RegistryEntry<Block> registryEntry : Registries.BLOCK.iterateEntries(BlockTags.COMPLETES_FIND_TREE_TUTORIAL)) {
+			Block block = registryEntry.value();
+			if (player.getStatHandler().getStat(Stats.MINED.getOrCreateStat(block)) > 0) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 }

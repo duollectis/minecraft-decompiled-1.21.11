@@ -6,8 +6,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class BundleDelimiterS2CPacket extends BundleSplitterPacket<ClientPlayPacketListener> {
-   @Override
-   public PacketType<BundleDelimiterS2CPacket> getPacketType() {
-      return PlayPackets.BUNDLE_DELIMITER;
-   }
+
+	@Override
+	public PacketType<BundleDelimiterS2CPacket> getPacketType() {
+		return PlayPackets.BUNDLE_DELIMITER;
+	}
 }

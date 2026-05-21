@@ -1,29 +1,34 @@
 package net.minecraft.server.filter;
 
-import java.util.Objects;
 import net.minecraft.network.message.FilterMask;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+
+/**
+ * {@code FilteredMessage}.
+ */
 public record FilteredMessage(String raw, FilterMask mask) {
-   public static final FilteredMessage EMPTY = permitted("");
 
-   public static FilteredMessage permitted(String raw) {
-      return new FilteredMessage(raw, FilterMask.PASS_THROUGH);
-   }
+	public static final FilteredMessage EMPTY = permitted("");
 
-   public static FilteredMessage censored(String raw) {
-      return new FilteredMessage(raw, FilterMask.FULLY_FILTERED);
-   }
+	public static FilteredMessage permitted(String raw) {
+		return new FilteredMessage(raw, FilterMask.PASS_THROUGH);
+	}
 
-   public @Nullable String filter() {
-      return this.mask.filter(this.raw);
-   }
+	public static FilteredMessage censored(String raw) {
+		return new FilteredMessage(raw, FilterMask.FULLY_FILTERED);
+	}
 
-   public String getString() {
-      return Objects.requireNonNullElse(this.filter(), "");
-   }
+	public @Nullable String filter() {
+		return this.mask.filter(this.raw);
+	}
 
-   public boolean isFiltered() {
-      return !this.mask.isPassThrough();
-   }
+	public String getString() {
+		return Objects.requireNonNullElse(this.filter(), "");
+	}
+
+	public boolean isFiltered() {
+		return !this.mask.isPassThrough();
+	}
 }

@@ -1,19 +1,24 @@
 package net.minecraft.client.gui.tab;
 
-import java.util.function.Consumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.ScreenRect;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.text.Text;
 
+import java.util.function.Consumer;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Tab}.
+ */
 public interface Tab {
-   Text getTitle();
 
-   Text getNarratedHint();
+	Text getTitle();
 
-   void forEachChild(Consumer<ClickableWidget> consumer);
+	Text getNarratedHint();
 
-   void refreshGrid(ScreenRect tabArea);
+	void forEachChild(Consumer<ClickableWidget> consumer);
+
+	void refreshGrid(ScreenRect tabArea);
 }

@@ -1,7 +1,6 @@
 package net.minecraft.world.gen.feature;
 
 import com.mojang.serialization.Codec;
-import java.util.List;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -10,75 +9,104 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+import java.util.List;
+
+/**
+ * {@code MultifaceGrowthFeature}.
+ */
 public class MultifaceGrowthFeature extends Feature<MultifaceGrowthFeatureConfig> {
-   public MultifaceGrowthFeature(Codec<MultifaceGrowthFeatureConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<MultifaceGrowthFeatureConfig> context) {
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      BlockPos blockPos = context.getOrigin();
-      Random random = context.getRandom();
-      MultifaceGrowthFeatureConfig multifaceGrowthFeatureConfig = context.getConfig();
-      if (!isAirOrWater(structureWorldAccess.getBlockState(blockPos))) {
-         return false;
-      } else {
-         List<Direction> list = multifaceGrowthFeatureConfig.shuffleDirections(random);
-         if (generate(structureWorldAccess, blockPos, structureWorldAccess.getBlockState(blockPos), multifaceGrowthFeatureConfig, random, list)) {
-            return true;
-         } else {
-            BlockPos.Mutable mutable = blockPos.mutableCopy();
+	public MultifaceGrowthFeature(Codec<MultifaceGrowthFeatureConfig> codec) {
+		super(codec);
+	}
 
-            for (Direction direction : list) {
-               mutable.set(blockPos);
-               List<Direction> list2 = multifaceGrowthFeatureConfig.shuffleDirections(random, direction.getOpposite());
+	@Override
+	public boolean generate(FeatureContext<MultifaceGrowthFeatureConfig> context) {
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		BlockPos blockPos = context.getOrigin();
+		Random random = context.getRandom();
+		MultifaceGrowthFeatureConfig multifaceGrowthFeatureConfig = context.getConfig();
+		if (!isAirOrWater(structureWorldAccess.getBlockState(blockPos))) {
+			return false;
+		}
+		else {
+			List<Direction> list = multifaceGrowthFeatureConfig.shuffleDirections(random);
+			if (generate(
+					structureWorldAccess,
+					blockPos,
+					structureWorldAccess.getBlockState(blockPos),
+					multifaceGrowthFeatureConfig,
+					random,
+					list
+			)) {
+				return true;
+			}
+			else {
+				BlockPos.Mutable mutable = blockPos.mutableCopy();
 
-               for (int i = 0; i < multifaceGrowthFeatureConfig.searchRange; i++) {
-                  mutable.set(blockPos, direction);
-                  BlockState blockState = structureWorldAccess.getBlockState(mutable);
-                  if (!isAirOrWater(blockState) && !blockState.isOf(multifaceGrowthFeatureConfig.block)) {
-                     break;
-                  }
+				for (Direction direction : list) {
+					mutable.set(blockPos);
+					List<Direction>
+							list2 =
+							multifaceGrowthFeatureConfig.shuffleDirections(random, direction.getOpposite());
 
-                  if (generate(structureWorldAccess, mutable, blockState, multifaceGrowthFeatureConfig, random, list2)) {
-                     return true;
-                  }
-               }
-            }
+					for (int i = 0; i < multifaceGrowthFeatureConfig.searchRange; i++) {
+						mutable.set(blockPos, direction);
+						BlockState blockState = structureWorldAccess.getBlockState(mutable);
+						if (!isAirOrWater(blockState) && !blockState.isOf(multifaceGrowthFeatureConfig.block)) {
+							break;
+						}
 
-            return false;
-         }
-      }
-   }
+						if (generate(
+								structureWorldAccess,
+								mutable,
+								blockState,
+								multifaceGrowthFeatureConfig,
+								random,
+								list2
+						)) {
+							return true;
+						}
+					}
+				}
 
-   public static boolean generate(
-      StructureWorldAccess world, BlockPos pos, BlockState state, MultifaceGrowthFeatureConfig config, Random random, List<Direction> directions
-   ) {
-      BlockPos.Mutable mutable = pos.mutableCopy();
+				return false;
+			}
+		}
+	}
 
-      for (Direction direction : directions) {
-         BlockState blockState = world.getBlockState(mutable.set(pos, direction));
-         if (blockState.isIn(config.canPlaceOn)) {
-            BlockState blockState2 = config.block.withDirection(state, world, pos, direction);
-            if (blockState2 == null) {
-               return false;
-            }
+	public static boolean generate(
+			StructureWorldAccess world,
+			BlockPos pos,
+			BlockState state,
+			MultifaceGrowthFeatureConfig config,
+			Random random,
+			List<Direction> directions
+	) {
+		BlockPos.Mutable mutable = pos.mutableCopy();
 
-            world.setBlockState(pos, blockState2, 3);
-            world.getChunk(pos).markBlockForPostProcessing(pos);
-            if (random.nextFloat() < config.spreadChance) {
-               config.block.getGrower().grow(blockState2, world, pos, direction, random, true);
-            }
+		for (Direction direction : directions) {
+			BlockState blockState = world.getBlockState(mutable.set(pos, direction));
+			if (blockState.isIn(config.canPlaceOn)) {
+				BlockState blockState2 = config.block.withDirection(state, world, pos, direction);
+				if (blockState2 == null) {
+					return false;
+				}
 
-            return true;
-         }
-      }
+				world.setBlockState(pos, blockState2, 3);
+				world.getChunk(pos).markBlockForPostProcessing(pos);
+				if (random.nextFloat() < config.spreadChance) {
+					config.block.getGrower().grow(blockState2, world, pos, direction, random, true);
+				}
 
-      return false;
-   }
+				return true;
+			}
+		}
 
-   private static boolean isAirOrWater(BlockState state) {
-      return state.isAir() || state.isOf(Blocks.WATER);
-   }
+		return false;
+	}
+
+	private static boolean isAirOrWater(BlockState state) {
+		return state.isAir() || state.isOf(Blocks.WATER);
+	}
 }

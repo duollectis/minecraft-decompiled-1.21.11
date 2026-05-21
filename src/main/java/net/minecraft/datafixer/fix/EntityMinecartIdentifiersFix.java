@@ -9,25 +9,30 @@ import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.util.Util;
 
+/**
+ * {@code EntityMinecartIdentifiersFix}.
+ */
 public class EntityMinecartIdentifiersFix extends EntityTransformFix {
-   public EntityMinecartIdentifiersFix(Schema outputSchema) {
-      super("EntityMinecartIdentifiersFix", outputSchema, true);
-   }
 
-   @Override
-   protected Pair<String, Typed<?>> transform(String choice, Typed<?> entityTyped) {
-      if (!choice.equals("Minecart")) {
-         return Pair.of(choice, entityTyped);
-      } else {
-         int i = ((Dynamic)entityTyped.getOrCreate(DSL.remainderFinder())).get("Type").asInt(0);
+	public EntityMinecartIdentifiersFix(Schema outputSchema) {
+		super("EntityMinecartIdentifiersFix", outputSchema, true);
+	}
 
-         String string = switch (i) {
-            case 1 -> "MinecartChest";
-            case 2 -> "MinecartFurnace";
-            default -> "MinecartRideable";
-         };
-         Type<?> type = (Type<?>)this.getOutputSchema().findChoiceType(TypeReferences.ENTITY).types().get(string);
-         return Pair.of(string, Util.apply(entityTyped, type, entityDynamic -> entityDynamic.remove("Type")));
-      }
-   }
+	@Override
+	protected Pair<String, Typed<?>> transform(String choice, Typed<?> entityTyped) {
+		if (!choice.equals("Minecart")) {
+			return Pair.of(choice, entityTyped);
+		}
+		else {
+			int i = ((Dynamic) entityTyped.getOrCreate(DSL.remainderFinder())).get("Type").asInt(0);
+
+			String string = switch (i) {
+				case 1 -> "MinecartChest";
+				case 2 -> "MinecartFurnace";
+				default -> "MinecartRideable";
+			};
+			Type<?> type = (Type<?>) this.getOutputSchema().findChoiceType(TypeReferences.ENTITY).types().get(string);
+			return Pair.of(string, Util.apply(entityTyped, type, entityDynamic -> entityDynamic.remove("Type")));
+		}
+	}
 }

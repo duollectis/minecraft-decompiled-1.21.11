@@ -9,17 +9,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.Difficulty;
 
-public record DifficultyS2CPacket(Difficulty difficulty, boolean difficultyLocked) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<ByteBuf, DifficultyS2CPacket> CODEC = PacketCodec.tuple(
-      Difficulty.PACKET_CODEC, DifficultyS2CPacket::difficulty, PacketCodecs.BOOLEAN, DifficultyS2CPacket::difficultyLocked, DifficultyS2CPacket::new
-   );
+public record DifficultyS2CPacket(
+		Difficulty difficulty,
+		boolean difficultyLocked
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<DifficultyS2CPacket> getPacketType() {
-      return PlayPackets.CHANGE_DIFFICULTY_S2C;
-   }
+	public static final PacketCodec<ByteBuf, DifficultyS2CPacket> CODEC = PacketCodec.tuple(
+			Difficulty.PACKET_CODEC,
+			DifficultyS2CPacket::difficulty,
+			PacketCodecs.BOOLEAN,
+			DifficultyS2CPacket::difficultyLocked,
+			DifficultyS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onDifficulty(this);
-   }
+	@Override
+	public PacketType<DifficultyS2CPacket> getPacketType() {
+		return PlayPackets.CHANGE_DIFFICULTY_S2C;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onDifficulty(this);
+	}
 }

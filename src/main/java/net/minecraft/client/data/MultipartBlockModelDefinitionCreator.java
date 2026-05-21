@@ -1,66 +1,77 @@
 package net.minecraft.client.data;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.block.Block;
-import net.minecraft.client.render.model.json.BlockModelDefinition;
-import net.minecraft.client.render.model.json.MultipartModelComponent;
-import net.minecraft.client.render.model.json.MultipartModelCondition;
-import net.minecraft.client.render.model.json.MultipartModelConditionBuilder;
-import net.minecraft.client.render.model.json.WeightedVariant;
+import net.minecraft.client.render.model.json.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MultipartBlockModelDefinitionCreator}.
+ */
 public class MultipartBlockModelDefinitionCreator implements BlockModelDefinitionCreator {
-   private final Block block;
-   private final List<MultipartBlockModelDefinitionCreator.Part> multiparts = new ArrayList<>();
 
-   private MultipartBlockModelDefinitionCreator(Block block) {
-      this.block = block;
-   }
+	private final Block block;
+	private final List<MultipartBlockModelDefinitionCreator.Part> multiparts = new ArrayList<>();
 
-   @Override
-   public Block getBlock() {
-      return this.block;
-   }
+	private MultipartBlockModelDefinitionCreator(Block block) {
+		this.block = block;
+	}
 
-   public static MultipartBlockModelDefinitionCreator create(Block block) {
-      return new MultipartBlockModelDefinitionCreator(block);
-   }
+	@Override
+	public Block getBlock() {
+		return this.block;
+	}
 
-   public MultipartBlockModelDefinitionCreator with(WeightedVariant part) {
-      this.multiparts.add(new MultipartBlockModelDefinitionCreator.Part(Optional.empty(), part));
-      return this;
-   }
+	public static MultipartBlockModelDefinitionCreator create(Block block) {
+		return new MultipartBlockModelDefinitionCreator(block);
+	}
 
-   private void validate(MultipartModelCondition selector) {
-      selector.instantiate(this.block.getStateManager());
-   }
+	public MultipartBlockModelDefinitionCreator with(WeightedVariant part) {
+		this.multiparts.add(new MultipartBlockModelDefinitionCreator.Part(Optional.empty(), part));
+		return this;
+	}
 
-   public MultipartBlockModelDefinitionCreator with(MultipartModelCondition condition, WeightedVariant part) {
-      this.validate(condition);
-      this.multiparts.add(new MultipartBlockModelDefinitionCreator.Part(Optional.of(condition), part));
-      return this;
-   }
+	private void validate(MultipartModelCondition selector) {
+		selector.instantiate(this.block.getStateManager());
+	}
 
-   public MultipartBlockModelDefinitionCreator with(MultipartModelConditionBuilder conditionBuilder, WeightedVariant part) {
-      return this.with(conditionBuilder.build(), part);
-   }
+	public MultipartBlockModelDefinitionCreator with(MultipartModelCondition condition, WeightedVariant part) {
+		this.validate(condition);
+		this.multiparts.add(new MultipartBlockModelDefinitionCreator.Part(Optional.of(condition), part));
+		return this;
+	}
 
-   @Override
-   public BlockModelDefinition createBlockModelDefinition() {
-      return new BlockModelDefinition(
-         Optional.empty(),
-         Optional.of(new BlockModelDefinition.Multipart(this.multiparts.stream().map(MultipartBlockModelDefinitionCreator.Part::toComponent).toList()))
-      );
-   }
+	public MultipartBlockModelDefinitionCreator with(
+			MultipartModelConditionBuilder conditionBuilder,
+			WeightedVariant part
+	) {
+		return this.with(conditionBuilder.build(), part);
+	}
 
-   @Environment(EnvType.CLIENT)
-   record Part(Optional<MultipartModelCondition> condition, WeightedVariant variants) {
-      public MultipartModelComponent toComponent() {
-         return new MultipartModelComponent(this.condition, this.variants.toModel());
-      }
-   }
+	@Override
+	public BlockModelDefinition createBlockModelDefinition() {
+		return new BlockModelDefinition(
+				Optional.empty(),
+				Optional.of(new BlockModelDefinition.Multipart(this.multiparts
+						.stream()
+						.map(MultipartBlockModelDefinitionCreator.Part::toComponent)
+						.toList()))
+		);
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Part}.
+	 */
+	record Part(Optional<MultipartModelCondition> condition, WeightedVariant variants) {
+
+		public MultipartModelComponent toComponent() {
+			return new MultipartModelComponent(this.condition, this.variants.toModel());
+		}
+	}
 }

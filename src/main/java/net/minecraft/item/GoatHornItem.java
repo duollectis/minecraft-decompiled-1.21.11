@@ -1,6 +1,5 @@
 package net.minecraft.item;
 
-import java.util.Optional;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.InstrumentComponent;
 import net.minecraft.entity.LivingEntity;
@@ -17,53 +16,67 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+import java.util.Optional;
+
+/**
+ * {@code GoatHornItem}.
+ */
 public class GoatHornItem extends Item {
-   public GoatHornItem(Item.Settings settings) {
-      super(settings);
-   }
 
-   public static ItemStack getStackForInstrument(Item item, RegistryEntry<Instrument> instrument) {
-      ItemStack itemStack = new ItemStack(item);
-      itemStack.set(DataComponentTypes.INSTRUMENT, new InstrumentComponent(instrument));
-      return itemStack;
-   }
+	public GoatHornItem(Item.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      Optional<? extends RegistryEntry<Instrument>> optional = this.getInstrument(itemStack, user.getRegistryManager());
-      if (optional.isPresent()) {
-         Instrument instrument = optional.get().value();
-         user.setCurrentHand(hand);
-         playSound(world, user, instrument);
-         user.getItemCooldownManager().set(itemStack, MathHelper.floor(instrument.useDuration() * 20.0F));
-         user.incrementStat(Stats.USED.getOrCreateStat(this));
-         return ActionResult.CONSUME;
-      } else {
-         return ActionResult.FAIL;
-      }
-   }
+	public static ItemStack getStackForInstrument(Item item, RegistryEntry<Instrument> instrument) {
+		ItemStack itemStack = new ItemStack(item);
+		itemStack.set(DataComponentTypes.INSTRUMENT, new InstrumentComponent(instrument));
+		return itemStack;
+	}
 
-   @Override
-   public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-      Optional<RegistryEntry<Instrument>> optional = this.getInstrument(stack, user.getRegistryManager());
-      return optional.<Integer>map(instrument -> MathHelper.floor(instrument.value().useDuration() * 20.0F)).orElse(0);
-   }
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		Optional<? extends RegistryEntry<Instrument>>
+				optional =
+				this.getInstrument(itemStack, user.getRegistryManager());
+		if (optional.isPresent()) {
+			Instrument instrument = optional.get().value();
+			user.setCurrentHand(hand);
+			playSound(world, user, instrument);
+			user.getItemCooldownManager().set(itemStack, MathHelper.floor(instrument.useDuration() * 20.0F));
+			user.incrementStat(Stats.USED.getOrCreateStat(this));
+			return ActionResult.CONSUME;
+		}
+		else {
+			return ActionResult.FAIL;
+		}
+	}
 
-   private Optional<RegistryEntry<Instrument>> getInstrument(ItemStack stack, RegistryWrapper.WrapperLookup registries) {
-      InstrumentComponent instrumentComponent = stack.get(DataComponentTypes.INSTRUMENT);
-      return instrumentComponent != null ? instrumentComponent.getInstrument(registries) : Optional.empty();
-   }
+	@Override
+	public int getMaxUseTime(ItemStack stack, LivingEntity user) {
+		Optional<RegistryEntry<Instrument>> optional = this.getInstrument(stack, user.getRegistryManager());
+		return optional
+				.<Integer>map(instrument -> MathHelper.floor(instrument.value().useDuration() * 20.0F))
+				.orElse(0);
+	}
 
-   @Override
-   public UseAction getUseAction(ItemStack stack) {
-      return UseAction.TOOT_HORN;
-   }
+	private Optional<RegistryEntry<Instrument>> getInstrument(
+			ItemStack stack,
+			RegistryWrapper.WrapperLookup registries
+	) {
+		InstrumentComponent instrumentComponent = stack.get(DataComponentTypes.INSTRUMENT);
+		return instrumentComponent != null ? instrumentComponent.getInstrument(registries) : Optional.empty();
+	}
 
-   private static void playSound(World world, PlayerEntity player, Instrument instrument) {
-      SoundEvent soundEvent = instrument.soundEvent().value();
-      float f = instrument.range() / 16.0F;
-      world.playSoundFromEntity(player, player, soundEvent, SoundCategory.RECORDS, f, 1.0F);
-      world.emitGameEvent(GameEvent.INSTRUMENT_PLAY, player.getEntityPos(), GameEvent.Emitter.of(player));
-   }
+	@Override
+	public UseAction getUseAction(ItemStack stack) {
+		return UseAction.TOOT_HORN;
+	}
+
+	private static void playSound(World world, PlayerEntity player, Instrument instrument) {
+		SoundEvent soundEvent = instrument.soundEvent().value();
+		float f = instrument.range() / 16.0F;
+		world.playSoundFromEntity(player, player, soundEvent, SoundCategory.RECORDS, f, 1.0F);
+		world.emitGameEvent(GameEvent.INSTRUMENT_PLAY, player.getEntityPos(), GameEvent.Emitter.of(player));
+	}
 }

@@ -2,71 +2,72 @@ package net.minecraft.client.render.entity.model;
 
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.model.ModelData;
-import net.minecraft.client.model.ModelPart;
-import net.minecraft.client.model.ModelPartBuilder;
-import net.minecraft.client.model.ModelPartData;
-import net.minecraft.client.model.ModelTransform;
-import net.minecraft.client.model.TexturedModelData;
+import net.minecraft.client.model.*;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EndermiteEntityModel}.
+ */
 public class EndermiteEntityModel extends EntityModel<EntityRenderState> {
-   private static final int BODY_SEGMENTS_COUNT = 4;
-   private static final int[][] SEGMENT_DIMENSIONS = new int[][]{{4, 3, 2}, {6, 4, 5}, {3, 3, 1}, {1, 2, 1}};
-   private static final int[][] SEGMENT_UVS = new int[][]{{0, 0}, {0, 5}, {0, 14}, {0, 18}};
-   private final ModelPart[] bodySegments = new ModelPart[4];
 
-   public EndermiteEntityModel(ModelPart modelPart) {
-      super(modelPart);
+	private static final int BODY_SEGMENTS_COUNT = 4;
+	private static final int[][] SEGMENT_DIMENSIONS = new int[][]{{4, 3, 2}, {6, 4, 5}, {3, 3, 1}, {1, 2, 1}};
+	private static final int[][] SEGMENT_UVS = new int[][]{{0, 0}, {0, 5}, {0, 14}, {0, 18}};
+	private final ModelPart[] bodySegments = new ModelPart[4];
 
-      for (int i = 0; i < 4; i++) {
-         this.bodySegments[i] = modelPart.getChild(getSegmentName(i));
-      }
-   }
+	public EndermiteEntityModel(ModelPart modelPart) {
+		super(modelPart);
 
-   private static String getSegmentName(int index) {
-      return "segment" + index;
-   }
+		for (int i = 0; i < 4; i++) {
+			this.bodySegments[i] = modelPart.getChild(getSegmentName(i));
+		}
+	}
 
-   public static TexturedModelData getTexturedModelData() {
-      ModelData modelData = new ModelData();
-      ModelPartData modelPartData = modelData.getRoot();
-      float f = -3.5F;
+	private static String getSegmentName(int index) {
+		return "segment" + index;
+	}
 
-      for (int i = 0; i < 4; i++) {
-         modelPartData.addChild(
-            getSegmentName(i),
-            ModelPartBuilder.create()
-               .uv(SEGMENT_UVS[i][0], SEGMENT_UVS[i][1])
-               .cuboid(
-                  SEGMENT_DIMENSIONS[i][0] * -0.5F,
-                  0.0F,
-                  SEGMENT_DIMENSIONS[i][2] * -0.5F,
-                  SEGMENT_DIMENSIONS[i][0],
-                  SEGMENT_DIMENSIONS[i][1],
-                  SEGMENT_DIMENSIONS[i][2]
-               ),
-            ModelTransform.origin(0.0F, 24 - SEGMENT_DIMENSIONS[i][1], f)
-         );
-         if (i < 3) {
-            f += (SEGMENT_DIMENSIONS[i][2] + SEGMENT_DIMENSIONS[i + 1][2]) * 0.5F;
-         }
-      }
+	public static TexturedModelData getTexturedModelData() {
+		ModelData modelData = new ModelData();
+		ModelPartData modelPartData = modelData.getRoot();
+		float f = -3.5F;
 
-      return TexturedModelData.of(modelData, 64, 32);
-   }
+		for (int i = 0; i < 4; i++) {
+			modelPartData.addChild(
+					getSegmentName(i),
+					ModelPartBuilder.create()
+					                .uv(SEGMENT_UVS[i][0], SEGMENT_UVS[i][1])
+					                .cuboid(
+							                SEGMENT_DIMENSIONS[i][0] * -0.5F,
+							                0.0F,
+							                SEGMENT_DIMENSIONS[i][2] * -0.5F,
+							                SEGMENT_DIMENSIONS[i][0],
+							                SEGMENT_DIMENSIONS[i][1],
+							                SEGMENT_DIMENSIONS[i][2]
+					                ),
+					ModelTransform.origin(0.0F, 24 - SEGMENT_DIMENSIONS[i][1], f)
+			);
+			if (i < 3) {
+				f += (SEGMENT_DIMENSIONS[i][2] + SEGMENT_DIMENSIONS[i + 1][2]) * 0.5F;
+			}
+		}
 
-   public void setAngles(EntityRenderState entityRenderState) {
-      super.setAngles(entityRenderState);
+		return TexturedModelData.of(modelData, 64, 32);
+	}
 
-      for (int i = 0; i < this.bodySegments.length; i++) {
-         this.bodySegments[i].yaw = MathHelper.cos(entityRenderState.age * 0.9F + i * 0.15F * (float) Math.PI)
-            * (float) Math.PI
-            * 0.01F
-            * (1 + Math.abs(i - 2));
-         this.bodySegments[i].originX = MathHelper.sin(entityRenderState.age * 0.9F + i * 0.15F * (float) Math.PI) * (float) Math.PI * 0.1F * Math.abs(i - 2);
-      }
-   }
+	public void setAngles(EntityRenderState entityRenderState) {
+		super.setAngles(entityRenderState);
+
+		for (int i = 0; i < this.bodySegments.length; i++) {
+			this.bodySegments[i].yaw = MathHelper.cos(entityRenderState.age * 0.9F + i * 0.15F * (float) Math.PI)
+					* (float) Math.PI
+					* 0.01F
+					* (1 + Math.abs(i - 2));
+			this.bodySegments[i].originX =
+					MathHelper.sin(entityRenderState.age * 0.9F + i * 0.15F * (float) Math.PI) * (float) Math.PI * 0.1F
+							* Math.abs(i - 2);
+		}
+	}
 }

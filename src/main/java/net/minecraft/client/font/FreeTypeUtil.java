@@ -10,77 +10,84 @@ import org.lwjgl.util.freetype.FreeType;
 import org.slf4j.Logger;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FreeTypeUtil}.
+ */
 public class FreeTypeUtil {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final Object LOCK = new Object();
-   private static long freeType = 0L;
 
-   public static long initialize() {
-      synchronized (LOCK) {
-         if (freeType == 0L) {
-            MemoryStack memoryStack = MemoryStack.stackPush();
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final Object LOCK = new Object();
+	private static long freeType = 0L;
 
-            try {
-               PointerBuffer pointerBuffer = memoryStack.mallocPointer(1);
-               checkFatalError(FreeType.FT_Init_FreeType(pointerBuffer), "Initializing FreeType library");
-               freeType = pointerBuffer.get();
-            } catch (Throwable var6) {
-               if (memoryStack != null) {
-                  try {
-                     memoryStack.close();
-                  } catch (Throwable var5) {
-                     var6.addSuppressed(var5);
-                  }
-               }
+	public static long initialize() {
+		synchronized (LOCK) {
+			if (freeType == 0L) {
+				MemoryStack memoryStack = MemoryStack.stackPush();
 
-               throw var6;
-            }
+				try {
+					PointerBuffer pointerBuffer = memoryStack.mallocPointer(1);
+					checkFatalError(FreeType.FT_Init_FreeType(pointerBuffer), "Initializing FreeType library");
+					freeType = pointerBuffer.get();
+				}
+				catch (Throwable var6) {
+					if (memoryStack != null) {
+						try {
+							memoryStack.close();
+						}
+						catch (Throwable var5) {
+							var6.addSuppressed(var5);
+						}
+					}
 
-            if (memoryStack != null) {
-               memoryStack.close();
-            }
-         }
+					throw var6;
+				}
 
-         return freeType;
-      }
-   }
+				if (memoryStack != null) {
+					memoryStack.close();
+				}
+			}
 
-   public static void checkFatalError(int code, String description) {
-      if (code != 0) {
-         throw new IllegalStateException("FreeType error: " + getErrorMessage(code) + " (" + description + ")");
-      }
-   }
+			return freeType;
+		}
+	}
 
-   public static boolean checkError(int code, String description) {
-      if (code != 0) {
-         LOGGER.error("FreeType error: {} ({})", getErrorMessage(code), description);
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public static void checkFatalError(int code, String description) {
+		if (code != 0) {
+			throw new IllegalStateException("FreeType error: " + getErrorMessage(code) + " (" + description + ")");
+		}
+	}
 
-   private static String getErrorMessage(int code) {
-      String string = FreeType.FT_Error_String(code);
-      return string != null ? string : "Unrecognized error: 0x" + Integer.toHexString(code);
-   }
+	public static boolean checkError(int code, String description) {
+		if (code != 0) {
+			LOGGER.error("FreeType error: {} ({})", getErrorMessage(code), description);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   public static FT_Vector set(FT_Vector vec, float x, float y) {
-      long l = Math.round(x * 64.0F);
-      long m = Math.round(y * 64.0F);
-      return vec.set(l, m);
-   }
+	private static String getErrorMessage(int code) {
+		String string = FreeType.FT_Error_String(code);
+		return string != null ? string : "Unrecognized error: 0x" + Integer.toHexString(code);
+	}
 
-   public static float getX(FT_Vector vec) {
-      return (float)vec.x() / 64.0F;
-   }
+	public static FT_Vector set(FT_Vector vec, float x, float y) {
+		long l = Math.round(x * 64.0F);
+		long m = Math.round(y * 64.0F);
+		return vec.set(l, m);
+	}
 
-   public static void release() {
-      synchronized (LOCK) {
-         if (freeType != 0L) {
-            FreeType.FT_Done_Library(freeType);
-            freeType = 0L;
-         }
-      }
-   }
+	public static float getX(FT_Vector vec) {
+		return (float) vec.x() / 64.0F;
+	}
+
+	public static void release() {
+		synchronized (LOCK) {
+			if (freeType != 0L) {
+				FreeType.FT_Done_Library(freeType);
+				freeType = 0L;
+			}
+		}
+	}
 }

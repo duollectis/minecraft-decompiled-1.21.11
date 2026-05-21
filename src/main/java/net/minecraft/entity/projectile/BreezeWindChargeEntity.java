@@ -8,34 +8,38 @@ import net.minecraft.util.collection.Pool;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+/**
+ * {@code BreezeWindChargeEntity}.
+ */
 public class BreezeWindChargeEntity extends AbstractWindChargeEntity {
-   private static final float EXPLOSION_POWER = 3.0F;
 
-   public BreezeWindChargeEntity(EntityType<? extends AbstractWindChargeEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final float EXPLOSION_POWER = 3.0F;
 
-   public BreezeWindChargeEntity(BreezeEntity breeze, World world) {
-      super(EntityType.BREEZE_WIND_CHARGE, world, breeze, breeze.getX(), breeze.getChargeY(), breeze.getZ());
-   }
+	public BreezeWindChargeEntity(EntityType<? extends AbstractWindChargeEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected void createExplosion(Vec3d pos) {
-      this.getEntityWorld()
-         .createExplosion(
-            this,
-            null,
-            EXPLOSION_BEHAVIOR,
-            pos.getX(),
-            pos.getY(),
-            pos.getZ(),
-            3.0F,
-            false,
-            World.ExplosionSourceType.TRIGGER,
-            ParticleTypes.GUST_EMITTER_SMALL,
-            ParticleTypes.GUST_EMITTER_LARGE,
-            Pool.empty(),
-            SoundEvents.ENTITY_BREEZE_WIND_BURST
-         );
-   }
+	public BreezeWindChargeEntity(BreezeEntity breeze, World world) {
+		super(EntityType.BREEZE_WIND_CHARGE, world, breeze, breeze.getX(), breeze.getChargeY(), breeze.getZ());
+	}
+
+	@Override
+	protected void createExplosion(Vec3d pos) {
+		this.getEntityWorld()
+		    .createExplosion(
+				    this,
+				    null,
+				    EXPLOSION_BEHAVIOR,
+				    pos.getX(),
+				    pos.getY(),
+				    pos.getZ(),
+				    3.0F,
+				    false,
+				    World.ExplosionSourceType.TRIGGER,
+				    ParticleTypes.GUST_EMITTER_SMALL,
+				    ParticleTypes.GUST_EMITTER_LARGE,
+				    Pool.empty(),
+				    SoundEvents.ENTITY_BREEZE_WIND_BURST
+		    );
+	}
 }

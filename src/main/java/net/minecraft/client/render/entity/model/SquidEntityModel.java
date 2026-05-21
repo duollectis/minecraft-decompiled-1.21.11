@@ -1,60 +1,63 @@
 package net.minecraft.client.render.entity.model;
 
-import java.util.Arrays;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.model.Dilation;
-import net.minecraft.client.model.ModelData;
-import net.minecraft.client.model.ModelPart;
-import net.minecraft.client.model.ModelPartBuilder;
-import net.minecraft.client.model.ModelPartData;
-import net.minecraft.client.model.ModelTransform;
-import net.minecraft.client.model.TexturedModelData;
+import net.minecraft.client.model.*;
 import net.minecraft.client.render.entity.state.SquidEntityRenderState;
 
+import java.util.Arrays;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SquidEntityModel}.
+ */
 public class SquidEntityModel extends EntityModel<SquidEntityRenderState> {
-   public static final ModelTransformer BABY_TRANSFORMER = ModelTransformer.scaling(0.5F);
-   private final ModelPart[] tentacles = new ModelPart[8];
 
-   public SquidEntityModel(ModelPart modelPart) {
-      super(modelPart);
-      Arrays.setAll(this.tentacles, i -> modelPart.getChild(getTentacleName(i)));
-   }
+	public static final ModelTransformer BABY_TRANSFORMER = ModelTransformer.scaling(0.5F);
+	private final ModelPart[] tentacles = new ModelPart[8];
 
-   private static String getTentacleName(int index) {
-      return "tentacle" + index;
-   }
+	public SquidEntityModel(ModelPart modelPart) {
+		super(modelPart);
+		Arrays.setAll(this.tentacles, i -> modelPart.getChild(getTentacleName(i)));
+	}
 
-   public static TexturedModelData getTexturedModelData() {
-      ModelData modelData = new ModelData();
-      ModelPartData modelPartData = modelData.getRoot();
-      Dilation dilation = new Dilation(0.02F);
-      int i = -16;
-      modelPartData.addChild(
-         "body", ModelPartBuilder.create().uv(0, 0).cuboid(-6.0F, -8.0F, -6.0F, 12.0F, 16.0F, 12.0F, dilation), ModelTransform.origin(0.0F, 8.0F, 0.0F)
-      );
-      int j = 8;
-      ModelPartBuilder modelPartBuilder = ModelPartBuilder.create().uv(48, 0).cuboid(-1.0F, 0.0F, -1.0F, 2.0F, 18.0F, 2.0F);
+	private static String getTentacleName(int index) {
+		return "tentacle" + index;
+	}
 
-      for (int k = 0; k < 8; k++) {
-         double d = k * Math.PI * 2.0 / 8.0;
-         float f = (float)Math.cos(d) * 5.0F;
-         float g = 15.0F;
-         float h = (float)Math.sin(d) * 5.0F;
-         d = k * Math.PI * -2.0 / 8.0 + (Math.PI / 2);
-         float l = (float)d;
-         modelPartData.addChild(getTentacleName(k), modelPartBuilder, ModelTransform.of(f, 15.0F, h, 0.0F, l, 0.0F));
-      }
+	public static TexturedModelData getTexturedModelData() {
+		ModelData modelData = new ModelData();
+		ModelPartData modelPartData = modelData.getRoot();
+		Dilation dilation = new Dilation(0.02F);
+		int i = -16;
+		modelPartData.addChild(
+				"body",
+				ModelPartBuilder.create().uv(0, 0).cuboid(-6.0F, -8.0F, -6.0F, 12.0F, 16.0F, 12.0F, dilation),
+				ModelTransform.origin(0.0F, 8.0F, 0.0F)
+		);
+		int j = 8;
+		ModelPartBuilder
+				modelPartBuilder =
+				ModelPartBuilder.create().uv(48, 0).cuboid(-1.0F, 0.0F, -1.0F, 2.0F, 18.0F, 2.0F);
 
-      return TexturedModelData.of(modelData, 64, 32);
-   }
+		for (int k = 0; k < 8; k++) {
+			double d = k * Math.PI * 2.0 / 8.0;
+			float f = (float) Math.cos(d) * 5.0F;
+			float g = 15.0F;
+			float h = (float) Math.sin(d) * 5.0F;
+			d = k * Math.PI * -2.0 / 8.0 + (Math.PI / 2);
+			float l = (float) d;
+			modelPartData.addChild(getTentacleName(k), modelPartBuilder, ModelTransform.of(f, 15.0F, h, 0.0F, l, 0.0F));
+		}
 
-   public void setAngles(SquidEntityRenderState squidEntityRenderState) {
-      super.setAngles(squidEntityRenderState);
+		return TexturedModelData.of(modelData, 64, 32);
+	}
 
-      for (ModelPart modelPart : this.tentacles) {
-         modelPart.pitch = squidEntityRenderState.tentacleAngle;
-      }
-   }
+	public void setAngles(SquidEntityRenderState squidEntityRenderState) {
+		super.setAngles(squidEntityRenderState);
+
+		for (ModelPart modelPart : this.tentacles) {
+			modelPart.pitch = squidEntityRenderState.tentacleAngle;
+		}
+	}
 }

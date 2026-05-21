@@ -13,56 +13,67 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FeatureRenderer}.
+ */
 public abstract class FeatureRenderer<S extends EntityRenderState, M extends EntityModel<? super S>> {
-   private final FeatureRendererContext<S, M> context;
 
-   public FeatureRenderer(FeatureRendererContext<S, M> context) {
-      this.context = context;
-   }
+	private final FeatureRendererContext<S, M> context;
 
-   protected static <S extends LivingEntityRenderState> void render(
-      Model<? super S> model,
-      Identifier texture,
-      MatrixStack matrices,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      int light,
-      S state,
-      int color,
-      int i
-   ) {
-      if (!state.invisible) {
-         renderModel(model, texture, matrices, orderedRenderCommandQueue, light, state, color, i);
-      }
-   }
+	public FeatureRenderer(FeatureRendererContext<S, M> context) {
+		this.context = context;
+	}
 
-   protected static <S extends LivingEntityRenderState> void renderModel(
-      Model<? super S> model,
-      Identifier identifier,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      int light,
-      S state,
-      int color,
-      int i
-   ) {
-      orderedRenderCommandQueue.getBatchingQueue(i)
-         .submitModel(
-            model,
-            state,
-            matrixStack,
-            RenderLayers.entityCutoutNoCull(identifier),
-            light,
-            LivingEntityRenderer.getOverlay(state, 0.0F),
-            color,
-            null,
-            state.outlineColor,
-            null
-         );
-   }
+	protected static <S extends LivingEntityRenderState> void render(
+			Model<? super S> model,
+			Identifier texture,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int light,
+			S state,
+			int color,
+			int i
+	) {
+		if (!state.invisible) {
+			renderModel(model, texture, matrices, orderedRenderCommandQueue, light, state, color, i);
+		}
+	}
 
-   public M getContextModel() {
-      return this.context.getModel();
-   }
+	protected static <S extends LivingEntityRenderState> void renderModel(
+			Model<? super S> model,
+			Identifier identifier,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int light,
+			S state,
+			int color,
+			int i
+	) {
+		orderedRenderCommandQueue.getBatchingQueue(i)
+		                         .submitModel(
+				                         model,
+				                         state,
+				                         matrixStack,
+				                         RenderLayers.entityCutoutNoCull(identifier),
+				                         light,
+				                         LivingEntityRenderer.getOverlay(state, 0.0F),
+				                         color,
+				                         null,
+				                         state.outlineColor,
+				                         null
+		                         );
+	}
 
-   public abstract void render(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, S state, float limbAngle, float limbDistance);
+	public M getContextModel() {
+		return this.context.getModel();
+	}
+
+	public abstract void render(
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			S state,
+			float limbAngle,
+			float limbDistance
+	);
 }

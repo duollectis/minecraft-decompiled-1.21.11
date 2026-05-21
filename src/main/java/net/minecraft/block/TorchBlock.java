@@ -10,37 +10,43 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
+/**
+ * {@code TorchBlock}.
+ */
 public class TorchBlock extends AbstractTorchBlock {
-   protected static final MapCodec<SimpleParticleType> PARTICLE_TYPE_CODEC = Registries.PARTICLE_TYPE
-      .getCodec()
-      .comapFlatMap(
-         particleType -> particleType instanceof SimpleParticleType simpleParticleType
-            ? DataResult.success(simpleParticleType)
-            : DataResult.error(() -> "Not a SimpleParticleType: " + particleType),
-         particleType -> particleType
-      )
-      .fieldOf("particle_options");
-   public static final MapCodec<TorchBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(PARTICLE_TYPE_CODEC.forGetter(block -> block.particle), createSettingsCodec()).apply(instance, TorchBlock::new)
-   );
-   protected final SimpleParticleType particle;
 
-   @Override
-   public MapCodec<? extends TorchBlock> getCodec() {
-      return CODEC;
-   }
+	protected static final MapCodec<SimpleParticleType> PARTICLE_TYPE_CODEC = Registries.PARTICLE_TYPE
+			.getCodec()
+			.comapFlatMap(
+					particleType -> particleType instanceof SimpleParticleType simpleParticleType
+					                ? DataResult.success(simpleParticleType)
+					                : DataResult.error(() -> "Not a SimpleParticleType: " + particleType),
+					particleType -> particleType
+			)
+			.fieldOf("particle_options");
+	public static final MapCodec<TorchBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(PARTICLE_TYPE_CODEC.forGetter(block -> block.particle), createSettingsCodec())
+					.apply(instance, TorchBlock::new)
+	);
+	protected final SimpleParticleType particle;
 
-   public TorchBlock(SimpleParticleType particle, AbstractBlock.Settings settings) {
-      super(settings);
-      this.particle = particle;
-   }
+	@Override
+	public MapCodec<? extends TorchBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      double d = pos.getX() + 0.5;
-      double e = pos.getY() + 0.7;
-      double f = pos.getZ() + 0.5;
-      world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
-      world.addParticleClient(this.particle, d, e, f, 0.0, 0.0, 0.0);
-   }
+	public TorchBlock(SimpleParticleType particle, AbstractBlock.Settings settings) {
+		super(settings);
+		this.particle = particle;
+	}
+
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		double d = pos.getX() + 0.5;
+		double e = pos.getY() + 0.7;
+		double f = pos.getZ() + 0.5;
+		world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
+		world.addParticleClient(this.particle, d, e, f, 0.0, 0.0, 0.0);
+	}
 }

@@ -1,8 +1,6 @@
 package net.minecraft.util.profiling.jfr;
 
 import com.mojang.logging.LogUtils;
-import java.net.SocketAddress;
-import java.nio.file.Path;
 import jdk.jfr.FlightRecorder;
 import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.PacketType;
@@ -17,99 +15,130 @@ import net.minecraft.world.storage.StorageKey;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.net.SocketAddress;
+import java.nio.file.Path;
+
+/**
+ * {@code FlightProfiler}.
+ */
 public interface FlightProfiler {
-   FlightProfiler INSTANCE = (FlightProfiler)(Runtime.class.getModule().getLayer().findModule("jdk.jfr").isPresent() && FlightRecorder.isAvailable()
-      ? JfrProfiler.getInstance()
-      : new FlightProfiler.NoopProfiler());
 
-   boolean start(InstanceType instanceType);
+	FlightProfiler
+			INSTANCE =
+			(FlightProfiler) (Runtime.class.getModule().getLayer().findModule("jdk.jfr").isPresent()
+					                  && FlightRecorder.isAvailable()
+			                  ? JfrProfiler.getInstance()
+			                  : new FlightProfiler.NoopProfiler()
+			);
 
-   Path stop();
+	boolean start(InstanceType instanceType);
 
-   boolean isProfiling();
+	Path stop();
 
-   boolean isAvailable();
+	boolean isProfiling();
 
-   void onTick(float tickTime);
+	boolean isAvailable();
 
-   void onClientFps(int fps);
+	void onTick(float tickTime);
 
-   void onPacketReceived(NetworkPhase state, PacketType<?> type, SocketAddress remoteAddress, int bytes);
+	void onClientFps(int fps);
 
-   void onPacketSent(NetworkPhase state, PacketType<?> type, SocketAddress remoteAddress, int bytes);
+	void onPacketReceived(NetworkPhase state, PacketType<?> type, SocketAddress remoteAddress, int bytes);
 
-   void onChunkRegionRead(StorageKey key, ChunkPos chunkPos, ChunkCompressionFormat format, int bytes);
+	void onPacketSent(NetworkPhase state, PacketType<?> type, SocketAddress remoteAddress, int bytes);
 
-   void onChunkRegionWrite(StorageKey key, ChunkPos chunkPos, ChunkCompressionFormat format, int bytes);
+	void onChunkRegionRead(StorageKey key, ChunkPos chunkPos, ChunkCompressionFormat format, int bytes);
 
-   @Nullable Finishable startWorldLoadProfiling();
+	void onChunkRegionWrite(StorageKey key, ChunkPos chunkPos, ChunkCompressionFormat format, int bytes);
 
-   @Nullable Finishable startChunkGenerationProfiling(ChunkPos chunkPos, RegistryKey<World> world, String targetStatus);
+	@Nullable Finishable startWorldLoadProfiling();
 
-   @Nullable Finishable startStructureGenerationProfiling(ChunkPos chunkPos, RegistryKey<World> world, RegistryEntry<Structure> structure);
+	@Nullable Finishable startChunkGenerationProfiling(
+			ChunkPos chunkPos,
+			RegistryKey<World> world,
+			String targetStatus
+	);
 
-   public static class NoopProfiler implements FlightProfiler {
-      private static final Logger LOGGER = LogUtils.getLogger();
-      static final Finishable NOOP = success -> {};
+	@Nullable Finishable startStructureGenerationProfiling(
+			ChunkPos chunkPos,
+			RegistryKey<World> world,
+			RegistryEntry<Structure> structure
+	);
 
-      @Override
-      public boolean start(InstanceType instanceType) {
-         LOGGER.warn("Attempted to start Flight Recorder, but it's not supported on this JVM");
-         return false;
-      }
+	/**
+	 * {@code NoopProfiler}.
+	 */
+	public static class NoopProfiler implements FlightProfiler {
 
-      @Override
-      public Path stop() {
-         throw new IllegalStateException("Attempted to stop Flight Recorder, but it's not supported on this JVM");
-      }
+		private static final Logger LOGGER = LogUtils.getLogger();
+		static final Finishable NOOP = success -> {};
 
-      @Override
-      public boolean isProfiling() {
-         return false;
-      }
+		@Override
+		public boolean start(InstanceType instanceType) {
+			LOGGER.warn("Attempted to start Flight Recorder, but it's not supported on this JVM");
+			return false;
+		}
 
-      @Override
-      public boolean isAvailable() {
-         return false;
-      }
+		@Override
+		public Path stop() {
+			throw new IllegalStateException("Attempted to stop Flight Recorder, but it's not supported on this JVM");
+		}
 
-      @Override
-      public void onPacketReceived(NetworkPhase state, PacketType<?> type, SocketAddress remoteAddress, int bytes) {
-      }
+		@Override
+		public boolean isProfiling() {
+			return false;
+		}
 
-      @Override
-      public void onPacketSent(NetworkPhase state, PacketType<?> type, SocketAddress remoteAddress, int bytes) {
-      }
+		@Override
+		public boolean isAvailable() {
+			return false;
+		}
 
-      @Override
-      public void onChunkRegionRead(StorageKey key, ChunkPos chunkPos, ChunkCompressionFormat format, int bytes) {
-      }
+		@Override
+		public void onPacketReceived(NetworkPhase state, PacketType<?> type, SocketAddress remoteAddress, int bytes) {
+		}
 
-      @Override
-      public void onChunkRegionWrite(StorageKey key, ChunkPos chunkPos, ChunkCompressionFormat format, int bytes) {
-      }
+		@Override
+		public void onPacketSent(NetworkPhase state, PacketType<?> type, SocketAddress remoteAddress, int bytes) {
+		}
 
-      @Override
-      public void onTick(float tickTime) {
-      }
+		@Override
+		public void onChunkRegionRead(StorageKey key, ChunkPos chunkPos, ChunkCompressionFormat format, int bytes) {
+		}
 
-      @Override
-      public void onClientFps(int fps) {
-      }
+		@Override
+		public void onChunkRegionWrite(StorageKey key, ChunkPos chunkPos, ChunkCompressionFormat format, int bytes) {
+		}
 
-      @Override
-      public Finishable startWorldLoadProfiling() {
-         return NOOP;
-      }
+		@Override
+		public void onTick(float tickTime) {
+		}
 
-      @Override
-      public @Nullable Finishable startChunkGenerationProfiling(ChunkPos chunkPos, RegistryKey<World> world, String targetStatus) {
-         return null;
-      }
+		@Override
+		public void onClientFps(int fps) {
+		}
 
-      @Override
-      public Finishable startStructureGenerationProfiling(ChunkPos chunkPos, RegistryKey<World> world, RegistryEntry<Structure> structure) {
-         return NOOP;
-      }
-   }
+		@Override
+		public Finishable startWorldLoadProfiling() {
+			return NOOP;
+		}
+
+		@Override
+		public @Nullable Finishable startChunkGenerationProfiling(
+				ChunkPos chunkPos,
+				RegistryKey<World> world,
+				String targetStatus
+		) {
+			return null;
+		}
+
+		@Override
+		public Finishable startStructureGenerationProfiling(
+				ChunkPos chunkPos,
+				RegistryKey<World> world,
+				RegistryEntry<Structure> structure
+		) {
+			return NOOP;
+		}
+	}
 }

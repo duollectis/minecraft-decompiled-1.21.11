@@ -18,71 +18,83 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code TallSeagrassBlock}.
+ */
 public class TallSeagrassBlock extends TallPlantBlock implements FluidFillable {
-   public static final MapCodec<TallSeagrassBlock> CODEC = createCodec(TallSeagrassBlock::new);
-   public static final EnumProperty<DoubleBlockHalf> HALF = TallPlantBlock.HALF;
-   private static final VoxelShape SHAPE = Block.createColumnShape(12.0, 0.0, 16.0);
 
-   @Override
-   public MapCodec<TallSeagrassBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<TallSeagrassBlock> CODEC = createCodec(TallSeagrassBlock::new);
+	public static final EnumProperty<DoubleBlockHalf> HALF = TallPlantBlock.HALF;
+	private static final VoxelShape SHAPE = Block.createColumnShape(12.0, 0.0, 16.0);
 
-   public TallSeagrassBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<TallSeagrassBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	public TallSeagrassBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
-      return floor.isSideSolidFullSquare(world, pos, Direction.UP) && !floor.isOf(Blocks.MAGMA_BLOCK);
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return new ItemStack(Blocks.SEAGRASS);
-   }
+	@Override
+	protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
+		return floor.isSideSolidFullSquare(world, pos, Direction.UP) && !floor.isOf(Blocks.MAGMA_BLOCK);
+	}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      BlockState blockState = super.getPlacementState(ctx);
-      if (blockState != null) {
-         FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos().up());
-         if (fluidState.isIn(FluidTags.WATER) && fluidState.getLevel() == 8) {
-            return blockState;
-         }
-      }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return new ItemStack(Blocks.SEAGRASS);
+	}
 
-      return null;
-   }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		BlockState blockState = super.getPlacementState(ctx);
+		if (blockState != null) {
+			FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos().up());
+			if (fluidState.isIn(FluidTags.WATER) && fluidState.getLevel() == 8) {
+				return blockState;
+			}
+		}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      if (state.get(HALF) == DoubleBlockHalf.UPPER) {
-         BlockState blockState = world.getBlockState(pos.down());
-         return blockState.isOf(this) && blockState.get(HALF) == DoubleBlockHalf.LOWER;
-      } else {
-         FluidState fluidState = world.getFluidState(pos);
-         return super.canPlaceAt(state, world, pos) && fluidState.isIn(FluidTags.WATER) && fluidState.getLevel() == 8;
-      }
-   }
+		return null;
+	}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return Fluids.WATER.getStill(false);
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		if (state.get(HALF) == DoubleBlockHalf.UPPER) {
+			BlockState blockState = world.getBlockState(pos.down());
+			return blockState.isOf(this) && blockState.get(HALF) == DoubleBlockHalf.LOWER;
+		}
+		else {
+			FluidState fluidState = world.getFluidState(pos);
+			return super.canPlaceAt(state, world, pos) && fluidState.isIn(FluidTags.WATER)
+					&& fluidState.getLevel() == 8;
+		}
+	}
 
-   @Override
-   public boolean canFillWithFluid(@Nullable LivingEntity filler, BlockView world, BlockPos pos, BlockState state, Fluid fluid) {
-      return false;
-   }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return Fluids.WATER.getStill(false);
+	}
 
-   @Override
-   public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
-      return false;
-   }
+	@Override
+	public boolean canFillWithFluid(
+			@Nullable LivingEntity filler,
+			BlockView world,
+			BlockPos pos,
+			BlockState state,
+			Fluid fluid
+	) {
+		return false;
+	}
+
+	@Override
+	public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
+		return false;
+	}
 }

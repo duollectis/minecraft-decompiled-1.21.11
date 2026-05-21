@@ -10,50 +10,58 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code Explosion}.
+ */
 public interface Explosion {
-   static DamageSource createDamageSource(World world, @Nullable Entity source) {
-      return world.getDamageSources().explosion(source, getCausingEntity(source));
-   }
 
-   static @Nullable LivingEntity getCausingEntity(@Nullable Entity entity) {
-      return switch (entity) {
-         case TntEntity tntEntity -> tntEntity.getOwner();
-         case LivingEntity livingEntity -> livingEntity;
-         case ProjectileEntity projectileEntity when projectileEntity.getOwner() instanceof LivingEntity livingEntity2 -> livingEntity2;
-         case null, default -> null;
-      };
-   }
+	static DamageSource createDamageSource(World world, @Nullable Entity source) {
+		return world.getDamageSources().explosion(source, getCausingEntity(source));
+	}
 
-   ServerWorld getWorld();
+	static @Nullable LivingEntity getCausingEntity(@Nullable Entity entity) {
+		return switch (entity) {
+			case TntEntity tntEntity -> tntEntity.getOwner();
+			case LivingEntity livingEntity -> livingEntity;
+			case ProjectileEntity projectileEntity when projectileEntity.getOwner() instanceof LivingEntity livingEntity2 ->
+					livingEntity2;
+			case null, default -> null;
+		};
+	}
 
-   Explosion.DestructionType getDestructionType();
+	ServerWorld getWorld();
 
-   @Nullable LivingEntity getCausingEntity();
+	Explosion.DestructionType getDestructionType();
 
-   @Nullable Entity getEntity();
+	@Nullable LivingEntity getCausingEntity();
 
-   float getPower();
+	@Nullable Entity getEntity();
 
-   Vec3d getPosition();
+	float getPower();
 
-   boolean canTriggerBlocks();
+	Vec3d getPosition();
 
-   boolean preservesDecorativeEntities();
+	boolean canTriggerBlocks();
 
-   public static enum DestructionType {
-      KEEP(false),
-      DESTROY(true),
-      DESTROY_WITH_DECAY(true),
-      TRIGGER_BLOCK(false);
+	boolean preservesDecorativeEntities();
 
-      private final boolean destroysBlocks;
+	/**
+	 * {@code DestructionType}.
+	 */
+	public static enum DestructionType {
+		KEEP(false),
+		DESTROY(true),
+		DESTROY_WITH_DECAY(true),
+		TRIGGER_BLOCK(false);
 
-      private DestructionType(final boolean destroysBlocks) {
-         this.destroysBlocks = destroysBlocks;
-      }
+		private final boolean destroysBlocks;
 
-      public boolean destroysBlocks() {
-         return this.destroysBlocks;
-      }
-   }
+		private DestructionType(final boolean destroysBlocks) {
+			this.destroysBlocks = destroysBlocks;
+		}
+
+		public boolean destroysBlocks() {
+			return this.destroysBlocks;
+		}
+	}
 }

@@ -14,42 +14,59 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EntityGuiElementRenderer}.
+ */
 public class EntityGuiElementRenderer extends SpecialGuiElementRenderer<EntityGuiElementRenderState> {
-   private final EntityRenderManager entityRenderDispatcher;
 
-   public EntityGuiElementRenderer(VertexConsumerProvider.Immediate vertexConsumers, EntityRenderManager entityRenderDispatcher) {
-      super(vertexConsumers);
-      this.entityRenderDispatcher = entityRenderDispatcher;
-   }
+	private final EntityRenderManager entityRenderDispatcher;
 
-   @Override
-   public Class<EntityGuiElementRenderState> getElementClass() {
-      return EntityGuiElementRenderState.class;
-   }
+	public EntityGuiElementRenderer(
+			VertexConsumerProvider.Immediate vertexConsumers,
+			EntityRenderManager entityRenderDispatcher
+	) {
+		super(vertexConsumers);
+		this.entityRenderDispatcher = entityRenderDispatcher;
+	}
 
-   protected void render(EntityGuiElementRenderState entityGuiElementRenderState, MatrixStack matrixStack) {
-      MinecraftClient.getInstance().gameRenderer.getDiffuseLighting().setShaderLights(DiffuseLighting.Type.ENTITY_IN_UI);
-      Vector3f vector3f = entityGuiElementRenderState.translation();
-      matrixStack.translate(vector3f.x, vector3f.y, vector3f.z);
-      matrixStack.multiply(entityGuiElementRenderState.rotation());
-      Quaternionf quaternionf = entityGuiElementRenderState.overrideCameraAngle();
-      RenderDispatcher renderDispatcher = MinecraftClient.getInstance().gameRenderer.getEntityRenderDispatcher();
-      CameraRenderState cameraRenderState = new CameraRenderState();
-      if (quaternionf != null) {
-         cameraRenderState.orientation = quaternionf.conjugate(new Quaternionf()).rotateY((float) Math.PI);
-      }
+	@Override
+	public Class<EntityGuiElementRenderState> getElementClass() {
+		return EntityGuiElementRenderState.class;
+	}
 
-      this.entityRenderDispatcher.render(entityGuiElementRenderState.renderState(), cameraRenderState, 0.0, 0.0, 0.0, matrixStack, renderDispatcher.getQueue());
-      renderDispatcher.render();
-   }
+	protected void render(EntityGuiElementRenderState entityGuiElementRenderState, MatrixStack matrixStack) {
+		MinecraftClient.getInstance().gameRenderer
+				.getDiffuseLighting()
+				.setShaderLights(DiffuseLighting.Type.ENTITY_IN_UI);
+		Vector3f vector3f = entityGuiElementRenderState.translation();
+		matrixStack.translate(vector3f.x, vector3f.y, vector3f.z);
+		matrixStack.multiply(entityGuiElementRenderState.rotation());
+		Quaternionf quaternionf = entityGuiElementRenderState.overrideCameraAngle();
+		RenderDispatcher renderDispatcher = MinecraftClient.getInstance().gameRenderer.getEntityRenderDispatcher();
+		CameraRenderState cameraRenderState = new CameraRenderState();
+		if (quaternionf != null) {
+			cameraRenderState.orientation = quaternionf.conjugate(new Quaternionf()).rotateY((float) Math.PI);
+		}
 
-   @Override
-   protected float getYOffset(int height, int windowScaleFactor) {
-      return height / 2.0F;
-   }
+		this.entityRenderDispatcher.render(
+				entityGuiElementRenderState.renderState(),
+				cameraRenderState,
+				0.0,
+				0.0,
+				0.0,
+				matrixStack,
+				renderDispatcher.getQueue()
+		);
+		renderDispatcher.render();
+	}
 
-   @Override
-   protected String getName() {
-      return "entity";
-   }
+	@Override
+	protected float getYOffset(int height, int windowScaleFactor) {
+		return height / 2.0F;
+	}
+
+	@Override
+	protected String getName() {
+		return "entity";
+	}
 }

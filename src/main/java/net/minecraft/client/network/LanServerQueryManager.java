@@ -2,6 +2,12 @@ package net.minecraft.client.network;
 
 import com.google.common.collect.Lists;
 import com.mojang.logging.LogUtils;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.util.logging.UncaughtExceptionLogger;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -10,99 +16,138 @@ import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.util.logging.UncaughtExceptionLogger;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
+/**
+ * Менеджер обнаружения LAN-серверов через UDP-мультикаст.
+ * Содержит поток-детектор и потокобезопасный список найденных серверов.
+ */
 @Environment(EnvType.CLIENT)
 public class LanServerQueryManager {
-   static final AtomicInteger THREAD_ID = new AtomicInteger(0);
-   static final Logger LOGGER = LogUtils.getLogger();
 
-   @Environment(EnvType.CLIENT)
-   public static class LanServerDetector extends Thread {
-      private final LanServerQueryManager.LanServerEntryList entryList;
-      private final InetAddress multicastAddress;
-      private final MulticastSocket socket;
+	static final AtomicInteger THREAD_ID = new AtomicInteger(0);
+	static final Logger LOGGER = LogUtils.getLogger();
 
-      public LanServerDetector(LanServerQueryManager.LanServerEntryList entryList) throws IOException {
-         super("LanServerDetector #" + LanServerQueryManager.THREAD_ID.incrementAndGet());
-         this.entryList = entryList;
-         this.setDaemon(true);
-         this.setUncaughtExceptionHandler(new UncaughtExceptionLogger(LanServerQueryManager.LOGGER));
-         this.socket = new MulticastSocket(4445);
-         this.multicastAddress = InetAddress.getByName("224.0.2.60");
-         this.socket.setSoTimeout(5000);
-         this.socket.joinGroup(this.multicastAddress);
-      }
+	/**
+	 * Поток, слушающий UDP-мультикаст и добавляющий найденные LAN-серверы в список.
+	 */
+	@Environment(EnvType.CLIENT)
+	public static class LanServerDetector extends Thread {
 
-      @Override
-      public void run() {
-         byte[] bs = new byte[1024];
+		private static final String MULTICAST_GROUP = "224.0.2.60";
+		private static final int MULTICAST_PORT = 4445;
+		private static final int SOCKET_TIMEOUT_MS = 5000;
+		private static final int BUFFER_SIZE = 1024;
 
-         while (!this.isInterrupted()) {
-            DatagramPacket datagramPacket = new DatagramPacket(bs, bs.length);
+		private final LanServerQueryManager.LanServerEntryList entryList;
+		private final InetAddress multicastAddress;
+		private final MulticastSocket socket;
 
-            try {
-               this.socket.receive(datagramPacket);
-            } catch (SocketTimeoutException var5) {
-               continue;
-            } catch (IOException var6) {
-               LanServerQueryManager.LOGGER.error("Couldn't ping server", var6);
-               break;
-            }
+		/**
+		 * @param entryList список, в который будут добавляться найденные серверы
+		 * @throws IOException если не удалось создать мультикаст-сокет
+		 */
+		public LanServerDetector(LanServerQueryManager.LanServerEntryList entryList) throws IOException {
+			super("LanServerDetector #" + LanServerQueryManager.THREAD_ID.incrementAndGet());
+			this.entryList = entryList;
+			setDaemon(true);
+			setUncaughtExceptionHandler(new UncaughtExceptionLogger(LanServerQueryManager.LOGGER));
+			socket = new MulticastSocket(MULTICAST_PORT);
+			multicastAddress = InetAddress.getByName(MULTICAST_GROUP);
+			socket.setSoTimeout(SOCKET_TIMEOUT_MS);
+			socket.joinGroup(multicastAddress);
+		}
 
-            String string = new String(datagramPacket.getData(), datagramPacket.getOffset(), datagramPacket.getLength(), StandardCharsets.UTF_8);
-            LanServerQueryManager.LOGGER.debug("{}: {}", datagramPacket.getAddress(), string);
-            this.entryList.addServer(string, datagramPacket.getAddress());
-         }
+		@Override
+		public void run() {
+			byte[] buffer = new byte[BUFFER_SIZE];
 
-         try {
-            this.socket.leaveGroup(this.multicastAddress);
-         } catch (IOException var4) {
-         }
+			while (isInterrupted() == false) {
+				DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 
-         this.socket.close();
-      }
-   }
+				try {
+					socket.receive(packet);
+				}
+				catch (SocketTimeoutException ignored) {
+					continue;
+				}
+				catch (IOException exception) {
+					LanServerQueryManager.LOGGER.error("Couldn't ping server", exception);
+					break;
+				}
 
-   @Environment(EnvType.CLIENT)
-   public static class LanServerEntryList {
-      private final List<LanServerInfo> serverEntries = Lists.newArrayList();
-      private boolean dirty;
+				String announcement = new String(
+						packet.getData(),
+						packet.getOffset(),
+						packet.getLength(),
+						StandardCharsets.UTF_8
+				);
+				LanServerQueryManager.LOGGER.debug("{}: {}", packet.getAddress(), announcement);
+				entryList.addServer(announcement, packet.getAddress());
+			}
 
-      public synchronized @Nullable List<LanServerInfo> getEntriesIfUpdated() {
-         if (this.dirty) {
-            List<LanServerInfo> list = List.copyOf(this.serverEntries);
-            this.dirty = false;
-            return list;
-         } else {
-            return null;
-         }
-      }
+			try {
+				socket.leaveGroup(multicastAddress);
+			}
+			catch (IOException ignored) {
+			}
 
-      public synchronized void addServer(String announcement, InetAddress address) {
-         String string = LanServerPinger.parseAnnouncementMotd(announcement);
-         String string2 = LanServerPinger.parseAnnouncementAddressPort(announcement);
-         if (string2 != null) {
-            string2 = address.getHostAddress() + ":" + string2;
-            boolean bl = false;
+			socket.close();
+		}
+	}
 
-            for (LanServerInfo lanServerInfo : this.serverEntries) {
-               if (lanServerInfo.getAddressPort().equals(string2)) {
-                  lanServerInfo.updateLastTime();
-                  bl = true;
-                  break;
-               }
-            }
+	/**
+	 * Потокобезопасный список обнаруженных LAN-серверов с флагом изменений.
+	 */
+	@Environment(EnvType.CLIENT)
+	public static class LanServerEntryList {
 
-            if (!bl) {
-               this.serverEntries.add(new LanServerInfo(string, string2));
-               this.dirty = true;
-            }
-         }
-      }
-   }
+		private final List<LanServerInfo> serverEntries = Lists.newArrayList();
+		private boolean dirty;
+
+		/**
+		 * Возвращает снимок списка серверов, если он изменился с последнего вызова.
+		 *
+		 * @return неизменяемая копия списка или {@code null}, если изменений не было
+		 */
+		public synchronized @Nullable List<LanServerInfo> getEntriesIfUpdated() {
+			if (dirty == false) {
+				return null;
+			}
+
+			List<LanServerInfo> snapshot = List.copyOf(serverEntries);
+			dirty = false;
+			return snapshot;
+		}
+
+		/**
+		 * Добавляет или обновляет запись сервера по данным из UDP-объявления.
+		 *
+		 * @param announcement строка объявления (MOTD + адрес)
+		 * @param address      IP-адрес отправителя пакета
+		 */
+		public synchronized void addServer(String announcement, InetAddress address) {
+			String motd = LanServerPinger.parseAnnouncementMotd(announcement);
+			String addressPort = LanServerPinger.parseAnnouncementAddressPort(announcement);
+
+			if (addressPort == null) {
+				return;
+			}
+
+			String fullAddress = address.getHostAddress() + ":" + addressPort;
+			boolean alreadyKnown = false;
+
+			for (LanServerInfo server : serverEntries) {
+				if (server.getAddressPort().equals(fullAddress)) {
+					server.updateLastTime();
+					alreadyKnown = true;
+					break;
+				}
+			}
+
+			if (alreadyKnown == false) {
+				serverEntries.add(new LanServerInfo(motd, fullAddress));
+				dirty = true;
+			}
+		}
+	}
 }

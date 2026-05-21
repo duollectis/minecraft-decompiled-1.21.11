@@ -1,7 +1,6 @@
 package net.minecraft.entity.projectile.thrown;
 
 import it.unimi.dsi.fastutil.doubles.DoubleDoubleImmutablePair;
-import java.util.function.Predicate;
 import net.minecraft.block.AbstractCandleBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.CampfireBlock;
@@ -22,106 +21,134 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
+import java.util.function.Predicate;
+
+/**
+ * {@code PotionEntity}.
+ */
 public abstract class PotionEntity extends ThrownItemEntity {
-   public static final double field_30667 = 4.0;
-   protected static final double WATER_POTION_EXPLOSION_SQUARED_RADIUS = 16.0;
-   public static final Predicate<LivingEntity> AFFECTED_BY_WATER = entity -> entity.hurtByWater() || entity.isOnFire();
 
-   public PotionEntity(EntityType<? extends PotionEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	public static final double POTION_EXPLOSION_RADIUS = 4.0;
+	protected static final double WATER_POTION_EXPLOSION_SQUARED_RADIUS = 16.0;
+	public static final Predicate<LivingEntity> AFFECTED_BY_WATER = entity -> entity.hurtByWater() || entity.isOnFire();
 
-   public PotionEntity(EntityType<? extends PotionEntity> type, World world, LivingEntity owner, ItemStack stack) {
-      super(type, owner, world, stack);
-   }
+	public PotionEntity(EntityType<? extends PotionEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public PotionEntity(EntityType<? extends PotionEntity> type, World world, double x, double y, double z, ItemStack stack) {
-      super(type, x, y, z, world, stack);
-   }
+	public PotionEntity(EntityType<? extends PotionEntity> type, World world, LivingEntity owner, ItemStack stack) {
+		super(type, owner, world, stack);
+	}
 
-   @Override
-   protected double getGravity() {
-      return 0.05;
-   }
+	public PotionEntity(
+			EntityType<? extends PotionEntity> type,
+			World world,
+			double x,
+			double y,
+			double z,
+			ItemStack stack
+	) {
+		super(type, x, y, z, world, stack);
+	}
 
-   @Override
-   protected void onBlockHit(BlockHitResult blockHitResult) {
-      super.onBlockHit(blockHitResult);
-      if (!this.getEntityWorld().isClient()) {
-         ItemStack itemStack = this.getStack();
-         Direction direction = blockHitResult.getSide();
-         BlockPos blockPos = blockHitResult.getBlockPos();
-         BlockPos blockPos2 = blockPos.offset(direction);
-         PotionContentsComponent potionContentsComponent = itemStack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
-         if (potionContentsComponent.matches(Potions.WATER)) {
-            this.extinguishFire(blockPos2);
-            this.extinguishFire(blockPos2.offset(direction.getOpposite()));
+	@Override
+	protected double getGravity() {
+		return 0.05;
+	}
 
-            for (Direction direction2 : Direction.Type.HORIZONTAL) {
-               this.extinguishFire(blockPos2.offset(direction2));
-            }
-         }
-      }
-   }
+	@Override
+	protected void onBlockHit(BlockHitResult blockHitResult) {
+		super.onBlockHit(blockHitResult);
+		if (!this.getEntityWorld().isClient()) {
+			ItemStack itemStack = this.getStack();
+			Direction direction = blockHitResult.getSide();
+			BlockPos blockPos = blockHitResult.getBlockPos();
+			BlockPos blockPos2 = blockPos.offset(direction);
+			PotionContentsComponent
+					potionContentsComponent =
+					itemStack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
+			if (potionContentsComponent.matches(Potions.WATER)) {
+				this.extinguishFire(blockPos2);
+				this.extinguishFire(blockPos2.offset(direction.getOpposite()));
 
-   @Override
-   protected void onCollision(HitResult hitResult) {
-      super.onCollision(hitResult);
-      if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         ItemStack itemStack = this.getStack();
-         PotionContentsComponent potionContentsComponent = itemStack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
-         if (potionContentsComponent.matches(Potions.WATER)) {
-            this.explodeWaterPotion(serverWorld);
-         } else if (potionContentsComponent.hasEffects()) {
-            this.spawnAreaEffectCloud(serverWorld, itemStack, hitResult);
-         }
+				for (Direction direction2 : Direction.Type.HORIZONTAL) {
+					this.extinguishFire(blockPos2.offset(direction2));
+				}
+			}
+		}
+	}
 
-         int i = potionContentsComponent.potion().isPresent() && potionContentsComponent.potion().get().value().hasInstantEffect() ? 2007 : 2002;
-         serverWorld.syncWorldEvent(i, this.getBlockPos(), potionContentsComponent.getColor());
-         this.discard();
-      }
-   }
+	@Override
+	protected void onCollision(HitResult hitResult) {
+		super.onCollision(hitResult);
+		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			ItemStack itemStack = this.getStack();
+			PotionContentsComponent
+					potionContentsComponent =
+					itemStack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
+			if (potionContentsComponent.matches(Potions.WATER)) {
+				this.explodeWaterPotion(serverWorld);
+			}
+			else if (potionContentsComponent.hasEffects()) {
+				this.spawnAreaEffectCloud(serverWorld, itemStack, hitResult);
+			}
 
-   private void explodeWaterPotion(ServerWorld world) {
-      Box box = this.getBoundingBox().expand(4.0, 2.0, 4.0);
+			int
+					i =
+					potionContentsComponent.potion().isPresent() && potionContentsComponent
+							.potion()
+							.get()
+							.value()
+							.hasInstantEffect() ? 2007 : 2002;
+			serverWorld.syncWorldEvent(i, this.getBlockPos(), potionContentsComponent.getColor());
+			this.discard();
+		}
+	}
 
-      for (LivingEntity livingEntity : this.getEntityWorld().getEntitiesByClass(LivingEntity.class, box, AFFECTED_BY_WATER)) {
-         double d = this.squaredDistanceTo(livingEntity);
-         if (d < 16.0) {
-            if (livingEntity.hurtByWater()) {
-               livingEntity.damage(world, this.getDamageSources().indirectMagic(this, this.getOwner()), 1.0F);
-            }
+	private void explodeWaterPotion(ServerWorld world) {
+		Box box = this.getBoundingBox().expand(4.0, 2.0, 4.0);
 
-            if (livingEntity.isOnFire() && livingEntity.isAlive()) {
-               livingEntity.extinguishWithSound();
-            }
-         }
-      }
+		for (LivingEntity livingEntity : this
+				.getEntityWorld()
+				.getEntitiesByClass(LivingEntity.class, box, AFFECTED_BY_WATER)) {
+			double d = this.squaredDistanceTo(livingEntity);
+			if (d < 16.0) {
+				if (livingEntity.hurtByWater()) {
+					livingEntity.damage(world, this.getDamageSources().indirectMagic(this, this.getOwner()), 1.0F);
+				}
 
-      for (AxolotlEntity axolotlEntity : this.getEntityWorld().getNonSpectatingEntities(AxolotlEntity.class, box)) {
-         axolotlEntity.hydrateFromPotion();
-      }
-   }
+				if (livingEntity.isOnFire() && livingEntity.isAlive()) {
+					livingEntity.extinguishWithSound();
+				}
+			}
+		}
 
-   protected abstract void spawnAreaEffectCloud(ServerWorld world, ItemStack stack, HitResult hitResult);
+		for (AxolotlEntity axolotlEntity : this.getEntityWorld().getNonSpectatingEntities(AxolotlEntity.class, box)) {
+			axolotlEntity.hydrateFromPotion();
+		}
+	}
 
-   private void extinguishFire(BlockPos pos) {
-      BlockState blockState = this.getEntityWorld().getBlockState(pos);
-      if (blockState.isIn(BlockTags.FIRE)) {
-         this.getEntityWorld().breakBlock(pos, false, this);
-      } else if (AbstractCandleBlock.isLitCandle(blockState)) {
-         AbstractCandleBlock.extinguish(null, blockState, this.getEntityWorld(), pos);
-      } else if (CampfireBlock.isLitCampfire(blockState)) {
-         this.getEntityWorld().syncWorldEvent(null, 1009, pos, 0);
-         CampfireBlock.extinguish(this.getOwner(), this.getEntityWorld(), pos, blockState);
-         this.getEntityWorld().setBlockState(pos, blockState.with(CampfireBlock.LIT, false));
-      }
-   }
+	protected abstract void spawnAreaEffectCloud(ServerWorld world, ItemStack stack, HitResult hitResult);
 
-   @Override
-   public DoubleDoubleImmutablePair getKnockback(LivingEntity target, DamageSource source) {
-      double d = target.getEntityPos().x - this.getEntityPos().x;
-      double e = target.getEntityPos().z - this.getEntityPos().z;
-      return DoubleDoubleImmutablePair.of(d, e);
-   }
+	private void extinguishFire(BlockPos pos) {
+		BlockState blockState = this.getEntityWorld().getBlockState(pos);
+		if (blockState.isIn(BlockTags.FIRE)) {
+			this.getEntityWorld().breakBlock(pos, false, this);
+		}
+		else if (AbstractCandleBlock.isLitCandle(blockState)) {
+			AbstractCandleBlock.extinguish(null, blockState, this.getEntityWorld(), pos);
+		}
+		else if (CampfireBlock.isLitCampfire(blockState)) {
+			this.getEntityWorld().syncWorldEvent(null, 1009, pos, 0);
+			CampfireBlock.extinguish(this.getOwner(), this.getEntityWorld(), pos, blockState);
+			this.getEntityWorld().setBlockState(pos, blockState.with(CampfireBlock.LIT, false));
+		}
+	}
+
+	@Override
+	public DoubleDoubleImmutablePair getKnockback(LivingEntity target, DamageSource source) {
+		double d = target.getEntityPos().x - this.getEntityPos().x;
+		double e = target.getEntityPos().z - this.getEntityPos().z;
+		return DoubleDoubleImmutablePair.of(d, e);
+	}
 }

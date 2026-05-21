@@ -2,7 +2,6 @@ package net.minecraft.entity.mob;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
 import net.minecraft.entity.VariantSelectorProvider;
 import net.minecraft.entity.spawn.SpawnCondition;
 import net.minecraft.entity.spawn.SpawnConditionSelectors;
@@ -16,51 +15,73 @@ import net.minecraft.registry.entry.RegistryFixedCodec;
 import net.minecraft.util.ModelAndTexture;
 import net.minecraft.util.StringIdentifiable;
 
-public record ZombieNautilusVariant(ModelAndTexture<ZombieNautilusVariant.Model> modelAndTexture, SpawnConditionSelectors spawnConditions)
-   implements VariantSelectorProvider<SpawnContext, SpawnCondition> {
-   public static final Codec<ZombieNautilusVariant> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            ModelAndTexture.createMapCodec(ZombieNautilusVariant.Model.CODEC, ZombieNautilusVariant.Model.NORMAL)
-               .forGetter(ZombieNautilusVariant::modelAndTexture),
-            SpawnConditionSelectors.CODEC.fieldOf("spawn_conditions").forGetter(ZombieNautilusVariant::spawnConditions)
-         )
-         .apply(instance, ZombieNautilusVariant::new)
-   );
-   public static final Codec<ZombieNautilusVariant> NETWORK_CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            ModelAndTexture.createMapCodec(ZombieNautilusVariant.Model.CODEC, ZombieNautilusVariant.Model.NORMAL)
-               .forGetter(ZombieNautilusVariant::modelAndTexture)
-         )
-         .apply(instance, ZombieNautilusVariant::new)
-   );
-   public static final Codec<RegistryEntry<ZombieNautilusVariant>> ENTRY_CODEC = RegistryFixedCodec.of(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT);
-   public static final PacketCodec<RegistryByteBuf, RegistryEntry<ZombieNautilusVariant>> ENTRY_PACKET_CODEC = PacketCodecs.registryEntry(
-      RegistryKeys.ZOMBIE_NAUTILUS_VARIANT
-   );
+import java.util.List;
 
-   private ZombieNautilusVariant(ModelAndTexture<ZombieNautilusVariant.Model> modelAndTexture) {
-      this(modelAndTexture, SpawnConditionSelectors.EMPTY);
-   }
+/**
+ * {@code ZombieNautilusVariant}.
+ */
+public record ZombieNautilusVariant(
+		ModelAndTexture<ZombieNautilusVariant.Model> modelAndTexture,
+		SpawnConditionSelectors spawnConditions
+)
+		implements VariantSelectorProvider<SpawnContext, SpawnCondition> {
 
-   @Override
-   public List<VariantSelectorProvider.Selector<SpawnContext, SpawnCondition>> getSelectors() {
-      return this.spawnConditions.selectors();
-   }
+	public static final Codec<ZombieNautilusVariant> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    ModelAndTexture
+							                    .createMapCodec(ZombieNautilusVariant.Model.CODEC, ZombieNautilusVariant.Model.NORMAL)
+							                    .forGetter(ZombieNautilusVariant::modelAndTexture),
+					                    SpawnConditionSelectors.CODEC
+							                    .fieldOf("spawn_conditions")
+							                    .forGetter(ZombieNautilusVariant::spawnConditions)
+			                    )
+			                    .apply(instance, ZombieNautilusVariant::new)
+	);
+	public static final Codec<ZombieNautilusVariant> NETWORK_CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    ModelAndTexture
+							                    .createMapCodec(ZombieNautilusVariant.Model.CODEC, ZombieNautilusVariant.Model.NORMAL)
+							                    .forGetter(ZombieNautilusVariant::modelAndTexture)
+			                    )
+			                    .apply(instance, ZombieNautilusVariant::new)
+	);
+	public static final Codec<RegistryEntry<ZombieNautilusVariant>>
+			ENTRY_CODEC =
+			RegistryFixedCodec.of(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT);
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<ZombieNautilusVariant>>
+			ENTRY_PACKET_CODEC =
+			PacketCodecs.registryEntry(
+					RegistryKeys.ZOMBIE_NAUTILUS_VARIANT
+			);
 
-   public static enum Model implements StringIdentifiable {
-      NORMAL("normal"),
-      WARM("warm");
+	private ZombieNautilusVariant(ModelAndTexture<ZombieNautilusVariant.Model> modelAndTexture) {
+		this(modelAndTexture, SpawnConditionSelectors.EMPTY);
+	}
 
-      public static final Codec<ZombieNautilusVariant.Model> CODEC = StringIdentifiable.createCodec(ZombieNautilusVariant.Model::values);
-      private final String id;
+	@Override
+	public List<VariantSelectorProvider.Selector<SpawnContext, SpawnCondition>> getSelectors() {
+		return this.spawnConditions.selectors();
+	}
 
-      private Model(final String id) {
-         this.id = id;
-      }
+	/**
+	 * {@code Model}.
+	 */
+	public static enum Model implements StringIdentifiable {
+		NORMAL("normal"),
+		WARM("warm");
 
-      @Override
-      public String asString() {
-         return this.id;
-      }
-   }
+		public static final Codec<ZombieNautilusVariant.Model>
+				CODEC =
+				StringIdentifiable.createCodec(ZombieNautilusVariant.Model::values);
+		private final String id;
+
+		private Model(final String id) {
+			this.id = id;
+		}
+
+		@Override
+		public String asString() {
+			return this.id;
+		}
+	}
 }

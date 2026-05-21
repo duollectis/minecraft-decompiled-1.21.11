@@ -7,72 +7,76 @@ import net.minecraft.server.PlayerConfigEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.rule.GameRule;
 
+/**
+ * {@code BlankManagementListener}.
+ */
 public class BlankManagementListener implements ManagementListener {
-   @Override
-   public void onPlayerJoined(ServerPlayerEntity player) {
-   }
 
-   @Override
-   public void onPlayerLeft(ServerPlayerEntity player) {
-   }
+	@Override
+	public void onPlayerJoined(ServerPlayerEntity player) {
+	}
 
-   @Override
-   public void onServerStarted() {
-   }
+	@Override
+	public void onPlayerLeft(ServerPlayerEntity player) {
+	}
 
-   @Override
-   public void onServerStopping() {
-   }
+	@Override
+	public void onServerStarted() {
+	}
 
-   @Override
-   public void onServerSaving() {
-   }
+	@Override
+	public void onServerStopping() {
+	}
 
-   @Override
-   public void onServerSaved() {
-   }
+	@Override
+	public void onServerSaving() {
+	}
 
-   @Override
-   public void onServerActivity() {
-   }
+	@Override
+	public void onServerSaved() {
+	}
 
-   @Override
-   public void onOperatorAdded(OperatorEntry operator) {
-   }
+	@Override
+	public void onServerActivity() {
+	}
 
-   @Override
-   public void onOperatorRemoved(OperatorEntry operator) {
-   }
+	@Override
+	public void onOperatorAdded(OperatorEntry operator) {
+	}
 
-   @Override
-   public void onAllowlistAdded(PlayerConfigEntry player) {
-   }
+	@Override
+	public void onOperatorRemoved(OperatorEntry operator) {
+	}
 
-   @Override
-   public void onAllowlistRemoved(PlayerConfigEntry player) {
-   }
+	@Override
+	public void onAllowlistAdded(PlayerConfigEntry player) {
+	}
 
-   @Override
-   public void onIpBanAdded(BannedIpEntry entry) {
-   }
+	@Override
+	public void onAllowlistRemoved(PlayerConfigEntry player) {
+	}
 
-   @Override
-   public void onIpBanRemoved(String string) {
-   }
+	@Override
+	public void onIpBanAdded(BannedIpEntry entry) {
+	}
 
-   @Override
-   public void onBanAdded(BannedPlayerEntry entry) {
-   }
+	@Override
+	public void onIpBanRemoved(String string) {
+	}
 
-   @Override
-   public void onBanRemoved(PlayerConfigEntry player) {
-   }
+	@Override
+	public void onBanAdded(BannedPlayerEntry entry) {
+	}
 
-   @Override
-   public <T> void onGameRuleUpdated(GameRule<T> rule, T value) {
-   }
+	@Override
+	public void onBanRemoved(PlayerConfigEntry player) {
+	}
 
-   @Override
-   public void onServerStatusHeartbeat() {
-   }
+	@Override
+	public <T> void onGameRuleUpdated(GameRule<T> rule, T value) {
+	}
+
+	@Override
+	public void onServerStatusHeartbeat() {
+	}
 }

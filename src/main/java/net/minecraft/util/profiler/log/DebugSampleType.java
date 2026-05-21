@@ -3,16 +3,19 @@ package net.minecraft.util.profiler.log;
 import net.minecraft.world.debug.DebugSubscriptionType;
 import net.minecraft.world.debug.DebugSubscriptionTypes;
 
+/**
+ * {@code DebugSampleType}.
+ */
 public enum DebugSampleType {
-   TICK_TIME(DebugSubscriptionTypes.DEDICATED_SERVER_TICK_TIME);
+	TICK_TIME(DebugSubscriptionTypes.DEDICATED_SERVER_TICK_TIME);
 
-   private final DebugSubscriptionType<?> subscriptionType;
+	private final DebugSubscriptionType<?> subscriptionType;
 
-   private DebugSampleType(final DebugSubscriptionType<?> subscriptionType) {
-      this.subscriptionType = subscriptionType;
-   }
+	private DebugSampleType(final DebugSubscriptionType<?> subscriptionType) {
+		this.subscriptionType = subscriptionType;
+	}
 
-   public DebugSubscriptionType<?> getSubscriptionType() {
-      return this.subscriptionType;
-   }
+	public DebugSubscriptionType<?> getSubscriptionType() {
+		return this.subscriptionType;
+	}
 }

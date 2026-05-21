@@ -7,44 +7,62 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 @FunctionalInterface
+/**
+ * {@code ResourceReloader}.
+ */
 public interface ResourceReloader {
-   CompletableFuture<Void> reload(
-      ResourceReloader.Store store, Executor prepareExecutor, ResourceReloader.Synchronizer reloadSynchronizer, Executor applyExecutor
-   );
 
-   default void prepareSharedState(ResourceReloader.Store store) {
-   }
+	CompletableFuture<Void> reload(
+			ResourceReloader.Store store,
+			Executor prepareExecutor,
+			ResourceReloader.Synchronizer reloadSynchronizer,
+			Executor applyExecutor
+	);
 
-   default String getName() {
-      return this.getClass().getSimpleName();
-   }
+	default void prepareSharedState(ResourceReloader.Store store) {
+	}
 
-   public static final class Key<T> {
-   }
+	default String getName() {
+		return this.getClass().getSimpleName();
+	}
 
-   public static final class Store {
-      private final ResourceManager resourceManager;
-      private final Map<ResourceReloader.Key<?>, Object> store = new IdentityHashMap<>();
+	/**
+	 * {@code Key}.
+	 */
+	public static final class Key<T> {
+	}
 
-      public Store(ResourceManager resourceManager) {
-         this.resourceManager = resourceManager;
-      }
+	/**
+	 * {@code Store}.
+	 */
+	public static final class Store {
 
-      public ResourceManager getResourceManager() {
-         return this.resourceManager;
-      }
+		private final ResourceManager resourceManager;
+		private final Map<ResourceReloader.Key<?>, Object> store = new IdentityHashMap<>();
 
-      public <T> void put(ResourceReloader.Key<T> key, T value) {
-         this.store.put(key, value);
-      }
+		public Store(ResourceManager resourceManager) {
+			this.resourceManager = resourceManager;
+		}
 
-      public <T> T getOrThrow(ResourceReloader.Key<T> key) {
-         return Objects.requireNonNull((T)this.store.get(key));
-      }
-   }
+		public ResourceManager getResourceManager() {
+			return this.resourceManager;
+		}
 
-   @FunctionalInterface
-   public interface Synchronizer {
-      <T> CompletableFuture<T> whenPrepared(T preparedObject);
-   }
+		public <T> void put(ResourceReloader.Key<T> key, T value) {
+			this.store.put(key, value);
+		}
+
+		public <T> T getOrThrow(ResourceReloader.Key<T> key) {
+			return Objects.requireNonNull((T) this.store.get(key));
+		}
+	}
+
+	@FunctionalInterface
+	/**
+	 * {@code Synchronizer}.
+	 */
+	public interface Synchronizer {
+
+		<T> CompletableFuture<T> whenPrepared(T preparedObject);
+	}
 }

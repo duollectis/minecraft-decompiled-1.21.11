@@ -2,6 +2,10 @@ package net.minecraft.resource;
 
 import com.google.common.collect.Lists;
 import com.mojang.logging.LogUtils;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.Unit;
+import org.slf4j.Logger;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -11,64 +15,83 @@ import java.util.concurrent.Executor;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Unit;
-import org.slf4j.Logger;
 
+/**
+ * {@code ReloadableResourceManagerImpl}.
+ */
 public class ReloadableResourceManagerImpl implements ResourceManager, AutoCloseable {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private LifecycledResourceManager activeManager;
-   private final List<ResourceReloader> reloaders = Lists.newArrayList();
-   private final ResourceType type;
 
-   public ReloadableResourceManagerImpl(ResourceType type) {
-      this.type = type;
-      this.activeManager = new LifecycledResourceManagerImpl(type, List.of());
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private LifecycledResourceManager activeManager;
+	private final List<ResourceReloader> reloaders = Lists.newArrayList();
+	private final ResourceType type;
 
-   @Override
-   public void close() {
-      this.activeManager.close();
-   }
+	public ReloadableResourceManagerImpl(ResourceType type) {
+		this.type = type;
+		this.activeManager = new LifecycledResourceManagerImpl(type, List.of());
+	}
 
-   public void registerReloader(ResourceReloader reloader) {
-      this.reloaders.add(reloader);
-   }
+	@Override
+	public void close() {
+		this.activeManager.close();
+	}
 
-   public ResourceReload reload(Executor prepareExecutor, Executor applyExecutor, CompletableFuture<Unit> initialStage, List<ResourcePack> packs) {
-      LOGGER.info("Reloading ResourceManager: {}", LogUtils.defer(() -> packs.stream().map(ResourcePack::getId).collect(Collectors.joining(", "))));
-      this.activeManager.close();
-      this.activeManager = new LifecycledResourceManagerImpl(this.type, packs);
-      return SimpleResourceReload.start(this.activeManager, this.reloaders, prepareExecutor, applyExecutor, initialStage, LOGGER.isDebugEnabled());
-   }
+	public void registerReloader(ResourceReloader reloader) {
+		this.reloaders.add(reloader);
+	}
 
-   @Override
-   public Optional<Resource> getResource(Identifier identifier) {
-      return this.activeManager.getResource(identifier);
-   }
+	public ResourceReload reload(
+			Executor prepareExecutor,
+			Executor applyExecutor,
+			CompletableFuture<Unit> initialStage,
+			List<ResourcePack> packs
+	) {
+		LOGGER.info(
+				"Reloading ResourceManager: {}",
+				LogUtils.defer(() -> packs.stream().map(ResourcePack::getId).collect(Collectors.joining(", ")))
+		);
+		this.activeManager.close();
+		this.activeManager = new LifecycledResourceManagerImpl(this.type, packs);
+		return SimpleResourceReload.start(
+				this.activeManager,
+				this.reloaders,
+				prepareExecutor,
+				applyExecutor,
+				initialStage,
+				LOGGER.isDebugEnabled()
+		);
+	}
 
-   @Override
-   public Set<String> getAllNamespaces() {
-      return this.activeManager.getAllNamespaces();
-   }
+	@Override
+	public Optional<Resource> getResource(Identifier identifier) {
+		return this.activeManager.getResource(identifier);
+	}
 
-   @Override
-   public List<Resource> getAllResources(Identifier id) {
-      return this.activeManager.getAllResources(id);
-   }
+	@Override
+	public Set<String> getAllNamespaces() {
+		return this.activeManager.getAllNamespaces();
+	}
 
-   @Override
-   public Map<Identifier, Resource> findResources(String startingPath, Predicate<Identifier> allowedPathPredicate) {
-      return this.activeManager.findResources(startingPath, allowedPathPredicate);
-   }
+	@Override
+	public List<Resource> getAllResources(Identifier id) {
+		return this.activeManager.getAllResources(id);
+	}
 
-   @Override
-   public Map<Identifier, List<Resource>> findAllResources(String startingPath, Predicate<Identifier> allowedPathPredicate) {
-      return this.activeManager.findAllResources(startingPath, allowedPathPredicate);
-   }
+	@Override
+	public Map<Identifier, Resource> findResources(String startingPath, Predicate<Identifier> allowedPathPredicate) {
+		return this.activeManager.findResources(startingPath, allowedPathPredicate);
+	}
 
-   @Override
-   public Stream<ResourcePack> streamResourcePacks() {
-      return this.activeManager.streamResourcePacks();
-   }
+	@Override
+	public Map<Identifier, List<Resource>> findAllResources(
+			String startingPath,
+			Predicate<Identifier> allowedPathPredicate
+	) {
+		return this.activeManager.findAllResources(startingPath, allowedPathPredicate);
+	}
+
+	@Override
+	public Stream<ResourcePack> streamResourcePacks() {
+		return this.activeManager.streamResourcePacks();
+	}
 }

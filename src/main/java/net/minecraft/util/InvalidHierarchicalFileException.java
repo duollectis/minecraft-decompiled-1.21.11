@@ -1,80 +1,91 @@
 package net.minecraft.util;
 
 import com.google.common.collect.Lists;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.Nullable;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.List;
+
+/**
+ * {@code InvalidHierarchicalFileException}.
+ */
 public class InvalidHierarchicalFileException extends IOException {
-   private final List<InvalidHierarchicalFileException.File> invalidFiles = Lists.newArrayList();
-   private final String message;
 
-   public InvalidHierarchicalFileException(String message) {
-      this.invalidFiles.add(new InvalidHierarchicalFileException.File());
-      this.message = message;
-   }
+	private final List<InvalidHierarchicalFileException.File> invalidFiles = Lists.newArrayList();
+	private final String message;
 
-   public InvalidHierarchicalFileException(String message, Throwable cause) {
-      super(cause);
-      this.invalidFiles.add(new InvalidHierarchicalFileException.File());
-      this.message = message;
-   }
+	public InvalidHierarchicalFileException(String message) {
+		this.invalidFiles.add(new InvalidHierarchicalFileException.File());
+		this.message = message;
+	}
 
-   public void addInvalidKey(String key) {
-      this.invalidFiles.get(0).addKey(key);
-   }
+	public InvalidHierarchicalFileException(String message, Throwable cause) {
+		super(cause);
+		this.invalidFiles.add(new InvalidHierarchicalFileException.File());
+		this.message = message;
+	}
 
-   public void addInvalidFile(String fileName) {
-      this.invalidFiles.get(0).name = fileName;
-      this.invalidFiles.add(0, new InvalidHierarchicalFileException.File());
-   }
+	public void addInvalidKey(String key) {
+		this.invalidFiles.get(0).addKey(key);
+	}
 
-   @Override
-   public String getMessage() {
-      return "Invalid " + this.invalidFiles.get(this.invalidFiles.size() - 1) + ": " + this.message;
-   }
+	public void addInvalidFile(String fileName) {
+		this.invalidFiles.get(0).name = fileName;
+		this.invalidFiles.add(0, new InvalidHierarchicalFileException.File());
+	}
 
-   public static InvalidHierarchicalFileException wrap(Exception cause) {
-      if (cause instanceof InvalidHierarchicalFileException) {
-         return (InvalidHierarchicalFileException)cause;
-      } else {
-         String string = cause.getMessage();
-         if (cause instanceof FileNotFoundException) {
-            string = "File not found";
-         }
+	@Override
+	public String getMessage() {
+		return "Invalid " + this.invalidFiles.get(this.invalidFiles.size() - 1) + ": " + this.message;
+	}
 
-         return new InvalidHierarchicalFileException(string, cause);
-      }
-   }
+	public static InvalidHierarchicalFileException wrap(Exception cause) {
+		if (cause instanceof InvalidHierarchicalFileException) {
+			return (InvalidHierarchicalFileException) cause;
+		}
+		else {
+			String string = cause.getMessage();
+			if (cause instanceof FileNotFoundException) {
+				string = "File not found";
+			}
 
-   public static class File {
-      @Nullable String name;
-      private final List<String> keys = Lists.newArrayList();
+			return new InvalidHierarchicalFileException(string, cause);
+		}
+	}
 
-      File() {
-      }
+	/**
+	 * {@code File}.
+	 */
+	public static class File {
 
-      void addKey(String key) {
-         this.keys.add(0, key);
-      }
+		@Nullable String name;
+		private final List<String> keys = Lists.newArrayList();
 
-      public @Nullable String getName() {
-         return this.name;
-      }
+		File() {
+		}
 
-      public String joinKeys() {
-         return StringUtils.join(this.keys, "->");
-      }
+		void addKey(String key) {
+			this.keys.add(0, key);
+		}
 
-      @Override
-      public String toString() {
-         if (this.name != null) {
-            return this.keys.isEmpty() ? this.name : this.name + " " + this.joinKeys();
-         } else {
-            return this.keys.isEmpty() ? "(Unknown file)" : "(Unknown file) " + this.joinKeys();
-         }
-      }
-   }
+		public @Nullable String getName() {
+			return this.name;
+		}
+
+		public String joinKeys() {
+			return StringUtils.join(this.keys, "->");
+		}
+
+		@Override
+		public String toString() {
+			if (this.name != null) {
+				return this.keys.isEmpty() ? this.name : this.name + " " + this.joinKeys();
+			}
+			else {
+				return this.keys.isEmpty() ? "(Unknown file)" : "(Unknown file) " + this.joinKeys();
+			}
+		}
+	}
 }

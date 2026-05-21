@@ -1,9 +1,5 @@
 package net.minecraft.inventory;
 
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.function.Predicate;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.ContainerUser;
 import net.minecraft.entity.player.PlayerEntity;
@@ -14,133 +10,149 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.function.Predicate;
+
+/**
+ * {@code Inventory}.
+ */
 public interface Inventory extends Clearable, StackReferenceGetter, Iterable<ItemStack> {
-   float DEFAULT_MAX_INTERACTION_RANGE = 4.0F;
 
-   int size();
+	float DEFAULT_MAX_INTERACTION_RANGE = 4.0F;
 
-   boolean isEmpty();
+	int size();
 
-   ItemStack getStack(int slot);
+	boolean isEmpty();
 
-   ItemStack removeStack(int slot, int amount);
+	ItemStack getStack(int slot);
 
-   ItemStack removeStack(int slot);
+	ItemStack removeStack(int slot, int amount);
 
-   void setStack(int slot, ItemStack stack);
+	ItemStack removeStack(int slot);
 
-   default int getMaxCountPerStack() {
-      return 99;
-   }
+	void setStack(int slot, ItemStack stack);
 
-   default int getMaxCount(ItemStack stack) {
-      return Math.min(this.getMaxCountPerStack(), stack.getMaxCount());
-   }
+	default int getMaxCountPerStack() {
+		return 99;
+	}
 
-   void markDirty();
+	default int getMaxCount(ItemStack stack) {
+		return Math.min(this.getMaxCountPerStack(), stack.getMaxCount());
+	}
 
-   boolean canPlayerUse(PlayerEntity player);
+	void markDirty();
 
-   default void onOpen(ContainerUser user) {
-   }
+	boolean canPlayerUse(PlayerEntity player);
 
-   default void onClose(ContainerUser user) {
-   }
+	default void onOpen(ContainerUser user) {
+	}
 
-   default List<ContainerUser> getViewingUsers() {
-      return List.of();
-   }
+	default void onClose(ContainerUser user) {
+	}
 
-   default boolean isValid(int slot, ItemStack stack) {
-      return true;
-   }
+	default List<ContainerUser> getViewingUsers() {
+		return List.of();
+	}
 
-   default boolean canTransferTo(Inventory hopperInventory, int slot, ItemStack stack) {
-      return true;
-   }
+	default boolean isValid(int slot, ItemStack stack) {
+		return true;
+	}
 
-   default int count(Item item) {
-      int i = 0;
+	default boolean canTransferTo(Inventory hopperInventory, int slot, ItemStack stack) {
+		return true;
+	}
 
-      for (ItemStack itemStack : this) {
-         if (itemStack.getItem().equals(item)) {
-            i += itemStack.getCount();
-         }
-      }
+	default int count(Item item) {
+		int i = 0;
 
-      return i;
-   }
+		for (ItemStack itemStack : this) {
+			if (itemStack.getItem().equals(item)) {
+				i += itemStack.getCount();
+			}
+		}
 
-   default boolean containsAny(Set<Item> items) {
-      return this.containsAny(stack -> !stack.isEmpty() && items.contains(stack.getItem()));
-   }
+		return i;
+	}
 
-   default boolean containsAny(Predicate<ItemStack> predicate) {
-      for (ItemStack itemStack : this) {
-         if (predicate.test(itemStack)) {
-            return true;
-         }
-      }
+	default boolean containsAny(Set<Item> items) {
+		return this.containsAny(stack -> !stack.isEmpty() && items.contains(stack.getItem()));
+	}
 
-      return false;
-   }
+	default boolean containsAny(Predicate<ItemStack> predicate) {
+		for (ItemStack itemStack : this) {
+			if (predicate.test(itemStack)) {
+				return true;
+			}
+		}
 
-   static boolean canPlayerUse(BlockEntity blockEntity, PlayerEntity player) {
-      return canPlayerUse(blockEntity, player, 4.0F);
-   }
+		return false;
+	}
 
-   static boolean canPlayerUse(BlockEntity blockEntity, PlayerEntity player, float range) {
-      World world = blockEntity.getWorld();
-      BlockPos blockPos = blockEntity.getPos();
-      if (world == null) {
-         return false;
-      } else {
-         return world.getBlockEntity(blockPos) != blockEntity ? false : player.canInteractWithBlockAt(blockPos, range);
-      }
-   }
+	static boolean canPlayerUse(BlockEntity blockEntity, PlayerEntity player) {
+		return canPlayerUse(blockEntity, player, 4.0F);
+	}
 
-   @Override
-   default @Nullable StackReference getStackReference(int slot) {
-      return slot >= 0 && slot < this.size() ? new StackReference() {
-         @Override
-         public ItemStack get() {
-            return Inventory.this.getStack(slot);
-         }
+	static boolean canPlayerUse(BlockEntity blockEntity, PlayerEntity player, float range) {
+		World world = blockEntity.getWorld();
+		BlockPos blockPos = blockEntity.getPos();
+		if (world == null) {
+			return false;
+		}
+		else {
+			return world.getBlockEntity(blockPos) != blockEntity ? false
+			                                                     : player.canInteractWithBlockAt(blockPos, range);
+		}
+	}
 
-         @Override
-         public boolean set(ItemStack stack) {
-            Inventory.this.setStack(slot, stack);
-            return true;
-         }
-      } : null;
-   }
+	@Override
+	default @Nullable StackReference getStackReference(int slot) {
+		return slot >= 0 && slot < this.size() ? new StackReference() {
+			@Override
+			public ItemStack get() {
+				return Inventory.this.getStack(slot);
+			}
 
-   @Override
-   default java.util.Iterator<ItemStack> iterator() {
-      return new Inventory.Iterator(this);
-   }
+			@Override
+			public boolean set(ItemStack stack) {
+				Inventory.this.setStack(slot, stack);
+				return true;
+			}
+		} : null;
+	}
 
-   public static class Iterator implements java.util.Iterator<ItemStack> {
-      private final Inventory inventory;
-      private int index;
-      private final int size;
+	@Override
+	default java.util.Iterator<ItemStack> iterator() {
+		return new Inventory.Iterator(this);
+	}
 
-      public Iterator(Inventory inventory) {
-         this.inventory = inventory;
-         this.size = inventory.size();
-      }
+	/**
+	 * {@code Iterator}.
+	 */
+	public static class Iterator implements java.util.Iterator<ItemStack> {
 
-      @Override
-      public boolean hasNext() {
-         return this.index < this.size;
-      }
+		private final Inventory inventory;
+		private int index;
+		private final int size;
 
-      public ItemStack next() {
-         if (!this.hasNext()) {
-            throw new NoSuchElementException();
-         } else {
-            return this.inventory.getStack(this.index++);
-         }
-      }
-   }
+		public Iterator(Inventory inventory) {
+			this.inventory = inventory;
+			this.size = inventory.size();
+		}
+
+		@Override
+		public boolean hasNext() {
+			return this.index < this.size;
+		}
+
+		public ItemStack next() {
+			if (!this.hasNext()) {
+				throw new NoSuchElementException();
+			}
+			else {
+				return this.inventory.getStack(this.index++);
+			}
+		}
+	}
 }

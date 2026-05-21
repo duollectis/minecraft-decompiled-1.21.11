@@ -1,14 +1,18 @@
 package net.minecraft.resource.featuretoggle;
 
+/**
+ * {@code FeatureUniverse}.
+ */
 public class FeatureUniverse {
-   private final String name;
 
-   public FeatureUniverse(String name) {
-      this.name = name;
-   }
+	private final String name;
 
-   @Override
-   public String toString() {
-      return this.name;
-   }
+	public FeatureUniverse(String name) {
+		this.name = name;
+	}
+
+	@Override
+	public String toString() {
+		return this.name;
+	}
 }

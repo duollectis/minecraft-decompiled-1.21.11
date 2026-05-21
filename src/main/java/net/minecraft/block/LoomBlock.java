@@ -15,43 +15,51 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code LoomBlock}.
+ */
 public class LoomBlock extends HorizontalFacingBlock {
-   public static final MapCodec<LoomBlock> CODEC = createCodec(LoomBlock::new);
-   private static final Text TITLE = Text.translatable("container.loom");
 
-   @Override
-   public MapCodec<LoomBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<LoomBlock> CODEC = createCodec(LoomBlock::new);
+	private static final Text TITLE = Text.translatable("container.loom");
 
-   public LoomBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<LoomBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient()) {
-         player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
-         player.incrementStat(Stats.INTERACT_WITH_LOOM);
-      }
+	public LoomBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient()) {
+			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
+			player.incrementStat(Stats.INTERACT_WITH_LOOM);
+		}
 
-   @Override
-   protected NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
-      return new SimpleNamedScreenHandlerFactory(
-         (syncId, inventory, player) -> new LoomScreenHandler(syncId, inventory, ScreenHandlerContext.create(world, pos)), TITLE
-      );
-   }
+		return ActionResult.SUCCESS;
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
-   }
+	@Override
+	protected NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
+		return new SimpleNamedScreenHandlerFactory(
+				(syncId, inventory, player) -> new LoomScreenHandler(
+						syncId,
+						inventory,
+						ScreenHandlerContext.create(world, pos)
+				), TITLE
+		);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(FACING);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(FACING);
+	}
 }

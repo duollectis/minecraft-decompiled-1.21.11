@@ -8,22 +8,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PingPackets;
 
 public record PingResultS2CPacket(long startTime) implements Packet<ClientPingResultPacketListener> {
-   public static final PacketCodec<PacketByteBuf, PingResultS2CPacket> CODEC = Packet.createCodec(PingResultS2CPacket::write, PingResultS2CPacket::new);
 
-   private PingResultS2CPacket(PacketByteBuf buf) {
-      this(buf.readLong());
-   }
+	public static final PacketCodec<PacketByteBuf, PingResultS2CPacket>
+			CODEC =
+			Packet.createCodec(PingResultS2CPacket::write, PingResultS2CPacket::new);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeLong(this.startTime);
-   }
+	private PingResultS2CPacket(PacketByteBuf buf) {
+		this(buf.readLong());
+	}
 
-   @Override
-   public PacketType<PingResultS2CPacket> getPacketType() {
-      return PingPackets.PONG_RESPONSE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeLong(this.startTime);
+	}
 
-   public void apply(ClientPingResultPacketListener clientPingResultPacketListener) {
-      clientPingResultPacketListener.onPingResult(this);
-   }
+	@Override
+	public PacketType<PingResultS2CPacket> getPacketType() {
+		return PingPackets.PONG_RESPONSE;
+	}
+
+	public void apply(ClientPingResultPacketListener clientPingResultPacketListener) {
+		clientPingResultPacketListener.onPingResult(this);
+	}
 }

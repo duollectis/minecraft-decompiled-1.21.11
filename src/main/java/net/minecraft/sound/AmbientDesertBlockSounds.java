@@ -9,96 +9,119 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 
+/**
+ * {@code AmbientDesertBlockSounds}.
+ */
 public class AmbientDesertBlockSounds {
-   private static final int SAND_SOUND_CHANCE = 2100;
-   private static final int DRY_GRASS_SOUND_CHANCE = 200;
-   private static final int DEAD_BUSH_SOUND_CHANCE = 130;
-   private static final int DEAD_BUSH_BADLANDS_PENALTY_CHANCE = 3;
-   private static final int REQUIRED_SAND_CHECK_DIRECTIONS = 3;
-   private static final int SAND_CHECK_HORIZONTAL_DISTANCE = 8;
-   private static final int SAND_CHECK_VERTICAL_DISTANCE = 5;
-   private static final int HORIZONTAL_DIRECTIONS = 4;
 
-   public static void tryPlaySandSounds(World world, BlockPos pos, Random random) {
-      if (world.getBlockState(pos.up()).isOf(Blocks.AIR)) {
-         if (random.nextInt(2100) == 0 && canPlaySandSoundsAt(world, pos)) {
-            world.playSoundClient(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.BLOCK_SAND_IDLE, SoundCategory.AMBIENT, 1.0F, 1.0F, false);
-         }
-      }
-   }
+	private static final int SAND_SOUND_CHANCE = 2100;
+	private static final int DRY_GRASS_SOUND_CHANCE = 200;
+	private static final int DEAD_BUSH_SOUND_CHANCE = 130;
+	private static final int DEAD_BUSH_BADLANDS_PENALTY_CHANCE = 3;
+	private static final int REQUIRED_SAND_CHECK_DIRECTIONS = 3;
+	private static final int SAND_CHECK_HORIZONTAL_DISTANCE = 8;
+	private static final int SAND_CHECK_VERTICAL_DISTANCE = 5;
+	private static final int HORIZONTAL_DIRECTIONS = 4;
 
-   public static void tryPlayDryGrassSounds(World world, BlockPos pos, Random random) {
-      if (random.nextInt(200) == 0 && triggersDryVegetationSounds(world, pos.down())) {
-         world.playSoundClient(SoundEvents.BLOCK_DRY_GRASS_AMBIENT, SoundCategory.AMBIENT, 1.0F, 1.0F);
-      }
-   }
+	public static void tryPlaySandSounds(World world, BlockPos pos, Random random) {
+		if (world.getBlockState(pos.up()).isOf(Blocks.AIR)) {
+			if (random.nextInt(2100) == 0 && canPlaySandSoundsAt(world, pos)) {
+				world.playSoundClient(
+						pos.getX(),
+						pos.getY(),
+						pos.getZ(),
+						SoundEvents.BLOCK_SAND_IDLE,
+						SoundCategory.AMBIENT,
+						1.0F,
+						1.0F,
+						false
+				);
+			}
+		}
+	}
 
-   public static void tryPlayDeadBushSounds(World world, BlockPos pos, Random random) {
-      if (random.nextInt(130) == 0) {
-         BlockState blockState = world.getBlockState(pos.down());
-         if ((blockState.isOf(Blocks.RED_SAND) || blockState.isIn(BlockTags.TERRACOTTA)) && random.nextInt(3) != 0) {
-            return;
-         }
+	public static void tryPlayDryGrassSounds(World world, BlockPos pos, Random random) {
+		if (random.nextInt(200) == 0 && triggersDryVegetationSounds(world, pos.down())) {
+			world.playSoundClient(SoundEvents.BLOCK_DRY_GRASS_AMBIENT, SoundCategory.AMBIENT, 1.0F, 1.0F);
+		}
+	}
 
-         if (triggersDryVegetationSounds(world, pos.down())) {
-            world.playSoundClient(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.BLOCK_DEADBUSH_IDLE, SoundCategory.AMBIENT, 1.0F, 1.0F, false);
-         }
-      }
-   }
+	public static void tryPlayDeadBushSounds(World world, BlockPos pos, Random random) {
+		if (random.nextInt(130) == 0) {
+			BlockState blockState = world.getBlockState(pos.down());
+			if ((blockState.isOf(Blocks.RED_SAND) || blockState.isIn(BlockTags.TERRACOTTA)) && random.nextInt(3) != 0) {
+				return;
+			}
 
-   public static boolean triggersDryVegetationSounds(World world, BlockPos pos) {
-      return world.getBlockState(pos).isIn(BlockTags.TRIGGERS_AMBIENT_DESERT_DRY_VEGETATION_BLOCK_SOUNDS)
-         && world.getBlockState(pos.down()).isIn(BlockTags.TRIGGERS_AMBIENT_DESERT_DRY_VEGETATION_BLOCK_SOUNDS);
-   }
+			if (triggersDryVegetationSounds(world, pos.down())) {
+				world.playSoundClient(
+						pos.getX(),
+						pos.getY(),
+						pos.getZ(),
+						SoundEvents.BLOCK_DEADBUSH_IDLE,
+						SoundCategory.AMBIENT,
+						1.0F,
+						1.0F,
+						false
+				);
+			}
+		}
+	}
 
-   private static boolean canPlaySandSoundsAt(World world, BlockPos pos) {
-      int i = 0;
-      int j = 0;
-      BlockPos.Mutable mutable = pos.mutableCopy();
+	public static boolean triggersDryVegetationSounds(World world, BlockPos pos) {
+		return world.getBlockState(pos).isIn(BlockTags.TRIGGERS_AMBIENT_DESERT_DRY_VEGETATION_BLOCK_SOUNDS)
+				&& world.getBlockState(pos.down()).isIn(BlockTags.TRIGGERS_AMBIENT_DESERT_DRY_VEGETATION_BLOCK_SOUNDS);
+	}
 
-      for (Direction direction : Direction.Type.HORIZONTAL) {
-         mutable.set(pos).move(direction, 8);
-         if (checkForSandSoundTriggers(world, mutable) && i++ >= 3) {
-            return true;
-         }
+	private static boolean canPlaySandSoundsAt(World world, BlockPos pos) {
+		int i = 0;
+		int j = 0;
+		BlockPos.Mutable mutable = pos.mutableCopy();
 
-         j++;
-         int k = 4 - j;
-         int l = k + i;
-         boolean bl = l >= 3;
-         if (!bl) {
-            return false;
-         }
-      }
+		for (Direction direction : Direction.Type.HORIZONTAL) {
+			mutable.set(pos).move(direction, 8);
+			if (checkForSandSoundTriggers(world, mutable) && i++ >= 3) {
+				return true;
+			}
 
-      return false;
-   }
+			j++;
+			int k = 4 - j;
+			int l = k + i;
+			boolean bl = l >= 3;
+			if (!bl) {
+				return false;
+			}
+		}
 
-   private static boolean checkForSandSoundTriggers(World world, BlockPos.Mutable pos) {
-      int i = world.getTopY(Heightmap.Type.WORLD_SURFACE, pos) - 1;
-      if (Math.abs(i - pos.getY()) > 5) {
-         pos.move(Direction.UP, 6);
-         BlockState blockState = world.getBlockState(pos);
-         pos.move(Direction.DOWN);
+		return false;
+	}
 
-         for (int j = 0; j < 10; j++) {
-            BlockState blockState2 = world.getBlockState(pos);
-            if (blockState.isAir() && triggersSandSounds(blockState2)) {
-               return true;
-            }
+	private static boolean checkForSandSoundTriggers(World world, BlockPos.Mutable pos) {
+		int i = world.getTopY(Heightmap.Type.WORLD_SURFACE, pos) - 1;
+		if (Math.abs(i - pos.getY()) > 5) {
+			pos.move(Direction.UP, 6);
+			BlockState blockState = world.getBlockState(pos);
+			pos.move(Direction.DOWN);
 
-            blockState = blockState2;
-            pos.move(Direction.DOWN);
-         }
+			for (int j = 0; j < 10; j++) {
+				BlockState blockState2 = world.getBlockState(pos);
+				if (blockState.isAir() && triggersSandSounds(blockState2)) {
+					return true;
+				}
 
-         return false;
-      } else {
-         boolean bl = world.getBlockState(pos.setY(i + 1)).isAir();
-         return bl && triggersSandSounds(world.getBlockState(pos.setY(i)));
-      }
-   }
+				blockState = blockState2;
+				pos.move(Direction.DOWN);
+			}
 
-   private static boolean triggersSandSounds(BlockState state) {
-      return state.isIn(BlockTags.TRIGGERS_AMBIENT_DESERT_SAND_BLOCK_SOUNDS);
-   }
+			return false;
+		}
+		else {
+			boolean bl = world.getBlockState(pos.setY(i + 1)).isAir();
+			return bl && triggersSandSounds(world.getBlockState(pos.setY(i)));
+		}
+	}
+
+	private static boolean triggersSandSounds(BlockState state) {
+		return state.isIn(BlockTags.TRIGGERS_AMBIENT_DESERT_SAND_BLOCK_SOUNDS);
+	}
 }

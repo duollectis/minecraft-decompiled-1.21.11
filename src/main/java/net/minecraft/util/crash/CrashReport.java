@@ -2,6 +2,13 @@ package net.minecraft.util.crash;
 
 import com.google.common.collect.Lists;
 import com.mojang.logging.LogUtils;
+import net.minecraft.util.SystemDetails;
+import net.minecraft.util.path.PathUtil;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.ArrayUtils;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
@@ -13,211 +20,221 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletionException;
-import net.minecraft.util.SystemDetails;
-import net.minecraft.util.path.PathUtil;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.ArrayUtils;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
+/**
+ * {@code CrashReport}.
+ */
 public class CrashReport {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
-   private final String message;
-   private final Throwable cause;
-   private final List<CrashReportSection> otherSections = Lists.newArrayList();
-   private @Nullable Path file;
-   private boolean hasStackTrace = true;
-   private StackTraceElement[] stackTrace = new StackTraceElement[0];
-   private final SystemDetails systemDetailsSection = new SystemDetails();
 
-   public CrashReport(String message, Throwable cause) {
-      this.message = message;
-      this.cause = cause;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final DateTimeFormatter
+			DATE_TIME_FORMATTER =
+			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
+	private final String message;
+	private final Throwable cause;
+	private final List<CrashReportSection> otherSections = Lists.newArrayList();
+	private @Nullable Path file;
+	private boolean hasStackTrace = true;
+	private StackTraceElement[] stackTrace = new StackTraceElement[0];
+	private final SystemDetails systemDetailsSection = new SystemDetails();
 
-   public String getMessage() {
-      return this.message;
-   }
+	public CrashReport(String message, Throwable cause) {
+		this.message = message;
+		this.cause = cause;
+	}
 
-   public Throwable getCause() {
-      return this.cause;
-   }
+	public String getMessage() {
+		return this.message;
+	}
 
-   public String getStackTrace() {
-      StringBuilder stringBuilder = new StringBuilder();
-      this.addDetails(stringBuilder);
-      return stringBuilder.toString();
-   }
+	public Throwable getCause() {
+		return this.cause;
+	}
 
-   public void addDetails(StringBuilder crashReportBuilder) {
-      if ((this.stackTrace == null || this.stackTrace.length <= 0) && !this.otherSections.isEmpty()) {
-         this.stackTrace = (StackTraceElement[])ArrayUtils.subarray(this.otherSections.get(0).getStackTrace(), 0, 1);
-      }
+	public String getStackTrace() {
+		StringBuilder stringBuilder = new StringBuilder();
+		this.addDetails(stringBuilder);
+		return stringBuilder.toString();
+	}
 
-      if (this.stackTrace != null && this.stackTrace.length > 0) {
-         crashReportBuilder.append("-- Head --\n");
-         crashReportBuilder.append("Thread: ").append(Thread.currentThread().getName()).append("\n");
-         crashReportBuilder.append("Stacktrace:\n");
+	public void addDetails(StringBuilder crashReportBuilder) {
+		if ((this.stackTrace == null || this.stackTrace.length <= 0) && !this.otherSections.isEmpty()) {
+			this.stackTrace =
+					(StackTraceElement[]) ArrayUtils.subarray(this.otherSections.get(0).getStackTrace(), 0, 1);
+		}
 
-         for (StackTraceElement stackTraceElement : this.stackTrace) {
-            crashReportBuilder.append("\t").append("at ").append(stackTraceElement);
-            crashReportBuilder.append("\n");
-         }
+		if (this.stackTrace != null && this.stackTrace.length > 0) {
+			crashReportBuilder.append("-- Head --\n");
+			crashReportBuilder.append("Thread: ").append(Thread.currentThread().getName()).append("\n");
+			crashReportBuilder.append("Stacktrace:\n");
 
-         crashReportBuilder.append("\n");
-      }
+			for (StackTraceElement stackTraceElement : this.stackTrace) {
+				crashReportBuilder.append("\t").append("at ").append(stackTraceElement);
+				crashReportBuilder.append("\n");
+			}
 
-      for (CrashReportSection crashReportSection : this.otherSections) {
-         crashReportSection.addStackTrace(crashReportBuilder);
-         crashReportBuilder.append("\n\n");
-      }
+			crashReportBuilder.append("\n");
+		}
 
-      this.systemDetailsSection.writeTo(crashReportBuilder);
-   }
+		for (CrashReportSection crashReportSection : this.otherSections) {
+			crashReportSection.addStackTrace(crashReportBuilder);
+			crashReportBuilder.append("\n\n");
+		}
 
-   public String getCauseAsString() {
-      StringWriter stringWriter = null;
-      PrintWriter printWriter = null;
-      Throwable throwable = this.cause;
-      if (throwable.getMessage() == null) {
-         if (throwable instanceof NullPointerException) {
-            throwable = new NullPointerException(this.message);
-         } else if (throwable instanceof StackOverflowError) {
-            throwable = new StackOverflowError(this.message);
-         } else if (throwable instanceof OutOfMemoryError) {
-            throwable = new OutOfMemoryError(this.message);
-         }
+		this.systemDetailsSection.writeTo(crashReportBuilder);
+	}
 
-         throwable.setStackTrace(this.cause.getStackTrace());
-      }
+	public String getCauseAsString() {
+		StringWriter stringWriter = null;
+		PrintWriter printWriter = null;
+		Throwable throwable = this.cause;
+		if (throwable.getMessage() == null) {
+			if (throwable instanceof NullPointerException) {
+				throwable = new NullPointerException(this.message);
+			}
+			else if (throwable instanceof StackOverflowError) {
+				throwable = new StackOverflowError(this.message);
+			}
+			else if (throwable instanceof OutOfMemoryError) {
+				throwable = new OutOfMemoryError(this.message);
+			}
 
-      String var4;
-      try {
-         stringWriter = new StringWriter();
-         printWriter = new PrintWriter(stringWriter);
-         throwable.printStackTrace(printWriter);
-         var4 = stringWriter.toString();
-      } finally {
-         IOUtils.closeQuietly(stringWriter);
-         IOUtils.closeQuietly(printWriter);
-      }
+			throwable.setStackTrace(this.cause.getStackTrace());
+		}
 
-      return var4;
-   }
+		String var4;
+		try {
+			stringWriter = new StringWriter();
+			printWriter = new PrintWriter(stringWriter);
+			throwable.printStackTrace(printWriter);
+			var4 = stringWriter.toString();
+		}
+		finally {
+			IOUtils.closeQuietly(stringWriter);
+			IOUtils.closeQuietly(printWriter);
+		}
 
-   public String asString(ReportType type, List<String> extraInfo) {
-      StringBuilder stringBuilder = new StringBuilder();
-      type.addHeaderAndNugget(stringBuilder, extraInfo);
-      stringBuilder.append("Time: ");
-      stringBuilder.append(DATE_TIME_FORMATTER.format(ZonedDateTime.now()));
-      stringBuilder.append("\n");
-      stringBuilder.append("Description: ");
-      stringBuilder.append(this.message);
-      stringBuilder.append("\n\n");
-      stringBuilder.append(this.getCauseAsString());
-      stringBuilder.append("\n\nA detailed walkthrough of the error, its code path and all known details is as follows:\n");
+		return var4;
+	}
 
-      for (int i = 0; i < 87; i++) {
-         stringBuilder.append("-");
-      }
+	public String asString(ReportType type, List<String> extraInfo) {
+		StringBuilder stringBuilder = new StringBuilder();
+		type.addHeaderAndNugget(stringBuilder, extraInfo);
+		stringBuilder.append("Time: ");
+		stringBuilder.append(DATE_TIME_FORMATTER.format(ZonedDateTime.now()));
+		stringBuilder.append("\n");
+		stringBuilder.append("Description: ");
+		stringBuilder.append(this.message);
+		stringBuilder.append("\n\n");
+		stringBuilder.append(this.getCauseAsString());
+		stringBuilder.append(
+				"\n\nA detailed walkthrough of the error, its code path and all known details is as follows:\n");
 
-      stringBuilder.append("\n\n");
-      this.addDetails(stringBuilder);
-      return stringBuilder.toString();
-   }
+		for (int i = 0; i < 87; i++) {
+			stringBuilder.append("-");
+		}
 
-   public String asString(ReportType type) {
-      return this.asString(type, List.of());
-   }
+		stringBuilder.append("\n\n");
+		this.addDetails(stringBuilder);
+		return stringBuilder.toString();
+	}
 
-   public @Nullable Path getFile() {
-      return this.file;
-   }
+	public String asString(ReportType type) {
+		return this.asString(type, List.of());
+	}
 
-   public boolean writeToFile(Path path, ReportType type, List<String> extraInfo) {
-      if (this.file != null) {
-         return false;
-      } else {
-         try {
-            if (path.getParent() != null) {
-               PathUtil.createDirectories(path.getParent());
-            }
+	public @Nullable Path getFile() {
+		return this.file;
+	}
 
-            try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
-               writer.write(this.asString(type, extraInfo));
-            }
+	public boolean writeToFile(Path path, ReportType type, List<String> extraInfo) {
+		if (this.file != null) {
+			return false;
+		}
+		else {
+			try {
+				if (path.getParent() != null) {
+					PathUtil.createDirectories(path.getParent());
+				}
 
-            this.file = path;
-            return true;
-         } catch (Throwable var9) {
-            LOGGER.error("Could not save crash report to {}", path, var9);
-            return false;
-         }
-      }
-   }
+				try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+					writer.write(this.asString(type, extraInfo));
+				}
 
-   public boolean writeToFile(Path path, ReportType type) {
-      return this.writeToFile(path, type, List.of());
-   }
+				this.file = path;
+				return true;
+			}
+			catch (Throwable var9) {
+				LOGGER.error("Could not save crash report to {}", path, var9);
+				return false;
+			}
+		}
+	}
 
-   public SystemDetails getSystemDetailsSection() {
-      return this.systemDetailsSection;
-   }
+	public boolean writeToFile(Path path, ReportType type) {
+		return this.writeToFile(path, type, List.of());
+	}
 
-   public CrashReportSection addElement(String name) {
-      return this.addElement(name, 1);
-   }
+	public SystemDetails getSystemDetailsSection() {
+		return this.systemDetailsSection;
+	}
 
-   public CrashReportSection addElement(String name, int ignoredStackTraceCallCount) {
-      CrashReportSection crashReportSection = new CrashReportSection(name);
-      if (this.hasStackTrace) {
-         int i = crashReportSection.initStackTrace(ignoredStackTraceCallCount);
-         StackTraceElement[] stackTraceElements = this.cause.getStackTrace();
-         StackTraceElement stackTraceElement = null;
-         StackTraceElement stackTraceElement2 = null;
-         int j = stackTraceElements.length - i;
-         if (j < 0) {
-            LOGGER.error("Negative index in crash report handler ({}/{})", stackTraceElements.length, i);
-         }
+	public CrashReportSection addElement(String name) {
+		return this.addElement(name, 1);
+	}
 
-         if (stackTraceElements != null && 0 <= j && j < stackTraceElements.length) {
-            stackTraceElement = stackTraceElements[j];
-            if (stackTraceElements.length + 1 - i < stackTraceElements.length) {
-               stackTraceElement2 = stackTraceElements[stackTraceElements.length + 1 - i];
-            }
-         }
+	public CrashReportSection addElement(String name, int ignoredStackTraceCallCount) {
+		CrashReportSection crashReportSection = new CrashReportSection(name);
+		if (this.hasStackTrace) {
+			int i = crashReportSection.initStackTrace(ignoredStackTraceCallCount);
+			StackTraceElement[] stackTraceElements = this.cause.getStackTrace();
+			StackTraceElement stackTraceElement = null;
+			StackTraceElement stackTraceElement2 = null;
+			int j = stackTraceElements.length - i;
+			if (j < 0) {
+				LOGGER.error("Negative index in crash report handler ({}/{})", stackTraceElements.length, i);
+			}
 
-         this.hasStackTrace = crashReportSection.shouldGenerateStackTrace(stackTraceElement, stackTraceElement2);
-         if (stackTraceElements != null && stackTraceElements.length >= i && 0 <= j && j < stackTraceElements.length) {
-            this.stackTrace = new StackTraceElement[j];
-            System.arraycopy(stackTraceElements, 0, this.stackTrace, 0, this.stackTrace.length);
-         } else {
-            this.hasStackTrace = false;
-         }
-      }
+			if (stackTraceElements != null && 0 <= j && j < stackTraceElements.length) {
+				stackTraceElement = stackTraceElements[j];
+				if (stackTraceElements.length + 1 - i < stackTraceElements.length) {
+					stackTraceElement2 = stackTraceElements[stackTraceElements.length + 1 - i];
+				}
+			}
 
-      this.otherSections.add(crashReportSection);
-      return crashReportSection;
-   }
+			this.hasStackTrace = crashReportSection.shouldGenerateStackTrace(stackTraceElement, stackTraceElement2);
+			if (stackTraceElements != null && stackTraceElements.length >= i && 0 <= j
+					&& j < stackTraceElements.length) {
+				this.stackTrace = new StackTraceElement[j];
+				System.arraycopy(stackTraceElements, 0, this.stackTrace, 0, this.stackTrace.length);
+			}
+			else {
+				this.hasStackTrace = false;
+			}
+		}
 
-   public static CrashReport create(Throwable cause, String title) {
-      while (cause instanceof CompletionException && cause.getCause() != null) {
-         cause = cause.getCause();
-      }
+		this.otherSections.add(crashReportSection);
+		return crashReportSection;
+	}
 
-      CrashReport crashReport;
-      if (cause instanceof CrashException crashException) {
-         crashReport = crashException.getReport();
-      } else {
-         crashReport = new CrashReport(title, cause);
-      }
+	public static CrashReport create(Throwable cause, String title) {
+		while (cause instanceof CompletionException && cause.getCause() != null) {
+			cause = cause.getCause();
+		}
 
-      return crashReport;
-   }
+		CrashReport crashReport;
+		if (cause instanceof CrashException crashException) {
+			crashReport = crashException.getReport();
+		}
+		else {
+			crashReport = new CrashReport(title, cause);
+		}
 
-   public static void initCrashReport() {
-      CrashMemoryReserve.reserveMemory();
-      new CrashReport("Don't panic!", new Throwable()).asString(ReportType.MINECRAFT_CRASH_REPORT);
-   }
+		return crashReport;
+	}
+
+	public static void initCrashReport() {
+		CrashMemoryReserve.reserveMemory();
+		new CrashReport("Don't panic!", new Throwable()).asString(ReportType.MINECRAFT_CRASH_REPORT);
+	}
 }

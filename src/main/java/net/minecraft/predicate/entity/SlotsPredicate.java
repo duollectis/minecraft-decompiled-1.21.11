@@ -2,36 +2,47 @@ package net.minecraft.predicate.entity;
 
 import com.mojang.serialization.Codec;
 import it.unimi.dsi.fastutil.ints.IntList;
-import java.util.Map;
-import java.util.Map.Entry;
 import net.minecraft.inventory.SlotRange;
 import net.minecraft.inventory.SlotRanges;
 import net.minecraft.inventory.StackReference;
 import net.minecraft.inventory.StackReferenceGetter;
 import net.minecraft.predicate.item.ItemPredicate;
 
+import java.util.Map;
+import java.util.Map.Entry;
+
+/**
+ * {@code SlotsPredicate}.
+ */
 public record SlotsPredicate(Map<SlotRange, ItemPredicate> slots) {
-   public static final Codec<SlotsPredicate> CODEC = Codec.unboundedMap(SlotRanges.CODEC, ItemPredicate.CODEC).xmap(SlotsPredicate::new, SlotsPredicate::slots);
 
-   public boolean matches(StackReferenceGetter stackReferenceGetter) {
-      for (Entry<SlotRange, ItemPredicate> entry : this.slots.entrySet()) {
-         if (!matches(stackReferenceGetter, entry.getValue(), entry.getKey().getSlotIds())) {
-            return false;
-         }
-      }
+	public static final Codec<SlotsPredicate>
+			CODEC =
+			Codec.unboundedMap(SlotRanges.CODEC, ItemPredicate.CODEC).xmap(SlotsPredicate::new, SlotsPredicate::slots);
 
-      return true;
-   }
+	public boolean matches(StackReferenceGetter stackReferenceGetter) {
+		for (Entry<SlotRange, ItemPredicate> entry : this.slots.entrySet()) {
+			if (!matches(stackReferenceGetter, entry.getValue(), entry.getKey().getSlotIds())) {
+				return false;
+			}
+		}
 
-   private static boolean matches(StackReferenceGetter stackReferenceGetter, ItemPredicate itemPredicate, IntList slotIds) {
-      for (int i = 0; i < slotIds.size(); i++) {
-         int j = slotIds.getInt(i);
-         StackReference stackReference = stackReferenceGetter.getStackReference(j);
-         if (stackReference != null && itemPredicate.test(stackReference.get())) {
-            return true;
-         }
-      }
+		return true;
+	}
 
-      return false;
-   }
+	private static boolean matches(
+			StackReferenceGetter stackReferenceGetter,
+			ItemPredicate itemPredicate,
+			IntList slotIds
+	) {
+		for (int i = 0; i < slotIds.size(); i++) {
+			int j = slotIds.getInt(i);
+			StackReference stackReference = stackReferenceGetter.getStackReference(j);
+			if (stackReference != null && itemPredicate.test(stackReference.get())) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 }

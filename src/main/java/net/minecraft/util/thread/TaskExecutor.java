@@ -4,44 +4,48 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
+/**
+ * {@code TaskExecutor}.
+ */
 public interface TaskExecutor<R extends Runnable> extends AutoCloseable {
-   String getName();
 
-   void send(R runnable);
+	String getName();
 
-   @Override
-   default void close() {
-   }
+	void send(R runnable);
 
-   R createTask(Runnable runnable);
+	@Override
+	default void close() {
+	}
 
-   default <Source> CompletableFuture<Source> executeAsync(Consumer<CompletableFuture<Source>> future) {
-      CompletableFuture<Source> completableFuture = new CompletableFuture<>();
-      this.send(this.createTask(() -> future.accept(completableFuture)));
-      return completableFuture;
-   }
+	R createTask(Runnable runnable);
 
-   static TaskExecutor<Runnable> of(String name, Executor executor) {
-      return new TaskExecutor<Runnable>() {
-         @Override
-         public String getName() {
-            return name;
-         }
+	default <Source> CompletableFuture<Source> executeAsync(Consumer<CompletableFuture<Source>> future) {
+		CompletableFuture<Source> completableFuture = new CompletableFuture<>();
+		this.send(this.createTask(() -> future.accept(completableFuture)));
+		return completableFuture;
+	}
 
-         @Override
-         public void send(Runnable runnable) {
-            executor.execute(runnable);
-         }
+	static TaskExecutor<Runnable> of(String name, Executor executor) {
+		return new TaskExecutor<Runnable>() {
+			@Override
+			public String getName() {
+				return name;
+			}
 
-         @Override
-         public Runnable createTask(Runnable runnable) {
-            return runnable;
-         }
+			@Override
+			public void send(Runnable runnable) {
+				executor.execute(runnable);
+			}
 
-         @Override
-         public String toString() {
-            return name;
-         }
-      };
-   }
+			@Override
+			public Runnable createTask(Runnable runnable) {
+				return runnable;
+			}
+
+			@Override
+			public String toString() {
+				return name;
+			}
+		};
+	}
 }

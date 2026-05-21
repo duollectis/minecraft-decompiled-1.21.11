@@ -1,80 +1,89 @@
 package net.minecraft.client.sound;
 
-import java.util.concurrent.locks.LockSupport;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.thread.ThreadExecutor;
 
+import java.util.concurrent.locks.LockSupport;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SoundExecutor}.
+ */
 public class SoundExecutor extends ThreadExecutor<Runnable> {
-   private Thread thread = this.createThread();
-   private volatile boolean stopped;
 
-   public SoundExecutor() {
-      super("Sound executor");
-   }
+	private Thread thread = this.createThread();
+	private volatile boolean stopped;
 
-   private Thread createThread() {
-      Thread thread = new Thread(this::waitForStop);
-      thread.setDaemon(true);
-      thread.setName("Sound engine");
-      thread.setUncaughtExceptionHandler(
-         (threadx, throwable) -> MinecraftClient.getInstance()
-            .setCrashReportSupplierAndAddDetails(CrashReport.create(throwable, "Uncaught exception on thread: " + threadx.getName()))
-      );
-      thread.start();
-      return thread;
-   }
+	public SoundExecutor() {
+		super("Sound executor");
+	}
 
-   @Override
-   public Runnable createTask(Runnable runnable) {
-      return runnable;
-   }
+	private Thread createThread() {
+		Thread thread = new Thread(this::waitForStop);
+		thread.setDaemon(true);
+		thread.setName("Sound engine");
+		thread.setUncaughtExceptionHandler(
+				(threadx, throwable) -> MinecraftClient.getInstance()
+				                                       .setCrashReportSupplierAndAddDetails(CrashReport.create(
+						                                       throwable,
+						                                       "Uncaught exception on thread: " + threadx.getName()
+				                                       ))
+		);
+		thread.start();
+		return thread;
+	}
 
-   @Override
-   public void send(Runnable runnable) {
-      if (!this.stopped) {
-         super.send(runnable);
-      }
-   }
+	@Override
+	public Runnable createTask(Runnable runnable) {
+		return runnable;
+	}
 
-   @Override
-   protected boolean canExecute(Runnable task) {
-      return !this.stopped;
-   }
+	@Override
+	public void send(Runnable runnable) {
+		if (!this.stopped) {
+			super.send(runnable);
+		}
+	}
 
-   @Override
-   protected Thread getThread() {
-      return this.thread;
-   }
+	@Override
+	protected boolean canExecute(Runnable task) {
+		return !this.stopped;
+	}
 
-   private void waitForStop() {
-      while (!this.stopped) {
-         this.runTasks(() -> this.stopped);
-      }
-   }
+	@Override
+	protected Thread getThread() {
+		return this.thread;
+	}
 
-   @Override
-   protected void waitForTasks() {
-      LockSupport.park("waiting for tasks");
-   }
+	private void waitForStop() {
+		while (!this.stopped) {
+			this.runTasks(() -> this.stopped);
+		}
+	}
 
-   public void stop() {
-      this.stopped = true;
-      this.cancelTasks();
-      this.thread.interrupt();
+	@Override
+	protected void waitForTasks() {
+		LockSupport.park("waiting for tasks");
+	}
 
-      try {
-         this.thread.join();
-      } catch (InterruptedException var2) {
-         Thread.currentThread().interrupt();
-      }
-   }
+	public void stop() {
+		this.stopped = true;
+		this.cancelTasks();
+		this.thread.interrupt();
 
-   public void restart() {
-      this.stopped = false;
-      this.thread = this.createThread();
-   }
+		try {
+			this.thread.join();
+		}
+		catch (InterruptedException var2) {
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	public void restart() {
+		this.stopped = false;
+		this.thread = this.createThread();
+	}
 }

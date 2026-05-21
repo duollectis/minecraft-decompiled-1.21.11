@@ -10,29 +10,36 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
-public record EntityPositionSyncS2CPacket(int id, EntityPosition values, boolean onGround) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, EntityPositionSyncS2CPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.VAR_INT,
-      EntityPositionSyncS2CPacket::id,
-      EntityPosition.PACKET_CODEC,
-      EntityPositionSyncS2CPacket::values,
-      PacketCodecs.BOOLEAN,
-      EntityPositionSyncS2CPacket::onGround,
-      EntityPositionSyncS2CPacket::new
-   );
+public record EntityPositionSyncS2CPacket(
+		int id,
+		EntityPosition values,
+		boolean onGround
+) implements Packet<ClientPlayPacketListener> {
 
-   public static EntityPositionSyncS2CPacket create(Entity entity) {
-      return new EntityPositionSyncS2CPacket(
-         entity.getId(), new EntityPosition(entity.getSyncedPos(), entity.getVelocity(), entity.getYaw(), entity.getPitch()), entity.isOnGround()
-      );
-   }
+	public static final PacketCodec<PacketByteBuf, EntityPositionSyncS2CPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.VAR_INT,
+			EntityPositionSyncS2CPacket::id,
+			EntityPosition.PACKET_CODEC,
+			EntityPositionSyncS2CPacket::values,
+			PacketCodecs.BOOLEAN,
+			EntityPositionSyncS2CPacket::onGround,
+			EntityPositionSyncS2CPacket::new
+	);
 
-   @Override
-   public PacketType<EntityPositionSyncS2CPacket> getPacketType() {
-      return PlayPackets.ENTITY_POSITION_SYNC;
-   }
+	public static EntityPositionSyncS2CPacket create(Entity entity) {
+		return new EntityPositionSyncS2CPacket(
+				entity.getId(),
+				new EntityPosition(entity.getSyncedPos(), entity.getVelocity(), entity.getYaw(), entity.getPitch()),
+				entity.isOnGround()
+		);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntityPositionSync(this);
-   }
+	@Override
+	public PacketType<EntityPositionSyncS2CPacket> getPacketType() {
+		return PlayPackets.ENTITY_POSITION_SYNC;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntityPositionSync(this);
+	}
 }

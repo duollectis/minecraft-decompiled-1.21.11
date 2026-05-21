@@ -7,20 +7,27 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SentTelemetryEvent}.
+ */
 public record SentTelemetryEvent(TelemetryEventType type, PropertyMap properties) {
-   public static final Codec<SentTelemetryEvent> CODEC = TelemetryEventType.CODEC.dispatchStable(SentTelemetryEvent::type, TelemetryEventType::getCodec);
 
-   public SentTelemetryEvent(TelemetryEventType type, PropertyMap properties) {
-      properties.keySet().forEach(property -> {
-         if (!type.hasProperty((TelemetryEventProperty<?>)property)) {
-            throw new IllegalArgumentException("Property '" + property.id() + "' not expected for event: '" + type.getId() + "'");
-         }
-      });
-      this.type = type;
-      this.properties = properties;
-   }
+	public static final Codec<SentTelemetryEvent>
+			CODEC =
+			TelemetryEventType.CODEC.dispatchStable(SentTelemetryEvent::type, TelemetryEventType::getCodec);
 
-   public TelemetryEvent createEvent(TelemetrySession session) {
-      return this.type.createEvent(session, this.properties);
-   }
+	public SentTelemetryEvent(TelemetryEventType type, PropertyMap properties) {
+		properties.keySet().forEach(property -> {
+			if (!type.hasProperty((TelemetryEventProperty<?>) property)) {
+				throw new IllegalArgumentException(
+						"Property '" + property.id() + "' not expected for event: '" + type.getId() + "'");
+			}
+		});
+		this.type = type;
+		this.properties = properties;
+	}
+
+	public TelemetryEvent createEvent(TelemetrySession session) {
+		return this.type.createEvent(session, this.properties);
+	}
 }

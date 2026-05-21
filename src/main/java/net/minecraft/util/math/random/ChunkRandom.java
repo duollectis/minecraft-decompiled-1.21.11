@@ -2,85 +2,96 @@ package net.minecraft.util.math.random;
 
 import java.util.function.LongFunction;
 
+/**
+ * {@code ChunkRandom}.
+ */
 public class ChunkRandom extends CheckedRandom {
-   private final Random baseRandom;
-   private int sampleCount;
 
-   public ChunkRandom(Random baseRandom) {
-      super(0L);
-      this.baseRandom = baseRandom;
-   }
+	private final Random baseRandom;
+	private int sampleCount;
 
-   public int getSampleCount() {
-      return this.sampleCount;
-   }
+	public ChunkRandom(Random baseRandom) {
+		super(0L);
+		this.baseRandom = baseRandom;
+	}
 
-   @Override
-   public Random split() {
-      return this.baseRandom.split();
-   }
+	public int getSampleCount() {
+		return this.sampleCount;
+	}
 
-   @Override
-   public RandomSplitter nextSplitter() {
-      return this.baseRandom.nextSplitter();
-   }
+	@Override
+	public Random split() {
+		return this.baseRandom.split();
+	}
 
-   @Override
-   public int next(int bits) {
-      this.sampleCount++;
-      return this.baseRandom instanceof CheckedRandom checkedRandom ? checkedRandom.next(bits) : (int)(this.baseRandom.nextLong() >>> 64 - bits);
-   }
+	@Override
+	public RandomSplitter nextSplitter() {
+		return this.baseRandom.nextSplitter();
+	}
 
-   @Override
-   public synchronized void setSeed(long seed) {
-      if (this.baseRandom != null) {
-         this.baseRandom.setSeed(seed);
-      }
-   }
+	@Override
+	public int next(int bits) {
+		this.sampleCount++;
+		return this.baseRandom instanceof CheckedRandom checkedRandom ? checkedRandom.next(bits)
+		                                                              : (int) (this.baseRandom.nextLong() >>> 64 - bits
+		                                                              );
+	}
 
-   public long setPopulationSeed(long worldSeed, int blockX, int blockZ) {
-      this.setSeed(worldSeed);
-      long l = this.nextLong() | 1L;
-      long m = this.nextLong() | 1L;
-      long n = blockX * l + blockZ * m ^ worldSeed;
-      this.setSeed(n);
-      return n;
-   }
+	@Override
+	public synchronized void setSeed(long seed) {
+		if (this.baseRandom != null) {
+			this.baseRandom.setSeed(seed);
+		}
+	}
 
-   public void setDecoratorSeed(long populationSeed, int index, int step) {
-      long l = populationSeed + index + 10000 * step;
-      this.setSeed(l);
-   }
+	public long setPopulationSeed(long worldSeed, int blockX, int blockZ) {
+		this.setSeed(worldSeed);
+		long l = this.nextLong() | 1L;
+		long m = this.nextLong() | 1L;
+		long n = blockX * l + blockZ * m ^ worldSeed;
+		this.setSeed(n);
+		return n;
+	}
 
-   public void setCarverSeed(long worldSeed, int chunkX, int chunkZ) {
-      this.setSeed(worldSeed);
-      long l = this.nextLong();
-      long m = this.nextLong();
-      long n = chunkX * l ^ chunkZ * m ^ worldSeed;
-      this.setSeed(n);
-   }
+	public void setDecoratorSeed(long populationSeed, int index, int step) {
+		long l = populationSeed + index + 10000 * step;
+		this.setSeed(l);
+	}
 
-   public void setRegionSeed(long worldSeed, int regionX, int regionZ, int salt) {
-      long l = regionX * 341873128712L + regionZ * 132897987541L + worldSeed + salt;
-      this.setSeed(l);
-   }
+	public void setCarverSeed(long worldSeed, int chunkX, int chunkZ) {
+		this.setSeed(worldSeed);
+		long l = this.nextLong();
+		long m = this.nextLong();
+		long n = chunkX * l ^ chunkZ * m ^ worldSeed;
+		this.setSeed(n);
+	}
 
-   public static Random getSlimeRandom(int chunkX, int chunkZ, long worldSeed, long scrambler) {
-      return Random.create(worldSeed + chunkX * chunkX * 4987142 + chunkX * 5947611 + chunkZ * chunkZ * 4392871L + chunkZ * 389711 ^ scrambler);
-   }
+	public void setRegionSeed(long worldSeed, int regionX, int regionZ, int salt) {
+		long l = regionX * 341873128712L + regionZ * 132897987541L + worldSeed + salt;
+		this.setSeed(l);
+	}
 
-   public static enum RandomProvider {
-      LEGACY(CheckedRandom::new),
-      XOROSHIRO(Xoroshiro128PlusPlusRandom::new);
+	public static Random getSlimeRandom(int chunkX, int chunkZ, long worldSeed, long scrambler) {
+		return Random.create(
+				worldSeed + chunkX * chunkX * 4987142 + chunkX * 5947611 + chunkZ * chunkZ * 4392871L + chunkZ * 389711
+						^ scrambler);
+	}
 
-      private final LongFunction<Random> provider;
+	/**
+	 * {@code RandomProvider}.
+	 */
+	public static enum RandomProvider {
+		LEGACY(CheckedRandom::new),
+		XOROSHIRO(Xoroshiro128PlusPlusRandom::new);
 
-      private RandomProvider(final LongFunction<Random> provider) {
-         this.provider = provider;
-      }
+		private final LongFunction<Random> provider;
 
-      public Random create(long seed) {
-         return this.provider.apply(seed);
-      }
-   }
+		private RandomProvider(final LongFunction<Random> provider) {
+			this.provider = provider;
+		}
+
+		public Random create(long seed) {
+			return this.provider.apply(seed);
+		}
+	}
 }

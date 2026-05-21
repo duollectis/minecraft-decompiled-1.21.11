@@ -8,47 +8,50 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class HealthUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, HealthUpdateS2CPacket> CODEC = Packet.createCodec(HealthUpdateS2CPacket::write, HealthUpdateS2CPacket::new);
-   private final float health;
-   private final int food;
-   private final float saturation;
 
-   public HealthUpdateS2CPacket(float health, int food, float saturation) {
-      this.health = health;
-      this.food = food;
-      this.saturation = saturation;
-   }
+	public static final PacketCodec<PacketByteBuf, HealthUpdateS2CPacket>
+			CODEC =
+			Packet.createCodec(HealthUpdateS2CPacket::write, HealthUpdateS2CPacket::new);
+	private final float health;
+	private final int food;
+	private final float saturation;
 
-   private HealthUpdateS2CPacket(PacketByteBuf buf) {
-      this.health = buf.readFloat();
-      this.food = buf.readVarInt();
-      this.saturation = buf.readFloat();
-   }
+	public HealthUpdateS2CPacket(float health, int food, float saturation) {
+		this.health = health;
+		this.food = food;
+		this.saturation = saturation;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeFloat(this.health);
-      buf.writeVarInt(this.food);
-      buf.writeFloat(this.saturation);
-   }
+	private HealthUpdateS2CPacket(PacketByteBuf buf) {
+		this.health = buf.readFloat();
+		this.food = buf.readVarInt();
+		this.saturation = buf.readFloat();
+	}
 
-   @Override
-   public PacketType<HealthUpdateS2CPacket> getPacketType() {
-      return PlayPackets.SET_HEALTH;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeFloat(this.health);
+		buf.writeVarInt(this.food);
+		buf.writeFloat(this.saturation);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onHealthUpdate(this);
-   }
+	@Override
+	public PacketType<HealthUpdateS2CPacket> getPacketType() {
+		return PlayPackets.SET_HEALTH;
+	}
 
-   public float getHealth() {
-      return this.health;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onHealthUpdate(this);
+	}
 
-   public int getFood() {
-      return this.food;
-   }
+	public float getHealth() {
+		return this.health;
+	}
 
-   public float getSaturation() {
-      return this.saturation;
-   }
+	public int getFood() {
+		return this.food;
+	}
+
+	public float getSaturation() {
+		return this.saturation;
+	}
 }

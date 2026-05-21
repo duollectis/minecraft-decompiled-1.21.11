@@ -7,37 +7,43 @@ import net.minecraft.network.packet.c2s.play.UpdateCommandBlockMinecartC2SPacket
 import net.minecraft.world.CommandBlockExecutor;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MinecartCommandBlockScreen}.
+ */
 public class MinecartCommandBlockScreen extends AbstractCommandBlockScreen {
-   private final CommandBlockMinecartEntity field_63536;
 
-   public MinecartCommandBlockScreen(CommandBlockMinecartEntity commandBlockMinecartEntity) {
-      this.field_63536 = commandBlockMinecartEntity;
-   }
+	private final CommandBlockMinecartEntity commandBlockMinecart;
 
-   @Override
-   public CommandBlockExecutor getCommandExecutor() {
-      return this.field_63536.getCommandExecutor();
-   }
+	public MinecartCommandBlockScreen(CommandBlockMinecartEntity commandBlockMinecartEntity) {
+		this.commandBlockMinecart = commandBlockMinecartEntity;
+	}
 
-   @Override
-   int getTrackOutputButtonHeight() {
-      return 150;
-   }
+	@Override
+	public CommandBlockExecutor getCommandExecutor() {
+		return this.commandBlockMinecart.getCommandExecutor();
+	}
 
-   @Override
-   protected void init() {
-      super.init();
-      this.consoleCommandTextField.setText(this.getCommandExecutor().getCommand());
-   }
+	@Override
+	int getTrackOutputButtonHeight() {
+		return 150;
+	}
 
-   @Override
-   protected void syncSettingsToServer() {
-      this.client
-         .getNetworkHandler()
-         .sendPacket(
-            new UpdateCommandBlockMinecartC2SPacket(
-               this.field_63536.getId(), this.consoleCommandTextField.getText(), this.field_63536.getCommandExecutor().isTrackingOutput()
-            )
-         );
-   }
+	@Override
+	protected void init() {
+		super.init();
+		this.consoleCommandTextField.setText(this.getCommandExecutor().getCommand());
+	}
+
+	@Override
+	protected void syncSettingsToServer() {
+		this.client
+				.getNetworkHandler()
+				.sendPacket(
+						new UpdateCommandBlockMinecartC2SPacket(
+								this.commandBlockMinecart.getId(),
+								this.consoleCommandTextField.getText(),
+								this.commandBlockMinecart.getCommandExecutor().isTrackingOutput()
+						)
+				);
+	}
 }

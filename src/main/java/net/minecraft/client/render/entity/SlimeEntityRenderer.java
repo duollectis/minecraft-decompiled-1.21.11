@@ -12,39 +12,43 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SlimeEntityRenderer}.
+ */
 public class SlimeEntityRenderer extends MobEntityRenderer<SlimeEntity, SlimeEntityRenderState, SlimeEntityModel> {
-   public static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/slime/slime.png");
 
-   public SlimeEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new SlimeEntityModel(context.getPart(EntityModelLayers.SLIME)), 0.25F);
-      this.addFeature(new SlimeOverlayFeatureRenderer(this, context.getEntityModels()));
-   }
+	public static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/slime/slime.png");
 
-   protected float getShadowRadius(SlimeEntityRenderState slimeEntityRenderState) {
-      return slimeEntityRenderState.size * 0.25F;
-   }
+	public SlimeEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new SlimeEntityModel(context.getPart(EntityModelLayers.SLIME)), 0.25F);
+		this.addFeature(new SlimeOverlayFeatureRenderer(this, context.getEntityModels()));
+	}
 
-   protected void scale(SlimeEntityRenderState slimeEntityRenderState, MatrixStack matrixStack) {
-      float f = 0.999F;
-      matrixStack.scale(0.999F, 0.999F, 0.999F);
-      matrixStack.translate(0.0F, 0.001F, 0.0F);
-      float g = slimeEntityRenderState.size;
-      float h = slimeEntityRenderState.stretch / (g * 0.5F + 1.0F);
-      float i = 1.0F / (h + 1.0F);
-      matrixStack.scale(i * g, 1.0F / i * g, i * g);
-   }
+	protected float getShadowRadius(SlimeEntityRenderState slimeEntityRenderState) {
+		return slimeEntityRenderState.size * 0.25F;
+	}
 
-   public Identifier getTexture(SlimeEntityRenderState slimeEntityRenderState) {
-      return TEXTURE;
-   }
+	protected void scale(SlimeEntityRenderState slimeEntityRenderState, MatrixStack matrixStack) {
+		float f = 0.999F;
+		matrixStack.scale(0.999F, 0.999F, 0.999F);
+		matrixStack.translate(0.0F, 0.001F, 0.0F);
+		float g = slimeEntityRenderState.size;
+		float h = slimeEntityRenderState.stretch / (g * 0.5F + 1.0F);
+		float i = 1.0F / (h + 1.0F);
+		matrixStack.scale(i * g, 1.0F / i * g, i * g);
+	}
 
-   public SlimeEntityRenderState createRenderState() {
-      return new SlimeEntityRenderState();
-   }
+	public Identifier getTexture(SlimeEntityRenderState slimeEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(SlimeEntity slimeEntity, SlimeEntityRenderState slimeEntityRenderState, float f) {
-      super.updateRenderState(slimeEntity, slimeEntityRenderState, f);
-      slimeEntityRenderState.stretch = MathHelper.lerp(f, slimeEntity.lastStretch, slimeEntity.stretch);
-      slimeEntityRenderState.size = slimeEntity.getSize();
-   }
+	public SlimeEntityRenderState createRenderState() {
+		return new SlimeEntityRenderState();
+	}
+
+	public void updateRenderState(SlimeEntity slimeEntity, SlimeEntityRenderState slimeEntityRenderState, float f) {
+		super.updateRenderState(slimeEntity, slimeEntityRenderState, f);
+		slimeEntityRenderState.stretch = MathHelper.lerp(f, slimeEntity.lastStretch, slimeEntity.stretch);
+		slimeEntityRenderState.size = slimeEntity.getSize();
+	}
 }

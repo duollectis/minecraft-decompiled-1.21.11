@@ -10,19 +10,23 @@ import net.minecraft.entity.mob.PillagerEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PillagerEntityRenderer}.
+ */
 public class PillagerEntityRenderer extends IllagerEntityRenderer<PillagerEntity, IllagerEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/illager/pillager.png");
 
-   public PillagerEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new IllagerEntityModel<>(context.getPart(EntityModelLayers.PILLAGER)), 0.5F);
-      this.addFeature(new HeldItemFeatureRenderer<>(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/illager/pillager.png");
 
-   public Identifier getTexture(IllagerEntityRenderState illagerEntityRenderState) {
-      return TEXTURE;
-   }
+	public PillagerEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new IllagerEntityModel<>(context.getPart(EntityModelLayers.PILLAGER)), 0.5F);
+		this.addFeature(new HeldItemFeatureRenderer<>(this));
+	}
 
-   public IllagerEntityRenderState createRenderState() {
-      return new IllagerEntityRenderState();
-   }
+	public Identifier getTexture(IllagerEntityRenderState illagerEntityRenderState) {
+		return TEXTURE;
+	}
+
+	public IllagerEntityRenderState createRenderState() {
+		return new IllagerEntityRenderState();
+	}
 }

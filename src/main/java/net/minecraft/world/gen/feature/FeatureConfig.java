@@ -2,10 +2,14 @@ package net.minecraft.world.gen.feature;
 
 import java.util.stream.Stream;
 
+/**
+ * {@code FeatureConfig}.
+ */
 public interface FeatureConfig {
-   DefaultFeatureConfig DEFAULT = DefaultFeatureConfig.INSTANCE;
 
-   default Stream<ConfiguredFeature<?, ?>> getDecoratedFeatures() {
-      return Stream.empty();
-   }
+	DefaultFeatureConfig DEFAULT = DefaultFeatureConfig.INSTANCE;
+
+	default Stream<ConfiguredFeature<?, ?>> getDecoratedFeatures() {
+		return Stream.empty();
+	}
 }

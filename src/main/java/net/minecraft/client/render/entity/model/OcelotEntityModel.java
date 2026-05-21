@@ -6,8 +6,12 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.state.FelineEntityRenderState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code OcelotEntityModel}.
+ */
 public class OcelotEntityModel extends FelineEntityModel<FelineEntityRenderState> {
-   public OcelotEntityModel(ModelPart modelPart) {
-      super(modelPart);
-   }
+
+	public OcelotEntityModel(ModelPart modelPart) {
+		super(modelPart);
+	}
 }

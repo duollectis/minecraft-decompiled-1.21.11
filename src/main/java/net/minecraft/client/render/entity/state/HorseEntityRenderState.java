@@ -6,7 +6,11 @@ import net.minecraft.entity.passive.HorseColor;
 import net.minecraft.entity.passive.HorseMarking;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code HorseEntityRenderState}.
+ */
 public class HorseEntityRenderState extends LivingHorseEntityRenderState {
-   public HorseColor color = HorseColor.WHITE;
-   public HorseMarking marking = HorseMarking.NONE;
+
+	public HorseColor color = HorseColor.WHITE;
+	public HorseMarking marking = HorseMarking.NONE;
 }

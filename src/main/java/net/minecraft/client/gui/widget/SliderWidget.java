@@ -19,143 +19,163 @@ import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SliderWidget}.
+ */
 public abstract class SliderWidget extends ClickableWidget.InactivityIndicatingWidget {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("widget/slider");
-   private static final Identifier HIGHLIGHTED_TEXTURE = Identifier.ofVanilla("widget/slider_highlighted");
-   private static final Identifier HANDLE_TEXTURE = Identifier.ofVanilla("widget/slider_handle");
-   private static final Identifier HANDLE_HIGHLIGHTED_TEXTURE = Identifier.ofVanilla("widget/slider_handle_highlighted");
-   protected static final int field_43054 = 2;
-   public static final int field_60708 = 20;
-   protected static final int field_41790 = 8;
-   private static final int field_41789 = 4;
-   protected double value;
-   protected boolean sliderFocused;
-   private boolean dragging;
 
-   public SliderWidget(int x, int y, int width, int height, Text text, double value) {
-      super(x, y, width, height, text);
-      this.value = value;
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("widget/slider");
+	private static final Identifier HIGHLIGHTED_TEXTURE = Identifier.ofVanilla("widget/slider_highlighted");
+	private static final Identifier HANDLE_TEXTURE = Identifier.ofVanilla("widget/slider_handle");
+	private static final Identifier
+			HANDLE_HIGHLIGHTED_TEXTURE =
+			Identifier.ofVanilla("widget/slider_handle_highlighted");
+	protected static final int TEXT_MARGIN = 2;
+	public static final int DEFAULT_HEIGHT = 20;
+	protected static final int HANDLE_WIDTH = 8;
+	private static final int HANDLE_HALF_WIDTH = 4;
+	protected double value;
+	protected boolean sliderFocused;
+	private boolean dragging;
 
-   private Identifier getTexture() {
-      return this.isInteractable() && this.isFocused() && !this.sliderFocused ? HIGHLIGHTED_TEXTURE : TEXTURE;
-   }
+	public SliderWidget(int x, int y, int width, int height, Text text, double value) {
+		super(x, y, width, height, text);
+		this.value = value;
+	}
 
-   private Identifier getHandleTexture() {
-      return !this.isInteractable() || !this.hovered && !this.sliderFocused ? HANDLE_TEXTURE : HANDLE_HIGHLIGHTED_TEXTURE;
-   }
+	private Identifier getTexture() {
+		return this.isInteractable() && this.isFocused() && !this.sliderFocused ? HIGHLIGHTED_TEXTURE : TEXTURE;
+	}
 
-   @Override
-   protected MutableText getNarrationMessage() {
-      return Text.translatable("gui.narrate.slider", this.getMessage());
-   }
+	private Identifier getHandleTexture() {
+		return !this.isInteractable() || !this.hovered && !this.sliderFocused ? HANDLE_TEXTURE
+		                                                                      : HANDLE_HIGHLIGHTED_TEXTURE;
+	}
 
-   @Override
-   public void appendClickableNarrations(NarrationMessageBuilder builder) {
-      builder.put(NarrationPart.TITLE, this.getNarrationMessage());
-      if (this.active) {
-         if (this.isFocused()) {
-            if (this.sliderFocused) {
-               builder.put(NarrationPart.USAGE, Text.translatable("narration.slider.usage.focused"));
-            } else {
-               builder.put(NarrationPart.USAGE, Text.translatable("narration.slider.usage.focused.keyboard_cannot_change_value"));
-            }
-         } else {
-            builder.put(NarrationPart.USAGE, Text.translatable("narration.slider.usage.hovered"));
-         }
-      }
-   }
+	@Override
+	protected MutableText getNarrationMessage() {
+		return Text.translatable("gui.narrate.slider", this.getMessage());
+	}
 
-   @Override
-   public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      context.drawGuiTexture(
-         RenderPipelines.GUI_TEXTURED, this.getTexture(), this.getX(), this.getY(), this.getWidth(), this.getHeight(), ColorHelper.getWhite(this.alpha)
-      );
-      context.drawGuiTexture(
-         RenderPipelines.GUI_TEXTURED,
-         this.getHandleTexture(),
-         this.getX() + (int)(this.value * (this.width - 8)),
-         this.getY(),
-         8,
-         this.getHeight(),
-         ColorHelper.getWhite(this.alpha)
-      );
-      this.drawTextWithMargin(context.getHoverListener(this, DrawContext.HoverType.NONE), this.getMessage(), 2);
-      if (this.isHovered()) {
-         context.setCursor(this.dragging ? StandardCursors.RESIZE_EW : StandardCursors.POINTING_HAND);
-      }
-   }
+	@Override
+	public void appendClickableNarrations(NarrationMessageBuilder builder) {
+		builder.put(NarrationPart.TITLE, this.getNarrationMessage());
+		if (this.active) {
+			if (this.isFocused()) {
+				if (this.sliderFocused) {
+					builder.put(NarrationPart.USAGE, Text.translatable("narration.slider.usage.focused"));
+				}
+				else {
+					builder.put(
+							NarrationPart.USAGE,
+							Text.translatable("narration.slider.usage.focused.keyboard_cannot_change_value")
+					);
+				}
+			}
+			else {
+				builder.put(NarrationPart.USAGE, Text.translatable("narration.slider.usage.hovered"));
+			}
+		}
+	}
 
-   @Override
-   public void onClick(Click click, boolean doubled) {
-      this.dragging = this.active;
-      this.setValueFromMouse(click);
-   }
+	@Override
+	public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		context.drawGuiTexture(
+				RenderPipelines.GUI_TEXTURED,
+				this.getTexture(),
+				this.getX(),
+				this.getY(),
+				this.getWidth(),
+				this.getHeight(),
+				ColorHelper.getWhite(this.alpha)
+		);
+		context.drawGuiTexture(
+				RenderPipelines.GUI_TEXTURED,
+				this.getHandleTexture(),
+				this.getX() + (int) (this.value * (this.width - 8)),
+				this.getY(),
+				8,
+				this.getHeight(),
+				ColorHelper.getWhite(this.alpha)
+		);
+		this.drawTextWithMargin(context.getHoverListener(this, DrawContext.HoverType.NONE), this.getMessage(), 2);
+		if (this.isHovered()) {
+			context.setCursor(this.dragging ? StandardCursors.RESIZE_EW : StandardCursors.POINTING_HAND);
+		}
+	}
 
-   @Override
-   public void setFocused(boolean focused) {
-      super.setFocused(focused);
-      if (!focused) {
-         this.sliderFocused = false;
-      } else {
-         GuiNavigationType guiNavigationType = MinecraftClient.getInstance().getNavigationType();
-         if (guiNavigationType == GuiNavigationType.MOUSE || guiNavigationType == GuiNavigationType.KEYBOARD_TAB) {
-            this.sliderFocused = true;
-         }
-      }
-   }
+	@Override
+	public void onClick(Click click, boolean doubled) {
+		this.dragging = this.active;
+		this.setValueFromMouse(click);
+	}
 
-   @Override
-   public boolean keyPressed(KeyInput input) {
-      if (input.isEnterOrSpace()) {
-         this.sliderFocused = !this.sliderFocused;
-         return true;
-      } else {
-         if (this.sliderFocused) {
-            boolean bl = input.isLeft();
-            boolean bl2 = input.isRight();
-            if (bl || bl2) {
-               float f = bl ? -1.0F : 1.0F;
-               this.setValue(this.value + f / (this.width - 8));
-               return true;
-            }
-         }
+	@Override
+	public void setFocused(boolean focused) {
+		super.setFocused(focused);
+		if (!focused) {
+			this.sliderFocused = false;
+		}
+		else {
+			GuiNavigationType guiNavigationType = MinecraftClient.getInstance().getNavigationType();
+			if (guiNavigationType == GuiNavigationType.MOUSE || guiNavigationType == GuiNavigationType.KEYBOARD_TAB) {
+				this.sliderFocused = true;
+			}
+		}
+	}
 
-         return false;
-      }
-   }
+	@Override
+	public boolean keyPressed(KeyInput input) {
+		if (input.isEnterOrSpace()) {
+			this.sliderFocused = !this.sliderFocused;
+			return true;
+		}
+		else {
+			if (this.sliderFocused) {
+				boolean bl = input.isLeft();
+				boolean bl2 = input.isRight();
+				if (bl || bl2) {
+					float f = bl ? -1.0F : 1.0F;
+					this.setValue(this.value + f / (this.width - 8));
+					return true;
+				}
+			}
 
-   private void setValueFromMouse(Click click) {
-      this.setValue((click.x() - (this.getX() + 4)) / (this.width - 8));
-   }
+			return false;
+		}
+	}
 
-   protected void setValue(double value) {
-      double d = this.value;
-      this.value = MathHelper.clamp(value, 0.0, 1.0);
-      if (d != this.value) {
-         this.applyValue();
-      }
+	private void setValueFromMouse(Click click) {
+		this.setValue((click.x() - (this.getX() + 4)) / (this.width - 8));
+	}
 
-      this.updateMessage();
-   }
+	protected void setValue(double value) {
+		double d = this.value;
+		this.value = MathHelper.clamp(value, 0.0, 1.0);
+		if (d != this.value) {
+			this.applyValue();
+		}
 
-   @Override
-   protected void onDrag(Click click, double offsetX, double offsetY) {
-      this.setValueFromMouse(click);
-      super.onDrag(click, offsetX, offsetY);
-   }
+		this.updateMessage();
+	}
 
-   @Override
-   public void playDownSound(SoundManager soundManager) {
-   }
+	@Override
+	protected void onDrag(Click click, double offsetX, double offsetY) {
+		this.setValueFromMouse(click);
+		super.onDrag(click, offsetX, offsetY);
+	}
 
-   @Override
-   public void onRelease(Click click) {
-      this.dragging = false;
-      super.playDownSound(MinecraftClient.getInstance().getSoundManager());
-   }
+	@Override
+	public void playDownSound(SoundManager soundManager) {
+	}
 
-   protected abstract void updateMessage();
+	@Override
+	public void onRelease(Click click) {
+		this.dragging = false;
+		super.playDownSound(MinecraftClient.getInstance().getSoundManager());
+	}
 
-   protected abstract void applyValue();
+	protected abstract void updateMessage();
+
+	protected abstract void applyValue();
 }

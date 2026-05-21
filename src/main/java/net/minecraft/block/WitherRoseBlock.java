@@ -20,57 +20,80 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.World;
 
+/**
+ * {@code WitherRoseBlock}.
+ */
 public class WitherRoseBlock extends FlowerBlock {
-   public static final MapCodec<WitherRoseBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(STEW_EFFECT_CODEC.forGetter(FlowerBlock::getStewEffects), createSettingsCodec()).apply(instance, WitherRoseBlock::new)
-   );
 
-   @Override
-   public MapCodec<WitherRoseBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<WitherRoseBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(STEW_EFFECT_CODEC.forGetter(FlowerBlock::getStewEffects), createSettingsCodec())
+					.apply(instance, WitherRoseBlock::new)
+	);
 
-   public WitherRoseBlock(RegistryEntry<StatusEffect> registryEntry, float f, AbstractBlock.Settings settings) {
-      this(createStewEffectList(registryEntry, f), settings);
-   }
+	@Override
+	public MapCodec<WitherRoseBlock> getCodec() {
+		return CODEC;
+	}
 
-   public WitherRoseBlock(SuspiciousStewEffectsComponent suspiciousStewEffectsComponent, AbstractBlock.Settings settings) {
-      super(suspiciousStewEffectsComponent, settings);
-   }
+	public WitherRoseBlock(RegistryEntry<StatusEffect> registryEntry, float f, AbstractBlock.Settings settings) {
+		this(createStewEffectList(registryEntry, f), settings);
+	}
 
-   @Override
-   protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
-      return super.canPlantOnTop(floor, world, pos) || floor.isOf(Blocks.NETHERRACK) || floor.isOf(Blocks.SOUL_SAND) || floor.isOf(Blocks.SOUL_SOIL);
-   }
+	public WitherRoseBlock(
+			SuspiciousStewEffectsComponent suspiciousStewEffectsComponent,
+			AbstractBlock.Settings settings
+	) {
+		super(suspiciousStewEffectsComponent, settings);
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      VoxelShape voxelShape = this.getOutlineShape(state, world, pos, ShapeContext.absent());
-      Vec3d vec3d = voxelShape.getBoundingBox().getCenter();
-      double d = pos.getX() + vec3d.x;
-      double e = pos.getZ() + vec3d.z;
+	@Override
+	protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
+		return super.canPlantOnTop(floor, world, pos) || floor.isOf(Blocks.NETHERRACK) || floor.isOf(Blocks.SOUL_SAND)
+				|| floor.isOf(Blocks.SOUL_SOIL);
+	}
 
-      for (int i = 0; i < 3; i++) {
-         if (random.nextBoolean()) {
-            world.addParticleClient(
-               ParticleTypes.SMOKE, d + random.nextDouble() / 5.0, pos.getY() + (0.5 - random.nextDouble()), e + random.nextDouble() / 5.0, 0.0, 0.0, 0.0
-            );
-         }
-      }
-   }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		VoxelShape voxelShape = this.getOutlineShape(state, world, pos, ShapeContext.absent());
+		Vec3d vec3d = voxelShape.getBoundingBox().getCenter();
+		double d = pos.getX() + vec3d.x;
+		double e = pos.getZ() + vec3d.z;
 
-   @Override
-   protected void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler, boolean bl) {
-      if (world instanceof ServerWorld serverWorld
-         && world.getDifficulty() != Difficulty.PEACEFUL
-         && entity instanceof LivingEntity livingEntity
-         && !livingEntity.isInvulnerableTo(serverWorld, world.getDamageSources().wither())) {
-         livingEntity.addStatusEffect(this.getContactEffect());
-      }
-   }
+		for (int i = 0; i < 3; i++) {
+			if (random.nextBoolean()) {
+				world.addParticleClient(
+						ParticleTypes.SMOKE,
+						d + random.nextDouble() / 5.0,
+						pos.getY() + (0.5 - random.nextDouble()),
+						e + random.nextDouble() / 5.0,
+						0.0,
+						0.0,
+						0.0
+				);
+			}
+		}
+	}
 
-   @Override
-   public StatusEffectInstance getContactEffect() {
-      return new StatusEffectInstance(StatusEffects.WITHER, 40);
-   }
+	@Override
+	protected void onEntityCollision(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Entity entity,
+			EntityCollisionHandler handler,
+			boolean bl
+	) {
+		if (world instanceof ServerWorld serverWorld
+				&& world.getDifficulty() != Difficulty.PEACEFUL
+				&& entity instanceof LivingEntity livingEntity
+				&& !livingEntity.isInvulnerableTo(serverWorld, world.getDamageSources().wither())) {
+			livingEntity.addStatusEffect(this.getContactEffect());
+		}
+	}
+
+	@Override
+	public StatusEffectInstance getContactEffect() {
+		return new StatusEffectInstance(StatusEffects.WITHER, 40);
+	}
 }

@@ -5,37 +5,41 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.gen.HeightContext;
 import net.minecraft.world.gen.YOffset;
 
+/**
+ * {@code ConstantHeightProvider}.
+ */
 public class ConstantHeightProvider extends HeightProvider {
-   public static final ConstantHeightProvider ZERO = new ConstantHeightProvider(YOffset.fixed(0));
-   public static final MapCodec<ConstantHeightProvider> CONSTANT_CODEC = YOffset.OFFSET_CODEC
-      .fieldOf("value")
-      .xmap(ConstantHeightProvider::new, ConstantHeightProvider::getOffset);
-   private final YOffset offset;
 
-   public static ConstantHeightProvider create(YOffset offset) {
-      return new ConstantHeightProvider(offset);
-   }
+	public static final ConstantHeightProvider ZERO = new ConstantHeightProvider(YOffset.fixed(0));
+	public static final MapCodec<ConstantHeightProvider> CONSTANT_CODEC = YOffset.OFFSET_CODEC
+			.fieldOf("value")
+			.xmap(ConstantHeightProvider::new, ConstantHeightProvider::getOffset);
+	private final YOffset offset;
 
-   private ConstantHeightProvider(YOffset offset) {
-      this.offset = offset;
-   }
+	public static ConstantHeightProvider create(YOffset offset) {
+		return new ConstantHeightProvider(offset);
+	}
 
-   public YOffset getOffset() {
-      return this.offset;
-   }
+	private ConstantHeightProvider(YOffset offset) {
+		this.offset = offset;
+	}
 
-   @Override
-   public int get(Random random, HeightContext context) {
-      return this.offset.getY(context);
-   }
+	public YOffset getOffset() {
+		return this.offset;
+	}
 
-   @Override
-   public HeightProviderType<?> getType() {
-      return HeightProviderType.CONSTANT;
-   }
+	@Override
+	public int get(Random random, HeightContext context) {
+		return this.offset.getY(context);
+	}
 
-   @Override
-   public String toString() {
-      return this.offset.toString();
-   }
+	@Override
+	public HeightProviderType<?> getType() {
+		return HeightProviderType.CONSTANT;
+	}
+
+	@Override
+	public String toString() {
+		return this.offset.toString();
+	}
 }

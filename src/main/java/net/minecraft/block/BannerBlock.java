@@ -3,7 +3,6 @@ package net.minecraft.block;
 import com.google.common.collect.Maps;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Map;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.IntProperty;
@@ -20,73 +19,92 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+import java.util.Map;
+
+/**
+ * {@code BannerBlock}.
+ */
 public class BannerBlock extends AbstractBannerBlock {
-   public static final MapCodec<BannerBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(DyeColor.CODEC.fieldOf("color").forGetter(AbstractBannerBlock::getColor), createSettingsCodec())
-         .apply(instance, BannerBlock::new)
-   );
-   public static final IntProperty ROTATION = Properties.ROTATION;
-   private static final Map<DyeColor, Block> COLORED_BANNERS = Maps.newHashMap();
-   private static final VoxelShape SHAPE = Block.createColumnShape(8.0, 0.0, 16.0);
 
-   @Override
-   public MapCodec<BannerBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<BannerBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(
+							DyeColor.CODEC.fieldOf("color").forGetter(AbstractBannerBlock::getColor),
+							createSettingsCodec()
+					)
+					.apply(instance, BannerBlock::new)
+	);
+	public static final IntProperty ROTATION = Properties.ROTATION;
+	private static final Map<DyeColor, Block> COLORED_BANNERS = Maps.newHashMap();
+	private static final VoxelShape SHAPE = Block.createColumnShape(8.0, 0.0, 16.0);
 
-   public BannerBlock(DyeColor dyeColor, AbstractBlock.Settings settings) {
-      super(dyeColor, settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(ROTATION, 0));
-      COLORED_BANNERS.put(dyeColor, this);
-   }
+	@Override
+	public MapCodec<BannerBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      return world.getBlockState(pos.down()).isSolid();
-   }
+	public BannerBlock(DyeColor dyeColor, AbstractBlock.Settings settings) {
+		super(dyeColor, settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(ROTATION, 0));
+		COLORED_BANNERS.put(dyeColor, this);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		return world.getBlockState(pos.down()).isSolid();
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(ROTATION, RotationPropertyHelper.fromYaw(ctx.getPlayerYaw() + 180.0F));
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      return direction == Direction.DOWN && !state.canPlaceAt(world, pos)
-         ? Blocks.AIR.getDefaultState()
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getDefaultState().with(ROTATION, RotationPropertyHelper.fromYaw(ctx.getPlayerYaw() + 180.0F));
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(ROTATION, rotation.rotate(state.get(ROTATION), 16));
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		return direction == Direction.DOWN && !state.canPlaceAt(world, pos)
+		       ? Blocks.AIR.getDefaultState()
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.with(ROTATION, mirror.mirror(state.get(ROTATION), 16));
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(ROTATION, rotation.rotate(state.get(ROTATION), 16));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(ROTATION);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.with(ROTATION, mirror.mirror(state.get(ROTATION), 16));
+	}
 
-   public static Block getForColor(DyeColor color) {
-      return COLORED_BANNERS.getOrDefault(color, Blocks.WHITE_BANNER);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(ROTATION);
+	}
+
+	public static Block getForColor(DyeColor color) {
+		return COLORED_BANNERS.getOrDefault(color, Blocks.WHITE_BANNER);
+	}
 }

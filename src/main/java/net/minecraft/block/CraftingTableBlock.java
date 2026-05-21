@@ -13,33 +13,41 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code CraftingTableBlock}.
+ */
 public class CraftingTableBlock extends Block {
-   public static final MapCodec<CraftingTableBlock> CODEC = createCodec(CraftingTableBlock::new);
-   private static final Text TITLE = Text.translatable("container.crafting");
 
-   @Override
-   public MapCodec<? extends CraftingTableBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<CraftingTableBlock> CODEC = createCodec(CraftingTableBlock::new);
+	private static final Text TITLE = Text.translatable("container.crafting");
 
-   public CraftingTableBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<? extends CraftingTableBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient()) {
-         player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
-         player.incrementStat(Stats.INTERACT_WITH_CRAFTING_TABLE);
-      }
+	public CraftingTableBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient()) {
+			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
+			player.incrementStat(Stats.INTERACT_WITH_CRAFTING_TABLE);
+		}
 
-   @Override
-   protected NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
-      return new SimpleNamedScreenHandlerFactory(
-         (syncId, inventory, player) -> new CraftingScreenHandler(syncId, inventory, ScreenHandlerContext.create(world, pos)), TITLE
-      );
-   }
+		return ActionResult.SUCCESS;
+	}
+
+	@Override
+	protected NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
+		return new SimpleNamedScreenHandlerFactory(
+				(syncId, inventory, player) -> new CraftingScreenHandler(
+						syncId,
+						inventory,
+						ScreenHandlerContext.create(world, pos)
+				), TITLE
+		);
+	}
 }

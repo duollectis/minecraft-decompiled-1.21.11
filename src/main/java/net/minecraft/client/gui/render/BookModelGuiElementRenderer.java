@@ -15,41 +15,47 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BookModelGuiElementRenderer}.
+ */
 public class BookModelGuiElementRenderer extends SpecialGuiElementRenderer<BookModelGuiElementRenderState> {
-   public BookModelGuiElementRenderer(VertexConsumerProvider.Immediate immediate) {
-      super(immediate);
-   }
 
-   @Override
-   public Class<BookModelGuiElementRenderState> getElementClass() {
-      return BookModelGuiElementRenderState.class;
-   }
+	public BookModelGuiElementRenderer(VertexConsumerProvider.Immediate immediate) {
+		super(immediate);
+	}
 
-   protected void render(BookModelGuiElementRenderState bookModelGuiElementRenderState, MatrixStack matrixStack) {
-      MinecraftClient.getInstance().gameRenderer.getDiffuseLighting().setShaderLights(DiffuseLighting.Type.ENTITY_IN_UI);
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F));
-      matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(25.0F));
-      float f = bookModelGuiElementRenderState.open();
-      matrixStack.translate((1.0F - f) * 0.2F, (1.0F - f) * 0.1F, (1.0F - f) * 0.25F);
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-(1.0F - f) * 90.0F - 90.0F));
-      matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
-      float g = bookModelGuiElementRenderState.flip();
-      float h = MathHelper.clamp(MathHelper.fractionalPart(g + 0.25F) * 1.6F - 0.3F, 0.0F, 1.0F);
-      float i = MathHelper.clamp(MathHelper.fractionalPart(g + 0.75F) * 1.6F - 0.3F, 0.0F, 1.0F);
-      BookModel bookModel = bookModelGuiElementRenderState.bookModel();
-      bookModel.setAngles(new BookModel.BookModelState(0.0F, h, i, f));
-      Identifier identifier = bookModelGuiElementRenderState.texture();
-      VertexConsumer vertexConsumer = this.vertexConsumers.getBuffer(bookModel.getLayer(identifier));
-      bookModel.render(matrixStack, vertexConsumer, 15728880, OverlayTexture.DEFAULT_UV);
-   }
+	@Override
+	public Class<BookModelGuiElementRenderState> getElementClass() {
+		return BookModelGuiElementRenderState.class;
+	}
 
-   @Override
-   protected float getYOffset(int height, int windowScaleFactor) {
-      return 17 * windowScaleFactor;
-   }
+	protected void render(BookModelGuiElementRenderState bookModelGuiElementRenderState, MatrixStack matrixStack) {
+		MinecraftClient.getInstance().gameRenderer
+				.getDiffuseLighting()
+				.setShaderLights(DiffuseLighting.Type.ENTITY_IN_UI);
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F));
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(25.0F));
+		float f = bookModelGuiElementRenderState.open();
+		matrixStack.translate((1.0F - f) * 0.2F, (1.0F - f) * 0.1F, (1.0F - f) * 0.25F);
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-(1.0F - f) * 90.0F - 90.0F));
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
+		float g = bookModelGuiElementRenderState.flip();
+		float h = MathHelper.clamp(MathHelper.fractionalPart(g + 0.25F) * 1.6F - 0.3F, 0.0F, 1.0F);
+		float i = MathHelper.clamp(MathHelper.fractionalPart(g + 0.75F) * 1.6F - 0.3F, 0.0F, 1.0F);
+		BookModel bookModel = bookModelGuiElementRenderState.bookModel();
+		bookModel.setAngles(new BookModel.BookModelState(0.0F, h, i, f));
+		Identifier identifier = bookModelGuiElementRenderState.texture();
+		VertexConsumer vertexConsumer = this.vertexConsumers.getBuffer(bookModel.getLayer(identifier));
+		bookModel.render(matrixStack, vertexConsumer, 15728880, OverlayTexture.DEFAULT_UV);
+	}
 
-   @Override
-   protected String getName() {
-      return "book model";
-   }
+	@Override
+	protected float getYOffset(int height, int windowScaleFactor) {
+		return 17 * windowScaleFactor;
+	}
+
+	@Override
+	protected String getName() {
+		return "book model";
+	}
 }

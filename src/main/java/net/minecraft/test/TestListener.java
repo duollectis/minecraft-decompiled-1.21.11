@@ -1,11 +1,15 @@
 package net.minecraft.test;
 
+/**
+ * {@code TestListener}.
+ */
 public interface TestListener {
-   void onStarted(GameTestState test);
 
-   void onPassed(GameTestState test, TestRunContext context);
+	void onStarted(GameTestState test);
 
-   void onFailed(GameTestState test, TestRunContext context);
+	void onPassed(GameTestState test, TestRunContext context);
 
-   void onRetry(GameTestState lastState, GameTestState nextState, TestRunContext context);
+	void onFailed(GameTestState test, TestRunContext context);
+
+	void onRetry(GameTestState lastState, GameTestState nextState, TestRunContext context);
 }

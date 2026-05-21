@@ -10,30 +10,37 @@ import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.item.ItemStack;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ItemStackEntityRenderState}.
+ */
 public class ItemStackEntityRenderState extends EntityRenderState {
-   public final ItemRenderState itemRenderState = new ItemRenderState();
-   public int renderedAmount;
-   public int seed;
 
-   public void update(Entity entity, ItemStack stack, ItemModelManager itemModelManager) {
-      itemModelManager.updateForNonLivingEntity(this.itemRenderState, stack, ItemDisplayContext.GROUND, entity);
-      this.renderedAmount = getRenderedAmount(stack.getCount());
-      this.seed = getSeed(stack);
-   }
+	public final ItemRenderState itemRenderState = new ItemRenderState();
+	public int renderedAmount;
+	public int seed;
 
-   public static int getSeed(ItemStack stack) {
-      return stack.isEmpty() ? 187 : Item.getRawId(stack.getItem()) + stack.getDamage();
-   }
+	public void update(Entity entity, ItemStack stack, ItemModelManager itemModelManager) {
+		itemModelManager.updateForNonLivingEntity(this.itemRenderState, stack, ItemDisplayContext.GROUND, entity);
+		this.renderedAmount = getRenderedAmount(stack.getCount());
+		this.seed = getSeed(stack);
+	}
 
-   public static int getRenderedAmount(int count) {
-      if (count <= 1) {
-         return 1;
-      } else if (count <= 16) {
-         return 2;
-      } else if (count <= 32) {
-         return 3;
-      } else {
-         return count <= 48 ? 4 : 5;
-      }
-   }
+	public static int getSeed(ItemStack stack) {
+		return stack.isEmpty() ? 187 : Item.getRawId(stack.getItem()) + stack.getDamage();
+	}
+
+	public static int getRenderedAmount(int count) {
+		if (count <= 1) {
+			return 1;
+		}
+		else if (count <= 16) {
+			return 2;
+		}
+		else if (count <= 32) {
+			return 3;
+		}
+		else {
+			return count <= 48 ? 4 : 5;
+		}
+	}
 }

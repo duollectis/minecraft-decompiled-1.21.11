@@ -2,10 +2,6 @@ package net.minecraft.world.gen.treedecorator;
 
 import com.mojang.serialization.Codec;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.Comparator;
-import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Predicate;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -16,76 +12,89 @@ import net.minecraft.util.math.Vec3i;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.TestableWorld;
 
+import java.util.Comparator;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
+
+/**
+ * {@code TreeDecorator}.
+ */
 public abstract class TreeDecorator {
-   public static final Codec<TreeDecorator> TYPE_CODEC = Registries.TREE_DECORATOR_TYPE
-      .getCodec()
-      .dispatch(TreeDecorator::getType, TreeDecoratorType::getCodec);
 
-   protected abstract TreeDecoratorType<?> getType();
+	public static final Codec<TreeDecorator> TYPE_CODEC = Registries.TREE_DECORATOR_TYPE
+			.getCodec()
+			.dispatch(TreeDecorator::getType, TreeDecoratorType::getCodec);
 
-   public abstract void generate(TreeDecorator.Generator generator);
+	protected abstract TreeDecoratorType<?> getType();
 
-   public static final class Generator {
-      private final TestableWorld world;
-      private final BiConsumer<BlockPos, BlockState> replacer;
-      private final Random random;
-      private final ObjectArrayList<BlockPos> logPositions;
-      private final ObjectArrayList<BlockPos> leavesPositions;
-      private final ObjectArrayList<BlockPos> rootPositions;
+	public abstract void generate(TreeDecorator.Generator generator);
 
-      public Generator(
-         TestableWorld world,
-         BiConsumer<BlockPos, BlockState> replacer,
-         Random random,
-         Set<BlockPos> logPositions,
-         Set<BlockPos> leavesPositions,
-         Set<BlockPos> rootPositions
-      ) {
-         this.world = world;
-         this.replacer = replacer;
-         this.random = random;
-         this.rootPositions = new ObjectArrayList(rootPositions);
-         this.logPositions = new ObjectArrayList(logPositions);
-         this.leavesPositions = new ObjectArrayList(leavesPositions);
-         this.logPositions.sort(Comparator.comparingInt(Vec3i::getY));
-         this.leavesPositions.sort(Comparator.comparingInt(Vec3i::getY));
-         this.rootPositions.sort(Comparator.comparingInt(Vec3i::getY));
-      }
+	/**
+	 * {@code Generator}.
+	 */
+	public static final class Generator {
 
-      public void replaceWithVine(BlockPos pos, BooleanProperty faceProperty) {
-         this.replace(pos, Blocks.VINE.getDefaultState().with(faceProperty, true));
-      }
+		private final TestableWorld world;
+		private final BiConsumer<BlockPos, BlockState> replacer;
+		private final Random random;
+		private final ObjectArrayList<BlockPos> logPositions;
+		private final ObjectArrayList<BlockPos> leavesPositions;
+		private final ObjectArrayList<BlockPos> rootPositions;
 
-      public void replace(BlockPos pos, BlockState state) {
-         this.replacer.accept(pos, state);
-      }
+		public Generator(
+				TestableWorld world,
+				BiConsumer<BlockPos, BlockState> replacer,
+				Random random,
+				Set<BlockPos> logPositions,
+				Set<BlockPos> leavesPositions,
+				Set<BlockPos> rootPositions
+		) {
+			this.world = world;
+			this.replacer = replacer;
+			this.random = random;
+			this.rootPositions = new ObjectArrayList(rootPositions);
+			this.logPositions = new ObjectArrayList(logPositions);
+			this.leavesPositions = new ObjectArrayList(leavesPositions);
+			this.logPositions.sort(Comparator.comparingInt(Vec3i::getY));
+			this.leavesPositions.sort(Comparator.comparingInt(Vec3i::getY));
+			this.rootPositions.sort(Comparator.comparingInt(Vec3i::getY));
+		}
 
-      public boolean isAir(BlockPos pos) {
-         return this.world.testBlockState(pos, AbstractBlock.AbstractBlockState::isAir);
-      }
+		public void replaceWithVine(BlockPos pos, BooleanProperty faceProperty) {
+			this.replace(pos, Blocks.VINE.getDefaultState().with(faceProperty, true));
+		}
 
-      public boolean matches(BlockPos pos, Predicate<BlockState> statePredicate) {
-         return this.world.testBlockState(pos, statePredicate);
-      }
+		public void replace(BlockPos pos, BlockState state) {
+			this.replacer.accept(pos, state);
+		}
 
-      public TestableWorld getWorld() {
-         return this.world;
-      }
+		public boolean isAir(BlockPos pos) {
+			return this.world.testBlockState(pos, AbstractBlock.AbstractBlockState::isAir);
+		}
 
-      public Random getRandom() {
-         return this.random;
-      }
+		public boolean matches(BlockPos pos, Predicate<BlockState> statePredicate) {
+			return this.world.testBlockState(pos, statePredicate);
+		}
 
-      public ObjectArrayList<BlockPos> getLogPositions() {
-         return this.logPositions;
-      }
+		public TestableWorld getWorld() {
+			return this.world;
+		}
 
-      public ObjectArrayList<BlockPos> getLeavesPositions() {
-         return this.leavesPositions;
-      }
+		public Random getRandom() {
+			return this.random;
+		}
 
-      public ObjectArrayList<BlockPos> getRootPositions() {
-         return this.rootPositions;
-      }
-   }
+		public ObjectArrayList<BlockPos> getLogPositions() {
+			return this.logPositions;
+		}
+
+		public ObjectArrayList<BlockPos> getLeavesPositions() {
+			return this.leavesPositions;
+		}
+
+		public ObjectArrayList<BlockPos> getRootPositions() {
+			return this.rootPositions;
+		}
+	}
 }

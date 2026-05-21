@@ -9,18 +9,32 @@ import net.minecraft.entity.mob.Hoglin;
 import net.minecraft.entity.mob.MobEntity;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AbstractHoglinEntityRenderer}.
+ */
 public abstract class AbstractHoglinEntityRenderer<T extends MobEntity & Hoglin>
-   extends AgeableMobEntityRenderer<T, HoglinEntityRenderState, HoglinEntityModel> {
-   public AbstractHoglinEntityRenderer(EntityRendererFactory.Context context, EntityModelLayer layer, EntityModelLayer babyLayer, float scale) {
-      super(context, new HoglinEntityModel(context.getPart(layer)), new HoglinEntityModel(context.getPart(babyLayer)), scale);
-   }
+		extends AgeableMobEntityRenderer<T, HoglinEntityRenderState, HoglinEntityModel> {
 
-   public HoglinEntityRenderState createRenderState() {
-      return new HoglinEntityRenderState();
-   }
+	public AbstractHoglinEntityRenderer(
+			EntityRendererFactory.Context context,
+			EntityModelLayer layer,
+			EntityModelLayer babyLayer,
+			float scale
+	) {
+		super(
+				context,
+				new HoglinEntityModel(context.getPart(layer)),
+				new HoglinEntityModel(context.getPart(babyLayer)),
+				scale
+		);
+	}
 
-   public void updateRenderState(T mobEntity, HoglinEntityRenderState hoglinEntityRenderState, float f) {
-      super.updateRenderState(mobEntity, hoglinEntityRenderState, f);
-      hoglinEntityRenderState.movementCooldownTicks = mobEntity.getMovementCooldownTicks();
-   }
+	public HoglinEntityRenderState createRenderState() {
+		return new HoglinEntityRenderState();
+	}
+
+	public void updateRenderState(T mobEntity, HoglinEntityRenderState hoglinEntityRenderState, float f) {
+		super.updateRenderState(mobEntity, hoglinEntityRenderState, f);
+		hoglinEntityRenderState.movementCooldownTicks = mobEntity.getMovementCooldownTicks();
+	}
 }

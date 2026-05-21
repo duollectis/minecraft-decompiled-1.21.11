@@ -18,68 +18,76 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ShulkerBulletEntityRenderer}.
+ */
 public class ShulkerBulletEntityRenderer extends EntityRenderer<ShulkerBulletEntity, ShulkerBulletEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/shulker/spark.png");
-   private static final RenderLayer LAYER = RenderLayers.entityTranslucent(TEXTURE);
-   private final ShulkerBulletEntityModel model;
 
-   public ShulkerBulletEntityRenderer(EntityRendererFactory.Context context) {
-      super(context);
-      this.model = new ShulkerBulletEntityModel(context.getPart(EntityModelLayers.SHULKER_BULLET));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/shulker/spark.png");
+	private static final RenderLayer LAYER = RenderLayers.entityTranslucent(TEXTURE);
+	private final ShulkerBulletEntityModel model;
 
-   protected int getBlockLight(ShulkerBulletEntity shulkerBulletEntity, BlockPos blockPos) {
-      return 15;
-   }
+	public ShulkerBulletEntityRenderer(EntityRendererFactory.Context context) {
+		super(context);
+		this.model = new ShulkerBulletEntityModel(context.getPart(EntityModelLayers.SHULKER_BULLET));
+	}
 
-   public void render(
-      ShulkerBulletEntityRenderState shulkerBulletEntityRenderState,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      CameraRenderState cameraRenderState
-   ) {
-      matrixStack.push();
-      float f = shulkerBulletEntityRenderState.age;
-      matrixStack.translate(0.0F, 0.15F, 0.0F);
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(MathHelper.sin(f * 0.1F) * 180.0F));
-      matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(MathHelper.cos(f * 0.1F) * 180.0F));
-      matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(MathHelper.sin(f * 0.15F) * 360.0F));
-      matrixStack.scale(-0.5F, -0.5F, 0.5F);
-      orderedRenderCommandQueue.submitModel(
-         this.model,
-         shulkerBulletEntityRenderState,
-         matrixStack,
-         this.model.getLayer(TEXTURE),
-         shulkerBulletEntityRenderState.light,
-         OverlayTexture.DEFAULT_UV,
-         shulkerBulletEntityRenderState.outlineColor,
-         null
-      );
-      matrixStack.scale(1.5F, 1.5F, 1.5F);
-      orderedRenderCommandQueue.getBatchingQueue(1)
-         .submitModel(
-            this.model,
-            shulkerBulletEntityRenderState,
-            matrixStack,
-            LAYER,
-            shulkerBulletEntityRenderState.light,
-            OverlayTexture.DEFAULT_UV,
-            654311423,
-            null,
-            shulkerBulletEntityRenderState.outlineColor,
-            null
-         );
-      matrixStack.pop();
-      super.render(shulkerBulletEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
-   }
+	protected int getBlockLight(ShulkerBulletEntity shulkerBulletEntity, BlockPos blockPos) {
+		return 15;
+	}
 
-   public ShulkerBulletEntityRenderState createRenderState() {
-      return new ShulkerBulletEntityRenderState();
-   }
+	public void render(
+			ShulkerBulletEntityRenderState shulkerBulletEntityRenderState,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			CameraRenderState cameraRenderState
+	) {
+		matrixStack.push();
+		float f = shulkerBulletEntityRenderState.age;
+		matrixStack.translate(0.0F, 0.15F, 0.0F);
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(MathHelper.sin(f * 0.1F) * 180.0F));
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(MathHelper.cos(f * 0.1F) * 180.0F));
+		matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(MathHelper.sin(f * 0.15F) * 360.0F));
+		matrixStack.scale(-0.5F, -0.5F, 0.5F);
+		orderedRenderCommandQueue.submitModel(
+				this.model,
+				shulkerBulletEntityRenderState,
+				matrixStack,
+				this.model.getLayer(TEXTURE),
+				shulkerBulletEntityRenderState.light,
+				OverlayTexture.DEFAULT_UV,
+				shulkerBulletEntityRenderState.outlineColor,
+				null
+		);
+		matrixStack.scale(1.5F, 1.5F, 1.5F);
+		orderedRenderCommandQueue.getBatchingQueue(1)
+		                         .submitModel(
+				                         this.model,
+				                         shulkerBulletEntityRenderState,
+				                         matrixStack,
+				                         LAYER,
+				                         shulkerBulletEntityRenderState.light,
+				                         OverlayTexture.DEFAULT_UV,
+				                         654311423,
+				                         null,
+				                         shulkerBulletEntityRenderState.outlineColor,
+				                         null
+		                         );
+		matrixStack.pop();
+		super.render(shulkerBulletEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
+	}
 
-   public void updateRenderState(ShulkerBulletEntity shulkerBulletEntity, ShulkerBulletEntityRenderState shulkerBulletEntityRenderState, float f) {
-      super.updateRenderState(shulkerBulletEntity, shulkerBulletEntityRenderState, f);
-      shulkerBulletEntityRenderState.yaw = shulkerBulletEntity.getLerpedYaw(f);
-      shulkerBulletEntityRenderState.pitch = shulkerBulletEntity.getLerpedPitch(f);
-   }
+	public ShulkerBulletEntityRenderState createRenderState() {
+		return new ShulkerBulletEntityRenderState();
+	}
+
+	public void updateRenderState(
+			ShulkerBulletEntity shulkerBulletEntity,
+			ShulkerBulletEntityRenderState shulkerBulletEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(shulkerBulletEntity, shulkerBulletEntityRenderState, f);
+		shulkerBulletEntityRenderState.yaw = shulkerBulletEntity.getLerpedYaw(f);
+		shulkerBulletEntityRenderState.pitch = shulkerBulletEntity.getLerpedPitch(f);
+	}
 }

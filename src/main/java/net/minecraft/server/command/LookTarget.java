@@ -6,24 +6,37 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.Vec3d;
 
 @FunctionalInterface
+/**
+ * {@code LookTarget}.
+ */
 public interface LookTarget {
-   void look(ServerCommandSource source, Entity entity);
 
-   public record LookAtEntity(Entity entity, EntityAnchorArgumentType.EntityAnchor anchor) implements LookTarget {
-      @Override
-      public void look(ServerCommandSource source, Entity entity) {
-         if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
-            serverPlayerEntity.lookAtEntity(source.getEntityAnchor(), this.entity, this.anchor);
-         } else {
-            entity.lookAt(source.getEntityAnchor(), this.anchor.positionAt(this.entity));
-         }
-      }
-   }
+	void look(ServerCommandSource source, Entity entity);
 
-   public record LookAtPosition(Vec3d position) implements LookTarget {
-      @Override
-      public void look(ServerCommandSource source, Entity entity) {
-         entity.lookAt(source.getEntityAnchor(), this.position);
-      }
-   }
+	/**
+	 * {@code LookAtEntity}.
+	 */
+	public record LookAtEntity(Entity entity, EntityAnchorArgumentType.EntityAnchor anchor) implements LookTarget {
+
+		@Override
+		public void look(ServerCommandSource source, Entity entity) {
+			if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
+				serverPlayerEntity.lookAtEntity(source.getEntityAnchor(), this.entity, this.anchor);
+			}
+			else {
+				entity.lookAt(source.getEntityAnchor(), this.anchor.positionAt(this.entity));
+			}
+		}
+	}
+
+	/**
+	 * {@code LookAtPosition}.
+	 */
+	public record LookAtPosition(Vec3d position) implements LookTarget {
+
+		@Override
+		public void look(ServerCommandSource source, Entity entity) {
+			entity.lookAt(source.getEntityAnchor(), this.position);
+		}
+	}
 }

@@ -7,60 +7,66 @@ import net.minecraft.inventory.SimpleInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.slot.Slot;
 
+/**
+ * {@code HopperScreenHandler}.
+ */
 public class HopperScreenHandler extends ScreenHandler {
-   public static final int SLOT_COUNT = 5;
-   private final Inventory inventory;
 
-   public HopperScreenHandler(int syncId, PlayerInventory playerInventory) {
-      this(syncId, playerInventory, new SimpleInventory(5));
-   }
+	public static final int SLOT_COUNT = 5;
+	private final Inventory inventory;
 
-   public HopperScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory) {
-      super(ScreenHandlerType.HOPPER, syncId);
-      this.inventory = inventory;
-      checkSize(inventory, 5);
-      inventory.onOpen(playerInventory.player);
+	public HopperScreenHandler(int syncId, PlayerInventory playerInventory) {
+		this(syncId, playerInventory, new SimpleInventory(5));
+	}
 
-      for (int i = 0; i < 5; i++) {
-         this.addSlot(new Slot(inventory, i, 44 + i * 18, 20));
-      }
+	public HopperScreenHandler(int syncId, PlayerInventory playerInventory, Inventory inventory) {
+		super(ScreenHandlerType.HOPPER, syncId);
+		this.inventory = inventory;
+		checkSize(inventory, 5);
+		inventory.onOpen(playerInventory.player);
 
-      this.addPlayerSlots(playerInventory, 8, 51);
-   }
+		for (int i = 0; i < 5; i++) {
+			this.addSlot(new Slot(inventory, i, 44 + i * 18, 20));
+		}
 
-   @Override
-   public boolean canUse(PlayerEntity player) {
-      return this.inventory.canPlayerUse(player);
-   }
+		this.addPlayerSlots(playerInventory, 8, 51);
+	}
 
-   @Override
-   public ItemStack quickMove(PlayerEntity player, int slot) {
-      ItemStack itemStack = ItemStack.EMPTY;
-      Slot slot2 = this.slots.get(slot);
-      if (slot2 != null && slot2.hasStack()) {
-         ItemStack itemStack2 = slot2.getStack();
-         itemStack = itemStack2.copy();
-         if (slot < this.inventory.size()) {
-            if (!this.insertItem(itemStack2, this.inventory.size(), this.slots.size(), true)) {
-               return ItemStack.EMPTY;
-            }
-         } else if (!this.insertItem(itemStack2, 0, this.inventory.size(), false)) {
-            return ItemStack.EMPTY;
-         }
+	@Override
+	public boolean canUse(PlayerEntity player) {
+		return this.inventory.canPlayerUse(player);
+	}
 
-         if (itemStack2.isEmpty()) {
-            slot2.setStack(ItemStack.EMPTY);
-         } else {
-            slot2.markDirty();
-         }
-      }
+	@Override
+	public ItemStack quickMove(PlayerEntity player, int slot) {
+		ItemStack itemStack = ItemStack.EMPTY;
+		Slot slot2 = this.slots.get(slot);
+		if (slot2 != null && slot2.hasStack()) {
+			ItemStack itemStack2 = slot2.getStack();
+			itemStack = itemStack2.copy();
+			if (slot < this.inventory.size()) {
+				if (!this.insertItem(itemStack2, this.inventory.size(), this.slots.size(), true)) {
+					return ItemStack.EMPTY;
+				}
+			}
+			else if (!this.insertItem(itemStack2, 0, this.inventory.size(), false)) {
+				return ItemStack.EMPTY;
+			}
 
-      return itemStack;
-   }
+			if (itemStack2.isEmpty()) {
+				slot2.setStack(ItemStack.EMPTY);
+			}
+			else {
+				slot2.markDirty();
+			}
+		}
 
-   @Override
-   public void onClosed(PlayerEntity player) {
-      super.onClosed(player);
-      this.inventory.onClose(player);
-   }
+		return itemStack;
+	}
+
+	@Override
+	public void onClosed(PlayerEntity player) {
+		super.onClosed(player);
+		this.inventory.onClose(player);
+	}
 }

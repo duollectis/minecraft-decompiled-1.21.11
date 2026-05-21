@@ -11,33 +11,37 @@ import net.minecraft.entity.mob.SpiderEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SpiderEntityRenderer}.
+ */
 public class SpiderEntityRenderer<T extends SpiderEntity> extends MobEntityRenderer<T, LivingEntityRenderState, SpiderEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/spider/spider.png");
 
-   public SpiderEntityRenderer(EntityRendererFactory.Context context) {
-      this(context, EntityModelLayers.SPIDER);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/spider/spider.png");
 
-   public SpiderEntityRenderer(EntityRendererFactory.Context ctx, EntityModelLayer layer) {
-      super(ctx, new SpiderEntityModel(ctx.getPart(layer)), 0.8F);
-      this.addFeature(new SpiderEyesFeatureRenderer<>(this));
-   }
+	public SpiderEntityRenderer(EntityRendererFactory.Context context) {
+		this(context, EntityModelLayers.SPIDER);
+	}
 
-   @Override
-   protected float getLyingPositionRotationDegrees() {
-      return 180.0F;
-   }
+	public SpiderEntityRenderer(EntityRendererFactory.Context ctx, EntityModelLayer layer) {
+		super(ctx, new SpiderEntityModel(ctx.getPart(layer)), 0.8F);
+		this.addFeature(new SpiderEyesFeatureRenderer<>(this));
+	}
 
-   @Override
-   public Identifier getTexture(LivingEntityRenderState state) {
-      return TEXTURE;
-   }
+	@Override
+	protected float getLyingPositionRotationDegrees() {
+		return 180.0F;
+	}
 
-   public LivingEntityRenderState createRenderState() {
-      return new LivingEntityRenderState();
-   }
+	@Override
+	public Identifier getTexture(LivingEntityRenderState state) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(T spiderEntity, LivingEntityRenderState livingEntityRenderState, float f) {
-      super.updateRenderState(spiderEntity, livingEntityRenderState, f);
-   }
+	public LivingEntityRenderState createRenderState() {
+		return new LivingEntityRenderState();
+	}
+
+	public void updateRenderState(T spiderEntity, LivingEntityRenderState livingEntityRenderState, float f) {
+		super.updateRenderState(spiderEntity, livingEntityRenderState, f);
+	}
 }

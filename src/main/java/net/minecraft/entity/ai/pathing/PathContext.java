@@ -7,37 +7,43 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.CollisionView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code PathContext}.
+ */
 public class PathContext {
-   private final CollisionView world;
-   private final @Nullable PathNodeTypeCache nodeTypeCache;
-   private final BlockPos entityPos;
-   private final BlockPos.Mutable lastNodePos = new BlockPos.Mutable();
 
-   public PathContext(CollisionView world, MobEntity entity) {
-      this.world = world;
-      if (entity.getEntityWorld() instanceof ServerWorld serverWorld) {
-         this.nodeTypeCache = serverWorld.getPathNodeTypeCache();
-      } else {
-         this.nodeTypeCache = null;
-      }
+	private final CollisionView world;
+	private final @Nullable PathNodeTypeCache nodeTypeCache;
+	private final BlockPos entityPos;
+	private final BlockPos.Mutable lastNodePos = new BlockPos.Mutable();
 
-      this.entityPos = entity.getBlockPos();
-   }
+	public PathContext(CollisionView world, MobEntity entity) {
+		this.world = world;
+		if (entity.getEntityWorld() instanceof ServerWorld serverWorld) {
+			this.nodeTypeCache = serverWorld.getPathNodeTypeCache();
+		}
+		else {
+			this.nodeTypeCache = null;
+		}
 
-   public PathNodeType getNodeType(int x, int y, int z) {
-      BlockPos blockPos = this.lastNodePos.set(x, y, z);
-      return this.nodeTypeCache == null ? LandPathNodeMaker.getCommonNodeType(this.world, blockPos) : this.nodeTypeCache.add(this.world, blockPos);
-   }
+		this.entityPos = entity.getBlockPos();
+	}
 
-   public BlockState getBlockState(BlockPos pos) {
-      return this.world.getBlockState(pos);
-   }
+	public PathNodeType getNodeType(int x, int y, int z) {
+		BlockPos blockPos = this.lastNodePos.set(x, y, z);
+		return this.nodeTypeCache == null ? LandPathNodeMaker.getCommonNodeType(this.world, blockPos)
+		                                  : this.nodeTypeCache.add(this.world, blockPos);
+	}
 
-   public CollisionView getWorld() {
-      return this.world;
-   }
+	public BlockState getBlockState(BlockPos pos) {
+		return this.world.getBlockState(pos);
+	}
 
-   public BlockPos getEntityPos() {
-      return this.entityPos;
-   }
+	public CollisionView getWorld() {
+		return this.world;
+	}
+
+	public BlockPos getEntityPos() {
+		return this.entityPos;
+	}
 }

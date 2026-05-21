@@ -8,26 +8,30 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import org.jspecify.annotations.Nullable;
 
-public record ScoreboardScoreResetS2CPacket(String scoreHolderName, @Nullable String objectiveName) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ScoreboardScoreResetS2CPacket> CODEC = Packet.createCodec(
-      ScoreboardScoreResetS2CPacket::write, ScoreboardScoreResetS2CPacket::new
-   );
+public record ScoreboardScoreResetS2CPacket(
+		String scoreHolderName,
+		@Nullable String objectiveName
+) implements Packet<ClientPlayPacketListener> {
 
-   private ScoreboardScoreResetS2CPacket(PacketByteBuf buf) {
-      this(buf.readString(), buf.readNullable(PacketByteBuf::readString));
-   }
+	public static final PacketCodec<PacketByteBuf, ScoreboardScoreResetS2CPacket> CODEC = Packet.createCodec(
+			ScoreboardScoreResetS2CPacket::write, ScoreboardScoreResetS2CPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeString(this.scoreHolderName);
-      buf.writeNullable(this.objectiveName, PacketByteBuf::writeString);
-   }
+	private ScoreboardScoreResetS2CPacket(PacketByteBuf buf) {
+		this(buf.readString(), buf.readNullable(PacketByteBuf::readString));
+	}
 
-   @Override
-   public PacketType<ScoreboardScoreResetS2CPacket> getPacketType() {
-      return PlayPackets.RESET_SCORE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeString(this.scoreHolderName);
+		buf.writeNullable(this.objectiveName, PacketByteBuf::writeString);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onScoreboardScoreReset(this);
-   }
+	@Override
+	public PacketType<ScoreboardScoreResetS2CPacket> getPacketType() {
+		return PlayPackets.RESET_SCORE;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onScoreboardScoreReset(this);
+	}
 }

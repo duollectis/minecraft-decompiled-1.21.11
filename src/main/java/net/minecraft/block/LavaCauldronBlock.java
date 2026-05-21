@@ -12,44 +12,57 @@ import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
+/**
+ * {@code LavaCauldronBlock}.
+ */
 public class LavaCauldronBlock extends AbstractCauldronBlock {
-   public static final MapCodec<LavaCauldronBlock> CODEC = createCodec(LavaCauldronBlock::new);
-   private static final VoxelShape LAVA_SHAPE = Block.createColumnShape(12.0, 4.0, 15.0);
-   private static final VoxelShape INSIDE_COLLISION_SHAPE = VoxelShapes.union(AbstractCauldronBlock.OUTLINE_SHAPE, LAVA_SHAPE);
 
-   @Override
-   public MapCodec<LavaCauldronBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<LavaCauldronBlock> CODEC = createCodec(LavaCauldronBlock::new);
+	private static final VoxelShape LAVA_SHAPE = Block.createColumnShape(12.0, 4.0, 15.0);
+	private static final VoxelShape
+			INSIDE_COLLISION_SHAPE =
+			VoxelShapes.union(AbstractCauldronBlock.OUTLINE_SHAPE, LAVA_SHAPE);
 
-   public LavaCauldronBlock(AbstractBlock.Settings settings) {
-      super(settings, CauldronBehavior.LAVA_CAULDRON_BEHAVIOR);
-   }
+	@Override
+	public MapCodec<LavaCauldronBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected double getFluidHeight(BlockState state) {
-      return 0.9375;
-   }
+	public LavaCauldronBlock(AbstractBlock.Settings settings) {
+		super(settings, CauldronBehavior.LAVA_CAULDRON_BEHAVIOR);
+	}
 
-   @Override
-   public boolean isFull(BlockState state) {
-      return true;
-   }
+	@Override
+	protected double getFluidHeight(BlockState state) {
+		return 0.9375;
+	}
 
-   @Override
-   protected VoxelShape getInsideCollisionShape(BlockState state, BlockView world, BlockPos pos, Entity entity) {
-      return INSIDE_COLLISION_SHAPE;
-   }
+	@Override
+	public boolean isFull(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler, boolean bl) {
-      handler.addEvent(CollisionEvent.CLEAR_FREEZE);
-      handler.addEvent(CollisionEvent.LAVA_IGNITE);
-      handler.addPostCallback(CollisionEvent.LAVA_IGNITE, Entity::setOnFireFromLava);
-   }
+	@Override
+	protected VoxelShape getInsideCollisionShape(BlockState state, BlockView world, BlockPos pos, Entity entity) {
+		return INSIDE_COLLISION_SHAPE;
+	}
 
-   @Override
-   protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-      return 3;
-   }
+	@Override
+	protected void onEntityCollision(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Entity entity,
+			EntityCollisionHandler handler,
+			boolean bl
+	) {
+		handler.addEvent(CollisionEvent.CLEAR_FREEZE);
+		handler.addEvent(CollisionEvent.LAVA_IGNITE);
+		handler.addPostCallback(CollisionEvent.LAVA_IGNITE, Entity::setOnFireFromLava);
+	}
+
+	@Override
+	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
+		return 3;
+	}
 }

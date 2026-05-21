@@ -2,102 +2,118 @@ package net.minecraft.world.poi;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Objects;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryFixedCodec;
 import net.minecraft.util.annotation.Debug;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.Objects;
+
+/**
+ * {@code PointOfInterest}.
+ */
 public class PointOfInterest {
-   private final BlockPos pos;
-   private final RegistryEntry<PointOfInterestType> type;
-   private int freeTickets;
-   private final Runnable updateListener;
 
-   PointOfInterest(BlockPos pos, RegistryEntry<PointOfInterestType> type, int freeTickets, Runnable updateListener) {
-      this.pos = pos.toImmutable();
-      this.type = type;
-      this.freeTickets = freeTickets;
-      this.updateListener = updateListener;
-   }
+	private final BlockPos pos;
+	private final RegistryEntry<PointOfInterestType> type;
+	private int freeTickets;
+	private final Runnable updateListener;
 
-   public PointOfInterest(BlockPos pos, RegistryEntry<PointOfInterestType> type, Runnable updateListener) {
-      this(pos, type, type.value().ticketCount(), updateListener);
-   }
+	PointOfInterest(BlockPos pos, RegistryEntry<PointOfInterestType> type, int freeTickets, Runnable updateListener) {
+		this.pos = pos.toImmutable();
+		this.type = type;
+		this.freeTickets = freeTickets;
+		this.updateListener = updateListener;
+	}
 
-   public PointOfInterest.Serialized toSerialized() {
-      return new PointOfInterest.Serialized(this.pos, this.type, this.freeTickets);
-   }
+	public PointOfInterest(BlockPos pos, RegistryEntry<PointOfInterestType> type, Runnable updateListener) {
+		this(pos, type, type.value().ticketCount(), updateListener);
+	}
 
-   @Deprecated
-   @Debug
-   public int getFreeTickets() {
-      return this.freeTickets;
-   }
+	public PointOfInterest.Serialized toSerialized() {
+		return new PointOfInterest.Serialized(this.pos, this.type, this.freeTickets);
+	}
 
-   protected boolean reserveTicket() {
-      if (this.freeTickets <= 0) {
-         return false;
-      } else {
-         this.freeTickets--;
-         this.updateListener.run();
-         return true;
-      }
-   }
+	@Deprecated
+	@Debug
+	public int getFreeTickets() {
+		return this.freeTickets;
+	}
 
-   protected boolean releaseTicket() {
-      if (this.freeTickets >= this.type.value().ticketCount()) {
-         return false;
-      } else {
-         this.freeTickets++;
-         this.updateListener.run();
-         return true;
-      }
-   }
+	protected boolean reserveTicket() {
+		if (this.freeTickets <= 0) {
+			return false;
+		}
+		else {
+			this.freeTickets--;
+			this.updateListener.run();
+			return true;
+		}
+	}
 
-   public boolean hasSpace() {
-      return this.freeTickets > 0;
-   }
+	protected boolean releaseTicket() {
+		if (this.freeTickets >= this.type.value().ticketCount()) {
+			return false;
+		}
+		else {
+			this.freeTickets++;
+			this.updateListener.run();
+			return true;
+		}
+	}
 
-   public boolean isOccupied() {
-      return this.freeTickets != this.type.value().ticketCount();
-   }
+	public boolean hasSpace() {
+		return this.freeTickets > 0;
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public boolean isOccupied() {
+		return this.freeTickets != this.type.value().ticketCount();
+	}
 
-   public RegistryEntry<PointOfInterestType> getType() {
-      return this.type;
-   }
+	public BlockPos getPos() {
+		return this.pos;
+	}
 
-   @Override
-   public boolean equals(Object o) {
-      if (this == o) {
-         return true;
-      } else {
-         return o != null && this.getClass() == o.getClass() ? Objects.equals(this.pos, ((PointOfInterest)o).pos) : false;
-      }
-   }
+	public RegistryEntry<PointOfInterestType> getType() {
+		return this.type;
+	}
 
-   @Override
-   public int hashCode() {
-      return this.pos.hashCode();
-   }
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		else {
+			return o != null && this.getClass() == o.getClass() ? Objects.equals(this.pos, ((PointOfInterest) o).pos)
+			                                                    : false;
+		}
+	}
 
-   public record Serialized(BlockPos pos, RegistryEntry<PointOfInterestType> poiType, int freeTickets) {
-      public static final Codec<PointOfInterest.Serialized> CODEC = RecordCodecBuilder.create(
-         instance -> instance.group(
-               BlockPos.CODEC.fieldOf("pos").forGetter(PointOfInterest.Serialized::pos),
-               RegistryFixedCodec.of(RegistryKeys.POINT_OF_INTEREST_TYPE).fieldOf("type").forGetter(PointOfInterest.Serialized::poiType),
-               Codec.INT.fieldOf("free_tickets").orElse(0).forGetter(PointOfInterest.Serialized::freeTickets)
-            )
-            .apply(instance, PointOfInterest.Serialized::new)
-      );
+	@Override
+	public int hashCode() {
+		return this.pos.hashCode();
+	}
 
-      public PointOfInterest toPointOfInterest(Runnable updateListener) {
-         return new PointOfInterest(this.pos, this.poiType, this.freeTickets, updateListener);
-      }
-   }
+	/**
+	 * {@code Serialized}.
+	 */
+	public record Serialized(BlockPos pos, RegistryEntry<PointOfInterestType> poiType, int freeTickets) {
+
+		public static final Codec<PointOfInterest.Serialized> CODEC = RecordCodecBuilder.create(
+				instance -> instance.group(
+						                    BlockPos.CODEC.fieldOf("pos").forGetter(PointOfInterest.Serialized::pos),
+						                    RegistryFixedCodec
+								                    .of(RegistryKeys.POINT_OF_INTEREST_TYPE)
+								                    .fieldOf("type")
+								                    .forGetter(PointOfInterest.Serialized::poiType),
+						                    Codec.INT.fieldOf("free_tickets").orElse(0).forGetter(PointOfInterest.Serialized::freeTickets)
+				                    )
+				                    .apply(instance, PointOfInterest.Serialized::new)
+		);
+
+		public PointOfInterest toPointOfInterest(Runnable updateListener) {
+			return new PointOfInterest(this.pos, this.poiType, this.freeTickets, updateListener);
+		}
+	}
 }

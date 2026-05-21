@@ -6,16 +6,20 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.Type;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code DecoratedPotFieldRenameFix}.
+ */
 public class DecoratedPotFieldRenameFix extends DataFix {
-   private static final String DECORATED_POT_ID = "minecraft:decorated_pot";
 
-   public DecoratedPotFieldRenameFix(Schema outputSchema) {
-      super(outputSchema, true);
-   }
+	private static final String DECORATED_POT_ID = "minecraft:decorated_pot";
 
-   protected TypeRewriteRule makeRule() {
-      Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:decorated_pot");
-      Type<?> type2 = this.getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:decorated_pot");
-      return this.convertUnchecked("DecoratedPotFieldRenameFix", type, type2);
-   }
+	public DecoratedPotFieldRenameFix(Schema outputSchema) {
+		super(outputSchema, true);
+	}
+
+	protected TypeRewriteRule makeRule() {
+		Type<?> type = this.getInputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:decorated_pot");
+		Type<?> type2 = this.getOutputSchema().getChoiceType(TypeReferences.BLOCK_ENTITY, "minecraft:decorated_pot");
+		return this.convertUnchecked("DecoratedPotFieldRenameFix", type, type2);
+	}
 }

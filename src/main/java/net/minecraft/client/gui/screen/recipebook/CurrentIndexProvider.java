@@ -5,6 +5,10 @@ import net.fabricmc.api.Environment;
 
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CurrentIndexProvider}.
+ */
 public interface CurrentIndexProvider {
-   int currentIndex();
+
+	int currentIndex();
 }

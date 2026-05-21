@@ -2,219 +2,235 @@ package net.minecraft.registry.entry;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.mojang.datafixers.util.Either;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.Spliterator;
-import java.util.function.Function;
-import java.util.stream.Stream;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
+/**
+ * {@code RegistryEntryList}.
+ */
 public interface RegistryEntryList<T> extends Iterable<RegistryEntry<T>> {
-   Stream<RegistryEntry<T>> stream();
 
-   int size();
+	Stream<RegistryEntry<T>> stream();
 
-   boolean isBound();
+	int size();
 
-   Either<TagKey<T>, List<RegistryEntry<T>>> getStorage();
+	boolean isBound();
 
-   Optional<RegistryEntry<T>> getRandom(Random random);
+	Either<TagKey<T>, List<RegistryEntry<T>>> getStorage();
 
-   RegistryEntry<T> get(int index);
+	Optional<RegistryEntry<T>> getRandom(Random random);
 
-   boolean contains(RegistryEntry<T> entry);
+	RegistryEntry<T> get(int index);
 
-   boolean ownerEquals(RegistryEntryOwner<T> owner);
+	boolean contains(RegistryEntry<T> entry);
 
-   Optional<TagKey<T>> getTagKey();
+	boolean ownerEquals(RegistryEntryOwner<T> owner);
 
-   @Deprecated
-   @VisibleForTesting
-   static <T> RegistryEntryList.Named<T> of(RegistryEntryOwner<T> owner, TagKey<T> tagKey) {
-      return new RegistryEntryList.Named<T>(owner, tagKey) {
-         @Override
-         protected List<RegistryEntry<T>> getEntries() {
-            throw new UnsupportedOperationException("Tag " + this.getTag() + " can't be dereferenced during construction");
-         }
-      };
-   }
+	Optional<TagKey<T>> getTagKey();
 
-   static <T> RegistryEntryList<T> empty() {
-      return (RegistryEntryList<T>)RegistryEntryList.Direct.EMPTY;
-   }
+	@Deprecated
+	@VisibleForTesting
+	static <T> RegistryEntryList.Named<T> of(RegistryEntryOwner<T> owner, TagKey<T> tagKey) {
+		return new RegistryEntryList.Named<T>(owner, tagKey) {
+			@Override
+			protected List<RegistryEntry<T>> getEntries() {
+				throw new UnsupportedOperationException(
+						"Tag " + this.getTag() + " can't be dereferenced during construction");
+			}
+		};
+	}
 
-   @SafeVarargs
-   static <T> RegistryEntryList.Direct<T> of(RegistryEntry<T>... entries) {
-      return new RegistryEntryList.Direct<>(List.of(entries));
-   }
+	static <T> RegistryEntryList<T> empty() {
+		return (RegistryEntryList<T>) RegistryEntryList.Direct.EMPTY;
+	}
 
-   static <T> RegistryEntryList.Direct<T> of(List<? extends RegistryEntry<T>> entries) {
-      return new RegistryEntryList.Direct<>(List.copyOf(entries));
-   }
+	@SafeVarargs
+	static <T> RegistryEntryList.Direct<T> of(RegistryEntry<T>... entries) {
+		return new RegistryEntryList.Direct<>(List.of(entries));
+	}
 
-   @SafeVarargs
-   static <E, T> RegistryEntryList.Direct<T> of(Function<E, RegistryEntry<T>> mapper, E... values) {
-      return of(Stream.of(values).map(mapper).toList());
-   }
+	static <T> RegistryEntryList.Direct<T> of(List<? extends RegistryEntry<T>> entries) {
+		return new RegistryEntryList.Direct<>(List.copyOf(entries));
+	}
 
-   static <E, T> RegistryEntryList.Direct<T> of(Function<E, RegistryEntry<T>> mapper, Collection<E> values) {
-      return of(values.stream().map(mapper).toList());
-   }
+	@SafeVarargs
+	static <E, T> RegistryEntryList.Direct<T> of(Function<E, RegistryEntry<T>> mapper, E... values) {
+		return of(Stream.of(values).map(mapper).toList());
+	}
 
-   public static final class Direct<T> extends RegistryEntryList.ListBacked<T> {
-      static final RegistryEntryList.Direct<?> EMPTY = new RegistryEntryList.Direct(List.of());
-      private final List<RegistryEntry<T>> entries;
-      private @Nullable Set<RegistryEntry<T>> entrySet;
+	static <E, T> RegistryEntryList.Direct<T> of(Function<E, RegistryEntry<T>> mapper, Collection<E> values) {
+		return of(values.stream().map(mapper).toList());
+	}
 
-      Direct(List<RegistryEntry<T>> entries) {
-         this.entries = entries;
-      }
+	/**
+	 * {@code Direct}.
+	 */
+	public static final class Direct<T> extends RegistryEntryList.ListBacked<T> {
 
-      @Override
-      protected List<RegistryEntry<T>> getEntries() {
-         return this.entries;
-      }
+		static final RegistryEntryList.Direct<?> EMPTY = new RegistryEntryList.Direct(List.of());
+		private final List<RegistryEntry<T>> entries;
+		private @Nullable Set<RegistryEntry<T>> entrySet;
 
-      @Override
-      public boolean isBound() {
-         return true;
-      }
+		Direct(List<RegistryEntry<T>> entries) {
+			this.entries = entries;
+		}
 
-      @Override
-      public Either<TagKey<T>, List<RegistryEntry<T>>> getStorage() {
-         return Either.right(this.entries);
-      }
+		@Override
+		protected List<RegistryEntry<T>> getEntries() {
+			return this.entries;
+		}
 
-      @Override
-      public Optional<TagKey<T>> getTagKey() {
-         return Optional.empty();
-      }
+		@Override
+		public boolean isBound() {
+			return true;
+		}
 
-      @Override
-      public boolean contains(RegistryEntry<T> entry) {
-         if (this.entrySet == null) {
-            this.entrySet = Set.copyOf(this.entries);
-         }
+		@Override
+		public Either<TagKey<T>, List<RegistryEntry<T>>> getStorage() {
+			return Either.right(this.entries);
+		}
 
-         return this.entrySet.contains(entry);
-      }
+		@Override
+		public Optional<TagKey<T>> getTagKey() {
+			return Optional.empty();
+		}
 
-      @Override
-      public String toString() {
-         return "DirectSet[" + this.entries + "]";
-      }
+		@Override
+		public boolean contains(RegistryEntry<T> entry) {
+			if (this.entrySet == null) {
+				this.entrySet = Set.copyOf(this.entries);
+			}
 
-      @Override
-      public boolean equals(Object o) {
-         return this == o ? true : o instanceof RegistryEntryList.Direct<?> direct && this.entries.equals(direct.entries);
-      }
+			return this.entrySet.contains(entry);
+		}
 
-      @Override
-      public int hashCode() {
-         return this.entries.hashCode();
-      }
-   }
+		@Override
+		public String toString() {
+			return "DirectSet[" + this.entries + "]";
+		}
 
-   public abstract static class ListBacked<T> implements RegistryEntryList<T> {
-      protected abstract List<RegistryEntry<T>> getEntries();
+		@Override
+		public boolean equals(Object o) {
+			return this == o ? true
+			                 : o instanceof RegistryEntryList.Direct<?> direct && this.entries.equals(direct.entries);
+		}
 
-      @Override
-      public int size() {
-         return this.getEntries().size();
-      }
+		@Override
+		public int hashCode() {
+			return this.entries.hashCode();
+		}
+	}
 
-      @Override
-      public Spliterator<RegistryEntry<T>> spliterator() {
-         return this.getEntries().spliterator();
-      }
+	/**
+	 * {@code ListBacked}.
+	 */
+	public abstract static class ListBacked<T> implements RegistryEntryList<T> {
 
-      @Override
-      public Iterator<RegistryEntry<T>> iterator() {
-         return this.getEntries().iterator();
-      }
+		protected abstract List<RegistryEntry<T>> getEntries();
 
-      @Override
-      public Stream<RegistryEntry<T>> stream() {
-         return this.getEntries().stream();
-      }
+		@Override
+		public int size() {
+			return this.getEntries().size();
+		}
 
-      @Override
-      public Optional<RegistryEntry<T>> getRandom(Random random) {
-         return Util.getRandomOrEmpty(this.getEntries(), random);
-      }
+		@Override
+		public Spliterator<RegistryEntry<T>> spliterator() {
+			return this.getEntries().spliterator();
+		}
 
-      @Override
-      public RegistryEntry<T> get(int index) {
-         return this.getEntries().get(index);
-      }
+		@Override
+		public Iterator<RegistryEntry<T>> iterator() {
+			return this.getEntries().iterator();
+		}
 
-      @Override
-      public boolean ownerEquals(RegistryEntryOwner<T> owner) {
-         return true;
-      }
-   }
+		@Override
+		public Stream<RegistryEntry<T>> stream() {
+			return this.getEntries().stream();
+		}
 
-   public static class Named<T> extends RegistryEntryList.ListBacked<T> {
-      private final RegistryEntryOwner<T> owner;
-      private final TagKey<T> tag;
-      private @Nullable List<RegistryEntry<T>> entries;
+		@Override
+		public Optional<RegistryEntry<T>> getRandom(Random random) {
+			return Util.getRandomOrEmpty(this.getEntries(), random);
+		}
 
-      public Named(RegistryEntryOwner<T> owner, TagKey<T> tag) {
-         this.owner = owner;
-         this.tag = tag;
-      }
+		@Override
+		public RegistryEntry<T> get(int index) {
+			return this.getEntries().get(index);
+		}
 
-      public void setEntries(List<RegistryEntry<T>> entries) {
-         this.entries = List.copyOf(entries);
-      }
+		@Override
+		public boolean ownerEquals(RegistryEntryOwner<T> owner) {
+			return true;
+		}
+	}
 
-      public TagKey<T> getTag() {
-         return this.tag;
-      }
+	/**
+	 * {@code Named}.
+	 */
+	public static class Named<T> extends RegistryEntryList.ListBacked<T> {
 
-      @Override
-      protected List<RegistryEntry<T>> getEntries() {
-         if (this.entries == null) {
-            throw new IllegalStateException("Trying to access unbound tag '" + this.tag + "' from registry " + this.owner);
-         } else {
-            return this.entries;
-         }
-      }
+		private final RegistryEntryOwner<T> owner;
+		private final TagKey<T> tag;
+		private @Nullable List<RegistryEntry<T>> entries;
 
-      @Override
-      public boolean isBound() {
-         return this.entries != null;
-      }
+		public Named(RegistryEntryOwner<T> owner, TagKey<T> tag) {
+			this.owner = owner;
+			this.tag = tag;
+		}
 
-      @Override
-      public Either<TagKey<T>, List<RegistryEntry<T>>> getStorage() {
-         return Either.left(this.tag);
-      }
+		public void setEntries(List<RegistryEntry<T>> entries) {
+			this.entries = List.copyOf(entries);
+		}
 
-      @Override
-      public Optional<TagKey<T>> getTagKey() {
-         return Optional.of(this.tag);
-      }
+		public TagKey<T> getTag() {
+			return this.tag;
+		}
 
-      @Override
-      public boolean contains(RegistryEntry<T> entry) {
-         return entry.isIn(this.tag);
-      }
+		@Override
+		protected List<RegistryEntry<T>> getEntries() {
+			if (this.entries == null) {
+				throw new IllegalStateException(
+						"Trying to access unbound tag '" + this.tag + "' from registry " + this.owner);
+			}
+			else {
+				return this.entries;
+			}
+		}
 
-      @Override
-      public String toString() {
-         return "NamedSet(" + this.tag + ")[" + this.entries + "]";
-      }
+		@Override
+		public boolean isBound() {
+			return this.entries != null;
+		}
 
-      @Override
-      public boolean ownerEquals(RegistryEntryOwner<T> owner) {
-         return this.owner.ownerEquals(owner);
-      }
-   }
+		@Override
+		public Either<TagKey<T>, List<RegistryEntry<T>>> getStorage() {
+			return Either.left(this.tag);
+		}
+
+		@Override
+		public Optional<TagKey<T>> getTagKey() {
+			return Optional.of(this.tag);
+		}
+
+		@Override
+		public boolean contains(RegistryEntry<T> entry) {
+			return entry.isIn(this.tag);
+		}
+
+		@Override
+		public String toString() {
+			return "NamedSet(" + this.tag + ")[" + this.entries + "]";
+		}
+
+		@Override
+		public boolean ownerEquals(RegistryEntryOwner<T> owner) {
+			return this.owner.ownerEquals(owner);
+		}
+	}
 }

@@ -1,79 +1,84 @@
 package net.minecraft.util.profiler;
 
 import com.google.common.collect.ImmutableSet;
-import java.util.Set;
-import java.util.function.Supplier;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Set;
+import java.util.function.Supplier;
+
+/**
+ * {@code DummyProfiler}.
+ */
 public class DummyProfiler implements ReadableProfiler {
-   public static final DummyProfiler INSTANCE = new DummyProfiler();
 
-   private DummyProfiler() {
-   }
+	public static final DummyProfiler INSTANCE = new DummyProfiler();
 
-   @Override
-   public void startTick() {
-   }
+	private DummyProfiler() {
+	}
 
-   @Override
-   public void endTick() {
-   }
+	@Override
+	public void startTick() {
+	}
 
-   @Override
-   public void push(String location) {
-   }
+	@Override
+	public void endTick() {
+	}
 
-   @Override
-   public void push(Supplier<String> locationGetter) {
-   }
+	@Override
+	public void push(String location) {
+	}
 
-   @Override
-   public void markSampleType(SampleType type) {
-   }
+	@Override
+	public void push(Supplier<String> locationGetter) {
+	}
 
-   @Override
-   public void pop() {
-   }
+	@Override
+	public void markSampleType(SampleType type) {
+	}
 
-   @Override
-   public void swap(String location) {
-   }
+	@Override
+	public void pop() {
+	}
 
-   @Override
-   public void swap(Supplier<String> locationGetter) {
-   }
+	@Override
+	public void swap(String location) {
+	}
 
-   @Override
-   public ScopedProfiler scoped(String name) {
-      return ScopedProfiler.DUMMY;
-   }
+	@Override
+	public void swap(Supplier<String> locationGetter) {
+	}
 
-   @Override
-   public ScopedProfiler scoped(Supplier<String> nameSupplier) {
-      return ScopedProfiler.DUMMY;
-   }
+	@Override
+	public ScopedProfiler scoped(String name) {
+		return ScopedProfiler.DUMMY;
+	}
 
-   @Override
-   public void visit(String marker, int num) {
-   }
+	@Override
+	public ScopedProfiler scoped(Supplier<String> nameSupplier) {
+		return ScopedProfiler.DUMMY;
+	}
 
-   @Override
-   public void visit(Supplier<String> markerGetter, int num) {
-   }
+	@Override
+	public void visit(String marker, int num) {
+	}
 
-   @Override
-   public ProfileResult getResult() {
-      return EmptyProfileResult.INSTANCE;
-   }
+	@Override
+	public void visit(Supplier<String> markerGetter, int num) {
+	}
 
-   @Override
-   public ProfilerSystem.@Nullable LocatedInfo getInfo(String name) {
-      return null;
-   }
+	@Override
+	public ProfileResult getResult() {
+		return EmptyProfileResult.INSTANCE;
+	}
 
-   @Override
-   public Set<Pair<String, SampleType>> getSampleTargets() {
-      return ImmutableSet.of();
-   }
+	@Override
+	public ProfilerSystem.@Nullable LocatedInfo getInfo(String name) {
+		return null;
+	}
+
+	@Override
+	public Set<Pair<String, SampleType>> getSampleTargets() {
+		return ImmutableSet.of();
+	}
 }

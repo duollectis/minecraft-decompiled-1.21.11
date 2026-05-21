@@ -9,21 +9,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.recipe.display.RecipeDisplay;
 
-public record CraftFailedResponseS2CPacket(int syncId, RecipeDisplay recipeDisplay) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, CraftFailedResponseS2CPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.SYNC_ID,
-      CraftFailedResponseS2CPacket::syncId,
-      RecipeDisplay.PACKET_CODEC,
-      CraftFailedResponseS2CPacket::recipeDisplay,
-      CraftFailedResponseS2CPacket::new
-   );
+public record CraftFailedResponseS2CPacket(
+		int syncId,
+		RecipeDisplay recipeDisplay
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<CraftFailedResponseS2CPacket> getPacketType() {
-      return PlayPackets.PLACE_GHOST_RECIPE;
-   }
+	public static final PacketCodec<RegistryByteBuf, CraftFailedResponseS2CPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.SYNC_ID,
+			CraftFailedResponseS2CPacket::syncId,
+			RecipeDisplay.PACKET_CODEC,
+			CraftFailedResponseS2CPacket::recipeDisplay,
+			CraftFailedResponseS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onCraftFailedResponse(this);
-   }
+	@Override
+	public PacketType<CraftFailedResponseS2CPacket> getPacketType() {
+		return PlayPackets.PLACE_GHOST_RECIPE;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onCraftFailedResponse(this);
+	}
 }

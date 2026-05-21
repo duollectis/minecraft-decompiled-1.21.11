@@ -10,99 +10,111 @@ import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.world.World;
 
+/**
+ * {@code BookCloningRecipe}.
+ */
 public class BookCloningRecipe extends SpecialCraftingRecipe {
-   public BookCloningRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-      super(craftingRecipeCategory);
-   }
 
-   public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-      if (craftingRecipeInput.getStackCount() < 2) {
-         return false;
-      } else {
-         boolean bl = false;
-         boolean bl2 = false;
+	public BookCloningRecipe(CraftingRecipeCategory craftingRecipeCategory) {
+		super(craftingRecipeCategory);
+	}
 
-         for (int i = 0; i < craftingRecipeInput.size(); i++) {
-            ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-            if (!itemStack.isEmpty()) {
-               if (itemStack.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
-                  if (bl2) {
-                     return false;
-                  }
+	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
+		if (craftingRecipeInput.getStackCount() < 2) {
+			return false;
+		}
+		else {
+			boolean bl = false;
+			boolean bl2 = false;
 
-                  bl2 = true;
-               } else {
-                  if (!itemStack.isIn(ItemTags.BOOK_CLONING_TARGET)) {
-                     return false;
-                  }
+			for (int i = 0; i < craftingRecipeInput.size(); i++) {
+				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
+				if (!itemStack.isEmpty()) {
+					if (itemStack.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
+						if (bl2) {
+							return false;
+						}
 
-                  bl = true;
-               }
-            }
-         }
+						bl2 = true;
+					}
+					else {
+						if (!itemStack.isIn(ItemTags.BOOK_CLONING_TARGET)) {
+							return false;
+						}
 
-         return bl2 && bl;
-      }
-   }
+						bl = true;
+					}
+				}
+			}
 
-   public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-      int i = 0;
-      ItemStack itemStack = ItemStack.EMPTY;
+			return bl2 && bl;
+		}
+	}
 
-      for (int j = 0; j < craftingRecipeInput.size(); j++) {
-         ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(j);
-         if (!itemStack2.isEmpty()) {
-            if (itemStack2.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
-               if (!itemStack.isEmpty()) {
-                  return ItemStack.EMPTY;
-               }
+	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
+		int i = 0;
+		ItemStack itemStack = ItemStack.EMPTY;
 
-               itemStack = itemStack2;
-            } else {
-               if (!itemStack2.isIn(ItemTags.BOOK_CLONING_TARGET)) {
-                  return ItemStack.EMPTY;
-               }
+		for (int j = 0; j < craftingRecipeInput.size(); j++) {
+			ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(j);
+			if (!itemStack2.isEmpty()) {
+				if (itemStack2.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
+					if (!itemStack.isEmpty()) {
+						return ItemStack.EMPTY;
+					}
 
-               i++;
-            }
-         }
-      }
+					itemStack = itemStack2;
+				}
+				else {
+					if (!itemStack2.isIn(ItemTags.BOOK_CLONING_TARGET)) {
+						return ItemStack.EMPTY;
+					}
 
-      WrittenBookContentComponent writtenBookContentComponent = itemStack.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
-      if (!itemStack.isEmpty() && i >= 1 && writtenBookContentComponent != null) {
-         WrittenBookContentComponent writtenBookContentComponent2 = writtenBookContentComponent.copy();
-         if (writtenBookContentComponent2 == null) {
-            return ItemStack.EMPTY;
-         } else {
-            ItemStack itemStack3 = itemStack.copyWithCount(i);
-            itemStack3.set(DataComponentTypes.WRITTEN_BOOK_CONTENT, writtenBookContentComponent2);
-            return itemStack3;
-         }
-      } else {
-         return ItemStack.EMPTY;
-      }
-   }
+					i++;
+				}
+			}
+		}
 
-   @Override
-   public DefaultedList<ItemStack> getRecipeRemainders(CraftingRecipeInput input) {
-      DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
+		WrittenBookContentComponent
+				writtenBookContentComponent =
+				itemStack.get(DataComponentTypes.WRITTEN_BOOK_CONTENT);
+		if (!itemStack.isEmpty() && i >= 1 && writtenBookContentComponent != null) {
+			WrittenBookContentComponent writtenBookContentComponent2 = writtenBookContentComponent.copy();
+			if (writtenBookContentComponent2 == null) {
+				return ItemStack.EMPTY;
+			}
+			else {
+				ItemStack itemStack3 = itemStack.copyWithCount(i);
+				itemStack3.set(DataComponentTypes.WRITTEN_BOOK_CONTENT, writtenBookContentComponent2);
+				return itemStack3;
+			}
+		}
+		else {
+			return ItemStack.EMPTY;
+		}
+	}
 
-      for (int i = 0; i < defaultedList.size(); i++) {
-         ItemStack itemStack = input.getStackInSlot(i);
-         ItemStack itemStack2 = itemStack.getItem().getRecipeRemainder();
-         if (!itemStack2.isEmpty()) {
-            defaultedList.set(i, itemStack2);
-         } else if (itemStack.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
-            defaultedList.set(i, itemStack.copyWithCount(1));
-            break;
-         }
-      }
+	@Override
+	public DefaultedList<ItemStack> getRecipeRemainders(CraftingRecipeInput input) {
+		DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
 
-      return defaultedList;
-   }
+		for (int i = 0; i < defaultedList.size(); i++) {
+			ItemStack itemStack = input.getStackInSlot(i);
+			ItemStack itemStack2 = itemStack.getItem().getRecipeRemainder();
+			if (!itemStack2.isEmpty()) {
+				defaultedList.set(i, itemStack2);
+			}
+			else if (itemStack.contains(DataComponentTypes.WRITTEN_BOOK_CONTENT)) {
+				defaultedList.set(i, itemStack.copyWithCount(1));
+				break;
+			}
+		}
 
-   @Override
-   public RecipeSerializer<BookCloningRecipe> getSerializer() {
-      return RecipeSerializer.BOOK_CLONING;
-   }
+		return defaultedList;
+	}
+
+	@Override
+	public RecipeSerializer<BookCloningRecipe> getSerializer() {
+		return RecipeSerializer.BOOK_CLONING;
+	}
 }

@@ -5,6 +5,13 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.hash.HashingOutputStream;
 import com.mojang.logging.LogUtils;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtHelper;
+import net.minecraft.nbt.NbtIo;
+import net.minecraft.util.Util;
+import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -13,116 +20,143 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtHelper;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.util.Util;
-import org.apache.commons.io.IOUtils;
-import org.slf4j.Logger;
 
+/**
+ * {@code SnbtProvider}.
+ */
 public class SnbtProvider implements DataProvider {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private final DataOutput output;
-   private final Iterable<Path> paths;
-   private final List<SnbtProvider.Tweaker> write = Lists.newArrayList();
 
-   public SnbtProvider(DataOutput output, Iterable<Path> paths) {
-      this.output = output;
-      this.paths = paths;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private final DataOutput output;
+	private final Iterable<Path> paths;
+	private final List<SnbtProvider.Tweaker> write = Lists.newArrayList();
 
-   public SnbtProvider addWriter(SnbtProvider.Tweaker tweaker) {
-      this.write.add(tweaker);
-      return this;
-   }
+	public SnbtProvider(DataOutput output, Iterable<Path> paths) {
+		this.output = output;
+		this.paths = paths;
+	}
 
-   private NbtCompound write(String key, NbtCompound compound) {
-      NbtCompound nbtCompound = compound;
+	public SnbtProvider addWriter(SnbtProvider.Tweaker tweaker) {
+		this.write.add(tweaker);
+		return this;
+	}
 
-      for (SnbtProvider.Tweaker tweaker : this.write) {
-         nbtCompound = tweaker.write(key, nbtCompound);
-      }
+	private NbtCompound write(String key, NbtCompound compound) {
+		NbtCompound nbtCompound = compound;
 
-      return nbtCompound;
-   }
+		for (SnbtProvider.Tweaker tweaker : this.write) {
+			nbtCompound = tweaker.write(key, nbtCompound);
+		}
 
-   @Override
-   public CompletableFuture<?> run(DataWriter writer) {
-      Path path = this.output.getPath();
-      List<CompletableFuture<?>> list = Lists.newArrayList();
+		return nbtCompound;
+	}
 
-      for (Path path2 : this.paths) {
-         list.add(CompletableFuture.<CompletableFuture>supplyAsync(() -> {
-            try {
-               CompletableFuture var5x;
-               try (Stream<Path> stream = Files.walk(path2)) {
-                  var5x = CompletableFuture.allOf(stream.filter(pathxx -> pathxx.toString().endsWith(".snbt")).map(pathxx -> CompletableFuture.runAsync(() -> {
-                     SnbtProvider.CompressedData compressedData = this.toCompressedNbt(pathxx, this.getFileName(path2, pathxx));
-                     this.write(writer, compressedData, path);
-                  }, Util.getMainWorkerExecutor().named("SnbtToNbt"))).toArray(CompletableFuture[]::new));
-               }
+	@Override
+	public CompletableFuture<?> run(DataWriter writer) {
+		Path path = this.output.getPath();
+		List<CompletableFuture<?>> list = Lists.newArrayList();
 
-               return var5x;
-            } catch (Exception var9) {
-               throw new RuntimeException("Failed to read structure input directory, aborting", var9);
-            }
-         }, Util.getMainWorkerExecutor().named("SnbtToNbt")).thenCompose(future -> future));
-      }
+		for (Path path2 : this.paths) {
+			list.add(CompletableFuture.<CompletableFuture>supplyAsync(
+					() -> {
+						try {
+							CompletableFuture var5x;
+							try (Stream<Path> stream = Files.walk(path2)) {
+								var5x =
+										CompletableFuture.allOf(stream
+												.filter(pathxx -> pathxx.toString().endsWith(".snbt"))
+												.map(pathxx -> CompletableFuture.runAsync(
+														() -> {
+															SnbtProvider.CompressedData
+																	compressedData =
+																	this.toCompressedNbt(
+																			pathxx,
+																			this.getFileName(path2, pathxx)
+																	);
+															this.write(writer, compressedData, path);
+														}, Util.getMainWorkerExecutor().named("SnbtToNbt")
+												))
+												.toArray(CompletableFuture[]::new));
+							}
 
-      return Util.combine(list);
-   }
+							return var5x;
+						}
+						catch (Exception var9) {
+							throw new RuntimeException("Failed to read structure input directory, aborting", var9);
+						}
+					}, Util.getMainWorkerExecutor().named("SnbtToNbt")
+			).thenCompose(future -> future));
+		}
 
-   @Override
-   public String getName() {
-      return "SNBT -> NBT";
-   }
+		return Util.combine(list);
+	}
 
-   private String getFileName(Path root, Path file) {
-      String string = root.relativize(file).toString().replaceAll("\\\\", "/");
-      return string.substring(0, string.length() - ".snbt".length());
-   }
+	@Override
+	public String getName() {
+		return "SNBT -> NBT";
+	}
 
-   private SnbtProvider.CompressedData toCompressedNbt(Path path, String name) {
-      try {
-         SnbtProvider.CompressedData var10;
-         try (BufferedReader bufferedReader = Files.newBufferedReader(path)) {
-            String string = IOUtils.toString(bufferedReader);
-            NbtCompound nbtCompound = this.write(name, NbtHelper.fromNbtProviderString(string));
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            HashingOutputStream hashingOutputStream = new HashingOutputStream(Hashing.sha1(), byteArrayOutputStream);
-            NbtIo.writeCompressed(nbtCompound, hashingOutputStream);
-            byte[] bs = byteArrayOutputStream.toByteArray();
-            HashCode hashCode = hashingOutputStream.hash();
-            var10 = new SnbtProvider.CompressedData(name, bs, hashCode);
-         }
+	private String getFileName(Path root, Path file) {
+		String string = root.relativize(file).toString().replaceAll("\\\\", "/");
+		return string.substring(0, string.length() - ".snbt".length());
+	}
 
-         return var10;
-      } catch (Throwable var13) {
-         throw new SnbtProvider.CompressionException(path, var13);
-      }
-   }
+	private SnbtProvider.CompressedData toCompressedNbt(Path path, String name) {
+		try {
+			SnbtProvider.CompressedData var10;
+			try (BufferedReader bufferedReader = Files.newBufferedReader(path)) {
+				String string = IOUtils.toString(bufferedReader);
+				NbtCompound nbtCompound = this.write(name, NbtHelper.fromNbtProviderString(string));
+				ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+				HashingOutputStream
+						hashingOutputStream =
+						new HashingOutputStream(Hashing.sha1(), byteArrayOutputStream);
+				NbtIo.writeCompressed(nbtCompound, hashingOutputStream);
+				byte[] bs = byteArrayOutputStream.toByteArray();
+				HashCode hashCode = hashingOutputStream.hash();
+				var10 = new SnbtProvider.CompressedData(name, bs, hashCode);
+			}
 
-   private void write(DataWriter cache, SnbtProvider.CompressedData data, Path root) {
-      Path path = root.resolve(data.name + ".nbt");
+			return var10;
+		}
+		catch (Throwable var13) {
+			throw new SnbtProvider.CompressionException(path, var13);
+		}
+	}
 
-      try {
-         cache.write(path, data.bytes, data.sha1);
-      } catch (IOException var6) {
-         LOGGER.error("Couldn't write structure {} at {}", new Object[]{data.name, path, var6});
-      }
-   }
+	private void write(DataWriter cache, SnbtProvider.CompressedData data, Path root) {
+		Path path = root.resolve(data.name + ".nbt");
 
-   record CompressedData(String name, byte[] bytes, HashCode sha1) {
-   }
+		try {
+			cache.write(path, data.bytes, data.sha1);
+		}
+		catch (IOException var6) {
+			LOGGER.error("Couldn't write structure {} at {}", new Object[]{data.name, path, var6});
+		}
+	}
 
-   static class CompressionException extends RuntimeException {
-      public CompressionException(Path path, Throwable cause) {
-         super(path.toAbsolutePath().toString(), cause);
-      }
-   }
+	/**
+	 * {@code CompressedData}.
+	 */
+	record CompressedData(String name, byte[] bytes, HashCode sha1) {
+	}
 
-   @FunctionalInterface
-   public interface Tweaker {
-      NbtCompound write(String name, NbtCompound nbt);
-   }
+	/**
+	 * {@code CompressionException}.
+	 */
+	static class CompressionException extends RuntimeException {
+
+		public CompressionException(Path path, Throwable cause) {
+			super(path.toAbsolutePath().toString(), cause);
+		}
+	}
+
+	@FunctionalInterface
+	/**
+	 * {@code Tweaker}.
+	 */
+	public interface Tweaker {
+
+		NbtCompound write(String name, NbtCompound nbt);
+	}
 }

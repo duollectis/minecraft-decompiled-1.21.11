@@ -7,20 +7,25 @@ import net.minecraft.client.realms.exception.RealmsUploadException;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TooBigRealmsUploadException}.
+ */
 public class TooBigRealmsUploadException extends RealmsUploadException {
-   final long maxSizeInBytes;
 
-   public TooBigRealmsUploadException(long maxSizeInBytes) {
-      this.maxSizeInBytes = maxSizeInBytes;
-   }
+	final long maxSizeInBytes;
 
-   @Override
-   public Text[] getStatusTexts() {
-      return new Text[]{
-         Text.translatable("mco.upload.failed.too_big.title"),
-         Text.translatable(
-            "mco.upload.failed.too_big.description", SizeUnit.humanReadableSize(this.maxSizeInBytes, SizeUnit.getLargestUnit(this.maxSizeInBytes))
-         )
-      };
-   }
+	public TooBigRealmsUploadException(long maxSizeInBytes) {
+		this.maxSizeInBytes = maxSizeInBytes;
+	}
+
+	@Override
+	public Text[] getStatusTexts() {
+		return new Text[]{
+				Text.translatable("mco.upload.failed.too_big.title"),
+				Text.translatable(
+						"mco.upload.failed.too_big.description",
+						SizeUnit.humanReadableSize(this.maxSizeInBytes, SizeUnit.getLargestUnit(this.maxSizeInBytes))
+				)
+		};
+	}
 }

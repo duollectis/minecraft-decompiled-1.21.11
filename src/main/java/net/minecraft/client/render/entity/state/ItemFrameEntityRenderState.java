@@ -9,11 +9,15 @@ import net.minecraft.util.math.Direction;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ItemFrameEntityRenderState}.
+ */
 public class ItemFrameEntityRenderState extends EntityRenderState {
-   public Direction facing = Direction.NORTH;
-   public final ItemRenderState itemRenderState = new ItemRenderState();
-   public int rotation;
-   public boolean glow;
-   public @Nullable MapIdComponent mapId;
-   public final MapRenderState mapRenderState = new MapRenderState();
+
+	public Direction facing = Direction.NORTH;
+	public final ItemRenderState itemRenderState = new ItemRenderState();
+	public int rotation;
+	public boolean glow;
+	public @Nullable MapIdComponent mapId;
+	public final MapRenderState mapRenderState = new MapRenderState();
 }

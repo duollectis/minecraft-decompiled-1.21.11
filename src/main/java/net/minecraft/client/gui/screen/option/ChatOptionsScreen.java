@@ -8,38 +8,42 @@ import net.minecraft.client.option.SimpleOption;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ChatOptionsScreen}.
+ */
 public class ChatOptionsScreen extends GameOptionsScreen {
-   private static final Text TITLE_TEXT = Text.translatable("options.chat.title");
 
-   private static SimpleOption<?>[] getOptions(GameOptions gameOptions) {
-      return new SimpleOption[]{
-         gameOptions.getChatVisibility(),
-         gameOptions.getChatColors(),
-         gameOptions.getChatLinks(),
-         gameOptions.getChatLinksPrompt(),
-         gameOptions.getChatOpacity(),
-         gameOptions.getTextBackgroundOpacity(),
-         gameOptions.getChatScale(),
-         gameOptions.getChatLineSpacing(),
-         gameOptions.getChatDelay(),
-         gameOptions.getChatWidth(),
-         gameOptions.getChatHeightFocused(),
-         gameOptions.getChatHeightUnfocused(),
-         gameOptions.getNarrator(),
-         gameOptions.getAutoSuggestions(),
-         gameOptions.getHideMatchedNames(),
-         gameOptions.getReducedDebugInfo(),
-         gameOptions.getOnlyShowSecureChat(),
-         gameOptions.getChatDrafts()
-      };
-   }
+	private static final Text TITLE_TEXT = Text.translatable("options.chat.title");
 
-   public ChatOptionsScreen(Screen parent, GameOptions options) {
-      super(parent, options, TITLE_TEXT);
-   }
+	private static SimpleOption<?>[] getOptions(GameOptions gameOptions) {
+		return new SimpleOption[]{
+				gameOptions.getChatVisibility(),
+				gameOptions.getChatColors(),
+				gameOptions.getChatLinks(),
+				gameOptions.getChatLinksPrompt(),
+				gameOptions.getChatOpacity(),
+				gameOptions.getTextBackgroundOpacity(),
+				gameOptions.getChatScale(),
+				gameOptions.getChatLineSpacing(),
+				gameOptions.getChatDelay(),
+				gameOptions.getChatWidth(),
+				gameOptions.getChatHeightFocused(),
+				gameOptions.getChatHeightUnfocused(),
+				gameOptions.getNarrator(),
+				gameOptions.getAutoSuggestions(),
+				gameOptions.getHideMatchedNames(),
+				gameOptions.getReducedDebugInfo(),
+				gameOptions.getOnlyShowSecureChat(),
+				gameOptions.getChatDrafts()
+		};
+	}
 
-   @Override
-   protected void addOptions() {
-      this.body.addAll(getOptions(this.gameOptions));
-   }
+	public ChatOptionsScreen(Screen parent, GameOptions options) {
+		super(parent, options, TITLE_TEXT);
+	}
+
+	@Override
+	protected void addOptions() {
+		this.body.addAll(getOptions(this.gameOptions));
+	}
 }

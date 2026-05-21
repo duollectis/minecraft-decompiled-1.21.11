@@ -2,8 +2,6 @@ package net.minecraft.network.packet.s2c.play;
 
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
-import java.util.BitSet;
-import java.util.List;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
@@ -14,85 +12,113 @@ import net.minecraft.world.chunk.ChunkNibbleArray;
 import net.minecraft.world.chunk.light.LightingProvider;
 import org.jspecify.annotations.Nullable;
 
+import java.util.BitSet;
+import java.util.List;
+
 public class LightData {
-   private static final PacketCodec<ByteBuf, byte[]> CODEC = PacketCodecs.byteArray(2048);
-   private final BitSet initedSky;
-   private final BitSet initedBlock;
-   private final BitSet uninitedSky;
-   private final BitSet uninitedBlock;
-   private final List<byte[]> skyNibbles;
-   private final List<byte[]> blockNibbles;
 
-   public LightData(ChunkPos pos, LightingProvider lightProvider, @Nullable BitSet skyBits, @Nullable BitSet blockBits) {
-      this.initedSky = new BitSet();
-      this.initedBlock = new BitSet();
-      this.uninitedSky = new BitSet();
-      this.uninitedBlock = new BitSet();
-      this.skyNibbles = Lists.newArrayList();
-      this.blockNibbles = Lists.newArrayList();
+	private static final PacketCodec<ByteBuf, byte[]> CODEC = PacketCodecs.byteArray(2048);
+	private final BitSet initedSky;
+	private final BitSet initedBlock;
+	private final BitSet uninitedSky;
+	private final BitSet uninitedBlock;
+	private final List<byte[]> skyNibbles;
+	private final List<byte[]> blockNibbles;
 
-      for (int i = 0; i < lightProvider.getHeight(); i++) {
-         if (skyBits == null || skyBits.get(i)) {
-            this.putChunk(pos, lightProvider, LightType.SKY, i, this.initedSky, this.uninitedSky, this.skyNibbles);
-         }
+	public LightData(
+			ChunkPos pos,
+			LightingProvider lightProvider,
+			@Nullable BitSet skyBits,
+			@Nullable BitSet blockBits
+	) {
+		this.initedSky = new BitSet();
+		this.initedBlock = new BitSet();
+		this.uninitedSky = new BitSet();
+		this.uninitedBlock = new BitSet();
+		this.skyNibbles = Lists.newArrayList();
+		this.blockNibbles = Lists.newArrayList();
 
-         if (blockBits == null || blockBits.get(i)) {
-            this.putChunk(pos, lightProvider, LightType.BLOCK, i, this.initedBlock, this.uninitedBlock, this.blockNibbles);
-         }
-      }
-   }
+		for (int i = 0; i < lightProvider.getHeight(); i++) {
+			if (skyBits == null || skyBits.get(i)) {
+				this.putChunk(pos, lightProvider, LightType.SKY, i, this.initedSky, this.uninitedSky, this.skyNibbles);
+			}
 
-   public LightData(PacketByteBuf buf, int x, int y) {
-      this.initedSky = buf.readBitSet();
-      this.initedBlock = buf.readBitSet();
-      this.uninitedSky = buf.readBitSet();
-      this.uninitedBlock = buf.readBitSet();
-      this.skyNibbles = buf.readList(CODEC);
-      this.blockNibbles = buf.readList(CODEC);
-   }
+			if (blockBits == null || blockBits.get(i)) {
+				this.putChunk(
+						pos,
+						lightProvider,
+						LightType.BLOCK,
+						i,
+						this.initedBlock,
+						this.uninitedBlock,
+						this.blockNibbles
+				);
+			}
+		}
+	}
 
-   public void write(PacketByteBuf buf) {
-      buf.writeBitSet(this.initedSky);
-      buf.writeBitSet(this.initedBlock);
-      buf.writeBitSet(this.uninitedSky);
-      buf.writeBitSet(this.uninitedBlock);
-      buf.writeCollection(this.skyNibbles, CODEC);
-      buf.writeCollection(this.blockNibbles, CODEC);
-   }
+	public LightData(PacketByteBuf buf, int x, int y) {
+		this.initedSky = buf.readBitSet();
+		this.initedBlock = buf.readBitSet();
+		this.uninitedSky = buf.readBitSet();
+		this.uninitedBlock = buf.readBitSet();
+		this.skyNibbles = buf.readList(CODEC);
+		this.blockNibbles = buf.readList(CODEC);
+	}
 
-   private void putChunk(ChunkPos pos, LightingProvider lightProvider, LightType type, int y, BitSet initialized, BitSet uninitialized, List<byte[]> nibbles) {
-      ChunkNibbleArray chunkNibbleArray = lightProvider.get(type).getLightSection(ChunkSectionPos.from(pos, lightProvider.getBottomY() + y));
-      if (chunkNibbleArray != null) {
-         if (chunkNibbleArray.isUninitialized()) {
-            uninitialized.set(y);
-         } else {
-            initialized.set(y);
-            nibbles.add(chunkNibbleArray.copy().asByteArray());
-         }
-      }
-   }
+	public void write(PacketByteBuf buf) {
+		buf.writeBitSet(this.initedSky);
+		buf.writeBitSet(this.initedBlock);
+		buf.writeBitSet(this.uninitedSky);
+		buf.writeBitSet(this.uninitedBlock);
+		buf.writeCollection(this.skyNibbles, CODEC);
+		buf.writeCollection(this.blockNibbles, CODEC);
+	}
 
-   public BitSet getInitedSky() {
-      return this.initedSky;
-   }
+	private void putChunk(
+			ChunkPos pos,
+			LightingProvider lightProvider,
+			LightType type,
+			int y,
+			BitSet initialized,
+			BitSet uninitialized,
+			List<byte[]> nibbles
+	) {
+		ChunkNibbleArray
+				chunkNibbleArray =
+				lightProvider.get(type).getLightSection(ChunkSectionPos.from(pos, lightProvider.getBottomY() + y));
+		if (chunkNibbleArray != null) {
+			if (chunkNibbleArray.isUninitialized()) {
+				uninitialized.set(y);
+			}
+			else {
+				initialized.set(y);
+				nibbles.add(chunkNibbleArray.copy().asByteArray());
+			}
+		}
+	}
 
-   public BitSet getUninitedSky() {
-      return this.uninitedSky;
-   }
+	public BitSet getInitedSky() {
+		return this.initedSky;
+	}
 
-   public List<byte[]> getSkyNibbles() {
-      return this.skyNibbles;
-   }
+	public BitSet getUninitedSky() {
+		return this.uninitedSky;
+	}
 
-   public BitSet getInitedBlock() {
-      return this.initedBlock;
-   }
+	public List<byte[]> getSkyNibbles() {
+		return this.skyNibbles;
+	}
 
-   public BitSet getUninitedBlock() {
-      return this.uninitedBlock;
-   }
+	public BitSet getInitedBlock() {
+		return this.initedBlock;
+	}
 
-   public List<byte[]> getBlockNibbles() {
-      return this.blockNibbles;
-   }
+	public BitSet getUninitedBlock() {
+		return this.uninitedBlock;
+	}
+
+	public List<byte[]> getBlockNibbles() {
+		return this.blockNibbles;
+	}
 }

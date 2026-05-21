@@ -5,109 +5,116 @@ import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
-import java.util.Objects;
-import java.util.function.ToIntFunction;
 import net.minecraft.registry.Registries;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.resource.featuretoggle.ToggleableFeature;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 
+import java.util.Objects;
+import java.util.function.ToIntFunction;
+
+/**
+ * {@code GameRule}.
+ */
 public final class GameRule<T> implements ToggleableFeature {
-   private final GameRuleCategory category;
-   private final GameRuleType type;
-   private final ArgumentType<T> argumentType;
-   private final GameRules.Acceptor<T> acceptor;
-   private final Codec<T> codec;
-   private final ToIntFunction<T> commandResultSupplier;
-   private final T defaultValue;
-   private final FeatureSet requiredFeatures;
 
-   public GameRule(
-      GameRuleCategory category,
-      GameRuleType type,
-      ArgumentType<T> argumentType,
-      GameRules.Acceptor<T> acceptor,
-      Codec<T> codec,
-      ToIntFunction<T> commandResultSupplier,
-      T defaultValue,
-      FeatureSet requiredFeatures
-   ) {
-      this.category = category;
-      this.type = type;
-      this.argumentType = argumentType;
-      this.acceptor = acceptor;
-      this.codec = codec;
-      this.commandResultSupplier = commandResultSupplier;
-      this.defaultValue = defaultValue;
-      this.requiredFeatures = requiredFeatures;
-   }
+	private final GameRuleCategory category;
+	private final GameRuleType type;
+	private final ArgumentType<T> argumentType;
+	private final GameRules.Acceptor<T> acceptor;
+	private final Codec<T> codec;
+	private final ToIntFunction<T> commandResultSupplier;
+	private final T defaultValue;
+	private final FeatureSet requiredFeatures;
 
-   @Override
-   public String toString() {
-      return this.toShortString();
-   }
+	public GameRule(
+			GameRuleCategory category,
+			GameRuleType type,
+			ArgumentType<T> argumentType,
+			GameRules.Acceptor<T> acceptor,
+			Codec<T> codec,
+			ToIntFunction<T> commandResultSupplier,
+			T defaultValue,
+			FeatureSet requiredFeatures
+	) {
+		this.category = category;
+		this.type = type;
+		this.argumentType = argumentType;
+		this.acceptor = acceptor;
+		this.codec = codec;
+		this.commandResultSupplier = commandResultSupplier;
+		this.defaultValue = defaultValue;
+		this.requiredFeatures = requiredFeatures;
+	}
 
-   public String toShortString() {
-      return this.getId().toShortString();
-   }
+	@Override
+	public String toString() {
+		return this.toShortString();
+	}
 
-   public Identifier getId() {
-      return Objects.requireNonNull(Registries.GAME_RULE.getId(this));
-   }
+	public String toShortString() {
+		return this.getId().toShortString();
+	}
 
-   public String getTranslationKey() {
-      return Util.createTranslationKey("gamerule", this.getId());
-   }
+	public Identifier getId() {
+		return Objects.requireNonNull(Registries.GAME_RULE.getId(this));
+	}
 
-   public String getValueName(T value) {
-      return value.toString();
-   }
+	public String getTranslationKey() {
+		return Util.createTranslationKey("gamerule", this.getId());
+	}
 
-   public DataResult<T> deserialize(String value) {
-      try {
-         StringReader stringReader = new StringReader(value);
-         T object = (T)this.argumentType.parse(stringReader);
-         return stringReader.canRead() ? DataResult.error(() -> "Failed to deserialize; trailing characters", object) : DataResult.success(object);
-      } catch (CommandSyntaxException var4) {
-         return DataResult.error(() -> "Failed to deserialize");
-      }
-   }
+	public String getValueName(T value) {
+		return value.toString();
+	}
 
-   public Class<T> getValueClass() {
-      return (Class<T>)this.defaultValue.getClass();
-   }
+	public DataResult<T> deserialize(String value) {
+		try {
+			StringReader stringReader = new StringReader(value);
+			T object = (T) this.argumentType.parse(stringReader);
+			return stringReader.canRead() ? DataResult.error(() -> "Failed to deserialize; trailing characters", object)
+			                              : DataResult.success(object);
+		}
+		catch (CommandSyntaxException var4) {
+			return DataResult.error(() -> "Failed to deserialize");
+		}
+	}
 
-   public void accept(GameRuleVisitor visitor) {
-      this.acceptor.call(visitor, this);
-   }
+	public Class<T> getValueClass() {
+		return (Class<T>) this.defaultValue.getClass();
+	}
 
-   public int getCommandResult(T value) {
-      return this.commandResultSupplier.applyAsInt(value);
-   }
+	public void accept(GameRuleVisitor visitor) {
+		this.acceptor.call(visitor, this);
+	}
 
-   public GameRuleCategory getCategory() {
-      return this.category;
-   }
+	public int getCommandResult(T value) {
+		return this.commandResultSupplier.applyAsInt(value);
+	}
 
-   public GameRuleType getType() {
-      return this.type;
-   }
+	public GameRuleCategory getCategory() {
+		return this.category;
+	}
 
-   public ArgumentType<T> getArgumentType() {
-      return this.argumentType;
-   }
+	public GameRuleType getType() {
+		return this.type;
+	}
 
-   public Codec<T> getCodec() {
-      return this.codec;
-   }
+	public ArgumentType<T> getArgumentType() {
+		return this.argumentType;
+	}
 
-   public T getDefaultValue() {
-      return this.defaultValue;
-   }
+	public Codec<T> getCodec() {
+		return this.codec;
+	}
 
-   @Override
-   public FeatureSet getRequiredFeatures() {
-      return this.requiredFeatures;
-   }
+	public T getDefaultValue() {
+		return this.defaultValue;
+	}
+
+	@Override
+	public FeatureSet getRequiredFeatures() {
+		return this.requiredFeatures;
+	}
 }

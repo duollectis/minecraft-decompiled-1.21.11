@@ -11,28 +11,44 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DolphinHeldItemFeatureRenderer}.
+ */
 public class DolphinHeldItemFeatureRenderer extends FeatureRenderer<DolphinEntityRenderState, DolphinEntityModel> {
-   public DolphinHeldItemFeatureRenderer(FeatureRendererContext<DolphinEntityRenderState, DolphinEntityModel> featureRendererContext) {
-      super(featureRendererContext);
-   }
 
-   public void render(
-      MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, DolphinEntityRenderState dolphinEntityRenderState, float f, float g
-   ) {
-      ItemRenderState itemRenderState = dolphinEntityRenderState.itemRenderState;
-      if (!itemRenderState.isEmpty()) {
-         matrixStack.push();
-         float h = 1.0F;
-         float j = -1.0F;
-         float k = MathHelper.abs(dolphinEntityRenderState.pitch) / 60.0F;
-         if (dolphinEntityRenderState.pitch < 0.0F) {
-            matrixStack.translate(0.0F, 1.0F - k * 0.5F, -1.0F + k * 0.5F);
-         } else {
-            matrixStack.translate(0.0F, 1.0F + k * 0.8F, -1.0F + k * 0.2F);
-         }
+	public DolphinHeldItemFeatureRenderer(FeatureRendererContext<DolphinEntityRenderState, DolphinEntityModel> featureRendererContext) {
+		super(featureRendererContext);
+	}
 
-         itemRenderState.render(matrixStack, orderedRenderCommandQueue, i, OverlayTexture.DEFAULT_UV, dolphinEntityRenderState.outlineColor);
-         matrixStack.pop();
-      }
-   }
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			DolphinEntityRenderState dolphinEntityRenderState,
+			float f,
+			float g
+	) {
+		ItemRenderState itemRenderState = dolphinEntityRenderState.itemRenderState;
+		if (!itemRenderState.isEmpty()) {
+			matrixStack.push();
+			float h = 1.0F;
+			float j = -1.0F;
+			float k = MathHelper.abs(dolphinEntityRenderState.pitch) / 60.0F;
+			if (dolphinEntityRenderState.pitch < 0.0F) {
+				matrixStack.translate(0.0F, 1.0F - k * 0.5F, -1.0F + k * 0.5F);
+			}
+			else {
+				matrixStack.translate(0.0F, 1.0F + k * 0.8F, -1.0F + k * 0.2F);
+			}
+
+			itemRenderState.render(
+					matrixStack,
+					orderedRenderCommandQueue,
+					i,
+					OverlayTexture.DEFAULT_UV,
+					dolphinEntityRenderState.outlineColor
+			);
+			matrixStack.pop();
+		}
+	}
 }

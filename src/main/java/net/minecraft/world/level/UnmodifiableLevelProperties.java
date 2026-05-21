@@ -1,192 +1,193 @@
 package net.minecraft.world.level;
 
-import java.util.Optional;
-import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.crash.CrashReportSection;
-import net.minecraft.world.Difficulty;
-import net.minecraft.world.GameMode;
-import net.minecraft.world.HeightLimitView;
-import net.minecraft.world.SaveProperties;
-import net.minecraft.world.WorldProperties;
+import net.minecraft.world.*;
 import net.minecraft.world.border.WorldBorder;
 import net.minecraft.world.rule.GameRules;
 import net.minecraft.world.timer.Timer;
 
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * {@code UnmodifiableLevelProperties}.
+ */
 public class UnmodifiableLevelProperties implements ServerWorldProperties {
-   private final SaveProperties saveProperties;
-   private final ServerWorldProperties worldProperties;
 
-   public UnmodifiableLevelProperties(SaveProperties saveProperties, ServerWorldProperties worldProperties) {
-      this.saveProperties = saveProperties;
-      this.worldProperties = worldProperties;
-   }
+	private final SaveProperties saveProperties;
+	private final ServerWorldProperties worldProperties;
 
-   @Override
-   public WorldProperties.SpawnPoint getSpawnPoint() {
-      return this.worldProperties.getSpawnPoint();
-   }
+	public UnmodifiableLevelProperties(SaveProperties saveProperties, ServerWorldProperties worldProperties) {
+		this.saveProperties = saveProperties;
+		this.worldProperties = worldProperties;
+	}
 
-   @Override
-   public long getTime() {
-      return this.worldProperties.getTime();
-   }
+	@Override
+	public WorldProperties.SpawnPoint getSpawnPoint() {
+		return this.worldProperties.getSpawnPoint();
+	}
 
-   @Override
-   public long getTimeOfDay() {
-      return this.worldProperties.getTimeOfDay();
-   }
+	@Override
+	public long getTime() {
+		return this.worldProperties.getTime();
+	}
 
-   @Override
-   public String getLevelName() {
-      return this.saveProperties.getLevelName();
-   }
+	@Override
+	public long getTimeOfDay() {
+		return this.worldProperties.getTimeOfDay();
+	}
 
-   @Override
-   public int getClearWeatherTime() {
-      return this.worldProperties.getClearWeatherTime();
-   }
+	@Override
+	public String getLevelName() {
+		return this.saveProperties.getLevelName();
+	}
 
-   @Override
-   public void setClearWeatherTime(int clearWeatherTime) {
-   }
+	@Override
+	public int getClearWeatherTime() {
+		return this.worldProperties.getClearWeatherTime();
+	}
 
-   @Override
-   public boolean isThundering() {
-      return this.worldProperties.isThundering();
-   }
+	@Override
+	public void setClearWeatherTime(int clearWeatherTime) {
+	}
 
-   @Override
-   public int getThunderTime() {
-      return this.worldProperties.getThunderTime();
-   }
+	@Override
+	public boolean isThundering() {
+		return this.worldProperties.isThundering();
+	}
 
-   @Override
-   public boolean isRaining() {
-      return this.worldProperties.isRaining();
-   }
+	@Override
+	public int getThunderTime() {
+		return this.worldProperties.getThunderTime();
+	}
 
-   @Override
-   public int getRainTime() {
-      return this.worldProperties.getRainTime();
-   }
+	@Override
+	public boolean isRaining() {
+		return this.worldProperties.isRaining();
+	}
 
-   @Override
-   public GameMode getGameMode() {
-      return this.saveProperties.getGameMode();
-   }
+	@Override
+	public int getRainTime() {
+		return this.worldProperties.getRainTime();
+	}
 
-   @Override
-   public void setTime(long time) {
-   }
+	@Override
+	public GameMode getGameMode() {
+		return this.saveProperties.getGameMode();
+	}
 
-   @Override
-   public void setTimeOfDay(long timeOfDay) {
-   }
+	@Override
+	public void setTime(long time) {
+	}
 
-   @Override
-   public void setSpawnPoint(WorldProperties.SpawnPoint spawnPoint) {
-      this.worldProperties.setSpawnPoint(spawnPoint);
-   }
+	@Override
+	public void setTimeOfDay(long timeOfDay) {
+	}
 
-   @Override
-   public void setThundering(boolean thundering) {
-   }
+	@Override
+	public void setSpawnPoint(WorldProperties.SpawnPoint spawnPoint) {
+		this.worldProperties.setSpawnPoint(spawnPoint);
+	}
 
-   @Override
-   public void setThunderTime(int thunderTime) {
-   }
+	@Override
+	public void setThundering(boolean thundering) {
+	}
 
-   @Override
-   public void setRaining(boolean raining) {
-   }
+	@Override
+	public void setThunderTime(int thunderTime) {
+	}
 
-   @Override
-   public void setRainTime(int rainTime) {
-   }
+	@Override
+	public void setRaining(boolean raining) {
+	}
 
-   @Override
-   public void setGameMode(GameMode gameMode) {
-   }
+	@Override
+	public void setRainTime(int rainTime) {
+	}
 
-   @Override
-   public boolean isHardcore() {
-      return this.saveProperties.isHardcore();
-   }
+	@Override
+	public void setGameMode(GameMode gameMode) {
+	}
 
-   @Override
-   public boolean areCommandsAllowed() {
-      return this.saveProperties.areCommandsAllowed();
-   }
+	@Override
+	public boolean isHardcore() {
+		return this.saveProperties.isHardcore();
+	}
 
-   @Override
-   public boolean isInitialized() {
-      return this.worldProperties.isInitialized();
-   }
+	@Override
+	public boolean areCommandsAllowed() {
+		return this.saveProperties.areCommandsAllowed();
+	}
 
-   @Override
-   public void setInitialized(boolean initialized) {
-   }
+	@Override
+	public boolean isInitialized() {
+		return this.worldProperties.isInitialized();
+	}
 
-   @Override
-   public GameRules getGameRules() {
-      return this.saveProperties.getGameRules();
-   }
+	@Override
+	public void setInitialized(boolean initialized) {
+	}
 
-   @Override
-   public Optional<WorldBorder.Properties> getWorldBorder() {
-      return this.worldProperties.getWorldBorder();
-   }
+	@Override
+	public GameRules getGameRules() {
+		return this.saveProperties.getGameRules();
+	}
 
-   @Override
-   public void setWorldBorder(Optional<WorldBorder.Properties> worldBorder) {
-   }
+	@Override
+	public Optional<WorldBorder.Properties> getWorldBorder() {
+		return this.worldProperties.getWorldBorder();
+	}
 
-   @Override
-   public Difficulty getDifficulty() {
-      return this.saveProperties.getDifficulty();
-   }
+	@Override
+	public void setWorldBorder(Optional<WorldBorder.Properties> worldBorder) {
+	}
 
-   @Override
-   public boolean isDifficultyLocked() {
-      return this.saveProperties.isDifficultyLocked();
-   }
+	@Override
+	public Difficulty getDifficulty() {
+		return this.saveProperties.getDifficulty();
+	}
 
-   @Override
-   public Timer<MinecraftServer> getScheduledEvents() {
-      return this.worldProperties.getScheduledEvents();
-   }
+	@Override
+	public boolean isDifficultyLocked() {
+		return this.saveProperties.isDifficultyLocked();
+	}
 
-   @Override
-   public int getWanderingTraderSpawnDelay() {
-      return 0;
-   }
+	@Override
+	public Timer<MinecraftServer> getScheduledEvents() {
+		return this.worldProperties.getScheduledEvents();
+	}
 
-   @Override
-   public void setWanderingTraderSpawnDelay(int wanderingTraderSpawnDelay) {
-   }
+	@Override
+	public int getWanderingTraderSpawnDelay() {
+		return 0;
+	}
 
-   @Override
-   public int getWanderingTraderSpawnChance() {
-      return 0;
-   }
+	@Override
+	public void setWanderingTraderSpawnDelay(int wanderingTraderSpawnDelay) {
+	}
 
-   @Override
-   public void setWanderingTraderSpawnChance(int wanderingTraderSpawnChance) {
-   }
+	@Override
+	public int getWanderingTraderSpawnChance() {
+		return 0;
+	}
 
-   @Override
-   public UUID getWanderingTraderId() {
-      return null;
-   }
+	@Override
+	public void setWanderingTraderSpawnChance(int wanderingTraderSpawnChance) {
+	}
 
-   @Override
-   public void setWanderingTraderId(UUID wanderingTraderId) {
-   }
+	@Override
+	public UUID getWanderingTraderId() {
+		return null;
+	}
 
-   @Override
-   public void populateCrashReport(CrashReportSection reportSection, HeightLimitView world) {
-      reportSection.add("Derived", true);
-      this.worldProperties.populateCrashReport(reportSection, world);
-   }
+	@Override
+	public void setWanderingTraderId(UUID wanderingTraderId) {
+	}
+
+	@Override
+	public void populateCrashReport(CrashReportSection reportSection, HeightLimitView world) {
+		reportSection.add("Derived", true);
+		this.worldProperties.populateCrashReport(reportSection, world);
+	}
 }

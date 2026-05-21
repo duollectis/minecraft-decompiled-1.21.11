@@ -8,23 +8,24 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class AcknowledgeReconfigurationC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final AcknowledgeReconfigurationC2SPacket INSTANCE = new AcknowledgeReconfigurationC2SPacket();
-   public static final PacketCodec<ByteBuf, AcknowledgeReconfigurationC2SPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   private AcknowledgeReconfigurationC2SPacket() {
-   }
+	public static final AcknowledgeReconfigurationC2SPacket INSTANCE = new AcknowledgeReconfigurationC2SPacket();
+	public static final PacketCodec<ByteBuf, AcknowledgeReconfigurationC2SPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   @Override
-   public PacketType<AcknowledgeReconfigurationC2SPacket> getPacketType() {
-      return PlayPackets.CONFIGURATION_ACKNOWLEDGED;
-   }
+	private AcknowledgeReconfigurationC2SPacket() {
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onAcknowledgeReconfiguration(this);
-   }
+	@Override
+	public PacketType<AcknowledgeReconfigurationC2SPacket> getPacketType() {
+		return PlayPackets.CONFIGURATION_ACKNOWLEDGED;
+	}
 
-   @Override
-   public boolean transitionsNetworkState() {
-      return true;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onAcknowledgeReconfiguration(this);
+	}
+
+	@Override
+	public boolean transitionsNetworkState() {
+		return true;
+	}
 }

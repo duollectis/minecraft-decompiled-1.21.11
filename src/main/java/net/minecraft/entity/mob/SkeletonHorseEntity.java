@@ -1,12 +1,6 @@
 package net.minecraft.entity.mob;
 
-import net.minecraft.entity.EntityAttachmentType;
-import net.minecraft.entity.EntityAttachments;
-import net.minecraft.entity.EntityDimensions;
-import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.ai.goal.SkeletonHorseTrapTriggerGoal;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -29,153 +23,173 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SkeletonHorseEntity}.
+ */
 public class SkeletonHorseEntity extends AbstractHorseEntity {
-   private final SkeletonHorseTrapTriggerGoal trapTriggerGoal = new SkeletonHorseTrapTriggerGoal(this);
-   private static final int DESPAWN_AGE = 18000;
-   private static final boolean DEFAULT_TRAPPED = false;
-   private static final int DEFAULT_TRAP_TIME = 0;
-   private static final EntityDimensions BABY_BASE_DIMENSIONS = EntityType.SKELETON_HORSE
-      .getDimensions()
-      .withAttachments(EntityAttachments.builder().add(EntityAttachmentType.PASSENGER, 0.0F, EntityType.SKELETON_HORSE.getHeight() - 0.03125F, 0.0F))
-      .scaled(0.5F);
-   private boolean trapped = false;
-   private int trapTime = 0;
 
-   public SkeletonHorseEntity(EntityType<? extends SkeletonHorseEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private final SkeletonHorseTrapTriggerGoal trapTriggerGoal = new SkeletonHorseTrapTriggerGoal(this);
+	private static final int DESPAWN_AGE = 18000;
+	private static final boolean DEFAULT_TRAPPED = false;
+	private static final int DEFAULT_TRAP_TIME = 0;
+	private static final EntityDimensions BABY_BASE_DIMENSIONS = EntityType.SKELETON_HORSE
+			.getDimensions()
+			.withAttachments(EntityAttachments
+					.builder()
+					.add(EntityAttachmentType.PASSENGER, 0.0F, EntityType.SKELETON_HORSE.getHeight() - 0.03125F, 0.0F))
+			.scaled(0.5F);
+	private boolean trapped = false;
+	private int trapTime = 0;
 
-   public static DefaultAttributeContainer.Builder createSkeletonHorseAttributes() {
-      return createBaseHorseAttributes().add(EntityAttributes.MAX_HEALTH, 15.0).add(EntityAttributes.MOVEMENT_SPEED, 0.2F);
-   }
+	public SkeletonHorseEntity(EntityType<? extends SkeletonHorseEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public static boolean canSpawn(EntityType<? extends AnimalEntity> type, WorldAccess world, SpawnReason reason, BlockPos pos, Random random) {
-      return !SpawnReason.isAnySpawner(reason)
-         ? AnimalEntity.isValidNaturalSpawn(type, world, reason, pos, random)
-         : SpawnReason.isTrialSpawner(reason) || isLightLevelValidForNaturalSpawn(world, pos);
-   }
+	public static DefaultAttributeContainer.Builder createSkeletonHorseAttributes() {
+		return createBaseHorseAttributes()
+				.add(EntityAttributes.MAX_HEALTH, 15.0)
+				.add(EntityAttributes.MOVEMENT_SPEED, 0.2F);
+	}
 
-   @Override
-   protected void initAttributes(Random random) {
-      this.getAttributeInstance(EntityAttributes.JUMP_STRENGTH).setBaseValue(getChildJumpStrengthBonus(random::nextDouble));
-   }
+	public static boolean canSpawn(
+			EntityType<? extends AnimalEntity> type,
+			WorldAccess world,
+			SpawnReason reason,
+			BlockPos pos,
+			Random random
+	) {
+		return !SpawnReason.isAnySpawner(reason)
+		       ? AnimalEntity.isValidNaturalSpawn(type, world, reason, pos, random)
+		       : SpawnReason.isTrialSpawner(reason) || isLightLevelValidForNaturalSpawn(world, pos);
+	}
 
-   @Override
-   protected void initCustomGoals() {
-   }
+	@Override
+	protected void initAttributes(Random random) {
+		this
+				.getAttributeInstance(EntityAttributes.JUMP_STRENGTH)
+				.setBaseValue(getChildJumpStrengthBonus(random::nextDouble));
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return this.isSubmergedIn(FluidTags.WATER) ? SoundEvents.ENTITY_SKELETON_HORSE_AMBIENT_WATER : SoundEvents.ENTITY_SKELETON_HORSE_AMBIENT;
-   }
+	@Override
+	protected void initCustomGoals() {
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_SKELETON_HORSE_DEATH;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return this.isSubmergedIn(FluidTags.WATER) ? SoundEvents.ENTITY_SKELETON_HORSE_AMBIENT_WATER
+		                                           : SoundEvents.ENTITY_SKELETON_HORSE_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_SKELETON_HORSE_HURT;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_SKELETON_HORSE_DEATH;
+	}
 
-   @Override
-   protected SoundEvent getSwimSound() {
-      if (this.isOnGround()) {
-         if (!this.hasPassengers()) {
-            return SoundEvents.ENTITY_SKELETON_HORSE_STEP_WATER;
-         }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_SKELETON_HORSE_HURT;
+	}
 
-         this.soundTicks++;
-         if (this.soundTicks > 5 && this.soundTicks % 3 == 0) {
-            return SoundEvents.ENTITY_SKELETON_HORSE_GALLOP_WATER;
-         }
+	@Override
+	protected SoundEvent getSwimSound() {
+		if (this.isOnGround()) {
+			if (!this.hasPassengers()) {
+				return SoundEvents.ENTITY_SKELETON_HORSE_STEP_WATER;
+			}
 
-         if (this.soundTicks <= 5) {
-            return SoundEvents.ENTITY_SKELETON_HORSE_STEP_WATER;
-         }
-      }
+			this.soundTicks++;
+			if (this.soundTicks > 5 && this.soundTicks % 3 == 0) {
+				return SoundEvents.ENTITY_SKELETON_HORSE_GALLOP_WATER;
+			}
 
-      return SoundEvents.ENTITY_SKELETON_HORSE_SWIM;
-   }
+			if (this.soundTicks <= 5) {
+				return SoundEvents.ENTITY_SKELETON_HORSE_STEP_WATER;
+			}
+		}
 
-   @Override
-   protected void playSwimSound(float volume) {
-      if (this.isOnGround()) {
-         super.playSwimSound(0.3F);
-      } else {
-         super.playSwimSound(Math.min(0.1F, volume * 25.0F));
-      }
-   }
+		return SoundEvents.ENTITY_SKELETON_HORSE_SWIM;
+	}
 
-   @Override
-   protected void playJumpSound() {
-      if (this.isTouchingWater()) {
-         this.playSound(SoundEvents.ENTITY_SKELETON_HORSE_JUMP_WATER, 0.4F, 1.0F);
-      } else {
-         super.playJumpSound();
-      }
-   }
+	@Override
+	protected void playSwimSound(float volume) {
+		if (this.isOnGround()) {
+			super.playSwimSound(0.3F);
+		}
+		else {
+			super.playSwimSound(Math.min(0.1F, volume * 25.0F));
+		}
+	}
 
-   @Override
-   public EntityDimensions getBaseDimensions(EntityPose pose) {
-      return this.isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
-   }
+	@Override
+	protected void playJumpSound() {
+		if (this.isTouchingWater()) {
+			this.playSound(SoundEvents.ENTITY_SKELETON_HORSE_JUMP_WATER, 0.4F, 1.0F);
+		}
+		else {
+			super.playJumpSound();
+		}
+	}
 
-   @Override
-   public void tickMovement() {
-      super.tickMovement();
-      if (this.isTrapped() && this.trapTime++ >= 18000) {
-         this.discard();
-      }
-   }
+	@Override
+	public EntityDimensions getBaseDimensions(EntityPose pose) {
+		return this.isBaby() ? BABY_BASE_DIMENSIONS : super.getBaseDimensions(pose);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putBoolean("SkeletonTrap", this.isTrapped());
-      view.putInt("SkeletonTrapTime", this.trapTime);
-   }
+	@Override
+	public void tickMovement() {
+		super.tickMovement();
+		if (this.isTrapped() && this.trapTime++ >= 18000) {
+			this.discard();
+		}
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.setTrapped(view.getBoolean("SkeletonTrap", false));
-      this.trapTime = view.getInt("SkeletonTrapTime", 0);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putBoolean("SkeletonTrap", this.isTrapped());
+		view.putInt("SkeletonTrapTime", this.trapTime);
+	}
 
-   @Override
-   protected float getBaseWaterMovementSpeedMultiplier() {
-      return 0.96F;
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.setTrapped(view.getBoolean("SkeletonTrap", false));
+		this.trapTime = view.getInt("SkeletonTrapTime", 0);
+	}
 
-   public boolean isTrapped() {
-      return this.trapped;
-   }
+	@Override
+	protected float getBaseWaterMovementSpeedMultiplier() {
+		return 0.96F;
+	}
 
-   public void setTrapped(boolean trapped) {
-      if (trapped != this.trapped) {
-         this.trapped = trapped;
-         if (trapped) {
-            this.goalSelector.add(1, this.trapTriggerGoal);
-         } else {
-            this.goalSelector.remove(this.trapTriggerGoal);
-         }
-      }
-   }
+	public boolean isTrapped() {
+		return this.trapped;
+	}
 
-   @Override
-   public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
-      return EntityType.SKELETON_HORSE.create(world, SpawnReason.BREEDING);
-   }
+	public void setTrapped(boolean trapped) {
+		if (trapped != this.trapped) {
+			this.trapped = trapped;
+			if (trapped) {
+				this.goalSelector.add(1, this.trapTriggerGoal);
+			}
+			else {
+				this.goalSelector.remove(this.trapTriggerGoal);
+			}
+		}
+	}
 
-   @Override
-   public ActionResult interactMob(PlayerEntity player, Hand hand) {
-      return (ActionResult)(!this.isTame() ? ActionResult.PASS : super.interactMob(player, hand));
-   }
+	@Override
+	public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
+		return EntityType.SKELETON_HORSE.create(world, SpawnReason.BREEDING);
+	}
 
-   @Override
-   public boolean canUseSlot(EquipmentSlot slot) {
-      return true;
-   }
+	@Override
+	public ActionResult interactMob(PlayerEntity player, Hand hand) {
+		return (ActionResult) (!this.isTame() ? ActionResult.PASS : super.interactMob(player, hand));
+	}
+
+	@Override
+	public boolean canUseSlot(EquipmentSlot slot) {
+		return true;
+	}
 }

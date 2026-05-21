@@ -9,25 +9,46 @@ import net.minecraft.util.DyeColor;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BannerResultGuiElementRenderState}.
+ */
 public record BannerResultGuiElementRenderState(
-   BannerFlagBlockModel flag,
-   DyeColor baseColor,
-   BannerPatternsComponent resultBannerPatterns,
-   int x1,
-   int y1,
-   int x2,
-   int y2,
-   @Nullable ScreenRect scissorArea,
-   @Nullable ScreenRect bounds
+		BannerFlagBlockModel flag,
+		DyeColor baseColor,
+		BannerPatternsComponent resultBannerPatterns,
+		int x1,
+		int y1,
+		int x2,
+		int y2,
+		@Nullable ScreenRect scissorArea,
+		@Nullable ScreenRect bounds
 ) implements SpecialGuiElementRenderState {
-   public BannerResultGuiElementRenderState(
-      BannerFlagBlockModel model, DyeColor color, BannerPatternsComponent bannerPatterns, int x1, int y1, int x2, int y2, @Nullable ScreenRect scissorArea
-   ) {
-      this(model, color, bannerPatterns, x1, y1, x2, y2, scissorArea, SpecialGuiElementRenderState.createBounds(x1, y1, x2, y2, scissorArea));
-   }
 
-   @Override
-   public float scale() {
-      return 16.0F;
-   }
+	public BannerResultGuiElementRenderState(
+			BannerFlagBlockModel model,
+			DyeColor color,
+			BannerPatternsComponent bannerPatterns,
+			int x1,
+			int y1,
+			int x2,
+			int y2,
+			@Nullable ScreenRect scissorArea
+	) {
+		this(
+				model,
+				color,
+				bannerPatterns,
+				x1,
+				y1,
+				x2,
+				y2,
+				scissorArea,
+				SpecialGuiElementRenderState.createBounds(x1, y1, x2, y2, scissorArea)
+		);
+	}
+
+	@Override
+	public float scale() {
+		return 16.0F;
+	}
 }

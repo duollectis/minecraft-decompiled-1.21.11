@@ -12,32 +12,36 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AllayEntityRenderer}.
+ */
 public class AllayEntityRenderer extends MobEntityRenderer<AllayEntity, AllayEntityRenderState, AllayEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/allay/allay.png");
 
-   public AllayEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new AllayEntityModel(context.getPart(EntityModelLayers.ALLAY)), 0.4F);
-      this.addFeature(new HeldItemFeatureRenderer<>(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/allay/allay.png");
 
-   public Identifier getTexture(AllayEntityRenderState allayEntityRenderState) {
-      return TEXTURE;
-   }
+	public AllayEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new AllayEntityModel(context.getPart(EntityModelLayers.ALLAY)), 0.4F);
+		this.addFeature(new HeldItemFeatureRenderer<>(this));
+	}
 
-   public AllayEntityRenderState createRenderState() {
-      return new AllayEntityRenderState();
-   }
+	public Identifier getTexture(AllayEntityRenderState allayEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(AllayEntity allayEntity, AllayEntityRenderState allayEntityRenderState, float f) {
-      super.updateRenderState(allayEntity, allayEntityRenderState, f);
-      ArmedEntityRenderState.updateRenderState(allayEntity, allayEntityRenderState, this.itemModelResolver, f);
-      allayEntityRenderState.dancing = allayEntity.isDancing();
-      allayEntityRenderState.spinning = allayEntity.isSpinning();
-      allayEntityRenderState.spinningAnimationTicks = allayEntity.getSpinningAnimationTicks(f);
-      allayEntityRenderState.itemHoldAnimationTicks = allayEntity.getItemHoldAnimationTicks(f);
-   }
+	public AllayEntityRenderState createRenderState() {
+		return new AllayEntityRenderState();
+	}
 
-   protected int getBlockLight(AllayEntity allayEntity, BlockPos blockPos) {
-      return 15;
-   }
+	public void updateRenderState(AllayEntity allayEntity, AllayEntityRenderState allayEntityRenderState, float f) {
+		super.updateRenderState(allayEntity, allayEntityRenderState, f);
+		ArmedEntityRenderState.updateRenderState(allayEntity, allayEntityRenderState, this.itemModelResolver, f);
+		allayEntityRenderState.dancing = allayEntity.isDancing();
+		allayEntityRenderState.spinning = allayEntity.isSpinning();
+		allayEntityRenderState.spinningAnimationTicks = allayEntity.getSpinningAnimationTicks(f);
+		allayEntityRenderState.itemHoldAnimationTicks = allayEntity.getItemHoldAnimationTicks(f);
+	}
+
+	protected int getBlockLight(AllayEntity allayEntity, BlockPos blockPos) {
+		return 15;
+	}
 }

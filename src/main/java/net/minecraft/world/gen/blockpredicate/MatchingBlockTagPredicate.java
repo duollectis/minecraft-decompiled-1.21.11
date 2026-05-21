@@ -8,26 +8,33 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.math.Vec3i;
 
+/**
+ * {@code MatchingBlockTagPredicate}.
+ */
 public class MatchingBlockTagPredicate extends OffsetPredicate {
-   final TagKey<Block> tag;
-   public static final MapCodec<MatchingBlockTagPredicate> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> registerOffsetField(instance)
-         .and(TagKey.unprefixedCodec(RegistryKeys.BLOCK).fieldOf("tag").forGetter(predicate -> predicate.tag))
-         .apply(instance, MatchingBlockTagPredicate::new)
-   );
 
-   protected MatchingBlockTagPredicate(Vec3i offset, TagKey<Block> tag) {
-      super(offset);
-      this.tag = tag;
-   }
+	final TagKey<Block> tag;
+	public static final MapCodec<MatchingBlockTagPredicate> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> registerOffsetField(instance)
+					.and(TagKey
+							.unprefixedCodec(RegistryKeys.BLOCK)
+							.fieldOf("tag")
+							.forGetter(predicate -> predicate.tag))
+					.apply(instance, MatchingBlockTagPredicate::new)
+	);
 
-   @Override
-   protected boolean test(BlockState state) {
-      return state.isIn(this.tag);
-   }
+	protected MatchingBlockTagPredicate(Vec3i offset, TagKey<Block> tag) {
+		super(offset);
+		this.tag = tag;
+	}
 
-   @Override
-   public BlockPredicateType<?> getType() {
-      return BlockPredicateType.MATCHING_BLOCK_TAG;
-   }
+	@Override
+	protected boolean test(BlockState state) {
+		return state.isIn(this.tag);
+	}
+
+	@Override
+	public BlockPredicateType<?> getType() {
+		return BlockPredicateType.MATCHING_BLOCK_TAG;
+	}
 }

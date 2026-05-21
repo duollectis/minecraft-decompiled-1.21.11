@@ -2,27 +2,36 @@ package net.minecraft.resource.metadata;
 
 import java.util.Map;
 
+/**
+ * {@code ResourceMetadataMap}.
+ */
 public class ResourceMetadataMap {
-   private static final ResourceMetadataMap EMPTY = new ResourceMetadataMap(Map.of());
-   private final Map<ResourceMetadataSerializer<?>, ?> values;
 
-   private ResourceMetadataMap(Map<ResourceMetadataSerializer<?>, ?> values) {
-      this.values = values;
-   }
+	private static final ResourceMetadataMap EMPTY = new ResourceMetadataMap(Map.of());
+	private final Map<ResourceMetadataSerializer<?>, ?> values;
 
-   public <T> T get(ResourceMetadataSerializer<T> serializer) {
-      return (T)this.values.get(serializer);
-   }
+	private ResourceMetadataMap(Map<ResourceMetadataSerializer<?>, ?> values) {
+		this.values = values;
+	}
 
-   public static ResourceMetadataMap of() {
-      return EMPTY;
-   }
+	public <T> T get(ResourceMetadataSerializer<T> serializer) {
+		return (T) this.values.get(serializer);
+	}
 
-   public static <T> ResourceMetadataMap of(ResourceMetadataSerializer<T> serializer, T value) {
-      return new ResourceMetadataMap(Map.of(serializer, value));
-   }
+	public static ResourceMetadataMap of() {
+		return EMPTY;
+	}
 
-   public static <T1, T2> ResourceMetadataMap of(ResourceMetadataSerializer<T1> serializer, T1 value, ResourceMetadataSerializer<T2> serializer2, T2 value2) {
-      return new ResourceMetadataMap(Map.of(serializer, value, serializer2, (T1)value2));
-   }
+	public static <T> ResourceMetadataMap of(ResourceMetadataSerializer<T> serializer, T value) {
+		return new ResourceMetadataMap(Map.of(serializer, value));
+	}
+
+	public static <T1, T2> ResourceMetadataMap of(
+			ResourceMetadataSerializer<T1> serializer,
+			T1 value,
+			ResourceMetadataSerializer<T2> serializer2,
+			T2 value2
+	) {
+		return new ResourceMetadataMap(Map.of(serializer, value, serializer2, (T1) value2));
+	}
 }

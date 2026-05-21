@@ -12,39 +12,43 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
 
+/**
+ * {@code ThrowablePotionItem}.
+ */
 public abstract class ThrowablePotionItem extends PotionItem implements ProjectileItem {
-   public static float POWER = 0.5F;
 
-   public ThrowablePotionItem(Item.Settings settings) {
-      super(settings);
-   }
+	public static float POWER = 0.5F;
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      if (world instanceof ServerWorld serverWorld) {
-         ProjectileEntity.spawnWithVelocity(this::createEntity, serverWorld, itemStack, user, -20.0F, POWER, 1.0F);
-      }
+	public ThrowablePotionItem(Item.Settings settings) {
+		super(settings);
+	}
 
-      user.incrementStat(Stats.USED.getOrCreateStat(this));
-      itemStack.decrementUnlessCreative(1, user);
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		if (world instanceof ServerWorld serverWorld) {
+			ProjectileEntity.spawnWithVelocity(this::createEntity, serverWorld, itemStack, user, -20.0F, POWER, 1.0F);
+		}
 
-   protected abstract PotionEntity createEntity(ServerWorld world, LivingEntity user, ItemStack stack);
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+		itemStack.decrementUnlessCreative(1, user);
+		return ActionResult.SUCCESS;
+	}
 
-   protected abstract PotionEntity createEntity(World world, Position pos, ItemStack stack);
+	protected abstract PotionEntity createEntity(ServerWorld world, LivingEntity user, ItemStack stack);
 
-   @Override
-   public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-      return this.createEntity(world, pos, stack);
-   }
+	protected abstract PotionEntity createEntity(World world, Position pos, ItemStack stack);
 
-   @Override
-   public ProjectileItem.Settings getProjectileSettings() {
-      return ProjectileItem.Settings.builder()
-         .uncertainty(ProjectileItem.Settings.DEFAULT.uncertainty() * 0.5F)
-         .power(ProjectileItem.Settings.DEFAULT.power() * 1.25F)
-         .build();
-   }
+	@Override
+	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
+		return this.createEntity(world, pos, stack);
+	}
+
+	@Override
+	public ProjectileItem.Settings getProjectileSettings() {
+		return ProjectileItem.Settings.builder()
+		                              .uncertainty(ProjectileItem.Settings.DEFAULT.uncertainty() * 0.5F)
+		                              .power(ProjectileItem.Settings.DEFAULT.power() * 1.25F)
+		                              .build();
+	}
 }

@@ -8,18 +8,19 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class StartChunkSendS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final StartChunkSendS2CPacket INSTANCE = new StartChunkSendS2CPacket();
-   public static final PacketCodec<ByteBuf, StartChunkSendS2CPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   private StartChunkSendS2CPacket() {
-   }
+	public static final StartChunkSendS2CPacket INSTANCE = new StartChunkSendS2CPacket();
+	public static final PacketCodec<ByteBuf, StartChunkSendS2CPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   @Override
-   public PacketType<StartChunkSendS2CPacket> getPacketType() {
-      return PlayPackets.CHUNK_BATCH_START;
-   }
+	private StartChunkSendS2CPacket() {
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onStartChunkSend(this);
-   }
+	@Override
+	public PacketType<StartChunkSendS2CPacket> getPacketType() {
+		return PlayPackets.CHUNK_BATCH_START;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onStartChunkSend(this);
+	}
 }

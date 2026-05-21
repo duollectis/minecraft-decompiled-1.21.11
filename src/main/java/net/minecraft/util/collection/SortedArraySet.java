@@ -1,220 +1,234 @@
 package net.minecraft.util.collection;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrays;
-import java.util.AbstractSet;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
 import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
+import java.util.*;
+
+/**
+ * {@code SortedArraySet}.
+ */
 public class SortedArraySet<T> extends AbstractSet<T> {
-   private static final int DEFAULT_CAPACITY = 10;
-   private final Comparator<T> comparator;
-   T[] elements;
-   int size;
 
-   private SortedArraySet(int initialCapacity, Comparator<T> comparator) {
-      this.comparator = comparator;
-      if (initialCapacity < 0) {
-         throw new IllegalArgumentException("Initial capacity (" + initialCapacity + ") is negative");
-      } else {
-         this.elements = (T[])cast(new Object[initialCapacity]);
-      }
-   }
+	private static final int DEFAULT_CAPACITY = 10;
+	private final Comparator<T> comparator;
+	T[] elements;
+	int size;
 
-   public static <T extends Comparable<T>> SortedArraySet<T> create() {
-      return create(10);
-   }
+	private SortedArraySet(int initialCapacity, Comparator<T> comparator) {
+		this.comparator = comparator;
+		if (initialCapacity < 0) {
+			throw new IllegalArgumentException("Initial capacity (" + initialCapacity + ") is negative");
+		}
+		else {
+			this.elements = (T[]) cast(new Object[initialCapacity]);
+		}
+	}
 
-   public static <T extends Comparable<T>> SortedArraySet<T> create(int initialCapacity) {
-      return new SortedArraySet<T>(initialCapacity, Comparator.naturalOrder());
-   }
+	public static <T extends Comparable<T>> SortedArraySet<T> create() {
+		return create(10);
+	}
 
-   public static <T> SortedArraySet<T> create(Comparator<T> comparator) {
-      return create(comparator, 10);
-   }
+	public static <T extends Comparable<T>> SortedArraySet<T> create(int initialCapacity) {
+		return new SortedArraySet<T>(initialCapacity, Comparator.naturalOrder());
+	}
 
-   public static <T> SortedArraySet<T> create(Comparator<T> comparator, int initialCapacity) {
-      return new SortedArraySet<>(initialCapacity, comparator);
-   }
+	public static <T> SortedArraySet<T> create(Comparator<T> comparator) {
+		return create(comparator, 10);
+	}
 
-   private static <T> T[] cast(Object[] array) {
-      return (T[])array;
-   }
+	public static <T> SortedArraySet<T> create(Comparator<T> comparator, int initialCapacity) {
+		return new SortedArraySet<>(initialCapacity, comparator);
+	}
 
-   private int binarySearch(T object) {
-      return Arrays.binarySearch(this.elements, 0, this.size, object, this.comparator);
-   }
+	private static <T> T[] cast(Object[] array) {
+		return (T[]) array;
+	}
 
-   private static int insertionPoint(int binarySearchResult) {
-      return -binarySearchResult - 1;
-   }
+	private int binarySearch(T object) {
+		return Arrays.binarySearch(this.elements, 0, this.size, object, this.comparator);
+	}
 
-   @Override
-   public boolean add(T object) {
-      int i = this.binarySearch(object);
-      if (i >= 0) {
-         return false;
-      } else {
-         int j = insertionPoint(i);
-         this.add(object, j);
-         return true;
-      }
-   }
+	private static int insertionPoint(int binarySearchResult) {
+		return -binarySearchResult - 1;
+	}
 
-   private void ensureCapacity(int minCapacity) {
-      if (minCapacity > this.elements.length) {
-         if (this.elements != ObjectArrays.DEFAULT_EMPTY_ARRAY) {
-            minCapacity = Util.nextCapacity(this.elements.length, minCapacity);
-         } else if (minCapacity < 10) {
-            minCapacity = 10;
-         }
+	@Override
+	public boolean add(T object) {
+		int i = this.binarySearch(object);
+		if (i >= 0) {
+			return false;
+		}
+		else {
+			int j = insertionPoint(i);
+			this.add(object, j);
+			return true;
+		}
+	}
 
-         Object[] objects = new Object[minCapacity];
-         System.arraycopy(this.elements, 0, objects, 0, this.size);
-         this.elements = (T[])cast(objects);
-      }
-   }
+	private void ensureCapacity(int minCapacity) {
+		if (minCapacity > this.elements.length) {
+			if (this.elements != ObjectArrays.DEFAULT_EMPTY_ARRAY) {
+				minCapacity = Util.nextCapacity(this.elements.length, minCapacity);
+			}
+			else if (minCapacity < 10) {
+				minCapacity = 10;
+			}
 
-   private void add(T object, int index) {
-      this.ensureCapacity(this.size + 1);
-      if (index != this.size) {
-         System.arraycopy(this.elements, index, this.elements, index + 1, this.size - index);
-      }
+			Object[] objects = new Object[minCapacity];
+			System.arraycopy(this.elements, 0, objects, 0, this.size);
+			this.elements = (T[]) cast(objects);
+		}
+	}
 
-      this.elements[index] = object;
-      this.size++;
-   }
+	private void add(T object, int index) {
+		this.ensureCapacity(this.size + 1);
+		if (index != this.size) {
+			System.arraycopy(this.elements, index, this.elements, index + 1, this.size - index);
+		}
 
-   void remove(int index) {
-      this.size--;
-      if (index != this.size) {
-         System.arraycopy(this.elements, index + 1, this.elements, index, this.size - index);
-      }
+		this.elements[index] = object;
+		this.size++;
+	}
 
-      this.elements[this.size] = null;
-   }
+	void remove(int index) {
+		this.size--;
+		if (index != this.size) {
+			System.arraycopy(this.elements, index + 1, this.elements, index, this.size - index);
+		}
 
-   private T get(int index) {
-      return this.elements[index];
-   }
+		this.elements[this.size] = null;
+	}
 
-   public T addAndGet(T object) {
-      int i = this.binarySearch(object);
-      if (i >= 0) {
-         return this.get(i);
-      } else {
-         this.add(object, insertionPoint(i));
-         return object;
-      }
-   }
+	private T get(int index) {
+		return this.elements[index];
+	}
 
-   @Override
-   public boolean remove(Object object) {
-      int i = this.binarySearch((T)object);
-      if (i >= 0) {
-         this.remove(i);
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public T addAndGet(T object) {
+		int i = this.binarySearch(object);
+		if (i >= 0) {
+			return this.get(i);
+		}
+		else {
+			this.add(object, insertionPoint(i));
+			return object;
+		}
+	}
 
-   public @Nullable T getIfContains(T object) {
-      int i = this.binarySearch(object);
-      return i >= 0 ? this.get(i) : null;
-   }
+	@Override
+	public boolean remove(Object object) {
+		int i = this.binarySearch((T) object);
+		if (i >= 0) {
+			this.remove(i);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   public T first() {
-      return this.get(0);
-   }
+	public @Nullable T getIfContains(T object) {
+		int i = this.binarySearch(object);
+		return i >= 0 ? this.get(i) : null;
+	}
 
-   public T last() {
-      return this.get(this.size - 1);
-   }
+	public T first() {
+		return this.get(0);
+	}
 
-   @Override
-   public boolean contains(Object object) {
-      int i = this.binarySearch((T)object);
-      return i >= 0;
-   }
+	public T last() {
+		return this.get(this.size - 1);
+	}
 
-   @Override
-   public Iterator<T> iterator() {
-      return new SortedArraySet.SetIterator();
-   }
+	@Override
+	public boolean contains(Object object) {
+		int i = this.binarySearch((T) object);
+		return i >= 0;
+	}
 
-   @Override
-   public int size() {
-      return this.size;
-   }
+	@Override
+	public Iterator<T> iterator() {
+		return new SortedArraySet.SetIterator();
+	}
 
-   @Override
-   public Object[] toArray() {
-      return Arrays.copyOf(this.elements, this.size, Object[].class);
-   }
+	@Override
+	public int size() {
+		return this.size;
+	}
 
-   @Override
-   public <U> U[] toArray(U[] array) {
-      if (array.length < this.size) {
-         return (U[])Arrays.copyOf(this.elements, this.size, (Class<? extends T[]>)array.getClass());
-      } else {
-         System.arraycopy(this.elements, 0, array, 0, this.size);
-         if (array.length > this.size) {
-            array[this.size] = null;
-         }
+	@Override
+	public Object[] toArray() {
+		return Arrays.copyOf(this.elements, this.size, Object[].class);
+	}
 
-         return array;
-      }
-   }
+	@Override
+	public <U> U[] toArray(U[] array) {
+		if (array.length < this.size) {
+			return (U[]) Arrays.copyOf(this.elements, this.size, (Class<? extends T[]>) array.getClass());
+		}
+		else {
+			System.arraycopy(this.elements, 0, array, 0, this.size);
+			if (array.length > this.size) {
+				array[this.size] = null;
+			}
 
-   @Override
-   public void clear() {
-      Arrays.fill(this.elements, 0, this.size, null);
-      this.size = 0;
-   }
+			return array;
+		}
+	}
 
-   @Override
-   public boolean equals(Object o) {
-      if (this == o) {
-         return true;
-      } else {
-         return o instanceof SortedArraySet<?> sortedArraySet && this.comparator.equals(sortedArraySet.comparator)
-            ? this.size == sortedArraySet.size && Arrays.equals(this.elements, sortedArraySet.elements)
-            : super.equals(o);
-      }
-   }
+	@Override
+	public void clear() {
+		Arrays.fill(this.elements, 0, this.size, null);
+		this.size = 0;
+	}
 
-   class SetIterator implements Iterator<T> {
-      private int nextIndex;
-      private int lastIndex = -1;
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		else {
+			return o instanceof SortedArraySet<?> sortedArraySet && this.comparator.equals(sortedArraySet.comparator)
+			       ? this.size == sortedArraySet.size && Arrays.equals(this.elements, sortedArraySet.elements)
+			       : super.equals(o);
+		}
+	}
 
-      @Override
-      public boolean hasNext() {
-         return this.nextIndex < SortedArraySet.this.size;
-      }
+	/**
+	 * {@code SetIterator}.
+	 */
+	class SetIterator implements Iterator<T> {
 
-      @Override
-      public T next() {
-         if (this.nextIndex >= SortedArraySet.this.size) {
-            throw new NoSuchElementException();
-         } else {
-            this.lastIndex = this.nextIndex++;
-            return SortedArraySet.this.elements[this.lastIndex];
-         }
-      }
+		private int nextIndex;
+		private int lastIndex = -1;
 
-      @Override
-      public void remove() {
-         if (this.lastIndex == -1) {
-            throw new IllegalStateException();
-         } else {
-            SortedArraySet.this.remove(this.lastIndex);
-            this.nextIndex--;
-            this.lastIndex = -1;
-         }
-      }
-   }
+		@Override
+		public boolean hasNext() {
+			return this.nextIndex < SortedArraySet.this.size;
+		}
+
+		@Override
+		public T next() {
+			if (this.nextIndex >= SortedArraySet.this.size) {
+				throw new NoSuchElementException();
+			}
+			else {
+				this.lastIndex = this.nextIndex++;
+				return SortedArraySet.this.elements[this.lastIndex];
+			}
+		}
+
+		@Override
+		public void remove() {
+			if (this.lastIndex == -1) {
+				throw new IllegalStateException();
+			}
+			else {
+				SortedArraySet.this.remove(this.lastIndex);
+				this.nextIndex--;
+				this.lastIndex = -1;
+			}
+		}
+	}
 }

@@ -1,65 +1,79 @@
 package net.minecraft.client.sound;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+
+import javax.sound.sampled.AudioFormat;
 import java.io.BufferedInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import javax.sound.sampled.AudioFormat;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RepeatingAudioStream}.
+ */
 public class RepeatingAudioStream implements AudioStream {
-   private final RepeatingAudioStream.DelegateFactory delegateFactory;
-   private AudioStream delegate;
-   private final BufferedInputStream inputStream;
 
-   public RepeatingAudioStream(RepeatingAudioStream.DelegateFactory delegateFactory, InputStream inputStream) throws IOException {
-      this.delegateFactory = delegateFactory;
-      this.inputStream = new BufferedInputStream(inputStream);
-      this.inputStream.mark(Integer.MAX_VALUE);
-      this.delegate = delegateFactory.create(new RepeatingAudioStream.ReusableInputStream(this.inputStream));
-   }
+	private final RepeatingAudioStream.DelegateFactory delegateFactory;
+	private AudioStream delegate;
+	private final BufferedInputStream inputStream;
 
-   @Override
-   public AudioFormat getFormat() {
-      return this.delegate.getFormat();
-   }
+	public RepeatingAudioStream(RepeatingAudioStream.DelegateFactory delegateFactory, InputStream inputStream)
+	throws IOException {
+		this.delegateFactory = delegateFactory;
+		this.inputStream = new BufferedInputStream(inputStream);
+		this.inputStream.mark(Integer.MAX_VALUE);
+		this.delegate = delegateFactory.create(new RepeatingAudioStream.ReusableInputStream(this.inputStream));
+	}
 
-   @Override
-   public ByteBuffer read(int size) throws IOException {
-      ByteBuffer byteBuffer = this.delegate.read(size);
-      if (!byteBuffer.hasRemaining()) {
-         this.delegate.close();
-         this.inputStream.reset();
-         this.delegate = this.delegateFactory.create(new RepeatingAudioStream.ReusableInputStream(this.inputStream));
-         byteBuffer = this.delegate.read(size);
-      }
+	@Override
+	public AudioFormat getFormat() {
+		return this.delegate.getFormat();
+	}
 
-      return byteBuffer;
-   }
+	@Override
+	public ByteBuffer read(int size) throws IOException {
+		ByteBuffer byteBuffer = this.delegate.read(size);
+		if (!byteBuffer.hasRemaining()) {
+			this.delegate.close();
+			this.inputStream.reset();
+			this.delegate = this.delegateFactory.create(new RepeatingAudioStream.ReusableInputStream(this.inputStream));
+			byteBuffer = this.delegate.read(size);
+		}
 
-   @Override
-   public void close() throws IOException {
-      this.delegate.close();
-      this.inputStream.close();
-   }
+		return byteBuffer;
+	}
 
-   @FunctionalInterface
-   @Environment(EnvType.CLIENT)
-   public interface DelegateFactory {
-      AudioStream create(InputStream stream) throws IOException;
-   }
+	@Override
+	public void close() throws IOException {
+		this.delegate.close();
+		this.inputStream.close();
+	}
 
-   @Environment(EnvType.CLIENT)
-   static class ReusableInputStream extends FilterInputStream {
-      ReusableInputStream(InputStream stream) {
-         super(stream);
-      }
+	@FunctionalInterface
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code DelegateFactory}.
+	 */
+	public interface DelegateFactory {
 
-      @Override
-      public void close() {
-      }
-   }
+		AudioStream create(InputStream stream) throws IOException;
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ReusableInputStream}.
+	 */
+	static class ReusableInputStream extends FilterInputStream {
+
+		ReusableInputStream(InputStream stream) {
+			super(stream);
+		}
+
+		@Override
+		public void close() {
+		}
+	}
 }

@@ -5,40 +5,48 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code HeldItemContext}.
+ */
 public interface HeldItemContext {
-   World getEntityWorld();
 
-   Vec3d getEntityPos();
+	World getEntityWorld();
 
-   float getBodyYaw();
+	Vec3d getEntityPos();
 
-   default @Nullable LivingEntity getEntity() {
-      return null;
-   }
+	float getBodyYaw();
 
-   static HeldItemContext offseted(HeldItemContext context, Vec3d offset) {
-      return new HeldItemContext.Offset(context, offset);
-   }
+	default @Nullable LivingEntity getEntity() {
+		return null;
+	}
 
-   public record Offset(HeldItemContext owner, Vec3d offset) implements HeldItemContext {
-      @Override
-      public World getEntityWorld() {
-         return this.owner.getEntityWorld();
-      }
+	static HeldItemContext offseted(HeldItemContext context, Vec3d offset) {
+		return new HeldItemContext.Offset(context, offset);
+	}
 
-      @Override
-      public Vec3d getEntityPos() {
-         return this.owner.getEntityPos().add(this.offset);
-      }
+	/**
+	 * {@code Offset}.
+	 */
+	public record Offset(HeldItemContext owner, Vec3d offset) implements HeldItemContext {
 
-      @Override
-      public float getBodyYaw() {
-         return this.owner.getBodyYaw();
-      }
+		@Override
+		public World getEntityWorld() {
+			return this.owner.getEntityWorld();
+		}
 
-      @Override
-      public @Nullable LivingEntity getEntity() {
-         return this.owner.getEntity();
-      }
-   }
+		@Override
+		public Vec3d getEntityPos() {
+			return this.owner.getEntityPos().add(this.offset);
+		}
+
+		@Override
+		public float getBodyYaw() {
+			return this.owner.getBodyYaw();
+		}
+
+		@Override
+		public @Nullable LivingEntity getEntity() {
+			return this.owner.getEntity();
+		}
+	}
 }

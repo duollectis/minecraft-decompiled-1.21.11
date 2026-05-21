@@ -9,19 +9,26 @@ import net.minecraft.entity.Entity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * {@code IgniteEnchantmentEffect}.
+ */
 public record IgniteEnchantmentEffect(EnchantmentLevelBasedValue duration) implements EnchantmentEntityEffect {
-   public static final MapCodec<IgniteEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(EnchantmentLevelBasedValue.CODEC.fieldOf("duration").forGetter(igniteEnchantmentEffect -> igniteEnchantmentEffect.duration))
-         .apply(instance, IgniteEnchantmentEffect::new)
-   );
 
-   @Override
-   public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-      user.setOnFireFor(this.duration.getValue(level));
-   }
+	public static final MapCodec<IgniteEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(EnchantmentLevelBasedValue.CODEC
+							.fieldOf("duration")
+							.forGetter(igniteEnchantmentEffect -> igniteEnchantmentEffect.duration))
+					.apply(instance, IgniteEnchantmentEffect::new)
+	);
 
-   @Override
-   public MapCodec<IgniteEnchantmentEffect> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
+		user.setOnFireFor(this.duration.getValue(level));
+	}
+
+	@Override
+	public MapCodec<IgniteEnchantmentEffect> getCodec() {
+		return CODEC;
+	}
 }

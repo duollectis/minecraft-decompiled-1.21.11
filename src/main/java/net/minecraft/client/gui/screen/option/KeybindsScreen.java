@@ -17,88 +17,99 @@ import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code KeybindsScreen}.
+ */
 public class KeybindsScreen extends GameOptionsScreen {
-   private static final Text TITLE_TEXT = Text.translatable("controls.keybinds.title");
-   public @Nullable KeyBinding selectedKeyBinding;
-   public long lastKeyCodeUpdateTime;
-   private ControlsListWidget controlsList;
-   private ButtonWidget resetAllButton;
 
-   public KeybindsScreen(Screen parent, GameOptions gameOptions) {
-      super(parent, gameOptions, TITLE_TEXT);
-   }
+	private static final Text TITLE_TEXT = Text.translatable("controls.keybinds.title");
+	public @Nullable KeyBinding selectedKeyBinding;
+	public long lastKeyCodeUpdateTime;
+	private ControlsListWidget controlsList;
+	private ButtonWidget resetAllButton;
 
-   @Override
-   protected void initBody() {
-      this.controlsList = this.layout.addBody(new ControlsListWidget(this, this.client));
-   }
+	public KeybindsScreen(Screen parent, GameOptions gameOptions) {
+		super(parent, gameOptions, TITLE_TEXT);
+	}
 
-   @Override
-   protected void addOptions() {
-   }
+	@Override
+	protected void initBody() {
+		this.controlsList = this.layout.addBody(new ControlsListWidget(this, this.client));
+	}
 
-   @Override
-   protected void initFooter() {
-      this.resetAllButton = ButtonWidget.builder(Text.translatable("controls.resetAll"), button -> {
-         for (KeyBinding keyBinding : this.gameOptions.allKeys) {
-            keyBinding.setBoundKey(keyBinding.getDefaultKey());
-         }
+	@Override
+	protected void addOptions() {
+	}
 
-         this.controlsList.update();
-      }).build();
-      DirectionalLayoutWidget directionalLayoutWidget = this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
-      directionalLayoutWidget.add(this.resetAllButton);
-      directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.DONE, button -> this.close()).build());
-   }
+	@Override
+	protected void initFooter() {
+		this.resetAllButton = ButtonWidget.builder(
+				Text.translatable("controls.resetAll"), button -> {
+					for (KeyBinding keyBinding : this.gameOptions.allKeys) {
+						keyBinding.setBoundKey(keyBinding.getDefaultKey());
+					}
 
-   @Override
-   protected void refreshWidgetPositions() {
-      this.layout.refreshPositions();
-      this.controlsList.position(this.width, this.layout);
-   }
+					this.controlsList.update();
+				}
+		).build();
+		DirectionalLayoutWidget
+				directionalLayoutWidget =
+				this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
+		directionalLayoutWidget.add(this.resetAllButton);
+		directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.DONE, button -> this.close()).build());
+	}
 
-   @Override
-   public boolean mouseClicked(Click click, boolean doubled) {
-      if (this.selectedKeyBinding != null) {
-         this.selectedKeyBinding.setBoundKey(InputUtil.Type.MOUSE.createFromCode(click.button()));
-         this.selectedKeyBinding = null;
-         this.controlsList.update();
-         return true;
-      } else {
-         return super.mouseClicked(click, doubled);
-      }
-   }
+	@Override
+	protected void refreshWidgetPositions() {
+		this.layout.refreshPositions();
+		this.controlsList.position(this.width, this.layout);
+	}
 
-   @Override
-   public boolean keyPressed(KeyInput input) {
-      if (this.selectedKeyBinding != null) {
-         if (input.isEscape()) {
-            this.selectedKeyBinding.setBoundKey(InputUtil.UNKNOWN_KEY);
-         } else {
-            this.selectedKeyBinding.setBoundKey(InputUtil.fromKeyCode(input));
-         }
+	@Override
+	public boolean mouseClicked(Click click, boolean doubled) {
+		if (this.selectedKeyBinding != null) {
+			this.selectedKeyBinding.setBoundKey(InputUtil.Type.MOUSE.createFromCode(click.button()));
+			this.selectedKeyBinding = null;
+			this.controlsList.update();
+			return true;
+		}
+		else {
+			return super.mouseClicked(click, doubled);
+		}
+	}
 
-         this.selectedKeyBinding = null;
-         this.lastKeyCodeUpdateTime = Util.getMeasuringTimeMs();
-         this.controlsList.update();
-         return true;
-      } else {
-         return super.keyPressed(input);
-      }
-   }
+	@Override
+	public boolean keyPressed(KeyInput input) {
+		if (this.selectedKeyBinding != null) {
+			if (input.isEscape()) {
+				this.selectedKeyBinding.setBoundKey(InputUtil.UNKNOWN_KEY);
+			}
+			else {
+				this.selectedKeyBinding.setBoundKey(InputUtil.fromKeyCode(input));
+			}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      boolean bl = false;
+			this.selectedKeyBinding = null;
+			this.lastKeyCodeUpdateTime = Util.getMeasuringTimeMs();
+			this.controlsList.update();
+			return true;
+		}
+		else {
+			return super.keyPressed(input);
+		}
+	}
 
-      for (KeyBinding keyBinding : this.gameOptions.allKeys) {
-         if (!keyBinding.isDefault()) {
-            bl = true;
-            break;
-         }
-      }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		boolean bl = false;
 
-      this.resetAllButton.active = bl;
-   }
+		for (KeyBinding keyBinding : this.gameOptions.allKeys) {
+			if (!keyBinding.isDefault()) {
+				bl = true;
+				break;
+			}
+		}
+
+		this.resetAllButton.active = bl;
+	}
 }

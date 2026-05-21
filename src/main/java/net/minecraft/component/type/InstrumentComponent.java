@@ -1,8 +1,6 @@
 package net.minecraft.component.type;
 
 import com.mojang.serialization.Codec;
-import java.util.Optional;
-import java.util.function.Consumer;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.item.Instrument;
 import net.minecraft.item.Item;
@@ -20,35 +18,51 @@ import net.minecraft.text.Text;
 import net.minecraft.text.Texts;
 import net.minecraft.util.Formatting;
 
+import java.util.Optional;
+import java.util.function.Consumer;
+
+/**
+ * {@code InstrumentComponent}.
+ */
 public record InstrumentComponent(LazyRegistryEntryReference<Instrument> instrument) implements TooltipAppender {
-   public static final Codec<InstrumentComponent> CODEC = LazyRegistryEntryReference.createCodec(RegistryKeys.INSTRUMENT, Instrument.ENTRY_CODEC)
-      .xmap(InstrumentComponent::new, InstrumentComponent::instrument);
-   public static final PacketCodec<RegistryByteBuf, InstrumentComponent> PACKET_CODEC = LazyRegistryEntryReference.createPacketCodec(
-         RegistryKeys.INSTRUMENT, Instrument.ENTRY_PACKET_CODEC
-      )
-      .xmap(InstrumentComponent::new, InstrumentComponent::instrument);
 
-   public InstrumentComponent(RegistryEntry<Instrument> instrument) {
-      this(new LazyRegistryEntryReference<>(instrument));
-   }
+	public static final Codec<InstrumentComponent>
+			CODEC =
+			LazyRegistryEntryReference.createCodec(RegistryKeys.INSTRUMENT, Instrument.ENTRY_CODEC)
+			                          .xmap(InstrumentComponent::new, InstrumentComponent::instrument);
+	public static final PacketCodec<RegistryByteBuf, InstrumentComponent>
+			PACKET_CODEC =
+			LazyRegistryEntryReference.createPacketCodec(
+					                          RegistryKeys.INSTRUMENT, Instrument.ENTRY_PACKET_CODEC
+			                          )
+			                          .xmap(InstrumentComponent::new, InstrumentComponent::instrument);
 
-   @Deprecated
-   public InstrumentComponent(RegistryKey<Instrument> instrument) {
-      this(new LazyRegistryEntryReference<>(instrument));
-   }
+	public InstrumentComponent(RegistryEntry<Instrument> instrument) {
+		this(new LazyRegistryEntryReference<>(instrument));
+	}
 
-   @Override
-   public void appendTooltip(Item.TooltipContext context, Consumer<Text> textConsumer, TooltipType type, ComponentsAccess components) {
-      RegistryWrapper.WrapperLookup wrapperLookup = context.getRegistryLookup();
-      if (wrapperLookup != null) {
-         this.getInstrument(wrapperLookup).ifPresent(instrument -> {
-            Text text = Texts.withStyle(instrument.value().description(), Style.EMPTY.withColor(Formatting.GRAY));
-            textConsumer.accept(text);
-         });
-      }
-   }
+	@Deprecated
+	public InstrumentComponent(RegistryKey<Instrument> instrument) {
+		this(new LazyRegistryEntryReference<>(instrument));
+	}
 
-   public Optional<RegistryEntry<Instrument>> getInstrument(RegistryWrapper.WrapperLookup registries) {
-      return this.instrument.resolveEntry(registries);
-   }
+	@Override
+	public void appendTooltip(
+			Item.TooltipContext context,
+			Consumer<Text> textConsumer,
+			TooltipType type,
+			ComponentsAccess components
+	) {
+		RegistryWrapper.WrapperLookup wrapperLookup = context.getRegistryLookup();
+		if (wrapperLookup != null) {
+			this.getInstrument(wrapperLookup).ifPresent(instrument -> {
+				Text text = Texts.withStyle(instrument.value().description(), Style.EMPTY.withColor(Formatting.GRAY));
+				textConsumer.accept(text);
+			});
+		}
+	}
+
+	public Optional<RegistryEntry<Instrument>> getInstrument(RegistryWrapper.WrapperLookup registries) {
+		return this.instrument.resolveEntry(registries);
+	}
 }

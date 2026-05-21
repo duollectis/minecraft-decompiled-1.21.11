@@ -8,46 +8,50 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PlayerSkinGuiElementRenderState}.
+ */
 public record PlayerSkinGuiElementRenderState(
-   PlayerEntityModel playerModel,
-   Identifier texture,
-   float xRotation,
-   float yRotation,
-   float yPivot,
-   int x1,
-   int y1,
-   int x2,
-   int y2,
-   float scale,
-   @Nullable ScreenRect scissorArea,
-   @Nullable ScreenRect bounds
+		PlayerEntityModel playerModel,
+		Identifier texture,
+		float xRotation,
+		float yRotation,
+		float yPivot,
+		int x1,
+		int y1,
+		int x2,
+		int y2,
+		float scale,
+		@Nullable ScreenRect scissorArea,
+		@Nullable ScreenRect bounds
 ) implements SpecialGuiElementRenderState {
-   public PlayerSkinGuiElementRenderState(
-      PlayerEntityModel model,
-      Identifier texture,
-      float xRotation,
-      float yRotation,
-      float yPivot,
-      int x1,
-      int y1,
-      int x2,
-      int y2,
-      float scale,
-      @Nullable ScreenRect scissorArea
-   ) {
-      this(
-         model,
-         texture,
-         xRotation,
-         yRotation,
-         yPivot,
-         x1,
-         y1,
-         x2,
-         y2,
-         scale,
-         scissorArea,
-         SpecialGuiElementRenderState.createBounds(x1, y1, x2, y2, scissorArea)
-      );
-   }
+
+	public PlayerSkinGuiElementRenderState(
+			PlayerEntityModel model,
+			Identifier texture,
+			float xRotation,
+			float yRotation,
+			float yPivot,
+			int x1,
+			int y1,
+			int x2,
+			int y2,
+			float scale,
+			@Nullable ScreenRect scissorArea
+	) {
+		this(
+				model,
+				texture,
+				xRotation,
+				yRotation,
+				yPivot,
+				x1,
+				y1,
+				x2,
+				y2,
+				scale,
+				scissorArea,
+				SpecialGuiElementRenderState.createBounds(x1, y1, x2, y2, scissorArea)
+		);
+	}
 }

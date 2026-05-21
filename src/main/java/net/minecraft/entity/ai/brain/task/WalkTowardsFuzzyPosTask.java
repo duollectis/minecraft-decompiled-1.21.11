@@ -5,33 +5,51 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code WalkTowardsFuzzyPosTask}.
+ */
 public class WalkTowardsFuzzyPosTask {
-   private static BlockPos fuzz(MobEntity mob, BlockPos pos) {
-      Random random = mob.getEntityWorld().random;
-      return pos.add(fuzz(random), 0, fuzz(random));
-   }
 
-   private static int fuzz(Random random) {
-      return random.nextInt(3) - 1;
-   }
+	private static BlockPos fuzz(MobEntity mob, BlockPos pos) {
+		Random random = mob.getEntityWorld().random;
+		return pos.add(fuzz(random), 0, fuzz(random));
+	}
 
-   public static <E extends MobEntity> SingleTickTask<E> create(MemoryModuleType<BlockPos> posModule, int completionRange, float speed) {
-      return TaskTriggerer.task(
-         context -> context.group(
-               context.queryMemoryValue(posModule),
-               context.queryMemoryAbsent(MemoryModuleType.ATTACK_TARGET),
-               context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET),
-               context.queryMemoryOptional(MemoryModuleType.LOOK_TARGET)
-            )
-            .apply(context, (pos, attackTarget, walkTarget, lookTarget) -> (world, entity, time) -> {
-               BlockPos blockPos = context.getValue(pos);
-               boolean bl = blockPos.isWithinDistance(entity.getBlockPos(), completionRange);
-               if (!bl) {
-                  TargetUtil.walkTowards(entity, fuzz(entity, blockPos), speed, completionRange);
-               }
+	private static int fuzz(Random random) {
+		return random.nextInt(3) - 1;
+	}
 
-               return true;
-            })
-      );
-   }
+	public static <E extends MobEntity> SingleTickTask<E> create(
+			MemoryModuleType<BlockPos> posModule,
+			int completionRange,
+			float speed
+	) {
+		return TaskTriggerer.task(
+				context -> context.group(
+						                  context.queryMemoryValue(posModule),
+						                  context.queryMemoryAbsent(MemoryModuleType.ATTACK_TARGET),
+						                  context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET),
+						                  context.queryMemoryOptional(MemoryModuleType.LOOK_TARGET)
+				                  )
+				                  .apply(
+						                  context,
+						                  (pos, attackTarget, walkTarget, lookTarget) -> (world, entity, time) -> {
+							                  BlockPos blockPos = context.getValue(pos);
+							                  boolean
+									                  bl =
+									                  blockPos.isWithinDistance(entity.getBlockPos(), completionRange);
+							                  if (!bl) {
+								                  TargetUtil.walkTowards(
+										                  entity,
+										                  fuzz(entity, blockPos),
+										                  speed,
+										                  completionRange
+								                  );
+							                  }
+
+							                  return true;
+						                  }
+				                  )
+		);
+	}
 }

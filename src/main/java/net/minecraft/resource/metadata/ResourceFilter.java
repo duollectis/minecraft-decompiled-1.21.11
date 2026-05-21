@@ -2,24 +2,33 @@ package net.minecraft.resource.metadata;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+
 import java.util.List;
 
+/**
+ * {@code ResourceFilter}.
+ */
 public class ResourceFilter {
-   private static final Codec<ResourceFilter> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(Codec.list(BlockEntry.CODEC).fieldOf("block").forGetter(filter -> filter.blocks)).apply(instance, ResourceFilter::new)
-   );
-   public static final ResourceMetadataSerializer<ResourceFilter> SERIALIZER = new ResourceMetadataSerializer<>("filter", CODEC);
-   private final List<BlockEntry> blocks;
 
-   public ResourceFilter(List<BlockEntry> blocks) {
-      this.blocks = List.copyOf(blocks);
-   }
+	private static final Codec<ResourceFilter> CODEC = RecordCodecBuilder.create(
+			instance -> instance
+					.group(Codec.list(BlockEntry.CODEC).fieldOf("block").forGetter(filter -> filter.blocks))
+					.apply(instance, ResourceFilter::new)
+	);
+	public static final ResourceMetadataSerializer<ResourceFilter>
+			SERIALIZER =
+			new ResourceMetadataSerializer<>("filter", CODEC);
+	private final List<BlockEntry> blocks;
 
-   public boolean isNamespaceBlocked(String namespace) {
-      return this.blocks.stream().anyMatch(block -> block.getNamespacePredicate().test(namespace));
-   }
+	public ResourceFilter(List<BlockEntry> blocks) {
+		this.blocks = List.copyOf(blocks);
+	}
 
-   public boolean isPathBlocked(String namespace) {
-      return this.blocks.stream().anyMatch(block -> block.getPathPredicate().test(namespace));
-   }
+	public boolean isNamespaceBlocked(String namespace) {
+		return this.blocks.stream().anyMatch(block -> block.getNamespacePredicate().test(namespace));
+	}
+
+	public boolean isPathBlocked(String namespace) {
+		return this.blocks.stream().anyMatch(block -> block.getPathPredicate().test(namespace));
+	}
 }

@@ -6,23 +6,34 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.event.PositionSource;
 
+/**
+ * {@code GameEventListener}.
+ */
 public interface GameEventListener {
-   PositionSource getPositionSource();
 
-   int getRange();
+	PositionSource getPositionSource();
 
-   boolean listen(ServerWorld world, RegistryEntry<GameEvent> event, GameEvent.Emitter emitter, Vec3d emitterPos);
+	int getRange();
 
-   default GameEventListener.TriggerOrder getTriggerOrder() {
-      return GameEventListener.TriggerOrder.UNSPECIFIED;
-   }
+	boolean listen(ServerWorld world, RegistryEntry<GameEvent> event, GameEvent.Emitter emitter, Vec3d emitterPos);
 
-   public interface Holder<T extends GameEventListener> {
-      T getEventListener();
-   }
+	default GameEventListener.TriggerOrder getTriggerOrder() {
+		return GameEventListener.TriggerOrder.UNSPECIFIED;
+	}
 
-   public static enum TriggerOrder {
-      UNSPECIFIED,
-      BY_DISTANCE;
-   }
+	/**
+	 * {@code Holder}.
+	 */
+	public interface Holder<T extends GameEventListener> {
+
+		T getEventListener();
+	}
+
+	/**
+	 * {@code TriggerOrder}.
+	 */
+	public static enum TriggerOrder {
+		UNSPECIFIED,
+		BY_DISTANCE;
+	}
 }

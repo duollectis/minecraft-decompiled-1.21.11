@@ -2,19 +2,23 @@ package net.minecraft.resource;
 
 import java.util.concurrent.CompletableFuture;
 
+/**
+ * {@code ResourceReload}.
+ */
 public interface ResourceReload {
-   CompletableFuture<?> whenComplete();
 
-   float getProgress();
+	CompletableFuture<?> whenComplete();
 
-   default boolean isComplete() {
-      return this.whenComplete().isDone();
-   }
+	float getProgress();
 
-   default void throwException() {
-      CompletableFuture<?> completableFuture = this.whenComplete();
-      if (completableFuture.isCompletedExceptionally()) {
-         completableFuture.join();
-      }
-   }
+	default boolean isComplete() {
+		return this.whenComplete().isDone();
+	}
+
+	default void throwException() {
+		CompletableFuture<?> completableFuture = this.whenComplete();
+		if (completableFuture.isCompletedExceptionally()) {
+			completableFuture.join();
+		}
+	}
 }

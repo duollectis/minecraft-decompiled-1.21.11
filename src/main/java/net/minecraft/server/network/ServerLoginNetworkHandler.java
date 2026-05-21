@@ -5,15 +5,6 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
 import com.mojang.authlib.yggdrasil.ProfileResult;
 import com.mojang.logging.LogUtils;
-import java.math.BigInteger;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.security.PrivateKey;
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.DisconnectionInfo;
 import net.minecraft.network.PacketCallbacks;
@@ -46,225 +37,297 @@ import org.apache.commons.lang3.Validate;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import java.math.BigInteger;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.security.PrivateKey;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * {@code ServerLoginNetworkHandler}.
+ */
 public class ServerLoginNetworkHandler implements ServerLoginPacketListener, TickablePacketListener {
-   private static final AtomicInteger NEXT_AUTHENTICATOR_THREAD_ID = new AtomicInteger(0);
-   static final Logger LOGGER = LogUtils.getLogger();
-   private static final int TIMEOUT_TICKS = 600;
-   private final byte[] nonce;
-   final MinecraftServer server;
-   final ClientConnection connection;
-   final ActivityNotifier activityNotifier;
-   private volatile ServerLoginNetworkHandler.State state = ServerLoginNetworkHandler.State.HELLO;
-   private int loginTicks;
-   @Nullable String profileName;
-   private @Nullable GameProfile profile;
-   private final String serverId = "";
-   private final boolean transferred;
 
-   public ServerLoginNetworkHandler(MinecraftServer server, ClientConnection connection, boolean transferred) {
-      this.server = server;
-      this.connection = connection;
-      this.activityNotifier = this.server.getActivityNotifier();
-      this.nonce = Ints.toByteArray(Random.create().nextInt());
-      this.transferred = transferred;
-   }
+	private static final AtomicInteger NEXT_AUTHENTICATOR_THREAD_ID = new AtomicInteger(0);
+	static final Logger LOGGER = LogUtils.getLogger();
+	private static final int TIMEOUT_TICKS = 600;
+	private final byte[] nonce;
+	final MinecraftServer server;
+	final ClientConnection connection;
+	final ActivityNotifier activityNotifier;
+	private volatile ServerLoginNetworkHandler.State state = ServerLoginNetworkHandler.State.HELLO;
+	private int loginTicks;
+	@Nullable String profileName;
+	private @Nullable GameProfile profile;
+	private final String serverId = "";
+	private final boolean transferred;
 
-   @Override
-   public void tick() {
-      if (this.state == ServerLoginNetworkHandler.State.VERIFYING) {
-         this.tickVerify(Objects.requireNonNull(this.profile));
-      }
+	public ServerLoginNetworkHandler(MinecraftServer server, ClientConnection connection, boolean transferred) {
+		this.server = server;
+		this.connection = connection;
+		this.activityNotifier = this.server.getActivityNotifier();
+		this.nonce = Ints.toByteArray(Random.create().nextInt());
+		this.transferred = transferred;
+	}
 
-      if (this.state == ServerLoginNetworkHandler.State.WAITING_FOR_DUPE_DISCONNECT && !this.hasPlayerWithId(Objects.requireNonNull(this.profile))) {
-         this.sendSuccessPacket(this.profile);
-      }
+	@Override
+	public void tick() {
+		if (this.state == ServerLoginNetworkHandler.State.VERIFYING) {
+			this.tickVerify(Objects.requireNonNull(this.profile));
+		}
 
-      if (this.loginTicks++ == 600) {
-         this.disconnect(Text.translatable("multiplayer.disconnect.slow_login"));
-      }
-   }
+		if (this.state == ServerLoginNetworkHandler.State.WAITING_FOR_DUPE_DISCONNECT
+				&& !this.hasPlayerWithId(Objects.requireNonNull(this.profile))) {
+			this.sendSuccessPacket(this.profile);
+		}
 
-   @Override
-   public boolean isConnectionOpen() {
-      return this.connection.isOpen();
-   }
+		if (this.loginTicks++ == 600) {
+			this.disconnect(Text.translatable("multiplayer.disconnect.slow_login"));
+		}
+	}
 
-   public void disconnect(Text reason) {
-      try {
-         LOGGER.info("Disconnecting {}: {}", this.getConnectionInfo(), reason.getString());
-         this.connection.send(new LoginDisconnectS2CPacket(reason));
-         this.connection.disconnect(reason);
-      } catch (Exception var3) {
-         LOGGER.error("Error whilst disconnecting player", var3);
-      }
-   }
+	@Override
+	public boolean isConnectionOpen() {
+		return this.connection.isOpen();
+	}
 
-   private boolean hasPlayerWithId(GameProfile profile) {
-      return this.server.getPlayerManager().getPlayer(profile.id()) != null;
-   }
+	public void disconnect(Text reason) {
+		try {
+			LOGGER.info("Disconnecting {}: {}", this.getConnectionInfo(), reason.getString());
+			this.connection.send(new LoginDisconnectS2CPacket(reason));
+			this.connection.disconnect(reason);
+		}
+		catch (Exception var3) {
+			LOGGER.error("Error whilst disconnecting player", var3);
+		}
+	}
 
-   @Override
-   public void onDisconnected(DisconnectionInfo info) {
-      LOGGER.info("{} lost connection: {}", this.getConnectionInfo(), info.reason().getString());
-   }
+	private boolean hasPlayerWithId(GameProfile profile) {
+		return this.server.getPlayerManager().getPlayer(profile.id()) != null;
+	}
 
-   public String getConnectionInfo() {
-      String string = this.connection.getAddressAsString(this.server.shouldLogIps());
-      return this.profileName != null ? this.profileName + " (" + string + ")" : string;
-   }
+	@Override
+	public void onDisconnected(DisconnectionInfo info) {
+		LOGGER.info("{} lost connection: {}", this.getConnectionInfo(), info.reason().getString());
+	}
 
-   @Override
-   public void onHello(LoginHelloC2SPacket packet) {
-      Validate.validState(this.state == ServerLoginNetworkHandler.State.HELLO, "Unexpected hello packet", new Object[0]);
-      Validate.validState(StringHelper.isValidPlayerName(packet.name()), "Invalid characters in username", new Object[0]);
-      this.profileName = packet.name();
-      GameProfile gameProfile = this.server.getHostProfile();
-      if (gameProfile != null && this.profileName.equalsIgnoreCase(gameProfile.name())) {
-         this.startVerify(gameProfile);
-      } else {
-         if (this.server.isOnlineMode() && !this.connection.isLocal()) {
-            this.state = ServerLoginNetworkHandler.State.KEY;
-            this.connection.send(new LoginHelloS2CPacket("", this.server.getKeyPair().getPublic().getEncoded(), this.nonce, true));
-         } else {
-            this.startVerify(Uuids.getOfflinePlayerProfile(this.profileName));
-         }
-      }
-   }
+	public String getConnectionInfo() {
+		String string = this.connection.getAddressAsString(this.server.shouldLogIps());
+		return this.profileName != null ? this.profileName + " (" + string + ")" : string;
+	}
 
-   void startVerify(GameProfile profile) {
-      this.profile = profile;
-      this.state = ServerLoginNetworkHandler.State.VERIFYING;
-   }
+	@Override
+	public void onHello(LoginHelloC2SPacket packet) {
+		Validate.validState(
+				this.state == ServerLoginNetworkHandler.State.HELLO,
+				"Unexpected hello packet",
+				new Object[0]
+		);
+		Validate.validState(
+				StringHelper.isValidPlayerName(packet.name()),
+				"Invalid characters in username",
+				new Object[0]
+		);
+		this.profileName = packet.name();
+		GameProfile gameProfile = this.server.getHostProfile();
+		if (gameProfile != null && this.profileName.equalsIgnoreCase(gameProfile.name())) {
+			this.startVerify(gameProfile);
+		}
+		else {
+			if (this.server.isOnlineMode() && !this.connection.isLocal()) {
+				this.state = ServerLoginNetworkHandler.State.KEY;
+				this.connection.send(new LoginHelloS2CPacket(
+						"",
+						this.server.getKeyPair().getPublic().getEncoded(),
+						this.nonce,
+						true
+				));
+			}
+			else {
+				this.startVerify(Uuids.getOfflinePlayerProfile(this.profileName));
+			}
+		}
+	}
 
-   private void tickVerify(GameProfile profile) {
-      PlayerManager playerManager = this.server.getPlayerManager();
-      Text text = playerManager.checkCanJoin(this.connection.getAddress(), new PlayerConfigEntry(profile));
-      if (text != null) {
-         this.disconnect(text);
-      } else {
-         if (this.server.getNetworkCompressionThreshold() >= 0 && !this.connection.isLocal()) {
-            this.connection
-               .send(
-                  new LoginCompressionS2CPacket(this.server.getNetworkCompressionThreshold()),
-                  PacketCallbacks.always(() -> this.connection.setCompressionThreshold(this.server.getNetworkCompressionThreshold(), true))
-               );
-         }
+	void startVerify(GameProfile profile) {
+		this.profile = profile;
+		this.state = ServerLoginNetworkHandler.State.VERIFYING;
+	}
 
-         boolean bl = playerManager.disconnectDuplicateLogins(profile.id());
-         if (bl) {
-            this.state = ServerLoginNetworkHandler.State.WAITING_FOR_DUPE_DISCONNECT;
-         } else {
-            this.sendSuccessPacket(profile);
-         }
-      }
-   }
+	private void tickVerify(GameProfile profile) {
+		PlayerManager playerManager = this.server.getPlayerManager();
+		Text text = playerManager.checkCanJoin(this.connection.getAddress(), new PlayerConfigEntry(profile));
+		if (text != null) {
+			this.disconnect(text);
+		}
+		else {
+			if (this.server.getNetworkCompressionThreshold() >= 0 && !this.connection.isLocal()) {
+				this.connection
+						.send(
+								new LoginCompressionS2CPacket(this.server.getNetworkCompressionThreshold()),
+								PacketCallbacks.always(() -> this.connection.setCompressionThreshold(
+										this.server.getNetworkCompressionThreshold(),
+										true
+								))
+						);
+			}
 
-   private void sendSuccessPacket(GameProfile profile) {
-      this.state = ServerLoginNetworkHandler.State.PROTOCOL_SWITCHING;
-      this.connection.send(new LoginSuccessS2CPacket(profile));
-   }
+			boolean bl = playerManager.disconnectDuplicateLogins(profile.id());
+			if (bl) {
+				this.state = ServerLoginNetworkHandler.State.WAITING_FOR_DUPE_DISCONNECT;
+			}
+			else {
+				this.sendSuccessPacket(profile);
+			}
+		}
+	}
 
-   @Override
-   public void onKey(LoginKeyC2SPacket packet) {
-      Validate.validState(this.state == ServerLoginNetworkHandler.State.KEY, "Unexpected key packet", new Object[0]);
+	private void sendSuccessPacket(GameProfile profile) {
+		this.state = ServerLoginNetworkHandler.State.PROTOCOL_SWITCHING;
+		this.connection.send(new LoginSuccessS2CPacket(profile));
+	}
 
-      final String string;
-      try {
-         PrivateKey privateKey = this.server.getKeyPair().getPrivate();
-         if (!packet.verifySignedNonce(this.nonce, privateKey)) {
-            throw new IllegalStateException("Protocol error");
-         }
+	@Override
+	public void onKey(LoginKeyC2SPacket packet) {
+		Validate.validState(this.state == ServerLoginNetworkHandler.State.KEY, "Unexpected key packet", new Object[0]);
 
-         SecretKey secretKey = packet.decryptSecretKey(privateKey);
-         Cipher cipher = NetworkEncryptionUtils.cipherFromKey(2, secretKey);
-         Cipher cipher2 = NetworkEncryptionUtils.cipherFromKey(1, secretKey);
-         string = new BigInteger(NetworkEncryptionUtils.computeServerId("", this.server.getKeyPair().getPublic(), secretKey)).toString(16);
-         this.state = ServerLoginNetworkHandler.State.AUTHENTICATING;
-         this.connection.setupEncryption(cipher, cipher2);
-      } catch (NetworkEncryptionException var7) {
-         throw new IllegalStateException("Protocol error", var7);
-      }
+		final String string;
+		try {
+			PrivateKey privateKey = this.server.getKeyPair().getPrivate();
+			if (!packet.verifySignedNonce(this.nonce, privateKey)) {
+				throw new IllegalStateException("Protocol error");
+			}
 
-      Thread thread = new Thread("User Authenticator #" + NEXT_AUTHENTICATOR_THREAD_ID.incrementAndGet()) {
-         @Override
-         public void run() {
-            String stringx = Objects.requireNonNull(ServerLoginNetworkHandler.this.profileName, "Player name not initialized");
+			SecretKey secretKey = packet.decryptSecretKey(privateKey);
+			Cipher cipher = NetworkEncryptionUtils.cipherFromKey(2, secretKey);
+			Cipher cipher2 = NetworkEncryptionUtils.cipherFromKey(1, secretKey);
+			string =
+					new BigInteger(NetworkEncryptionUtils.computeServerId(
+							"",
+							this.server.getKeyPair().getPublic(),
+							secretKey
+					)).toString(16);
+			this.state = ServerLoginNetworkHandler.State.AUTHENTICATING;
+			this.connection.setupEncryption(cipher, cipher2);
+		}
+		catch (NetworkEncryptionException var7) {
+			throw new IllegalStateException("Protocol error", var7);
+		}
 
-            try {
-               ProfileResult profileResult = ServerLoginNetworkHandler.this.server
-                  .getApiServices()
-                  .sessionService()
-                  .hasJoinedServer(stringx, string, this.getClientAddress());
-               if (profileResult != null) {
-                  GameProfile gameProfile = profileResult.profile();
-                  ServerLoginNetworkHandler.LOGGER.info("UUID of player {} is {}", gameProfile.name(), gameProfile.id());
-                  ServerLoginNetworkHandler.this.activityNotifier.notifyListenersWithRateLimit();
-                  ServerLoginNetworkHandler.this.startVerify(gameProfile);
-               } else if (ServerLoginNetworkHandler.this.server.isSingleplayer()) {
-                  ServerLoginNetworkHandler.LOGGER.warn("Failed to verify username but will let them in anyway!");
-                  ServerLoginNetworkHandler.this.startVerify(Uuids.getOfflinePlayerProfile(stringx));
-               } else {
-                  ServerLoginNetworkHandler.this.disconnect(Text.translatable("multiplayer.disconnect.unverified_username"));
-                  ServerLoginNetworkHandler.LOGGER.error("Username '{}' tried to join with an invalid session", stringx);
-               }
-            } catch (AuthenticationUnavailableException var4) {
-               if (ServerLoginNetworkHandler.this.server.isSingleplayer()) {
-                  ServerLoginNetworkHandler.LOGGER.warn("Authentication servers are down but will let them in anyway!");
-                  ServerLoginNetworkHandler.this.startVerify(Uuids.getOfflinePlayerProfile(stringx));
-               } else {
-                  ServerLoginNetworkHandler.this.disconnect(Text.translatable("multiplayer.disconnect.authservers_down"));
-                  ServerLoginNetworkHandler.LOGGER.error("Couldn't verify username because servers are unavailable");
-               }
-            }
-         }
+		Thread thread = new Thread("User Authenticator #" + NEXT_AUTHENTICATOR_THREAD_ID.incrementAndGet()) {
+			@Override
+			public void run() {
+				String
+						stringx =
+						Objects.requireNonNull(
+								ServerLoginNetworkHandler.this.profileName,
+								"Player name not initialized"
+						);
 
-         private @Nullable InetAddress getClientAddress() {
-            SocketAddress socketAddress = ServerLoginNetworkHandler.this.connection.getAddress();
-            return ServerLoginNetworkHandler.this.server.shouldPreventProxyConnections() && socketAddress instanceof InetSocketAddress
-               ? ((InetSocketAddress)socketAddress).getAddress()
-               : null;
-         }
-      };
-      thread.setUncaughtExceptionHandler(new UncaughtExceptionLogger(LOGGER));
-      thread.start();
-   }
+				try {
+					ProfileResult profileResult = ServerLoginNetworkHandler.this.server
+							.getApiServices()
+							.sessionService()
+							.hasJoinedServer(stringx, string, this.getClientAddress());
+					if (profileResult != null) {
+						GameProfile gameProfile = profileResult.profile();
+						ServerLoginNetworkHandler.LOGGER.info(
+								"UUID of player {} is {}",
+								gameProfile.name(),
+								gameProfile.id()
+						);
+						ServerLoginNetworkHandler.this.activityNotifier.notifyListenersWithRateLimit();
+						ServerLoginNetworkHandler.this.startVerify(gameProfile);
+					}
+					else if (ServerLoginNetworkHandler.this.server.isSingleplayer()) {
+						ServerLoginNetworkHandler.LOGGER.warn("Failed to verify username but will let them in anyway!");
+						ServerLoginNetworkHandler.this.startVerify(Uuids.getOfflinePlayerProfile(stringx));
+					}
+					else {
+						ServerLoginNetworkHandler.this.disconnect(Text.translatable(
+								"multiplayer.disconnect.unverified_username"));
+						ServerLoginNetworkHandler.LOGGER.error(
+								"Username '{}' tried to join with an invalid session",
+								stringx
+						);
+					}
+				}
+				catch (AuthenticationUnavailableException var4) {
+					if (ServerLoginNetworkHandler.this.server.isSingleplayer()) {
+						ServerLoginNetworkHandler.LOGGER.warn(
+								"Authentication servers are down but will let them in anyway!");
+						ServerLoginNetworkHandler.this.startVerify(Uuids.getOfflinePlayerProfile(stringx));
+					}
+					else {
+						ServerLoginNetworkHandler.this.disconnect(Text.translatable(
+								"multiplayer.disconnect.authservers_down"));
+						ServerLoginNetworkHandler.LOGGER.error(
+								"Couldn't verify username because servers are unavailable");
+					}
+				}
+			}
 
-   @Override
-   public void onQueryResponse(LoginQueryResponseC2SPacket packet) {
-      this.disconnect(ServerCommonNetworkHandler.UNEXPECTED_QUERY_RESPONSE_TEXT);
-   }
+			private @Nullable InetAddress getClientAddress() {
+				SocketAddress socketAddress = ServerLoginNetworkHandler.this.connection.getAddress();
+				return ServerLoginNetworkHandler.this.server.shouldPreventProxyConnections()
+						       && socketAddress instanceof InetSocketAddress
+				       ? ((InetSocketAddress) socketAddress).getAddress()
+				       : null;
+			}
+		};
+		thread.setUncaughtExceptionHandler(new UncaughtExceptionLogger(LOGGER));
+		thread.start();
+	}
 
-   @Override
-   public void onEnterConfiguration(EnterConfigurationC2SPacket packet) {
-      Validate.validState(this.state == ServerLoginNetworkHandler.State.PROTOCOL_SWITCHING, "Unexpected login acknowledgement packet", new Object[0]);
-      this.connection.transitionOutbound(ConfigurationStates.S2C);
-      ConnectedClientData connectedClientData = ConnectedClientData.createDefault(Objects.requireNonNull(this.profile), this.transferred);
-      ServerConfigurationNetworkHandler serverConfigurationNetworkHandler = new ServerConfigurationNetworkHandler(
-         this.server, this.connection, connectedClientData
-      );
-      this.connection.transitionInbound(ConfigurationStates.C2S, serverConfigurationNetworkHandler);
-      serverConfigurationNetworkHandler.sendConfigurations();
-      this.state = ServerLoginNetworkHandler.State.ACCEPTED;
-   }
+	@Override
+	public void onQueryResponse(LoginQueryResponseC2SPacket packet) {
+		this.disconnect(ServerCommonNetworkHandler.UNEXPECTED_QUERY_RESPONSE_TEXT);
+	}
 
-   @Override
-   public void addCustomCrashReportInfo(CrashReport report, CrashReportSection section) {
-      section.add("Login phase", () -> this.state.toString());
-   }
+	@Override
+	public void onEnterConfiguration(EnterConfigurationC2SPacket packet) {
+		Validate.validState(
+				this.state == ServerLoginNetworkHandler.State.PROTOCOL_SWITCHING,
+				"Unexpected login acknowledgement packet",
+				new Object[0]
+		);
+		this.connection.transitionOutbound(ConfigurationStates.S2C);
+		ConnectedClientData
+				connectedClientData =
+				ConnectedClientData.createDefault(Objects.requireNonNull(this.profile), this.transferred);
+		ServerConfigurationNetworkHandler serverConfigurationNetworkHandler = new ServerConfigurationNetworkHandler(
+				this.server, this.connection, connectedClientData
+		);
+		this.connection.transitionInbound(ConfigurationStates.C2S, serverConfigurationNetworkHandler);
+		serverConfigurationNetworkHandler.sendConfigurations();
+		this.state = ServerLoginNetworkHandler.State.ACCEPTED;
+	}
 
-   @Override
-   public void onCookieResponse(CookieResponseC2SPacket packet) {
-      this.disconnect(ServerCommonNetworkHandler.UNEXPECTED_QUERY_RESPONSE_TEXT);
-   }
+	@Override
+	public void addCustomCrashReportInfo(CrashReport report, CrashReportSection section) {
+		section.add("Login phase", () -> this.state.toString());
+	}
 
-   static enum State {
-      HELLO,
-      KEY,
-      AUTHENTICATING,
-      NEGOTIATING,
-      VERIFYING,
-      WAITING_FOR_DUPE_DISCONNECT,
-      PROTOCOL_SWITCHING,
-      ACCEPTED;
-   }
+	@Override
+	public void onCookieResponse(CookieResponseC2SPacket packet) {
+		this.disconnect(ServerCommonNetworkHandler.UNEXPECTED_QUERY_RESPONSE_TEXT);
+	}
+
+	/**
+	 * {@code State}.
+	 */
+	static enum State {
+		HELLO,
+		KEY,
+		AUTHENTICATING,
+		NEGOTIATING,
+		VERIFYING,
+		WAITING_FOR_DUPE_DISCONNECT,
+		PROTOCOL_SWITCHING,
+		ACCEPTED;
+	}
 }

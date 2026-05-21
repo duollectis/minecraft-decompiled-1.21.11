@@ -8,7 +8,12 @@ import net.minecraft.world.rule.ServerGameRules;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code InitialWorldOptions}.
+ */
 public record InitialWorldOptions(
-   WorldCreator.Mode selectedGameMode, ServerGameRules gameRuleOverwrites, @Nullable RegistryKey<FlatLevelGeneratorPreset> flatLevelPreset
+		WorldCreator.Mode selectedGameMode,
+		ServerGameRules gameRuleOverwrites,
+		@Nullable RegistryKey<FlatLevelGeneratorPreset> flatLevelPreset
 ) {
 }

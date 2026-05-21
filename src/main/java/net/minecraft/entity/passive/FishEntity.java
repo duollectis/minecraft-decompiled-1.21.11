@@ -33,179 +33,205 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+/**
+ * {@code FishEntity}.
+ */
 public abstract class FishEntity extends WaterCreatureEntity implements Bucketable {
-   private static final TrackedData<Boolean> FROM_BUCKET = DataTracker.registerData(FishEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final boolean DEFAULT_FROM_BUCKET = false;
 
-   public FishEntity(EntityType<? extends FishEntity> entityType, World world) {
-      super(entityType, world);
-      this.moveControl = new FishEntity.FishMoveControl(this);
-   }
+	private static final TrackedData<Boolean>
+			FROM_BUCKET =
+			DataTracker.registerData(FishEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final boolean DEFAULT_FROM_BUCKET = false;
 
-   public static DefaultAttributeContainer.Builder createFishAttributes() {
-      return MobEntity.createMobAttributes().add(EntityAttributes.MAX_HEALTH, 3.0);
-   }
+	public FishEntity(EntityType<? extends FishEntity> entityType, World world) {
+		super(entityType, world);
+		this.moveControl = new FishEntity.FishMoveControl(this);
+	}
 
-   @Override
-   public boolean cannotDespawn() {
-      return super.cannotDespawn() || this.isFromBucket();
-   }
+	public static DefaultAttributeContainer.Builder createFishAttributes() {
+		return MobEntity.createMobAttributes().add(EntityAttributes.MAX_HEALTH, 3.0);
+	}
 
-   @Override
-   public boolean canImmediatelyDespawn(double distanceSquared) {
-      return !this.isFromBucket() && !this.hasCustomName();
-   }
+	@Override
+	public boolean cannotDespawn() {
+		return super.cannotDespawn() || this.isFromBucket();
+	}
 
-   @Override
-   public int getLimitPerChunk() {
-      return 8;
-   }
+	@Override
+	public boolean canImmediatelyDespawn(double distanceSquared) {
+		return !this.isFromBucket() && !this.hasCustomName();
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(FROM_BUCKET, false);
-   }
+	@Override
+	public int getLimitPerChunk() {
+		return 8;
+	}
 
-   @Override
-   public boolean isFromBucket() {
-      return this.dataTracker.get(FROM_BUCKET);
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(FROM_BUCKET, false);
+	}
 
-   @Override
-   public void setFromBucket(boolean fromBucket) {
-      this.dataTracker.set(FROM_BUCKET, fromBucket);
-   }
+	@Override
+	public boolean isFromBucket() {
+		return this.dataTracker.get(FROM_BUCKET);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putBoolean("FromBucket", this.isFromBucket());
-   }
+	@Override
+	public void setFromBucket(boolean fromBucket) {
+		this.dataTracker.set(FROM_BUCKET, fromBucket);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.setFromBucket(view.getBoolean("FromBucket", false));
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putBoolean("FromBucket", this.isFromBucket());
+	}
 
-   @Override
-   protected void initGoals() {
-      super.initGoals();
-      this.goalSelector.add(0, new EscapeDangerGoal(this, 1.25));
-      this.goalSelector.add(2, new FleeEntityGoal<>(this, PlayerEntity.class, 8.0F, 1.6, 1.4, EntityPredicates.EXCEPT_SPECTATOR));
-      this.goalSelector.add(4, new FishEntity.SwimToRandomPlaceGoal(this));
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.setFromBucket(view.getBoolean("FromBucket", false));
+	}
 
-   @Override
-   protected EntityNavigation createNavigation(World world) {
-      return new SwimNavigation(this, world);
-   }
+	@Override
+	protected void initGoals() {
+		super.initGoals();
+		this.goalSelector.add(0, new EscapeDangerGoal(this, 1.25));
+		this.goalSelector.add(
+				2,
+				new FleeEntityGoal<>(this, PlayerEntity.class, 8.0F, 1.6, 1.4, EntityPredicates.EXCEPT_SPECTATOR)
+		);
+		this.goalSelector.add(4, new FishEntity.SwimToRandomPlaceGoal(this));
+	}
 
-   @Override
-   protected void travelInWater(Vec3d movementInput, double gravity, boolean falling, double y) {
-      this.updateVelocity(0.01F, movementInput);
-      this.move(MovementType.SELF, this.getVelocity());
-      this.setVelocity(this.getVelocity().multiply(0.9));
-      if (this.getTarget() == null) {
-         this.setVelocity(this.getVelocity().add(0.0, -0.005, 0.0));
-      }
-   }
+	@Override
+	protected EntityNavigation createNavigation(World world) {
+		return new SwimNavigation(this, world);
+	}
 
-   @Override
-   public void tickMovement() {
-      if (!this.isTouchingWater() && this.isOnGround() && this.verticalCollision) {
-         this.setVelocity(this.getVelocity().add((this.random.nextFloat() * 2.0F - 1.0F) * 0.05F, 0.4F, (this.random.nextFloat() * 2.0F - 1.0F) * 0.05F));
-         this.setOnGround(false);
-         this.velocityDirty = true;
-         this.playSound(this.getFlopSound());
-      }
+	@Override
+	protected void travelInWater(Vec3d movementInput, double gravity, boolean falling, double y) {
+		this.updateVelocity(0.01F, movementInput);
+		this.move(MovementType.SELF, this.getVelocity());
+		this.setVelocity(this.getVelocity().multiply(0.9));
+		if (this.getTarget() == null) {
+			this.setVelocity(this.getVelocity().add(0.0, -0.005, 0.0));
+		}
+	}
 
-      super.tickMovement();
-   }
+	@Override
+	public void tickMovement() {
+		if (!this.isTouchingWater() && this.isOnGround() && this.verticalCollision) {
+			this.setVelocity(this
+					.getVelocity()
+					.add(
+							(this.random.nextFloat() * 2.0F - 1.0F) * 0.05F,
+							0.4F,
+							(this.random.nextFloat() * 2.0F - 1.0F) * 0.05F
+					));
+			this.setOnGround(false);
+			this.velocityDirty = true;
+			this.playSound(this.getFlopSound());
+		}
 
-   @Override
-   protected ActionResult interactMob(PlayerEntity player, Hand hand) {
-      return Bucketable.tryBucket(player, hand, this).orElse(super.interactMob(player, hand));
-   }
+		super.tickMovement();
+	}
 
-   @Override
-   public void copyDataToStack(ItemStack stack) {
-      Bucketable.copyDataToStack(this, stack);
-   }
+	@Override
+	protected ActionResult interactMob(PlayerEntity player, Hand hand) {
+		return Bucketable.tryBucket(player, hand, this).orElse(super.interactMob(player, hand));
+	}
 
-   @Override
-   public void copyDataFromNbt(NbtCompound nbt) {
-      Bucketable.copyDataFromNbt(this, nbt);
-   }
+	@Override
+	public void copyDataToStack(ItemStack stack) {
+		Bucketable.copyDataToStack(this, stack);
+	}
 
-   @Override
-   public SoundEvent getBucketFillSound() {
-      return SoundEvents.ITEM_BUCKET_FILL_FISH;
-   }
+	@Override
+	public void copyDataFromNbt(NbtCompound nbt) {
+		Bucketable.copyDataFromNbt(this, nbt);
+	}
 
-   protected boolean hasSelfControl() {
-      return true;
-   }
+	@Override
+	public SoundEvent getBucketFillSound() {
+		return SoundEvents.ITEM_BUCKET_FILL_FISH;
+	}
 
-   protected abstract SoundEvent getFlopSound();
+	protected boolean hasSelfControl() {
+		return true;
+	}
 
-   @Override
-   protected SoundEvent getSwimSound() {
-      return SoundEvents.ENTITY_FISH_SWIM;
-   }
+	protected abstract SoundEvent getFlopSound();
 
-   @Override
-   protected void playStepSound(BlockPos pos, BlockState state) {
-   }
+	@Override
+	protected SoundEvent getSwimSound() {
+		return SoundEvents.ENTITY_FISH_SWIM;
+	}
 
-   static class FishMoveControl extends MoveControl {
-      private final FishEntity fish;
+	@Override
+	protected void playStepSound(BlockPos pos, BlockState state) {
+	}
 
-      FishMoveControl(FishEntity owner) {
-         super(owner);
-         this.fish = owner;
-      }
+	/**
+	 * {@code FishMoveControl}.
+	 */
+	static class FishMoveControl extends MoveControl {
 
-      @Override
-      public void tick() {
-         if (this.fish.isSubmergedIn(FluidTags.WATER)) {
-            this.fish.setVelocity(this.fish.getVelocity().add(0.0, 0.005, 0.0));
-         }
+		private final FishEntity fish;
 
-         if (this.state == MoveControl.State.MOVE_TO && !this.fish.getNavigation().isIdle()) {
-            float f = (float)(this.speed * this.fish.getAttributeValue(EntityAttributes.MOVEMENT_SPEED));
-            this.fish.setMovementSpeed(MathHelper.lerp(0.125F, this.fish.getMovementSpeed(), f));
-            double d = this.targetX - this.fish.getX();
-            double e = this.targetY - this.fish.getY();
-            double g = this.targetZ - this.fish.getZ();
-            if (e != 0.0) {
-               double h = Math.sqrt(d * d + e * e + g * g);
-               this.fish.setVelocity(this.fish.getVelocity().add(0.0, this.fish.getMovementSpeed() * (e / h) * 0.1, 0.0));
-            }
+		FishMoveControl(FishEntity owner) {
+			super(owner);
+			this.fish = owner;
+		}
 
-            if (d != 0.0 || g != 0.0) {
-               float i = (float)(MathHelper.atan2(g, d) * 180.0F / (float)Math.PI) - 90.0F;
-               this.fish.setYaw(this.wrapDegrees(this.fish.getYaw(), i, 90.0F));
-               this.fish.bodyYaw = this.fish.getYaw();
-            }
-         } else {
-            this.fish.setMovementSpeed(0.0F);
-         }
-      }
-   }
+		@Override
+		public void tick() {
+			if (this.fish.isSubmergedIn(FluidTags.WATER)) {
+				this.fish.setVelocity(this.fish.getVelocity().add(0.0, 0.005, 0.0));
+			}
 
-   static class SwimToRandomPlaceGoal extends SwimAroundGoal {
-      private final FishEntity fish;
+			if (this.state == MoveControl.State.MOVE_TO && !this.fish.getNavigation().isIdle()) {
+				float f = (float) (this.speed * this.fish.getAttributeValue(EntityAttributes.MOVEMENT_SPEED));
+				this.fish.setMovementSpeed(MathHelper.lerp(0.125F, this.fish.getMovementSpeed(), f));
+				double d = this.targetX - this.fish.getX();
+				double e = this.targetY - this.fish.getY();
+				double g = this.targetZ - this.fish.getZ();
+				if (e != 0.0) {
+					double h = Math.sqrt(d * d + e * e + g * g);
+					this.fish.setVelocity(this.fish
+							.getVelocity()
+							.add(0.0, this.fish.getMovementSpeed() * (e / h) * 0.1, 0.0));
+				}
 
-      public SwimToRandomPlaceGoal(FishEntity fish) {
-         super(fish, 1.0, 40);
-         this.fish = fish;
-      }
+				if (d != 0.0 || g != 0.0) {
+					float i = (float) (MathHelper.atan2(g, d) * 180.0F / (float) Math.PI) - 90.0F;
+					this.fish.setYaw(this.wrapDegrees(this.fish.getYaw(), i, 90.0F));
+					this.fish.bodyYaw = this.fish.getYaw();
+				}
+			}
+			else {
+				this.fish.setMovementSpeed(0.0F);
+			}
+		}
+	}
 
-      @Override
-      public boolean canStart() {
-         return this.fish.hasSelfControl() && super.canStart();
-      }
-   }
+	/**
+	 * {@code SwimToRandomPlaceGoal}.
+	 */
+	static class SwimToRandomPlaceGoal extends SwimAroundGoal {
+
+		private final FishEntity fish;
+
+		public SwimToRandomPlaceGoal(FishEntity fish) {
+			super(fish, 1.0, 40);
+			this.fish = fish;
+		}
+
+		@Override
+		public boolean canStart() {
+			return this.fish.hasSelfControl() && super.canStart();
+		}
+	}
 }

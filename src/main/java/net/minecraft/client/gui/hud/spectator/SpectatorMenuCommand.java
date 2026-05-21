@@ -6,12 +6,16 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SpectatorMenuCommand}.
+ */
 public interface SpectatorMenuCommand {
-   void use(SpectatorMenu menu);
 
-   Text getName();
+	void use(SpectatorMenu menu);
 
-   void renderIcon(DrawContext context, float brightness, float alpha);
+	Text getName();
 
-   boolean isEnabled();
+	void renderIcon(DrawContext context, float brightness, float alpha);
+
+	boolean isEnabled();
 }

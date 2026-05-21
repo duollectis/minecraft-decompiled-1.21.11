@@ -1,10 +1,5 @@
 package net.minecraft.client.render.item;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.client.rendering.v1.FabricRenderState;
@@ -24,219 +19,260 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ItemRenderState}.
+ */
 public class ItemRenderState implements FabricRenderState {
-   public ItemDisplayContext displayContext = ItemDisplayContext.NONE;
-   private int layerCount;
-   private boolean animated;
-   private boolean oversizedInGui;
-   private @Nullable Box cachedModelBoundingBox;
-   private ItemRenderState.LayerRenderState[] layers = new ItemRenderState.LayerRenderState[]{new ItemRenderState.LayerRenderState()};
 
-   public void addLayers(int add) {
-      int i = this.layers.length;
-      int j = this.layerCount + add;
-      if (j > i) {
-         this.layers = Arrays.copyOf(this.layers, j);
+	public ItemDisplayContext displayContext = ItemDisplayContext.NONE;
+	private int layerCount;
+	private boolean animated;
+	private boolean oversizedInGui;
+	private @Nullable Box cachedModelBoundingBox;
+	private ItemRenderState.LayerRenderState[]
+			layers =
+			new ItemRenderState.LayerRenderState[]{new ItemRenderState.LayerRenderState()};
 
-         for (int k = i; k < j; k++) {
-            this.layers[k] = new ItemRenderState.LayerRenderState();
-         }
-      }
-   }
+	public void addLayers(int add) {
+		int i = this.layers.length;
+		int j = this.layerCount + add;
+		if (j > i) {
+			this.layers = Arrays.copyOf(this.layers, j);
 
-   public ItemRenderState.LayerRenderState newLayer() {
-      this.addLayers(1);
-      return this.layers[this.layerCount++];
-   }
+			for (int k = i; k < j; k++) {
+				this.layers[k] = new ItemRenderState.LayerRenderState();
+			}
+		}
+	}
 
-   public void clear() {
-      this.displayContext = ItemDisplayContext.NONE;
+	public ItemRenderState.LayerRenderState newLayer() {
+		this.addLayers(1);
+		return this.layers[this.layerCount++];
+	}
 
-      for (int i = 0; i < this.layerCount; i++) {
-         this.layers[i].clear();
-      }
+	public void clear() {
+		this.displayContext = ItemDisplayContext.NONE;
 
-      this.layerCount = 0;
-      this.animated = false;
-      this.oversizedInGui = false;
-      this.cachedModelBoundingBox = null;
-   }
+		for (int i = 0; i < this.layerCount; i++) {
+			this.layers[i].clear();
+		}
 
-   public void markAnimated() {
-      this.animated = true;
-   }
+		this.layerCount = 0;
+		this.animated = false;
+		this.oversizedInGui = false;
+		this.cachedModelBoundingBox = null;
+	}
 
-   public boolean isAnimated() {
-      return this.animated;
-   }
+	public void markAnimated() {
+		this.animated = true;
+	}
 
-   public void addModelKey(Object modelKey) {
-   }
+	public boolean isAnimated() {
+		return this.animated;
+	}
 
-   private ItemRenderState.LayerRenderState getFirstLayer() {
-      return this.layers[0];
-   }
+	public void addModelKey(Object modelKey) {
+	}
 
-   public boolean isEmpty() {
-      return this.layerCount == 0;
-   }
+	private ItemRenderState.LayerRenderState getFirstLayer() {
+		return this.layers[0];
+	}
 
-   public boolean isSideLit() {
-      return this.getFirstLayer().useLight;
-   }
+	public boolean isEmpty() {
+		return this.layerCount == 0;
+	}
 
-   public @Nullable Sprite getParticleSprite(Random random) {
-      return this.layerCount == 0 ? null : this.layers[random.nextInt(this.layerCount)].particle;
-   }
+	public boolean isSideLit() {
+		return this.getFirstLayer().useLight;
+	}
 
-   public void load(Consumer<Vector3fc> posConsumer) {
-      Vector3f vector3f = new Vector3f();
-      MatrixStack.Entry entry = new MatrixStack.Entry();
+	public @Nullable Sprite getParticleSprite(Random random) {
+		return this.layerCount == 0 ? null : this.layers[random.nextInt(this.layerCount)].particle;
+	}
 
-      for (int i = 0; i < this.layerCount; i++) {
-         ItemRenderState.LayerRenderState layerRenderState = this.layers[i];
-         layerRenderState.transform.apply(this.displayContext.isLeftHand(), entry);
-         Matrix4f matrix4f = entry.getPositionMatrix();
-         Vector3fc[] vector3fcs = layerRenderState.vertices.get();
+	public void load(Consumer<Vector3fc> posConsumer) {
+		Vector3f vector3f = new Vector3f();
+		MatrixStack.Entry entry = new MatrixStack.Entry();
 
-         for (Vector3fc vector3fc : vector3fcs) {
-            posConsumer.accept(vector3f.set(vector3fc).mulPosition(matrix4f));
-         }
+		for (int i = 0; i < this.layerCount; i++) {
+			ItemRenderState.LayerRenderState layerRenderState = this.layers[i];
+			layerRenderState.transform.apply(this.displayContext.isLeftHand(), entry);
+			Matrix4f matrix4f = entry.getPositionMatrix();
+			Vector3fc[] vector3fcs = layerRenderState.vertices.get();
 
-         entry.loadIdentity();
-      }
-   }
+			for (Vector3fc vector3fc : vector3fcs) {
+				posConsumer.accept(vector3f.set(vector3fc).mulPosition(matrix4f));
+			}
 
-   public void render(MatrixStack matrices, OrderedRenderCommandQueue orderedRenderCommandQueue, int light, int overlay, int i) {
-      for (int j = 0; j < this.layerCount; j++) {
-         this.layers[j].render(matrices, orderedRenderCommandQueue, light, overlay, i);
-      }
-   }
+			entry.loadIdentity();
+		}
+	}
 
-   public Box getModelBoundingBox() {
-      if (this.cachedModelBoundingBox != null) {
-         return this.cachedModelBoundingBox;
-      } else {
-         Box.Builder builder = new Box.Builder();
-         this.load(builder::encompass);
-         Box box = builder.build();
-         this.cachedModelBoundingBox = box;
-         return box;
-      }
-   }
+	public void render(
+			MatrixStack matrices,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int light,
+			int overlay,
+			int i
+	) {
+		for (int j = 0; j < this.layerCount; j++) {
+			this.layers[j].render(matrices, orderedRenderCommandQueue, light, overlay, i);
+		}
+	}
 
-   public void setOversizedInGui(boolean oversizedInGui) {
-      this.oversizedInGui = oversizedInGui;
-   }
+	public Box getModelBoundingBox() {
+		if (this.cachedModelBoundingBox != null) {
+			return this.cachedModelBoundingBox;
+		}
+		else {
+			Box.Builder builder = new Box.Builder();
+			this.load(builder::encompass);
+			Box box = builder.build();
+			this.cachedModelBoundingBox = box;
+			return box;
+		}
+	}
 
-   public boolean isOversizedInGui() {
-      return this.oversizedInGui;
-   }
+	public void setOversizedInGui(boolean oversizedInGui) {
+		this.oversizedInGui = oversizedInGui;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum Glint {
-      NONE,
-      STANDARD,
-      SPECIAL;
-   }
+	public boolean isOversizedInGui() {
+		return this.oversizedInGui;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public class LayerRenderState implements FabricLayerRenderState, FabricRenderState {
-      private static final Vector3fc[] EMPTY = new Vector3fc[0];
-      public static final Supplier<Vector3fc[]> DEFAULT = () -> EMPTY;
-      private final List<BakedQuad> quads = new ArrayList<>();
-      boolean useLight;
-      @Nullable Sprite particle;
-      Transformation transform = Transformation.IDENTITY;
-      private @Nullable RenderLayer renderLayer;
-      private ItemRenderState.Glint glint = ItemRenderState.Glint.NONE;
-      private int[] tints = new int[0];
-      private @Nullable SpecialModelRenderer<Object> specialModelType;
-      private @Nullable Object data;
-      Supplier<Vector3fc[]> vertices = DEFAULT;
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Glint}.
+	 */
+	public static enum Glint {
+		NONE,
+		STANDARD,
+		SPECIAL;
+	}
 
-      public void clear() {
-         this.quads.clear();
-         this.renderLayer = null;
-         this.glint = ItemRenderState.Glint.NONE;
-         this.specialModelType = null;
-         this.data = null;
-         Arrays.fill(this.tints, -1);
-         this.useLight = false;
-         this.particle = null;
-         this.transform = Transformation.IDENTITY;
-         this.vertices = DEFAULT;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code LayerRenderState}.
+	 */
+	public class LayerRenderState implements FabricLayerRenderState, FabricRenderState {
 
-      public List<BakedQuad> getQuads() {
-         return this.quads;
-      }
+		private static final Vector3fc[] EMPTY = new Vector3fc[0];
+		public static final Supplier<Vector3fc[]> DEFAULT = () -> EMPTY;
+		private final List<BakedQuad> quads = new ArrayList<>();
+		boolean useLight;
+		@Nullable Sprite particle;
+		Transformation transform = Transformation.IDENTITY;
+		private @Nullable RenderLayer renderLayer;
+		private ItemRenderState.Glint glint = ItemRenderState.Glint.NONE;
+		private int[] tints = new int[0];
+		private @Nullable SpecialModelRenderer<Object> specialModelType;
+		private @Nullable Object data;
+		Supplier<Vector3fc[]> vertices = DEFAULT;
 
-      public void setRenderLayer(RenderLayer layer) {
-         this.renderLayer = layer;
-      }
+		public void clear() {
+			this.quads.clear();
+			this.renderLayer = null;
+			this.glint = ItemRenderState.Glint.NONE;
+			this.specialModelType = null;
+			this.data = null;
+			Arrays.fill(this.tints, -1);
+			this.useLight = false;
+			this.particle = null;
+			this.transform = Transformation.IDENTITY;
+			this.vertices = DEFAULT;
+		}
 
-      public void setUseLight(boolean useLight) {
-         this.useLight = useLight;
-      }
+		public List<BakedQuad> getQuads() {
+			return this.quads;
+		}
 
-      public void setVertices(Supplier<Vector3fc[]> vertices) {
-         this.vertices = vertices;
-      }
+		public void setRenderLayer(RenderLayer layer) {
+			this.renderLayer = layer;
+		}
 
-      public void setParticle(Sprite particle) {
-         this.particle = particle;
-      }
+		public void setUseLight(boolean useLight) {
+			this.useLight = useLight;
+		}
 
-      public void setTransform(Transformation transform) {
-         this.transform = transform;
-      }
+		public void setVertices(Supplier<Vector3fc[]> vertices) {
+			this.vertices = vertices;
+		}
 
-      public <T> void setSpecialModel(SpecialModelRenderer<T> specialModelType, @Nullable T data) {
-         this.specialModelType = eraseType(specialModelType);
-         this.data = data;
-      }
+		public void setParticle(Sprite particle) {
+			this.particle = particle;
+		}
 
-      private static SpecialModelRenderer<Object> eraseType(SpecialModelRenderer<?> specialModelType) {
-         return (SpecialModelRenderer<Object>)specialModelType;
-      }
+		public void setTransform(Transformation transform) {
+			this.transform = transform;
+		}
 
-      public void setGlint(ItemRenderState.Glint glint) {
-         this.glint = glint;
-      }
+		public <T> void setSpecialModel(SpecialModelRenderer<T> specialModelType, @Nullable T data) {
+			this.specialModelType = eraseType(specialModelType);
+			this.data = data;
+		}
 
-      public int[] initTints(int maxIndex) {
-         if (maxIndex > this.tints.length) {
-            this.tints = new int[maxIndex];
-            Arrays.fill(this.tints, -1);
-         }
+		private static SpecialModelRenderer<Object> eraseType(SpecialModelRenderer<?> specialModelType) {
+			return (SpecialModelRenderer<Object>) specialModelType;
+		}
 
-         return this.tints;
-      }
+		public void setGlint(ItemRenderState.Glint glint) {
+			this.glint = glint;
+		}
 
-      void render(MatrixStack matrices, OrderedRenderCommandQueue orderedRenderCommandQueue, int light, int overlay, int i) {
-         matrices.push();
-         this.transform.apply(ItemRenderState.this.displayContext.isLeftHand(), matrices.peek());
-         if (this.specialModelType != null) {
-            this.specialModelType
-               .render(
-                  this.data,
-                  ItemRenderState.this.displayContext,
-                  matrices,
-                  orderedRenderCommandQueue,
-                  light,
-                  overlay,
-                  this.glint != ItemRenderState.Glint.NONE,
-                  i
-               );
-         } else if (this.renderLayer != null) {
-            orderedRenderCommandQueue.submitItem(
-               matrices, ItemRenderState.this.displayContext, light, overlay, i, this.tints, this.quads, this.renderLayer, this.glint
-            );
-         }
+		public int[] initTints(int maxIndex) {
+			if (maxIndex > this.tints.length) {
+				this.tints = new int[maxIndex];
+				Arrays.fill(this.tints, -1);
+			}
 
-         matrices.pop();
-      }
-   }
+			return this.tints;
+		}
+
+		void render(
+				MatrixStack matrices,
+				OrderedRenderCommandQueue orderedRenderCommandQueue,
+				int light,
+				int overlay,
+				int i
+		) {
+			matrices.push();
+			this.transform.apply(ItemRenderState.this.displayContext.isLeftHand(), matrices.peek());
+			if (this.specialModelType != null) {
+				this.specialModelType
+						.render(
+								this.data,
+								ItemRenderState.this.displayContext,
+								matrices,
+								orderedRenderCommandQueue,
+								light,
+								overlay,
+								this.glint != ItemRenderState.Glint.NONE,
+								i
+						);
+			}
+			else if (this.renderLayer != null) {
+				orderedRenderCommandQueue.submitItem(
+						matrices,
+						ItemRenderState.this.displayContext,
+						light,
+						overlay,
+						i,
+						this.tints,
+						this.quads,
+						this.renderLayer,
+						this.glint
+				);
+			}
+
+			matrices.pop();
+		}
+	}
 }

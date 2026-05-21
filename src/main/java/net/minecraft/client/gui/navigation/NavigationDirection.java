@@ -5,46 +5,49 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code NavigationDirection}.
+ */
 public enum NavigationDirection {
-   UP,
-   DOWN,
-   LEFT,
-   RIGHT;
+	UP,
+	DOWN,
+	LEFT,
+	RIGHT;
 
-   private final IntComparator comparator = (a, b) -> a == b ? 0 : (this.isBefore(a, b) ? -1 : 1);
+	private final IntComparator comparator = (a, b) -> a == b ? 0 : (this.isBefore(a, b) ? -1 : 1);
 
-   public NavigationAxis getAxis() {
-      return switch (this) {
-         case UP, DOWN -> NavigationAxis.VERTICAL;
-         case LEFT, RIGHT -> NavigationAxis.HORIZONTAL;
-      };
-   }
+	public NavigationAxis getAxis() {
+		return switch (this) {
+			case UP, DOWN -> NavigationAxis.VERTICAL;
+			case LEFT, RIGHT -> NavigationAxis.HORIZONTAL;
+		};
+	}
 
-   public NavigationDirection getOpposite() {
-      return switch (this) {
-         case UP -> DOWN;
-         case DOWN -> UP;
-         case LEFT -> RIGHT;
-         case RIGHT -> LEFT;
-      };
-   }
+	public NavigationDirection getOpposite() {
+		return switch (this) {
+			case UP -> DOWN;
+			case DOWN -> UP;
+			case LEFT -> RIGHT;
+			case RIGHT -> LEFT;
+		};
+	}
 
-   public boolean isPositive() {
-      return switch (this) {
-         case UP, LEFT -> false;
-         case DOWN, RIGHT -> true;
-      };
-   }
+	public boolean isPositive() {
+		return switch (this) {
+			case UP, LEFT -> false;
+			case DOWN, RIGHT -> true;
+		};
+	}
 
-   public boolean isAfter(int a, int b) {
-      return this.isPositive() ? a > b : b > a;
-   }
+	public boolean isAfter(int a, int b) {
+		return this.isPositive() ? a > b : b > a;
+	}
 
-   public boolean isBefore(int a, int b) {
-      return this.isPositive() ? a < b : b < a;
-   }
+	public boolean isBefore(int a, int b) {
+		return this.isPositive() ? a < b : b < a;
+	}
 
-   public IntComparator getComparator() {
-      return this.comparator;
-   }
+	public IntComparator getComparator() {
+		return this.comparator;
+	}
 }

@@ -1,4 +1,11 @@
 package net.minecraft.resource;
 
-public record ResourcePackPosition(boolean required, ResourcePackProfile.InsertionPosition defaultPosition, boolean fixedPosition) {
+/**
+ * {@code ResourcePackPosition}.
+ */
+public record ResourcePackPosition(
+		boolean required,
+		ResourcePackProfile.InsertionPosition defaultPosition,
+		boolean fixedPosition
+) {
 }

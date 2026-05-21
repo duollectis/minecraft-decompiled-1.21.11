@@ -8,216 +8,255 @@ import it.unimi.dsi.fastutil.doubles.DoubleList;
 import it.unimi.dsi.fastutil.ints.IntBidirectionalIterator;
 import it.unimi.dsi.fastutil.ints.IntRBTreeSet;
 import it.unimi.dsi.fastutil.ints.IntSortedSet;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.stream.IntStream;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.util.math.random.RandomSplitter;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
+import java.util.stream.IntStream;
+
+/**
+ * {@code OctavePerlinNoiseSampler}.
+ */
 public class OctavePerlinNoiseSampler {
-   private static final int field_31704 = 33554432;
-   private final @Nullable PerlinNoiseSampler[] octaveSamplers;
-   private final int firstOctave;
-   private final DoubleList amplitudes;
-   private final double persistence;
-   private final double lacunarity;
-   private final double maxValue;
 
-   @Deprecated
-   public static OctavePerlinNoiseSampler createLegacy(Random random, IntStream octaves) {
-      return new OctavePerlinNoiseSampler(random, calculateAmplitudes(new IntRBTreeSet(octaves.boxed().collect(ImmutableList.toImmutableList()))), false);
-   }
+	private static final int MAX_OCTAVE_COUNT = 33554432;
+	private final @Nullable PerlinNoiseSampler[] octaveSamplers;
+	private final int firstOctave;
+	private final DoubleList amplitudes;
+	private final double persistence;
+	private final double lacunarity;
+	private final double maxValue;
 
-   @Deprecated
-   public static OctavePerlinNoiseSampler createLegacy(Random random, int offset, DoubleList amplitudes) {
-      return new OctavePerlinNoiseSampler(random, Pair.of(offset, amplitudes), false);
-   }
+	@Deprecated
+	public static OctavePerlinNoiseSampler createLegacy(Random random, IntStream octaves) {
+		return new OctavePerlinNoiseSampler(
+				random,
+				calculateAmplitudes(new IntRBTreeSet(octaves.boxed().collect(ImmutableList.toImmutableList()))),
+				false
+		);
+	}
 
-   public static OctavePerlinNoiseSampler create(Random random, IntStream octaves) {
-      return create(random, octaves.boxed().collect(ImmutableList.toImmutableList()));
-   }
+	@Deprecated
+	public static OctavePerlinNoiseSampler createLegacy(Random random, int offset, DoubleList amplitudes) {
+		return new OctavePerlinNoiseSampler(random, Pair.of(offset, amplitudes), false);
+	}
 
-   public static OctavePerlinNoiseSampler create(Random random, List<Integer> octaves) {
-      return new OctavePerlinNoiseSampler(random, calculateAmplitudes(new IntRBTreeSet(octaves)), true);
-   }
+	public static OctavePerlinNoiseSampler create(Random random, IntStream octaves) {
+		return create(random, octaves.boxed().collect(ImmutableList.toImmutableList()));
+	}
 
-   public static OctavePerlinNoiseSampler create(Random random, int offset, double firstAmplitude, double... amplitudes) {
-      DoubleArrayList doubleArrayList = new DoubleArrayList(amplitudes);
-      doubleArrayList.add(0, firstAmplitude);
-      return new OctavePerlinNoiseSampler(random, Pair.of(offset, doubleArrayList), true);
-   }
+	public static OctavePerlinNoiseSampler create(Random random, List<Integer> octaves) {
+		return new OctavePerlinNoiseSampler(random, calculateAmplitudes(new IntRBTreeSet(octaves)), true);
+	}
 
-   public static OctavePerlinNoiseSampler create(Random random, int offset, DoubleList amplitudes) {
-      return new OctavePerlinNoiseSampler(random, Pair.of(offset, amplitudes), true);
-   }
+	public static OctavePerlinNoiseSampler create(
+			Random random,
+			int offset,
+			double firstAmplitude,
+			double... amplitudes
+	) {
+		DoubleArrayList doubleArrayList = new DoubleArrayList(amplitudes);
+		doubleArrayList.add(0, firstAmplitude);
+		return new OctavePerlinNoiseSampler(random, Pair.of(offset, doubleArrayList), true);
+	}
 
-   private static Pair<Integer, DoubleList> calculateAmplitudes(IntSortedSet octaves) {
-      if (octaves.isEmpty()) {
-         throw new IllegalArgumentException("Need some octaves!");
-      } else {
-         int i = -octaves.firstInt();
-         int j = octaves.lastInt();
-         int k = i + j + 1;
-         if (k < 1) {
-            throw new IllegalArgumentException("Total number of octaves needs to be >= 1");
-         } else {
-            DoubleList doubleList = new DoubleArrayList(new double[k]);
-            IntBidirectionalIterator intBidirectionalIterator = octaves.iterator();
+	public static OctavePerlinNoiseSampler create(Random random, int offset, DoubleList amplitudes) {
+		return new OctavePerlinNoiseSampler(random, Pair.of(offset, amplitudes), true);
+	}
 
-            while (intBidirectionalIterator.hasNext()) {
-               int l = intBidirectionalIterator.nextInt();
-               doubleList.set(l + i, 1.0);
-            }
+	private static Pair<Integer, DoubleList> calculateAmplitudes(IntSortedSet octaves) {
+		if (octaves.isEmpty()) {
+			throw new IllegalArgumentException("Need some octaves!");
+		}
+		else {
+			int i = -octaves.firstInt();
+			int j = octaves.lastInt();
+			int k = i + j + 1;
+			if (k < 1) {
+				throw new IllegalArgumentException("Total number of octaves needs to be >= 1");
+			}
+			else {
+				DoubleList doubleList = new DoubleArrayList(new double[k]);
+				IntBidirectionalIterator intBidirectionalIterator = octaves.iterator();
 
-            return Pair.of(-i, doubleList);
-         }
-      }
-   }
+				while (intBidirectionalIterator.hasNext()) {
+					int l = intBidirectionalIterator.nextInt();
+					doubleList.set(l + i, 1.0);
+				}
 
-   protected OctavePerlinNoiseSampler(Random random, Pair<Integer, DoubleList> firstOctaveAndAmplitudes, boolean xoroshiro) {
-      this.firstOctave = (Integer)firstOctaveAndAmplitudes.getFirst();
-      this.amplitudes = (DoubleList)firstOctaveAndAmplitudes.getSecond();
-      int i = this.amplitudes.size();
-      int j = -this.firstOctave;
-      this.octaveSamplers = new PerlinNoiseSampler[i];
-      if (xoroshiro) {
-         RandomSplitter randomSplitter = random.nextSplitter();
+				return Pair.of(-i, doubleList);
+			}
+		}
+	}
 
-         for (int k = 0; k < i; k++) {
-            if (this.amplitudes.getDouble(k) != 0.0) {
-               int l = this.firstOctave + k;
-               this.octaveSamplers[k] = new PerlinNoiseSampler(randomSplitter.split("octave_" + l));
-            }
-         }
-      } else {
-         PerlinNoiseSampler perlinNoiseSampler = new PerlinNoiseSampler(random);
-         if (j >= 0 && j < i) {
-            double d = this.amplitudes.getDouble(j);
-            if (d != 0.0) {
-               this.octaveSamplers[j] = perlinNoiseSampler;
-            }
-         }
+	protected OctavePerlinNoiseSampler(
+			Random random,
+			Pair<Integer, DoubleList> firstOctaveAndAmplitudes,
+			boolean xoroshiro
+	) {
+		this.firstOctave = (Integer) firstOctaveAndAmplitudes.getFirst();
+		this.amplitudes = (DoubleList) firstOctaveAndAmplitudes.getSecond();
+		int i = this.amplitudes.size();
+		int j = -this.firstOctave;
+		this.octaveSamplers = new PerlinNoiseSampler[i];
+		if (xoroshiro) {
+			RandomSplitter randomSplitter = random.nextSplitter();
 
-         for (int kx = j - 1; kx >= 0; kx--) {
-            if (kx < i) {
-               double e = this.amplitudes.getDouble(kx);
-               if (e != 0.0) {
-                  this.octaveSamplers[kx] = new PerlinNoiseSampler(random);
-               } else {
-                  skipCalls(random);
-               }
-            } else {
-               skipCalls(random);
-            }
-         }
+			for (int k = 0; k < i; k++) {
+				if (this.amplitudes.getDouble(k) != 0.0) {
+					int l = this.firstOctave + k;
+					this.octaveSamplers[k] = new PerlinNoiseSampler(randomSplitter.split("octave_" + l));
+				}
+			}
+		}
+		else {
+			PerlinNoiseSampler perlinNoiseSampler = new PerlinNoiseSampler(random);
+			if (j >= 0 && j < i) {
+				double d = this.amplitudes.getDouble(j);
+				if (d != 0.0) {
+					this.octaveSamplers[j] = perlinNoiseSampler;
+				}
+			}
 
-         if (Arrays.stream(this.octaveSamplers).filter(Objects::nonNull).count() != this.amplitudes.stream().filter(amplitude -> amplitude != 0.0).count()) {
-            throw new IllegalStateException("Failed to create correct number of noise levels for given non-zero amplitudes");
-         }
+			for (int kx = j - 1; kx >= 0; kx--) {
+				if (kx < i) {
+					double e = this.amplitudes.getDouble(kx);
+					if (e != 0.0) {
+						this.octaveSamplers[kx] = new PerlinNoiseSampler(random);
+					}
+					else {
+						skipCalls(random);
+					}
+				}
+				else {
+					skipCalls(random);
+				}
+			}
 
-         if (j < i - 1) {
-            throw new IllegalArgumentException("Positive octaves are temporarily disabled");
-         }
-      }
+			if (Arrays.stream(this.octaveSamplers).filter(Objects::nonNull).count() != this.amplitudes
+					.stream()
+					.filter(amplitude -> amplitude != 0.0)
+					.count()) {
+				throw new IllegalStateException(
+						"Failed to create correct number of noise levels for given non-zero amplitudes");
+			}
 
-      this.lacunarity = Math.pow(2.0, -j);
-      this.persistence = Math.pow(2.0, i - 1) / (Math.pow(2.0, i) - 1.0);
-      this.maxValue = this.getTotalAmplitude(2.0);
-   }
+			if (j < i - 1) {
+				throw new IllegalArgumentException("Positive octaves are temporarily disabled");
+			}
+		}
 
-   protected double getMaxValue() {
-      return this.maxValue;
-   }
+		this.lacunarity = Math.pow(2.0, -j);
+		this.persistence = Math.pow(2.0, i - 1) / (Math.pow(2.0, i) - 1.0);
+		this.maxValue = this.getTotalAmplitude(2.0);
+	}
 
-   private static void skipCalls(Random random) {
-      random.skip(262);
-   }
+	protected double getMaxValue() {
+		return this.maxValue;
+	}
 
-   public double sample(double x, double y, double z) {
-      return this.sample(x, y, z, 0.0, 0.0, false);
-   }
+	private static void skipCalls(Random random) {
+		random.skip(262);
+	}
 
-   @Deprecated
-   public double sample(double x, double y, double z, double yScale, double yMax, boolean useOrigin) {
-      double d = 0.0;
-      double e = this.lacunarity;
-      double f = this.persistence;
+	public double sample(double x, double y, double z) {
+		return this.sample(x, y, z, 0.0, 0.0, false);
+	}
 
-      for (int i = 0; i < this.octaveSamplers.length; i++) {
-         PerlinNoiseSampler perlinNoiseSampler = this.octaveSamplers[i];
-         if (perlinNoiseSampler != null) {
-            double g = perlinNoiseSampler.sample(
-               maintainPrecision(x * e), useOrigin ? -perlinNoiseSampler.originY : maintainPrecision(y * e), maintainPrecision(z * e), yScale * e, yMax * e
-            );
-            d += this.amplitudes.getDouble(i) * g * f;
-         }
+	@Deprecated
+	public double sample(double x, double y, double z, double yScale, double yMax, boolean useOrigin) {
+		double d = 0.0;
+		double e = this.lacunarity;
+		double f = this.persistence;
 
-         e *= 2.0;
-         f /= 2.0;
-      }
+		for (int i = 0; i < this.octaveSamplers.length; i++) {
+			PerlinNoiseSampler perlinNoiseSampler = this.octaveSamplers[i];
+			if (perlinNoiseSampler != null) {
+				double g = perlinNoiseSampler.sample(
+						maintainPrecision(x * e),
+						useOrigin ? -perlinNoiseSampler.originY : maintainPrecision(y * e),
+						maintainPrecision(z * e),
+						yScale * e,
+						yMax * e
+				);
+				d += this.amplitudes.getDouble(i) * g * f;
+			}
 
-      return d;
-   }
+			e *= 2.0;
+			f /= 2.0;
+		}
 
-   public double method_40556(double d) {
-      return this.getTotalAmplitude(d + 2.0);
-   }
+		return d;
+	}
 
-   private double getTotalAmplitude(double scale) {
-      double d = 0.0;
-      double e = this.persistence;
+	public double getMaxValueForScale(double d) {
+		return this.getTotalAmplitude(d + 2.0);
+	}
 
-      for (int i = 0; i < this.octaveSamplers.length; i++) {
-         PerlinNoiseSampler perlinNoiseSampler = this.octaveSamplers[i];
-         if (perlinNoiseSampler != null) {
-            d += this.amplitudes.getDouble(i) * scale * e;
-         }
+	private double getTotalAmplitude(double scale) {
+		double d = 0.0;
+		double e = this.persistence;
 
-         e /= 2.0;
-      }
+		for (int i = 0; i < this.octaveSamplers.length; i++) {
+			PerlinNoiseSampler perlinNoiseSampler = this.octaveSamplers[i];
+			if (perlinNoiseSampler != null) {
+				d += this.amplitudes.getDouble(i) * scale * e;
+			}
 
-      return d;
-   }
+			e /= 2.0;
+		}
 
-   public @Nullable PerlinNoiseSampler getOctave(int octave) {
-      return this.octaveSamplers[this.octaveSamplers.length - 1 - octave];
-   }
+		return d;
+	}
 
-   public static double maintainPrecision(double value) {
-      return value - MathHelper.lfloor(value / 3.3554432E7 + 0.5) * 3.3554432E7;
-   }
+	public @Nullable PerlinNoiseSampler getOctave(int octave) {
+		return this.octaveSamplers[this.octaveSamplers.length - 1 - octave];
+	}
 
-   protected int getFirstOctave() {
-      return this.firstOctave;
-   }
+	public static double maintainPrecision(double value) {
+		return value - MathHelper.lfloor(value / 3.3554432E7 + 0.5) * 3.3554432E7;
+	}
 
-   protected DoubleList getAmplitudes() {
-      return this.amplitudes;
-   }
+	protected int getFirstOctave() {
+		return this.firstOctave;
+	}
 
-   @VisibleForTesting
-   public void addDebugInfo(StringBuilder info) {
-      info.append("PerlinNoise{");
-      List<String> list = this.amplitudes.stream().map(double_ -> String.format(Locale.ROOT, "%.2f", double_)).toList();
-      info.append("first octave: ").append(this.firstOctave).append(", amplitudes: ").append(list).append(", noise levels: [");
+	protected DoubleList getAmplitudes() {
+		return this.amplitudes;
+	}
 
-      for (int i = 0; i < this.octaveSamplers.length; i++) {
-         info.append(i).append(": ");
-         PerlinNoiseSampler perlinNoiseSampler = this.octaveSamplers[i];
-         if (perlinNoiseSampler == null) {
-            info.append("null");
-         } else {
-            perlinNoiseSampler.addDebugInfo(info);
-         }
+	@VisibleForTesting
+	public void addDebugInfo(StringBuilder info) {
+		info.append("PerlinNoise{");
+		List<String>
+				list =
+				this.amplitudes.stream().map(double_ -> String.format(Locale.ROOT, "%.2f", double_)).toList();
+		info
+				.append("first octave: ")
+				.append(this.firstOctave)
+				.append(", amplitudes: ")
+				.append(list)
+				.append(", noise levels: [");
 
-         info.append(", ");
-      }
+		for (int i = 0; i < this.octaveSamplers.length; i++) {
+			info.append(i).append(": ");
+			PerlinNoiseSampler perlinNoiseSampler = this.octaveSamplers[i];
+			if (perlinNoiseSampler == null) {
+				info.append("null");
+			}
+			else {
+				perlinNoiseSampler.addDebugInfo(info);
+			}
 
-      info.append("]");
-      info.append("}");
-   }
+			info.append(", ");
+		}
+
+		info.append("]");
+		info.append("}");
+	}
 }

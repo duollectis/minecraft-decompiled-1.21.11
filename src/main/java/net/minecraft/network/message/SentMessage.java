@@ -4,33 +4,38 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
 public interface SentMessage {
-   Text content();
 
-   void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params);
+	Text content();
 
-   static SentMessage of(SignedMessage message) {
-      return (SentMessage)(message.isSenderMissing() ? new SentMessage.Profileless(message.getContent()) : new SentMessage.Chat(message));
-   }
+	void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params);
 
-   public record Chat(SignedMessage message) implements SentMessage {
-      @Override
-      public Text content() {
-         return this.message.getContent();
-      }
+	static SentMessage of(SignedMessage message) {
+		return (SentMessage) (message.isSenderMissing() ? new SentMessage.Profileless(message.getContent())
+		                                                : new SentMessage.Chat(message)
+		);
+	}
 
-      @Override
-      public void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params) {
-         SignedMessage signedMessage = this.message.withFilterMaskEnabled(filterMaskEnabled);
-         if (!signedMessage.isFullyFiltered()) {
-            sender.networkHandler.sendChatMessage(signedMessage, params);
-         }
-      }
-   }
+	public record Chat(SignedMessage message) implements SentMessage {
 
-   public record Profileless(Text content) implements SentMessage {
-      @Override
-      public void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params) {
-         sender.networkHandler.sendProfilelessChatMessage(this.content, params);
-      }
-   }
+		@Override
+		public Text content() {
+			return this.message.getContent();
+		}
+
+		@Override
+		public void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params) {
+			SignedMessage signedMessage = this.message.withFilterMaskEnabled(filterMaskEnabled);
+			if (!signedMessage.isFullyFiltered()) {
+				sender.networkHandler.sendChatMessage(signedMessage, params);
+			}
+		}
+	}
+
+	public record Profileless(Text content) implements SentMessage {
+
+		@Override
+		public void send(ServerPlayerEntity sender, boolean filterMaskEnabled, MessageType.Parameters params) {
+			sender.networkHandler.sendProfilelessChatMessage(this.content, params);
+		}
+	}
 }

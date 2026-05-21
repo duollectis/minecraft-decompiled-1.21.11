@@ -1,6 +1,5 @@
 package net.minecraft.registry;
 
-import java.util.List;
 import net.minecraft.block.entity.BannerPatterns;
 import net.minecraft.block.jukebox.JukeboxSongs;
 import net.minecraft.block.spawner.TrialSpawnerConfigs;
@@ -10,13 +9,7 @@ import net.minecraft.enchantment.provider.EnchantmentProviders;
 import net.minecraft.entity.damage.DamageTypes;
 import net.minecraft.entity.decoration.painting.PaintingVariants;
 import net.minecraft.entity.mob.ZombieNautilusVariants;
-import net.minecraft.entity.passive.CatVariants;
-import net.minecraft.entity.passive.ChickenVariants;
-import net.minecraft.entity.passive.CowVariants;
-import net.minecraft.entity.passive.FrogVariants;
-import net.minecraft.entity.passive.PigVariants;
-import net.minecraft.entity.passive.WolfSoundVariants;
-import net.minecraft.entity.passive.WolfVariants;
+import net.minecraft.entity.passive.*;
 import net.minecraft.item.Instruments;
 import net.minecraft.item.equipment.trim.ArmorTrimMaterials;
 import net.minecraft.item.equipment.trim.ArmorTrimPatterns;
@@ -47,76 +40,93 @@ import net.minecraft.world.gen.noise.BuiltinNoiseParameters;
 import net.minecraft.world.gen.placementmodifier.BiomePlacementModifier;
 import net.minecraft.world.gen.structure.Structures;
 
+import java.util.List;
+
+/**
+ * {@code BuiltinRegistries}.
+ */
 public class BuiltinRegistries {
-   private static final RegistryBuilder REGISTRY_BUILDER = new RegistryBuilder()
-      .addRegistry(RegistryKeys.DIMENSION_TYPE, DimensionTypeRegistrar::bootstrap)
-      .addRegistry(RegistryKeys.CONFIGURED_CARVER, ConfiguredCarvers::bootstrap)
-      .addRegistry(RegistryKeys.CONFIGURED_FEATURE, ConfiguredFeatures::bootstrap)
-      .addRegistry(RegistryKeys.PLACED_FEATURE, PlacedFeatures::bootstrap)
-      .addRegistry(RegistryKeys.STRUCTURE, Structures::bootstrap)
-      .addRegistry(RegistryKeys.STRUCTURE_SET, StructureSets::bootstrap)
-      .addRegistry(RegistryKeys.PROCESSOR_LIST, StructureProcessorLists::bootstrap)
-      .addRegistry(RegistryKeys.TEMPLATE_POOL, StructurePools::bootstrap)
-      .addRegistry(RegistryKeys.BIOME, BuiltinBiomes::bootstrap)
-      .addRegistry(RegistryKeys.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST, MultiNoiseBiomeSourceParameterLists::bootstrap)
-      .addRegistry(RegistryKeys.NOISE_PARAMETERS, BuiltinNoiseParameters::bootstrap)
-      .addRegistry(RegistryKeys.DENSITY_FUNCTION, DensityFunctions::bootstrap)
-      .addRegistry(RegistryKeys.CHUNK_GENERATOR_SETTINGS, ChunkGeneratorSettings::bootstrap)
-      .addRegistry(RegistryKeys.WORLD_PRESET, WorldPresets::bootstrap)
-      .addRegistry(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, FlatLevelGeneratorPresets::bootstrap)
-      .addRegistry(RegistryKeys.MESSAGE_TYPE, MessageType::bootstrap)
-      .addRegistry(RegistryKeys.TRIM_PATTERN, ArmorTrimPatterns::bootstrap)
-      .addRegistry(RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterials::bootstrap)
-      .addRegistry(RegistryKeys.TRIAL_SPAWNER, TrialSpawnerConfigs::bootstrap)
-      .addRegistry(RegistryKeys.WOLF_VARIANT, WolfVariants::bootstrap)
-      .addRegistry(RegistryKeys.WOLF_SOUND_VARIANT, WolfSoundVariants::bootstrap)
-      .addRegistry(RegistryKeys.PAINTING_VARIANT, PaintingVariants::bootstrap)
-      .addRegistry(RegistryKeys.DAMAGE_TYPE, DamageTypes::bootstrap)
-      .addRegistry(RegistryKeys.BANNER_PATTERN, BannerPatterns::bootstrap)
-      .addRegistry(RegistryKeys.ENCHANTMENT, Enchantments::bootstrap)
-      .addRegistry(RegistryKeys.ENCHANTMENT_PROVIDER, EnchantmentProviders::bootstrap)
-      .addRegistry(RegistryKeys.JUKEBOX_SONG, JukeboxSongs::bootstrap)
-      .addRegistry(RegistryKeys.INSTRUMENT, Instruments::bootstrap)
-      .addRegistry(RegistryKeys.PIG_VARIANT, PigVariants::bootstrap)
-      .addRegistry(RegistryKeys.COW_VARIANT, CowVariants::bootstrap)
-      .addRegistry(RegistryKeys.CHICKEN_VARIANT, ChickenVariants::bootstrap)
-      .addRegistry(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, ZombieNautilusVariants::bootstrap)
-      .addRegistry(RegistryKeys.TEST_ENVIRONMENT, TestEnvironments::bootstrap)
-      .addRegistry(RegistryKeys.TEST_INSTANCE, TestInstances::bootstrap)
-      .addRegistry(RegistryKeys.FROG_VARIANT, FrogVariants::bootstrap)
-      .addRegistry(RegistryKeys.CAT_VARIANT, CatVariants::bootstrap)
-      .addRegistry(RegistryKeys.DIALOG, Dialogs::bootstrap)
-      .addRegistry(RegistryKeys.TIMELINE, Timelines::bootstrap);
 
-   private static void validate(RegistryWrapper.WrapperLookup registries) {
-      validate(registries.getOrThrow(RegistryKeys.PLACED_FEATURE), registries.getOrThrow(RegistryKeys.BIOME));
-   }
+	private static final RegistryBuilder REGISTRY_BUILDER = new RegistryBuilder()
+			.addRegistry(RegistryKeys.DIMENSION_TYPE, DimensionTypeRegistrar::bootstrap)
+			.addRegistry(RegistryKeys.CONFIGURED_CARVER, ConfiguredCarvers::bootstrap)
+			.addRegistry(RegistryKeys.CONFIGURED_FEATURE, ConfiguredFeatures::bootstrap)
+			.addRegistry(RegistryKeys.PLACED_FEATURE, PlacedFeatures::bootstrap)
+			.addRegistry(RegistryKeys.STRUCTURE, Structures::bootstrap)
+			.addRegistry(RegistryKeys.STRUCTURE_SET, StructureSets::bootstrap)
+			.addRegistry(RegistryKeys.PROCESSOR_LIST, StructureProcessorLists::bootstrap)
+			.addRegistry(RegistryKeys.TEMPLATE_POOL, StructurePools::bootstrap)
+			.addRegistry(RegistryKeys.BIOME, BuiltinBiomes::bootstrap)
+			.addRegistry(
+					RegistryKeys.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST,
+					MultiNoiseBiomeSourceParameterLists::bootstrap
+			)
+			.addRegistry(RegistryKeys.NOISE_PARAMETERS, BuiltinNoiseParameters::bootstrap)
+			.addRegistry(RegistryKeys.DENSITY_FUNCTION, DensityFunctions::bootstrap)
+			.addRegistry(RegistryKeys.CHUNK_GENERATOR_SETTINGS, ChunkGeneratorSettings::bootstrap)
+			.addRegistry(RegistryKeys.WORLD_PRESET, WorldPresets::bootstrap)
+			.addRegistry(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, FlatLevelGeneratorPresets::bootstrap)
+			.addRegistry(RegistryKeys.MESSAGE_TYPE, MessageType::bootstrap)
+			.addRegistry(RegistryKeys.TRIM_PATTERN, ArmorTrimPatterns::bootstrap)
+			.addRegistry(RegistryKeys.TRIM_MATERIAL, ArmorTrimMaterials::bootstrap)
+			.addRegistry(RegistryKeys.TRIAL_SPAWNER, TrialSpawnerConfigs::bootstrap)
+			.addRegistry(RegistryKeys.WOLF_VARIANT, WolfVariants::bootstrap)
+			.addRegistry(RegistryKeys.WOLF_SOUND_VARIANT, WolfSoundVariants::bootstrap)
+			.addRegistry(RegistryKeys.PAINTING_VARIANT, PaintingVariants::bootstrap)
+			.addRegistry(RegistryKeys.DAMAGE_TYPE, DamageTypes::bootstrap)
+			.addRegistry(RegistryKeys.BANNER_PATTERN, BannerPatterns::bootstrap)
+			.addRegistry(RegistryKeys.ENCHANTMENT, Enchantments::bootstrap)
+			.addRegistry(RegistryKeys.ENCHANTMENT_PROVIDER, EnchantmentProviders::bootstrap)
+			.addRegistry(RegistryKeys.JUKEBOX_SONG, JukeboxSongs::bootstrap)
+			.addRegistry(RegistryKeys.INSTRUMENT, Instruments::bootstrap)
+			.addRegistry(RegistryKeys.PIG_VARIANT, PigVariants::bootstrap)
+			.addRegistry(RegistryKeys.COW_VARIANT, CowVariants::bootstrap)
+			.addRegistry(RegistryKeys.CHICKEN_VARIANT, ChickenVariants::bootstrap)
+			.addRegistry(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, ZombieNautilusVariants::bootstrap)
+			.addRegistry(RegistryKeys.TEST_ENVIRONMENT, TestEnvironments::bootstrap)
+			.addRegistry(RegistryKeys.TEST_INSTANCE, TestInstances::bootstrap)
+			.addRegistry(RegistryKeys.FROG_VARIANT, FrogVariants::bootstrap)
+			.addRegistry(RegistryKeys.CAT_VARIANT, CatVariants::bootstrap)
+			.addRegistry(RegistryKeys.DIALOG, Dialogs::bootstrap)
+			.addRegistry(RegistryKeys.TIMELINE, Timelines::bootstrap);
 
-   public static void validate(RegistryEntryLookup<PlacedFeature> placedFeatureLookup, RegistryWrapper<Biome> biomeLookup) {
-      biomeLookup.streamEntries().forEach(biome -> {
-         Identifier identifier = biome.registryKey().getValue();
-         List<RegistryEntryList<PlacedFeature>> list = biome.value().getGenerationSettings().getFeatures();
-         list.stream().flatMap(RegistryEntryList::stream).forEach(placedFeature -> placedFeature.getKeyOrValue().ifLeft(key -> {
-            RegistryEntry.Reference<PlacedFeature> referencex = placedFeatureLookup.getOrThrow(key);
-            if (!hasBiomePlacementModifier(referencex.value())) {
-               Util.logErrorOrPause("Placed feature " + key.getValue() + " in biome " + identifier + " is missing BiomeFilter.biome()");
-            }
-         }).ifRight(value -> {
-            if (!hasBiomePlacementModifier(value)) {
-               Util.logErrorOrPause("Placed inline feature in biome " + biome + " is missing BiomeFilter.biome()");
-            }
-         }));
-      });
-   }
+	private static void validate(RegistryWrapper.WrapperLookup registries) {
+		validate(registries.getOrThrow(RegistryKeys.PLACED_FEATURE), registries.getOrThrow(RegistryKeys.BIOME));
+	}
 
-   private static boolean hasBiomePlacementModifier(PlacedFeature placedFeature) {
-      return placedFeature.placementModifiers().contains(BiomePlacementModifier.of());
-   }
+	public static void validate(
+			RegistryEntryLookup<PlacedFeature> placedFeatureLookup,
+			RegistryWrapper<Biome> biomeLookup
+	) {
+		biomeLookup.streamEntries().forEach(biome -> {
+			Identifier identifier = biome.registryKey().getValue();
+			List<RegistryEntryList<PlacedFeature>> list = biome.value().getGenerationSettings().getFeatures();
+			list
+					.stream()
+					.flatMap(RegistryEntryList::stream)
+					.forEach(placedFeature -> placedFeature.getKeyOrValue().ifLeft(key -> {
+						RegistryEntry.Reference<PlacedFeature> referencex = placedFeatureLookup.getOrThrow(key);
+						if (!hasBiomePlacementModifier(referencex.value())) {
+							Util.logErrorOrPause("Placed feature " + key.getValue() + " in biome " + identifier
+									+ " is missing BiomeFilter.biome()");
+						}
+					}).ifRight(value -> {
+						if (!hasBiomePlacementModifier(value)) {
+							Util.logErrorOrPause(
+									"Placed inline feature in biome " + biome + " is missing BiomeFilter.biome()");
+						}
+					}));
+		});
+	}
 
-   public static RegistryWrapper.WrapperLookup createWrapperLookup() {
-      DynamicRegistryManager.Immutable immutable = DynamicRegistryManager.of(Registries.REGISTRIES);
-      RegistryWrapper.WrapperLookup wrapperLookup = REGISTRY_BUILDER.createWrapperLookup(immutable);
-      validate(wrapperLookup);
-      return wrapperLookup;
-   }
+	private static boolean hasBiomePlacementModifier(PlacedFeature placedFeature) {
+		return placedFeature.placementModifiers().contains(BiomePlacementModifier.of());
+	}
+
+	public static RegistryWrapper.WrapperLookup createWrapperLookup() {
+		DynamicRegistryManager.Immutable immutable = DynamicRegistryManager.of(Registries.REGISTRIES);
+		RegistryWrapper.WrapperLookup wrapperLookup = REGISTRY_BUILDER.createWrapperLookup(immutable);
+		validate(wrapperLookup);
+		return wrapperLookup;
+	}
 }

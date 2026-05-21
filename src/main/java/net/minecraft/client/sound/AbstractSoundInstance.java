@@ -9,110 +9,116 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AbstractSoundInstance}.
+ */
 public abstract class AbstractSoundInstance implements SoundInstance {
-   protected @Nullable Sound sound;
-   protected final SoundCategory category;
-   protected final Identifier id;
-   protected float volume = 1.0F;
-   protected float pitch = 1.0F;
-   protected double x;
-   protected double y;
-   protected double z;
-   protected boolean repeat;
-   protected int repeatDelay;
-   protected SoundInstance.AttenuationType attenuationType = SoundInstance.AttenuationType.LINEAR;
-   protected boolean relative;
-   protected Random random;
 
-   protected AbstractSoundInstance(SoundEvent sound, SoundCategory category, Random random) {
-      this(sound.id(), category, random);
-   }
+	protected @Nullable Sound sound;
+	protected final SoundCategory category;
+	protected final Identifier id;
+	protected float volume = 1.0F;
+	protected float pitch = 1.0F;
+	protected double x;
+	protected double y;
+	protected double z;
+	protected boolean repeat;
+	protected int repeatDelay;
+	protected SoundInstance.AttenuationType attenuationType = SoundInstance.AttenuationType.LINEAR;
+	protected boolean relative;
+	protected Random random;
 
-   protected AbstractSoundInstance(Identifier soundId, SoundCategory category, Random random) {
-      this.id = soundId;
-      this.category = category;
-      this.random = random;
-   }
+	protected AbstractSoundInstance(SoundEvent sound, SoundCategory category, Random random) {
+		this(sound.id(), category, random);
+	}
 
-   @Override
-   public Identifier getId() {
-      return this.id;
-   }
+	protected AbstractSoundInstance(Identifier soundId, SoundCategory category, Random random) {
+		this.id = soundId;
+		this.category = category;
+		this.random = random;
+	}
 
-   @Override
-   public @Nullable WeightedSoundSet getSoundSet(SoundManager soundManager) {
-      if (this.id.equals(SoundManager.INTENTIONALLY_EMPTY_ID)) {
-         this.sound = SoundManager.INTENTIONALLY_EMPTY_SOUND;
-         return SoundManager.INTENTIONALLY_EMPTY_SOUND_SET;
-      } else {
-         WeightedSoundSet weightedSoundSet = soundManager.get(this.id);
-         if (weightedSoundSet == null) {
-            this.sound = SoundManager.MISSING_SOUND;
-         } else {
-            this.sound = weightedSoundSet.getSound(this.random);
-         }
+	@Override
+	public Identifier getId() {
+		return this.id;
+	}
 
-         return weightedSoundSet;
-      }
-   }
+	@Override
+	public @Nullable WeightedSoundSet getSoundSet(SoundManager soundManager) {
+		if (this.id.equals(SoundManager.INTENTIONALLY_EMPTY_ID)) {
+			this.sound = SoundManager.INTENTIONALLY_EMPTY_SOUND;
+			return SoundManager.INTENTIONALLY_EMPTY_SOUND_SET;
+		}
+		else {
+			WeightedSoundSet weightedSoundSet = soundManager.get(this.id);
+			if (weightedSoundSet == null) {
+				this.sound = SoundManager.MISSING_SOUND;
+			}
+			else {
+				this.sound = weightedSoundSet.getSound(this.random);
+			}
 
-   @Override
-   public @Nullable Sound getSound() {
-      return this.sound;
-   }
+			return weightedSoundSet;
+		}
+	}
 
-   @Override
-   public SoundCategory getCategory() {
-      return this.category;
-   }
+	@Override
+	public @Nullable Sound getSound() {
+		return this.sound;
+	}
 
-   @Override
-   public boolean isRepeatable() {
-      return this.repeat;
-   }
+	@Override
+	public SoundCategory getCategory() {
+		return this.category;
+	}
 
-   @Override
-   public int getRepeatDelay() {
-      return this.repeatDelay;
-   }
+	@Override
+	public boolean isRepeatable() {
+		return this.repeat;
+	}
 
-   @Override
-   public float getVolume() {
-      return this.volume * this.sound.getVolume().get(this.random);
-   }
+	@Override
+	public int getRepeatDelay() {
+		return this.repeatDelay;
+	}
 
-   @Override
-   public float getPitch() {
-      return this.pitch * this.sound.getPitch().get(this.random);
-   }
+	@Override
+	public float getVolume() {
+		return this.volume * this.sound.getVolume().get(this.random);
+	}
 
-   @Override
-   public double getX() {
-      return this.x;
-   }
+	@Override
+	public float getPitch() {
+		return this.pitch * this.sound.getPitch().get(this.random);
+	}
 
-   @Override
-   public double getY() {
-      return this.y;
-   }
+	@Override
+	public double getX() {
+		return this.x;
+	}
 
-   @Override
-   public double getZ() {
-      return this.z;
-   }
+	@Override
+	public double getY() {
+		return this.y;
+	}
 
-   @Override
-   public SoundInstance.AttenuationType getAttenuationType() {
-      return this.attenuationType;
-   }
+	@Override
+	public double getZ() {
+		return this.z;
+	}
 
-   @Override
-   public boolean isRelative() {
-      return this.relative;
-   }
+	@Override
+	public SoundInstance.AttenuationType getAttenuationType() {
+		return this.attenuationType;
+	}
 
-   @Override
-   public String toString() {
-      return "SoundInstance[" + this.id + "]";
-   }
+	@Override
+	public boolean isRelative() {
+		return this.relative;
+	}
+
+	@Override
+	public String toString() {
+		return "SoundInstance[" + this.id + "]";
+	}
 }

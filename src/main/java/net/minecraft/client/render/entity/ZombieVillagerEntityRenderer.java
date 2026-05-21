@@ -13,52 +13,67 @@ import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
 public class ZombieVillagerEntityRenderer
-   extends BipedEntityRenderer<ZombieVillagerEntity, ZombieVillagerRenderState, ZombieVillagerEntityModel<ZombieVillagerRenderState>> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/zombie_villager/zombie_villager.png");
+		extends BipedEntityRenderer<ZombieVillagerEntity, ZombieVillagerRenderState, ZombieVillagerEntityModel<ZombieVillagerRenderState>> {
 
-   public ZombieVillagerEntityRenderer(EntityRendererFactory.Context context) {
-      super(
-         context,
-         new ZombieVillagerEntityModel<>(context.getPart(EntityModelLayers.ZOMBIE_VILLAGER)),
-         new ZombieVillagerEntityModel<>(context.getPart(EntityModelLayers.ZOMBIE_VILLAGER_BABY)),
-         0.5F,
-         VillagerEntityRenderer.HEAD_TRANSFORMATION
-      );
-      this.addFeature(
-         new ArmorFeatureRenderer<>(
-            this,
-            EquipmentModelData.mapToEntityModel(EntityModelLayers.ZOMBIE_VILLAGER_EQUIPMENT, context.getEntityModels(), ZombieVillagerEntityModel::new),
-            EquipmentModelData.mapToEntityModel(EntityModelLayers.ZOMBIE_VILLAGER_BABY_EQUIPMENT, context.getEntityModels(), ZombieVillagerEntityModel::new),
-            context.getEquipmentRenderer()
-         )
-      );
-      this.addFeature(
-         new VillagerClothingFeatureRenderer<>(
-            this,
-            context.getResourceManager(),
-            "zombie_villager",
-            new ZombieVillagerEntityModel<>(context.getPart(EntityModelLayers.ZOMBIE_VILLAGER_NO_HAT)),
-            new ZombieVillagerEntityModel<>(context.getPart(EntityModelLayers.ZOMBIE_VILLAGER_BABY_NO_HAT))
-         )
-      );
-   }
+	private static final Identifier
+			TEXTURE =
+			Identifier.ofVanilla("textures/entity/zombie_villager/zombie_villager.png");
 
-   public Identifier getTexture(ZombieVillagerRenderState zombieVillagerRenderState) {
-      return TEXTURE;
-   }
+	public ZombieVillagerEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new ZombieVillagerEntityModel<>(context.getPart(EntityModelLayers.ZOMBIE_VILLAGER)),
+				new ZombieVillagerEntityModel<>(context.getPart(EntityModelLayers.ZOMBIE_VILLAGER_BABY)),
+				0.5F,
+				VillagerEntityRenderer.HEAD_TRANSFORMATION
+		);
+		this.addFeature(
+				new ArmorFeatureRenderer<>(
+						this,
+						EquipmentModelData.mapToEntityModel(
+								EntityModelLayers.ZOMBIE_VILLAGER_EQUIPMENT,
+								context.getEntityModels(),
+								ZombieVillagerEntityModel::new
+						),
+						EquipmentModelData.mapToEntityModel(
+								EntityModelLayers.ZOMBIE_VILLAGER_BABY_EQUIPMENT,
+								context.getEntityModels(),
+								ZombieVillagerEntityModel::new
+						),
+						context.getEquipmentRenderer()
+				)
+		);
+		this.addFeature(
+				new VillagerClothingFeatureRenderer<>(
+						this,
+						context.getResourceManager(),
+						"zombie_villager",
+						new ZombieVillagerEntityModel<>(context.getPart(EntityModelLayers.ZOMBIE_VILLAGER_NO_HAT)),
+						new ZombieVillagerEntityModel<>(context.getPart(EntityModelLayers.ZOMBIE_VILLAGER_BABY_NO_HAT))
+				)
+		);
+	}
 
-   public ZombieVillagerRenderState createRenderState() {
-      return new ZombieVillagerRenderState();
-   }
+	public Identifier getTexture(ZombieVillagerRenderState zombieVillagerRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(ZombieVillagerEntity zombieVillagerEntity, ZombieVillagerRenderState zombieVillagerRenderState, float f) {
-      super.updateRenderState(zombieVillagerEntity, zombieVillagerRenderState, f);
-      zombieVillagerRenderState.convertingInWater = zombieVillagerEntity.isConverting();
-      zombieVillagerRenderState.villagerData = zombieVillagerEntity.getVillagerData();
-      zombieVillagerRenderState.attacking = zombieVillagerEntity.isAttacking();
-   }
+	public ZombieVillagerRenderState createRenderState() {
+		return new ZombieVillagerRenderState();
+	}
 
-   protected boolean isShaking(ZombieVillagerRenderState zombieVillagerRenderState) {
-      return super.isShaking(zombieVillagerRenderState) || zombieVillagerRenderState.convertingInWater;
-   }
+	public void updateRenderState(
+			ZombieVillagerEntity zombieVillagerEntity,
+			ZombieVillagerRenderState zombieVillagerRenderState,
+			float f
+	) {
+		super.updateRenderState(zombieVillagerEntity, zombieVillagerRenderState, f);
+		zombieVillagerRenderState.convertingInWater = zombieVillagerEntity.isConverting();
+		zombieVillagerRenderState.villagerData = zombieVillagerEntity.getVillagerData();
+		zombieVillagerRenderState.attacking = zombieVillagerEntity.isAttacking();
+	}
+
+	protected boolean isShaking(ZombieVillagerRenderState zombieVillagerRenderState) {
+		return super.isShaking(zombieVillagerRenderState) || zombieVillagerRenderState.convertingInWater;
+	}
 }

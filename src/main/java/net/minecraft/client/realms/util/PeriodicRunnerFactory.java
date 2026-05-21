@@ -2,6 +2,13 @@ package net.minecraft.client.realms.util;
 
 import com.mojang.datafixers.util.Either;
 import com.mojang.logging.LogUtils;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.util.Backoff;
+import net.minecraft.util.TimeSupplier;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,170 +17,205 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.client.util.Backoff;
-import net.minecraft.util.TimeSupplier;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PeriodicRunnerFactory}.
+ */
 public class PeriodicRunnerFactory {
-   static final Logger LOGGER = LogUtils.getLogger();
-   final Executor executor;
-   final TimeUnit timeUnit;
-   final TimeSupplier timeSupplier;
 
-   public PeriodicRunnerFactory(Executor executor, TimeUnit timeUnit, TimeSupplier timeSupplier) {
-      this.executor = executor;
-      this.timeUnit = timeUnit;
-      this.timeSupplier = timeSupplier;
-   }
+	static final Logger LOGGER = LogUtils.getLogger();
+	final Executor executor;
+	final TimeUnit timeUnit;
+	final TimeSupplier timeSupplier;
 
-   public <T> PeriodicRunnerFactory.PeriodicRunner<T> create(String name, Callable<T> task, Duration cycle, Backoff backoff) {
-      long l = this.timeUnit.convert(cycle);
-      if (l == 0L) {
-         throw new IllegalArgumentException("Period of " + cycle + " too short for selected resolution of " + this.timeUnit);
-      } else {
-         return new PeriodicRunnerFactory.PeriodicRunner<>(name, task, l, backoff);
-      }
-   }
+	public PeriodicRunnerFactory(Executor executor, TimeUnit timeUnit, TimeSupplier timeSupplier) {
+		this.executor = executor;
+		this.timeUnit = timeUnit;
+		this.timeSupplier = timeSupplier;
+	}
 
-   public PeriodicRunnerFactory.RunnersManager create() {
-      return new PeriodicRunnerFactory.RunnersManager();
-   }
+	public <T> PeriodicRunnerFactory.PeriodicRunner<T> create(
+			String name,
+			Callable<T> task,
+			Duration cycle,
+			Backoff backoff
+	) {
+		long l = this.timeUnit.convert(cycle);
+		if (l == 0L) {
+			throw new IllegalArgumentException(
+					"Period of " + cycle + " too short for selected resolution of " + this.timeUnit);
+		}
+		else {
+			return new PeriodicRunnerFactory.PeriodicRunner<>(name, task, l, backoff);
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   public class PeriodicRunner<T> {
-      private final String name;
-      private final Callable<T> task;
-      private final long unitDuration;
-      private final Backoff backoff;
-      private @Nullable CompletableFuture<PeriodicRunnerFactory.TimedErrableResult<T>> resultFuture;
-      PeriodicRunnerFactory.@Nullable TimedResult<T> lastResult;
-      private long nextTime = -1L;
+	public PeriodicRunnerFactory.RunnersManager create() {
+		return new PeriodicRunnerFactory.RunnersManager();
+	}
 
-      PeriodicRunner(final String name, final Callable<T> task, final long unitDuration, final Backoff backoff) {
-         this.name = name;
-         this.task = task;
-         this.unitDuration = unitDuration;
-         this.backoff = backoff;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code PeriodicRunner}.
+	 */
+	public class PeriodicRunner<T> {
 
-      void run(long currentTime) {
-         if (this.resultFuture != null) {
-            PeriodicRunnerFactory.TimedErrableResult<T> timedErrableResult = this.resultFuture.getNow(null);
-            if (timedErrableResult == null) {
-               return;
-            }
+		private final String name;
+		private final Callable<T> task;
+		private final long unitDuration;
+		private final Backoff backoff;
+		private @Nullable CompletableFuture<PeriodicRunnerFactory.TimedErrableResult<T>> resultFuture;
+		PeriodicRunnerFactory.@Nullable TimedResult<T> lastResult;
+		private long nextTime = -1L;
 
-            this.resultFuture = null;
-            long l = timedErrableResult.time;
-            timedErrableResult.value().ifLeft(value -> {
-               this.lastResult = new PeriodicRunnerFactory.TimedResult<>((T)value, l);
-               this.nextTime = l + this.unitDuration * this.backoff.success();
-            }).ifRight(exception -> {
-               long m = this.backoff.fail();
-               PeriodicRunnerFactory.LOGGER.warn("Failed to process task {}, will repeat after {} cycles", new Object[]{this.name, m, exception});
-               this.nextTime = l + this.unitDuration * m;
-            });
-         }
+		PeriodicRunner(final String name, final Callable<T> task, final long unitDuration, final Backoff backoff) {
+			this.name = name;
+			this.task = task;
+			this.unitDuration = unitDuration;
+			this.backoff = backoff;
+		}
 
-         if (this.nextTime <= currentTime) {
-            this.resultFuture = CompletableFuture.supplyAsync(() -> {
-               try {
-                  T object = this.task.call();
-                  long lx = PeriodicRunnerFactory.this.timeSupplier.get(PeriodicRunnerFactory.this.timeUnit);
-                  return new PeriodicRunnerFactory.TimedErrableResult<>(Either.left(object), lx);
-               } catch (Exception var4x) {
-                  long lx = PeriodicRunnerFactory.this.timeSupplier.get(PeriodicRunnerFactory.this.timeUnit);
-                  return new PeriodicRunnerFactory.TimedErrableResult<>(Either.right(var4x), lx);
-               }
-            }, PeriodicRunnerFactory.this.executor);
-         }
-      }
+		void run(long currentTime) {
+			if (this.resultFuture != null) {
+				PeriodicRunnerFactory.TimedErrableResult<T> timedErrableResult = this.resultFuture.getNow(null);
+				if (timedErrableResult == null) {
+					return;
+				}
 
-      public void reset() {
-         this.resultFuture = null;
-         this.lastResult = null;
-         this.nextTime = -1L;
-      }
-   }
+				this.resultFuture = null;
+				long l = timedErrableResult.time;
+				timedErrableResult.value().ifLeft(value -> {
+					this.lastResult = new PeriodicRunnerFactory.TimedResult<>((T) value, l);
+					this.nextTime = l + this.unitDuration * this.backoff.success();
+				}).ifRight(exception -> {
+					long m = this.backoff.fail();
+					PeriodicRunnerFactory.LOGGER.warn(
+							"Failed to process task {}, will repeat after {} cycles",
+							new Object[]{this.name, m, exception}
+					);
+					this.nextTime = l + this.unitDuration * m;
+				});
+			}
 
-   @Environment(EnvType.CLIENT)
-   class ResultListenableRunner<T> {
-      private final PeriodicRunnerFactory.PeriodicRunner<T> runner;
-      private final Consumer<T> resultListener;
-      private long lastRunTime = -1L;
+			if (this.nextTime <= currentTime) {
+				this.resultFuture = CompletableFuture.supplyAsync(
+						() -> {
+							try {
+								T object = this.task.call();
+								long
+										lx =
+										PeriodicRunnerFactory.this.timeSupplier.get(PeriodicRunnerFactory.this.timeUnit);
+								return new PeriodicRunnerFactory.TimedErrableResult<>(Either.left(object), lx);
+							}
+							catch (Exception var4x) {
+								long
+										lx =
+										PeriodicRunnerFactory.this.timeSupplier.get(PeriodicRunnerFactory.this.timeUnit);
+								return new PeriodicRunnerFactory.TimedErrableResult<>(Either.right(var4x), lx);
+							}
+						}, PeriodicRunnerFactory.this.executor
+				);
+			}
+		}
 
-      ResultListenableRunner(final PeriodicRunnerFactory.PeriodicRunner<T> runner, final Consumer<T> resultListener) {
-         this.runner = runner;
-         this.resultListener = resultListener;
-      }
+		public void reset() {
+			this.resultFuture = null;
+			this.lastResult = null;
+			this.nextTime = -1L;
+		}
+	}
 
-      void run(long currentTime) {
-         this.runner.run(currentTime);
-         this.runListener();
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ResultListenableRunner}.
+	 */
+	class ResultListenableRunner<T> {
 
-      void runListener() {
-         PeriodicRunnerFactory.TimedResult<T> timedResult = this.runner.lastResult;
-         if (timedResult != null && this.lastRunTime < timedResult.time) {
-            this.resultListener.accept(timedResult.value);
-            this.lastRunTime = timedResult.time;
-         }
-      }
+		private final PeriodicRunnerFactory.PeriodicRunner<T> runner;
+		private final Consumer<T> resultListener;
+		private long lastRunTime = -1L;
 
-      void forceRunListener() {
-         PeriodicRunnerFactory.TimedResult<T> timedResult = this.runner.lastResult;
-         if (timedResult != null) {
-            this.resultListener.accept(timedResult.value);
-            this.lastRunTime = timedResult.time;
-         }
-      }
+		ResultListenableRunner(final PeriodicRunnerFactory.PeriodicRunner<T> runner, final Consumer<T> resultListener) {
+			this.runner = runner;
+			this.resultListener = resultListener;
+		}
 
-      void reset() {
-         this.runner.reset();
-         this.lastRunTime = -1L;
-      }
-   }
+		void run(long currentTime) {
+			this.runner.run(currentTime);
+			this.runListener();
+		}
 
-   @Environment(EnvType.CLIENT)
-   public class RunnersManager {
-      private final List<PeriodicRunnerFactory.ResultListenableRunner<?>> runners = new ArrayList<>();
+		void runListener() {
+			PeriodicRunnerFactory.TimedResult<T> timedResult = this.runner.lastResult;
+			if (timedResult != null && this.lastRunTime < timedResult.time) {
+				this.resultListener.accept(timedResult.value);
+				this.lastRunTime = timedResult.time;
+			}
+		}
 
-      public <T> void add(PeriodicRunnerFactory.PeriodicRunner<T> runner, Consumer<T> resultListener) {
-         PeriodicRunnerFactory.ResultListenableRunner<T> resultListenableRunner = PeriodicRunnerFactory.this.new ResultListenableRunner<>(
-            runner, resultListener
-         );
-         this.runners.add(resultListenableRunner);
-         resultListenableRunner.runListener();
-      }
+		void forceRunListener() {
+			PeriodicRunnerFactory.TimedResult<T> timedResult = this.runner.lastResult;
+			if (timedResult != null) {
+				this.resultListener.accept(timedResult.value);
+				this.lastRunTime = timedResult.time;
+			}
+		}
 
-      public void forceRunListeners() {
-         for (PeriodicRunnerFactory.ResultListenableRunner<?> resultListenableRunner : this.runners) {
-            resultListenableRunner.forceRunListener();
-         }
-      }
+		void reset() {
+			this.runner.reset();
+			this.lastRunTime = -1L;
+		}
+	}
 
-      public void runAll() {
-         for (PeriodicRunnerFactory.ResultListenableRunner<?> resultListenableRunner : this.runners) {
-            resultListenableRunner.run(PeriodicRunnerFactory.this.timeSupplier.get(PeriodicRunnerFactory.this.timeUnit));
-         }
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code RunnersManager}.
+	 */
+	public class RunnersManager {
 
-      public void resetAll() {
-         for (PeriodicRunnerFactory.ResultListenableRunner<?> resultListenableRunner : this.runners) {
-            resultListenableRunner.reset();
-         }
-      }
-   }
+		private final List<PeriodicRunnerFactory.ResultListenableRunner<?>> runners = new ArrayList<>();
 
-   @Environment(EnvType.CLIENT)
-   record TimedErrableResult<T>(Either<T, Exception> value, long time) {
-   }
+		public <T> void add(PeriodicRunnerFactory.PeriodicRunner<T> runner, Consumer<T> resultListener) {
+			PeriodicRunnerFactory.ResultListenableRunner<T>
+					resultListenableRunner =
+					PeriodicRunnerFactory.this.new ResultListenableRunner<>(
+							runner, resultListener
+					);
+			this.runners.add(resultListenableRunner);
+			resultListenableRunner.runListener();
+		}
 
-   @Environment(EnvType.CLIENT)
-   record TimedResult<T>(T value, long time) {
-   }
+		public void forceRunListeners() {
+			for (PeriodicRunnerFactory.ResultListenableRunner<?> resultListenableRunner : this.runners) {
+				resultListenableRunner.forceRunListener();
+			}
+		}
+
+		public void runAll() {
+			for (PeriodicRunnerFactory.ResultListenableRunner<?> resultListenableRunner : this.runners) {
+				resultListenableRunner.run(PeriodicRunnerFactory.this.timeSupplier.get(PeriodicRunnerFactory.this.timeUnit));
+			}
+		}
+
+		public void resetAll() {
+			for (PeriodicRunnerFactory.ResultListenableRunner<?> resultListenableRunner : this.runners) {
+				resultListenableRunner.reset();
+			}
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code TimedErrableResult}.
+	 */
+	record TimedErrableResult<T>(Either<T, Exception> value, long time) {
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code TimedResult}.
+	 */
+	record TimedResult<T>(T value, long time) {
+	}
 }

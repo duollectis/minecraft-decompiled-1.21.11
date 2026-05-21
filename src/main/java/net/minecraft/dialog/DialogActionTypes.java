@@ -8,10 +8,18 @@ import net.minecraft.dialog.action.SimpleDialogAction;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
+/**
+ * {@code DialogActionTypes}.
+ */
 public class DialogActionTypes {
-   public static MapCodec<? extends DialogAction> registerAndGetDefault(Registry<MapCodec<? extends DialogAction>> registry) {
-      SimpleDialogAction.CODECS.forEach((clickEventAction, codec) -> Registry.register(registry, Identifier.ofVanilla(clickEventAction.asString()), codec));
-      Registry.register(registry, Identifier.ofVanilla("dynamic/run_command"), DynamicRunCommandDialogAction.CODEC);
-      return Registry.register(registry, Identifier.ofVanilla("dynamic/custom"), DynamicCustomDialogAction.CODEC);
-   }
+
+	public static MapCodec<? extends DialogAction> registerAndGetDefault(Registry<MapCodec<? extends DialogAction>> registry) {
+		SimpleDialogAction.CODECS.forEach((clickEventAction, codec) -> Registry.register(
+				registry,
+				Identifier.ofVanilla(clickEventAction.asString()),
+				codec
+		));
+		Registry.register(registry, Identifier.ofVanilla("dynamic/run_command"), DynamicRunCommandDialogAction.CODEC);
+		return Registry.register(registry, Identifier.ofVanilla("dynamic/custom"), DynamicCustomDialogAction.CODEC);
+	}
 }

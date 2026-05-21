@@ -11,33 +11,34 @@ import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.crash.CrashReportSection;
 
 public interface PacketListener {
-   NetworkSide getSide();
 
-   NetworkPhase getPhase();
+	NetworkSide getSide();
 
-   void onDisconnected(DisconnectionInfo info);
+	NetworkPhase getPhase();
 
-   default void onPacketException(Packet packet, Exception exception) throws CrashException {
-      throw NetworkThreadUtils.createCrashException(exception, packet, this);
-   }
+	void onDisconnected(DisconnectionInfo info);
 
-   default DisconnectionInfo createDisconnectionInfo(Text reason, Throwable exception) {
-      return new DisconnectionInfo(reason);
-   }
+	default void onPacketException(Packet packet, Exception exception) throws CrashException {
+		throw NetworkThreadUtils.createCrashException(exception, packet, this);
+	}
 
-   boolean isConnectionOpen();
+	default DisconnectionInfo createDisconnectionInfo(Text reason, Throwable exception) {
+		return new DisconnectionInfo(reason);
+	}
 
-   default boolean accepts(Packet<?> packet) {
-      return this.isConnectionOpen();
-   }
+	boolean isConnectionOpen();
 
-   default void fillCrashReport(CrashReport report) {
-      CrashReportSection crashReportSection = report.addElement("Connection");
-      crashReportSection.add("Protocol", () -> this.getPhase().getId());
-      crashReportSection.add("Flow", () -> this.getSide().toString());
-      this.addCustomCrashReportInfo(report, crashReportSection);
-   }
+	default boolean accepts(Packet<?> packet) {
+		return this.isConnectionOpen();
+	}
 
-   default void addCustomCrashReportInfo(CrashReport report, CrashReportSection section) {
-   }
+	default void fillCrashReport(CrashReport report) {
+		CrashReportSection crashReportSection = report.addElement("Connection");
+		crashReportSection.add("Protocol", () -> this.getPhase().getId());
+		crashReportSection.add("Flow", () -> this.getSide().toString());
+		this.addCustomCrashReportInfo(report, crashReportSection);
+	}
+
+	default void addCustomCrashReportInfo(CrashReport report, CrashReportSection section) {
+	}
 }

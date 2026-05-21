@@ -6,10 +6,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import io.netty.buffer.ByteBuf;
-import java.util.UUID;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.component.type.NbtComponent;
@@ -30,161 +26,191 @@ import net.minecraft.util.ErrorReporter;
 import net.minecraft.util.Formatting;
 import org.slf4j.Logger;
 
+import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+/**
+ * {@code TypedEntityData}.
+ */
 public final class TypedEntityData<IdType> implements TooltipAppender {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final String ID_KEY = "id";
-   final IdType type;
-   final NbtCompound nbt;
 
-   public static <T> Codec<TypedEntityData<T>> createCodec(Codec<T> typeCodec) {
-      return new Codec<TypedEntityData<T>>() {
-         public <V> DataResult<Pair<TypedEntityData<T>, V>> decode(DynamicOps<V> ops, V value) {
-            return NbtComponent.COMPOUND_CODEC
-               .decode(ops, value)
-               .flatMap(
-                  pair -> {
-                     NbtCompound nbtCompound = ((NbtCompound)pair.getFirst()).copy();
-                     NbtElement nbtElement = nbtCompound.remove("id");
-                     return nbtElement == null
-                        ? DataResult.error(() -> "Expected 'id' field in " + value)
-                        : typeCodec.parse(toNbtOps((DynamicOps<T>)ops), nbtElement)
-                           .map(objectx -> Pair.of(new TypedEntityData<>(objectx, nbtCompound), pair.getSecond()));
-                  }
-               );
-         }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final String ID_KEY = "id";
+	final IdType type;
+	final NbtCompound nbt;
 
-         public <V> DataResult<V> encode(TypedEntityData<T> typedEntityData, DynamicOps<V> dynamicOps, V object) {
-            return typeCodec.encodeStart(toNbtOps((DynamicOps<T>)dynamicOps), typedEntityData.type).flatMap(id -> {
-               NbtCompound nbtCompound = typedEntityData.nbt.copy();
-               nbtCompound.put("id", id);
-               return NbtComponent.COMPOUND_CODEC.encode(nbtCompound, dynamicOps, object);
-            });
-         }
+	public static <T> Codec<TypedEntityData<T>> createCodec(Codec<T> typeCodec) {
+		return new Codec<TypedEntityData<T>>() {
+			public <V> DataResult<Pair<TypedEntityData<T>, V>> decode(DynamicOps<V> ops, V value) {
+				return NbtComponent.COMPOUND_CODEC
+						.decode(ops, value)
+						.flatMap(
+								pair -> {
+									NbtCompound nbtCompound = ((NbtCompound) pair.getFirst()).copy();
+									NbtElement nbtElement = nbtCompound.remove("id");
+									return nbtElement == null
+									       ? DataResult.error(() -> "Expected 'id' field in " + value)
+									       : typeCodec.parse(toNbtOps((DynamicOps<T>) ops), nbtElement)
+									                  .map(objectx -> Pair.of(
+											                  new TypedEntityData<>(
+													                  objectx,
+													                  nbtCompound
+											                  ), pair.getSecond()
+									                  ));
+								}
+						);
+			}
 
-         private static <T> DynamicOps<NbtElement> toNbtOps(DynamicOps<T> ops) {
-            return (DynamicOps<NbtElement>)(ops instanceof RegistryOps<T> registryOps ? registryOps.withDelegate(NbtOps.INSTANCE) : NbtOps.INSTANCE);
-         }
-      };
-   }
+			public <V> DataResult<V> encode(TypedEntityData<T> typedEntityData, DynamicOps<V> dynamicOps, V object) {
+				return typeCodec.encodeStart(toNbtOps((DynamicOps<T>) dynamicOps), typedEntityData.type).flatMap(id -> {
+					NbtCompound nbtCompound = typedEntityData.nbt.copy();
+					nbtCompound.put("id", id);
+					return NbtComponent.COMPOUND_CODEC.encode(nbtCompound, dynamicOps, object);
+				});
+			}
 
-   public static <B extends ByteBuf, T> PacketCodec<B, TypedEntityData<T>> createPacketCodec(PacketCodec<B, T> typePacketCodec) {
-      return PacketCodec.tuple(
-         typePacketCodec,
-         (Function<TypedEntityData<T>, T>)(TypedEntityData::getType),
-         PacketCodecs.NBT_COMPOUND,
-         TypedEntityData::getNbtWithoutIdInternal,
-         (BiFunction<T, NbtCompound, TypedEntityData<T>>)(TypedEntityData::new)
-      );
-   }
+			private static <T> DynamicOps<NbtElement> toNbtOps(DynamicOps<T> ops) {
+				return (DynamicOps<NbtElement>) (ops instanceof RegistryOps<T> registryOps ? registryOps.withDelegate(
+						NbtOps.INSTANCE) : NbtOps.INSTANCE
+				);
+			}
+		};
+	}
 
-   TypedEntityData(IdType type, NbtCompound nbt) {
-      this.type = type;
-      this.nbt = stripId(nbt);
-   }
+	public static <B extends ByteBuf, T> PacketCodec<B, TypedEntityData<T>> createPacketCodec(PacketCodec<B, T> typePacketCodec) {
+		return PacketCodec.tuple(
+				typePacketCodec,
+				(Function<TypedEntityData<T>, T>) (TypedEntityData::getType),
+				PacketCodecs.NBT_COMPOUND,
+				TypedEntityData::getNbtWithoutIdInternal,
+				(BiFunction<T, NbtCompound, TypedEntityData<T>>) (TypedEntityData::new)
+		);
+	}
 
-   public static <T> TypedEntityData<T> create(T type, NbtCompound nbt) {
-      return new TypedEntityData<>(type, nbt);
-   }
+	TypedEntityData(IdType type, NbtCompound nbt) {
+		this.type = type;
+		this.nbt = stripId(nbt);
+	}
 
-   private static NbtCompound stripId(NbtCompound nbt) {
-      if (nbt.contains("id")) {
-         NbtCompound nbtCompound = nbt.copy();
-         nbtCompound.remove("id");
-         return nbtCompound;
-      } else {
-         return nbt;
-      }
-   }
+	public static <T> TypedEntityData<T> create(T type, NbtCompound nbt) {
+		return new TypedEntityData<>(type, nbt);
+	}
 
-   public IdType getType() {
-      return this.type;
-   }
+	private static NbtCompound stripId(NbtCompound nbt) {
+		if (nbt.contains("id")) {
+			NbtCompound nbtCompound = nbt.copy();
+			nbtCompound.remove("id");
+			return nbtCompound;
+		}
+		else {
+			return nbt;
+		}
+	}
 
-   public boolean contains(String key) {
-      return this.nbt.contains(key);
-   }
+	public IdType getType() {
+		return this.type;
+	}
 
-   @Override
-   public boolean equals(Object other) {
-      if (other == this) {
-         return true;
-      } else {
-         return !(other instanceof TypedEntityData<?> typedEntityData) ? false : this.type == typedEntityData.type && this.nbt.equals(typedEntityData.nbt);
-      }
-   }
+	public boolean contains(String key) {
+		return this.nbt.contains(key);
+	}
 
-   @Override
-   public int hashCode() {
-      return 31 * this.type.hashCode() + this.nbt.hashCode();
-   }
+	@Override
+	public boolean equals(Object other) {
+		if (other == this) {
+			return true;
+		}
+		else {
+			return !(other instanceof TypedEntityData<?> typedEntityData) ? false : this.type == typedEntityData.type
+			                                                                        && this.nbt.equals(typedEntityData.nbt);
+		}
+	}
 
-   @Override
-   public String toString() {
-      return this.type + " " + this.nbt;
-   }
+	@Override
+	public int hashCode() {
+		return 31 * this.type.hashCode() + this.nbt.hashCode();
+	}
 
-   public void applyToEntity(Entity entity) {
-      try (ErrorReporter.Logging logging = new ErrorReporter.Logging(entity.getErrorReporterContext(), LOGGER)) {
-         NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
-         entity.writeData(nbtWriteView);
-         NbtCompound nbtCompound = nbtWriteView.getNbt();
-         UUID uUID = entity.getUuid();
-         nbtCompound.copyFrom(this.getNbtWithoutId());
-         entity.readData(NbtReadView.create(logging, entity.getRegistryManager(), nbtCompound));
-         entity.setUuid(uUID);
-      }
-   }
+	@Override
+	public String toString() {
+		return this.type + " " + this.nbt;
+	}
 
-   public boolean applyToBlockEntity(BlockEntity blockEntity, RegistryWrapper.WrapperLookup registryLookup) {
-      boolean exception;
-      try (ErrorReporter.Logging logging = new ErrorReporter.Logging(blockEntity.getReporterContext(), LOGGER)) {
-         NbtWriteView nbtWriteView = NbtWriteView.create(logging, registryLookup);
-         blockEntity.writeComponentlessData(nbtWriteView);
-         NbtCompound nbtCompound = nbtWriteView.getNbt();
-         NbtCompound nbtCompound2 = nbtCompound.copy();
-         nbtCompound.copyFrom(this.getNbtWithoutId());
-         if (!nbtCompound.equals(nbtCompound2)) {
-            try {
-               blockEntity.readComponentlessData(NbtReadView.create(logging, registryLookup, nbtCompound));
-               blockEntity.markDirty();
-               return true;
-            } catch (Exception var11) {
-               LOGGER.warn("Failed to apply custom data to block entity at {}", blockEntity.getPos(), var11);
+	public void applyToEntity(Entity entity) {
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(entity.getErrorReporterContext(), LOGGER)) {
+			NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
+			entity.writeData(nbtWriteView);
+			NbtCompound nbtCompound = nbtWriteView.getNbt();
+			UUID uUID = entity.getUuid();
+			nbtCompound.copyFrom(this.getNbtWithoutId());
+			entity.readData(NbtReadView.create(logging, entity.getRegistryManager(), nbtCompound));
+			entity.setUuid(uUID);
+		}
+	}
 
-               try {
-                  blockEntity.readComponentlessData(NbtReadView.create(logging.makeChild(() -> "(rollback)"), registryLookup, nbtCompound2));
-               } catch (Exception var10) {
-                  LOGGER.warn("Failed to rollback block entity at {} after failure", blockEntity.getPos(), var10);
-               }
-            }
-         }
+	public boolean applyToBlockEntity(BlockEntity blockEntity, RegistryWrapper.WrapperLookup registryLookup) {
+		boolean exception;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(blockEntity.getReporterContext(), LOGGER)) {
+			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registryLookup);
+			blockEntity.writeComponentlessData(nbtWriteView);
+			NbtCompound nbtCompound = nbtWriteView.getNbt();
+			NbtCompound nbtCompound2 = nbtCompound.copy();
+			nbtCompound.copyFrom(this.getNbtWithoutId());
+			if (!nbtCompound.equals(nbtCompound2)) {
+				try {
+					blockEntity.readComponentlessData(NbtReadView.create(logging, registryLookup, nbtCompound));
+					blockEntity.markDirty();
+					return true;
+				}
+				catch (Exception var11) {
+					LOGGER.warn("Failed to apply custom data to block entity at {}", blockEntity.getPos(), var11);
 
-         exception = false;
-      }
+					try {
+						blockEntity.readComponentlessData(NbtReadView.create(
+								logging.makeChild(() -> "(rollback)"),
+								registryLookup,
+								nbtCompound2
+						));
+					}
+					catch (Exception var10) {
+						LOGGER.warn("Failed to rollback block entity at {} after failure", blockEntity.getPos(), var10);
+					}
+				}
+			}
 
-      return exception;
-   }
+			exception = false;
+		}
 
-   private NbtCompound getNbtWithoutIdInternal() {
-      return this.nbt;
-   }
+		return exception;
+	}
 
-   @Deprecated
-   public NbtCompound getNbtWithoutId() {
-      return this.nbt;
-   }
+	private NbtCompound getNbtWithoutIdInternal() {
+		return this.nbt;
+	}
 
-   public NbtCompound copyNbtWithoutId() {
-      return this.nbt.copy();
-   }
+	@Deprecated
+	public NbtCompound getNbtWithoutId() {
+		return this.nbt;
+	}
 
-   @Override
-   public void appendTooltip(Item.TooltipContext context, Consumer<Text> textConsumer, TooltipType type, ComponentsAccess components) {
-      if (this.type.getClass() == EntityType.class) {
-         EntityType<?> entityType = (EntityType<?>)this.type;
-         if (context.isDifficultyPeaceful() && !entityType.isAllowedInPeaceful()) {
-            textConsumer.accept(Text.translatable("item.spawn_egg.peaceful").formatted(Formatting.RED));
-         }
-      }
-   }
+	public NbtCompound copyNbtWithoutId() {
+		return this.nbt.copy();
+	}
+
+	@Override
+	public void appendTooltip(
+			Item.TooltipContext context,
+			Consumer<Text> textConsumer,
+			TooltipType type,
+			ComponentsAccess components
+	) {
+		if (this.type.getClass() == EntityType.class) {
+			EntityType<?> entityType = (EntityType<?>) this.type;
+			if (context.isDifficultyPeaceful() && !entityType.isAllowedInPeaceful()) {
+				textConsumer.accept(Text.translatable("item.spawn_egg.peaceful").formatted(Formatting.RED));
+			}
+		}
+	}
 }

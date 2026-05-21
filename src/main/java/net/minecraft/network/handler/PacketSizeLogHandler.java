@@ -6,18 +6,19 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import net.minecraft.network.OpaqueByteBufHolder;
 
 public class PacketSizeLogHandler extends ChannelInboundHandlerAdapter {
-   private final PacketSizeLogger logger;
 
-   public PacketSizeLogHandler(PacketSizeLogger logger) {
-      this.logger = logger;
-   }
+	private final PacketSizeLogger logger;
 
-   public void channelRead(ChannelHandlerContext context, Object value) {
-      value = OpaqueByteBufHolder.unpack(value);
-      if (value instanceof ByteBuf byteBuf) {
-         this.logger.increment(byteBuf.readableBytes());
-      }
+	public PacketSizeLogHandler(PacketSizeLogger logger) {
+		this.logger = logger;
+	}
 
-      context.fireChannelRead(value);
-   }
+	public void channelRead(ChannelHandlerContext context, Object value) {
+		value = OpaqueByteBufHolder.unpack(value);
+		if (value instanceof ByteBuf byteBuf) {
+			this.logger.increment(byteBuf.readableBytes());
+		}
+
+		context.fireChannelRead(value);
+	}
 }

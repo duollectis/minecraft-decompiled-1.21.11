@@ -10,56 +10,81 @@ import net.minecraft.registry.tag.FluidTags;
 import net.minecraft.util.math.BlockPos;
 import org.apache.commons.lang3.mutable.MutableLong;
 
+/**
+ * {@code SeekWaterTask}.
+ */
 public class SeekWaterTask {
-   public static Task<PathAwareEntity> create(int range, float speed) {
-      MutableLong mutableLong = new MutableLong(0L);
-      return TaskTriggerer.task(
-         context -> context.group(
-               context.queryMemoryAbsent(MemoryModuleType.ATTACK_TARGET),
-               context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET),
-               context.queryMemoryOptional(MemoryModuleType.LOOK_TARGET)
-            )
-            .apply(context, (attackTarget, walkTarget, lookTarget) -> (world, entity, time) -> {
-               if (world.getFluidState(entity.getBlockPos()).isIn(FluidTags.WATER)) {
-                  return false;
-               } else if (time < mutableLong.longValue()) {
-                  mutableLong.setValue(time + 20L + 2L);
-                  return true;
-               } else {
-                  BlockPos blockPos = null;
-                  BlockPos blockPos2 = null;
-                  BlockPos blockPos3 = entity.getBlockPos();
 
-                  for (BlockPos blockPos4 : BlockPos.iterateOutwards(blockPos3, range, range, range)) {
-                     if (blockPos4.getX() != blockPos3.getX() || blockPos4.getZ() != blockPos3.getZ()) {
-                        BlockState blockState = entity.getEntityWorld().getBlockState(blockPos4.up());
-                        BlockState blockState2 = entity.getEntityWorld().getBlockState(blockPos4);
-                        if (blockState2.isOf(Blocks.WATER)) {
-                           if (blockState.isAir()) {
-                              blockPos = blockPos4.toImmutable();
-                              break;
-                           }
+	public static Task<PathAwareEntity> create(int range, float speed) {
+		MutableLong mutableLong = new MutableLong(0L);
+		return TaskTriggerer.task(
+				context -> context.group(
+						                  context.queryMemoryAbsent(MemoryModuleType.ATTACK_TARGET),
+						                  context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET),
+						                  context.queryMemoryOptional(MemoryModuleType.LOOK_TARGET)
+				                  )
+				                  .apply(
+						                  context, (attackTarget, walkTarget, lookTarget) -> (world, entity, time) -> {
+							                  if (world.getFluidState(entity.getBlockPos()).isIn(FluidTags.WATER)) {
+								                  return false;
+							                  }
+							                  else if (time < mutableLong.longValue()) {
+								                  mutableLong.setValue(time + 20L + 2L);
+								                  return true;
+							                  }
+							                  else {
+								                  BlockPos blockPos = null;
+								                  BlockPos blockPos2 = null;
+								                  BlockPos blockPos3 = entity.getBlockPos();
 
-                           if (blockPos2 == null && !blockPos4.isWithinDistance(entity.getEntityPos(), 1.5)) {
-                              blockPos2 = blockPos4.toImmutable();
-                           }
-                        }
-                     }
-                  }
+								                  for (BlockPos blockPos4 : BlockPos.iterateOutwards(
+										                  blockPos3,
+										                  range,
+										                  range,
+										                  range
+								                  )) {
+									                  if (blockPos4.getX() != blockPos3.getX()
+											                  || blockPos4.getZ() != blockPos3.getZ()) {
+										                  BlockState
+												                  blockState =
+												                  entity.getEntityWorld().getBlockState(blockPos4.up());
+										                  BlockState
+												                  blockState2 =
+												                  entity.getEntityWorld().getBlockState(blockPos4);
+										                  if (blockState2.isOf(Blocks.WATER)) {
+											                  if (blockState.isAir()) {
+												                  blockPos = blockPos4.toImmutable();
+												                  break;
+											                  }
 
-                  if (blockPos == null) {
-                     blockPos = blockPos2;
-                  }
+											                  if (blockPos2 == null && !blockPos4.isWithinDistance(
+													                  entity.getEntityPos(),
+													                  1.5
+											                  )) {
+												                  blockPos2 = blockPos4.toImmutable();
+											                  }
+										                  }
+									                  }
+								                  }
 
-                  if (blockPos != null) {
-                     lookTarget.remember(new BlockPosLookTarget(blockPos));
-                     walkTarget.remember(new WalkTarget(new BlockPosLookTarget(blockPos), speed, 0));
-                  }
+								                  if (blockPos == null) {
+									                  blockPos = blockPos2;
+								                  }
 
-                  mutableLong.setValue(time + 40L);
-                  return true;
-               }
-            })
-      );
-   }
+								                  if (blockPos != null) {
+									                  lookTarget.remember(new BlockPosLookTarget(blockPos));
+									                  walkTarget.remember(new WalkTarget(
+											                  new BlockPosLookTarget(blockPos),
+											                  speed,
+											                  0
+									                  ));
+								                  }
+
+								                  mutableLong.setValue(time + 40L);
+								                  return true;
+							                  }
+						                  }
+				                  )
+		);
+	}
 }

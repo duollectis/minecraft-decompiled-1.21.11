@@ -1,8 +1,5 @@
 package net.minecraft.world.level;
 
-import java.util.Locale;
-import java.util.Optional;
-import java.util.UUID;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.crash.CrashReportSection;
 import net.minecraft.world.GameMode;
@@ -13,84 +10,92 @@ import net.minecraft.world.rule.GameRules;
 import net.minecraft.world.timer.Timer;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Locale;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * {@code ServerWorldProperties}.
+ */
 public interface ServerWorldProperties extends MutableWorldProperties {
-   String getLevelName();
 
-   void setThundering(boolean thundering);
+	String getLevelName();
 
-   int getRainTime();
+	void setThundering(boolean thundering);
 
-   void setRainTime(int rainTime);
+	int getRainTime();
 
-   void setThunderTime(int thunderTime);
+	void setRainTime(int rainTime);
 
-   int getThunderTime();
+	void setThunderTime(int thunderTime);
 
-   @Override
-   default void populateCrashReport(CrashReportSection reportSection, HeightLimitView world) {
-      MutableWorldProperties.super.populateCrashReport(reportSection, world);
-      reportSection.add("Level name", this::getLevelName);
-      reportSection.add(
-         "Level game mode",
-         () -> String.format(
-            Locale.ROOT,
-            "Game mode: %s (ID %d). Hardcore: %b. Commands: %b",
-            this.getGameMode().getId(),
-            this.getGameMode().getIndex(),
-            this.isHardcore(),
-            this.areCommandsAllowed()
-         )
-      );
-      reportSection.add(
-         "Level weather",
-         () -> String.format(
-            Locale.ROOT,
-            "Rain time: %d (now: %b), thunder time: %d (now: %b)",
-            this.getRainTime(),
-            this.isRaining(),
-            this.getThunderTime(),
-            this.isThundering()
-         )
-      );
-   }
+	int getThunderTime();
 
-   int getClearWeatherTime();
+	@Override
+	default void populateCrashReport(CrashReportSection reportSection, HeightLimitView world) {
+		MutableWorldProperties.super.populateCrashReport(reportSection, world);
+		reportSection.add("Level name", this::getLevelName);
+		reportSection.add(
+				"Level game mode",
+				() -> String.format(
+						Locale.ROOT,
+						"Game mode: %s (ID %d). Hardcore: %b. Commands: %b",
+						this.getGameMode().getId(),
+						this.getGameMode().getIndex(),
+						this.isHardcore(),
+						this.areCommandsAllowed()
+				)
+		);
+		reportSection.add(
+				"Level weather",
+				() -> String.format(
+						Locale.ROOT,
+						"Rain time: %d (now: %b), thunder time: %d (now: %b)",
+						this.getRainTime(),
+						this.isRaining(),
+						this.getThunderTime(),
+						this.isThundering()
+				)
+		);
+	}
 
-   void setClearWeatherTime(int clearWeatherTime);
+	int getClearWeatherTime();
 
-   int getWanderingTraderSpawnDelay();
+	void setClearWeatherTime(int clearWeatherTime);
 
-   void setWanderingTraderSpawnDelay(int wanderingTraderSpawnDelay);
+	int getWanderingTraderSpawnDelay();
 
-   int getWanderingTraderSpawnChance();
+	void setWanderingTraderSpawnDelay(int wanderingTraderSpawnDelay);
 
-   void setWanderingTraderSpawnChance(int wanderingTraderSpawnChance);
+	int getWanderingTraderSpawnChance();
 
-   @Nullable UUID getWanderingTraderId();
+	void setWanderingTraderSpawnChance(int wanderingTraderSpawnChance);
 
-   void setWanderingTraderId(UUID wanderingTraderId);
+	@Nullable UUID getWanderingTraderId();
 
-   GameMode getGameMode();
+	void setWanderingTraderId(UUID wanderingTraderId);
 
-   @Deprecated
-   Optional<WorldBorder.Properties> getWorldBorder();
+	GameMode getGameMode();
 
-   @Deprecated
-   void setWorldBorder(Optional<WorldBorder.Properties> worldBorder);
+	@Deprecated
+	Optional<WorldBorder.Properties> getWorldBorder();
 
-   boolean isInitialized();
+	@Deprecated
+	void setWorldBorder(Optional<WorldBorder.Properties> worldBorder);
 
-   void setInitialized(boolean initialized);
+	boolean isInitialized();
 
-   boolean areCommandsAllowed();
+	void setInitialized(boolean initialized);
 
-   void setGameMode(GameMode gameMode);
+	boolean areCommandsAllowed();
 
-   Timer<MinecraftServer> getScheduledEvents();
+	void setGameMode(GameMode gameMode);
 
-   void setTime(long time);
+	Timer<MinecraftServer> getScheduledEvents();
 
-   void setTimeOfDay(long timeOfDay);
+	void setTime(long time);
 
-   GameRules getGameRules();
+	void setTimeOfDay(long timeOfDay);
+
+	GameRules getGameRules();
 }

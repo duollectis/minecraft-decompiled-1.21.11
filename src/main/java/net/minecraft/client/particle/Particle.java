@@ -1,7 +1,5 @@
 package net.minecraft.client.particle;
 
-import java.util.List;
-import java.util.Optional;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.render.WorldRenderer;
@@ -14,212 +12,259 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 
+import java.util.List;
+import java.util.Optional;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Particle}.
+ */
 public abstract class Particle {
-   private static final Box EMPTY_BOUNDING_BOX = new Box(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-   private static final double MAX_SQUARED_COLLISION_CHECK_DISTANCE = MathHelper.square(100.0);
-   protected final ClientWorld world;
-   protected double lastX;
-   protected double lastY;
-   protected double lastZ;
-   protected double x;
-   protected double y;
-   protected double z;
-   protected double velocityX;
-   protected double velocityY;
-   protected double velocityZ;
-   private Box boundingBox = EMPTY_BOUNDING_BOX;
-   protected boolean onGround;
-   protected boolean collidesWithWorld = true;
-   private boolean stopped;
-   protected boolean dead;
-   protected float spacingXZ = 0.6F;
-   protected float spacingY = 1.8F;
-   protected final Random random = Random.create();
-   protected int age;
-   protected int maxAge;
-   protected float gravityStrength;
-   protected float velocityMultiplier = 0.98F;
-   protected boolean ascending = false;
 
-   protected Particle(ClientWorld world, double x, double y, double z) {
-      this.world = world;
-      this.setBoundingBoxSpacing(0.2F, 0.2F);
-      this.setPos(x, y, z);
-      this.lastX = x;
-      this.lastY = y;
-      this.lastZ = z;
-      this.maxAge = (int)(4.0F / (this.random.nextFloat() * 0.9F + 0.1F));
-   }
+	private static final Box EMPTY_BOUNDING_BOX = new Box(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+	private static final double MAX_SQUARED_COLLISION_CHECK_DISTANCE = MathHelper.square(100.0);
+	protected final ClientWorld world;
+	protected double lastX;
+	protected double lastY;
+	protected double lastZ;
+	protected double x;
+	protected double y;
+	protected double z;
+	protected double velocityX;
+	protected double velocityY;
+	protected double velocityZ;
+	private Box boundingBox = EMPTY_BOUNDING_BOX;
+	protected boolean onGround;
+	protected boolean collidesWithWorld = true;
+	private boolean stopped;
+	protected boolean dead;
+	protected float spacingXZ = 0.6F;
+	protected float spacingY = 1.8F;
+	protected final Random random = Random.create();
+	protected int age;
+	protected int maxAge;
+	protected float gravityStrength;
+	protected float velocityMultiplier = 0.98F;
+	protected boolean ascending = false;
 
-   public Particle(ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ) {
-      this(world, x, y, z);
-      this.velocityX = velocityX + (this.random.nextFloat() * 2.0F - 1.0F) * 0.4F;
-      this.velocityY = velocityY + (this.random.nextFloat() * 2.0F - 1.0F) * 0.4F;
-      this.velocityZ = velocityZ + (this.random.nextFloat() * 2.0F - 1.0F) * 0.4F;
-      double d = (this.random.nextFloat() + this.random.nextFloat() + 1.0F) * 0.15F;
-      double e = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY + this.velocityZ * this.velocityZ);
-      this.velocityX = this.velocityX / e * d * 0.4F;
-      this.velocityY = this.velocityY / e * d * 0.4F + 0.1F;
-      this.velocityZ = this.velocityZ / e * d * 0.4F;
-   }
+	protected Particle(ClientWorld world, double x, double y, double z) {
+		this.world = world;
+		this.setBoundingBoxSpacing(0.2F, 0.2F);
+		this.setPos(x, y, z);
+		this.lastX = x;
+		this.lastY = y;
+		this.lastZ = z;
+		this.maxAge = (int) (4.0F / (this.random.nextFloat() * 0.9F + 0.1F));
+	}
 
-   public Particle move(float speed) {
-      this.velocityX *= speed;
-      this.velocityY = (this.velocityY - 0.1F) * speed + 0.1F;
-      this.velocityZ *= speed;
-      return this;
-   }
+	public Particle(
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ
+	) {
+		this(world, x, y, z);
+		this.velocityX = velocityX + (this.random.nextFloat() * 2.0F - 1.0F) * 0.4F;
+		this.velocityY = velocityY + (this.random.nextFloat() * 2.0F - 1.0F) * 0.4F;
+		this.velocityZ = velocityZ + (this.random.nextFloat() * 2.0F - 1.0F) * 0.4F;
+		double d = (this.random.nextFloat() + this.random.nextFloat() + 1.0F) * 0.15F;
+		double
+				e =
+				Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY
+						+ this.velocityZ * this.velocityZ);
+		this.velocityX = this.velocityX / e * d * 0.4F;
+		this.velocityY = this.velocityY / e * d * 0.4F + 0.1F;
+		this.velocityZ = this.velocityZ / e * d * 0.4F;
+	}
 
-   public void setVelocity(double velocityX, double velocityY, double velocityZ) {
-      this.velocityX = velocityX;
-      this.velocityY = velocityY;
-      this.velocityZ = velocityZ;
-   }
+	public Particle move(float speed) {
+		this.velocityX *= speed;
+		this.velocityY = (this.velocityY - 0.1F) * speed + 0.1F;
+		this.velocityZ *= speed;
+		return this;
+	}
 
-   public Particle scale(float scale) {
-      this.setBoundingBoxSpacing(0.2F * scale, 0.2F * scale);
-      return this;
-   }
+	public void setVelocity(double velocityX, double velocityY, double velocityZ) {
+		this.velocityX = velocityX;
+		this.velocityY = velocityY;
+		this.velocityZ = velocityZ;
+	}
 
-   public void setMaxAge(int maxAge) {
-      this.maxAge = maxAge;
-   }
+	public Particle scale(float scale) {
+		this.setBoundingBoxSpacing(0.2F * scale, 0.2F * scale);
+		return this;
+	}
 
-   public int getMaxAge() {
-      return this.maxAge;
-   }
+	public void setMaxAge(int maxAge) {
+		this.maxAge = maxAge;
+	}
 
-   public void tick() {
-      this.lastX = this.x;
-      this.lastY = this.y;
-      this.lastZ = this.z;
-      if (this.age++ >= this.maxAge) {
-         this.markDead();
-      } else {
-         this.velocityY = this.velocityY - 0.04 * this.gravityStrength;
-         this.move(this.velocityX, this.velocityY, this.velocityZ);
-         if (this.ascending && this.y == this.lastY) {
-            this.velocityX *= 1.1;
-            this.velocityZ *= 1.1;
-         }
+	public int getMaxAge() {
+		return this.maxAge;
+	}
 
-         this.velocityX = this.velocityX * this.velocityMultiplier;
-         this.velocityY = this.velocityY * this.velocityMultiplier;
-         this.velocityZ = this.velocityZ * this.velocityMultiplier;
-         if (this.onGround) {
-            this.velocityX *= 0.7F;
-            this.velocityZ *= 0.7F;
-         }
-      }
-   }
+	public void tick() {
+		this.lastX = this.x;
+		this.lastY = this.y;
+		this.lastZ = this.z;
+		if (this.age++ >= this.maxAge) {
+			this.markDead();
+		}
+		else {
+			this.velocityY = this.velocityY - 0.04 * this.gravityStrength;
+			this.move(this.velocityX, this.velocityY, this.velocityZ);
+			if (this.ascending && this.y == this.lastY) {
+				this.velocityX *= 1.1;
+				this.velocityZ *= 1.1;
+			}
 
-   public abstract ParticleTextureSheet textureSheet();
+			this.velocityX = this.velocityX * this.velocityMultiplier;
+			this.velocityY = this.velocityY * this.velocityMultiplier;
+			this.velocityZ = this.velocityZ * this.velocityMultiplier;
+			if (this.onGround) {
+				this.velocityX *= 0.7F;
+				this.velocityZ *= 0.7F;
+			}
+		}
+	}
 
-   @Override
-   public String toString() {
-      return this.getClass().getSimpleName() + ", Pos (" + this.x + "," + this.y + "," + this.z + "), Age " + this.age;
-   }
+	public abstract ParticleTextureSheet textureSheet();
 
-   public void markDead() {
-      this.dead = true;
-   }
+	@Override
+	public String toString() {
+		return this.getClass().getSimpleName() + ", Pos (" + this.x + "," + this.y + "," + this.z + "), Age "
+				+ this.age;
+	}
 
-   protected void setBoundingBoxSpacing(float spacingXZ, float spacingY) {
-      if (spacingXZ != this.spacingXZ || spacingY != this.spacingY) {
-         this.spacingXZ = spacingXZ;
-         this.spacingY = spacingY;
-         Box box = this.getBoundingBox();
-         double d = (box.minX + box.maxX - spacingXZ) / 2.0;
-         double e = (box.minZ + box.maxZ - spacingXZ) / 2.0;
-         this.setBoundingBox(new Box(d, box.minY, e, d + this.spacingXZ, box.minY + this.spacingY, e + this.spacingXZ));
-      }
-   }
+	public void markDead() {
+		this.dead = true;
+	}
 
-   public void setPos(double x, double y, double z) {
-      this.x = x;
-      this.y = y;
-      this.z = z;
-      float f = this.spacingXZ / 2.0F;
-      float g = this.spacingY;
-      this.setBoundingBox(new Box(x - f, y, z - f, x + f, y + g, z + f));
-   }
+	protected void setBoundingBoxSpacing(float spacingXZ, float spacingY) {
+		if (spacingXZ != this.spacingXZ || spacingY != this.spacingY) {
+			this.spacingXZ = spacingXZ;
+			this.spacingY = spacingY;
+			Box box = this.getBoundingBox();
+			double d = (box.minX + box.maxX - spacingXZ) / 2.0;
+			double e = (box.minZ + box.maxZ - spacingXZ) / 2.0;
+			this.setBoundingBox(new Box(
+					d,
+					box.minY,
+					e,
+					d + this.spacingXZ,
+					box.minY + this.spacingY,
+					e + this.spacingXZ
+			));
+		}
+	}
 
-   public void move(double dx, double dy, double dz) {
-      if (!this.stopped) {
-         double d = dx;
-         double e = dy;
-         double f = dz;
-         if (this.collidesWithWorld && (dx != 0.0 || dy != 0.0 || dz != 0.0) && dx * dx + dy * dy + dz * dz < MAX_SQUARED_COLLISION_CHECK_DISTANCE) {
-            Vec3d vec3d = Entity.adjustMovementForCollisions(null, new Vec3d(dx, dy, dz), this.getBoundingBox(), this.world, List.of());
-            dx = vec3d.x;
-            dy = vec3d.y;
-            dz = vec3d.z;
-         }
+	public void setPos(double x, double y, double z) {
+		this.x = x;
+		this.y = y;
+		this.z = z;
+		float f = this.spacingXZ / 2.0F;
+		float g = this.spacingY;
+		this.setBoundingBox(new Box(x - f, y, z - f, x + f, y + g, z + f));
+	}
 
-         if (dx != 0.0 || dy != 0.0 || dz != 0.0) {
-            this.setBoundingBox(this.getBoundingBox().offset(dx, dy, dz));
-            this.repositionFromBoundingBox();
-         }
+	public void move(double dx, double dy, double dz) {
+		if (!this.stopped) {
+			double d = dx;
+			double e = dy;
+			double f = dz;
+			if (this.collidesWithWorld && (dx != 0.0 || dy != 0.0 || dz != 0.0)
+					&& dx * dx + dy * dy + dz * dz < MAX_SQUARED_COLLISION_CHECK_DISTANCE) {
+				Vec3d
+						vec3d =
+						Entity.adjustMovementForCollisions(
+								null,
+								new Vec3d(dx, dy, dz),
+								this.getBoundingBox(),
+								this.world,
+								List.of()
+						);
+				dx = vec3d.x;
+				dy = vec3d.y;
+				dz = vec3d.z;
+			}
 
-         if (Math.abs(e) >= 1.0E-5F && Math.abs(dy) < 1.0E-5F) {
-            this.stopped = true;
-         }
+			if (dx != 0.0 || dy != 0.0 || dz != 0.0) {
+				this.setBoundingBox(this.getBoundingBox().offset(dx, dy, dz));
+				this.repositionFromBoundingBox();
+			}
 
-         this.onGround = e != dy && e < 0.0;
-         if (d != dx) {
-            this.velocityX = 0.0;
-         }
+			if (Math.abs(e) >= 1.0E-5F && Math.abs(dy) < 1.0E-5F) {
+				this.stopped = true;
+			}
 
-         if (f != dz) {
-            this.velocityZ = 0.0;
-         }
-      }
-   }
+			this.onGround = e != dy && e < 0.0;
+			if (d != dx) {
+				this.velocityX = 0.0;
+			}
 
-   protected void repositionFromBoundingBox() {
-      Box box = this.getBoundingBox();
-      this.x = (box.minX + box.maxX) / 2.0;
-      this.y = box.minY;
-      this.z = (box.minZ + box.maxZ) / 2.0;
-   }
+			if (f != dz) {
+				this.velocityZ = 0.0;
+			}
+		}
+	}
 
-   protected int getBrightness(float tint) {
-      BlockPos blockPos = BlockPos.ofFloored(this.x, this.y, this.z);
-      return this.world.isChunkLoaded(blockPos) ? WorldRenderer.getLightmapCoordinates(this.world, blockPos) : 0;
-   }
+	protected void repositionFromBoundingBox() {
+		Box box = this.getBoundingBox();
+		this.x = (box.minX + box.maxX) / 2.0;
+		this.y = box.minY;
+		this.z = (box.minZ + box.maxZ) / 2.0;
+	}
 
-   public boolean isAlive() {
-      return !this.dead;
-   }
+	protected int getBrightness(float tint) {
+		BlockPos blockPos = BlockPos.ofFloored(this.x, this.y, this.z);
+		return this.world.isChunkLoaded(blockPos) ? WorldRenderer.getLightmapCoordinates(this.world, blockPos) : 0;
+	}
 
-   public Box getBoundingBox() {
-      return this.boundingBox;
-   }
+	public boolean isAlive() {
+		return !this.dead;
+	}
 
-   public void setBoundingBox(Box boundingBox) {
-      this.boundingBox = boundingBox;
-   }
+	public Box getBoundingBox() {
+		return this.boundingBox;
+	}
 
-   public Optional<ParticleGroup> getGroup() {
-      return Optional.empty();
-   }
+	public void setBoundingBox(Box boundingBox) {
+		this.boundingBox = boundingBox;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public record DynamicAlpha(float startAlpha, float endAlpha, float startAtNormalizedAge, float endAtNormalizedAge) {
-      public static final Particle.DynamicAlpha OPAQUE = new Particle.DynamicAlpha(1.0F, 1.0F, 0.0F, 1.0F);
+	public Optional<ParticleGroup> getGroup() {
+		return Optional.empty();
+	}
 
-      public boolean isOpaque() {
-         return this.startAlpha >= 1.0F && this.endAlpha >= 1.0F;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code DynamicAlpha}.
+	 */
+	public record DynamicAlpha(float startAlpha, float endAlpha, float startAtNormalizedAge, float endAtNormalizedAge) {
 
-      public float getAlpha(int age, int maxAge, float tickProgress) {
-         if (MathHelper.approximatelyEquals(this.startAlpha, this.endAlpha)) {
-            return this.startAlpha;
-         } else {
-            float f = MathHelper.getLerpProgress((age + tickProgress) / maxAge, this.startAtNormalizedAge, this.endAtNormalizedAge);
-            return MathHelper.clampedLerp(f, this.startAlpha, this.endAlpha);
-         }
-      }
-   }
+		public static final Particle.DynamicAlpha OPAQUE = new Particle.DynamicAlpha(1.0F, 1.0F, 0.0F, 1.0F);
+
+		public boolean isOpaque() {
+			return this.startAlpha >= 1.0F && this.endAlpha >= 1.0F;
+		}
+
+		public float getAlpha(int age, int maxAge, float tickProgress) {
+			if (MathHelper.approximatelyEquals(this.startAlpha, this.endAlpha)) {
+				return this.startAlpha;
+			}
+			else {
+				float
+						f =
+						MathHelper.getLerpProgress(
+								(age + tickProgress) / maxAge,
+								this.startAtNormalizedAge,
+								this.endAtNormalizedAge
+						);
+				return MathHelper.clampedLerp(f, this.startAlpha, this.endAlpha);
+			}
+		}
+	}
 }

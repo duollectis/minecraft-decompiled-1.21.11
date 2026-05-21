@@ -7,28 +7,37 @@ import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RendererDebugHudEntry}.
+ */
 public class RendererDebugHudEntry implements DebugHudEntry {
-   private final boolean ignoreReducedDebugInfo;
 
-   public RendererDebugHudEntry() {
-      this(false);
-   }
+	private final boolean ignoreReducedDebugInfo;
 
-   public RendererDebugHudEntry(boolean ignoreReducedDebugInfo) {
-      this.ignoreReducedDebugInfo = ignoreReducedDebugInfo;
-   }
+	public RendererDebugHudEntry() {
+		this(false);
+	}
 
-   @Override
-   public void render(DebugHudLines lines, @Nullable World world, @Nullable WorldChunk clientChunk, @Nullable WorldChunk chunk) {
-   }
+	public RendererDebugHudEntry(boolean ignoreReducedDebugInfo) {
+		this.ignoreReducedDebugInfo = ignoreReducedDebugInfo;
+	}
 
-   @Override
-   public boolean canShow(boolean reducedDebugInfo) {
-      return this.ignoreReducedDebugInfo || !reducedDebugInfo;
-   }
+	@Override
+	public void render(
+			DebugHudLines lines,
+			@Nullable World world,
+			@Nullable WorldChunk clientChunk,
+			@Nullable WorldChunk chunk
+	) {
+	}
 
-   @Override
-   public DebugHudEntryCategory getCategory() {
-      return DebugHudEntryCategory.RENDERER;
-   }
+	@Override
+	public boolean canShow(boolean reducedDebugInfo) {
+		return this.ignoreReducedDebugInfo || !reducedDebugInfo;
+	}
+
+	@Override
+	public DebugHudEntryCategory getCategory() {
+		return DebugHudEntryCategory.RENDERER;
+	}
 }

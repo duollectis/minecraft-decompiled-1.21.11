@@ -2,78 +2,96 @@ package net.minecraft.advancement;
 
 import it.unimi.dsi.fastutil.Stack;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 import java.util.Optional;
 import java.util.function.Predicate;
 
+/**
+ * {@code AdvancementDisplays}.
+ */
 public class AdvancementDisplays {
-   private static final int DISPLAY_DEPTH = 2;
 
-   private static AdvancementDisplays.Status getStatus(Advancement advancement, boolean force) {
-      Optional<AdvancementDisplay> optional = advancement.display();
-      if (optional.isEmpty()) {
-         return AdvancementDisplays.Status.HIDE;
-      } else if (force) {
-         return AdvancementDisplays.Status.SHOW;
-      } else {
-         return optional.get().isHidden() ? AdvancementDisplays.Status.HIDE : AdvancementDisplays.Status.NO_CHANGE;
-      }
-   }
+	private static final int DISPLAY_DEPTH = 2;
 
-   private static boolean shouldDisplay(Stack<AdvancementDisplays.Status> statuses) {
-      for (int i = 0; i <= 2; i++) {
-         AdvancementDisplays.Status status = (AdvancementDisplays.Status)statuses.peek(i);
-         if (status == AdvancementDisplays.Status.SHOW) {
-            return true;
-         }
+	private static AdvancementDisplays.Status getStatus(Advancement advancement, boolean force) {
+		Optional<AdvancementDisplay> optional = advancement.display();
+		if (optional.isEmpty()) {
+			return AdvancementDisplays.Status.HIDE;
+		}
+		else if (force) {
+			return AdvancementDisplays.Status.SHOW;
+		}
+		else {
+			return optional.get().isHidden() ? AdvancementDisplays.Status.HIDE : AdvancementDisplays.Status.NO_CHANGE;
+		}
+	}
 
-         if (status == AdvancementDisplays.Status.HIDE) {
-            return false;
-         }
-      }
+	private static boolean shouldDisplay(Stack<AdvancementDisplays.Status> statuses) {
+		for (int i = 0; i <= 2; i++) {
+			AdvancementDisplays.Status status = (AdvancementDisplays.Status) statuses.peek(i);
+			if (status == AdvancementDisplays.Status.SHOW) {
+				return true;
+			}
 
-      return false;
-   }
+			if (status == AdvancementDisplays.Status.HIDE) {
+				return false;
+			}
+		}
 
-   private static boolean shouldDisplay(
-      PlacedAdvancement advancement,
-      Stack<AdvancementDisplays.Status> statuses,
-      Predicate<PlacedAdvancement> donePredicate,
-      AdvancementDisplays.ResultConsumer consumer
-   ) {
-      boolean bl = donePredicate.test(advancement);
-      AdvancementDisplays.Status status = getStatus(advancement.getAdvancement(), bl);
-      boolean bl2 = bl;
-      statuses.push(status);
+		return false;
+	}
 
-      for (PlacedAdvancement placedAdvancement : advancement.getChildren()) {
-         bl2 |= shouldDisplay(placedAdvancement, statuses, donePredicate, consumer);
-      }
+	private static boolean shouldDisplay(
+			PlacedAdvancement advancement,
+			Stack<AdvancementDisplays.Status> statuses,
+			Predicate<PlacedAdvancement> donePredicate,
+			AdvancementDisplays.ResultConsumer consumer
+	) {
+		boolean bl = donePredicate.test(advancement);
+		AdvancementDisplays.Status status = getStatus(advancement.getAdvancement(), bl);
+		boolean bl2 = bl;
+		statuses.push(status);
 
-      boolean bl3 = bl2 || shouldDisplay(statuses);
-      statuses.pop();
-      consumer.accept(advancement, bl3);
-      return bl2;
-   }
+		for (PlacedAdvancement placedAdvancement : advancement.getChildren()) {
+			bl2 |= shouldDisplay(placedAdvancement, statuses, donePredicate, consumer);
+		}
 
-   public static void calculateDisplay(PlacedAdvancement advancement, Predicate<PlacedAdvancement> donePredicate, AdvancementDisplays.ResultConsumer consumer) {
-      PlacedAdvancement placedAdvancement = advancement.getRoot();
-      Stack<AdvancementDisplays.Status> stack = new ObjectArrayList();
+		boolean bl3 = bl2 || shouldDisplay(statuses);
+		statuses.pop();
+		consumer.accept(advancement, bl3);
+		return bl2;
+	}
 
-      for (int i = 0; i <= 2; i++) {
-         stack.push(AdvancementDisplays.Status.NO_CHANGE);
-      }
+	public static void calculateDisplay(
+			PlacedAdvancement advancement,
+			Predicate<PlacedAdvancement> donePredicate,
+			AdvancementDisplays.ResultConsumer consumer
+	) {
+		PlacedAdvancement placedAdvancement = advancement.getRoot();
+		Stack<AdvancementDisplays.Status> stack = new ObjectArrayList();
 
-      shouldDisplay(placedAdvancement, stack, donePredicate, consumer);
-   }
+		for (int i = 0; i <= 2; i++) {
+			stack.push(AdvancementDisplays.Status.NO_CHANGE);
+		}
 
-   @FunctionalInterface
-   public interface ResultConsumer {
-      void accept(PlacedAdvancement advancement, boolean shouldDisplay);
-   }
+		shouldDisplay(placedAdvancement, stack, donePredicate, consumer);
+	}
 
-   static enum Status {
-      SHOW,
-      HIDE,
-      NO_CHANGE;
-   }
+	@FunctionalInterface
+	/**
+	 * {@code ResultConsumer}.
+	 */
+	public interface ResultConsumer {
+
+		void accept(PlacedAdvancement advancement, boolean shouldDisplay);
+	}
+
+	/**
+	 * {@code Status}.
+	 */
+	static enum Status {
+		SHOW,
+		HIDE,
+		NO_CHANGE;
+	}
 }

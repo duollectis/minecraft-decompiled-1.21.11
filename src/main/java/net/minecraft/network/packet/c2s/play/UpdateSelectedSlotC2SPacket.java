@@ -8,33 +8,34 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class UpdateSelectedSlotC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, UpdateSelectedSlotC2SPacket> CODEC = Packet.createCodec(
-      UpdateSelectedSlotC2SPacket::write, UpdateSelectedSlotC2SPacket::new
-   );
-   private final int selectedSlot;
 
-   public UpdateSelectedSlotC2SPacket(int selectedSlot) {
-      this.selectedSlot = selectedSlot;
-   }
+	public static final PacketCodec<PacketByteBuf, UpdateSelectedSlotC2SPacket> CODEC = Packet.createCodec(
+			UpdateSelectedSlotC2SPacket::write, UpdateSelectedSlotC2SPacket::new
+	);
+	private final int selectedSlot;
 
-   private UpdateSelectedSlotC2SPacket(PacketByteBuf buf) {
-      this.selectedSlot = buf.readShort();
-   }
+	public UpdateSelectedSlotC2SPacket(int selectedSlot) {
+		this.selectedSlot = selectedSlot;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeShort(this.selectedSlot);
-   }
+	private UpdateSelectedSlotC2SPacket(PacketByteBuf buf) {
+		this.selectedSlot = buf.readShort();
+	}
 
-   @Override
-   public PacketType<UpdateSelectedSlotC2SPacket> getPacketType() {
-      return PlayPackets.SET_CARRIED_ITEM_C2S;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeShort(this.selectedSlot);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onUpdateSelectedSlot(this);
-   }
+	@Override
+	public PacketType<UpdateSelectedSlotC2SPacket> getPacketType() {
+		return PlayPackets.SET_CARRIED_ITEM_C2S;
+	}
 
-   public int getSelectedSlot() {
-      return this.selectedSlot;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onUpdateSelectedSlot(this);
+	}
+
+	public int getSelectedSlot() {
+		return this.selectedSlot;
+	}
 }

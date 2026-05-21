@@ -1,13 +1,17 @@
 package net.minecraft.util.profiler.log;
 
+/**
+ * {@code MultiValueDebugSampleLog}.
+ */
 public interface MultiValueDebugSampleLog {
-   int getDimension();
 
-   int getLength();
+	int getDimension();
 
-   long get(int index);
+	int getLength();
 
-   long get(int index, int dimension);
+	long get(int index);
 
-   void clear();
+	long get(int index, int dimension);
+
+	void clear();
 }

@@ -1,7 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.function.Function;
 import net.minecraft.entity.ai.pathing.NavigationType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.FluidState;
@@ -21,100 +20,162 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+import java.util.function.Function;
+
+/**
+ * {@code FenceBlock}.
+ */
 public class FenceBlock extends HorizontalConnectingBlock {
-   public static final MapCodec<FenceBlock> CODEC = createCodec(FenceBlock::new);
-   private final Function<BlockState, VoxelShape> cullingShapeFunction;
 
-   @Override
-   public MapCodec<FenceBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<FenceBlock> CODEC = createCodec(FenceBlock::new);
+	private final Function<BlockState, VoxelShape> cullingShapeFunction;
 
-   public FenceBlock(AbstractBlock.Settings settings) {
-      super(4.0F, 16.0F, 4.0F, 16.0F, 24.0F, settings);
-      this.setDefaultState(
-         this.stateManager.getDefaultState().with(NORTH, false).with(EAST, false).with(SOUTH, false).with(WEST, false).with(WATERLOGGED, false)
-      );
-      this.cullingShapeFunction = this.createShapeFunction(4.0F, 16.0F, 2.0F, 6.0F, 15.0F);
-   }
+	@Override
+	public MapCodec<FenceBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getCullingShape(BlockState state) {
-      return this.cullingShapeFunction.apply(state);
-   }
+	public FenceBlock(AbstractBlock.Settings settings) {
+		super(4.0F, 16.0F, 4.0F, 16.0F, 24.0F, settings);
+		this.setDefaultState(
+				this.stateManager
+						.getDefaultState()
+						.with(NORTH, false)
+						.with(EAST, false)
+						.with(SOUTH, false)
+						.with(WEST, false)
+						.with(WATERLOGGED, false)
+		);
+		this.cullingShapeFunction = this.createShapeFunction(4.0F, 16.0F, 2.0F, 6.0F, 15.0F);
+	}
 
-   @Override
-   protected VoxelShape getCameraCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return this.getOutlineShape(state, world, pos, context);
-   }
+	@Override
+	protected VoxelShape getCullingShape(BlockState state) {
+		return this.cullingShapeFunction.apply(state);
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected VoxelShape getCameraCollisionShape(
+			BlockState state,
+			BlockView world,
+			BlockPos pos,
+			ShapeContext context
+	) {
+		return this.getOutlineShape(state, world, pos, context);
+	}
 
-   public boolean canConnect(BlockState state, boolean neighborIsFullSquare, Direction dir) {
-      Block block = state.getBlock();
-      boolean bl = this.canConnectToFence(state);
-      boolean bl2 = block instanceof FenceGateBlock && FenceGateBlock.canWallConnect(state, dir);
-      return !cannotConnect(state) && neighborIsFullSquare || bl || bl2;
-   }
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 
-   private boolean canConnectToFence(BlockState state) {
-      return state.isIn(BlockTags.FENCES) && state.isIn(BlockTags.WOODEN_FENCES) == this.getDefaultState().isIn(BlockTags.WOODEN_FENCES);
-   }
+	public boolean canConnect(BlockState state, boolean neighborIsFullSquare, Direction dir) {
+		Block block = state.getBlock();
+		boolean bl = this.canConnectToFence(state);
+		boolean bl2 = block instanceof FenceGateBlock && FenceGateBlock.canWallConnect(state, dir);
+		return !cannotConnect(state) && neighborIsFullSquare || bl || bl2;
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      return (ActionResult)(!world.isClient() ? LeadItem.attachHeldMobsToBlock(player, world, pos) : ActionResult.PASS);
-   }
+	private boolean canConnectToFence(BlockState state) {
+		return state.isIn(BlockTags.FENCES) && state.isIn(BlockTags.WOODEN_FENCES) == this
+				.getDefaultState()
+				.isIn(BlockTags.WOODEN_FENCES);
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      BlockView blockView = ctx.getWorld();
-      BlockPos blockPos = ctx.getBlockPos();
-      FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-      BlockPos blockPos2 = blockPos.north();
-      BlockPos blockPos3 = blockPos.east();
-      BlockPos blockPos4 = blockPos.south();
-      BlockPos blockPos5 = blockPos.west();
-      BlockState blockState = blockView.getBlockState(blockPos2);
-      BlockState blockState2 = blockView.getBlockState(blockPos3);
-      BlockState blockState3 = blockView.getBlockState(blockPos4);
-      BlockState blockState4 = blockView.getBlockState(blockPos5);
-      return super.getPlacementState(ctx)
-         .with(NORTH, this.canConnect(blockState, blockState.isSideSolidFullSquare(blockView, blockPos2, Direction.SOUTH), Direction.SOUTH))
-         .with(EAST, this.canConnect(blockState2, blockState2.isSideSolidFullSquare(blockView, blockPos3, Direction.WEST), Direction.WEST))
-         .with(SOUTH, this.canConnect(blockState3, blockState3.isSideSolidFullSquare(blockView, blockPos4, Direction.NORTH), Direction.NORTH))
-         .with(WEST, this.canConnect(blockState4, blockState4.isSideSolidFullSquare(blockView, blockPos5, Direction.EAST), Direction.EAST))
-         .with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		return (ActionResult) (!world.isClient() ? LeadItem.attachHeldMobsToBlock(player, world, pos)
+		                                         : ActionResult.PASS
+		);
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (state.get(WATERLOGGED)) {
-         tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-      }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		BlockView blockView = ctx.getWorld();
+		BlockPos blockPos = ctx.getBlockPos();
+		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
+		BlockPos blockPos2 = blockPos.north();
+		BlockPos blockPos3 = blockPos.east();
+		BlockPos blockPos4 = blockPos.south();
+		BlockPos blockPos5 = blockPos.west();
+		BlockState blockState = blockView.getBlockState(blockPos2);
+		BlockState blockState2 = blockView.getBlockState(blockPos3);
+		BlockState blockState3 = blockView.getBlockState(blockPos4);
+		BlockState blockState4 = blockView.getBlockState(blockPos5);
+		return super.getPlacementState(ctx)
+		            .with(
+				            NORTH,
+				            this.canConnect(
+						            blockState,
+						            blockState.isSideSolidFullSquare(blockView, blockPos2, Direction.SOUTH),
+						            Direction.SOUTH
+				            )
+		            )
+		            .with(
+				            EAST,
+				            this.canConnect(
+						            blockState2,
+						            blockState2.isSideSolidFullSquare(blockView, blockPos3, Direction.WEST),
+						            Direction.WEST
+				            )
+		            )
+		            .with(
+				            SOUTH,
+				            this.canConnect(
+						            blockState3,
+						            blockState3.isSideSolidFullSquare(blockView, blockPos4, Direction.NORTH),
+						            Direction.NORTH
+				            )
+		            )
+		            .with(
+				            WEST,
+				            this.canConnect(
+						            blockState4,
+						            blockState4.isSideSolidFullSquare(blockView, blockPos5, Direction.EAST),
+						            Direction.EAST
+				            )
+		            )
+		            .with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
+	}
 
-      return direction.getAxis().isHorizontal()
-         ? state.with(
-            FACING_PROPERTIES.get(direction),
-            this.canConnect(neighborState, neighborState.isSideSolidFullSquare(world, neighborPos, direction.getOpposite()), direction.getOpposite())
-         )
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(NORTH, EAST, WEST, SOUTH, WATERLOGGED);
-   }
+		return direction.getAxis().isHorizontal()
+		       ? state.with(
+				FACING_PROPERTIES.get(direction),
+				this.canConnect(
+						neighborState,
+						neighborState.isSideSolidFullSquare(world, neighborPos, direction.getOpposite()),
+						direction.getOpposite()
+				)
+		)
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(NORTH, EAST, WEST, SOUTH, WATERLOGGED);
+	}
 }

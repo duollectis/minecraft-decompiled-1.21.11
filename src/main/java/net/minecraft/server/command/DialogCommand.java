@@ -2,7 +2,6 @@ package net.minecraft.server.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import java.util.Collection;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.command.argument.RegistryEntryArgumentType;
@@ -12,62 +11,107 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
+import java.util.Collection;
+
+/**
+ * {@code DialogCommand}.
+ */
 public class DialogCommand {
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("dialog")
-                  .requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK)))
-               .then(
-                  CommandManager.literal("show")
-                     .then(
-                        CommandManager.argument("targets", EntityArgumentType.players())
-                           .then(
-                              CommandManager.argument("dialog", RegistryEntryArgumentType.dialog(registryAccess))
-                                 .executes(
-                                    context -> executeShow(
-                                       (ServerCommandSource)context.getSource(),
-                                       EntityArgumentType.getPlayers(context, "targets"),
-                                       RegistryEntryArgumentType.getDialog(context, "dialog")
-                                    )
-                                 )
-                           )
-                     )
-               ))
-            .then(
-               CommandManager.literal("clear")
-                  .then(
-                     CommandManager.argument("targets", EntityArgumentType.players())
-                        .executes(context -> executeClear((ServerCommandSource)context.getSource(), EntityArgumentType.getPlayers(context, "targets")))
-                  )
-            )
-      );
-   }
 
-   private static int executeShow(ServerCommandSource source, Collection<ServerPlayerEntity> players, RegistryEntry<Dialog> dialog) {
-      for (ServerPlayerEntity serverPlayerEntity : players) {
-         serverPlayerEntity.openDialog(dialog);
-      }
+	public static void register(
+			CommandDispatcher<ServerCommandSource> dispatcher,
+			CommandRegistryAccess registryAccess
+	) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
+						.literal("dialog")
+						.requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK))
+				)
+						.then(
+								CommandManager.literal("show")
+								              .then(
+										              CommandManager.argument("targets", EntityArgumentType.players())
+										                            .then(
+												                            CommandManager
+														                            .argument(
+																                            "dialog",
+																                            RegistryEntryArgumentType.dialog(
+																		                            registryAccess)
+														                            )
+														                            .executes(
+																                            context -> executeShow(
+																		                            (ServerCommandSource) context.getSource(),
+																		                            EntityArgumentType.getPlayers(
+																				                            context,
+																				                            "targets"
+																		                            ),
+																		                            RegistryEntryArgumentType.getDialog(
+																				                            context,
+																				                            "dialog"
+																		                            )
+																                            )
+														                            )
+										                            )
+								              )
+						)
+				)
+						.then(
+								CommandManager.literal("clear")
+								              .then(
+										              CommandManager.argument("targets", EntityArgumentType.players())
+										                            .executes(context -> executeClear(
+												                            (ServerCommandSource) context.getSource(),
+												                            EntityArgumentType.getPlayers(
+														                            context,
+														                            "targets"
+												                            )
+										                            ))
+								              )
+						)
+		);
+	}
 
-      if (players.size() == 1) {
-         source.sendFeedback(() -> Text.translatable("commands.dialog.show.single", players.iterator().next().getDisplayName()), true);
-      } else {
-         source.sendFeedback(() -> Text.translatable("commands.dialog.show.multiple", players.size()), true);
-      }
+	private static int executeShow(
+			ServerCommandSource source,
+			Collection<ServerPlayerEntity> players,
+			RegistryEntry<Dialog> dialog
+	) {
+		for (ServerPlayerEntity serverPlayerEntity : players) {
+			serverPlayerEntity.openDialog(dialog);
+		}
 
-      return players.size();
-   }
+		if (players.size() == 1) {
+			source.sendFeedback(
+					() -> Text.translatable(
+							"commands.dialog.show.single",
+							players.iterator().next().getDisplayName()
+					), true
+			);
+		}
+		else {
+			source.sendFeedback(() -> Text.translatable("commands.dialog.show.multiple", players.size()), true);
+		}
 
-   private static int executeClear(ServerCommandSource source, Collection<ServerPlayerEntity> players) {
-      for (ServerPlayerEntity serverPlayerEntity : players) {
-         serverPlayerEntity.networkHandler.sendPacket(ClearDialogS2CPacket.INSTANCE);
-      }
+		return players.size();
+	}
 
-      if (players.size() == 1) {
-         source.sendFeedback(() -> Text.translatable("commands.dialog.clear.single", players.iterator().next().getDisplayName()), true);
-      } else {
-         source.sendFeedback(() -> Text.translatable("commands.dialog.clear.multiple", players.size()), true);
-      }
+	private static int executeClear(ServerCommandSource source, Collection<ServerPlayerEntity> players) {
+		for (ServerPlayerEntity serverPlayerEntity : players) {
+			serverPlayerEntity.networkHandler.sendPacket(ClearDialogS2CPacket.INSTANCE);
+		}
 
-      return players.size();
-   }
+		if (players.size() == 1) {
+			source.sendFeedback(
+					() -> Text.translatable(
+							"commands.dialog.clear.single",
+							players.iterator().next().getDisplayName()
+					), true
+			);
+		}
+		else {
+			source.sendFeedback(() -> Text.translatable("commands.dialog.clear.multiple", players.size()), true);
+		}
+
+		return players.size();
+	}
 }

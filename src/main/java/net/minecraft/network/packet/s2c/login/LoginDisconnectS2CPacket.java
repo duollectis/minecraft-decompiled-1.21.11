@@ -15,17 +15,20 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
 public record LoginDisconnectS2CPacket(Text reason) implements Packet<ClientLoginPacketListener> {
-   private static final RegistryOps<JsonElement> OPS = DynamicRegistryManager.EMPTY.getOps(JsonOps.INSTANCE);
-   public static final PacketCodec<ByteBuf, LoginDisconnectS2CPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.lenientJson(262144).collect(PacketCodecs.fromCodec(OPS, TextCodecs.CODEC)), LoginDisconnectS2CPacket::reason, LoginDisconnectS2CPacket::new
-   );
 
-   @Override
-   public PacketType<LoginDisconnectS2CPacket> getPacketType() {
-      return LoginPackets.LOGIN_DISCONNECT;
-   }
+	private static final RegistryOps<JsonElement> OPS = DynamicRegistryManager.EMPTY.getOps(JsonOps.INSTANCE);
+	public static final PacketCodec<ByteBuf, LoginDisconnectS2CPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.lenientJson(262144).collect(PacketCodecs.fromCodec(OPS, TextCodecs.CODEC)),
+			LoginDisconnectS2CPacket::reason,
+			LoginDisconnectS2CPacket::new
+	);
 
-   public void apply(ClientLoginPacketListener clientLoginPacketListener) {
-      clientLoginPacketListener.onDisconnect(this);
-   }
+	@Override
+	public PacketType<LoginDisconnectS2CPacket> getPacketType() {
+		return LoginPackets.LOGIN_DISCONNECT;
+	}
+
+	public void apply(ClientLoginPacketListener clientLoginPacketListener) {
+		clientLoginPacketListener.onDisconnect(this);
+	}
 }

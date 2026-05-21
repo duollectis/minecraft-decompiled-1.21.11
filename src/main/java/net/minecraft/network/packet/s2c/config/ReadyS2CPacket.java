@@ -8,23 +8,24 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public class ReadyS2CPacket implements Packet<ClientConfigurationPacketListener> {
-   public static final ReadyS2CPacket INSTANCE = new ReadyS2CPacket();
-   public static final PacketCodec<ByteBuf, ReadyS2CPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   private ReadyS2CPacket() {
-   }
+	public static final ReadyS2CPacket INSTANCE = new ReadyS2CPacket();
+	public static final PacketCodec<ByteBuf, ReadyS2CPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   @Override
-   public PacketType<ReadyS2CPacket> getPacketType() {
-      return ConfigPackets.FINISH_CONFIGURATION_S2C;
-   }
+	private ReadyS2CPacket() {
+	}
 
-   public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
-      clientConfigurationPacketListener.onReady(this);
-   }
+	@Override
+	public PacketType<ReadyS2CPacket> getPacketType() {
+		return ConfigPackets.FINISH_CONFIGURATION_S2C;
+	}
 
-   @Override
-   public boolean transitionsNetworkState() {
-      return true;
-   }
+	public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
+		clientConfigurationPacketListener.onReady(this);
+	}
+
+	@Override
+	public boolean transitionsNetworkState() {
+		return true;
+	}
 }

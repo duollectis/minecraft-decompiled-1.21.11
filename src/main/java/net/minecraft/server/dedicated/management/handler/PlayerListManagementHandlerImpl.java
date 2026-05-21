@@ -1,8 +1,5 @@
 package net.minecraft.server.dedicated.management.handler;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 import net.minecraft.server.PlayerConfigEntry;
 import net.minecraft.server.dedicated.MinecraftDedicatedServer;
 import net.minecraft.server.dedicated.management.ManagementLogger;
@@ -10,62 +7,74 @@ import net.minecraft.server.dedicated.management.network.ManagementConnectionId;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * {@code PlayerListManagementHandlerImpl}.
+ */
 public class PlayerListManagementHandlerImpl implements PlayerListManagementHandler {
-   private final ManagementLogger logger;
-   private final MinecraftDedicatedServer server;
 
-   public PlayerListManagementHandlerImpl(MinecraftDedicatedServer server, ManagementLogger logger) {
-      this.logger = logger;
-      this.server = server;
-   }
+	private final ManagementLogger logger;
+	private final MinecraftDedicatedServer server;
 
-   @Override
-   public List<ServerPlayerEntity> getPlayerList() {
-      return this.server.getPlayerManager().getPlayerList();
-   }
+	public PlayerListManagementHandlerImpl(MinecraftDedicatedServer server, ManagementLogger logger) {
+		this.logger = logger;
+		this.server = server;
+	}
 
-   @Override
-   public @Nullable ServerPlayerEntity getPlayer(UUID uuid) {
-      return this.server.getPlayerManager().getPlayer(uuid);
-   }
+	@Override
+	public List<ServerPlayerEntity> getPlayerList() {
+		return this.server.getPlayerManager().getPlayerList();
+	}
 
-   @Override
-   public Optional<PlayerConfigEntry> findByName(String name) {
-      return this.server.getApiServices().nameToIdCache().findByName(name);
-   }
+	@Override
+	public @Nullable ServerPlayerEntity getPlayer(UUID uuid) {
+		return this.server.getPlayerManager().getPlayer(uuid);
+	}
 
-   @Override
-   public Optional<PlayerConfigEntry> fetchPlayer(UUID uuid) {
-      return Optional.ofNullable(this.server.getApiServices().sessionService().fetchProfile(uuid, true)).map(result -> new PlayerConfigEntry(result.profile()));
-   }
+	@Override
+	public Optional<PlayerConfigEntry> findByName(String name) {
+		return this.server.getApiServices().nameToIdCache().findByName(name);
+	}
 
-   @Override
-   public Optional<PlayerConfigEntry> getByUuid(UUID uuid) {
-      return this.server.getApiServices().nameToIdCache().getByUuid(uuid);
-   }
+	@Override
+	public Optional<PlayerConfigEntry> fetchPlayer(UUID uuid) {
+		return Optional
+				.ofNullable(this.server.getApiServices().sessionService().fetchProfile(uuid, true))
+				.map(result -> new PlayerConfigEntry(result.profile()));
+	}
 
-   @Override
-   public Optional<ServerPlayerEntity> getPlayer(Optional<UUID> uuid, Optional<String> name) {
-      if (uuid.isPresent()) {
-         return Optional.ofNullable(this.server.getPlayerManager().getPlayer(uuid.get()));
-      } else {
-         return name.isPresent() ? Optional.ofNullable(this.server.getPlayerManager().getPlayer(name.get())) : Optional.empty();
-      }
-   }
+	@Override
+	public Optional<PlayerConfigEntry> getByUuid(UUID uuid) {
+		return this.server.getApiServices().nameToIdCache().getByUuid(uuid);
+	}
 
-   @Override
-   public List<ServerPlayerEntity> getPlayersByIpAddress(String ipAddress) {
-      return this.server.getPlayerManager().getPlayersByIp(ipAddress);
-   }
+	@Override
+	public Optional<ServerPlayerEntity> getPlayer(Optional<UUID> uuid, Optional<String> name) {
+		if (uuid.isPresent()) {
+			return Optional.ofNullable(this.server.getPlayerManager().getPlayer(uuid.get()));
+		}
+		else {
+			return name.isPresent() ? Optional.ofNullable(this.server.getPlayerManager().getPlayer(name.get()))
+			                        : Optional.empty();
+		}
+	}
 
-   @Override
-   public void removePlayer(ServerPlayerEntity player, ManagementConnectionId remote) {
-      this.server.getPlayerManager().remove(player);
-      this.logger.logAction(remote, "Remove player '{}'", player.getStringifiedName());
-   }
+	@Override
+	public List<ServerPlayerEntity> getPlayersByIpAddress(String ipAddress) {
+		return this.server.getPlayerManager().getPlayersByIp(ipAddress);
+	}
 
-   @Override
-   public @Nullable ServerPlayerEntity getPlayer(String name) {
-      return this.server.getPlayerManager().getPlayer(name);
-   }
+	@Override
+	public void removePlayer(ServerPlayerEntity player, ManagementConnectionId remote) {
+		this.server.getPlayerManager().remove(player);
+		this.logger.logAction(remote, "Remove player '{}'", player.getStringifiedName());
+	}
+
+	@Override
+	public @Nullable ServerPlayerEntity getPlayer(String name) {
+		return this.server.getPlayerManager().getPlayer(name);
+	}
 }

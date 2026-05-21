@@ -12,26 +12,34 @@ import net.minecraft.entity.passive.WanderingTraderEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WanderingTraderEntityRenderer}.
+ */
 public class WanderingTraderEntityRenderer extends MobEntityRenderer<WanderingTraderEntity, VillagerEntityRenderState, VillagerResemblingModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/wandering_trader.png");
 
-   public WanderingTraderEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new VillagerResemblingModel(context.getPart(EntityModelLayers.WANDERING_TRADER)), 0.5F);
-      this.addFeature(new HeadFeatureRenderer<>(this, context.getEntityModels(), context.getPlayerSkinCache()));
-      this.addFeature(new VillagerHeldItemFeatureRenderer<>(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/wandering_trader.png");
 
-   public Identifier getTexture(VillagerEntityRenderState villagerEntityRenderState) {
-      return TEXTURE;
-   }
+	public WanderingTraderEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new VillagerResemblingModel(context.getPart(EntityModelLayers.WANDERING_TRADER)), 0.5F);
+		this.addFeature(new HeadFeatureRenderer<>(this, context.getEntityModels(), context.getPlayerSkinCache()));
+		this.addFeature(new VillagerHeldItemFeatureRenderer<>(this));
+	}
 
-   public VillagerEntityRenderState createRenderState() {
-      return new VillagerEntityRenderState();
-   }
+	public Identifier getTexture(VillagerEntityRenderState villagerEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(WanderingTraderEntity wanderingTraderEntity, VillagerEntityRenderState villagerEntityRenderState, float f) {
-      super.updateRenderState(wanderingTraderEntity, villagerEntityRenderState, f);
-      ItemHolderEntityRenderState.update(wanderingTraderEntity, villagerEntityRenderState, this.itemModelResolver);
-      villagerEntityRenderState.headRolling = wanderingTraderEntity.getHeadRollingTimeLeft() > 0;
-   }
+	public VillagerEntityRenderState createRenderState() {
+		return new VillagerEntityRenderState();
+	}
+
+	public void updateRenderState(
+			WanderingTraderEntity wanderingTraderEntity,
+			VillagerEntityRenderState villagerEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(wanderingTraderEntity, villagerEntityRenderState, f);
+		ItemHolderEntityRenderState.update(wanderingTraderEntity, villagerEntityRenderState, this.itemModelResolver);
+		villagerEntityRenderState.headRolling = wanderingTraderEntity.getHeadRollingTimeLeft() > 0;
+	}
 }

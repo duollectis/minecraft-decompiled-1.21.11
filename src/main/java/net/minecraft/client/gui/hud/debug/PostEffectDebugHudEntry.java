@@ -9,13 +9,22 @@ import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PostEffectDebugHudEntry}.
+ */
 public class PostEffectDebugHudEntry implements DebugHudEntry {
-   @Override
-   public void render(DebugHudLines lines, @Nullable World world, @Nullable WorldChunk clientChunk, @Nullable WorldChunk chunk) {
-      MinecraftClient minecraftClient = MinecraftClient.getInstance();
-      Identifier identifier = minecraftClient.gameRenderer.getPostProcessorId();
-      if (identifier != null) {
-         lines.addLine("Post: " + identifier);
-      }
-   }
+
+	@Override
+	public void render(
+			DebugHudLines lines,
+			@Nullable World world,
+			@Nullable WorldChunk clientChunk,
+			@Nullable WorldChunk chunk
+	) {
+		MinecraftClient minecraftClient = MinecraftClient.getInstance();
+		Identifier identifier = minecraftClient.gameRenderer.getPostProcessorId();
+		if (identifier != null) {
+			lines.addLine("Post: " + identifier);
+		}
+	}
 }

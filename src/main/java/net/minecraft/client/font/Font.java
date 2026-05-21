@@ -6,24 +6,32 @@ import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Font}.
+ */
 public interface Font extends AutoCloseable {
-   float DEFAULT_ASCENT = 7.0F;
 
-   @Override
-   default void close() {
-   }
+	float DEFAULT_ASCENT = 7.0F;
 
-   default @Nullable Glyph getGlyph(int codePoint) {
-      return null;
-   }
+	@Override
+	default void close() {
+	}
 
-   IntSet getProvidedGlyphs();
+	default @Nullable Glyph getGlyph(int codePoint) {
+		return null;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public record FontFilterPair(Font provider, FontFilterType.FilterMap filter) implements AutoCloseable {
-      @Override
-      public void close() {
-         this.provider.close();
-      }
-   }
+	IntSet getProvidedGlyphs();
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code FontFilterPair}.
+	 */
+	public record FontFilterPair(Font provider, FontFilterType.FilterMap filter) implements AutoCloseable {
+
+		@Override
+		public void close() {
+			this.provider.close();
+		}
+	}
 }

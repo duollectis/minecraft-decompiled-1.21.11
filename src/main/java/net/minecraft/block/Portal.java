@@ -6,19 +6,26 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.TeleportTarget;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code Portal}.
+ */
 public interface Portal {
-   default int getPortalDelay(ServerWorld world, Entity entity) {
-      return 0;
-   }
 
-   @Nullable TeleportTarget createTeleportTarget(ServerWorld world, Entity entity, BlockPos pos);
+	default int getPortalDelay(ServerWorld world, Entity entity) {
+		return 0;
+	}
 
-   default Portal.Effect getPortalEffect() {
-      return Portal.Effect.NONE;
-   }
+	@Nullable TeleportTarget createTeleportTarget(ServerWorld world, Entity entity, BlockPos pos);
 
-   public static enum Effect {
-      CONFUSION,
-      NONE;
-   }
+	default Portal.Effect getPortalEffect() {
+		return Portal.Effect.NONE;
+	}
+
+	/**
+	 * {@code Effect}.
+	 */
+	public static enum Effect {
+		CONFUSION,
+		NONE;
+	}
 }

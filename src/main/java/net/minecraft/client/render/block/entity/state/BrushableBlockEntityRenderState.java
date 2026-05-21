@@ -7,8 +7,12 @@ import net.minecraft.util.math.Direction;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BrushableBlockEntityRenderState}.
+ */
 public class BrushableBlockEntityRenderState extends BlockEntityRenderState {
-   public ItemRenderState itemRenderState = new ItemRenderState();
-   public int dusted;
-   public @Nullable Direction face;
+
+	public ItemRenderState itemRenderState = new ItemRenderState();
+	public int dusted;
+	public @Nullable Direction face;
 }

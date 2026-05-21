@@ -7,18 +7,24 @@ import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.world.World;
 
+/**
+ * {@code ClearAllEffectsConsumeEffect}.
+ */
 public record ClearAllEffectsConsumeEffect() implements ConsumeEffect {
-   public static final ClearAllEffectsConsumeEffect INSTANCE = new ClearAllEffectsConsumeEffect();
-   public static final MapCodec<ClearAllEffectsConsumeEffect> CODEC = MapCodec.unit(INSTANCE);
-   public static final PacketCodec<RegistryByteBuf, ClearAllEffectsConsumeEffect> PACKET_CODEC = PacketCodec.unit(INSTANCE);
 
-   @Override
-   public ConsumeEffect.Type<ClearAllEffectsConsumeEffect> getType() {
-      return ConsumeEffect.Type.CLEAR_ALL_EFFECTS;
-   }
+	public static final ClearAllEffectsConsumeEffect INSTANCE = new ClearAllEffectsConsumeEffect();
+	public static final MapCodec<ClearAllEffectsConsumeEffect> CODEC = MapCodec.unit(INSTANCE);
+	public static final PacketCodec<RegistryByteBuf, ClearAllEffectsConsumeEffect>
+			PACKET_CODEC =
+			PacketCodec.unit(INSTANCE);
 
-   @Override
-   public boolean onConsume(World world, ItemStack stack, LivingEntity user) {
-      return user.clearStatusEffects();
-   }
+	@Override
+	public ConsumeEffect.Type<ClearAllEffectsConsumeEffect> getType() {
+		return ConsumeEffect.Type.CLEAR_ALL_EFFECTS;
+	}
+
+	@Override
+	public boolean onConsume(World world, ItemStack stack, LivingEntity user) {
+		return user.clearStatusEffects();
+	}
 }

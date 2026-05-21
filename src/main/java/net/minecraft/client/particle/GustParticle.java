@@ -7,66 +7,95 @@ import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GustParticle}.
+ */
 public class GustParticle extends BillboardParticle {
-   private final SpriteProvider spriteProvider;
 
-   protected GustParticle(ClientWorld world, double x, double y, double z, SpriteProvider spriteProvider) {
-      super(world, x, y, z, spriteProvider.getFirst());
-      this.spriteProvider = spriteProvider;
-      this.updateSprite(spriteProvider);
-      this.maxAge = 12 + this.random.nextInt(4);
-      this.scale = 1.0F;
-      this.setBoundingBoxSpacing(1.0F, 1.0F);
-   }
+	private final SpriteProvider spriteProvider;
 
-   @Override
-   public BillboardParticle.RenderType getRenderType() {
-      return BillboardParticle.RenderType.PARTICLE_ATLAS_OPAQUE;
-   }
+	protected GustParticle(ClientWorld world, double x, double y, double z, SpriteProvider spriteProvider) {
+		super(world, x, y, z, spriteProvider.getFirst());
+		this.spriteProvider = spriteProvider;
+		this.updateSprite(spriteProvider);
+		this.maxAge = 12 + this.random.nextInt(4);
+		this.scale = 1.0F;
+		this.setBoundingBoxSpacing(1.0F, 1.0F);
+	}
 
-   @Override
-   public int getBrightness(float tint) {
-      return 15728880;
-   }
+	@Override
+	public BillboardParticle.RenderType getRenderType() {
+		return BillboardParticle.RenderType.PARTICLE_ATLAS_OPAQUE;
+	}
 
-   @Override
-   public void tick() {
-      if (this.age++ >= this.maxAge) {
-         this.markDead();
-      } else {
-         this.updateSprite(this.spriteProvider);
-      }
-   }
+	@Override
+	public int getBrightness(float tint) {
+		return 15728880;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static class Factory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+	@Override
+	public void tick() {
+		if (this.age++ >= this.maxAge) {
+			this.markDead();
+		}
+		else {
+			this.updateSprite(this.spriteProvider);
+		}
+	}
 
-      public Factory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Factory}.
+	 */
+	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new GustParticle(clientWorld, d, e, f, this.spriteProvider);
-      }
-   }
+		private final SpriteProvider spriteProvider;
 
-   @Environment(EnvType.CLIENT)
-   public static class SmallGustFactory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider field_50230;
+		public Factory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
 
-      public SmallGustFactory(SpriteProvider spriteProvider) {
-         this.field_50230 = spriteProvider;
-      }
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new GustParticle(clientWorld, d, e, f, this.spriteProvider);
+		}
+	}
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         Particle particle = new GustParticle(clientWorld, d, e, f, this.field_50230);
-         particle.scale(0.15F);
-         return particle;
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code SmallGustFactory}.
+	 */
+	public static class SmallGustFactory implements ParticleFactory<SimpleParticleType> {
+
+		private final SpriteProvider spriteProvider;
+
+		public SmallGustFactory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
+
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			Particle particle = new GustParticle(clientWorld, d, e, f, this.spriteProvider);
+			particle.scale(0.15F);
+			return particle;
+		}
+	}
 }

@@ -7,9 +7,13 @@ import net.minecraft.dialog.body.PlainMessageDialogBody;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
+/**
+ * {@code DialogBodyTypes}.
+ */
 public class DialogBodyTypes {
-   public static MapCodec<? extends DialogBody> registerAndGetDefault(Registry<MapCodec<? extends DialogBody>> registry) {
-      Registry.register(registry, Identifier.ofVanilla("item"), ItemDialogBody.CODEC);
-      return Registry.register(registry, Identifier.ofVanilla("plain_message"), PlainMessageDialogBody.CODEC);
-   }
+
+	public static MapCodec<? extends DialogBody> registerAndGetDefault(Registry<MapCodec<? extends DialogBody>> registry) {
+		Registry.register(registry, Identifier.ofVanilla("item"), ItemDialogBody.CODEC);
+		return Registry.register(registry, Identifier.ofVanilla("plain_message"), PlainMessageDialogBody.CODEC);
+	}
 }

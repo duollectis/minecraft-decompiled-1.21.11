@@ -1,6 +1,5 @@
 package net.minecraft.world.gen.feature;
 
-import java.util.Optional;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
@@ -11,43 +10,53 @@ import net.minecraft.world.gen.HeightContext;
 import net.minecraft.world.gen.carver.CarvingMask;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 
+import java.util.Optional;
+
+/**
+ * {@code FeaturePlacementContext}.
+ */
 public class FeaturePlacementContext extends HeightContext {
-   private final StructureWorldAccess world;
-   private final ChunkGenerator generator;
-   private final Optional<PlacedFeature> placedFeature;
 
-   public FeaturePlacementContext(StructureWorldAccess world, ChunkGenerator generator, Optional<PlacedFeature> placedFeature) {
-      super(generator, world);
-      this.world = world;
-      this.generator = generator;
-      this.placedFeature = placedFeature;
-   }
+	private final StructureWorldAccess world;
+	private final ChunkGenerator generator;
+	private final Optional<PlacedFeature> placedFeature;
 
-   public int getTopY(Heightmap.Type heightmap, int x, int z) {
-      return this.world.getTopY(heightmap, x, z);
-   }
+	public FeaturePlacementContext(
+			StructureWorldAccess world,
+			ChunkGenerator generator,
+			Optional<PlacedFeature> placedFeature
+	) {
+		super(generator, world);
+		this.world = world;
+		this.generator = generator;
+		this.placedFeature = placedFeature;
+	}
 
-   public CarvingMask getOrCreateCarvingMask(ChunkPos chunkPos) {
-      return ((ProtoChunk)this.world.getChunk(chunkPos.x, chunkPos.z)).getOrCreateCarvingMask();
-   }
+	public int getTopY(Heightmap.Type heightmap, int x, int z) {
+		return this.world.getTopY(heightmap, x, z);
+	}
 
-   public BlockState getBlockState(BlockPos pos) {
-      return this.world.getBlockState(pos);
-   }
+	public CarvingMask getOrCreateCarvingMask(ChunkPos chunkPos) {
+		return ((ProtoChunk) this.world.getChunk(chunkPos.x, chunkPos.z)).getOrCreateCarvingMask();
+	}
 
-   public int getBottomY() {
-      return this.world.getBottomY();
-   }
+	public BlockState getBlockState(BlockPos pos) {
+		return this.world.getBlockState(pos);
+	}
 
-   public StructureWorldAccess getWorld() {
-      return this.world;
-   }
+	public int getBottomY() {
+		return this.world.getBottomY();
+	}
 
-   public Optional<PlacedFeature> getPlacedFeature() {
-      return this.placedFeature;
-   }
+	public StructureWorldAccess getWorld() {
+		return this.world;
+	}
 
-   public ChunkGenerator getChunkGenerator() {
-      return this.generator;
-   }
+	public Optional<PlacedFeature> getPlacedFeature() {
+		return this.placedFeature;
+	}
+
+	public ChunkGenerator getChunkGenerator() {
+		return this.generator;
+	}
 }

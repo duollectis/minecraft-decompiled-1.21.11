@@ -1,7 +1,5 @@
 package net.minecraft.client.toast;
 
-import java.util.ArrayList;
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.font.TextRenderer;
@@ -14,76 +12,90 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.context.ContextParameterMap;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RecipeToast}.
+ */
 public class RecipeToast implements Toast {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("toast/recipe");
-   private static final long DEFAULT_DURATION_MS = 5000L;
-   private static final Text TITLE = Text.translatable("recipe.toast.title");
-   private static final Text DESCRIPTION = Text.translatable("recipe.toast.description");
-   private final List<RecipeToast.DisplayItems> displayItems = new ArrayList<>();
-   private long startTime;
-   private boolean justUpdated;
-   private Toast.Visibility visibility = Toast.Visibility.HIDE;
-   private int currentItemsDisplayed;
 
-   private RecipeToast() {
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("toast/recipe");
+	private static final long DEFAULT_DURATION_MS = 5000L;
+	private static final Text TITLE = Text.translatable("recipe.toast.title");
+	private static final Text DESCRIPTION = Text.translatable("recipe.toast.description");
+	private final List<RecipeToast.DisplayItems> displayItems = new ArrayList<>();
+	private long startTime;
+	private boolean justUpdated;
+	private Toast.Visibility visibility = Toast.Visibility.HIDE;
+	private int currentItemsDisplayed;
 
-   @Override
-   public Toast.Visibility getVisibility() {
-      return this.visibility;
-   }
+	private RecipeToast() {
+	}
 
-   @Override
-   public void update(ToastManager manager, long time) {
-      if (this.justUpdated) {
-         this.startTime = time;
-         this.justUpdated = false;
-      }
+	@Override
+	public Toast.Visibility getVisibility() {
+		return this.visibility;
+	}
 
-      if (this.displayItems.isEmpty()) {
-         this.visibility = Toast.Visibility.HIDE;
-      } else {
-         this.visibility = time - this.startTime >= 5000.0 * manager.getNotificationDisplayTimeMultiplier() ? Toast.Visibility.HIDE : Toast.Visibility.SHOW;
-      }
+	@Override
+	public void update(ToastManager manager, long time) {
+		if (this.justUpdated) {
+			this.startTime = time;
+			this.justUpdated = false;
+		}
 
-      this.currentItemsDisplayed = (int)(
-         time / Math.max(1.0, 5000.0 * manager.getNotificationDisplayTimeMultiplier() / this.displayItems.size()) % this.displayItems.size()
-      );
-   }
+		if (this.displayItems.isEmpty()) {
+			this.visibility = Toast.Visibility.HIDE;
+		}
+		else {
+			this.visibility =
+					time - this.startTime >= 5000.0 * manager.getNotificationDisplayTimeMultiplier()
+					? Toast.Visibility.HIDE : Toast.Visibility.SHOW;
+		}
 
-   @Override
-   public void draw(DrawContext context, TextRenderer textRenderer, long startTime) {
-      context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, this.getWidth(), this.getHeight());
-      context.drawText(textRenderer, TITLE, 30, 7, -11534256, false);
-      context.drawText(textRenderer, DESCRIPTION, 30, 18, -16777216, false);
-      RecipeToast.DisplayItems displayItems = this.displayItems.get(this.currentItemsDisplayed);
-      context.getMatrices().pushMatrix();
-      context.getMatrices().scale(0.6F, 0.6F);
-      context.drawItemWithoutEntity(displayItems.categoryItem(), 3, 3);
-      context.getMatrices().popMatrix();
-      context.drawItemWithoutEntity(displayItems.unlockedItem(), 8, 8);
-   }
+		this.currentItemsDisplayed = (int) (
+				time / Math.max(1.0, 5000.0 * manager.getNotificationDisplayTimeMultiplier() / this.displayItems.size())
+						% this.displayItems.size()
+		);
+	}
 
-   private void addRecipes(ItemStack categoryItem, ItemStack unlockedItem) {
-      this.displayItems.add(new RecipeToast.DisplayItems(categoryItem, unlockedItem));
-      this.justUpdated = true;
-   }
+	@Override
+	public void draw(DrawContext context, TextRenderer textRenderer, long startTime) {
+		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, 0, 0, this.getWidth(), this.getHeight());
+		context.drawText(textRenderer, TITLE, 30, 7, -11534256, false);
+		context.drawText(textRenderer, DESCRIPTION, 30, 18, -16777216, false);
+		RecipeToast.DisplayItems displayItems = this.displayItems.get(this.currentItemsDisplayed);
+		context.getMatrices().pushMatrix();
+		context.getMatrices().scale(0.6F, 0.6F);
+		context.drawItemWithoutEntity(displayItems.categoryItem(), 3, 3);
+		context.getMatrices().popMatrix();
+		context.drawItemWithoutEntity(displayItems.unlockedItem(), 8, 8);
+	}
 
-   public static void show(ToastManager toastManager, RecipeDisplay display) {
-      RecipeToast recipeToast = toastManager.getToast(RecipeToast.class, TYPE);
-      if (recipeToast == null) {
-         recipeToast = new RecipeToast();
-         toastManager.add(recipeToast);
-      }
+	private void addRecipes(ItemStack categoryItem, ItemStack unlockedItem) {
+		this.displayItems.add(new RecipeToast.DisplayItems(categoryItem, unlockedItem));
+		this.justUpdated = true;
+	}
 
-      ContextParameterMap contextParameterMap = SlotDisplayContexts.createParameters(toastManager.getClient().world);
-      ItemStack itemStack = display.craftingStation().getFirst(contextParameterMap);
-      ItemStack itemStack2 = display.result().getFirst(contextParameterMap);
-      recipeToast.addRecipes(itemStack, itemStack2);
-   }
+	public static void show(ToastManager toastManager, RecipeDisplay display) {
+		RecipeToast recipeToast = toastManager.getToast(RecipeToast.class, TYPE);
+		if (recipeToast == null) {
+			recipeToast = new RecipeToast();
+			toastManager.add(recipeToast);
+		}
 
-   @Environment(EnvType.CLIENT)
-   record DisplayItems(ItemStack categoryItem, ItemStack unlockedItem) {
-   }
+		ContextParameterMap contextParameterMap = SlotDisplayContexts.createParameters(toastManager.getClient().world);
+		ItemStack itemStack = display.craftingStation().getFirst(contextParameterMap);
+		ItemStack itemStack2 = display.result().getFirst(contextParameterMap);
+		recipeToast.addRecipes(itemStack, itemStack2);
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code DisplayItems}.
+	 */
+	record DisplayItems(ItemStack categoryItem, ItemStack unlockedItem) {
+	}
 }

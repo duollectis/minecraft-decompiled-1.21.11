@@ -14,121 +14,189 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * {@code VaultState}.
+ */
 public enum VaultState implements StringIdentifiable {
-   INACTIVE("inactive", VaultState.Light.HALF_LIT) {
-      @Override
-      protected void onChangedTo(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData, boolean ominous) {
-         sharedData.setDisplayItem(ItemStack.EMPTY);
-         world.syncWorldEvent(3016, pos, ominous ? 1 : 0);
-      }
-   },
-   ACTIVE("active", VaultState.Light.LIT) {
-      @Override
-      protected void onChangedTo(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData, boolean ominous) {
-         if (!sharedData.hasDisplayItem()) {
-            VaultBlockEntity.Server.updateDisplayItem(world, this, config, sharedData, pos);
-         }
+	INACTIVE("inactive", VaultState.Light.HALF_LIT) {
+		@Override
+		protected void onChangedTo(
+				ServerWorld world,
+				BlockPos pos,
+				VaultConfig config,
+				VaultSharedData sharedData,
+				boolean ominous
+		) {
+			sharedData.setDisplayItem(ItemStack.EMPTY);
+			world.syncWorldEvent(3016, pos, ominous ? 1 : 0);
+		}
+	},
+	ACTIVE("active", VaultState.Light.LIT) {
+		@Override
+		protected void onChangedTo(
+				ServerWorld world,
+				BlockPos pos,
+				VaultConfig config,
+				VaultSharedData sharedData,
+				boolean ominous
+		) {
+			if (!sharedData.hasDisplayItem()) {
+				VaultBlockEntity.Server.updateDisplayItem(world, this, config, sharedData, pos);
+			}
 
-         world.syncWorldEvent(3015, pos, ominous ? 1 : 0);
-      }
-   },
-   UNLOCKING("unlocking", VaultState.Light.LIT) {
-      @Override
-      protected void onChangedTo(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData, boolean ominous) {
-         world.playSound(null, pos, SoundEvents.BLOCK_VAULT_INSERT_ITEM, SoundCategory.BLOCKS);
-      }
-   },
-   EJECTING("ejecting", VaultState.Light.LIT) {
-      @Override
-      protected void onChangedTo(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData, boolean ominous) {
-         world.playSound(null, pos, SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.BLOCKS);
-      }
+			world.syncWorldEvent(3015, pos, ominous ? 1 : 0);
+		}
+	},
+	UNLOCKING("unlocking", VaultState.Light.LIT) {
+		@Override
+		protected void onChangedTo(
+				ServerWorld world,
+				BlockPos pos,
+				VaultConfig config,
+				VaultSharedData sharedData,
+				boolean ominous
+		) {
+			world.playSound(null, pos, SoundEvents.BLOCK_VAULT_INSERT_ITEM, SoundCategory.BLOCKS);
+		}
+	},
+	EJECTING("ejecting", VaultState.Light.LIT) {
+		@Override
+		protected void onChangedTo(
+				ServerWorld world,
+				BlockPos pos,
+				VaultConfig config,
+				VaultSharedData sharedData,
+				boolean ominous
+		) {
+			world.playSound(null, pos, SoundEvents.BLOCK_VAULT_OPEN_SHUTTER, SoundCategory.BLOCKS);
+		}
 
-      @Override
-      protected void onChangedFrom(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData) {
-         world.playSound(null, pos, SoundEvents.BLOCK_VAULT_CLOSE_SHUTTER, SoundCategory.BLOCKS);
-      }
-   };
+		@Override
+		protected void onChangedFrom(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData) {
+			world.playSound(null, pos, SoundEvents.BLOCK_VAULT_CLOSE_SHUTTER, SoundCategory.BLOCKS);
+		}
+	};
 
-   private static final int field_48903 = 20;
-   private static final int field_48904 = 20;
-   private static final int field_48905 = 20;
-   private static final int field_48906 = 20;
-   private final String id;
-   private final VaultState.Light light;
+	private static final int UNLOCKING_TO_EJECTING_DELAY = 20;
+	private static final int EJECTING_ITEM_DELAY = 20;
+	private static final int ACTIVE_STATE_UPDATE_DELAY = 20;
+	private static final int INACTIVE_STATE_UPDATE_DELAY = 20;
+	private final String id;
+	private final VaultState.Light light;
 
-   VaultState(final String id, final VaultState.Light light) {
-      this.id = id;
-      this.light = light;
-   }
+	VaultState(final String id, final VaultState.Light light) {
+		this.id = id;
+		this.light = light;
+	}
 
-   @Override
-   public String asString() {
-      return this.id;
-   }
+	@Override
+	public String asString() {
+		return this.id;
+	}
 
-   public int getLuminance() {
-      return this.light.luminance;
-   }
+	public int getLuminance() {
+		return this.light.luminance;
+	}
 
-   public VaultState update(ServerWorld world, BlockPos pos, VaultConfig config, VaultServerData serverData, VaultSharedData sharedData) {
-      return switch (this) {
-         case INACTIVE -> updateActiveState(world, pos, config, serverData, sharedData, config.activationRange());
-         case ACTIVE -> updateActiveState(world, pos, config, serverData, sharedData, config.deactivationRange());
-         case UNLOCKING -> {
-            serverData.setStateUpdatingResumeTime(world.getTime() + 20L);
-            yield EJECTING;
-         }
-         case EJECTING -> {
-            if (serverData.getItemsToEject().isEmpty()) {
-               serverData.finishEjecting();
-               yield updateActiveState(world, pos, config, serverData, sharedData, config.deactivationRange());
-            } else {
-               float f = serverData.getEjectSoundPitchModifier();
-               this.ejectItem(world, pos, serverData.getItemToEject(), f);
-               sharedData.setDisplayItem(serverData.getItemToDisplay());
-               boolean bl = serverData.getItemsToEject().isEmpty();
-               int i = bl ? 20 : 20;
-               serverData.setStateUpdatingResumeTime(world.getTime() + i);
-               yield EJECTING;
-            }
-         }
-      };
-   }
+	public VaultState update(
+			ServerWorld world,
+			BlockPos pos,
+			VaultConfig config,
+			VaultServerData serverData,
+			VaultSharedData sharedData
+	) {
+		return switch (this) {
+			case INACTIVE -> updateActiveState(world, pos, config, serverData, sharedData, config.activationRange());
+			case ACTIVE -> updateActiveState(world, pos, config, serverData, sharedData, config.deactivationRange());
+			case UNLOCKING -> {
+				serverData.setStateUpdatingResumeTime(world.getTime() + 20L);
+				yield EJECTING;
+			}
+			case EJECTING -> {
+				if (serverData.getItemsToEject().isEmpty()) {
+					serverData.finishEjecting();
+					yield updateActiveState(world, pos, config, serverData, sharedData, config.deactivationRange());
+				}
+				else {
+					float f = serverData.getEjectSoundPitchModifier();
+					this.ejectItem(world, pos, serverData.getItemToEject(), f);
+					sharedData.setDisplayItem(serverData.getItemToDisplay());
+					boolean bl = serverData.getItemsToEject().isEmpty();
+					int i = bl ? 20 : 20;
+					serverData.setStateUpdatingResumeTime(world.getTime() + i);
+					yield EJECTING;
+				}
+			}
+		};
+	}
 
-   private static VaultState updateActiveState(
-      ServerWorld world, BlockPos pos, VaultConfig config, VaultServerData serverData, VaultSharedData sharedData, double radius
-   ) {
-      sharedData.updateConnectedPlayers(world, pos, serverData, config, radius);
-      serverData.setStateUpdatingResumeTime(world.getTime() + 20L);
-      return sharedData.hasConnectedPlayers() ? ACTIVE : INACTIVE;
-   }
+	private static VaultState updateActiveState(
+			ServerWorld world,
+			BlockPos pos,
+			VaultConfig config,
+			VaultServerData serverData,
+			VaultSharedData sharedData,
+			double radius
+	) {
+		sharedData.updateConnectedPlayers(world, pos, serverData, config, radius);
+		serverData.setStateUpdatingResumeTime(world.getTime() + 20L);
+		return sharedData.hasConnectedPlayers() ? ACTIVE : INACTIVE;
+	}
 
-   public void onStateChange(ServerWorld world, BlockPos pos, VaultState newState, VaultConfig config, VaultSharedData sharedData, boolean ominous) {
-      this.onChangedFrom(world, pos, config, sharedData);
-      newState.onChangedTo(world, pos, config, sharedData, ominous);
-   }
+	public void onStateChange(
+			ServerWorld world,
+			BlockPos pos,
+			VaultState newState,
+			VaultConfig config,
+			VaultSharedData sharedData,
+			boolean ominous
+	) {
+		this.onChangedFrom(world, pos, config, sharedData);
+		newState.onChangedTo(world, pos, config, sharedData, ominous);
+	}
 
-   protected void onChangedTo(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData, boolean ominous) {
-   }
+	protected void onChangedTo(
+			ServerWorld world,
+			BlockPos pos,
+			VaultConfig config,
+			VaultSharedData sharedData,
+			boolean ominous
+	) {
+	}
 
-   protected void onChangedFrom(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData) {
-   }
+	protected void onChangedFrom(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData) {
+	}
 
-   private void ejectItem(ServerWorld world, BlockPos pos, ItemStack stack, float pitchModifier) {
-      ItemDispenserBehavior.spawnItem(world, stack, 2, Direction.UP, Vec3d.ofBottomCenter(pos).offset(Direction.UP, 1.2));
-      world.syncWorldEvent(3017, pos, 0);
-      world.playSound(null, pos, SoundEvents.BLOCK_VAULT_EJECT_ITEM, SoundCategory.BLOCKS, 1.0F, 0.8F + 0.4F * pitchModifier);
-   }
+	private void ejectItem(ServerWorld world, BlockPos pos, ItemStack stack, float pitchModifier) {
+		ItemDispenserBehavior.spawnItem(
+				world,
+				stack,
+				2,
+				Direction.UP,
+				Vec3d.ofBottomCenter(pos).offset(Direction.UP, 1.2)
+		);
+		world.syncWorldEvent(3017, pos, 0);
+		world.playSound(
+				null,
+				pos,
+				SoundEvents.BLOCK_VAULT_EJECT_ITEM,
+				SoundCategory.BLOCKS,
+				1.0F,
+				0.8F + 0.4F * pitchModifier
+		);
+	}
 
-   static enum Light {
-      HALF_LIT(6),
-      LIT(12);
+	/**
+	 * {@code Light}.
+	 */
+	static enum Light {
+		HALF_LIT(6),
+		LIT(12);
 
-      final int luminance;
+		final int luminance;
 
-      private Light(final int luminance) {
-         this.luminance = luminance;
-      }
-   }
+		private Light(final int luminance) {
+			this.luminance = luminance;
+		}
+	}
 }

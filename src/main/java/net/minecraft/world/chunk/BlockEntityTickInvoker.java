@@ -2,12 +2,16 @@ package net.minecraft.world.chunk;
 
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code BlockEntityTickInvoker}.
+ */
 public interface BlockEntityTickInvoker {
-   void tick();
 
-   boolean isRemoved();
+	void tick();
 
-   BlockPos getPos();
+	boolean isRemoved();
 
-   String getName();
+	BlockPos getPos();
+
+	String getName();
 }

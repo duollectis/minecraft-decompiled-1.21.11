@@ -1,7 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.function.ToIntFunction;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.BlockStateComponent;
 import net.minecraft.entity.player.PlayerEntity;
@@ -25,88 +24,104 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+import java.util.function.ToIntFunction;
+
+/**
+ * {@code LightBlock}.
+ */
 public class LightBlock extends Block implements Waterloggable {
-   public static final MapCodec<LightBlock> CODEC = createCodec(LightBlock::new);
-   public static final int field_33722 = 15;
-   public static final IntProperty LEVEL_15 = Properties.LEVEL_15;
-   public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
-   public static final ToIntFunction<BlockState> STATE_TO_LUMINANCE = state -> state.get(LEVEL_15);
 
-   @Override
-   public MapCodec<LightBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<LightBlock> CODEC = createCodec(LightBlock::new);
+	public static final int MAX_LEVEL = 15;
+	public static final IntProperty LEVEL_15 = Properties.LEVEL_15;
+	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
+	public static final ToIntFunction<BlockState> STATE_TO_LUMINANCE = state -> state.get(LEVEL_15);
 
-   public LightBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(LEVEL_15, 15).with(WATERLOGGED, false));
-   }
+	@Override
+	public MapCodec<LightBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(LEVEL_15, WATERLOGGED);
-   }
+	public LightBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(LEVEL_15, 15).with(WATERLOGGED, false));
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient() && player.isCreativeLevelTwoOp()) {
-         world.setBlockState(pos, state.cycle(LEVEL_15), 2);
-         return ActionResult.SUCCESS_SERVER;
-      } else {
-         return ActionResult.CONSUME;
-      }
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(LEVEL_15, WATERLOGGED);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return context.isHolding(Items.LIGHT) ? VoxelShapes.fullCube() : VoxelShapes.empty();
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient() && player.isCreativeLevelTwoOp()) {
+			world.setBlockState(pos, state.cycle(LEVEL_15), 2);
+			return ActionResult.SUCCESS_SERVER;
+		}
+		else {
+			return ActionResult.CONSUME;
+		}
+	}
 
-   @Override
-   protected boolean isTransparent(BlockState state) {
-      return state.getFluidState().isEmpty();
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return context.isHolding(Items.LIGHT) ? VoxelShapes.fullCube() : VoxelShapes.empty();
+	}
 
-   @Override
-   protected BlockRenderType getRenderType(BlockState state) {
-      return BlockRenderType.INVISIBLE;
-   }
+	@Override
+	protected boolean isTransparent(BlockState state) {
+		return state.getFluidState().isEmpty();
+	}
 
-   @Override
-   protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
-      return 1.0F;
-   }
+	@Override
+	protected BlockRenderType getRenderType(BlockState state) {
+		return BlockRenderType.INVISIBLE;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (state.get(WATERLOGGED)) {
-         tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-      }
+	@Override
+	protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
+		return 1.0F;
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return addNbtForLevel(super.getPickStack(world, pos, state, includeData), state.get(LEVEL_15));
-   }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
+	}
 
-   public static ItemStack addNbtForLevel(ItemStack stack, int level) {
-      stack.set(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT.with(LEVEL_15, level));
-      return stack;
-   }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return addNbtForLevel(super.getPickStack(world, pos, state, includeData), state.get(LEVEL_15));
+	}
+
+	public static ItemStack addNbtForLevel(ItemStack stack, int level) {
+		stack.set(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT.with(LEVEL_15, level));
+		return stack;
+	}
 }

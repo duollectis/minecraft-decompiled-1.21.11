@@ -1,102 +1,115 @@
 package net.minecraft.server.world;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code OptionalChunk}.
+ */
 public interface OptionalChunk<T> {
-   static <T> OptionalChunk<T> of(T chunk) {
-      return new OptionalChunk.ActualChunk<>(chunk);
-   }
 
-   static <T> OptionalChunk<T> of(String error) {
-      return of(() -> error);
-   }
+	static <T> OptionalChunk<T> of(T chunk) {
+		return new OptionalChunk.ActualChunk<>(chunk);
+	}
 
-   static <T> OptionalChunk<T> of(Supplier<String> error) {
-      return new OptionalChunk.LoadFailure<>(error);
-   }
+	static <T> OptionalChunk<T> of(String error) {
+		return of(() -> error);
+	}
 
-   boolean isPresent();
+	static <T> OptionalChunk<T> of(Supplier<String> error) {
+		return new OptionalChunk.LoadFailure<>(error);
+	}
 
-   @Nullable T orElse(@Nullable T other);
+	boolean isPresent();
 
-   static <R> @Nullable R orElse(OptionalChunk<? extends R> optionalChunk, @Nullable R other) {
-      R object = (R)optionalChunk.orElse(null);
-      return object != null ? object : other;
-   }
+	@Nullable T orElse(@Nullable T other);
 
-   @Nullable String getError();
+	static <R> @Nullable R orElse(OptionalChunk<? extends R> optionalChunk, @Nullable R other) {
+		R object = (R) optionalChunk.orElse(null);
+		return object != null ? object : other;
+	}
 
-   OptionalChunk<T> ifPresent(Consumer<T> callback);
+	@Nullable String getError();
 
-   <R> OptionalChunk<R> map(Function<T, R> mapper);
+	OptionalChunk<T> ifPresent(Consumer<T> callback);
 
-   <E extends Throwable> T orElseThrow(Supplier<E> exceptionSupplier) throws E;
+	<R> OptionalChunk<R> map(Function<T, R> mapper);
 
-   public record ActualChunk<T>(T value) implements OptionalChunk<T> {
-      @Override
-      public boolean isPresent() {
-         return true;
-      }
+	<E extends Throwable> T orElseThrow(Supplier<E> exceptionSupplier) throws E;
 
-      @Override
-      public T orElse(@Nullable T other) {
-         return this.value;
-      }
+	/**
+	 * {@code ActualChunk}.
+	 */
+	public record ActualChunk<T>(T value) implements OptionalChunk<T> {
 
-      @Override
-      public @Nullable String getError() {
-         return null;
-      }
+		@Override
+		public boolean isPresent() {
+			return true;
+		}
 
-      @Override
-      public OptionalChunk<T> ifPresent(Consumer<T> callback) {
-         callback.accept(this.value);
-         return this;
-      }
+		@Override
+		public T orElse(@Nullable T other) {
+			return this.value;
+		}
 
-      @Override
-      public <R> OptionalChunk<R> map(Function<T, R> mapper) {
-         return new OptionalChunk.ActualChunk<>(mapper.apply(this.value));
-      }
+		@Override
+		public @Nullable String getError() {
+			return null;
+		}
 
-      @Override
-      public <E extends Throwable> T orElseThrow(Supplier<E> exceptionSupplier) throws E {
-         return this.value;
-      }
-   }
+		@Override
+		public OptionalChunk<T> ifPresent(Consumer<T> callback) {
+			callback.accept(this.value);
+			return this;
+		}
 
-   public record LoadFailure<T>(Supplier<String> error) implements OptionalChunk<T> {
-      @Override
-      public boolean isPresent() {
-         return false;
-      }
+		@Override
+		public <R> OptionalChunk<R> map(Function<T, R> mapper) {
+			return new OptionalChunk.ActualChunk<>(mapper.apply(this.value));
+		}
 
-      @Override
-      public @Nullable T orElse(@Nullable T other) {
-         return other;
-      }
+		@Override
+		public <E extends Throwable> T orElseThrow(Supplier<E> exceptionSupplier) throws E {
+			return this.value;
+		}
+	}
 
-      @Override
-      public String getError() {
-         return this.error.get();
-      }
+	/**
+	 * {@code LoadFailure}.
+	 */
+	public record LoadFailure<T>(Supplier<String> error) implements OptionalChunk<T> {
 
-      @Override
-      public OptionalChunk<T> ifPresent(Consumer<T> callback) {
-         return this;
-      }
+		@Override
+		public boolean isPresent() {
+			return false;
+		}
 
-      @Override
-      public <R> OptionalChunk<R> map(Function<T, R> mapper) {
-         return new OptionalChunk.LoadFailure(this.error);
-      }
+		@Override
+		public @Nullable T orElse(@Nullable T other) {
+			return other;
+		}
 
-      @Override
-      public <E extends Throwable> T orElseThrow(Supplier<E> exceptionSupplier) throws E {
-         throw exceptionSupplier.get();
-      }
-   }
+		@Override
+		public String getError() {
+			return this.error.get();
+		}
+
+		@Override
+		public OptionalChunk<T> ifPresent(Consumer<T> callback) {
+			return this;
+		}
+
+		@Override
+		public <R> OptionalChunk<R> map(Function<T, R> mapper) {
+			return new OptionalChunk.LoadFailure(this.error);
+		}
+
+		@Override
+		public <E extends Throwable> T orElseThrow(Supplier<E> exceptionSupplier) throws E {
+			throw exceptionSupplier.get();
+		}
+	}
 }

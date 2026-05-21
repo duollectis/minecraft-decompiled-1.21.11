@@ -9,28 +9,36 @@ import net.minecraft.entity.passive.PolarBearEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PolarBearEntityRenderer}.
+ */
 public class PolarBearEntityRenderer extends AgeableMobEntityRenderer<PolarBearEntity, PolarBearEntityRenderState, PolarBearEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/bear/polarbear.png");
 
-   public PolarBearEntityRenderer(EntityRendererFactory.Context context) {
-      super(
-         context,
-         new PolarBearEntityModel(context.getPart(EntityModelLayers.POLAR_BEAR)),
-         new PolarBearEntityModel(context.getPart(EntityModelLayers.POLAR_BEAR_BABY)),
-         0.9F
-      );
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/bear/polarbear.png");
 
-   public Identifier getTexture(PolarBearEntityRenderState polarBearEntityRenderState) {
-      return TEXTURE;
-   }
+	public PolarBearEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new PolarBearEntityModel(context.getPart(EntityModelLayers.POLAR_BEAR)),
+				new PolarBearEntityModel(context.getPart(EntityModelLayers.POLAR_BEAR_BABY)),
+				0.9F
+		);
+	}
 
-   public PolarBearEntityRenderState createRenderState() {
-      return new PolarBearEntityRenderState();
-   }
+	public Identifier getTexture(PolarBearEntityRenderState polarBearEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(PolarBearEntity polarBearEntity, PolarBearEntityRenderState polarBearEntityRenderState, float f) {
-      super.updateRenderState(polarBearEntity, polarBearEntityRenderState, f);
-      polarBearEntityRenderState.warningAnimationProgress = polarBearEntity.getWarningAnimationProgress(f);
-   }
+	public PolarBearEntityRenderState createRenderState() {
+		return new PolarBearEntityRenderState();
+	}
+
+	public void updateRenderState(
+			PolarBearEntity polarBearEntity,
+			PolarBearEntityRenderState polarBearEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(polarBearEntity, polarBearEntityRenderState, f);
+		polarBearEntityRenderState.warningAnimationProgress = polarBearEntity.getWarningAnimationProgress(f);
+	}
 }

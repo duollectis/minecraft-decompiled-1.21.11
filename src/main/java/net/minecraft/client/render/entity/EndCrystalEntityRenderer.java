@@ -19,75 +19,91 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EndCrystalEntityRenderer}.
+ */
 public class EndCrystalEntityRenderer extends EntityRenderer<EndCrystalEntity, EndCrystalEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/end_crystal/end_crystal.png");
-   private static final RenderLayer END_CRYSTAL = RenderLayers.entityCutoutNoCull(TEXTURE);
-   private final EndCrystalEntityModel model;
 
-   public EndCrystalEntityRenderer(EntityRendererFactory.Context context) {
-      super(context);
-      this.shadowRadius = 0.5F;
-      this.model = new EndCrystalEntityModel(context.getPart(EntityModelLayers.END_CRYSTAL));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/end_crystal/end_crystal.png");
+	private static final RenderLayer END_CRYSTAL = RenderLayers.entityCutoutNoCull(TEXTURE);
+	private final EndCrystalEntityModel model;
 
-   public void render(
-      EndCrystalEntityRenderState endCrystalEntityRenderState,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      CameraRenderState cameraRenderState
-   ) {
-      matrixStack.push();
-      matrixStack.scale(2.0F, 2.0F, 2.0F);
-      matrixStack.translate(0.0F, -0.5F, 0.0F);
-      orderedRenderCommandQueue.submitModel(
-         this.model,
-         endCrystalEntityRenderState,
-         matrixStack,
-         END_CRYSTAL,
-         endCrystalEntityRenderState.light,
-         OverlayTexture.DEFAULT_UV,
-         endCrystalEntityRenderState.outlineColor,
-         null
-      );
-      matrixStack.pop();
-      Vec3d vec3d = endCrystalEntityRenderState.beamOffset;
-      if (vec3d != null) {
-         float f = getYOffset(endCrystalEntityRenderState.age);
-         float g = (float)vec3d.x;
-         float h = (float)vec3d.y;
-         float i = (float)vec3d.z;
-         matrixStack.translate(vec3d);
-         EnderDragonEntityRenderer.renderCrystalBeam(
-            -g, -h + f, -i, endCrystalEntityRenderState.age, matrixStack, orderedRenderCommandQueue, endCrystalEntityRenderState.light
-         );
-      }
+	public EndCrystalEntityRenderer(EntityRendererFactory.Context context) {
+		super(context);
+		this.shadowRadius = 0.5F;
+		this.model = new EndCrystalEntityModel(context.getPart(EntityModelLayers.END_CRYSTAL));
+	}
 
-      super.render(endCrystalEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
-   }
+	public void render(
+			EndCrystalEntityRenderState endCrystalEntityRenderState,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			CameraRenderState cameraRenderState
+	) {
+		matrixStack.push();
+		matrixStack.scale(2.0F, 2.0F, 2.0F);
+		matrixStack.translate(0.0F, -0.5F, 0.0F);
+		orderedRenderCommandQueue.submitModel(
+				this.model,
+				endCrystalEntityRenderState,
+				matrixStack,
+				END_CRYSTAL,
+				endCrystalEntityRenderState.light,
+				OverlayTexture.DEFAULT_UV,
+				endCrystalEntityRenderState.outlineColor,
+				null
+		);
+		matrixStack.pop();
+		Vec3d vec3d = endCrystalEntityRenderState.beamOffset;
+		if (vec3d != null) {
+			float f = getYOffset(endCrystalEntityRenderState.age);
+			float g = (float) vec3d.x;
+			float h = (float) vec3d.y;
+			float i = (float) vec3d.z;
+			matrixStack.translate(vec3d);
+			EnderDragonEntityRenderer.renderCrystalBeam(
+					-g,
+					-h + f,
+					-i,
+					endCrystalEntityRenderState.age,
+					matrixStack,
+					orderedRenderCommandQueue,
+					endCrystalEntityRenderState.light
+			);
+		}
 
-   public static float getYOffset(float f) {
-      float g = MathHelper.sin(f * 0.2F) / 2.0F + 0.5F;
-      g = (g * g + g) * 0.4F;
-      return g - 1.4F;
-   }
+		super.render(endCrystalEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
+	}
 
-   public EndCrystalEntityRenderState createRenderState() {
-      return new EndCrystalEntityRenderState();
-   }
+	public static float getYOffset(float f) {
+		float g = MathHelper.sin(f * 0.2F) / 2.0F + 0.5F;
+		g = (g * g + g) * 0.4F;
+		return g - 1.4F;
+	}
 
-   public void updateRenderState(EndCrystalEntity endCrystalEntity, EndCrystalEntityRenderState endCrystalEntityRenderState, float f) {
-      super.updateRenderState(endCrystalEntity, endCrystalEntityRenderState, f);
-      endCrystalEntityRenderState.age = endCrystalEntity.endCrystalAge + f;
-      endCrystalEntityRenderState.baseVisible = endCrystalEntity.shouldShowBottom();
-      BlockPos blockPos = endCrystalEntity.getBeamTarget();
-      if (blockPos != null) {
-         endCrystalEntityRenderState.beamOffset = Vec3d.ofCenter(blockPos).subtract(endCrystalEntity.getLerpedPos(f));
-      } else {
-         endCrystalEntityRenderState.beamOffset = null;
-      }
-   }
+	public EndCrystalEntityRenderState createRenderState() {
+		return new EndCrystalEntityRenderState();
+	}
 
-   public boolean shouldRender(EndCrystalEntity endCrystalEntity, Frustum frustum, double d, double e, double f) {
-      return super.shouldRender(endCrystalEntity, frustum, d, e, f) || endCrystalEntity.getBeamTarget() != null;
-   }
+	public void updateRenderState(
+			EndCrystalEntity endCrystalEntity,
+			EndCrystalEntityRenderState endCrystalEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(endCrystalEntity, endCrystalEntityRenderState, f);
+		endCrystalEntityRenderState.age = endCrystalEntity.endCrystalAge + f;
+		endCrystalEntityRenderState.baseVisible = endCrystalEntity.shouldShowBottom();
+		BlockPos blockPos = endCrystalEntity.getBeamTarget();
+		if (blockPos != null) {
+			endCrystalEntityRenderState.beamOffset =
+					Vec3d.ofCenter(blockPos).subtract(endCrystalEntity.getLerpedPos(f));
+		}
+		else {
+			endCrystalEntityRenderState.beamOffset = null;
+		}
+	}
+
+	public boolean shouldRender(EndCrystalEntity endCrystalEntity, Frustum frustum, double d, double e, double f) {
+		return super.shouldRender(endCrystalEntity, frustum, d, e, f) || endCrystalEntity.getBeamTarget() != null;
+	}
 }

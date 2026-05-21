@@ -4,8 +4,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BabyModelPair}.
+ */
 public record BabyModelPair<T extends Model>(T adultModel, T babyModel) {
-   public T get(boolean baby) {
-      return baby ? this.babyModel : this.adultModel;
-   }
+
+	public T get(boolean baby) {
+		return baby ? this.babyModel : this.adultModel;
+	}
 }

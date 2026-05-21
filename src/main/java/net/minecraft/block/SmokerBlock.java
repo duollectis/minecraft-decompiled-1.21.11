@@ -16,48 +16,56 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SmokerBlock}.
+ */
 public class SmokerBlock extends AbstractFurnaceBlock {
-   public static final MapCodec<SmokerBlock> CODEC = createCodec(SmokerBlock::new);
 
-   @Override
-   public MapCodec<SmokerBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SmokerBlock> CODEC = createCodec(SmokerBlock::new);
 
-   public SmokerBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<SmokerBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new SmokerBlockEntity(pos, state);
-   }
+	public SmokerBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return validateTicker(world, type, BlockEntityType.SMOKER);
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new SmokerBlockEntity(pos, state);
+	}
 
-   @Override
-   protected void openScreen(World world, BlockPos pos, PlayerEntity player) {
-      BlockEntity blockEntity = world.getBlockEntity(pos);
-      if (blockEntity instanceof SmokerBlockEntity) {
-         player.openHandledScreen((NamedScreenHandlerFactory)blockEntity);
-         player.incrementStat(Stats.INTERACT_WITH_SMOKER);
-      }
-   }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return validateTicker(world, type, BlockEntityType.SMOKER);
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      if (state.get(LIT)) {
-         double d = pos.getX() + 0.5;
-         double e = pos.getY();
-         double f = pos.getZ() + 0.5;
-         if (random.nextDouble() < 0.1) {
-            world.playSoundClient(d, e, f, SoundEvents.BLOCK_SMOKER_SMOKE, SoundCategory.BLOCKS, 1.0F, 1.0F, false);
-         }
+	@Override
+	protected void openScreen(World world, BlockPos pos, PlayerEntity player) {
+		BlockEntity blockEntity = world.getBlockEntity(pos);
+		if (blockEntity instanceof SmokerBlockEntity) {
+			player.openHandledScreen((NamedScreenHandlerFactory) blockEntity);
+			player.incrementStat(Stats.INTERACT_WITH_SMOKER);
+		}
+	}
 
-         world.addParticleClient(ParticleTypes.SMOKE, d, e + 1.1, f, 0.0, 0.0, 0.0);
-      }
-   }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		if (state.get(LIT)) {
+			double d = pos.getX() + 0.5;
+			double e = pos.getY();
+			double f = pos.getZ() + 0.5;
+			if (random.nextDouble() < 0.1) {
+				world.playSoundClient(d, e, f, SoundEvents.BLOCK_SMOKER_SMOKE, SoundCategory.BLOCKS, 1.0F, 1.0F, false);
+			}
+
+			world.addParticleClient(ParticleTypes.SMOKE, d, e + 1.1, f, 0.0, 0.0, 0.0);
+		}
+	}
 }

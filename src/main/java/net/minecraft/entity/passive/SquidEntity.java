@@ -1,13 +1,7 @@
 package net.minecraft.entity.passive;
 
-import java.util.Objects;
 import net.minecraft.block.BlockState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.MovementType;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.ai.goal.Goal;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -29,285 +23,359 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+
+/**
+ * {@code SquidEntity}.
+ */
 public class SquidEntity extends WaterAnimalEntity {
-   public float tiltAngle;
-   public float lastTiltAngle;
-   public float rollAngle;
-   public float lastRollAngle;
-   public float thrustTimer;
-   public float lastThrustTimer;
-   public float tentacleAngle;
-   public float lastTentacleAngle;
-   private float swimVelocityScale;
-   private float thrustTimerSpeed;
-   private float turningSpeed;
-   Vec3d swimVec = Vec3d.ZERO;
 
-   public SquidEntity(EntityType<? extends SquidEntity> entityType, World world) {
-      super(entityType, world);
-      this.random.setSeed(this.getId());
-      this.thrustTimerSpeed = 1.0F / (this.random.nextFloat() + 1.0F) * 0.2F;
-   }
+	public float tiltAngle;
+	public float lastTiltAngle;
+	public float rollAngle;
+	public float lastRollAngle;
+	public float thrustTimer;
+	public float lastThrustTimer;
+	public float tentacleAngle;
+	public float lastTentacleAngle;
+	private float swimVelocityScale;
+	private float thrustTimerSpeed;
+	private float turningSpeed;
+	Vec3d swimVec = Vec3d.ZERO;
 
-   @Override
-   protected void initGoals() {
-      this.goalSelector.add(0, new SquidEntity.SwimGoal(this));
-      this.goalSelector.add(1, new SquidEntity.EscapeAttackerGoal());
-   }
+	public SquidEntity(EntityType<? extends SquidEntity> entityType, World world) {
+		super(entityType, world);
+		this.random.setSeed(this.getId());
+		this.thrustTimerSpeed = 1.0F / (this.random.nextFloat() + 1.0F) * 0.2F;
+	}
 
-   public static DefaultAttributeContainer.Builder createSquidAttributes() {
-      return MobEntity.createMobAttributes().add(EntityAttributes.MAX_HEALTH, 10.0);
-   }
+	@Override
+	protected void initGoals() {
+		this.goalSelector.add(0, new SquidEntity.SwimGoal(this));
+		this.goalSelector.add(1, new SquidEntity.EscapeAttackerGoal());
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_SQUID_AMBIENT;
-   }
+	public static DefaultAttributeContainer.Builder createSquidAttributes() {
+		return MobEntity.createMobAttributes().add(EntityAttributes.MAX_HEALTH, 10.0);
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_SQUID_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_SQUID_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_SQUID_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_SQUID_HURT;
+	}
 
-   protected SoundEvent getSquirtSound() {
-      return SoundEvents.ENTITY_SQUID_SQUIRT;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_SQUID_DEATH;
+	}
 
-   @Override
-   public boolean canBeLeashed() {
-      return true;
-   }
+	protected SoundEvent getSquirtSound() {
+		return SoundEvents.ENTITY_SQUID_SQUIRT;
+	}
 
-   @Override
-   protected float getSoundVolume() {
-      return 0.4F;
-   }
+	@Override
+	public boolean canBeLeashed() {
+		return true;
+	}
 
-   @Override
-   protected Entity.MoveEffect getMoveEffect() {
-      return Entity.MoveEffect.EVENTS;
-   }
+	@Override
+	protected float getSoundVolume() {
+		return 0.4F;
+	}
 
-   @Override
-   public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
-      return EntityType.SQUID.create(world, SpawnReason.BREEDING);
-   }
+	@Override
+	protected Entity.MoveEffect getMoveEffect() {
+		return Entity.MoveEffect.EVENTS;
+	}
 
-   @Override
-   protected double getGravity() {
-      return 0.08;
-   }
+	@Override
+	public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
+		return EntityType.SQUID.create(world, SpawnReason.BREEDING);
+	}
 
-   @Override
-   public void tickMovement() {
-      super.tickMovement();
-      this.lastTiltAngle = this.tiltAngle;
-      this.lastRollAngle = this.rollAngle;
-      this.lastThrustTimer = this.thrustTimer;
-      this.lastTentacleAngle = this.tentacleAngle;
-      this.thrustTimer = this.thrustTimer + this.thrustTimerSpeed;
-      if (this.thrustTimer > Math.PI * 2) {
-         if (this.getEntityWorld().isClient()) {
-            this.thrustTimer = (float) (Math.PI * 2);
-         } else {
-            this.thrustTimer -= (float) (Math.PI * 2);
-            if (this.random.nextInt(10) == 0) {
-               this.thrustTimerSpeed = 1.0F / (this.random.nextFloat() + 1.0F) * 0.2F;
-            }
+	@Override
+	protected double getGravity() {
+		return 0.08;
+	}
 
-            this.getEntityWorld().sendEntityStatus(this, (byte)19);
-         }
-      }
+	@Override
+	public void tickMovement() {
+		super.tickMovement();
+		this.lastTiltAngle = this.tiltAngle;
+		this.lastRollAngle = this.rollAngle;
+		this.lastThrustTimer = this.thrustTimer;
+		this.lastTentacleAngle = this.tentacleAngle;
+		this.thrustTimer = this.thrustTimer + this.thrustTimerSpeed;
+		if (this.thrustTimer > Math.PI * 2) {
+			if (this.getEntityWorld().isClient()) {
+				this.thrustTimer = (float) (Math.PI * 2);
+			}
+			else {
+				this.thrustTimer -= (float) (Math.PI * 2);
+				if (this.random.nextInt(10) == 0) {
+					this.thrustTimerSpeed = 1.0F / (this.random.nextFloat() + 1.0F) * 0.2F;
+				}
 
-      if (this.isTouchingWater()) {
-         if (this.thrustTimer < (float) Math.PI) {
-            float f = this.thrustTimer / (float) Math.PI;
-            this.tentacleAngle = MathHelper.sin(f * f * (float) Math.PI) * (float) Math.PI * 0.25F;
-            if (f > 0.75) {
-               if (this.isLogicalSideForUpdatingMovement()) {
-                  this.setVelocity(this.swimVec);
-               }
+				this.getEntityWorld().sendEntityStatus(this, (byte) 19);
+			}
+		}
 
-               this.turningSpeed = 1.0F;
-            } else {
-               this.turningSpeed *= 0.8F;
-            }
-         } else {
-            this.tentacleAngle = 0.0F;
-            if (this.isLogicalSideForUpdatingMovement()) {
-               this.setVelocity(this.getVelocity().multiply(0.9));
-            }
+		if (this.isTouchingWater()) {
+			if (this.thrustTimer < (float) Math.PI) {
+				float f = this.thrustTimer / (float) Math.PI;
+				this.tentacleAngle = MathHelper.sin(f * f * (float) Math.PI) * (float) Math.PI * 0.25F;
+				if (f > 0.75) {
+					if (this.isLogicalSideForUpdatingMovement()) {
+						this.setVelocity(this.swimVec);
+					}
 
-            this.turningSpeed *= 0.99F;
-         }
+					this.turningSpeed = 1.0F;
+				}
+				else {
+					this.turningSpeed *= 0.8F;
+				}
+			}
+			else {
+				this.tentacleAngle = 0.0F;
+				if (this.isLogicalSideForUpdatingMovement()) {
+					this.setVelocity(this.getVelocity().multiply(0.9));
+				}
 
-         Vec3d vec3d = this.getVelocity();
-         double d = vec3d.horizontalLength();
-         this.bodyYaw = this.bodyYaw + (-((float)MathHelper.atan2(vec3d.x, vec3d.z)) * (180.0F / (float)Math.PI) - this.bodyYaw) * 0.1F;
-         this.setYaw(this.bodyYaw);
-         this.rollAngle = this.rollAngle + (float) Math.PI * this.turningSpeed * 1.5F;
-         this.tiltAngle = this.tiltAngle + (-((float)MathHelper.atan2(d, vec3d.y)) * (180.0F / (float)Math.PI) - this.tiltAngle) * 0.1F;
-      } else {
-         this.tentacleAngle = MathHelper.abs(MathHelper.sin(this.thrustTimer)) * (float) Math.PI * 0.25F;
-         if (!this.getEntityWorld().isClient()) {
-            double e = this.getVelocity().y;
-            if (this.hasStatusEffect(StatusEffects.LEVITATION)) {
-               e = 0.05 * (this.getStatusEffect(StatusEffects.LEVITATION).getAmplifier() + 1);
-            } else {
-               e -= this.getFinalGravity();
-            }
+				this.turningSpeed *= 0.99F;
+			}
 
-            this.setVelocity(0.0, e * 0.98F, 0.0);
-         }
+			Vec3d vec3d = this.getVelocity();
+			double d = vec3d.horizontalLength();
+			this.bodyYaw =
+					this.bodyYaw +
+							(-((float) MathHelper.atan2(vec3d.x, vec3d.z)) * (180.0F / (float) Math.PI) - this.bodyYaw)
+									* 0.1F;
+			this.setYaw(this.bodyYaw);
+			this.rollAngle = this.rollAngle + (float) Math.PI * this.turningSpeed * 1.5F;
+			this.tiltAngle =
+					this.tiltAngle
+							+ (-((float) MathHelper.atan2(d, vec3d.y)) * (180.0F / (float) Math.PI) - this.tiltAngle)
+							* 0.1F;
+		}
+		else {
+			this.tentacleAngle = MathHelper.abs(MathHelper.sin(this.thrustTimer)) * (float) Math.PI * 0.25F;
+			if (!this.getEntityWorld().isClient()) {
+				double e = this.getVelocity().y;
+				if (this.hasStatusEffect(StatusEffects.LEVITATION)) {
+					e = 0.05 * (this.getStatusEffect(StatusEffects.LEVITATION).getAmplifier() + 1);
+				}
+				else {
+					e -= this.getFinalGravity();
+				}
 
-         this.tiltAngle = this.tiltAngle + (-90.0F - this.tiltAngle) * 0.02F;
-      }
-   }
+				this.setVelocity(0.0, e * 0.98F, 0.0);
+			}
 
-   @Override
-   public boolean damage(ServerWorld world, DamageSource source, float amount) {
-      if (super.damage(world, source, amount) && this.getAttacker() != null) {
-         this.squirt();
-         return true;
-      } else {
-         return false;
-      }
-   }
+			this.tiltAngle = this.tiltAngle + (-90.0F - this.tiltAngle) * 0.02F;
+		}
+	}
 
-   private Vec3d applyBodyRotations(Vec3d shootVector) {
-      Vec3d vec3d = shootVector.rotateX(this.lastTiltAngle * (float) (Math.PI / 180.0));
-      return vec3d.rotateY(-this.lastBodyYaw * (float) (Math.PI / 180.0));
-   }
+	@Override
+	public boolean damage(ServerWorld world, DamageSource source, float amount) {
+		if (super.damage(world, source, amount) && this.getAttacker() != null) {
+			this.squirt();
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   private void squirt() {
-      this.playSound(this.getSquirtSound());
-      Vec3d vec3d = this.applyBodyRotations(new Vec3d(0.0, -1.0, 0.0)).add(this.getX(), this.getY(), this.getZ());
+	private Vec3d applyBodyRotations(Vec3d shootVector) {
+		Vec3d vec3d = shootVector.rotateX(this.lastTiltAngle * (float) (Math.PI / 180.0));
+		return vec3d.rotateY(-this.lastBodyYaw * (float) (Math.PI / 180.0));
+	}
 
-      for (int i = 0; i < 30; i++) {
-         Vec3d vec3d2 = this.applyBodyRotations(new Vec3d(this.random.nextFloat() * 0.6 - 0.3, -1.0, this.random.nextFloat() * 0.6 - 0.3));
-         float f = this.isBaby() ? 0.1F : 0.3F;
-         Vec3d vec3d3 = vec3d2.multiply(f + this.random.nextFloat() * 2.0F);
-         ((ServerWorld)this.getEntityWorld()).spawnParticles(this.getInkParticle(), vec3d.x, vec3d.y + 0.5, vec3d.z, 0, vec3d3.x, vec3d3.y, vec3d3.z, 0.1F);
-      }
-   }
+	private void squirt() {
+		this.playSound(this.getSquirtSound());
+		Vec3d vec3d = this.applyBodyRotations(new Vec3d(0.0, -1.0, 0.0)).add(this.getX(), this.getY(), this.getZ());
 
-   protected ParticleEffect getInkParticle() {
-      return ParticleTypes.SQUID_INK;
-   }
+		for (int i = 0; i < 30; i++) {
+			Vec3d
+					vec3d2 =
+					this.applyBodyRotations(new Vec3d(
+							this.random.nextFloat() * 0.6 - 0.3,
+							-1.0,
+							this.random.nextFloat() * 0.6 - 0.3
+					));
+			float f = this.isBaby() ? 0.1F : 0.3F;
+			Vec3d vec3d3 = vec3d2.multiply(f + this.random.nextFloat() * 2.0F);
+			((ServerWorld) this.getEntityWorld()).spawnParticles(
+					this.getInkParticle(),
+					vec3d.x,
+					vec3d.y + 0.5,
+					vec3d.z,
+					0,
+					vec3d3.x,
+					vec3d3.y,
+					vec3d3.z,
+					0.1F
+			);
+		}
+	}
 
-   @Override
-   public void travel(Vec3d movementInput) {
-      this.move(MovementType.SELF, this.getVelocity());
-   }
+	protected ParticleEffect getInkParticle() {
+		return ParticleTypes.SQUID_INK;
+	}
 
-   @Override
-   public void handleStatus(byte status) {
-      if (status == 19) {
-         this.thrustTimer = 0.0F;
-      } else {
-         super.handleStatus(status);
-      }
-   }
+	@Override
+	public void travel(Vec3d movementInput) {
+		this.move(MovementType.SELF, this.getVelocity());
+	}
 
-   public boolean hasSwimmingVector() {
-      return this.swimVec.lengthSquared() > 1.0E-5F;
-   }
+	@Override
+	public void handleStatus(byte status) {
+		if (status == 19) {
+			this.thrustTimer = 0.0F;
+		}
+		else {
+			super.handleStatus(status);
+		}
+	}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      EntityData entityData2 = Objects.requireNonNullElseGet(entityData, () -> new PassiveEntity.PassiveData(0.05F));
-      return super.initialize(world, difficulty, spawnReason, entityData2);
-   }
+	public boolean hasSwimmingVector() {
+		return this.swimVec.lengthSquared() > 1.0E-5F;
+	}
 
-   class EscapeAttackerGoal extends Goal {
-      private static final float field_30375 = 3.0F;
-      private static final float field_30376 = 5.0F;
-      private static final float field_30377 = 10.0F;
-      private int timer;
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		EntityData entityData2 = Objects.requireNonNullElseGet(entityData, () -> new PassiveEntity.PassiveData(0.05F));
+		return super.initialize(world, difficulty, spawnReason, entityData2);
+	}
 
-      @Override
-      public boolean canStart() {
-         LivingEntity livingEntity = SquidEntity.this.getAttacker();
-         return SquidEntity.this.isTouchingWater() && livingEntity != null ? SquidEntity.this.squaredDistanceTo(livingEntity) < 100.0 : false;
-      }
+	/**
+	 * {@code EscapeAttackerGoal}.
+	 */
+	class EscapeAttackerGoal extends Goal {
 
-      @Override
-      public void start() {
-         this.timer = 0;
-      }
+		private static final float ESCAPE_SPEED = 3.0F;
+		private static final float ESCAPE_DISTANCE_THRESHOLD = 5.0F;
+		private static final float ATTACKER_DETECTION_RANGE = 10.0F;
+		private int timer;
 
-      @Override
-      public boolean shouldRunEveryTick() {
-         return true;
-      }
+		@Override
+		public boolean canStart() {
+			LivingEntity livingEntity = SquidEntity.this.getAttacker();
+			return SquidEntity.this.isTouchingWater() && livingEntity != null ?
+			       SquidEntity.this.squaredDistanceTo(livingEntity) < 100.0 : false;
+		}
 
-      @Override
-      public void tick() {
-         this.timer++;
-         LivingEntity livingEntity = SquidEntity.this.getAttacker();
-         if (livingEntity != null) {
-            Vec3d vec3d = new Vec3d(
-               SquidEntity.this.getX() - livingEntity.getX(), SquidEntity.this.getY() - livingEntity.getY(), SquidEntity.this.getZ() - livingEntity.getZ()
-            );
-            BlockState blockState = SquidEntity.this.getEntityWorld()
-               .getBlockState(BlockPos.ofFloored(SquidEntity.this.getX() + vec3d.x, SquidEntity.this.getY() + vec3d.y, SquidEntity.this.getZ() + vec3d.z));
-            FluidState fluidState = SquidEntity.this.getEntityWorld()
-               .getFluidState(BlockPos.ofFloored(SquidEntity.this.getX() + vec3d.x, SquidEntity.this.getY() + vec3d.y, SquidEntity.this.getZ() + vec3d.z));
-            if (fluidState.isIn(FluidTags.WATER) || blockState.isAir()) {
-               double d = vec3d.length();
-               if (d > 0.0) {
-                  vec3d.normalize();
-                  double e = 3.0;
-                  if (d > 5.0) {
-                     e -= (d - 5.0) / 5.0;
-                  }
+		@Override
+		public void start() {
+			this.timer = 0;
+		}
 
-                  if (e > 0.0) {
-                     vec3d = vec3d.multiply(e);
-                  }
-               }
+		@Override
+		public boolean shouldRunEveryTick() {
+			return true;
+		}
 
-               if (blockState.isAir()) {
-                  vec3d = vec3d.subtract(0.0, vec3d.y, 0.0);
-               }
+		@Override
+		public void tick() {
+			this.timer++;
+			LivingEntity livingEntity = SquidEntity.this.getAttacker();
+			if (livingEntity != null) {
+				Vec3d vec3d = new Vec3d(
+						SquidEntity.this.getX() - livingEntity.getX(),
+						SquidEntity.this.getY() - livingEntity.getY(),
+						SquidEntity.this.getZ() - livingEntity.getZ()
+				);
+				BlockState blockState = SquidEntity.this.getEntityWorld()
+				                                        .getBlockState(BlockPos.ofFloored(
+						                                        SquidEntity.this.getX() + vec3d.x,
+						                                        SquidEntity.this.getY() + vec3d.y,
+						                                        SquidEntity.this.getZ() + vec3d.z
+				                                        ));
+				FluidState fluidState = SquidEntity.this.getEntityWorld()
+				                                        .getFluidState(BlockPos.ofFloored(
+						                                        SquidEntity.this.getX() + vec3d.x,
+						                                        SquidEntity.this.getY() + vec3d.y,
+						                                        SquidEntity.this.getZ() + vec3d.z
+				                                        ));
+				if (fluidState.isIn(FluidTags.WATER) || blockState.isAir()) {
+					double d = vec3d.length();
+					if (d > 0.0) {
+						vec3d.normalize();
+						double e = 3.0;
+						if (d > 5.0) {
+							e -= (d - 5.0) / 5.0;
+						}
 
-               SquidEntity.this.swimVec = new Vec3d(vec3d.x / 20.0, vec3d.y / 20.0, vec3d.z / 20.0);
-            }
+						if (e > 0.0) {
+							vec3d = vec3d.multiply(e);
+						}
+					}
 
-            if (this.timer % 10 == 5) {
-               SquidEntity.this.getEntityWorld()
-                  .addParticleClient(ParticleTypes.BUBBLE, SquidEntity.this.getX(), SquidEntity.this.getY(), SquidEntity.this.getZ(), 0.0, 0.0, 0.0);
-            }
-         }
-      }
-   }
+					if (blockState.isAir()) {
+						vec3d = vec3d.subtract(0.0, vec3d.y, 0.0);
+					}
 
-   static class SwimGoal extends Goal {
-      private final SquidEntity squid;
+					SquidEntity.this.swimVec = new Vec3d(vec3d.x / 20.0, vec3d.y / 20.0, vec3d.z / 20.0);
+				}
 
-      public SwimGoal(SquidEntity squid) {
-         this.squid = squid;
-      }
+				if (this.timer % 10 == 5) {
+					SquidEntity.this.getEntityWorld()
+					                .addParticleClient(
+							                ParticleTypes.BUBBLE,
+							                SquidEntity.this.getX(),
+							                SquidEntity.this.getY(),
+							                SquidEntity.this.getZ(),
+							                0.0,
+							                0.0,
+							                0.0
+					                );
+				}
+			}
+		}
+	}
 
-      @Override
-      public boolean canStart() {
-         return true;
-      }
+	/**
+	 * {@code SwimGoal}.
+	 */
+	static class SwimGoal extends Goal {
 
-      @Override
-      public void tick() {
-         int i = this.squid.getDespawnCounter();
-         if (i > 100) {
-            this.squid.swimVec = Vec3d.ZERO;
-         } else if (this.squid.getRandom().nextInt(toGoalTicks(50)) == 0 || !this.squid.touchingWater || !this.squid.hasSwimmingVector()) {
-            float f = this.squid.getRandom().nextFloat() * (float) (Math.PI * 2);
-            this.squid.swimVec = new Vec3d(MathHelper.cos(f) * 0.2F, -0.1F + this.squid.getRandom().nextFloat() * 0.2F, MathHelper.sin(f) * 0.2F);
-         }
-      }
-   }
+		private final SquidEntity squid;
+
+		public SwimGoal(SquidEntity squid) {
+			this.squid = squid;
+		}
+
+		@Override
+		public boolean canStart() {
+			return true;
+		}
+
+		@Override
+		public void tick() {
+			int i = this.squid.getDespawnCounter();
+			if (i > 100) {
+				this.squid.swimVec = Vec3d.ZERO;
+			}
+			else if (this.squid.getRandom().nextInt(toGoalTicks(50)) == 0 || !this.squid.touchingWater
+					|| !this.squid.hasSwimmingVector()) {
+				float f = this.squid.getRandom().nextFloat() * (float) (Math.PI * 2);
+				this.squid.swimVec =
+						new Vec3d(
+								MathHelper.cos(f) * 0.2F,
+								-0.1F + this.squid.getRandom().nextFloat() * 0.2F,
+								MathHelper.sin(f) * 0.2F
+						);
+			}
+		}
+	}
 }

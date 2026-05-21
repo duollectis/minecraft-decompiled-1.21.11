@@ -1,10 +1,6 @@
 package net.minecraft.network.packet.s2c.play;
 
 import com.google.common.collect.Sets;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import net.minecraft.advancement.AdvancementEntry;
 import net.minecraft.advancement.AdvancementProgress;
 import net.minecraft.network.PacketByteBuf;
@@ -16,72 +12,78 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Identifier;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 public class AdvancementUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, AdvancementUpdateS2CPacket> CODEC = Packet.createCodec(
-      AdvancementUpdateS2CPacket::write, AdvancementUpdateS2CPacket::new
-   );
-   private final boolean clearCurrent;
-   private final List<AdvancementEntry> toEarn;
-   private final Set<Identifier> toRemove;
-   private final Map<Identifier, AdvancementProgress> toSetProgress;
-   private final boolean showToast;
 
-   public AdvancementUpdateS2CPacket(
-      boolean clearCurrent,
-      Collection<AdvancementEntry> toEarn,
-      Set<Identifier> toRemove,
-      Map<Identifier, AdvancementProgress> toSetProgress,
-      boolean showToast
-   ) {
-      this.clearCurrent = clearCurrent;
-      this.toEarn = List.copyOf(toEarn);
-      this.toRemove = Set.copyOf(toRemove);
-      this.toSetProgress = Map.copyOf(toSetProgress);
-      this.showToast = showToast;
-   }
+	public static final PacketCodec<RegistryByteBuf, AdvancementUpdateS2CPacket> CODEC = Packet.createCodec(
+			AdvancementUpdateS2CPacket::write, AdvancementUpdateS2CPacket::new
+	);
+	private final boolean clearCurrent;
+	private final List<AdvancementEntry> toEarn;
+	private final Set<Identifier> toRemove;
+	private final Map<Identifier, AdvancementProgress> toSetProgress;
+	private final boolean showToast;
 
-   private AdvancementUpdateS2CPacket(RegistryByteBuf buf) {
-      this.clearCurrent = buf.readBoolean();
-      this.toEarn = AdvancementEntry.LIST_PACKET_CODEC.decode(buf);
-      this.toRemove = buf.readCollection(Sets::newLinkedHashSetWithExpectedSize, PacketByteBuf::readIdentifier);
-      this.toSetProgress = buf.readMap(PacketByteBuf::readIdentifier, AdvancementProgress::fromPacket);
-      this.showToast = buf.readBoolean();
-   }
+	public AdvancementUpdateS2CPacket(
+			boolean clearCurrent,
+			Collection<AdvancementEntry> toEarn,
+			Set<Identifier> toRemove,
+			Map<Identifier, AdvancementProgress> toSetProgress,
+			boolean showToast
+	) {
+		this.clearCurrent = clearCurrent;
+		this.toEarn = List.copyOf(toEarn);
+		this.toRemove = Set.copyOf(toRemove);
+		this.toSetProgress = Map.copyOf(toSetProgress);
+		this.showToast = showToast;
+	}
 
-   private void write(RegistryByteBuf buf) {
-      buf.writeBoolean(this.clearCurrent);
-      AdvancementEntry.LIST_PACKET_CODEC.encode(buf, this.toEarn);
-      buf.writeCollection(this.toRemove, PacketByteBuf::writeIdentifier);
-      buf.writeMap(this.toSetProgress, PacketByteBuf::writeIdentifier, (buf2, progress) -> progress.toPacket(buf2));
-      buf.writeBoolean(this.showToast);
-   }
+	private AdvancementUpdateS2CPacket(RegistryByteBuf buf) {
+		this.clearCurrent = buf.readBoolean();
+		this.toEarn = AdvancementEntry.LIST_PACKET_CODEC.decode(buf);
+		this.toRemove = buf.readCollection(Sets::newLinkedHashSetWithExpectedSize, PacketByteBuf::readIdentifier);
+		this.toSetProgress = buf.readMap(PacketByteBuf::readIdentifier, AdvancementProgress::fromPacket);
+		this.showToast = buf.readBoolean();
+	}
 
-   @Override
-   public PacketType<AdvancementUpdateS2CPacket> getPacketType() {
-      return PlayPackets.UPDATE_ADVANCEMENTS;
-   }
+	private void write(RegistryByteBuf buf) {
+		buf.writeBoolean(this.clearCurrent);
+		AdvancementEntry.LIST_PACKET_CODEC.encode(buf, this.toEarn);
+		buf.writeCollection(this.toRemove, PacketByteBuf::writeIdentifier);
+		buf.writeMap(this.toSetProgress, PacketByteBuf::writeIdentifier, (buf2, progress) -> progress.toPacket(buf2));
+		buf.writeBoolean(this.showToast);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onAdvancements(this);
-   }
+	@Override
+	public PacketType<AdvancementUpdateS2CPacket> getPacketType() {
+		return PlayPackets.UPDATE_ADVANCEMENTS;
+	}
 
-   public List<AdvancementEntry> getAdvancementsToEarn() {
-      return this.toEarn;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onAdvancements(this);
+	}
 
-   public Set<Identifier> getAdvancementIdsToRemove() {
-      return this.toRemove;
-   }
+	public List<AdvancementEntry> getAdvancementsToEarn() {
+		return this.toEarn;
+	}
 
-   public Map<Identifier, AdvancementProgress> getAdvancementsToProgress() {
-      return this.toSetProgress;
-   }
+	public Set<Identifier> getAdvancementIdsToRemove() {
+		return this.toRemove;
+	}
 
-   public boolean shouldClearCurrent() {
-      return this.clearCurrent;
-   }
+	public Map<Identifier, AdvancementProgress> getAdvancementsToProgress() {
+		return this.toSetProgress;
+	}
 
-   public boolean shouldShowToast() {
-      return this.showToast;
-   }
+	public boolean shouldClearCurrent() {
+		return this.clearCurrent;
+	}
+
+	public boolean shouldShowToast() {
+		return this.showToast;
+	}
 }

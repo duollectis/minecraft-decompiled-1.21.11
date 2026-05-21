@@ -12,41 +12,42 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 public class EntitySetHeadYawS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, EntitySetHeadYawS2CPacket> CODEC = Packet.createCodec(
-      EntitySetHeadYawS2CPacket::write, EntitySetHeadYawS2CPacket::new
-   );
-   private final int entityId;
-   private final byte headYaw;
 
-   public EntitySetHeadYawS2CPacket(Entity entity, byte headYaw) {
-      this.entityId = entity.getId();
-      this.headYaw = headYaw;
-   }
+	public static final PacketCodec<PacketByteBuf, EntitySetHeadYawS2CPacket> CODEC = Packet.createCodec(
+			EntitySetHeadYawS2CPacket::write, EntitySetHeadYawS2CPacket::new
+	);
+	private final int entityId;
+	private final byte headYaw;
 
-   private EntitySetHeadYawS2CPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      this.headYaw = buf.readByte();
-   }
+	public EntitySetHeadYawS2CPacket(Entity entity, byte headYaw) {
+		this.entityId = entity.getId();
+		this.headYaw = headYaw;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      buf.writeByte(this.headYaw);
-   }
+	private EntitySetHeadYawS2CPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		this.headYaw = buf.readByte();
+	}
 
-   @Override
-   public PacketType<EntitySetHeadYawS2CPacket> getPacketType() {
-      return PlayPackets.ROTATE_HEAD;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		buf.writeByte(this.headYaw);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntitySetHeadYaw(this);
-   }
+	@Override
+	public PacketType<EntitySetHeadYawS2CPacket> getPacketType() {
+		return PlayPackets.ROTATE_HEAD;
+	}
 
-   public @Nullable Entity getEntity(World world) {
-      return world.getEntityById(this.entityId);
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntitySetHeadYaw(this);
+	}
 
-   public float getHeadYaw() {
-      return MathHelper.unpackDegrees(this.headYaw);
-   }
+	public @Nullable Entity getEntity(World world) {
+		return world.getEntityById(this.entityId);
+	}
+
+	public float getHeadYaw() {
+		return MathHelper.unpackDegrees(this.headYaw);
+	}
 }

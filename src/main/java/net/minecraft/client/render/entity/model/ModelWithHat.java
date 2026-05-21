@@ -6,6 +6,10 @@ import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ModelWithHat}.
+ */
 public interface ModelWithHat<T extends EntityRenderState> {
-   void rotateArms(T state, MatrixStack matrices);
+
+	void rotateArms(T state, MatrixStack matrices);
 }

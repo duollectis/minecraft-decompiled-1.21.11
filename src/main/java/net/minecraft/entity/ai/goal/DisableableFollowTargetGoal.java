@@ -5,26 +5,30 @@ import net.minecraft.entity.ai.TargetPredicate;
 import net.minecraft.entity.raid.RaiderEntity;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code DisableableFollowTargetGoal}.
+ */
 public class DisableableFollowTargetGoal<T extends LivingEntity> extends ActiveTargetGoal<T> {
-   private boolean enabled = true;
 
-   public DisableableFollowTargetGoal(
-      RaiderEntity actor,
-      Class<T> targetEntityClass,
-      int reciprocalChance,
-      boolean checkVisibility,
-      boolean checkCanNavigate,
-      TargetPredicate.@Nullable EntityPredicate targetPredicate
-   ) {
-      super(actor, targetEntityClass, reciprocalChance, checkVisibility, checkCanNavigate, targetPredicate);
-   }
+	private boolean enabled = true;
 
-   public void setEnabled(boolean enabled) {
-      this.enabled = enabled;
-   }
+	public DisableableFollowTargetGoal(
+			RaiderEntity actor,
+			Class<T> targetEntityClass,
+			int reciprocalChance,
+			boolean checkVisibility,
+			boolean checkCanNavigate,
+			TargetPredicate.@Nullable EntityPredicate targetPredicate
+	) {
+		super(actor, targetEntityClass, reciprocalChance, checkVisibility, checkCanNavigate, targetPredicate);
+	}
 
-   @Override
-   public boolean canStart() {
-      return this.enabled && super.canStart();
-   }
+	public void setEnabled(boolean enabled) {
+		this.enabled = enabled;
+	}
+
+	@Override
+	public boolean canStart() {
+		return this.enabled && super.canStart();
+	}
 }

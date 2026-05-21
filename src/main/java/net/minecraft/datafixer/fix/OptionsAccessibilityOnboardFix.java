@@ -6,16 +6,23 @@ import com.mojang.datafixers.TypeRewriteRule;
 import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code OptionsAccessibilityOnboardFix}.
+ */
 public class OptionsAccessibilityOnboardFix extends DataFix {
-   public OptionsAccessibilityOnboardFix(Schema outputSchema) {
-      super(outputSchema, false);
-   }
 
-   protected TypeRewriteRule makeRule() {
-      return this.fixTypeEverywhereTyped(
-         "OptionsAccessibilityOnboardFix",
-         this.getInputSchema().getType(TypeReferences.OPTIONS),
-         typed -> typed.update(DSL.remainderFinder(), options -> options.set("onboardAccessibility", options.createString("false")))
-      );
-   }
+	public OptionsAccessibilityOnboardFix(Schema outputSchema) {
+		super(outputSchema, false);
+	}
+
+	protected TypeRewriteRule makeRule() {
+		return this.fixTypeEverywhereTyped(
+				"OptionsAccessibilityOnboardFix",
+				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				typed -> typed.update(
+						DSL.remainderFinder(),
+						options -> options.set("onboardAccessibility", options.createString("false"))
+				)
+		);
+	}
 }

@@ -9,225 +9,239 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.TradeOutputSlot;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
-import net.minecraft.village.Merchant;
-import net.minecraft.village.MerchantInventory;
-import net.minecraft.village.SimpleMerchant;
-import net.minecraft.village.TradeOffer;
-import net.minecraft.village.TradeOfferList;
-import net.minecraft.village.TradedItem;
+import net.minecraft.village.*;
 
+/**
+ * {@code MerchantScreenHandler}.
+ */
 public class MerchantScreenHandler extends ScreenHandler {
-   protected static final int INPUT_1_ID = 0;
-   protected static final int INPUT_2_ID = 1;
-   protected static final int OUTPUT_ID = 2;
-   private static final int INVENTORY_START = 3;
-   private static final int INVENTORY_END = 30;
-   private static final int HOTBAR_START = 30;
-   private static final int HOTBAR_END = 39;
-   private static final int INPUT_1_X = 136;
-   private static final int INPUT_2_X = 162;
-   private static final int OUTPUT_X = 220;
-   private static final int SLOT_Y = 37;
-   private final Merchant merchant;
-   private final MerchantInventory merchantInventory;
-   private int levelProgress;
-   private boolean leveled;
-   private boolean canRefreshTrades;
 
-   public MerchantScreenHandler(int syncId, PlayerInventory playerInventory) {
-      this(syncId, playerInventory, new SimpleMerchant(playerInventory.player));
-   }
+	protected static final int INPUT_1_ID = 0;
+	protected static final int INPUT_2_ID = 1;
+	protected static final int OUTPUT_ID = 2;
+	private static final int INVENTORY_START = 3;
+	private static final int INVENTORY_END = 30;
+	private static final int HOTBAR_START = 30;
+	private static final int HOTBAR_END = 39;
+	private static final int INPUT_1_X = 136;
+	private static final int INPUT_2_X = 162;
+	private static final int OUTPUT_X = 220;
+	private static final int SLOT_Y = 37;
+	private final Merchant merchant;
+	private final MerchantInventory merchantInventory;
+	private int levelProgress;
+	private boolean leveled;
+	private boolean canRefreshTrades;
 
-   public MerchantScreenHandler(int syncId, PlayerInventory playerInventory, Merchant merchant) {
-      super(ScreenHandlerType.MERCHANT, syncId);
-      this.merchant = merchant;
-      this.merchantInventory = new MerchantInventory(merchant);
-      this.addSlot(new Slot(this.merchantInventory, 0, 136, 37));
-      this.addSlot(new Slot(this.merchantInventory, 1, 162, 37));
-      this.addSlot(new TradeOutputSlot(playerInventory.player, merchant, this.merchantInventory, 2, 220, 37));
-      this.addPlayerSlots(playerInventory, 108, 84);
-   }
+	public MerchantScreenHandler(int syncId, PlayerInventory playerInventory) {
+		this(syncId, playerInventory, new SimpleMerchant(playerInventory.player));
+	}
 
-   public void setLeveled(boolean leveled) {
-      this.leveled = leveled;
-   }
+	public MerchantScreenHandler(int syncId, PlayerInventory playerInventory, Merchant merchant) {
+		super(ScreenHandlerType.MERCHANT, syncId);
+		this.merchant = merchant;
+		this.merchantInventory = new MerchantInventory(merchant);
+		this.addSlot(new Slot(this.merchantInventory, 0, 136, 37));
+		this.addSlot(new Slot(this.merchantInventory, 1, 162, 37));
+		this.addSlot(new TradeOutputSlot(playerInventory.player, merchant, this.merchantInventory, 2, 220, 37));
+		this.addPlayerSlots(playerInventory, 108, 84);
+	}
 
-   @Override
-   public void onContentChanged(Inventory inventory) {
-      this.merchantInventory.updateOffers();
-      super.onContentChanged(inventory);
-   }
+	public void setLeveled(boolean leveled) {
+		this.leveled = leveled;
+	}
 
-   public void setRecipeIndex(int index) {
-      this.merchantInventory.setOfferIndex(index);
-   }
+	@Override
+	public void onContentChanged(Inventory inventory) {
+		this.merchantInventory.updateOffers();
+		super.onContentChanged(inventory);
+	}
 
-   @Override
-   public boolean canUse(PlayerEntity player) {
-      return this.merchant.canInteract(player);
-   }
+	public void setRecipeIndex(int index) {
+		this.merchantInventory.setOfferIndex(index);
+	}
 
-   public int getExperience() {
-      return this.merchant.getExperience();
-   }
+	@Override
+	public boolean canUse(PlayerEntity player) {
+		return this.merchant.canInteract(player);
+	}
 
-   public int getMerchantRewardedExperience() {
-      return this.merchantInventory.getMerchantRewardedExperience();
-   }
+	public int getExperience() {
+		return this.merchant.getExperience();
+	}
 
-   public void setExperienceFromServer(int experience) {
-      this.merchant.setExperienceFromServer(experience);
-   }
+	public int getMerchantRewardedExperience() {
+		return this.merchantInventory.getMerchantRewardedExperience();
+	}
 
-   public int getLevelProgress() {
-      return this.levelProgress;
-   }
+	public void setExperienceFromServer(int experience) {
+		this.merchant.setExperienceFromServer(experience);
+	}
 
-   public void setLevelProgress(int levelProgress) {
-      this.levelProgress = levelProgress;
-   }
+	public int getLevelProgress() {
+		return this.levelProgress;
+	}
 
-   public void setCanRefreshTrades(boolean canRefreshTrades) {
-      this.canRefreshTrades = canRefreshTrades;
-   }
+	public void setLevelProgress(int levelProgress) {
+		this.levelProgress = levelProgress;
+	}
 
-   public boolean canRefreshTrades() {
-      return this.canRefreshTrades;
-   }
+	public void setCanRefreshTrades(boolean canRefreshTrades) {
+		this.canRefreshTrades = canRefreshTrades;
+	}
 
-   @Override
-   public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
-      return false;
-   }
+	public boolean canRefreshTrades() {
+		return this.canRefreshTrades;
+	}
 
-   @Override
-   public ItemStack quickMove(PlayerEntity player, int slot) {
-      ItemStack itemStack = ItemStack.EMPTY;
-      Slot slot2 = this.slots.get(slot);
-      if (slot2 != null && slot2.hasStack()) {
-         ItemStack itemStack2 = slot2.getStack();
-         itemStack = itemStack2.copy();
-         if (slot == 2) {
-            if (!this.insertItem(itemStack2, 3, 39, true)) {
-               return ItemStack.EMPTY;
-            }
+	@Override
+	public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
+		return false;
+	}
 
-            slot2.onQuickTransfer(itemStack2, itemStack);
-            this.playYesSound();
-         } else if (slot != 0 && slot != 1) {
-            if (slot >= 3 && slot < 30) {
-               if (!this.insertItem(itemStack2, 30, 39, false)) {
-                  return ItemStack.EMPTY;
-               }
-            } else if (slot >= 30 && slot < 39 && !this.insertItem(itemStack2, 3, 30, false)) {
-               return ItemStack.EMPTY;
-            }
-         } else if (!this.insertItem(itemStack2, 3, 39, false)) {
-            return ItemStack.EMPTY;
-         }
+	@Override
+	public ItemStack quickMove(PlayerEntity player, int slot) {
+		ItemStack itemStack = ItemStack.EMPTY;
+		Slot slot2 = this.slots.get(slot);
+		if (slot2 != null && slot2.hasStack()) {
+			ItemStack itemStack2 = slot2.getStack();
+			itemStack = itemStack2.copy();
+			if (slot == 2) {
+				if (!this.insertItem(itemStack2, 3, 39, true)) {
+					return ItemStack.EMPTY;
+				}
 
-         if (itemStack2.isEmpty()) {
-            slot2.setStack(ItemStack.EMPTY);
-         } else {
-            slot2.markDirty();
-         }
+				slot2.onQuickTransfer(itemStack2, itemStack);
+				this.playYesSound();
+			}
+			else if (slot != 0 && slot != 1) {
+				if (slot >= 3 && slot < 30) {
+					if (!this.insertItem(itemStack2, 30, 39, false)) {
+						return ItemStack.EMPTY;
+					}
+				}
+				else if (slot >= 30 && slot < 39 && !this.insertItem(itemStack2, 3, 30, false)) {
+					return ItemStack.EMPTY;
+				}
+			}
+			else if (!this.insertItem(itemStack2, 3, 39, false)) {
+				return ItemStack.EMPTY;
+			}
 
-         if (itemStack2.getCount() == itemStack.getCount()) {
-            return ItemStack.EMPTY;
-         }
+			if (itemStack2.isEmpty()) {
+				slot2.setStack(ItemStack.EMPTY);
+			}
+			else {
+				slot2.markDirty();
+			}
 
-         slot2.onTakeItem(player, itemStack2);
-      }
+			if (itemStack2.getCount() == itemStack.getCount()) {
+				return ItemStack.EMPTY;
+			}
 
-      return itemStack;
-   }
+			slot2.onTakeItem(player, itemStack2);
+		}
 
-   private void playYesSound() {
-      if (!this.merchant.isClient()) {
-         Entity entity = (Entity)this.merchant;
-         entity.getEntityWorld()
-            .playSoundClient(entity.getX(), entity.getY(), entity.getZ(), this.merchant.getYesSound(), SoundCategory.NEUTRAL, 1.0F, 1.0F, false);
-      }
-   }
+		return itemStack;
+	}
 
-   @Override
-   public void onClosed(PlayerEntity player) {
-      super.onClosed(player);
-      this.merchant.setCustomer(null);
-      if (!this.merchant.isClient()) {
-         if (!player.isAlive() || player instanceof ServerPlayerEntity && ((ServerPlayerEntity)player).isDisconnected()) {
-            ItemStack itemStack = this.merchantInventory.removeStack(0);
-            if (!itemStack.isEmpty()) {
-               player.dropItem(itemStack, false);
-            }
+	private void playYesSound() {
+		if (!this.merchant.isClient()) {
+			Entity entity = (Entity) this.merchant;
+			entity.getEntityWorld()
+			      .playSoundClient(
+					      entity.getX(),
+					      entity.getY(),
+					      entity.getZ(),
+					      this.merchant.getYesSound(),
+					      SoundCategory.NEUTRAL,
+					      1.0F,
+					      1.0F,
+					      false
+			      );
+		}
+	}
 
-            itemStack = this.merchantInventory.removeStack(1);
-            if (!itemStack.isEmpty()) {
-               player.dropItem(itemStack, false);
-            }
-         } else if (player instanceof ServerPlayerEntity) {
-            player.getInventory().offerOrDrop(this.merchantInventory.removeStack(0));
-            player.getInventory().offerOrDrop(this.merchantInventory.removeStack(1));
-         }
-      }
-   }
+	@Override
+	public void onClosed(PlayerEntity player) {
+		super.onClosed(player);
+		this.merchant.setCustomer(null);
+		if (!this.merchant.isClient()) {
+			if (!player.isAlive()
+					|| player instanceof ServerPlayerEntity && ((ServerPlayerEntity) player).isDisconnected()) {
+				ItemStack itemStack = this.merchantInventory.removeStack(0);
+				if (!itemStack.isEmpty()) {
+					player.dropItem(itemStack, false);
+				}
 
-   public void switchTo(int recipeIndex) {
-      if (recipeIndex >= 0 && this.getRecipes().size() > recipeIndex) {
-         ItemStack itemStack = this.merchantInventory.getStack(0);
-         if (!itemStack.isEmpty()) {
-            if (!this.insertItem(itemStack, 3, 39, true)) {
-               return;
-            }
+				itemStack = this.merchantInventory.removeStack(1);
+				if (!itemStack.isEmpty()) {
+					player.dropItem(itemStack, false);
+				}
+			}
+			else if (player instanceof ServerPlayerEntity) {
+				player.getInventory().offerOrDrop(this.merchantInventory.removeStack(0));
+				player.getInventory().offerOrDrop(this.merchantInventory.removeStack(1));
+			}
+		}
+	}
 
-            this.merchantInventory.setStack(0, itemStack);
-         }
+	public void switchTo(int recipeIndex) {
+		if (recipeIndex >= 0 && this.getRecipes().size() > recipeIndex) {
+			ItemStack itemStack = this.merchantInventory.getStack(0);
+			if (!itemStack.isEmpty()) {
+				if (!this.insertItem(itemStack, 3, 39, true)) {
+					return;
+				}
 
-         ItemStack itemStack2 = this.merchantInventory.getStack(1);
-         if (!itemStack2.isEmpty()) {
-            if (!this.insertItem(itemStack2, 3, 39, true)) {
-               return;
-            }
+				this.merchantInventory.setStack(0, itemStack);
+			}
 
-            this.merchantInventory.setStack(1, itemStack2);
-         }
+			ItemStack itemStack2 = this.merchantInventory.getStack(1);
+			if (!itemStack2.isEmpty()) {
+				if (!this.insertItem(itemStack2, 3, 39, true)) {
+					return;
+				}
 
-         if (this.merchantInventory.getStack(0).isEmpty() && this.merchantInventory.getStack(1).isEmpty()) {
-            TradeOffer tradeOffer = this.getRecipes().get(recipeIndex);
-            this.autofill(0, tradeOffer.getFirstBuyItem());
-            tradeOffer.getSecondBuyItem().ifPresent(item -> this.autofill(1, item));
-         }
-      }
-   }
+				this.merchantInventory.setStack(1, itemStack2);
+			}
 
-   private void autofill(int slot, TradedItem stack) {
-      for (int i = 3; i < 39; i++) {
-         ItemStack itemStack = this.slots.get(i).getStack();
-         if (!itemStack.isEmpty() && stack.matches(itemStack)) {
-            ItemStack itemStack2 = this.merchantInventory.getStack(slot);
-            if (itemStack2.isEmpty() || ItemStack.areItemsAndComponentsEqual(itemStack, itemStack2)) {
-               int j = itemStack.getMaxCount();
-               int k = Math.min(j - itemStack2.getCount(), itemStack.getCount());
-               ItemStack itemStack3 = itemStack.copyWithCount(itemStack2.getCount() + k);
-               itemStack.decrement(k);
-               this.merchantInventory.setStack(slot, itemStack3);
-               if (itemStack3.getCount() >= j) {
-                  break;
-               }
-            }
-         }
-      }
-   }
+			if (this.merchantInventory.getStack(0).isEmpty() && this.merchantInventory.getStack(1).isEmpty()) {
+				TradeOffer tradeOffer = this.getRecipes().get(recipeIndex);
+				this.autofill(0, tradeOffer.getFirstBuyItem());
+				tradeOffer.getSecondBuyItem().ifPresent(item -> this.autofill(1, item));
+			}
+		}
+	}
 
-   public void setOffers(TradeOfferList offers) {
-      this.merchant.setOffersFromServer(offers);
-   }
+	private void autofill(int slot, TradedItem stack) {
+		for (int i = 3; i < 39; i++) {
+			ItemStack itemStack = this.slots.get(i).getStack();
+			if (!itemStack.isEmpty() && stack.matches(itemStack)) {
+				ItemStack itemStack2 = this.merchantInventory.getStack(slot);
+				if (itemStack2.isEmpty() || ItemStack.areItemsAndComponentsEqual(itemStack, itemStack2)) {
+					int j = itemStack.getMaxCount();
+					int k = Math.min(j - itemStack2.getCount(), itemStack.getCount());
+					ItemStack itemStack3 = itemStack.copyWithCount(itemStack2.getCount() + k);
+					itemStack.decrement(k);
+					this.merchantInventory.setStack(slot, itemStack3);
+					if (itemStack3.getCount() >= j) {
+						break;
+					}
+				}
+			}
+		}
+	}
 
-   public TradeOfferList getRecipes() {
-      return this.merchant.getOffers();
-   }
+	public void setOffers(TradeOfferList offers) {
+		this.merchant.setOffersFromServer(offers);
+	}
 
-   public boolean isLeveled() {
-      return this.leveled;
-   }
+	public TradeOfferList getRecipes() {
+		return this.merchant.getOffers();
+	}
+
+	public boolean isLeveled() {
+		return this.leveled;
+	}
 }

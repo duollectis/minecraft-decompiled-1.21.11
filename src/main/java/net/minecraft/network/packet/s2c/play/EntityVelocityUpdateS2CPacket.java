@@ -10,45 +10,46 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.Vec3d;
 
 public class EntityVelocityUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, EntityVelocityUpdateS2CPacket> CODEC = Packet.createCodec(
-      EntityVelocityUpdateS2CPacket::write, EntityVelocityUpdateS2CPacket::new
-   );
-   private final int entityId;
-   private final Vec3d velocity;
 
-   public EntityVelocityUpdateS2CPacket(Entity entity) {
-      this(entity.getId(), entity.getVelocity());
-   }
+	public static final PacketCodec<PacketByteBuf, EntityVelocityUpdateS2CPacket> CODEC = Packet.createCodec(
+			EntityVelocityUpdateS2CPacket::write, EntityVelocityUpdateS2CPacket::new
+	);
+	private final int entityId;
+	private final Vec3d velocity;
 
-   public EntityVelocityUpdateS2CPacket(int entityId, Vec3d velocity) {
-      this.entityId = entityId;
-      this.velocity = velocity;
-   }
+	public EntityVelocityUpdateS2CPacket(Entity entity) {
+		this(entity.getId(), entity.getVelocity());
+	}
 
-   private EntityVelocityUpdateS2CPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      this.velocity = buf.readVelocity();
-   }
+	public EntityVelocityUpdateS2CPacket(int entityId, Vec3d velocity) {
+		this.entityId = entityId;
+		this.velocity = velocity;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      buf.writeVelocity(this.velocity);
-   }
+	private EntityVelocityUpdateS2CPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		this.velocity = buf.readVelocity();
+	}
 
-   @Override
-   public PacketType<EntityVelocityUpdateS2CPacket> getPacketType() {
-      return PlayPackets.SET_ENTITY_MOTION;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		buf.writeVelocity(this.velocity);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntityVelocityUpdate(this);
-   }
+	@Override
+	public PacketType<EntityVelocityUpdateS2CPacket> getPacketType() {
+		return PlayPackets.SET_ENTITY_MOTION;
+	}
 
-   public int getEntityId() {
-      return this.entityId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntityVelocityUpdate(this);
+	}
 
-   public Vec3d getVelocity() {
-      return this.velocity;
-   }
+	public int getEntityId() {
+		return this.entityId;
+	}
+
+	public Vec3d getVelocity() {
+		return this.velocity;
+	}
 }

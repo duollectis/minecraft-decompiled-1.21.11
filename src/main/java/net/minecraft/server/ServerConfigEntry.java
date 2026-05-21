@@ -3,20 +3,24 @@ package net.minecraft.server;
 import com.google.gson.JsonObject;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ServerConfigEntry}.
+ */
 public abstract class ServerConfigEntry<T> {
-   private final @Nullable T key;
 
-   public ServerConfigEntry(@Nullable T key) {
-      this.key = key;
-   }
+	private final @Nullable T key;
 
-   public @Nullable T getKey() {
-      return this.key;
-   }
+	public ServerConfigEntry(@Nullable T key) {
+		this.key = key;
+	}
 
-   boolean isInvalid() {
-      return false;
-   }
+	public @Nullable T getKey() {
+		return this.key;
+	}
 
-   protected abstract void write(JsonObject json);
+	boolean isInvalid() {
+		return false;
+	}
+
+	protected abstract void write(JsonObject json);
 }

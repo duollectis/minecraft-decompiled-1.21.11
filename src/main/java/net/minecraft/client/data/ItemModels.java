@@ -1,20 +1,8 @@
 package net.minecraft.client.data;
 
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Map.Entry;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
-import net.minecraft.client.render.item.model.BasicItemModel;
-import net.minecraft.client.render.item.model.CompositeItemModel;
-import net.minecraft.client.render.item.model.ConditionItemModel;
-import net.minecraft.client.render.item.model.ItemModel;
-import net.minecraft.client.render.item.model.RangeDispatchItemModel;
-import net.minecraft.client.render.item.model.SelectItemModel;
-import net.minecraft.client.render.item.model.SpecialItemModel;
+import net.minecraft.client.render.item.model.*;
 import net.minecraft.client.render.item.model.special.SpecialModelRenderer;
 import net.minecraft.client.render.item.property.bool.BooleanProperty;
 import net.minecraft.client.render.item.property.bool.HasComponentProperty;
@@ -32,105 +20,158 @@ import net.minecraft.util.Holidays;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ItemModels}.
+ */
 public class ItemModels {
-   public static ItemModel.Unbaked basic(Identifier model) {
-      return new BasicItemModel.Unbaked(model, List.of());
-   }
 
-   public static ItemModel.Unbaked tinted(Identifier model, TintSource... tints) {
-      return new BasicItemModel.Unbaked(model, List.of(tints));
-   }
+	public static ItemModel.Unbaked basic(Identifier model) {
+		return new BasicItemModel.Unbaked(model, List.of());
+	}
 
-   public static TintSource constantTintSource(int value) {
-      return new ConstantTintSource(value);
-   }
+	public static ItemModel.Unbaked tinted(Identifier model, TintSource... tints) {
+		return new BasicItemModel.Unbaked(model, List.of(tints));
+	}
 
-   public static ItemModel.Unbaked composite(ItemModel.Unbaked... models) {
-      return new CompositeItemModel.Unbaked(List.of(models));
-   }
+	public static TintSource constantTintSource(int value) {
+		return new ConstantTintSource(value);
+	}
 
-   public static ItemModel.Unbaked special(Identifier base, SpecialModelRenderer.Unbaked specialModel) {
-      return new SpecialItemModel.Unbaked(base, specialModel);
-   }
+	public static ItemModel.Unbaked composite(ItemModel.Unbaked... models) {
+		return new CompositeItemModel.Unbaked(List.of(models));
+	}
 
-   public static RangeDispatchItemModel.Entry rangeDispatchEntry(ItemModel.Unbaked model, float threshold) {
-      return new RangeDispatchItemModel.Entry(threshold, model);
-   }
+	public static ItemModel.Unbaked special(Identifier base, SpecialModelRenderer.Unbaked specialModel) {
+		return new SpecialItemModel.Unbaked(base, specialModel);
+	}
 
-   public static ItemModel.Unbaked rangeDispatch(NumericProperty property, ItemModel.Unbaked fallback, RangeDispatchItemModel.Entry... entries) {
-      return new RangeDispatchItemModel.Unbaked(property, 1.0F, List.of(entries), Optional.of(fallback));
-   }
+	public static RangeDispatchItemModel.Entry rangeDispatchEntry(ItemModel.Unbaked model, float threshold) {
+		return new RangeDispatchItemModel.Entry(threshold, model);
+	}
 
-   public static ItemModel.Unbaked rangeDispatch(NumericProperty property, float scale, ItemModel.Unbaked fallback, RangeDispatchItemModel.Entry... entries) {
-      return new RangeDispatchItemModel.Unbaked(property, scale, List.of(entries), Optional.of(fallback));
-   }
+	public static ItemModel.Unbaked rangeDispatch(
+			NumericProperty property,
+			ItemModel.Unbaked fallback,
+			RangeDispatchItemModel.Entry... entries
+	) {
+		return new RangeDispatchItemModel.Unbaked(property, 1.0F, List.of(entries), Optional.of(fallback));
+	}
 
-   public static ItemModel.Unbaked rangeDispatch(NumericProperty property, ItemModel.Unbaked fallback, List<RangeDispatchItemModel.Entry> entries) {
-      return new RangeDispatchItemModel.Unbaked(property, 1.0F, entries, Optional.of(fallback));
-   }
+	public static ItemModel.Unbaked rangeDispatch(
+			NumericProperty property,
+			float scale,
+			ItemModel.Unbaked fallback,
+			RangeDispatchItemModel.Entry... entries
+	) {
+		return new RangeDispatchItemModel.Unbaked(property, scale, List.of(entries), Optional.of(fallback));
+	}
 
-   public static ItemModel.Unbaked rangeDispatch(NumericProperty property, List<RangeDispatchItemModel.Entry> entries) {
-      return new RangeDispatchItemModel.Unbaked(property, 1.0F, entries, Optional.empty());
-   }
+	public static ItemModel.Unbaked rangeDispatch(
+			NumericProperty property,
+			ItemModel.Unbaked fallback,
+			List<RangeDispatchItemModel.Entry> entries
+	) {
+		return new RangeDispatchItemModel.Unbaked(property, 1.0F, entries, Optional.of(fallback));
+	}
 
-   public static ItemModel.Unbaked rangeDispatch(NumericProperty property, float scale, List<RangeDispatchItemModel.Entry> entries) {
-      return new RangeDispatchItemModel.Unbaked(property, scale, entries, Optional.empty());
-   }
+	public static ItemModel.Unbaked rangeDispatch(
+			NumericProperty property,
+			List<RangeDispatchItemModel.Entry> entries
+	) {
+		return new RangeDispatchItemModel.Unbaked(property, 1.0F, entries, Optional.empty());
+	}
 
-   public static ItemModel.Unbaked condition(BooleanProperty property, ItemModel.Unbaked onTrue, ItemModel.Unbaked onFalse) {
-      return new ConditionItemModel.Unbaked(property, onTrue, onFalse);
-   }
+	public static ItemModel.Unbaked rangeDispatch(
+			NumericProperty property,
+			float scale,
+			List<RangeDispatchItemModel.Entry> entries
+	) {
+		return new RangeDispatchItemModel.Unbaked(property, scale, entries, Optional.empty());
+	}
 
-   public static <T> SelectItemModel.SwitchCase<T> switchCase(T value, ItemModel.Unbaked model) {
-      return new SelectItemModel.SwitchCase<>(List.of(value), model);
-   }
+	public static ItemModel.Unbaked condition(
+			BooleanProperty property,
+			ItemModel.Unbaked onTrue,
+			ItemModel.Unbaked onFalse
+	) {
+		return new ConditionItemModel.Unbaked(property, onTrue, onFalse);
+	}
 
-   public static <T> SelectItemModel.SwitchCase<T> switchCase(List<T> values, ItemModel.Unbaked model) {
-      return new SelectItemModel.SwitchCase<>(values, model);
-   }
+	public static <T> SelectItemModel.SwitchCase<T> switchCase(T value, ItemModel.Unbaked model) {
+		return new SelectItemModel.SwitchCase<>(List.of(value), model);
+	}
 
-   @SafeVarargs
-   public static <T> ItemModel.Unbaked select(SelectProperty<T> property, ItemModel.Unbaked fallback, SelectItemModel.SwitchCase<T>... cases) {
-      return select(property, fallback, List.of(cases));
-   }
+	public static <T> SelectItemModel.SwitchCase<T> switchCase(List<T> values, ItemModel.Unbaked model) {
+		return new SelectItemModel.SwitchCase<>(values, model);
+	}
 
-   public static <T> ItemModel.Unbaked select(SelectProperty<T> property, ItemModel.Unbaked fallback, List<SelectItemModel.SwitchCase<T>> cases) {
-      return new SelectItemModel.Unbaked(new SelectItemModel.UnbakedSwitch<>(property, cases), Optional.of(fallback));
-   }
+	@SafeVarargs
+	public static <T> ItemModel.Unbaked select(
+			SelectProperty<T> property,
+			ItemModel.Unbaked fallback,
+			SelectItemModel.SwitchCase<T>... cases
+	) {
+		return select(property, fallback, List.of(cases));
+	}
 
-   @SafeVarargs
-   public static <T> ItemModel.Unbaked select(SelectProperty<T> property, SelectItemModel.SwitchCase<T>... cases) {
-      return select(property, List.of(cases));
-   }
+	public static <T> ItemModel.Unbaked select(
+			SelectProperty<T> property,
+			ItemModel.Unbaked fallback,
+			List<SelectItemModel.SwitchCase<T>> cases
+	) {
+		return new SelectItemModel.Unbaked(new SelectItemModel.UnbakedSwitch<>(property, cases), Optional.of(fallback));
+	}
 
-   public static <T> ItemModel.Unbaked select(SelectProperty<T> property, List<SelectItemModel.SwitchCase<T>> cases) {
-      return new SelectItemModel.Unbaked(new SelectItemModel.UnbakedSwitch<>(property, cases), Optional.empty());
-   }
+	@SafeVarargs
+	public static <T> ItemModel.Unbaked select(SelectProperty<T> property, SelectItemModel.SwitchCase<T>... cases) {
+		return select(property, List.of(cases));
+	}
 
-   public static BooleanProperty usingItemProperty() {
-      return new UsingItemProperty();
-   }
+	public static <T> ItemModel.Unbaked select(SelectProperty<T> property, List<SelectItemModel.SwitchCase<T>> cases) {
+		return new SelectItemModel.Unbaked(new SelectItemModel.UnbakedSwitch<>(property, cases), Optional.empty());
+	}
 
-   public static BooleanProperty hasComponentProperty(ComponentType<?> component) {
-      return new HasComponentProperty(component, false);
-   }
+	public static BooleanProperty usingItemProperty() {
+		return new UsingItemProperty();
+	}
 
-   public static ItemModel.Unbaked overworldSelect(ItemModel.Unbaked overworldModel, ItemModel.Unbaked fallback) {
-      return select(new ContextDimensionProperty(), fallback, switchCase(World.OVERWORLD, overworldModel));
-   }
+	public static BooleanProperty hasComponentProperty(ComponentType<?> component) {
+		return new HasComponentProperty(component, false);
+	}
 
-   public static <T extends Comparable<T>> ItemModel.Unbaked select(Property<T> property, ItemModel.Unbaked fallback, Map<T, ItemModel.Unbaked> valuesToModels) {
-      List<SelectItemModel.SwitchCase<String>> list = valuesToModels.entrySet().stream().sorted(Entry.comparingByKey()).map(entry -> {
-         String string = property.name(entry.getKey());
-         return new SelectItemModel.SwitchCase<>(List.of(string), entry.getValue());
-      }).toList();
-      return select(new ItemBlockStateProperty(property.getName()), fallback, list);
-   }
+	public static ItemModel.Unbaked overworldSelect(ItemModel.Unbaked overworldModel, ItemModel.Unbaked fallback) {
+		return select(new ContextDimensionProperty(), fallback, switchCase(World.OVERWORLD, overworldModel));
+	}
 
-   public static ItemModel.Unbaked christmasSelect(ItemModel.Unbaked regularModel, ItemModel.Unbaked christmasModel) {
-      DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("MM-dd", Locale.ROOT);
-      List<String> list = Holidays.CHRISTMAS_PERIOD.stream().map(dateTimeFormatter::format).toList();
-      return select(LocalTimeProperty.create("MM-dd", "", Optional.empty()), christmasModel, List.of(switchCase(list, regularModel)));
-   }
+	public static <T extends Comparable<T>> ItemModel.Unbaked select(
+			Property<T> property,
+			ItemModel.Unbaked fallback,
+			Map<T, ItemModel.Unbaked> valuesToModels
+	) {
+		List<SelectItemModel.SwitchCase<String>>
+				list =
+				valuesToModels.entrySet().stream().sorted(Entry.comparingByKey()).map(entry -> {
+					String string = property.name(entry.getKey());
+					return new SelectItemModel.SwitchCase<>(List.of(string), entry.getValue());
+				}).toList();
+		return select(new ItemBlockStateProperty(property.getName()), fallback, list);
+	}
+
+	public static ItemModel.Unbaked christmasSelect(ItemModel.Unbaked regularModel, ItemModel.Unbaked christmasModel) {
+		DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("MM-dd", Locale.ROOT);
+		List<String> list = Holidays.CHRISTMAS_PERIOD.stream().map(dateTimeFormatter::format).toList();
+		return select(
+				LocalTimeProperty.create("MM-dd", "", Optional.empty()),
+				christmasModel,
+				List.of(switchCase(list, regularModel))
+		);
+	}
 }

@@ -13,25 +13,43 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
-public record DamageEntityEnchantmentEffect(EnchantmentLevelBasedValue minDamage, EnchantmentLevelBasedValue maxDamage, RegistryEntry<DamageType> damageType)
-   implements EnchantmentEntityEffect {
-   public static final MapCodec<DamageEntityEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            EnchantmentLevelBasedValue.CODEC.fieldOf("min_damage").forGetter(DamageEntityEnchantmentEffect::minDamage),
-            EnchantmentLevelBasedValue.CODEC.fieldOf("max_damage").forGetter(DamageEntityEnchantmentEffect::maxDamage),
-            DamageType.ENTRY_CODEC.fieldOf("damage_type").forGetter(DamageEntityEnchantmentEffect::damageType)
-         )
-         .apply(instance, DamageEntityEnchantmentEffect::new)
-   );
+/**
+ * {@code DamageEntityEnchantmentEffect}.
+ */
+public record DamageEntityEnchantmentEffect(
+		EnchantmentLevelBasedValue minDamage,
+		EnchantmentLevelBasedValue maxDamage,
+		RegistryEntry<DamageType> damageType
+)
+		implements EnchantmentEntityEffect {
 
-   @Override
-   public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
-      float f = MathHelper.nextBetween(user.getRandom(), this.minDamage.getValue(level), this.maxDamage.getValue(level));
-      user.damage(world, new DamageSource(this.damageType, context.owner()), f);
-   }
+	public static final MapCodec<DamageEntityEnchantmentEffect> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    EnchantmentLevelBasedValue.CODEC
+							                    .fieldOf("min_damage")
+							                    .forGetter(DamageEntityEnchantmentEffect::minDamage),
+					                    EnchantmentLevelBasedValue.CODEC
+							                    .fieldOf("max_damage")
+							                    .forGetter(DamageEntityEnchantmentEffect::maxDamage),
+					                    DamageType.ENTRY_CODEC.fieldOf("damage_type").forGetter(DamageEntityEnchantmentEffect::damageType)
+			                    )
+			                    .apply(instance, DamageEntityEnchantmentEffect::new)
+	);
 
-   @Override
-   public MapCodec<DamageEntityEnchantmentEffect> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public void apply(ServerWorld world, int level, EnchantmentEffectContext context, Entity user, Vec3d pos) {
+		float
+				f =
+				MathHelper.nextBetween(
+						user.getRandom(),
+						this.minDamage.getValue(level),
+						this.maxDamage.getValue(level)
+				);
+		user.damage(world, new DamageSource(this.damageType, context.owner()), f);
+	}
+
+	@Override
+	public MapCodec<DamageEntityEnchantmentEffect> getCodec() {
+		return CODEC;
+	}
 }

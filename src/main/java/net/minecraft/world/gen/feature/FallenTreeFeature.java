@@ -1,11 +1,6 @@
 package net.minecraft.world.gen.feature;
 
 import com.mojang.serialization.Codec;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.PillarBlock;
 import net.minecraft.util.math.BlockPos;
@@ -16,113 +11,154 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 import net.minecraft.world.gen.treedecorator.TreeDecorator;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+
+/**
+ * {@code FallenTreeFeature}.
+ */
 public class FallenTreeFeature extends Feature<FallenTreeFeatureConfig> {
-   private static final int field_57808 = 1;
-   private static final int field_57811 = 2;
-   private static final int field_57812 = 5;
-   private static final int field_57813 = 2;
-   private static final int field_57809 = 2;
 
-   public FallenTreeFeature(Codec<FallenTreeFeatureConfig> codec) {
-      super(codec);
-   }
+	private static final int MIN_LOG_OFFSET = 1;
+	private static final int LOG_PLACEMENT_OFFSET = 2;
+	private static final int MAX_GROUND_SEARCH_STEPS = 5;
+	private static final int MAX_UNSUPPORTED_LOG_BLOCKS = 2;
+	private static final int STUMP_OFFSET = 2;
 
-   @Override
-   public boolean generate(FeatureContext<FallenTreeFeatureConfig> context) {
-      this.generate(context.getConfig(), context.getOrigin(), context.getWorld(), context.getRandom());
-      return true;
-   }
+	public FallenTreeFeature(Codec<FallenTreeFeatureConfig> codec) {
+		super(codec);
+	}
 
-   private void generate(FallenTreeFeatureConfig config, BlockPos pos, StructureWorldAccess world, Random random) {
-      this.generateStump(config, world, random, pos.mutableCopy());
-      Direction direction = Direction.Type.HORIZONTAL.random(random);
-      int i = config.logLength.get(random) - 2;
-      BlockPos.Mutable mutable = pos.offset(direction, 2 + random.nextInt(2)).mutableCopy();
-      this.moveToGroundPos(world, mutable);
-      if (this.canPlaceLog(world, i, mutable, direction)) {
-         this.generateLog(config, world, random, i, mutable, direction);
-      }
-   }
+	@Override
+	public boolean generate(FeatureContext<FallenTreeFeatureConfig> context) {
+		this.generate(context.getConfig(), context.getOrigin(), context.getWorld(), context.getRandom());
+		return true;
+	}
 
-   private void moveToGroundPos(StructureWorldAccess world, BlockPos.Mutable pos) {
-      pos.move(Direction.UP, 1);
+	private void generate(FallenTreeFeatureConfig config, BlockPos pos, StructureWorldAccess world, Random random) {
+		this.generateStump(config, world, random, pos.mutableCopy());
+		Direction direction = Direction.Type.HORIZONTAL.random(random);
+		int i = config.logLength.get(random) - 2;
+		BlockPos.Mutable mutable = pos.offset(direction, 2 + random.nextInt(2)).mutableCopy();
+		this.moveToGroundPos(world, mutable);
+		if (this.canPlaceLog(world, i, mutable, direction)) {
+			this.generateLog(config, world, random, i, mutable, direction);
+		}
+	}
 
-      for (int i = 0; i < 6; i++) {
-         if (this.canReplaceAndHasSolidBelow(world, pos)) {
-            return;
-         }
+	private void moveToGroundPos(StructureWorldAccess world, BlockPos.Mutable pos) {
+		pos.move(Direction.UP, 1);
 
-         pos.move(Direction.DOWN);
-      }
-   }
+		for (int i = 0; i < 6; i++) {
+			if (this.canReplaceAndHasSolidBelow(world, pos)) {
+				return;
+			}
 
-   private void generateStump(FallenTreeFeatureConfig config, StructureWorldAccess world, Random random, BlockPos.Mutable pos) {
-      BlockPos blockPos = this.setBlockStateAndGetPos(config, world, random, pos, Function.identity());
-      this.applyDecorators(world, random, Set.of(blockPos), config.stumpDecorators);
-   }
+			pos.move(Direction.DOWN);
+		}
+	}
 
-   private boolean canPlaceLog(StructureWorldAccess world, int length, BlockPos.Mutable pos, Direction direction) {
-      int i = 0;
+	private void generateStump(
+			FallenTreeFeatureConfig config,
+			StructureWorldAccess world,
+			Random random,
+			BlockPos.Mutable pos
+	) {
+		BlockPos blockPos = this.setBlockStateAndGetPos(config, world, random, pos, Function.identity());
+		this.applyDecorators(world, random, Set.of(blockPos), config.stumpDecorators);
+	}
 
-      for (int j = 0; j < length; j++) {
-         if (!TreeFeature.canReplace(world, pos)) {
-            return false;
-         }
+	private boolean canPlaceLog(StructureWorldAccess world, int length, BlockPos.Mutable pos, Direction direction) {
+		int i = 0;
 
-         if (!this.isSolidBelow(world, pos)) {
-            if (++i > 2) {
-               return false;
-            }
-         } else {
-            i = 0;
-         }
+		for (int j = 0; j < length; j++) {
+			if (!TreeFeature.canReplace(world, pos)) {
+				return false;
+			}
 
-         pos.move(direction);
-      }
+			if (!this.isSolidBelow(world, pos)) {
+				if (++i > 2) {
+					return false;
+				}
+			}
+			else {
+				i = 0;
+			}
 
-      pos.move(direction.getOpposite(), length);
-      return true;
-   }
+			pos.move(direction);
+		}
 
-   private void generateLog(FallenTreeFeatureConfig config, StructureWorldAccess world, Random random, int length, BlockPos.Mutable pos, Direction direction) {
-      Set<BlockPos> set = new HashSet<>();
+		pos.move(direction.getOpposite(), length);
+		return true;
+	}
 
-      for (int i = 0; i < length; i++) {
-         set.add(this.setBlockStateAndGetPos(config, world, random, pos, createAxisApplier(direction)));
-         pos.move(direction);
-      }
+	private void generateLog(
+			FallenTreeFeatureConfig config,
+			StructureWorldAccess world,
+			Random random,
+			int length,
+			BlockPos.Mutable pos,
+			Direction direction
+	) {
+		Set<BlockPos> set = new HashSet<>();
 
-      this.applyDecorators(world, random, set, config.logDecorators);
-   }
+		for (int i = 0; i < length; i++) {
+			set.add(this.setBlockStateAndGetPos(config, world, random, pos, createAxisApplier(direction)));
+			pos.move(direction);
+		}
 
-   private boolean canReplaceAndHasSolidBelow(WorldAccess world, BlockPos pos) {
-      return TreeFeature.canReplace(world, pos) && this.isSolidBelow(world, pos);
-   }
+		this.applyDecorators(world, random, set, config.logDecorators);
+	}
 
-   private boolean isSolidBelow(WorldAccess world, BlockPos pos) {
-      return world.getBlockState(pos.down()).isSideSolidFullSquare(world, pos, Direction.UP);
-   }
+	private boolean canReplaceAndHasSolidBelow(WorldAccess world, BlockPos pos) {
+		return TreeFeature.canReplace(world, pos) && this.isSolidBelow(world, pos);
+	}
 
-   private BlockPos setBlockStateAndGetPos(
-      FallenTreeFeatureConfig config, StructureWorldAccess world, Random random, BlockPos.Mutable pos, Function<BlockState, BlockState> stateFunction
-   ) {
-      world.setBlockState(pos, stateFunction.apply(config.trunkProvider.get(random, pos)), 3);
-      this.markBlocksAboveForPostProcessing(world, pos);
-      return pos.toImmutable();
-   }
+	private boolean isSolidBelow(WorldAccess world, BlockPos pos) {
+		return world.getBlockState(pos.down()).isSideSolidFullSquare(world, pos, Direction.UP);
+	}
 
-   private void applyDecorators(StructureWorldAccess world, Random random, Set<BlockPos> positions, List<TreeDecorator> decorators) {
-      if (!decorators.isEmpty()) {
-         TreeDecorator.Generator generator = new TreeDecorator.Generator(world, this.createStatePlacer(world), random, positions, Set.of(), Set.of());
-         decorators.forEach(decorator -> decorator.generate(generator));
-      }
-   }
+	private BlockPos setBlockStateAndGetPos(
+			FallenTreeFeatureConfig config,
+			StructureWorldAccess world,
+			Random random,
+			BlockPos.Mutable pos,
+			Function<BlockState, BlockState> stateFunction
+	) {
+		world.setBlockState(pos, stateFunction.apply(config.trunkProvider.get(random, pos)), 3);
+		this.markBlocksAboveForPostProcessing(world, pos);
+		return pos.toImmutable();
+	}
 
-   private BiConsumer<BlockPos, BlockState> createStatePlacer(StructureWorldAccess world) {
-      return (pos, state) -> world.setBlockState(pos, state, 19);
-   }
+	private void applyDecorators(
+			StructureWorldAccess world,
+			Random random,
+			Set<BlockPos> positions,
+			List<TreeDecorator> decorators
+	) {
+		if (!decorators.isEmpty()) {
+			TreeDecorator.Generator
+					generator =
+					new TreeDecorator.Generator(
+							world,
+							this.createStatePlacer(world),
+							random,
+							positions,
+							Set.of(),
+							Set.of()
+					);
+			decorators.forEach(decorator -> decorator.generate(generator));
+		}
+	}
 
-   private static Function<BlockState, BlockState> createAxisApplier(Direction direction) {
-      return state -> state.withIfExists(PillarBlock.AXIS, direction.getAxis());
-   }
+	private BiConsumer<BlockPos, BlockState> createStatePlacer(StructureWorldAccess world) {
+		return (pos, state) -> world.setBlockState(pos, state, 19);
+	}
+
+	private static Function<BlockState, BlockState> createAxisApplier(Direction direction) {
+		return state -> state.withIfExists(PillarBlock.AXIS, direction.getAxis());
+	}
 }

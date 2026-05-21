@@ -11,95 +11,104 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.chunk.ChunkCache;
 
+/**
+ * {@code PathNodeMaker}.
+ */
 public abstract class PathNodeMaker {
-   protected PathContext context;
-   protected MobEntity entity;
-   protected final Int2ObjectMap<PathNode> pathNodeCache = new Int2ObjectOpenHashMap();
-   protected int entityBlockXSize;
-   protected int entityBlockYSize;
-   protected int entityBlockZSize;
-   protected boolean canEnterOpenDoors = true;
-   protected boolean canOpenDoors;
-   protected boolean canSwim;
-   protected boolean canWalkOverFences;
 
-   public void init(ChunkCache cachedWorld, MobEntity entity) {
-      this.context = new PathContext(cachedWorld, entity);
-      this.entity = entity;
-      this.pathNodeCache.clear();
-      this.entityBlockXSize = MathHelper.floor(entity.getWidth() + 1.0F);
-      this.entityBlockYSize = MathHelper.floor(entity.getHeight() + 1.0F);
-      this.entityBlockZSize = MathHelper.floor(entity.getWidth() + 1.0F);
-   }
+	protected PathContext context;
+	protected MobEntity entity;
+	protected final Int2ObjectMap<PathNode> pathNodeCache = new Int2ObjectOpenHashMap();
+	protected int entityBlockXSize;
+	protected int entityBlockYSize;
+	protected int entityBlockZSize;
+	protected boolean canEnterOpenDoors = true;
+	protected boolean canOpenDoors;
+	protected boolean canSwim;
+	protected boolean canWalkOverFences;
 
-   public void clear() {
-      this.context = null;
-      this.entity = null;
-   }
+	public void init(ChunkCache cachedWorld, MobEntity entity) {
+		this.context = new PathContext(cachedWorld, entity);
+		this.entity = entity;
+		this.pathNodeCache.clear();
+		this.entityBlockXSize = MathHelper.floor(entity.getWidth() + 1.0F);
+		this.entityBlockYSize = MathHelper.floor(entity.getHeight() + 1.0F);
+		this.entityBlockZSize = MathHelper.floor(entity.getWidth() + 1.0F);
+	}
 
-   protected PathNode getNode(BlockPos pos) {
-      return this.getNode(pos.getX(), pos.getY(), pos.getZ());
-   }
+	public void clear() {
+		this.context = null;
+		this.entity = null;
+	}
 
-   protected PathNode getNode(int x, int y, int z) {
-      return (PathNode)this.pathNodeCache.computeIfAbsent(PathNode.hash(x, y, z), l -> new PathNode(x, y, z));
-   }
+	protected PathNode getNode(BlockPos pos) {
+		return this.getNode(pos.getX(), pos.getY(), pos.getZ());
+	}
 
-   public abstract PathNode getStart();
+	protected PathNode getNode(int x, int y, int z) {
+		return (PathNode) this.pathNodeCache.computeIfAbsent(PathNode.hash(x, y, z), l -> new PathNode(x, y, z));
+	}
 
-   public abstract TargetPathNode getNode(double x, double y, double z);
+	public abstract PathNode getStart();
 
-   protected TargetPathNode createNode(double x, double y, double z) {
-      return new TargetPathNode(this.getNode(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z)));
-   }
+	public abstract TargetPathNode getNode(double x, double y, double z);
 
-   public abstract int getSuccessors(PathNode[] successors, PathNode node);
+	protected TargetPathNode createNode(double x, double y, double z) {
+		return new TargetPathNode(this.getNode(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z)));
+	}
 
-   public abstract PathNodeType getNodeType(PathContext context, int x, int y, int z, MobEntity mob);
+	public abstract int getSuccessors(PathNode[] successors, PathNode node);
 
-   public abstract PathNodeType getDefaultNodeType(PathContext context, int x, int y, int z);
+	public abstract PathNodeType getNodeType(PathContext context, int x, int y, int z, MobEntity mob);
 
-   public PathNodeType getDefaultNodeType(MobEntity entity, BlockPos pos) {
-      return this.getDefaultNodeType(new PathContext(entity.getEntityWorld(), entity), pos.getX(), pos.getY(), pos.getZ());
-   }
+	public abstract PathNodeType getDefaultNodeType(PathContext context, int x, int y, int z);
 
-   public void setCanEnterOpenDoors(boolean canEnterOpenDoors) {
-      this.canEnterOpenDoors = canEnterOpenDoors;
-   }
+	public PathNodeType getDefaultNodeType(MobEntity entity, BlockPos pos) {
+		return this.getDefaultNodeType(
+				new PathContext(entity.getEntityWorld(), entity),
+				pos.getX(),
+				pos.getY(),
+				pos.getZ()
+		);
+	}
 
-   public void setCanOpenDoors(boolean canOpenDoors) {
-      this.canOpenDoors = canOpenDoors;
-   }
+	public void setCanEnterOpenDoors(boolean canEnterOpenDoors) {
+		this.canEnterOpenDoors = canEnterOpenDoors;
+	}
 
-   public void setCanSwim(boolean canSwim) {
-      this.canSwim = canSwim;
-   }
+	public void setCanOpenDoors(boolean canOpenDoors) {
+		this.canOpenDoors = canOpenDoors;
+	}
 
-   public void setCanWalkOverFences(boolean canWalkOverFences) {
-      this.canWalkOverFences = canWalkOverFences;
-   }
+	public void setCanSwim(boolean canSwim) {
+		this.canSwim = canSwim;
+	}
 
-   public boolean canEnterOpenDoors() {
-      return this.canEnterOpenDoors;
-   }
+	public void setCanWalkOverFences(boolean canWalkOverFences) {
+		this.canWalkOverFences = canWalkOverFences;
+	}
 
-   public boolean canOpenDoors() {
-      return this.canOpenDoors;
-   }
+	public boolean canEnterOpenDoors() {
+		return this.canEnterOpenDoors;
+	}
 
-   public boolean canSwim() {
-      return this.canSwim;
-   }
+	public boolean canOpenDoors() {
+		return this.canOpenDoors;
+	}
 
-   public boolean canWalkOverFences() {
-      return this.canWalkOverFences;
-   }
+	public boolean canSwim() {
+		return this.canSwim;
+	}
 
-   public static boolean isFireDamaging(BlockState state) {
-      return state.isIn(BlockTags.FIRE)
-         || state.isOf(Blocks.LAVA)
-         || state.isOf(Blocks.MAGMA_BLOCK)
-         || CampfireBlock.isLitCampfire(state)
-         || state.isOf(Blocks.LAVA_CAULDRON);
-   }
+	public boolean canWalkOverFences() {
+		return this.canWalkOverFences;
+	}
+
+	public static boolean isFireDamaging(BlockState state) {
+		return state.isIn(BlockTags.FIRE)
+				|| state.isOf(Blocks.LAVA)
+				|| state.isOf(Blocks.MAGMA_BLOCK)
+				|| CampfireBlock.isLitCampfire(state)
+				|| state.isOf(Blocks.LAVA_CAULDRON);
+	}
 }

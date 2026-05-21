@@ -1,9 +1,6 @@
 package net.minecraft.block.entity;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.VaultBlock;
 import net.minecraft.block.enums.VaultState;
@@ -42,296 +39,444 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+
+/**
+ * {@code VaultBlockEntity}.
+ */
 public class VaultBlockEntity extends BlockEntity {
-   private final VaultServerData serverData = new VaultServerData();
-   private final VaultSharedData sharedData = new VaultSharedData();
-   private final VaultClientData clientData = new VaultClientData();
-   private VaultConfig config = VaultConfig.DEFAULT;
 
-   public VaultBlockEntity(BlockPos pos, BlockState state) {
-      super(BlockEntityType.VAULT, pos, state);
-   }
+	private final VaultServerData serverData = new VaultServerData();
+	private final VaultSharedData sharedData = new VaultSharedData();
+	private final VaultClientData clientData = new VaultClientData();
+	private VaultConfig config = VaultConfig.DEFAULT;
 
-   @Override
-   public @Nullable Packet<ClientPlayPacketListener> toUpdatePacket() {
-      return BlockEntityUpdateS2CPacket.create(this);
-   }
+	public VaultBlockEntity(BlockPos pos, BlockState state) {
+		super(BlockEntityType.VAULT, pos, state);
+	}
 
-   @Override
-   public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-      return Util.make(new NbtCompound(), nbt -> nbt.put("shared_data", VaultSharedData.codec, registries.getOps(NbtOps.INSTANCE), this.sharedData));
-   }
+	@Override
+	public @Nullable Packet<ClientPlayPacketListener> toUpdatePacket() {
+		return BlockEntityUpdateS2CPacket.create(this);
+	}
 
-   @Override
-   protected void writeData(WriteView view) {
-      super.writeData(view);
-      view.put("config", VaultConfig.codec, this.config);
-      view.put("shared_data", VaultSharedData.codec, this.sharedData);
-      view.put("server_data", VaultServerData.codec, this.serverData);
-   }
+	@Override
+	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
+		return Util.make(
+				new NbtCompound(),
+				nbt -> nbt.put(
+						"shared_data",
+						VaultSharedData.codec,
+						registries.getOps(NbtOps.INSTANCE),
+						this.sharedData
+				)
+		);
+	}
 
-   @Override
-   protected void readData(ReadView view) {
-      super.readData(view);
-      view.<VaultServerData>read("server_data", VaultServerData.codec).ifPresent(this.serverData::copyFrom);
-      this.config = view.<VaultConfig>read("config", VaultConfig.codec).orElse(VaultConfig.DEFAULT);
-      view.<VaultSharedData>read("shared_data", VaultSharedData.codec).ifPresent(this.sharedData::copyFrom);
-   }
+	@Override
+	protected void writeData(WriteView view) {
+		super.writeData(view);
+		view.put("config", VaultConfig.codec, this.config);
+		view.put("shared_data", VaultSharedData.codec, this.sharedData);
+		view.put("server_data", VaultServerData.codec, this.serverData);
+	}
 
-   public @Nullable VaultServerData getServerData() {
-      return this.world != null && !this.world.isClient() ? this.serverData : null;
-   }
+	@Override
+	protected void readData(ReadView view) {
+		super.readData(view);
+		view.<VaultServerData>read("server_data", VaultServerData.codec).ifPresent(this.serverData::copyFrom);
+		this.config = view.<VaultConfig>read("config", VaultConfig.codec).orElse(VaultConfig.DEFAULT);
+		view.<VaultSharedData>read("shared_data", VaultSharedData.codec).ifPresent(this.sharedData::copyFrom);
+	}
 
-   public VaultSharedData getSharedData() {
-      return this.sharedData;
-   }
+	public @Nullable VaultServerData getServerData() {
+		return this.world != null && !this.world.isClient() ? this.serverData : null;
+	}
 
-   public VaultClientData getClientData() {
-      return this.clientData;
-   }
+	public VaultSharedData getSharedData() {
+		return this.sharedData;
+	}
 
-   public VaultConfig getConfig() {
-      return this.config;
-   }
+	public VaultClientData getClientData() {
+		return this.clientData;
+	}
 
-   @VisibleForTesting
-   public void setConfig(VaultConfig config) {
-      this.config = config;
-   }
+	public VaultConfig getConfig() {
+		return this.config;
+	}
 
-   public static final class Client {
-      private static final int field_48870 = 20;
-      private static final float field_48871 = 0.5F;
-      private static final float field_48872 = 0.02F;
-      private static final int field_48873 = 20;
-      private static final int field_48874 = 20;
+	@VisibleForTesting
+	public void setConfig(VaultConfig config) {
+		this.config = config;
+	}
 
-      public static void tick(World world, BlockPos pos, BlockState state, VaultClientData clientData, VaultSharedData sharedData) {
-         clientData.rotateDisplay();
-         if (world.getTime() % 20L == 0L) {
-            spawnConnectedParticles(world, pos, state, sharedData);
-         }
+	/**
+	 * {@code Client}.
+	 */
+	public static final class Client {
 
-         spawnAmbientParticles(world, pos, sharedData, state.get(VaultBlock.OMINOUS) ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SMALL_FLAME);
-         playAmbientSound(world, pos, sharedData);
-      }
+		private static final int PARTICLE_SPAWN_INTERVAL_TICKS = 20;
+		private static final float AMBIENT_PARTICLE_CHANCE = 0.5F;
+		private static final float CONNECTED_PARTICLE_SPEED = 0.02F;
+		private static final int AMBIENT_SOUND_INTERVAL_TICKS = 20;
+		private static final int DISPLAY_ROTATION_INTERVAL_TICKS = 20;
 
-      public static void spawnActivateParticles(World world, BlockPos pos, BlockState state, VaultSharedData sharedData, ParticleEffect particle) {
-         spawnConnectedParticles(world, pos, state, sharedData);
-         Random random = world.random;
+		public static void tick(
+				World world,
+				BlockPos pos,
+				BlockState state,
+				VaultClientData clientData,
+				VaultSharedData sharedData
+		) {
+			clientData.rotateDisplay();
+			if (world.getTime() % 20L == 0L) {
+				spawnConnectedParticles(world, pos, state, sharedData);
+			}
 
-         for (int i = 0; i < 20; i++) {
-            Vec3d vec3d = getRegularParticlesPos(pos, random);
-            world.addParticleClient(ParticleTypes.SMOKE, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
-            world.addParticleClient(particle, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
-         }
-      }
+			spawnAmbientParticles(
+					world,
+					pos,
+					sharedData,
+					state.get(VaultBlock.OMINOUS) ? ParticleTypes.SOUL_FIRE_FLAME : ParticleTypes.SMALL_FLAME
+			);
+			playAmbientSound(world, pos, sharedData);
+		}
 
-      public static void spawnDeactivateParticles(World world, BlockPos pos, ParticleEffect particle) {
-         Random random = world.random;
+		public static void spawnActivateParticles(
+				World world,
+				BlockPos pos,
+				BlockState state,
+				VaultSharedData sharedData,
+				ParticleEffect particle
+		) {
+			spawnConnectedParticles(world, pos, state, sharedData);
+			Random random = world.random;
 
-         for (int i = 0; i < 20; i++) {
-            Vec3d vec3d = getDeactivateParticlesPos(pos, random);
-            Vec3d vec3d2 = new Vec3d(random.nextGaussian() * 0.02, random.nextGaussian() * 0.02, random.nextGaussian() * 0.02);
-            world.addParticleClient(particle, vec3d.getX(), vec3d.getY(), vec3d.getZ(), vec3d2.getX(), vec3d2.getY(), vec3d2.getZ());
-         }
-      }
+			for (int i = 0; i < 20; i++) {
+				Vec3d vec3d = getRegularParticlesPos(pos, random);
+				world.addParticleClient(ParticleTypes.SMOKE, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
+				world.addParticleClient(particle, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
+			}
+		}
 
-      private static void spawnAmbientParticles(World world, BlockPos pos, VaultSharedData sharedData, ParticleEffect particle) {
-         Random random = world.getRandom();
-         if (random.nextFloat() <= 0.5F) {
-            Vec3d vec3d = getRegularParticlesPos(pos, random);
-            world.addParticleClient(ParticleTypes.SMOKE, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
-            if (hasDisplayItem(sharedData)) {
-               world.addParticleClient(particle, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
-            }
-         }
-      }
+		public static void spawnDeactivateParticles(World world, BlockPos pos, ParticleEffect particle) {
+			Random random = world.random;
 
-      private static void spawnConnectedParticlesFor(World world, Vec3d pos, PlayerEntity player) {
-         Random random = world.random;
-         Vec3d vec3d = pos.relativize(player.getEntityPos().add(0.0, player.getHeight() / 2.0F, 0.0));
-         int i = MathHelper.nextInt(random, 2, 5);
+			for (int i = 0; i < 20; i++) {
+				Vec3d vec3d = getDeactivateParticlesPos(pos, random);
+				Vec3d
+						vec3d2 =
+						new Vec3d(
+								random.nextGaussian() * 0.02,
+								random.nextGaussian() * 0.02,
+								random.nextGaussian() * 0.02
+						);
+				world.addParticleClient(
+						particle,
+						vec3d.getX(),
+						vec3d.getY(),
+						vec3d.getZ(),
+						vec3d2.getX(),
+						vec3d2.getY(),
+						vec3d2.getZ()
+				);
+			}
+		}
 
-         for (int j = 0; j < i; j++) {
-            Vec3d vec3d2 = vec3d.addRandom(random, 1.0F);
-            world.addParticleClient(ParticleTypes.VAULT_CONNECTION, pos.getX(), pos.getY(), pos.getZ(), vec3d2.getX(), vec3d2.getY(), vec3d2.getZ());
-         }
-      }
+		private static void spawnAmbientParticles(
+				World world,
+				BlockPos pos,
+				VaultSharedData sharedData,
+				ParticleEffect particle
+		) {
+			Random random = world.getRandom();
+			if (random.nextFloat() <= 0.5F) {
+				Vec3d vec3d = getRegularParticlesPos(pos, random);
+				world.addParticleClient(ParticleTypes.SMOKE, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
+				if (hasDisplayItem(sharedData)) {
+					world.addParticleClient(particle, vec3d.getX(), vec3d.getY(), vec3d.getZ(), 0.0, 0.0, 0.0);
+				}
+			}
+		}
 
-      private static void spawnConnectedParticles(World world, BlockPos pos, BlockState state, VaultSharedData sharedData) {
-         Set<UUID> set = sharedData.getConnectedPlayers();
-         if (!set.isEmpty()) {
-            Vec3d vec3d = getConnectedParticlesOrigin(pos, state.get(VaultBlock.FACING));
+		private static void spawnConnectedParticlesFor(World world, Vec3d pos, PlayerEntity player) {
+			Random random = world.random;
+			Vec3d vec3d = pos.relativize(player.getEntityPos().add(0.0, player.getHeight() / 2.0F, 0.0));
+			int i = MathHelper.nextInt(random, 2, 5);
 
-            for (UUID uUID : set) {
-               PlayerEntity playerEntity = world.getPlayerByUuid(uUID);
-               if (playerEntity != null && isPlayerWithinConnectedParticlesRange(pos, sharedData, playerEntity)) {
-                  spawnConnectedParticlesFor(world, vec3d, playerEntity);
-               }
-            }
-         }
-      }
+			for (int j = 0; j < i; j++) {
+				Vec3d vec3d2 = vec3d.addRandom(random, 1.0F);
+				world.addParticleClient(
+						ParticleTypes.VAULT_CONNECTION,
+						pos.getX(),
+						pos.getY(),
+						pos.getZ(),
+						vec3d2.getX(),
+						vec3d2.getY(),
+						vec3d2.getZ()
+				);
+			}
+		}
 
-      private static boolean isPlayerWithinConnectedParticlesRange(BlockPos pos, VaultSharedData sharedData, PlayerEntity player) {
-         return player.getBlockPos().getSquaredDistance(pos) <= MathHelper.square(sharedData.getConnectedParticlesRange());
-      }
+		private static void spawnConnectedParticles(
+				World world,
+				BlockPos pos,
+				BlockState state,
+				VaultSharedData sharedData
+		) {
+			Set<UUID> set = sharedData.getConnectedPlayers();
+			if (!set.isEmpty()) {
+				Vec3d vec3d = getConnectedParticlesOrigin(pos, state.get(VaultBlock.FACING));
 
-      private static void playAmbientSound(World world, BlockPos pos, VaultSharedData sharedData) {
-         if (hasDisplayItem(sharedData)) {
-            Random random = world.getRandom();
-            if (random.nextFloat() <= 0.02F) {
-               world.playSoundAtBlockCenterClient(
-                  pos, SoundEvents.BLOCK_VAULT_AMBIENT, SoundCategory.BLOCKS, random.nextFloat() * 0.25F + 0.75F, random.nextFloat() + 0.5F, false
-               );
-            }
-         }
-      }
+				for (UUID uUID : set) {
+					PlayerEntity playerEntity = world.getPlayerByUuid(uUID);
+					if (playerEntity != null && isPlayerWithinConnectedParticlesRange(pos, sharedData, playerEntity)) {
+						spawnConnectedParticlesFor(world, vec3d, playerEntity);
+					}
+				}
+			}
+		}
 
-      public static boolean hasDisplayItem(VaultSharedData sharedData) {
-         return sharedData.hasDisplayItem();
-      }
+		private static boolean isPlayerWithinConnectedParticlesRange(
+				BlockPos pos,
+				VaultSharedData sharedData,
+				PlayerEntity player
+		) {
+			return player.getBlockPos().getSquaredDistance(pos)
+					<= MathHelper.square(sharedData.getConnectedParticlesRange());
+		}
 
-      private static Vec3d getDeactivateParticlesPos(BlockPos pos, Random random) {
-         return Vec3d.of(pos).add(MathHelper.nextDouble(random, 0.4, 0.6), MathHelper.nextDouble(random, 0.4, 0.6), MathHelper.nextDouble(random, 0.4, 0.6));
-      }
+		private static void playAmbientSound(World world, BlockPos pos, VaultSharedData sharedData) {
+			if (hasDisplayItem(sharedData)) {
+				Random random = world.getRandom();
+				if (random.nextFloat() <= 0.02F) {
+					world.playSoundAtBlockCenterClient(
+							pos,
+							SoundEvents.BLOCK_VAULT_AMBIENT,
+							SoundCategory.BLOCKS,
+							random.nextFloat() * 0.25F + 0.75F,
+							random.nextFloat() + 0.5F,
+							false
+					);
+				}
+			}
+		}
 
-      private static Vec3d getRegularParticlesPos(BlockPos pos, Random random) {
-         return Vec3d.of(pos).add(MathHelper.nextDouble(random, 0.1, 0.9), MathHelper.nextDouble(random, 0.25, 0.75), MathHelper.nextDouble(random, 0.1, 0.9));
-      }
+		public static boolean hasDisplayItem(VaultSharedData sharedData) {
+			return sharedData.hasDisplayItem();
+		}
 
-      private static Vec3d getConnectedParticlesOrigin(BlockPos pos, Direction direction) {
-         return Vec3d.ofBottomCenter(pos).add(direction.getOffsetX() * 0.5, 1.75, direction.getOffsetZ() * 0.5);
-      }
-   }
+		private static Vec3d getDeactivateParticlesPos(BlockPos pos, Random random) {
+			return Vec3d
+					.of(pos)
+					.add(
+							MathHelper.nextDouble(random, 0.4, 0.6),
+							MathHelper.nextDouble(random, 0.4, 0.6),
+							MathHelper.nextDouble(random, 0.4, 0.6)
+					);
+		}
 
-   public static final class Server {
-      private static final int UNLOCK_TIME = 14;
-      private static final int DISPLAY_UPDATE_INTERVAL = 20;
-      private static final int FAILED_UNLOCK_COOLDOWN = 15;
+		private static Vec3d getRegularParticlesPos(BlockPos pos, Random random) {
+			return Vec3d
+					.of(pos)
+					.add(
+							MathHelper.nextDouble(random, 0.1, 0.9),
+							MathHelper.nextDouble(random, 0.25, 0.75),
+							MathHelper.nextDouble(random, 0.1, 0.9)
+					);
+		}
 
-      public static void tick(ServerWorld world, BlockPos pos, BlockState state, VaultConfig config, VaultServerData serverData, VaultSharedData sharedData) {
-         VaultState vaultState = state.get(VaultBlock.VAULT_STATE);
-         if (shouldUpdateDisplayItem(world.getTime(), vaultState)) {
-            updateDisplayItem(world, vaultState, config, sharedData, pos);
-         }
+		private static Vec3d getConnectedParticlesOrigin(BlockPos pos, Direction direction) {
+			return Vec3d.ofBottomCenter(pos).add(direction.getOffsetX() * 0.5, 1.75, direction.getOffsetZ() * 0.5);
+		}
+	}
 
-         BlockState blockState = state;
-         if (world.getTime() >= serverData.getStateUpdatingResumeTime()) {
-            blockState = state.with(VaultBlock.VAULT_STATE, vaultState.update(world, pos, config, serverData, sharedData));
-            if (state != blockState) {
-               changeVaultState(world, pos, state, blockState, config, sharedData);
-            }
-         }
+	/**
+	 * {@code Server}.
+	 */
+	public static final class Server {
 
-         if (serverData.dirty || sharedData.dirty) {
-            VaultBlockEntity.markDirty(world, pos, state);
-            if (sharedData.dirty) {
-               world.updateListeners(pos, state, blockState, 2);
-            }
+		private static final int UNLOCK_TIME = 14;
+		private static final int DISPLAY_UPDATE_INTERVAL = 20;
+		private static final int FAILED_UNLOCK_COOLDOWN = 15;
 
-            serverData.dirty = false;
-            sharedData.dirty = false;
-         }
-      }
+		public static void tick(
+				ServerWorld world,
+				BlockPos pos,
+				BlockState state,
+				VaultConfig config,
+				VaultServerData serverData,
+				VaultSharedData sharedData
+		) {
+			VaultState vaultState = state.get(VaultBlock.VAULT_STATE);
+			if (shouldUpdateDisplayItem(world.getTime(), vaultState)) {
+				updateDisplayItem(world, vaultState, config, sharedData, pos);
+			}
 
-      public static void tryUnlock(
-         ServerWorld world,
-         BlockPos pos,
-         BlockState state,
-         VaultConfig config,
-         VaultServerData serverData,
-         VaultSharedData sharedData,
-         PlayerEntity player,
-         ItemStack stack
-      ) {
-         VaultState vaultState = state.get(VaultBlock.VAULT_STATE);
-         if (canBeUnlocked(config, vaultState)) {
-            if (!isValidKey(config, stack)) {
-               playFailedUnlockSound(world, serverData, pos, SoundEvents.BLOCK_VAULT_INSERT_ITEM_FAIL);
-            } else if (serverData.hasRewardedPlayer(player)) {
-               playFailedUnlockSound(world, serverData, pos, SoundEvents.BLOCK_VAULT_REJECT_REWARDED_PLAYER);
-            } else {
-               List<ItemStack> list = generateLoot(world, config, pos, player, stack);
-               if (!list.isEmpty()) {
-                  player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
-                  stack.decrementUnlessCreative(config.keyItem().getCount(), player);
-                  unlock(world, state, pos, config, serverData, sharedData, list);
-                  serverData.markPlayerAsRewarded(player);
-                  sharedData.updateConnectedPlayers(world, pos, serverData, config, config.deactivationRange());
-               }
-            }
-         }
-      }
+			BlockState blockState = state;
+			if (world.getTime() >= serverData.getStateUpdatingResumeTime()) {
+				blockState =
+						state.with(
+								VaultBlock.VAULT_STATE,
+								vaultState.update(world, pos, config, serverData, sharedData)
+						);
+				if (state != blockState) {
+					changeVaultState(world, pos, state, blockState, config, sharedData);
+				}
+			}
 
-      static void changeVaultState(ServerWorld world, BlockPos pos, BlockState oldState, BlockState newState, VaultConfig config, VaultSharedData sharedData) {
-         VaultState vaultState = oldState.get(VaultBlock.VAULT_STATE);
-         VaultState vaultState2 = newState.get(VaultBlock.VAULT_STATE);
-         world.setBlockState(pos, newState, 3);
-         vaultState.onStateChange(world, pos, vaultState2, config, sharedData, newState.get(VaultBlock.OMINOUS));
-      }
+			if (serverData.dirty || sharedData.dirty) {
+				VaultBlockEntity.markDirty(world, pos, state);
+				if (sharedData.dirty) {
+					world.updateListeners(pos, state, blockState, 2);
+				}
 
-      public static void updateDisplayItem(ServerWorld world, VaultState state, VaultConfig config, VaultSharedData sharedData, BlockPos pos) {
-         if (!canBeUnlocked(config, state)) {
-            sharedData.setDisplayItem(ItemStack.EMPTY);
-         } else {
-            ItemStack itemStack = generateDisplayItem(world, pos, config.overrideLootTableToDisplay().orElse(config.lootTable()));
-            sharedData.setDisplayItem(itemStack);
-         }
-      }
+				serverData.dirty = false;
+				sharedData.dirty = false;
+			}
+		}
 
-      private static ItemStack generateDisplayItem(ServerWorld world, BlockPos pos, RegistryKey<LootTable> lootTable) {
-         LootTable lootTable2 = world.getServer().getReloadableRegistries().getLootTable(lootTable);
-         LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
-            .add(LootContextParameters.ORIGIN, Vec3d.ofCenter(pos))
-            .build(LootContextTypes.VAULT);
-         List<ItemStack> list = lootTable2.generateLoot(lootWorldContext, world.getRandom());
-         return list.isEmpty() ? ItemStack.EMPTY : Util.getRandom(list, world.getRandom());
-      }
+		public static void tryUnlock(
+				ServerWorld world,
+				BlockPos pos,
+				BlockState state,
+				VaultConfig config,
+				VaultServerData serverData,
+				VaultSharedData sharedData,
+				PlayerEntity player,
+				ItemStack stack
+		) {
+			VaultState vaultState = state.get(VaultBlock.VAULT_STATE);
+			if (canBeUnlocked(config, vaultState)) {
+				if (!isValidKey(config, stack)) {
+					playFailedUnlockSound(world, serverData, pos, SoundEvents.BLOCK_VAULT_INSERT_ITEM_FAIL);
+				}
+				else if (serverData.hasRewardedPlayer(player)) {
+					playFailedUnlockSound(world, serverData, pos, SoundEvents.BLOCK_VAULT_REJECT_REWARDED_PLAYER);
+				}
+				else {
+					List<ItemStack> list = generateLoot(world, config, pos, player, stack);
+					if (!list.isEmpty()) {
+						player.incrementStat(Stats.USED.getOrCreateStat(stack.getItem()));
+						stack.decrementUnlessCreative(config.keyItem().getCount(), player);
+						unlock(world, state, pos, config, serverData, sharedData, list);
+						serverData.markPlayerAsRewarded(player);
+						sharedData.updateConnectedPlayers(world, pos, serverData, config, config.deactivationRange());
+					}
+				}
+			}
+		}
 
-      private static void unlock(
-         ServerWorld world,
-         BlockState state,
-         BlockPos pos,
-         VaultConfig config,
-         VaultServerData serverData,
-         VaultSharedData sharedData,
-         List<ItemStack> itemsToEject
-      ) {
-         serverData.setItemsToEject(itemsToEject);
-         sharedData.setDisplayItem(serverData.getItemToDisplay());
-         serverData.setStateUpdatingResumeTime(world.getTime() + 14L);
-         changeVaultState(world, pos, state, state.with(VaultBlock.VAULT_STATE, VaultState.UNLOCKING), config, sharedData);
-      }
+		static void changeVaultState(
+				ServerWorld world,
+				BlockPos pos,
+				BlockState oldState,
+				BlockState newState,
+				VaultConfig config,
+				VaultSharedData sharedData
+		) {
+			VaultState vaultState = oldState.get(VaultBlock.VAULT_STATE);
+			VaultState vaultState2 = newState.get(VaultBlock.VAULT_STATE);
+			world.setBlockState(pos, newState, 3);
+			vaultState.onStateChange(world, pos, vaultState2, config, sharedData, newState.get(VaultBlock.OMINOUS));
+		}
 
-      private static List<ItemStack> generateLoot(ServerWorld world, VaultConfig config, BlockPos pos, PlayerEntity player, ItemStack key) {
-         LootTable lootTable = world.getServer().getReloadableRegistries().getLootTable(config.lootTable());
-         LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
-            .add(LootContextParameters.ORIGIN, Vec3d.ofCenter(pos))
-            .luck(player.getLuck())
-            .add(LootContextParameters.THIS_ENTITY, player)
-            .add(LootContextParameters.TOOL, key)
-            .build(LootContextTypes.VAULT);
-         return lootTable.generateLoot(lootWorldContext);
-      }
+		public static void updateDisplayItem(
+				ServerWorld world,
+				VaultState state,
+				VaultConfig config,
+				VaultSharedData sharedData,
+				BlockPos pos
+		) {
+			if (!canBeUnlocked(config, state)) {
+				sharedData.setDisplayItem(ItemStack.EMPTY);
+			}
+			else {
+				ItemStack
+						itemStack =
+						generateDisplayItem(world, pos, config.overrideLootTableToDisplay().orElse(config.lootTable()));
+				sharedData.setDisplayItem(itemStack);
+			}
+		}
 
-      private static boolean canBeUnlocked(VaultConfig config, VaultState state) {
-         return !config.keyItem().isEmpty() && state != VaultState.INACTIVE;
-      }
+		private static ItemStack generateDisplayItem(
+				ServerWorld world,
+				BlockPos pos,
+				RegistryKey<LootTable> lootTable
+		) {
+			LootTable lootTable2 = world.getServer().getReloadableRegistries().getLootTable(lootTable);
+			LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
+					.add(LootContextParameters.ORIGIN, Vec3d.ofCenter(pos))
+					.build(LootContextTypes.VAULT);
+			List<ItemStack> list = lootTable2.generateLoot(lootWorldContext, world.getRandom());
+			return list.isEmpty() ? ItemStack.EMPTY : Util.getRandom(list, world.getRandom());
+		}
 
-      private static boolean isValidKey(VaultConfig config, ItemStack stack) {
-         return ItemStack.areItemsAndComponentsEqual(stack, config.keyItem()) && stack.getCount() >= config.keyItem().getCount();
-      }
+		private static void unlock(
+				ServerWorld world,
+				BlockState state,
+				BlockPos pos,
+				VaultConfig config,
+				VaultServerData serverData,
+				VaultSharedData sharedData,
+				List<ItemStack> itemsToEject
+		) {
+			serverData.setItemsToEject(itemsToEject);
+			sharedData.setDisplayItem(serverData.getItemToDisplay());
+			serverData.setStateUpdatingResumeTime(world.getTime() + 14L);
+			changeVaultState(
+					world,
+					pos,
+					state,
+					state.with(VaultBlock.VAULT_STATE, VaultState.UNLOCKING),
+					config,
+					sharedData
+			);
+		}
 
-      private static boolean shouldUpdateDisplayItem(long time, VaultState state) {
-         return time % 20L == 0L && state == VaultState.ACTIVE;
-      }
+		private static List<ItemStack> generateLoot(
+				ServerWorld world,
+				VaultConfig config,
+				BlockPos pos,
+				PlayerEntity player,
+				ItemStack key
+		) {
+			LootTable lootTable = world.getServer().getReloadableRegistries().getLootTable(config.lootTable());
+			LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
+					.add(LootContextParameters.ORIGIN, Vec3d.ofCenter(pos))
+					.luck(player.getLuck())
+					.add(LootContextParameters.THIS_ENTITY, player)
+					.add(LootContextParameters.TOOL, key)
+					.build(LootContextTypes.VAULT);
+			return lootTable.generateLoot(lootWorldContext);
+		}
 
-      private static void playFailedUnlockSound(ServerWorld world, VaultServerData serverData, BlockPos pos, SoundEvent sound) {
-         if (world.getTime() >= serverData.getLastFailedUnlockTime() + 15L) {
-            world.playSound(null, pos, sound, SoundCategory.BLOCKS);
-            serverData.setLastFailedUnlockTime(world.getTime());
-         }
-      }
-   }
+		private static boolean canBeUnlocked(VaultConfig config, VaultState state) {
+			return !config.keyItem().isEmpty() && state != VaultState.INACTIVE;
+		}
+
+		private static boolean isValidKey(VaultConfig config, ItemStack stack) {
+			return ItemStack.areItemsAndComponentsEqual(stack, config.keyItem()) && stack.getCount() >= config
+					.keyItem()
+					.getCount();
+		}
+
+		private static boolean shouldUpdateDisplayItem(long time, VaultState state) {
+			return time % 20L == 0L && state == VaultState.ACTIVE;
+		}
+
+		private static void playFailedUnlockSound(
+				ServerWorld world,
+				VaultServerData serverData,
+				BlockPos pos,
+				SoundEvent sound
+		) {
+			if (world.getTime() >= serverData.getLastFailedUnlockTime() + 15L) {
+				world.playSound(null, pos, sound, SoundCategory.BLOCKS);
+				serverData.setLastFailedUnlockTime(world.getTime());
+			}
+		}
+	}
 }

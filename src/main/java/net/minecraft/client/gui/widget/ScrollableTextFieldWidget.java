@@ -12,118 +12,137 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ScrollableTextFieldWidget}.
+ */
 public abstract class ScrollableTextFieldWidget extends ScrollableWidget {
-   private static final ButtonTextures TEXTURES = new ButtonTextures(
-      Identifier.ofVanilla("widget/text_field"), Identifier.ofVanilla("widget/text_field_highlighted")
-   );
-   private static final int field_55261 = 4;
-   public static final int field_60867 = 8;
-   private boolean hasBackground = true;
-   private boolean hasOverlay = true;
 
-   public ScrollableTextFieldWidget(int i, int j, int k, int l, Text text) {
-      super(i, j, k, l, text);
-   }
+	private static final ButtonTextures TEXTURES = new ButtonTextures(
+			Identifier.ofVanilla("widget/text_field"), Identifier.ofVanilla("widget/text_field_highlighted")
+	);
+	private static final int PADDING = 4;
+	public static final int MIN_HEIGHT = 8;
+	private boolean hasBackground = true;
+	private boolean hasOverlay = true;
 
-   public ScrollableTextFieldWidget(int x, int y, int width, int height, Text message, boolean hasBackground, boolean hasOverlay) {
-      this(x, y, width, height, message);
-      this.hasBackground = hasBackground;
-      this.hasOverlay = hasOverlay;
-   }
+	public ScrollableTextFieldWidget(int i, int j, int k, int l, Text text) {
+		super(i, j, k, l, text);
+	}
 
-   @Override
-   public boolean mouseClicked(Click click, boolean doubled) {
-      boolean bl = this.checkScrollbarDragged(click);
-      return super.mouseClicked(click, doubled) || bl;
-   }
+	public ScrollableTextFieldWidget(
+			int x,
+			int y,
+			int width,
+			int height,
+			Text message,
+			boolean hasBackground,
+			boolean hasOverlay
+	) {
+		this(x, y, width, height, message);
+		this.hasBackground = hasBackground;
+		this.hasOverlay = hasOverlay;
+	}
 
-   @Override
-   public boolean keyPressed(KeyInput input) {
-      boolean bl = input.isUp();
-      boolean bl2 = input.isDown();
-      if (bl || bl2) {
-         double d = this.getScrollY();
-         this.setScrollY(this.getScrollY() + (bl ? -1 : 1) * this.getDeltaYPerScroll());
-         if (d != this.getScrollY()) {
-            return true;
-         }
-      }
+	@Override
+	public boolean mouseClicked(Click click, boolean doubled) {
+		boolean bl = this.checkScrollbarDragged(click);
+		return super.mouseClicked(click, doubled) || bl;
+	}
 
-      return super.keyPressed(input);
-   }
+	@Override
+	public boolean keyPressed(KeyInput input) {
+		boolean bl = input.isUp();
+		boolean bl2 = input.isDown();
+		if (bl || bl2) {
+			double d = this.getScrollY();
+			this.setScrollY(this.getScrollY() + (bl ? -1 : 1) * this.getDeltaYPerScroll());
+			if (d != this.getScrollY()) {
+				return true;
+			}
+		}
 
-   @Override
-   public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      if (this.visible) {
-         if (this.hasBackground) {
-            this.drawBox(context);
-         }
+		return super.keyPressed(input);
+	}
 
-         context.enableScissor(this.getX() + 1, this.getY() + 1, this.getX() + this.width - 1, this.getY() + this.height - 1);
-         context.getMatrices().pushMatrix();
-         context.getMatrices().translate(0.0F, (float)(-this.getScrollY()));
-         this.renderContents(context, mouseX, mouseY, deltaTicks);
-         context.getMatrices().popMatrix();
-         context.disableScissor();
-         this.drawScrollbar(context, mouseX, mouseY);
-         if (this.hasOverlay) {
-            this.renderOverlay(context);
-         }
-      }
-   }
+	@Override
+	public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		if (this.visible) {
+			if (this.hasBackground) {
+				this.drawBox(context);
+			}
 
-   protected void renderOverlay(DrawContext context) {
-   }
+			context.enableScissor(
+					this.getX() + 1,
+					this.getY() + 1,
+					this.getX() + this.width - 1,
+					this.getY() + this.height - 1
+			);
+			context.getMatrices().pushMatrix();
+			context.getMatrices().translate(0.0F, (float) (-this.getScrollY()));
+			this.renderContents(context, mouseX, mouseY, deltaTicks);
+			context.getMatrices().popMatrix();
+			context.disableScissor();
+			this.drawScrollbar(context, mouseX, mouseY);
+			if (this.hasOverlay) {
+				this.renderOverlay(context);
+			}
+		}
+	}
 
-   protected int getTextMargin() {
-      return 4;
-   }
+	protected void renderOverlay(DrawContext context) {
+	}
 
-   protected int getPadding() {
-      return this.getTextMargin() * 2;
-   }
+	protected int getTextMargin() {
+		return 4;
+	}
 
-   @Override
-   public boolean isMouseOver(double mouseX, double mouseY) {
-      return this.active && this.visible && mouseX >= this.getX() && mouseY >= this.getY() && mouseX < this.getRight() + 6 && mouseY < this.getBottom();
-   }
+	protected int getPadding() {
+		return this.getTextMargin() * 2;
+	}
 
-   @Override
-   protected int getScrollbarX() {
-      return this.getRight();
-   }
+	@Override
+	public boolean isMouseOver(double mouseX, double mouseY) {
+		return this.active && this.visible && mouseX >= this.getX() && mouseY >= this.getY()
+				&& mouseX < this.getRight() + 6 && mouseY < this.getBottom();
+	}
 
-   @Override
-   protected int getContentsHeightWithPadding() {
-      return this.getContentsHeight() + this.getPadding();
-   }
+	@Override
+	protected int getScrollbarX() {
+		return this.getRight();
+	}
 
-   protected void drawBox(DrawContext context) {
-      this.draw(context, this.getX(), this.getY(), this.getWidth(), this.getHeight());
-   }
+	@Override
+	protected int getContentsHeightWithPadding() {
+		return this.getContentsHeight() + this.getPadding();
+	}
 
-   protected void draw(DrawContext context, int x, int y, int width, int height) {
-      Identifier identifier = TEXTURES.get(this.isInteractable(), this.isFocused());
-      context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, identifier, x, y, width, height);
-   }
+	protected void drawBox(DrawContext context) {
+		this.draw(context, this.getX(), this.getY(), this.getWidth(), this.getHeight());
+	}
 
-   protected boolean isVisible(int textTop, int textBottom) {
-      return textBottom - this.getScrollY() >= this.getY() && textTop - this.getScrollY() <= this.getY() + this.height;
-   }
+	protected void draw(DrawContext context, int x, int y, int width, int height) {
+		Identifier identifier = TEXTURES.get(this.isInteractable(), this.isFocused());
+		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, identifier, x, y, width, height);
+	}
 
-   protected abstract int getContentsHeight();
+	protected boolean isVisible(int textTop, int textBottom) {
+		return textBottom - this.getScrollY() >= this.getY()
+				&& textTop - this.getScrollY() <= this.getY() + this.height;
+	}
 
-   protected abstract void renderContents(DrawContext context, int mouseX, int mouseY, float deltaTicks);
+	protected abstract int getContentsHeight();
 
-   protected int getTextX() {
-      return this.getX() + this.getTextMargin();
-   }
+	protected abstract void renderContents(DrawContext context, int mouseX, int mouseY, float deltaTicks);
 
-   protected int getTextY() {
-      return this.getY() + this.getTextMargin();
-   }
+	protected int getTextX() {
+		return this.getX() + this.getTextMargin();
+	}
 
-   @Override
-   public void playDownSound(SoundManager soundManager) {
-   }
+	protected int getTextY() {
+		return this.getY() + this.getTextMargin();
+	}
+
+	@Override
+	public void playDownSound(SoundManager soundManager) {
+	}
 }

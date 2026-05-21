@@ -3,13 +3,17 @@ package net.minecraft.world.gen.feature;
 import com.mojang.serialization.Codec;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+/**
+ * {@code NoOpFeature}.
+ */
 public class NoOpFeature extends Feature<DefaultFeatureConfig> {
-   public NoOpFeature(Codec<DefaultFeatureConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
-      return true;
-   }
+	public NoOpFeature(Codec<DefaultFeatureConfig> codec) {
+		super(codec);
+	}
+
+	@Override
+	public boolean generate(FeatureContext<DefaultFeatureConfig> context) {
+		return true;
+	}
 }

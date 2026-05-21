@@ -8,8 +8,16 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code GameEventDebugData}.
+ */
 public record GameEventDebugData(RegistryEntry<GameEvent> event, Vec3d pos) {
-   public static final PacketCodec<RegistryByteBuf, GameEventDebugData> PACKET_CODEC = PacketCodec.tuple(
-      PacketCodecs.registryEntry(RegistryKeys.GAME_EVENT), GameEventDebugData::event, Vec3d.PACKET_CODEC, GameEventDebugData::pos, GameEventDebugData::new
-   );
+
+	public static final PacketCodec<RegistryByteBuf, GameEventDebugData> PACKET_CODEC = PacketCodec.tuple(
+			PacketCodecs.registryEntry(RegistryKeys.GAME_EVENT),
+			GameEventDebugData::event,
+			Vec3d.PACKET_CODEC,
+			GameEventDebugData::pos,
+			GameEventDebugData::new
+	);
 }

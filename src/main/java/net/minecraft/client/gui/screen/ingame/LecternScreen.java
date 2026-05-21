@@ -1,6 +1,5 @@
 package net.minecraft.client.gui.screen.ingame;
 
-import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -12,104 +11,123 @@ import net.minecraft.screen.ScreenHandlerListener;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
+import java.util.Objects;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LecternScreen}.
+ */
 public class LecternScreen extends BookScreen implements ScreenHandlerProvider<LecternScreenHandler> {
-   private static final int field_63909 = 4;
-   private static final int field_63910 = 98;
-   private static final Text field_63911 = Text.translatable("lectern.take_book");
-   private final LecternScreenHandler handler;
-   private final ScreenHandlerListener listener = new ScreenHandlerListener() {
-      @Override
-      public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
-         LecternScreen.this.updatePageProvider();
-      }
 
-      @Override
-      public void onPropertyUpdate(ScreenHandler handler, int property, int value) {
-         if (property == 0) {
-            LecternScreen.this.updatePage();
-         }
-      }
-   };
+	private static final int BUTTON_GAP = 4;
+	private static final int BUTTON_WIDTH = 98;
+	private static final Text TAKE_BOOK_TEXT = Text.translatable("lectern.take_book");
+	private final LecternScreenHandler handler;
+	private final ScreenHandlerListener listener = new ScreenHandlerListener() {
+		@Override
+		public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
+			LecternScreen.this.updatePageProvider();
+		}
 
-   public LecternScreen(LecternScreenHandler handler, PlayerInventory inventory, Text title) {
-      this.handler = handler;
-   }
+		@Override
+		public void onPropertyUpdate(ScreenHandler handler, int property, int value) {
+			if (property == 0) {
+				LecternScreen.this.updatePage();
+			}
+		}
+	};
 
-   public LecternScreenHandler getScreenHandler() {
-      return this.handler;
-   }
+	public LecternScreen(LecternScreenHandler handler, PlayerInventory inventory, Text title) {
+		this.handler = handler;
+	}
 
-   @Override
-   protected void init() {
-      super.init();
-      this.handler.addListener(this.listener);
-   }
+	public LecternScreenHandler getScreenHandler() {
+		return this.handler;
+	}
 
-   @Override
-   public void close() {
-      this.client.player.closeHandledScreen();
-      super.close();
-   }
+	@Override
+	protected void init() {
+		super.init();
+		this.handler.addListener(this.listener);
+	}
 
-   @Override
-   public void removed() {
-      super.removed();
-      this.handler.removeListener(this.listener);
-   }
+	@Override
+	public void close() {
+		this.client.player.closeHandledScreen();
+		super.close();
+	}
 
-   @Override
-   protected void addCloseButton() {
-      if (this.client.player.canModifyBlocks()) {
-         int i = this.method_75832();
-         int j = this.width / 2;
-         this.addDrawableChild(ButtonWidget.builder(ScreenTexts.DONE, button -> this.close()).position(j - 98 - 2, i).width(98).build());
-         this.addDrawableChild(ButtonWidget.builder(field_63911, button -> this.sendButtonPressPacket(3)).position(j + 2, i).width(98).build());
-      } else {
-         super.addCloseButton();
-      }
-   }
+	@Override
+	public void removed() {
+		super.removed();
+		this.handler.removeListener(this.listener);
+	}
 
-   @Override
-   protected void goToPreviousPage() {
-      this.sendButtonPressPacket(1);
-   }
+	@Override
+	protected void addCloseButton() {
+		if (this.client.player.canModifyBlocks()) {
+			int i = this.getCloseButtonY();
+			int j = this.width / 2;
+			this.addDrawableChild(ButtonWidget
+					.builder(ScreenTexts.DONE, button -> this.close())
+					.position(j - 98 - 2, i)
+					.width(98)
+					.build());
+			this.addDrawableChild(ButtonWidget
+					.builder(TAKE_BOOK_TEXT, button -> this.sendButtonPressPacket(3))
+					.position(j + 2, i)
+					.width(98)
+					.build());
+		}
+		else {
+			super.addCloseButton();
+		}
+	}
 
-   @Override
-   protected void goToNextPage() {
-      this.sendButtonPressPacket(2);
-   }
+	@Override
+	protected void goToPreviousPage() {
+		this.sendButtonPressPacket(1);
+	}
 
-   @Override
-   protected boolean jumpToPage(int page) {
-      if (page != this.handler.getPage()) {
-         this.sendButtonPressPacket(100 + page);
-         return true;
-      } else {
-         return false;
-      }
-   }
+	@Override
+	protected void goToNextPage() {
+		this.sendButtonPressPacket(2);
+	}
 
-   private void sendButtonPressPacket(int id) {
-      this.client.interactionManager.clickButton(this.handler.syncId, id);
-   }
+	@Override
+	protected boolean jumpToPage(int page) {
+		if (page != this.handler.getPage()) {
+			this.sendButtonPressPacket(100 + page);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Override
-   public boolean shouldPause() {
-      return false;
-   }
+	private void sendButtonPressPacket(int id) {
+		this.client.interactionManager.clickButton(this.handler.syncId, id);
+	}
 
-   void updatePageProvider() {
-      ItemStack itemStack = this.handler.getBookItem();
-      this.setPageProvider(Objects.requireNonNullElse(BookScreen.Contents.create(itemStack), BookScreen.EMPTY_PROVIDER));
-   }
+	@Override
+	public boolean shouldPause() {
+		return false;
+	}
 
-   void updatePage() {
-      this.setPage(this.handler.getPage());
-   }
+	void updatePageProvider() {
+		ItemStack itemStack = this.handler.getBookItem();
+		this.setPageProvider(Objects.requireNonNullElse(
+				BookScreen.Contents.create(itemStack),
+				BookScreen.EMPTY_PROVIDER
+		));
+	}
 
-   @Override
-   protected void closeScreen() {
-      this.client.player.closeHandledScreen();
-   }
+	void updatePage() {
+		this.setPage(this.handler.getPage());
+	}
+
+	@Override
+	protected void closeScreen() {
+		this.client.player.closeHandledScreen();
+	}
 }

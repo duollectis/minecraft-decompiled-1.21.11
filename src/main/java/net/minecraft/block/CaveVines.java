@@ -1,6 +1,5 @@
 package net.minecraft.block;
 
-import java.util.function.ToIntFunction;
 import net.minecraft.entity.Entity;
 import net.minecraft.loot.LootTables;
 import net.minecraft.server.world.ServerWorld;
@@ -15,40 +14,55 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+import java.util.function.ToIntFunction;
+
+/**
+ * {@code CaveVines}.
+ */
 public interface CaveVines {
-   VoxelShape SHAPE = Block.createColumnShape(14.0, 0.0, 16.0);
-   BooleanProperty BERRIES = Properties.BERRIES;
 
-   static ActionResult pickBerries(Entity picker, BlockState state, World world, BlockPos pos) {
-      if (state.get(BERRIES)) {
-         if (world instanceof ServerWorld serverWorld) {
-            Block.generateBlockInteractLoot(
-               serverWorld,
-               LootTables.CAVE_VINE_HARVEST,
-               state,
-               world.getBlockEntity(pos),
-               null,
-               picker,
-               (worldx, stack) -> Block.dropStack(worldx, pos, stack)
-            );
-            float f = MathHelper.nextBetween(serverWorld.random, 0.8F, 1.2F);
-            serverWorld.playSound(null, pos, SoundEvents.BLOCK_CAVE_VINES_PICK_BERRIES, SoundCategory.BLOCKS, 1.0F, f);
-            BlockState blockState = state.with(BERRIES, false);
-            serverWorld.setBlockState(pos, blockState, 2);
-            serverWorld.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(picker, blockState));
-         }
+	VoxelShape SHAPE = Block.createColumnShape(14.0, 0.0, 16.0);
 
-         return ActionResult.SUCCESS;
-      } else {
-         return ActionResult.PASS;
-      }
-   }
+	BooleanProperty BERRIES = Properties.BERRIES;
 
-   static boolean hasBerries(BlockState state) {
-      return state.contains(BERRIES) && state.get(BERRIES);
-   }
+	static ActionResult pickBerries(Entity picker, BlockState state, World world, BlockPos pos) {
+		if (state.get(BERRIES)) {
+			if (world instanceof ServerWorld serverWorld) {
+				Block.generateBlockInteractLoot(
+						serverWorld,
+						LootTables.CAVE_VINE_HARVEST,
+						state,
+						world.getBlockEntity(pos),
+						null,
+						picker,
+						(worldx, stack) -> Block.dropStack(worldx, pos, stack)
+				);
+				float f = MathHelper.nextBetween(serverWorld.random, 0.8F, 1.2F);
+				serverWorld.playSound(
+						null,
+						pos,
+						SoundEvents.BLOCK_CAVE_VINES_PICK_BERRIES,
+						SoundCategory.BLOCKS,
+						1.0F,
+						f
+				);
+				BlockState blockState = state.with(BERRIES, false);
+				serverWorld.setBlockState(pos, blockState, 2);
+				serverWorld.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(picker, blockState));
+			}
 
-   static ToIntFunction<BlockState> getLuminanceSupplier(int luminance) {
-      return state -> state.get(Properties.BERRIES) ? luminance : 0;
-   }
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return ActionResult.PASS;
+		}
+	}
+
+	static boolean hasBerries(BlockState state) {
+		return state.contains(BERRIES) && state.get(BERRIES);
+	}
+
+	static ToIntFunction<BlockState> getLuminanceSupplier(int luminance) {
+		return state -> state.get(Properties.BERRIES) ? luminance : 0;
+	}
 }

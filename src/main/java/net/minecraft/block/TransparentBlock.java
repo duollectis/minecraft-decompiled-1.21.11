@@ -6,30 +6,39 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 
+/**
+ * {@code TransparentBlock}.
+ */
 public class TransparentBlock extends TranslucentBlock {
-   public static final MapCodec<TransparentBlock> CODEC = createCodec(TransparentBlock::new);
 
-   public TransparentBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	public static final MapCodec<TransparentBlock> CODEC = createCodec(TransparentBlock::new);
 
-   @Override
-   protected MapCodec<? extends TransparentBlock> getCodec() {
-      return CODEC;
-   }
+	public TransparentBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected VoxelShape getCameraCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return VoxelShapes.empty();
-   }
+	@Override
+	protected MapCodec<? extends TransparentBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
-      return 1.0F;
-   }
+	@Override
+	protected VoxelShape getCameraCollisionShape(
+			BlockState state,
+			BlockView world,
+			BlockPos pos,
+			ShapeContext context
+	) {
+		return VoxelShapes.empty();
+	}
 
-   @Override
-   protected boolean isTransparent(BlockState state) {
-      return true;
-   }
+	@Override
+	protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
+		return 1.0F;
+	}
+
+	@Override
+	protected boolean isTransparent(BlockState state) {
+		return true;
+	}
 }

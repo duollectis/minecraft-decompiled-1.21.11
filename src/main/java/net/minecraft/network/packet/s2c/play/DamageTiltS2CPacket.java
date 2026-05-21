@@ -9,27 +9,30 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record DamageTiltS2CPacket(int id, float yaw) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, DamageTiltS2CPacket> CODEC = Packet.createCodec(DamageTiltS2CPacket::write, DamageTiltS2CPacket::new);
 
-   public DamageTiltS2CPacket(LivingEntity entity) {
-      this(entity.getId(), entity.getDamageTiltYaw());
-   }
+	public static final PacketCodec<PacketByteBuf, DamageTiltS2CPacket>
+			CODEC =
+			Packet.createCodec(DamageTiltS2CPacket::write, DamageTiltS2CPacket::new);
 
-   private DamageTiltS2CPacket(PacketByteBuf buf) {
-      this(buf.readVarInt(), buf.readFloat());
-   }
+	public DamageTiltS2CPacket(LivingEntity entity) {
+		this(entity.getId(), entity.getDamageTiltYaw());
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.id);
-      buf.writeFloat(this.yaw);
-   }
+	private DamageTiltS2CPacket(PacketByteBuf buf) {
+		this(buf.readVarInt(), buf.readFloat());
+	}
 
-   @Override
-   public PacketType<DamageTiltS2CPacket> getPacketType() {
-      return PlayPackets.HURT_ANIMATION;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.id);
+		buf.writeFloat(this.yaw);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onDamageTilt(this);
-   }
+	@Override
+	public PacketType<DamageTiltS2CPacket> getPacketType() {
+		return PlayPackets.HURT_ANIMATION;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onDamageTilt(this);
+	}
 }

@@ -8,24 +8,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record AcknowledgeChunksC2SPacket(float desiredChunksPerTick) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, AcknowledgeChunksC2SPacket> CODEC = Packet.createCodec(
-      AcknowledgeChunksC2SPacket::write, AcknowledgeChunksC2SPacket::new
-   );
 
-   private AcknowledgeChunksC2SPacket(PacketByteBuf buf) {
-      this(buf.readFloat());
-   }
+	public static final PacketCodec<PacketByteBuf, AcknowledgeChunksC2SPacket> CODEC = Packet.createCodec(
+			AcknowledgeChunksC2SPacket::write, AcknowledgeChunksC2SPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeFloat(this.desiredChunksPerTick);
-   }
+	private AcknowledgeChunksC2SPacket(PacketByteBuf buf) {
+		this(buf.readFloat());
+	}
 
-   @Override
-   public PacketType<AcknowledgeChunksC2SPacket> getPacketType() {
-      return PlayPackets.CHUNK_BATCH_RECEIVED;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeFloat(this.desiredChunksPerTick);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onAcknowledgeChunks(this);
-   }
+	@Override
+	public PacketType<AcknowledgeChunksC2SPacket> getPacketType() {
+		return PlayPackets.CHUNK_BATCH_RECEIVED;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onAcknowledgeChunks(this);
+	}
 }

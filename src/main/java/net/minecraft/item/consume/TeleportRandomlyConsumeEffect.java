@@ -19,65 +19,73 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code TeleportRandomlyConsumeEffect}.
+ */
 public record TeleportRandomlyConsumeEffect(float diameter) implements ConsumeEffect {
-   private static final float DEFAULT_DIAMETER = 16.0F;
-   public static final MapCodec<TeleportRandomlyConsumeEffect> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codecs.POSITIVE_FLOAT.optionalFieldOf("diameter", 16.0F).forGetter(TeleportRandomlyConsumeEffect::diameter))
-         .apply(instance, TeleportRandomlyConsumeEffect::new)
-   );
-   public static final PacketCodec<RegistryByteBuf, TeleportRandomlyConsumeEffect> PACKET_CODEC = PacketCodec.tuple(
-      PacketCodecs.FLOAT, TeleportRandomlyConsumeEffect::diameter, TeleportRandomlyConsumeEffect::new
-   );
 
-   public TeleportRandomlyConsumeEffect() {
-      this(16.0F);
-   }
+	private static final float DEFAULT_DIAMETER = 16.0F;
+	public static final MapCodec<TeleportRandomlyConsumeEffect> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codecs.POSITIVE_FLOAT
+							.optionalFieldOf("diameter", 16.0F)
+							.forGetter(TeleportRandomlyConsumeEffect::diameter))
+					.apply(instance, TeleportRandomlyConsumeEffect::new)
+	);
+	public static final PacketCodec<RegistryByteBuf, TeleportRandomlyConsumeEffect> PACKET_CODEC = PacketCodec.tuple(
+			PacketCodecs.FLOAT, TeleportRandomlyConsumeEffect::diameter, TeleportRandomlyConsumeEffect::new
+	);
 
-   @Override
-   public ConsumeEffect.Type<TeleportRandomlyConsumeEffect> getType() {
-      return ConsumeEffect.Type.TELEPORT_RANDOMLY;
-   }
+	public TeleportRandomlyConsumeEffect() {
+		this(16.0F);
+	}
 
-   @Override
-   public boolean onConsume(World world, ItemStack stack, LivingEntity user) {
-      boolean bl = false;
+	@Override
+	public ConsumeEffect.Type<TeleportRandomlyConsumeEffect> getType() {
+		return ConsumeEffect.Type.TELEPORT_RANDOMLY;
+	}
 
-      for (int i = 0; i < 16; i++) {
-         double d = user.getX() + (user.getRandom().nextDouble() - 0.5) * this.diameter;
-         double e = MathHelper.clamp(
-            user.getY() + (user.getRandom().nextDouble() - 0.5) * this.diameter,
-            (double)world.getBottomY(),
-            (double)(world.getBottomY() + ((ServerWorld)world).getLogicalHeight() - 1)
-         );
-         double f = user.getZ() + (user.getRandom().nextDouble() - 0.5) * this.diameter;
-         if (user.hasVehicle()) {
-            user.stopRiding();
-         }
+	@Override
+	public boolean onConsume(World world, ItemStack stack, LivingEntity user) {
+		boolean bl = false;
 
-         Vec3d vec3d = user.getEntityPos();
-         if (user.teleport(d, e, f, true)) {
-            world.emitGameEvent(GameEvent.TELEPORT, vec3d, GameEvent.Emitter.of(user));
-            SoundCategory soundCategory;
-            SoundEvent soundEvent;
-            if (user instanceof FoxEntity) {
-               soundEvent = SoundEvents.ENTITY_FOX_TELEPORT;
-               soundCategory = SoundCategory.NEUTRAL;
-            } else {
-               soundEvent = SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT;
-               soundCategory = SoundCategory.PLAYERS;
-            }
+		for (int i = 0; i < 16; i++) {
+			double d = user.getX() + (user.getRandom().nextDouble() - 0.5) * this.diameter;
+			double e = MathHelper.clamp(
+					user.getY() + (user.getRandom().nextDouble() - 0.5) * this.diameter,
+					(double) world.getBottomY(),
+					(double) (world.getBottomY() + ((ServerWorld) world).getLogicalHeight() - 1)
+			);
+			double f = user.getZ() + (user.getRandom().nextDouble() - 0.5) * this.diameter;
+			if (user.hasVehicle()) {
+				user.stopRiding();
+			}
 
-            world.playSound(null, user.getX(), user.getY(), user.getZ(), soundEvent, soundCategory);
-            user.onLanding();
-            bl = true;
-            break;
-         }
-      }
+			Vec3d vec3d = user.getEntityPos();
+			if (user.teleport(d, e, f, true)) {
+				world.emitGameEvent(GameEvent.TELEPORT, vec3d, GameEvent.Emitter.of(user));
+				SoundCategory soundCategory;
+				SoundEvent soundEvent;
+				if (user instanceof FoxEntity) {
+					soundEvent = SoundEvents.ENTITY_FOX_TELEPORT;
+					soundCategory = SoundCategory.NEUTRAL;
+				}
+				else {
+					soundEvent = SoundEvents.ITEM_CHORUS_FRUIT_TELEPORT;
+					soundCategory = SoundCategory.PLAYERS;
+				}
 
-      if (bl && user instanceof PlayerEntity playerEntity) {
-         playerEntity.clearCurrentExplosion();
-      }
+				world.playSound(null, user.getX(), user.getY(), user.getZ(), soundEvent, soundCategory);
+				user.onLanding();
+				bl = true;
+				break;
+			}
+		}
 
-      return bl;
-   }
+		if (bl && user instanceof PlayerEntity playerEntity) {
+			playerEntity.clearCurrentExplosion();
+		}
+
+		return bl;
+	}
 }

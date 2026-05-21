@@ -11,37 +11,52 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EnergySwirlOverlayFeatureRenderer}.
+ */
 public abstract class EnergySwirlOverlayFeatureRenderer<S extends EntityRenderState, M extends EntityModel<S>> extends FeatureRenderer<S, M> {
-   public EnergySwirlOverlayFeatureRenderer(FeatureRendererContext<S, M> featureRendererContext) {
-      super(featureRendererContext);
-   }
 
-   @Override
-   public void render(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, S state, float limbAngle, float limbDistance) {
-      if (this.shouldRender(state)) {
-         float f = state.age;
-         M entityModel = this.getEnergySwirlModel();
-         queue.getBatchingQueue(1)
-            .submitModel(
-               entityModel,
-               state,
-               matrices,
-               RenderLayers.energySwirl(this.getEnergySwirlTexture(), this.getEnergySwirlX(f) % 1.0F, f * 0.01F % 1.0F),
-               light,
-               OverlayTexture.DEFAULT_UV,
-               -8355712,
-               null,
-               state.outlineColor,
-               null
-            );
-      }
-   }
+	public EnergySwirlOverlayFeatureRenderer(FeatureRendererContext<S, M> featureRendererContext) {
+		super(featureRendererContext);
+	}
 
-   protected abstract boolean shouldRender(S state);
+	@Override
+	public void render(
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			S state,
+			float limbAngle,
+			float limbDistance
+	) {
+		if (this.shouldRender(state)) {
+			float f = state.age;
+			M entityModel = this.getEnergySwirlModel();
+			queue.getBatchingQueue(1)
+			     .submitModel(
+					     entityModel,
+					     state,
+					     matrices,
+					     RenderLayers.energySwirl(
+							     this.getEnergySwirlTexture(),
+							     this.getEnergySwirlX(f) % 1.0F,
+							     f * 0.01F % 1.0F
+					     ),
+					     light,
+					     OverlayTexture.DEFAULT_UV,
+					     -8355712,
+					     null,
+					     state.outlineColor,
+					     null
+			     );
+		}
+	}
 
-   protected abstract float getEnergySwirlX(float partialAge);
+	protected abstract boolean shouldRender(S state);
 
-   protected abstract Identifier getEnergySwirlTexture();
+	protected abstract float getEnergySwirlX(float partialAge);
 
-   protected abstract M getEnergySwirlModel();
+	protected abstract Identifier getEnergySwirlTexture();
+
+	protected abstract M getEnergySwirlModel();
 }

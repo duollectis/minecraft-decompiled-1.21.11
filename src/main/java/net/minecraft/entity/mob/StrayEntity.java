@@ -17,49 +17,66 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code StrayEntity}.
+ */
 public class StrayEntity extends AbstractSkeletonEntity {
-   public StrayEntity(EntityType<? extends StrayEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   public static boolean canSpawn(EntityType<StrayEntity> type, ServerWorldAccess world, SpawnReason spawnReason, BlockPos pos, Random random) {
-      BlockPos blockPos = pos;
+	public StrayEntity(EntityType<? extends StrayEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-      do {
-         blockPos = blockPos.up();
-      } while (world.getBlockState(blockPos).isOf(Blocks.POWDER_SNOW));
+	public static boolean canSpawn(
+			EntityType<StrayEntity> type,
+			ServerWorldAccess world,
+			SpawnReason spawnReason,
+			BlockPos pos,
+			Random random
+	) {
+		BlockPos blockPos = pos;
 
-      return HostileEntity.canSpawnInDark(type, world, spawnReason, pos, random)
-         && (SpawnReason.isAnySpawner(spawnReason) || world.isSkyVisible(blockPos.down()));
-   }
+		do {
+			blockPos = blockPos.up();
+		}
+		while (world.getBlockState(blockPos).isOf(Blocks.POWDER_SNOW));
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_STRAY_AMBIENT;
-   }
+		return HostileEntity.canSpawnInDark(type, world, spawnReason, pos, random)
+				&& (SpawnReason.isAnySpawner(spawnReason) || world.isSkyVisible(blockPos.down()));
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_STRAY_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_STRAY_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_STRAY_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_STRAY_HURT;
+	}
 
-   @Override
-   SoundEvent getStepSound() {
-      return SoundEvents.ENTITY_STRAY_STEP;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_STRAY_DEATH;
+	}
 
-   @Override
-   protected PersistentProjectileEntity createArrowProjectile(ItemStack arrow, float damageModifier, @Nullable ItemStack shotFrom) {
-      PersistentProjectileEntity persistentProjectileEntity = super.createArrowProjectile(arrow, damageModifier, shotFrom);
-      if (persistentProjectileEntity instanceof ArrowEntity) {
-         ((ArrowEntity)persistentProjectileEntity).addEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 600));
-      }
+	@Override
+	SoundEvent getStepSound() {
+		return SoundEvents.ENTITY_STRAY_STEP;
+	}
 
-      return persistentProjectileEntity;
-   }
+	@Override
+	protected PersistentProjectileEntity createArrowProjectile(
+			ItemStack arrow,
+			float damageModifier,
+			@Nullable ItemStack shotFrom
+	) {
+		PersistentProjectileEntity
+				persistentProjectileEntity =
+				super.createArrowProjectile(arrow, damageModifier, shotFrom);
+		if (persistentProjectileEntity instanceof ArrowEntity) {
+			((ArrowEntity) persistentProjectileEntity).addEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 600));
+		}
+
+		return persistentProjectileEntity;
+	}
 }

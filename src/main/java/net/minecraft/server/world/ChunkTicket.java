@@ -7,63 +7,68 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.Util;
 import net.minecraft.util.dynamic.Codecs;
 
+/**
+ * {@code ChunkTicket}.
+ */
 public class ChunkTicket {
-   public static final MapCodec<ChunkTicket> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Registries.TICKET_TYPE.getCodec().fieldOf("type").forGetter(ChunkTicket::getType),
-            Codecs.NON_NEGATIVE_INT.fieldOf("level").forGetter(ChunkTicket::getLevel),
-            Codec.LONG.optionalFieldOf("ticks_left", 0L).forGetter(ticket -> ticket.ticksLeft)
-         )
-         .apply(instance, ChunkTicket::new)
-   );
-   private final ChunkTicketType type;
-   private final int level;
-   private long ticksLeft;
 
-   public ChunkTicket(ChunkTicketType type, int level) {
-      this(type, level, type.expiryTicks());
-   }
+	public static final MapCodec<ChunkTicket> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Registries.TICKET_TYPE.getCodec().fieldOf("type").forGetter(ChunkTicket::getType),
+					                    Codecs.NON_NEGATIVE_INT.fieldOf("level").forGetter(ChunkTicket::getLevel),
+					                    Codec.LONG.optionalFieldOf("ticks_left", 0L).forGetter(ticket -> ticket.ticksLeft)
+			                    )
+			                    .apply(instance, ChunkTicket::new)
+	);
+	private final ChunkTicketType type;
+	private final int level;
+	private long ticksLeft;
 
-   private ChunkTicket(ChunkTicketType type, int level, long ticksLeft) {
-      this.type = type;
-      this.level = level;
-      this.ticksLeft = ticksLeft;
-   }
+	public ChunkTicket(ChunkTicketType type, int level) {
+		this(type, level, type.expiryTicks());
+	}
 
-   @Override
-   public String toString() {
-      return this.type.canExpire()
-         ? "Ticket["
-            + Util.registryValueToString(Registries.TICKET_TYPE, this.type)
-            + " "
-            + this.level
-            + "] with "
-            + this.ticksLeft
-            + " ticks left ( out of"
-            + this.type.expiryTicks()
-            + ")"
-         : "Ticket[" + Util.registryValueToString(Registries.TICKET_TYPE, this.type) + " " + this.level + "] with no timeout";
-   }
+	private ChunkTicket(ChunkTicketType type, int level, long ticksLeft) {
+		this.type = type;
+		this.level = level;
+		this.ticksLeft = ticksLeft;
+	}
 
-   public ChunkTicketType getType() {
-      return this.type;
-   }
+	@Override
+	public String toString() {
+		return this.type.canExpire()
+		       ? "Ticket["
+		         + Util.registryValueToString(Registries.TICKET_TYPE, this.type)
+		         + " "
+		         + this.level
+		         + "] with "
+		         + this.ticksLeft
+		         + " ticks left ( out of"
+		         + this.type.expiryTicks()
+		         + ")"
+		       : "Ticket[" + Util.registryValueToString(Registries.TICKET_TYPE, this.type) + " " + this.level
+		         + "] with no timeout";
+	}
 
-   public int getLevel() {
-      return this.level;
-   }
+	public ChunkTicketType getType() {
+		return this.type;
+	}
 
-   public void refreshExpiry() {
-      this.ticksLeft = this.type.expiryTicks();
-   }
+	public int getLevel() {
+		return this.level;
+	}
 
-   public void tick() {
-      if (this.type.canExpire()) {
-         this.ticksLeft--;
-      }
-   }
+	public void refreshExpiry() {
+		this.ticksLeft = this.type.expiryTicks();
+	}
 
-   public boolean isExpired() {
-      return this.type.canExpire() && this.ticksLeft < 0L;
-   }
+	public void tick() {
+		if (this.type.canExpire()) {
+			this.ticksLeft--;
+		}
+	}
+
+	public boolean isExpired() {
+		return this.type.canExpire() && this.ticksLeft < 0L;
+	}
 }

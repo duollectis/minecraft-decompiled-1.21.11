@@ -1,116 +1,133 @@
 package net.minecraft.client.session.telemetry;
 
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.MapLike;
-import com.mojang.serialization.RecordBuilder;
+import com.mojang.serialization.*;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Stream;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Stream;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PropertyMap}.
+ */
 public class PropertyMap {
-   final Map<TelemetryEventProperty<?>, Object> backingMap;
 
-   PropertyMap(Map<TelemetryEventProperty<?>, Object> backingMap) {
-      this.backingMap = backingMap;
-   }
+	final Map<TelemetryEventProperty<?>, Object> backingMap;
 
-   public static PropertyMap.Builder builder() {
-      return new PropertyMap.Builder();
-   }
+	PropertyMap(Map<TelemetryEventProperty<?>, Object> backingMap) {
+		this.backingMap = backingMap;
+	}
 
-   public static MapCodec<PropertyMap> createCodec(List<TelemetryEventProperty<?>> properties) {
-      return new MapCodec<PropertyMap>() {
-         public <T> RecordBuilder<T> encode(PropertyMap propertyMap, DynamicOps<T> dynamicOps, RecordBuilder<T> recordBuilder) {
-            RecordBuilder<T> recordBuilder2 = recordBuilder;
+	public static PropertyMap.Builder builder() {
+		return new PropertyMap.Builder();
+	}
 
-            for (TelemetryEventProperty<?> telemetryEventProperty : properties) {
-               recordBuilder2 = this.encode(propertyMap, recordBuilder2, telemetryEventProperty);
-            }
+	public static MapCodec<PropertyMap> createCodec(List<TelemetryEventProperty<?>> properties) {
+		return new MapCodec<PropertyMap>() {
+			public <T> RecordBuilder<T> encode(
+					PropertyMap propertyMap,
+					DynamicOps<T> dynamicOps,
+					RecordBuilder<T> recordBuilder
+			) {
+				RecordBuilder<T> recordBuilder2 = recordBuilder;
 
-            return recordBuilder2;
-         }
+				for (TelemetryEventProperty<?> telemetryEventProperty : properties) {
+					recordBuilder2 = this.encode(propertyMap, recordBuilder2, telemetryEventProperty);
+				}
 
-         private <T, V> RecordBuilder<T> encode(PropertyMap map, RecordBuilder<T> builder, TelemetryEventProperty<V> property) {
-            V object = map.get(property);
-            return object != null ? builder.add(property.id(), object, property.codec()) : builder;
-         }
+				return recordBuilder2;
+			}
 
-         public <T> DataResult<PropertyMap> decode(DynamicOps<T> ops, MapLike<T> map) {
-            DataResult<PropertyMap.Builder> dataResult = DataResult.success(new PropertyMap.Builder());
+			private <T, V> RecordBuilder<T> encode(
+					PropertyMap map,
+					RecordBuilder<T> builder,
+					TelemetryEventProperty<V> property
+			) {
+				V object = map.get(property);
+				return object != null ? builder.add(property.id(), object, property.codec()) : builder;
+			}
 
-            for (TelemetryEventProperty<?> telemetryEventProperty : properties) {
-               dataResult = this.decode(dataResult, ops, map, telemetryEventProperty);
-            }
+			public <T> DataResult<PropertyMap> decode(DynamicOps<T> ops, MapLike<T> map) {
+				DataResult<PropertyMap.Builder> dataResult = DataResult.success(new PropertyMap.Builder());
 
-            return dataResult.map(PropertyMap.Builder::build);
-         }
+				for (TelemetryEventProperty<?> telemetryEventProperty : properties) {
+					dataResult = this.decode(dataResult, ops, map, telemetryEventProperty);
+				}
 
-         private <T, V> DataResult<PropertyMap.Builder> decode(
-            DataResult<PropertyMap.Builder> result, DynamicOps<T> ops, MapLike<T> map, TelemetryEventProperty<V> property
-         ) {
-            T object = (T)map.get(property.id());
-            if (object != null) {
-               DataResult<V> dataResult = property.codec().parse(ops, object);
-               return result.apply2stable((mapBuilder, value) -> mapBuilder.put(property, (V)value), dataResult);
-            } else {
-               return result;
-            }
-         }
+				return dataResult.map(PropertyMap.Builder::build);
+			}
 
-         public <T> Stream<T> keys(DynamicOps<T> ops) {
-            return properties.stream().map(TelemetryEventProperty::id).map(ops::createString);
-         }
-      };
-   }
+			private <T, V> DataResult<PropertyMap.Builder> decode(
+					DataResult<PropertyMap.Builder> result,
+					DynamicOps<T> ops,
+					MapLike<T> map,
+					TelemetryEventProperty<V> property
+			) {
+				T object = (T) map.get(property.id());
+				if (object != null) {
+					DataResult<V> dataResult = property.codec().parse(ops, object);
+					return result.apply2stable((mapBuilder, value) -> mapBuilder.put(property, (V) value), dataResult);
+				}
+				else {
+					return result;
+				}
+			}
 
-   public <T> @Nullable T get(TelemetryEventProperty<T> property) {
-      return (T)this.backingMap.get(property);
-   }
+			public <T> Stream<T> keys(DynamicOps<T> ops) {
+				return properties.stream().map(TelemetryEventProperty::id).map(ops::createString);
+			}
+		};
+	}
 
-   @Override
-   public String toString() {
-      return this.backingMap.toString();
-   }
+	public <T> @Nullable T get(TelemetryEventProperty<T> property) {
+		return (T) this.backingMap.get(property);
+	}
 
-   public Set<TelemetryEventProperty<?>> keySet() {
-      return this.backingMap.keySet();
-   }
+	@Override
+	public String toString() {
+		return this.backingMap.toString();
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static class Builder {
-      private final Map<TelemetryEventProperty<?>, Object> backingMap = new Reference2ObjectOpenHashMap();
+	public Set<TelemetryEventProperty<?>> keySet() {
+		return this.backingMap.keySet();
+	}
 
-      Builder() {
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder {
 
-      public <T> PropertyMap.Builder put(TelemetryEventProperty<T> property, T value) {
-         this.backingMap.put(property, value);
-         return this;
-      }
+		private final Map<TelemetryEventProperty<?>, Object> backingMap = new Reference2ObjectOpenHashMap();
 
-      public <T> PropertyMap.Builder putIfNonNull(TelemetryEventProperty<T> property, @Nullable T value) {
-         if (value != null) {
-            this.backingMap.put(property, value);
-         }
+		Builder() {
+		}
 
-         return this;
-      }
+		public <T> PropertyMap.Builder put(TelemetryEventProperty<T> property, T value) {
+			this.backingMap.put(property, value);
+			return this;
+		}
 
-      public PropertyMap.Builder putAll(PropertyMap map) {
-         this.backingMap.putAll(map.backingMap);
-         return this;
-      }
+		public <T> PropertyMap.Builder putIfNonNull(TelemetryEventProperty<T> property, @Nullable T value) {
+			if (value != null) {
+				this.backingMap.put(property, value);
+			}
 
-      public PropertyMap build() {
-         return new PropertyMap(this.backingMap);
-      }
-   }
+			return this;
+		}
+
+		public PropertyMap.Builder putAll(PropertyMap map) {
+			this.backingMap.putAll(map.backingMap);
+			return this;
+		}
+
+		public PropertyMap build() {
+			return new PropertyMap(this.backingMap);
+		}
+	}
 }

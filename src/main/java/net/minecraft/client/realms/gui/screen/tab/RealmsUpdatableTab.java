@@ -5,12 +5,16 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.realms.dto.RealmsServer;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsUpdatableTab}.
+ */
 public interface RealmsUpdatableTab {
-   void update(RealmsServer server);
 
-   default void onLoaded(RealmsServer server) {
-   }
+	void update(RealmsServer server);
 
-   default void onUnloaded(RealmsServer server) {
-   }
+	default void onLoaded(RealmsServer server) {
+	}
+
+	default void onUnloaded(RealmsServer server) {
+	}
 }

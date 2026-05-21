@@ -26,78 +26,95 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code BrewingStandBlock}.
+ */
 public class BrewingStandBlock extends BlockWithEntity {
-   public static final MapCodec<BrewingStandBlock> CODEC = createCodec(BrewingStandBlock::new);
-   public static final BooleanProperty[] BOTTLE_PROPERTIES = new BooleanProperty[]{Properties.HAS_BOTTLE_0, Properties.HAS_BOTTLE_1, Properties.HAS_BOTTLE_2};
-   private static final VoxelShape SHAPE = VoxelShapes.union(Block.createColumnShape(2.0, 2.0, 14.0), Block.createColumnShape(14.0, 0.0, 2.0));
 
-   @Override
-   public MapCodec<BrewingStandBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<BrewingStandBlock> CODEC = createCodec(BrewingStandBlock::new);
+	public static final BooleanProperty[]
+			BOTTLE_PROPERTIES =
+			new BooleanProperty[]{Properties.HAS_BOTTLE_0, Properties.HAS_BOTTLE_1, Properties.HAS_BOTTLE_2};
+	private static final VoxelShape
+			SHAPE =
+			VoxelShapes.union(Block.createColumnShape(2.0, 2.0, 14.0), Block.createColumnShape(14.0, 0.0, 2.0));
 
-   public BrewingStandBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(
-         this.stateManager.getDefaultState().with(BOTTLE_PROPERTIES[0], false).with(BOTTLE_PROPERTIES[1], false).with(BOTTLE_PROPERTIES[2], false)
-      );
-   }
+	@Override
+	public MapCodec<BrewingStandBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new BrewingStandBlockEntity(pos, state);
-   }
+	public BrewingStandBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(
+				this.stateManager
+						.getDefaultState()
+						.with(BOTTLE_PROPERTIES[0], false)
+						.with(BOTTLE_PROPERTIES[1], false)
+						.with(BOTTLE_PROPERTIES[2], false)
+		);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return world.isClient() ? null : validateTicker(type, BlockEntityType.BREWING_STAND, BrewingStandBlockEntity::tick);
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new BrewingStandBlockEntity(pos, state);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return world.isClient() ? null
+		                        : validateTicker(type, BlockEntityType.BREWING_STAND, BrewingStandBlockEntity::tick);
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient() && world.getBlockEntity(pos) instanceof BrewingStandBlockEntity brewingStandBlockEntity) {
-         player.openHandledScreen(brewingStandBlockEntity);
-         player.incrementStat(Stats.INTERACT_WITH_BREWINGSTAND);
-      }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient() && world.getBlockEntity(pos) instanceof BrewingStandBlockEntity brewingStandBlockEntity) {
+			player.openHandledScreen(brewingStandBlockEntity);
+			player.incrementStat(Stats.INTERACT_WITH_BREWINGSTAND);
+		}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      double d = pos.getX() + 0.4 + random.nextFloat() * 0.2;
-      double e = pos.getY() + 0.7 + random.nextFloat() * 0.3;
-      double f = pos.getZ() + 0.4 + random.nextFloat() * 0.2;
-      world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
-   }
+		return ActionResult.SUCCESS;
+	}
 
-   @Override
-   protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-      ItemScatterer.onStateReplaced(state, world, pos);
-   }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		double d = pos.getX() + 0.4 + random.nextFloat() * 0.2;
+		double e = pos.getY() + 0.7 + random.nextFloat() * 0.3;
+		double f = pos.getZ() + 0.4 + random.nextFloat() * 0.2;
+		world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
+	}
 
-   @Override
-   protected boolean hasComparatorOutput(BlockState state) {
-      return true;
-   }
+	@Override
+	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+		ItemScatterer.onStateReplaced(state, world, pos);
+	}
 
-   @Override
-   protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-      return ScreenHandler.calculateComparatorOutput(world.getBlockEntity(pos));
-   }
+	@Override
+	protected boolean hasComparatorOutput(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(BOTTLE_PROPERTIES[0], BOTTLE_PROPERTIES[1], BOTTLE_PROPERTIES[2]);
-   }
+	@Override
+	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
+		return ScreenHandler.calculateComparatorOutput(world.getBlockEntity(pos));
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(BOTTLE_PROPERTIES[0], BOTTLE_PROPERTIES[1], BOTTLE_PROPERTIES[2]);
+	}
+
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 }

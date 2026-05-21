@@ -7,26 +7,30 @@ import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BlankFont}.
+ */
 public class BlankFont implements Font {
-   private static final Glyph MISSING = new Glyph() {
-      @Override
-      public GlyphMetrics getMetrics() {
-         return BuiltinEmptyGlyph.MISSING;
-      }
 
-      @Override
-      public BakedGlyph bake(Glyph.AbstractGlyphBaker baker) {
-         return baker.getBlankGlyph();
-      }
-   };
+	private static final Glyph MISSING = new Glyph() {
+		@Override
+		public GlyphMetrics getMetrics() {
+			return BuiltinEmptyGlyph.MISSING;
+		}
 
-   @Override
-   public @Nullable Glyph getGlyph(int codePoint) {
-      return MISSING;
-   }
+		@Override
+		public BakedGlyph bake(Glyph.AbstractGlyphBaker baker) {
+			return baker.getBlankGlyph();
+		}
+	};
 
-   @Override
-   public IntSet getProvidedGlyphs() {
-      return IntSets.EMPTY_SET;
-   }
+	@Override
+	public @Nullable Glyph getGlyph(int codePoint) {
+		return MISSING;
+	}
+
+	@Override
+	public IntSet getProvidedGlyphs() {
+		return IntSets.EMPTY_SET;
+	}
 }

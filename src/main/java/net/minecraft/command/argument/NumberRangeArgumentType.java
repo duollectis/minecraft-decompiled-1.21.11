@@ -4,49 +4,65 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import java.util.Arrays;
-import java.util.Collection;
 import net.minecraft.predicate.NumberRange;
 import net.minecraft.server.command.ServerCommandSource;
 
+import java.util.Arrays;
+import java.util.Collection;
+
+/**
+ * {@code NumberRangeArgumentType}.
+ */
 public interface NumberRangeArgumentType<T extends NumberRange<?>> extends ArgumentType<T> {
-   static NumberRangeArgumentType.IntRangeArgumentType intRange() {
-      return new NumberRangeArgumentType.IntRangeArgumentType();
-   }
 
-   static NumberRangeArgumentType.FloatRangeArgumentType floatRange() {
-      return new NumberRangeArgumentType.FloatRangeArgumentType();
-   }
+	static NumberRangeArgumentType.IntRangeArgumentType intRange() {
+		return new NumberRangeArgumentType.IntRangeArgumentType();
+	}
 
-   public static class FloatRangeArgumentType implements NumberRangeArgumentType<NumberRange.DoubleRange> {
-      private static final Collection<String> EXAMPLES = Arrays.asList("0..5.2", "0", "-5.4", "-100.76..", "..100");
+	static NumberRangeArgumentType.FloatRangeArgumentType floatRange() {
+		return new NumberRangeArgumentType.FloatRangeArgumentType();
+	}
 
-      public static NumberRange.DoubleRange getRangeArgument(CommandContext<ServerCommandSource> context, String name) {
-         return (NumberRange.DoubleRange)context.getArgument(name, NumberRange.DoubleRange.class);
-      }
+	/**
+	 * {@code FloatRangeArgumentType}.
+	 */
+	public static class FloatRangeArgumentType implements NumberRangeArgumentType<NumberRange.DoubleRange> {
 
-      public NumberRange.DoubleRange parse(StringReader stringReader) throws CommandSyntaxException {
-         return NumberRange.DoubleRange.parse(stringReader);
-      }
+		private static final Collection<String> EXAMPLES = Arrays.asList("0..5.2", "0", "-5.4", "-100.76..", "..100");
 
-      public Collection<String> getExamples() {
-         return EXAMPLES;
-      }
-   }
+		public static NumberRange.DoubleRange getRangeArgument(
+				CommandContext<ServerCommandSource> context,
+				String name
+		) {
+			return (NumberRange.DoubleRange) context.getArgument(name, NumberRange.DoubleRange.class);
+		}
 
-   public static class IntRangeArgumentType implements NumberRangeArgumentType<NumberRange.IntRange> {
-      private static final Collection<String> EXAMPLES = Arrays.asList("0..5", "0", "-5", "-100..", "..100");
+		public NumberRange.DoubleRange parse(StringReader stringReader) throws CommandSyntaxException {
+			return NumberRange.DoubleRange.parse(stringReader);
+		}
 
-      public static NumberRange.IntRange getRangeArgument(CommandContext<ServerCommandSource> context, String name) {
-         return (NumberRange.IntRange)context.getArgument(name, NumberRange.IntRange.class);
-      }
+		public Collection<String> getExamples() {
+			return EXAMPLES;
+		}
+	}
 
-      public NumberRange.IntRange parse(StringReader stringReader) throws CommandSyntaxException {
-         return NumberRange.IntRange.parse(stringReader);
-      }
+	/**
+	 * {@code IntRangeArgumentType}.
+	 */
+	public static class IntRangeArgumentType implements NumberRangeArgumentType<NumberRange.IntRange> {
 
-      public Collection<String> getExamples() {
-         return EXAMPLES;
-      }
-   }
+		private static final Collection<String> EXAMPLES = Arrays.asList("0..5", "0", "-5", "-100..", "..100");
+
+		public static NumberRange.IntRange getRangeArgument(CommandContext<ServerCommandSource> context, String name) {
+			return (NumberRange.IntRange) context.getArgument(name, NumberRange.IntRange.class);
+		}
+
+		public NumberRange.IntRange parse(StringReader stringReader) throws CommandSyntaxException {
+			return NumberRange.IntRange.parse(stringReader);
+		}
+
+		public Collection<String> getExamples() {
+			return EXAMPLES;
+		}
+	}
 }

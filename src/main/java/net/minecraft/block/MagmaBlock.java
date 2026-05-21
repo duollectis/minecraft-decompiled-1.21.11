@@ -11,53 +11,66 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code MagmaBlock}.
+ */
 public class MagmaBlock extends Block {
-   public static final MapCodec<MagmaBlock> CODEC = createCodec(MagmaBlock::new);
-   private static final int SCHEDULED_TICK_DELAY = 20;
 
-   @Override
-   public MapCodec<MagmaBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<MagmaBlock> CODEC = createCodec(MagmaBlock::new);
+	private static final int SCHEDULED_TICK_DELAY = 20;
 
-   public MagmaBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<MagmaBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void onSteppedOn(World world, BlockPos pos, BlockState state, Entity entity) {
-      if (!entity.bypassesSteppingEffects() && entity instanceof LivingEntity) {
-         entity.serverDamage(world.getDamageSources().hotFloor(), 1.0F);
-      }
+	public MagmaBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-      super.onSteppedOn(world, pos, state, entity);
-   }
+	@Override
+	public void onSteppedOn(World world, BlockPos pos, BlockState state, Entity entity) {
+		if (!entity.bypassesSteppingEffects() && entity instanceof LivingEntity) {
+			entity.serverDamage(world.getDamageSources().hotFloor(), 1.0F);
+		}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      BubbleColumnBlock.update(world, pos.up(), state);
-   }
+		super.onSteppedOn(world, pos, state, entity);
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (direction == Direction.UP && neighborState.isOf(Blocks.WATER)) {
-         tickView.scheduleBlockTick(pos, this, 20);
-      }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		BubbleColumnBlock.update(world, pos.up(), state);
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (direction == Direction.UP && neighborState.isOf(Blocks.WATER)) {
+			tickView.scheduleBlockTick(pos, this, 20);
+		}
 
-   @Override
-   protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-      world.scheduleBlockTick(pos, this, 20);
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
+
+	@Override
+	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
+		world.scheduleBlockTick(pos, this, 20);
+	}
 }

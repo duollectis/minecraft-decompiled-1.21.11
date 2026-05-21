@@ -1,75 +1,97 @@
 package com.mojang.blaze3d.buffers;
 
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.util.annotation.DeobfuscateClass;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.nio.ByteBuffer;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
-import net.minecraft.util.annotation.DeobfuscateClass;
 
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
+/**
+ * {@code GpuBuffer}.
+ */
 public abstract class GpuBuffer implements AutoCloseable {
-   public static final int USAGE_MAP_READ = 1;
-   public static final int USAGE_MAP_WRITE = 2;
-   public static final int USAGE_HINT_CLIENT_STORAGE = 4;
-   public static final int USAGE_COPY_DST = 8;
-   public static final int USAGE_COPY_SRC = 16;
-   public static final int USAGE_VERTEX = 32;
-   public static final int USAGE_INDEX = 64;
-   public static final int USAGE_UNIFORM = 128;
-   public static final int USAGE_UNIFORM_TEXEL_BUFFER = 256;
-   @GpuBuffer.Usage
-   private final int usage;
-   private final long size;
 
-   public GpuBuffer(@GpuBuffer.Usage int usage, long size) {
-      this.size = size;
-      this.usage = usage;
-   }
+	public static final int USAGE_MAP_READ = 1;
+	public static final int USAGE_MAP_WRITE = 2;
+	public static final int USAGE_HINT_CLIENT_STORAGE = 4;
+	public static final int USAGE_COPY_DST = 8;
+	public static final int USAGE_COPY_SRC = 16;
+	public static final int USAGE_VERTEX = 32;
+	public static final int USAGE_INDEX = 64;
+	public static final int USAGE_UNIFORM = 128;
+	public static final int USAGE_UNIFORM_TEXEL_BUFFER = 256;
+	@GpuBuffer.Usage
+	private final int usage;
+	private final long size;
 
-   public long size() {
-      return this.size;
-   }
+	public GpuBuffer(@GpuBuffer.Usage int usage, long size) {
+		this.size = size;
+		this.usage = usage;
+	}
 
-   @GpuBuffer.Usage
-   public int usage() {
-      return this.usage;
-   }
+	public long size() {
+		return this.size;
+	}
 
-   public abstract boolean isClosed();
+	@GpuBuffer.Usage
+	public int usage() {
+		return this.usage;
+	}
 
-   @Override
-   public abstract void close();
+	public abstract boolean isClosed();
 
-   public GpuBufferSlice slice(long offset, long length) {
-      if (offset >= 0L && length >= 0L && offset + length <= this.size) {
-         return new GpuBufferSlice(this, offset, length);
-      } else {
-         throw new IllegalArgumentException(
-            "Offset of " + offset + " and length " + length + " would put new slice outside buffer's range (of 0," + length + ")"
-         );
-      }
-   }
+	@Override
+	public abstract void close();
 
-   public GpuBufferSlice slice() {
-      return new GpuBufferSlice(this, 0L, this.size);
-   }
+	public GpuBufferSlice slice(long offset, long length) {
+		if (offset >= 0L && length >= 0L && offset + length <= this.size) {
+			return new GpuBufferSlice(this, offset, length);
+		}
+		else {
+			throw new IllegalArgumentException(
+					"Offset of " + offset + " and length " + length
+							+ " would put new slice outside buffer's range (of 0," + length + ")"
+			);
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   @DeobfuscateClass
-   public interface MappedView extends AutoCloseable {
-      ByteBuffer data();
+	public GpuBufferSlice slice() {
+		return new GpuBufferSlice(this, 0L, this.size);
+	}
 
-      @Override
-      void close();
-   }
+	@Environment(EnvType.CLIENT)
+	@DeobfuscateClass
+	/**
+	 * {@code MappedView}.
+	 */
+	public interface MappedView extends AutoCloseable {
 
-   @Retention(RetentionPolicy.CLASS)
-   @Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.METHOD, ElementType.TYPE_USE})
-   @Environment(EnvType.CLIENT)
-   public @interface Usage {
-   }
+		ByteBuffer data();
+
+		@Override
+		void close();
+	}
+
+	@Retention(RetentionPolicy.CLASS)
+	@Target(
+			{
+					ElementType.FIELD,
+					ElementType.PARAMETER,
+					ElementType.LOCAL_VARIABLE,
+					ElementType.METHOD,
+					ElementType.TYPE_USE
+			}
+	)
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Usage}.
+	 */
+	public @interface Usage {
+	}
 }

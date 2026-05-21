@@ -8,16 +8,20 @@ import net.minecraft.entity.mob.CaveSpiderEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CaveSpiderEntityRenderer}.
+ */
 public class CaveSpiderEntityRenderer extends SpiderEntityRenderer<CaveSpiderEntity> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/spider/cave_spider.png");
 
-   public CaveSpiderEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, EntityModelLayers.CAVE_SPIDER);
-      this.shadowRadius = 0.56F;
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/spider/cave_spider.png");
 
-   @Override
-   public Identifier getTexture(LivingEntityRenderState state) {
-      return TEXTURE;
-   }
+	public CaveSpiderEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, EntityModelLayers.CAVE_SPIDER);
+		this.shadowRadius = 0.56F;
+	}
+
+	@Override
+	public Identifier getTexture(LivingEntityRenderState state) {
+		return TEXTURE;
+	}
 }

@@ -8,23 +8,24 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public class EnterConfigurationC2SPacket implements Packet<ServerLoginPacketListener> {
-   public static final EnterConfigurationC2SPacket INSTANCE = new EnterConfigurationC2SPacket();
-   public static final PacketCodec<ByteBuf, EnterConfigurationC2SPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   private EnterConfigurationC2SPacket() {
-   }
+	public static final EnterConfigurationC2SPacket INSTANCE = new EnterConfigurationC2SPacket();
+	public static final PacketCodec<ByteBuf, EnterConfigurationC2SPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   @Override
-   public PacketType<EnterConfigurationC2SPacket> getPacketType() {
-      return LoginPackets.LOGIN_ACKNOWLEDGED;
-   }
+	private EnterConfigurationC2SPacket() {
+	}
 
-   public void apply(ServerLoginPacketListener serverLoginPacketListener) {
-      serverLoginPacketListener.onEnterConfiguration(this);
-   }
+	@Override
+	public PacketType<EnterConfigurationC2SPacket> getPacketType() {
+		return LoginPackets.LOGIN_ACKNOWLEDGED;
+	}
 
-   @Override
-   public boolean transitionsNetworkState() {
-      return true;
-   }
+	public void apply(ServerLoginPacketListener serverLoginPacketListener) {
+		serverLoginPacketListener.onEnterConfiguration(this);
+	}
+
+	@Override
+	public boolean transitionsNetworkState() {
+		return true;
+	}
 }

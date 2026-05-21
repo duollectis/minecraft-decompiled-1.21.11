@@ -6,25 +6,33 @@ import net.minecraft.util.ColorCode;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockView;
 
+/**
+ * {@code ColoredFallingBlock}.
+ */
 public class ColoredFallingBlock extends FallingBlock {
-   public static final MapCodec<ColoredFallingBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(ColorCode.CODEC.fieldOf("falling_dust_color").forGetter(block -> block.color), createSettingsCodec())
-         .apply(instance, ColoredFallingBlock::new)
-   );
-   protected final ColorCode color;
 
-   @Override
-   public MapCodec<? extends ColoredFallingBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<ColoredFallingBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(
+							ColorCode.CODEC.fieldOf("falling_dust_color").forGetter(block -> block.color),
+							createSettingsCodec()
+					)
+					.apply(instance, ColoredFallingBlock::new)
+	);
+	protected final ColorCode color;
 
-   public ColoredFallingBlock(ColorCode color, AbstractBlock.Settings settings) {
-      super(settings);
-      this.color = color;
-   }
+	@Override
+	public MapCodec<? extends ColoredFallingBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public int getColor(BlockState state, BlockView world, BlockPos pos) {
-      return this.color.rgba();
-   }
+	public ColoredFallingBlock(ColorCode color, AbstractBlock.Settings settings) {
+		super(settings);
+		this.color = color;
+	}
+
+	@Override
+	public int getColor(BlockState state, BlockView world, BlockPos pos) {
+		return this.color.rgba();
+	}
 }

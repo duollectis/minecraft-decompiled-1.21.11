@@ -4,9 +4,6 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
 import net.minecraft.block.entity.BannerPattern;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.item.Item;
@@ -24,79 +21,111 @@ import net.minecraft.util.DyeColor;
 import net.minecraft.util.Formatting;
 import org.slf4j.Logger;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+/**
+ * {@code BannerPatternsComponent}.
+ */
 public record BannerPatternsComponent(List<BannerPatternsComponent.Layer> layers) implements TooltipAppender {
-   static final Logger LOGGER = LogUtils.getLogger();
-   public static final BannerPatternsComponent DEFAULT = new BannerPatternsComponent(List.of());
-   public static final Codec<BannerPatternsComponent> CODEC = BannerPatternsComponent.Layer.CODEC
-      .listOf()
-      .xmap(BannerPatternsComponent::new, BannerPatternsComponent::layers);
-   public static final PacketCodec<RegistryByteBuf, BannerPatternsComponent> PACKET_CODEC = BannerPatternsComponent.Layer.PACKET_CODEC
-      .collect(PacketCodecs.toList())
-      .xmap(BannerPatternsComponent::new, BannerPatternsComponent::layers);
 
-   public BannerPatternsComponent withoutTopLayer() {
-      return new BannerPatternsComponent(List.copyOf(this.layers.subList(0, this.layers.size() - 1)));
-   }
+	static final Logger LOGGER = LogUtils.getLogger();
+	public static final BannerPatternsComponent DEFAULT = new BannerPatternsComponent(List.of());
+	public static final Codec<BannerPatternsComponent> CODEC = BannerPatternsComponent.Layer.CODEC
+			.listOf()
+			.xmap(BannerPatternsComponent::new, BannerPatternsComponent::layers);
+	public static final PacketCodec<RegistryByteBuf, BannerPatternsComponent>
+			PACKET_CODEC =
+			BannerPatternsComponent.Layer.PACKET_CODEC
+					.collect(PacketCodecs.toList())
+					.xmap(BannerPatternsComponent::new, BannerPatternsComponent::layers);
 
-   @Override
-   public void appendTooltip(Item.TooltipContext context, Consumer<Text> textConsumer, TooltipType type, ComponentsAccess components) {
-      for (int i = 0; i < Math.min(this.layers().size(), 6); i++) {
-         textConsumer.accept(this.layers().get(i).getTooltipText().formatted(Formatting.GRAY));
-      }
-   }
+	public BannerPatternsComponent withoutTopLayer() {
+		return new BannerPatternsComponent(List.copyOf(this.layers.subList(0, this.layers.size() - 1)));
+	}
 
-   public static class Builder {
-      private final com.google.common.collect.ImmutableList.Builder<BannerPatternsComponent.Layer> entries = ImmutableList.builder();
+	@Override
+	public void appendTooltip(
+			Item.TooltipContext context,
+			Consumer<Text> textConsumer,
+			TooltipType type,
+			ComponentsAccess components
+	) {
+		for (int i = 0; i < Math.min(this.layers().size(), 6); i++) {
+			textConsumer.accept(this.layers().get(i).getTooltipText().formatted(Formatting.GRAY));
+		}
+	}
 
-      @Deprecated
-      public BannerPatternsComponent.Builder add(RegistryEntryLookup<BannerPattern> patternLookup, RegistryKey<BannerPattern> pattern, DyeColor color) {
-         Optional<RegistryEntry.Reference<BannerPattern>> optional = patternLookup.getOptional(pattern);
-         if (optional.isEmpty()) {
-            BannerPatternsComponent.LOGGER.warn("Unable to find banner pattern with id: '{}'", pattern.getValue());
-            return this;
-         } else {
-            return this.add(optional.get(), color);
-         }
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder {
 
-      public BannerPatternsComponent.Builder add(RegistryEntry<BannerPattern> pattern, DyeColor color) {
-         return this.add(new BannerPatternsComponent.Layer(pattern, color));
-      }
+		private final com.google.common.collect.ImmutableList.Builder<BannerPatternsComponent.Layer>
+				entries =
+				ImmutableList.builder();
 
-      public BannerPatternsComponent.Builder add(BannerPatternsComponent.Layer layer) {
-         this.entries.add(layer);
-         return this;
-      }
+		@Deprecated
+		public BannerPatternsComponent.Builder add(
+				RegistryEntryLookup<BannerPattern> patternLookup,
+				RegistryKey<BannerPattern> pattern,
+				DyeColor color
+		) {
+			Optional<RegistryEntry.Reference<BannerPattern>> optional = patternLookup.getOptional(pattern);
+			if (optional.isEmpty()) {
+				BannerPatternsComponent.LOGGER.warn("Unable to find banner pattern with id: '{}'", pattern.getValue());
+				return this;
+			}
+			else {
+				return this.add(optional.get(), color);
+			}
+		}
 
-      public BannerPatternsComponent.Builder addAll(BannerPatternsComponent patterns) {
-         this.entries.addAll(patterns.layers);
-         return this;
-      }
+		public BannerPatternsComponent.Builder add(RegistryEntry<BannerPattern> pattern, DyeColor color) {
+			return this.add(new BannerPatternsComponent.Layer(pattern, color));
+		}
 
-      public BannerPatternsComponent build() {
-         return new BannerPatternsComponent(this.entries.build());
-      }
-   }
+		public BannerPatternsComponent.Builder add(BannerPatternsComponent.Layer layer) {
+			this.entries.add(layer);
+			return this;
+		}
 
-   public record Layer(RegistryEntry<BannerPattern> pattern, DyeColor color) {
-      public static final Codec<BannerPatternsComponent.Layer> CODEC = RecordCodecBuilder.create(
-         instance -> instance.group(
-               BannerPattern.ENTRY_CODEC.fieldOf("pattern").forGetter(BannerPatternsComponent.Layer::pattern),
-               DyeColor.CODEC.fieldOf("color").forGetter(BannerPatternsComponent.Layer::color)
-            )
-            .apply(instance, BannerPatternsComponent.Layer::new)
-      );
-      public static final PacketCodec<RegistryByteBuf, BannerPatternsComponent.Layer> PACKET_CODEC = PacketCodec.tuple(
-         BannerPattern.ENTRY_PACKET_CODEC,
-         BannerPatternsComponent.Layer::pattern,
-         DyeColor.PACKET_CODEC,
-         BannerPatternsComponent.Layer::color,
-         BannerPatternsComponent.Layer::new
-      );
+		public BannerPatternsComponent.Builder addAll(BannerPatternsComponent patterns) {
+			this.entries.addAll(patterns.layers);
+			return this;
+		}
 
-      public MutableText getTooltipText() {
-         String string = this.pattern.value().translationKey();
-         return Text.translatable(string + "." + this.color.getId());
-      }
-   }
+		public BannerPatternsComponent build() {
+			return new BannerPatternsComponent(this.entries.build());
+		}
+	}
+
+	/**
+	 * {@code Layer}.
+	 */
+	public record Layer(RegistryEntry<BannerPattern> pattern, DyeColor color) {
+
+		public static final Codec<BannerPatternsComponent.Layer> CODEC = RecordCodecBuilder.create(
+				instance -> instance.group(
+						                    BannerPattern.ENTRY_CODEC.fieldOf("pattern").forGetter(BannerPatternsComponent.Layer::pattern),
+						                    DyeColor.CODEC.fieldOf("color").forGetter(BannerPatternsComponent.Layer::color)
+				                    )
+				                    .apply(instance, BannerPatternsComponent.Layer::new)
+		);
+		public static final PacketCodec<RegistryByteBuf, BannerPatternsComponent.Layer>
+				PACKET_CODEC =
+				PacketCodec.tuple(
+						BannerPattern.ENTRY_PACKET_CODEC,
+						BannerPatternsComponent.Layer::pattern,
+						DyeColor.PACKET_CODEC,
+						BannerPatternsComponent.Layer::color,
+						BannerPatternsComponent.Layer::new
+				);
+
+		public MutableText getTooltipText() {
+			String string = this.pattern.value().translationKey();
+			return Text.translatable(string + "." + this.color.getId());
+		}
+	}
 }

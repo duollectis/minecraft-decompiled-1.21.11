@@ -14,25 +14,37 @@ import net.minecraft.registry.RegistryKeys;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ContextEntityTypeProperty}.
+ */
 public record ContextEntityTypeProperty() implements SelectProperty<RegistryKey<EntityType<?>>> {
-   public static final Codec<RegistryKey<EntityType<?>>> VALUE_CODEC = RegistryKey.createCodec(RegistryKeys.ENTITY_TYPE);
-   public static final SelectProperty.Type<ContextEntityTypeProperty, RegistryKey<EntityType<?>>> TYPE = SelectProperty.Type.create(
-      MapCodec.unit(new ContextEntityTypeProperty()), VALUE_CODEC
-   );
 
-   public @Nullable RegistryKey<EntityType<?>> getValue(
-      ItemStack itemStack, @Nullable ClientWorld clientWorld, @Nullable LivingEntity livingEntity, int i, ItemDisplayContext itemDisplayContext
-   ) {
-      return livingEntity == null ? null : livingEntity.getType().getRegistryEntry().registryKey();
-   }
+	public static final Codec<RegistryKey<EntityType<?>>>
+			VALUE_CODEC =
+			RegistryKey.createCodec(RegistryKeys.ENTITY_TYPE);
+	public static final SelectProperty.Type<ContextEntityTypeProperty, RegistryKey<EntityType<?>>>
+			TYPE =
+			SelectProperty.Type.create(
+					MapCodec.unit(new ContextEntityTypeProperty()), VALUE_CODEC
+			);
 
-   @Override
-   public SelectProperty.Type<ContextEntityTypeProperty, RegistryKey<EntityType<?>>> getType() {
-      return TYPE;
-   }
+	public @Nullable RegistryKey<EntityType<?>> getValue(
+			ItemStack itemStack,
+			@Nullable ClientWorld clientWorld,
+			@Nullable LivingEntity livingEntity,
+			int i,
+			ItemDisplayContext itemDisplayContext
+	) {
+		return livingEntity == null ? null : livingEntity.getType().getRegistryEntry().registryKey();
+	}
 
-   @Override
-   public Codec<RegistryKey<EntityType<?>>> valueCodec() {
-      return VALUE_CODEC;
-   }
+	@Override
+	public SelectProperty.Type<ContextEntityTypeProperty, RegistryKey<EntityType<?>>> getType() {
+		return TYPE;
+	}
+
+	@Override
+	public Codec<RegistryKey<EntityType<?>>> valueCodec() {
+		return VALUE_CODEC;
+	}
 }

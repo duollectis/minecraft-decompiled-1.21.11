@@ -6,13 +6,19 @@ import net.minecraft.client.model.ModelData;
 
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ModelTransformer}.
+ */
 public interface ModelTransformer {
-   ModelTransformer NO_OP = data -> data;
 
-   static ModelTransformer scaling(float scale) {
-      float f = 24.016F * (1.0F - scale);
-      return data -> data.transform((net.minecraft.client.model.ModelTransform transform) -> transform.scaled(scale).moveOrigin(0.0F, f, 0.0F));
-   }
+	ModelTransformer NO_OP = data -> data;
 
-   ModelData apply(ModelData modelData);
+	static ModelTransformer scaling(float scale) {
+		float f = 24.016F * (1.0F - scale);
+		return data -> data.transform((net.minecraft.client.model.ModelTransform transform) -> transform
+				.scaled(scale)
+				.moveOrigin(0.0F, f, 0.0F));
+	}
+
+	ModelData apply(ModelData modelData);
 }

@@ -8,69 +8,80 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code NetherrackBlock}.
+ */
 public class NetherrackBlock extends Block implements Fertilizable {
-   public static final MapCodec<NetherrackBlock> CODEC = createCodec(NetherrackBlock::new);
 
-   @Override
-   public MapCodec<NetherrackBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<NetherrackBlock> CODEC = createCodec(NetherrackBlock::new);
 
-   public NetherrackBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<NetherrackBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      if (!world.getBlockState(pos.up()).isTransparent()) {
-         return false;
-      } else {
-         for (BlockPos blockPos : BlockPos.iterate(pos.add(-1, -1, -1), pos.add(1, 1, 1))) {
-            if (world.getBlockState(blockPos).isIn(BlockTags.NYLIUM)) {
-               return true;
-            }
-         }
+	public NetherrackBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-         return false;
-      }
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		if (!world.getBlockState(pos.up()).isTransparent()) {
+			return false;
+		}
+		else {
+			for (BlockPos blockPos : BlockPos.iterate(pos.add(-1, -1, -1), pos.add(1, 1, 1))) {
+				if (world.getBlockState(blockPos).isIn(BlockTags.NYLIUM)) {
+					return true;
+				}
+			}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+			return false;
+		}
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      boolean bl = false;
-      boolean bl2 = false;
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
 
-      for (BlockPos blockPos : BlockPos.iterate(pos.add(-1, -1, -1), pos.add(1, 1, 1))) {
-         BlockState blockState = world.getBlockState(blockPos);
-         if (blockState.isOf(Blocks.WARPED_NYLIUM)) {
-            bl2 = true;
-         }
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		boolean bl = false;
+		boolean bl2 = false;
 
-         if (blockState.isOf(Blocks.CRIMSON_NYLIUM)) {
-            bl = true;
-         }
+		for (BlockPos blockPos : BlockPos.iterate(pos.add(-1, -1, -1), pos.add(1, 1, 1))) {
+			BlockState blockState = world.getBlockState(blockPos);
+			if (blockState.isOf(Blocks.WARPED_NYLIUM)) {
+				bl2 = true;
+			}
 
-         if (bl2 && bl) {
-            break;
-         }
-      }
+			if (blockState.isOf(Blocks.CRIMSON_NYLIUM)) {
+				bl = true;
+			}
 
-      if (bl2 && bl) {
-         world.setBlockState(pos, random.nextBoolean() ? Blocks.WARPED_NYLIUM.getDefaultState() : Blocks.CRIMSON_NYLIUM.getDefaultState(), 3);
-      } else if (bl2) {
-         world.setBlockState(pos, Blocks.WARPED_NYLIUM.getDefaultState(), 3);
-      } else if (bl) {
-         world.setBlockState(pos, Blocks.CRIMSON_NYLIUM.getDefaultState(), 3);
-      }
-   }
+			if (bl2 && bl) {
+				break;
+			}
+		}
 
-   @Override
-   public Fertilizable.FertilizableType getFertilizableType() {
-      return Fertilizable.FertilizableType.NEIGHBOR_SPREADER;
-   }
+		if (bl2 && bl) {
+			world.setBlockState(pos,
+					random.nextBoolean() ? Blocks.WARPED_NYLIUM.getDefaultState()
+					                     : Blocks.CRIMSON_NYLIUM.getDefaultState(),
+					3
+			);
+		}
+		else if (bl2) {
+			world.setBlockState(pos, Blocks.WARPED_NYLIUM.getDefaultState(), 3);
+		}
+		else if (bl) {
+			world.setBlockState(pos, Blocks.CRIMSON_NYLIUM.getDefaultState(), 3);
+		}
+	}
+
+	@Override
+	public Fertilizable.FertilizableType getFertilizableType() {
+		return Fertilizable.FertilizableType.NEIGHBOR_SPREADER;
+	}
 }

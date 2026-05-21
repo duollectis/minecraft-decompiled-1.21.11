@@ -13,65 +13,69 @@ import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code SpawnerMinecartEntity}.
+ */
 public class SpawnerMinecartEntity extends AbstractMinecartEntity {
-   private final MobSpawnerLogic logic = new MobSpawnerLogic() {
-      @Override
-      public void sendStatus(World world, BlockPos pos, int status) {
-         world.sendEntityStatus(SpawnerMinecartEntity.this, (byte)status);
-      }
-   };
-   private final Runnable ticker;
 
-   public SpawnerMinecartEntity(EntityType<? extends SpawnerMinecartEntity> entityType, World world) {
-      super(entityType, world);
-      this.ticker = this.getTicker(world);
-   }
+	private final MobSpawnerLogic logic = new MobSpawnerLogic() {
+		@Override
+		public void sendStatus(World world, BlockPos pos, int status) {
+			world.sendEntityStatus(SpawnerMinecartEntity.this, (byte) status);
+		}
+	};
+	private final Runnable ticker;
 
-   @Override
-   protected Item asItem() {
-      return Items.MINECART;
-   }
+	public SpawnerMinecartEntity(EntityType<? extends SpawnerMinecartEntity> entityType, World world) {
+		super(entityType, world);
+		this.ticker = this.getTicker(world);
+	}
 
-   @Override
-   public ItemStack getPickBlockStack() {
-      return new ItemStack(Items.MINECART);
-   }
+	@Override
+	protected Item asItem() {
+		return Items.MINECART;
+	}
 
-   private Runnable getTicker(World world) {
-      return world instanceof ServerWorld
-         ? () -> this.logic.serverTick((ServerWorld)world, this.getBlockPos())
-         : () -> this.logic.clientTick(world, this.getBlockPos());
-   }
+	@Override
+	public ItemStack getPickBlockStack() {
+		return new ItemStack(Items.MINECART);
+	}
 
-   @Override
-   public BlockState getDefaultContainedBlock() {
-      return Blocks.SPAWNER.getDefaultState();
-   }
+	private Runnable getTicker(World world) {
+		return world instanceof ServerWorld
+		       ? () -> this.logic.serverTick((ServerWorld) world, this.getBlockPos())
+		       : () -> this.logic.clientTick(world, this.getBlockPos());
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.logic.readData(this.getEntityWorld(), this.getBlockPos(), view);
-   }
+	@Override
+	public BlockState getDefaultContainedBlock() {
+		return Blocks.SPAWNER.getDefaultState();
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      this.logic.writeData(view);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.logic.readData(this.getEntityWorld(), this.getBlockPos(), view);
+	}
 
-   @Override
-   public void handleStatus(byte status) {
-      this.logic.handleStatus(this.getEntityWorld(), status);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		this.logic.writeData(view);
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      this.ticker.run();
-   }
+	@Override
+	public void handleStatus(byte status) {
+		this.logic.handleStatus(this.getEntityWorld(), status);
+	}
 
-   public MobSpawnerLogic getLogic() {
-      return this.logic;
-   }
+	@Override
+	public void tick() {
+		super.tick();
+		this.ticker.run();
+	}
+
+	public MobSpawnerLogic getLogic() {
+		return this.logic;
+	}
 }

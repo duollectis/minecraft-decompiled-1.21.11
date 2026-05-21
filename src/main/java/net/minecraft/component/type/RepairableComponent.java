@@ -11,16 +11,24 @@ import net.minecraft.registry.RegistryCodecs;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntryList;
 
+/**
+ * {@code RepairableComponent}.
+ */
 public record RepairableComponent(RegistryEntryList<Item> items) {
-   public static final Codec<RepairableComponent> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(RegistryCodecs.entryList(RegistryKeys.ITEM).fieldOf("items").forGetter(RepairableComponent::items))
-         .apply(instance, RepairableComponent::new)
-   );
-   public static final PacketCodec<RegistryByteBuf, RepairableComponent> PACKET_CODEC = PacketCodec.tuple(
-      PacketCodecs.registryEntryList(RegistryKeys.ITEM), RepairableComponent::items, RepairableComponent::new
-   );
 
-   public boolean matches(ItemStack stack) {
-      return stack.isIn(this.items);
-   }
+	public static final Codec<RepairableComponent> CODEC = RecordCodecBuilder.create(
+			instance -> instance
+					.group(RegistryCodecs
+							.entryList(RegistryKeys.ITEM)
+							.fieldOf("items")
+							.forGetter(RepairableComponent::items))
+					.apply(instance, RepairableComponent::new)
+	);
+	public static final PacketCodec<RegistryByteBuf, RepairableComponent> PACKET_CODEC = PacketCodec.tuple(
+			PacketCodecs.registryEntryList(RegistryKeys.ITEM), RepairableComponent::items, RepairableComponent::new
+	);
+
+	public boolean matches(ItemStack stack) {
+		return stack.isIn(this.items);
+	}
 }

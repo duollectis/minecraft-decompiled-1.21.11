@@ -1,59 +1,68 @@
 package net.minecraft.resource;
 
+import net.minecraft.registry.VersionedIdentifier;
+import net.minecraft.resource.metadata.ResourceMetadata;
+import org.jspecify.annotations.Nullable;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
-import net.minecraft.registry.VersionedIdentifier;
-import net.minecraft.resource.metadata.ResourceMetadata;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code Resource}.
+ */
 public class Resource {
-   private final ResourcePack pack;
-   private final InputSupplier<InputStream> inputSupplier;
-   private final InputSupplier<ResourceMetadata> metadataSupplier;
-   private @Nullable ResourceMetadata metadata;
 
-   public Resource(ResourcePack pack, InputSupplier<InputStream> inputSupplier, InputSupplier<ResourceMetadata> metadataSupplier) {
-      this.pack = pack;
-      this.inputSupplier = inputSupplier;
-      this.metadataSupplier = metadataSupplier;
-   }
+	private final ResourcePack pack;
+	private final InputSupplier<InputStream> inputSupplier;
+	private final InputSupplier<ResourceMetadata> metadataSupplier;
+	private @Nullable ResourceMetadata metadata;
 
-   public Resource(ResourcePack pack, InputSupplier<InputStream> inputSupplier) {
-      this.pack = pack;
-      this.inputSupplier = inputSupplier;
-      this.metadataSupplier = ResourceMetadata.NONE_SUPPLIER;
-      this.metadata = ResourceMetadata.NONE;
-   }
+	public Resource(
+			ResourcePack pack,
+			InputSupplier<InputStream> inputSupplier,
+			InputSupplier<ResourceMetadata> metadataSupplier
+	) {
+		this.pack = pack;
+		this.inputSupplier = inputSupplier;
+		this.metadataSupplier = metadataSupplier;
+	}
 
-   public ResourcePack getPack() {
-      return this.pack;
-   }
+	public Resource(ResourcePack pack, InputSupplier<InputStream> inputSupplier) {
+		this.pack = pack;
+		this.inputSupplier = inputSupplier;
+		this.metadataSupplier = ResourceMetadata.NONE_SUPPLIER;
+		this.metadata = ResourceMetadata.NONE;
+	}
 
-   public String getPackId() {
-      return this.pack.getId();
-   }
+	public ResourcePack getPack() {
+		return this.pack;
+	}
 
-   public Optional<VersionedIdentifier> getKnownPackInfo() {
-      return this.pack.getKnownPackInfo();
-   }
+	public String getPackId() {
+		return this.pack.getId();
+	}
 
-   public InputStream getInputStream() throws IOException {
-      return this.inputSupplier.get();
-   }
+	public Optional<VersionedIdentifier> getKnownPackInfo() {
+		return this.pack.getKnownPackInfo();
+	}
 
-   public BufferedReader getReader() throws IOException {
-      return new BufferedReader(new InputStreamReader(this.getInputStream(), StandardCharsets.UTF_8));
-   }
+	public InputStream getInputStream() throws IOException {
+		return this.inputSupplier.get();
+	}
 
-   public ResourceMetadata getMetadata() throws IOException {
-      if (this.metadata == null) {
-         this.metadata = this.metadataSupplier.get();
-      }
+	public BufferedReader getReader() throws IOException {
+		return new BufferedReader(new InputStreamReader(this.getInputStream(), StandardCharsets.UTF_8));
+	}
 
-      return this.metadata;
-   }
+	public ResourceMetadata getMetadata() throws IOException {
+		if (this.metadata == null) {
+			this.metadata = this.metadataSupplier.get();
+		}
+
+		return this.metadata;
+	}
 }

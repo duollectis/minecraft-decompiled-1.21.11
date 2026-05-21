@@ -16,69 +16,81 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CraftPlanksTutorialStepHandler}.
+ */
 public class CraftPlanksTutorialStepHandler implements TutorialStepHandler {
-   private static final int DELAY = 1200;
-   private static final Text TITLE = Text.translatable("tutorial.craft_planks.title");
-   private static final Text DESCRIPTION = Text.translatable("tutorial.craft_planks.description");
-   private final TutorialManager manager;
-   private @Nullable TutorialToast toast;
-   private int ticks;
 
-   public CraftPlanksTutorialStepHandler(TutorialManager manager) {
-      this.manager = manager;
-   }
+	private static final int DELAY = 1200;
+	private static final Text TITLE = Text.translatable("tutorial.craft_planks.title");
+	private static final Text DESCRIPTION = Text.translatable("tutorial.craft_planks.description");
+	private final TutorialManager manager;
+	private @Nullable TutorialToast toast;
+	private int ticks;
 
-   @Override
-   public void tick() {
-      this.ticks++;
-      if (!this.manager.isInSurvival()) {
-         this.manager.setStep(TutorialStep.NONE);
-      } else {
-         MinecraftClient minecraftClient = this.manager.getClient();
-         if (this.ticks == 1) {
-            ClientPlayerEntity clientPlayerEntity = minecraftClient.player;
-            if (clientPlayerEntity != null) {
-               if (clientPlayerEntity.getInventory().contains(ItemTags.PLANKS)) {
-                  this.manager.setStep(TutorialStep.NONE);
-                  return;
-               }
+	public CraftPlanksTutorialStepHandler(TutorialManager manager) {
+		this.manager = manager;
+	}
 
-               if (hasCrafted(clientPlayerEntity, ItemTags.PLANKS)) {
-                  this.manager.setStep(TutorialStep.NONE);
-                  return;
-               }
-            }
-         }
+	@Override
+	public void tick() {
+		this.ticks++;
+		if (!this.manager.isInSurvival()) {
+			this.manager.setStep(TutorialStep.NONE);
+		}
+		else {
+			MinecraftClient minecraftClient = this.manager.getClient();
+			if (this.ticks == 1) {
+				ClientPlayerEntity clientPlayerEntity = minecraftClient.player;
+				if (clientPlayerEntity != null) {
+					if (clientPlayerEntity.getInventory().contains(ItemTags.PLANKS)) {
+						this.manager.setStep(TutorialStep.NONE);
+						return;
+					}
 
-         if (this.ticks >= 1200 && this.toast == null) {
-            this.toast = new TutorialToast(minecraftClient.textRenderer, TutorialToast.Type.WOODEN_PLANKS, TITLE, DESCRIPTION, false);
-            minecraftClient.getToastManager().add(this.toast);
-         }
-      }
-   }
+					if (hasCrafted(clientPlayerEntity, ItemTags.PLANKS)) {
+						this.manager.setStep(TutorialStep.NONE);
+						return;
+					}
+				}
+			}
 
-   @Override
-   public void destroy() {
-      if (this.toast != null) {
-         this.toast.hide();
-         this.toast = null;
-      }
-   }
+			if (this.ticks >= 1200 && this.toast == null) {
+				this.toast =
+						new TutorialToast(
+								minecraftClient.textRenderer,
+								TutorialToast.Type.WOODEN_PLANKS,
+								TITLE,
+								DESCRIPTION,
+								false
+						);
+				minecraftClient.getToastManager().add(this.toast);
+			}
+		}
+	}
 
-   @Override
-   public void onSlotUpdate(ItemStack stack) {
-      if (stack.isIn(ItemTags.PLANKS)) {
-         this.manager.setStep(TutorialStep.NONE);
-      }
-   }
+	@Override
+	public void destroy() {
+		if (this.toast != null) {
+			this.toast.hide();
+			this.toast = null;
+		}
+	}
 
-   public static boolean hasCrafted(ClientPlayerEntity player, TagKey<Item> tag) {
-      for (RegistryEntry<Item> registryEntry : Registries.ITEM.iterateEntries(tag)) {
-         if (player.getStatHandler().getStat(Stats.CRAFTED.getOrCreateStat(registryEntry.value())) > 0) {
-            return true;
-         }
-      }
+	@Override
+	public void onSlotUpdate(ItemStack stack) {
+		if (stack.isIn(ItemTags.PLANKS)) {
+			this.manager.setStep(TutorialStep.NONE);
+		}
+	}
 
-      return false;
-   }
+	public static boolean hasCrafted(ClientPlayerEntity player, TagKey<Item> tag) {
+		for (RegistryEntry<Item> registryEntry : Registries.ITEM.iterateEntries(tag)) {
+			if (player.getStatHandler().getStat(Stats.CRAFTED.getOrCreateStat(registryEntry.value())) > 0) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 }

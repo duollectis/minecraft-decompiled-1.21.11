@@ -10,26 +10,32 @@ import net.minecraft.command.permission.PermissionSource;
 import net.minecraft.server.function.Tracer;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code AbstractServerCommandSource}.
+ */
 public interface AbstractServerCommandSource<T extends AbstractServerCommandSource<T>> extends PermissionSource {
-   T withReturnValueConsumer(ReturnValueConsumer returnValueConsumer);
 
-   ReturnValueConsumer getReturnValueConsumer();
+	T withReturnValueConsumer(ReturnValueConsumer returnValueConsumer);
 
-   default T withDummyReturnValueConsumer() {
-      return this.withReturnValueConsumer(ReturnValueConsumer.EMPTY);
-   }
+	ReturnValueConsumer getReturnValueConsumer();
 
-   CommandDispatcher<T> getDispatcher();
+	default T withDummyReturnValueConsumer() {
+		return this.withReturnValueConsumer(ReturnValueConsumer.EMPTY);
+	}
 
-   void handleException(CommandExceptionType type, Message message, boolean silent, @Nullable Tracer tracer);
+	CommandDispatcher<T> getDispatcher();
 
-   boolean isSilent();
+	void handleException(CommandExceptionType type, Message message, boolean silent, @Nullable Tracer tracer);
 
-   default void handleException(CommandSyntaxException exception, boolean silent, @Nullable Tracer tracer) {
-      this.handleException(exception.getType(), exception.getRawMessage(), silent, tracer);
-   }
+	boolean isSilent();
 
-   static <T extends AbstractServerCommandSource<T>> ResultConsumer<T> asResultConsumer() {
-      return (context, success, result) -> ((AbstractServerCommandSource)context.getSource()).getReturnValueConsumer().onResult(success, result);
-   }
+	default void handleException(CommandSyntaxException exception, boolean silent, @Nullable Tracer tracer) {
+		this.handleException(exception.getType(), exception.getRawMessage(), silent, tracer);
+	}
+
+	static <T extends AbstractServerCommandSource<T>> ResultConsumer<T> asResultConsumer() {
+		return (context, success, result) -> ((AbstractServerCommandSource) context.getSource())
+				.getReturnValueConsumer()
+				.onResult(success, result);
+	}
 }

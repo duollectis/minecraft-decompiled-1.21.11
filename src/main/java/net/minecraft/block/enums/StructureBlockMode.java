@@ -5,28 +5,31 @@ import net.minecraft.text.Text;
 import net.minecraft.util.StringIdentifiable;
 import net.minecraft.util.dynamic.Codecs;
 
+/**
+ * {@code StructureBlockMode}.
+ */
 public enum StructureBlockMode implements StringIdentifiable {
-   SAVE("save"),
-   LOAD("load"),
-   CORNER("corner"),
-   DATA("data");
+	SAVE("save"),
+	LOAD("load"),
+	CORNER("corner"),
+	DATA("data");
 
-   @Deprecated
-   public static final Codec<StructureBlockMode> CODEC = Codecs.enumByName(StructureBlockMode::valueOf);
-   private final String name;
-   private final Text text;
+	@Deprecated
+	public static final Codec<StructureBlockMode> CODEC = Codecs.enumByName(StructureBlockMode::valueOf);
+	private final String name;
+	private final Text text;
 
-   private StructureBlockMode(final String name) {
-      this.name = name;
-      this.text = Text.translatable("structure_block.mode_info." + name);
-   }
+	private StructureBlockMode(final String name) {
+		this.name = name;
+		this.text = Text.translatable("structure_block.mode_info." + name);
+	}
 
-   @Override
-   public String asString() {
-      return this.name;
-   }
+	@Override
+	public String asString() {
+		return this.name;
+	}
 
-   public Text asText() {
-      return this.text;
-   }
+	public Text asText() {
+		return this.text;
+	}
 }

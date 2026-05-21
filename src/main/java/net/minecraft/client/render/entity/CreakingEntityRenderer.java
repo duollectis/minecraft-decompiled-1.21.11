@@ -11,45 +11,50 @@ import net.minecraft.entity.mob.CreakingEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CreakingEntityRenderer}.
+ */
 public class CreakingEntityRenderer<T extends CreakingEntity> extends MobEntityRenderer<T, CreakingEntityRenderState, CreakingEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/creaking/creaking.png");
-   private static final Identifier EYES_TEXTURE = Identifier.ofVanilla("textures/entity/creaking/creaking_eyes.png");
 
-   public CreakingEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new CreakingEntityModel(context.getPart(EntityModelLayers.CREAKING)), 0.6F);
-      this.addFeature(
-         new EmissiveFeatureRenderer<>(
-            this,
-            creakingEntityRenderState -> EYES_TEXTURE,
-            (state, tickProgress) -> state.glowingEyes ? 1.0F : 0.0F,
-            new CreakingEntityModel(context.getPart(EntityModelLayers.CREAKING_EYES)),
-            RenderLayers::eyes,
-            true
-         )
-      );
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/creaking/creaking.png");
+	private static final Identifier EYES_TEXTURE = Identifier.ofVanilla("textures/entity/creaking/creaking_eyes.png");
 
-   public Identifier getTexture(CreakingEntityRenderState creakingEntityRenderState) {
-      return TEXTURE;
-   }
+	public CreakingEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new CreakingEntityModel(context.getPart(EntityModelLayers.CREAKING)), 0.6F);
+		this.addFeature(
+				new EmissiveFeatureRenderer<>(
+						this,
+						creakingEntityRenderState -> EYES_TEXTURE,
+						(state, tickProgress) -> state.glowingEyes ? 1.0F : 0.0F,
+						new CreakingEntityModel(context.getPart(EntityModelLayers.CREAKING_EYES)),
+						RenderLayers::eyes,
+						true
+				)
+		);
+	}
 
-   public CreakingEntityRenderState createRenderState() {
-      return new CreakingEntityRenderState();
-   }
+	public Identifier getTexture(CreakingEntityRenderState creakingEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(T creakingEntity, CreakingEntityRenderState creakingEntityRenderState, float f) {
-      super.updateRenderState(creakingEntity, creakingEntityRenderState, f);
-      creakingEntityRenderState.attackAnimationState.copyFrom(creakingEntity.attackAnimationState);
-      creakingEntityRenderState.invulnerableAnimationState.copyFrom(creakingEntity.invulnerableAnimationState);
-      creakingEntityRenderState.crumblingAnimationState.copyFrom(creakingEntity.crumblingAnimationState);
-      if (creakingEntity.isCrumbling()) {
-         creakingEntityRenderState.deathTime = 0.0F;
-         creakingEntityRenderState.hurt = false;
-         creakingEntityRenderState.glowingEyes = creakingEntity.hasGlowingEyesWhileCrumbling();
-      } else {
-         creakingEntityRenderState.glowingEyes = creakingEntity.isActive();
-      }
+	public CreakingEntityRenderState createRenderState() {
+		return new CreakingEntityRenderState();
+	}
 
-      creakingEntityRenderState.unrooted = creakingEntity.isUnrooted();
-   }
+	public void updateRenderState(T creakingEntity, CreakingEntityRenderState creakingEntityRenderState, float f) {
+		super.updateRenderState(creakingEntity, creakingEntityRenderState, f);
+		creakingEntityRenderState.attackAnimationState.copyFrom(creakingEntity.attackAnimationState);
+		creakingEntityRenderState.invulnerableAnimationState.copyFrom(creakingEntity.invulnerableAnimationState);
+		creakingEntityRenderState.crumblingAnimationState.copyFrom(creakingEntity.crumblingAnimationState);
+		if (creakingEntity.isCrumbling()) {
+			creakingEntityRenderState.deathTime = 0.0F;
+			creakingEntityRenderState.hurt = false;
+			creakingEntityRenderState.glowingEyes = creakingEntity.hasGlowingEyesWhileCrumbling();
+		}
+		else {
+			creakingEntityRenderState.glowingEyes = creakingEntity.isActive();
+		}
+
+		creakingEntityRenderState.unrooted = creakingEntity.isUnrooted();
+	}
 }

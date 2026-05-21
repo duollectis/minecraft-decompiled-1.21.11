@@ -1,28 +1,37 @@
 package net.minecraft.world.chunk;
 
-import java.util.List;
-import java.util.function.Predicate;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.util.collection.IndexedIterable;
 
+import java.util.List;
+import java.util.function.Predicate;
+
+/**
+ * {@code Palette}.
+ */
 public interface Palette<T> {
-   int index(T object, PaletteResizeListener<T> listener);
 
-   boolean hasAny(Predicate<T> predicate);
+	int index(T object, PaletteResizeListener<T> listener);
 
-   T get(int id);
+	boolean hasAny(Predicate<T> predicate);
 
-   void readPacket(PacketByteBuf buf, IndexedIterable<T> idList);
+	T get(int id);
 
-   void writePacket(PacketByteBuf buf, IndexedIterable<T> idList);
+	void readPacket(PacketByteBuf buf, IndexedIterable<T> idList);
 
-   int getPacketSize(IndexedIterable<T> idList);
+	void writePacket(PacketByteBuf buf, IndexedIterable<T> idList);
 
-   int getSize();
+	int getPacketSize(IndexedIterable<T> idList);
 
-   Palette<T> copy();
+	int getSize();
 
-   public interface Factory {
-      <A> Palette<A> create(int bits, List<A> values);
-   }
+	Palette<T> copy();
+
+	/**
+	 * {@code Factory}.
+	 */
+	public interface Factory {
+
+		<A> Palette<A> create(int bits, List<A> values);
+	}
 }

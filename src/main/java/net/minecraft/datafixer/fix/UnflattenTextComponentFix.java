@@ -15,39 +15,48 @@ import net.minecraft.util.LenientJsonParser;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
 
+/**
+ * {@code UnflattenTextComponentFix}.
+ */
 public class UnflattenTextComponentFix extends DataFix {
-   private static final Logger LOGGER = LogUtils.getLogger();
 
-   public UnflattenTextComponentFix(Schema outputSchema) {
-      super(outputSchema, true);
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
 
-   @SuppressWarnings("unchecked")
-   protected TypeRewriteRule makeRule() {
-      Type<Pair<String, String>> type = (Type<Pair<String, String>>) this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT);
-      Type<?> type2 = this.getOutputSchema().getType(TypeReferences.TEXT_COMPONENT);
-      return this.method_66142(type, type2);
-   }
+	public UnflattenTextComponentFix(Schema outputSchema) {
+		super(outputSchema, true);
+	}
 
-   private <T> TypeRewriteRule method_66142(Type<Pair<String, String>> type, Type<T> type2) {
-      return this.fixTypeEverywhere(
-         "UnflattenTextComponentFix",
-         type,
-         type2,
-         dynamicOps -> pair -> Util.readTyped(type2, method_66145(dynamicOps, (String)pair.getSecond()), true).getValue()
-      );
-   }
+	@SuppressWarnings("unchecked")
+	protected TypeRewriteRule makeRule() {
+		Type<Pair<String, String>>
+				type =
+				(Type<Pair<String, String>>) this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT);
+		Type<?> type2 = this.getOutputSchema().getType(TypeReferences.TEXT_COMPONENT);
+		return this.createRewriteRule(type, type2);
+	}
 
-   private static <T> Dynamic<T> method_66145(DynamicOps<T> dynamicOps, String string) {
-      try {
-         JsonElement jsonElement = LenientJsonParser.parse(string);
-         if (!jsonElement.isJsonNull()) {
-            return new Dynamic(dynamicOps, JsonOps.INSTANCE.convertTo(dynamicOps, jsonElement));
-         }
-      } catch (Exception var3) {
-         LOGGER.error("Failed to unflatten text component json: {}", string, var3);
-      }
+	private <T> TypeRewriteRule createRewriteRule(Type<Pair<String, String>> type, Type<T> type2) {
+		return this.fixTypeEverywhere(
+				"UnflattenTextComponentFix",
+				type,
+				type2,
+				dynamicOps -> pair -> Util
+						.readTyped(type2, parseJsonToDynamic(dynamicOps, (String) pair.getSecond()), true)
+						.getValue()
+		);
+	}
 
-      return new Dynamic(dynamicOps, dynamicOps.createString(string));
-   }
+	private static <T> Dynamic<T> parseJsonToDynamic(DynamicOps<T> dynamicOps, String string) {
+		try {
+			JsonElement jsonElement = LenientJsonParser.parse(string);
+			if (!jsonElement.isJsonNull()) {
+				return new Dynamic(dynamicOps, JsonOps.INSTANCE.convertTo(dynamicOps, jsonElement));
+			}
+		}
+		catch (Exception var3) {
+			LOGGER.error("Failed to unflatten text component json: {}", string, var3);
+		}
+
+		return new Dynamic(dynamicOps, dynamicOps.createString(string));
+	}
 }

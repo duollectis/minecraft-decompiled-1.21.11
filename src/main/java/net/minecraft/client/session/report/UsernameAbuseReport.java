@@ -3,8 +3,6 @@ package net.minecraft.client.session.report;
 import com.mojang.authlib.minecraft.report.AbuseReportLimits;
 import com.mojang.authlib.minecraft.report.ReportedEntity;
 import com.mojang.datafixers.util.Either;
-import java.time.Instant;
-import java.util.UUID;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.screen.Screen;
@@ -12,65 +10,85 @@ import net.minecraft.client.gui.screen.report.UsernameReportScreen;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.Nullable;
 
+import java.time.Instant;
+import java.util.UUID;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code UsernameAbuseReport}.
+ */
 public class UsernameAbuseReport extends AbuseReport {
-   private final String username;
 
-   UsernameAbuseReport(UUID reportId, Instant currentTime, UUID reportedPlayerUuid, String username) {
-      super(reportId, currentTime, reportedPlayerUuid);
-      this.username = username;
-   }
+	private final String username;
 
-   public String getUsername() {
-      return this.username;
-   }
+	UsernameAbuseReport(UUID reportId, Instant currentTime, UUID reportedPlayerUuid, String username) {
+		super(reportId, currentTime, reportedPlayerUuid);
+		this.username = username;
+	}
 
-   public UsernameAbuseReport copy() {
-      UsernameAbuseReport usernameAbuseReport = new UsernameAbuseReport(this.reportId, this.currentTime, this.reportedPlayerUuid, this.username);
-      usernameAbuseReport.opinionComments = this.opinionComments;
-      usernameAbuseReport.attested = this.attested;
-      return usernameAbuseReport;
-   }
+	public String getUsername() {
+		return this.username;
+	}
 
-   @Override
-   public Screen createReportScreen(Screen parent, AbuseReportContext context) {
-      return new UsernameReportScreen(parent, context, this);
-   }
+	public UsernameAbuseReport copy() {
+		UsernameAbuseReport
+				usernameAbuseReport =
+				new UsernameAbuseReport(this.reportId, this.currentTime, this.reportedPlayerUuid, this.username);
+		usernameAbuseReport.opinionComments = this.opinionComments;
+		usernameAbuseReport.attested = this.attested;
+		return usernameAbuseReport;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static class Builder extends AbuseReport.Builder<UsernameAbuseReport> {
-      public Builder(UsernameAbuseReport report, AbuseReportLimits limits) {
-         super(report, limits);
-      }
+	@Override
+	public Screen createReportScreen(Screen parent, AbuseReportContext context) {
+		return new UsernameReportScreen(parent, context, this);
+	}
 
-      public Builder(UUID reportedPlayerUuid, String username, AbuseReportLimits limits) {
-         super(new UsernameAbuseReport(UUID.randomUUID(), Instant.now(), reportedPlayerUuid, username), limits);
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder extends AbuseReport.Builder<UsernameAbuseReport> {
 
-      @Override
-      public boolean hasEnoughInfo() {
-         return StringUtils.isNotEmpty(this.getOpinionComments());
-      }
+		public Builder(UsernameAbuseReport report, AbuseReportLimits limits) {
+			super(report, limits);
+		}
 
-      @Override
-      public AbuseReport.@Nullable ValidationError validate() {
-         return this.report.opinionComments.length() > this.limits.maxOpinionCommentsLength()
-            ? AbuseReport.ValidationError.COMMENTS_TOO_LONG
-            : super.validate();
-      }
+		public Builder(UUID reportedPlayerUuid, String username, AbuseReportLimits limits) {
+			super(new UsernameAbuseReport(UUID.randomUUID(), Instant.now(), reportedPlayerUuid, username), limits);
+		}
 
-      @Override
-      public Either<AbuseReport.ReportWithId, AbuseReport.ValidationError> build(AbuseReportContext context) {
-         AbuseReport.ValidationError validationError = this.validate();
-         if (validationError != null) {
-            return Either.right(validationError);
-         } else {
-            ReportedEntity reportedEntity = new ReportedEntity(this.report.reportedPlayerUuid);
-            com.mojang.authlib.minecraft.report.AbuseReport abuseReport = com.mojang.authlib.minecraft.report.AbuseReport.name(
-               this.report.opinionComments, reportedEntity, this.report.currentTime
-            );
-            return Either.left(new AbuseReport.ReportWithId(this.report.reportId, AbuseReportType.USERNAME, abuseReport));
-         }
-      }
-   }
+		@Override
+		public boolean hasEnoughInfo() {
+			return StringUtils.isNotEmpty(this.getOpinionComments());
+		}
+
+		@Override
+		public AbuseReport.@Nullable ValidationError validate() {
+			return this.report.opinionComments.length() > this.limits.maxOpinionCommentsLength()
+			       ? AbuseReport.ValidationError.COMMENTS_TOO_LONG
+			       : super.validate();
+		}
+
+		@Override
+		public Either<AbuseReport.ReportWithId, AbuseReport.ValidationError> build(AbuseReportContext context) {
+			AbuseReport.ValidationError validationError = this.validate();
+			if (validationError != null) {
+				return Either.right(validationError);
+			}
+			else {
+				ReportedEntity reportedEntity = new ReportedEntity(this.report.reportedPlayerUuid);
+				com.mojang.authlib.minecraft.report.AbuseReport
+						abuseReport =
+						com.mojang.authlib.minecraft.report.AbuseReport.name(
+								this.report.opinionComments, reportedEntity, this.report.currentTime
+						);
+				return Either.left(new AbuseReport.ReportWithId(
+						this.report.reportId,
+						AbuseReportType.USERNAME,
+						abuseReport
+				));
+			}
+		}
+	}
 }

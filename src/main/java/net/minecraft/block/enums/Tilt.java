@@ -2,26 +2,29 @@ package net.minecraft.block.enums;
 
 import net.minecraft.util.StringIdentifiable;
 
+/**
+ * {@code Tilt}.
+ */
 public enum Tilt implements StringIdentifiable {
-   NONE("none", true),
-   UNSTABLE("unstable", false),
-   PARTIAL("partial", true),
-   FULL("full", true);
+	NONE("none", true),
+	UNSTABLE("unstable", false),
+	PARTIAL("partial", true),
+	FULL("full", true);
 
-   private final String name;
-   private final boolean stable;
+	private final String name;
+	private final boolean stable;
 
-   private Tilt(final String name, final boolean stable) {
-      this.name = name;
-      this.stable = stable;
-   }
+	private Tilt(final String name, final boolean stable) {
+		this.name = name;
+		this.stable = stable;
+	}
 
-   @Override
-   public String asString() {
-      return this.name;
-   }
+	@Override
+	public String asString() {
+		return this.name;
+	}
 
-   public boolean isStable() {
-      return this.stable;
-   }
+	public boolean isStable() {
+		return this.stable;
+	}
 }

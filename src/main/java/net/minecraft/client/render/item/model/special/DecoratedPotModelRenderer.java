@@ -1,8 +1,6 @@
 package net.minecraft.client.render.item.model.special;
 
 import com.mojang.serialization.MapCodec;
-import java.util.Objects;
-import java.util.function.Consumer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.block.entity.Sherds;
@@ -15,48 +13,68 @@ import net.minecraft.item.ItemStack;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+import java.util.function.Consumer;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DecoratedPotModelRenderer}.
+ */
 public class DecoratedPotModelRenderer implements SpecialModelRenderer<Sherds> {
-   private final DecoratedPotBlockEntityRenderer blockEntityRenderer;
 
-   public DecoratedPotModelRenderer(DecoratedPotBlockEntityRenderer blockEntityRenderer) {
-      this.blockEntityRenderer = blockEntityRenderer;
-   }
+	private final DecoratedPotBlockEntityRenderer blockEntityRenderer;
 
-   public @Nullable Sherds getData(ItemStack itemStack) {
-      return itemStack.get(DataComponentTypes.POT_DECORATIONS);
-   }
+	public DecoratedPotModelRenderer(DecoratedPotBlockEntityRenderer blockEntityRenderer) {
+		this.blockEntityRenderer = blockEntityRenderer;
+	}
 
-   public void render(
-      @Nullable Sherds sherds,
-      ItemDisplayContext itemDisplayContext,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      int i,
-      int j,
-      boolean bl,
-      int k
-   ) {
-      this.blockEntityRenderer.render(matrixStack, orderedRenderCommandQueue, i, j, Objects.requireNonNullElse(sherds, Sherds.DEFAULT), k);
-   }
+	public @Nullable Sherds getData(ItemStack itemStack) {
+		return itemStack.get(DataComponentTypes.POT_DECORATIONS);
+	}
 
-   @Override
-   public void collectVertices(Consumer<Vector3fc> consumer) {
-      this.blockEntityRenderer.collectVertices(consumer);
-   }
+	public void render(
+			@Nullable Sherds sherds,
+			ItemDisplayContext itemDisplayContext,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			int j,
+			boolean bl,
+			int k
+	) {
+		this.blockEntityRenderer.render(
+				matrixStack,
+				orderedRenderCommandQueue,
+				i,
+				j,
+				Objects.requireNonNullElse(sherds, Sherds.DEFAULT),
+				k
+		);
+	}
 
-   @Environment(EnvType.CLIENT)
-   public record Unbaked() implements SpecialModelRenderer.Unbaked {
-      public static final MapCodec<DecoratedPotModelRenderer.Unbaked> CODEC = MapCodec.unit(new DecoratedPotModelRenderer.Unbaked());
+	@Override
+	public void collectVertices(Consumer<Vector3fc> consumer) {
+		this.blockEntityRenderer.collectVertices(consumer);
+	}
 
-      @Override
-      public MapCodec<DecoratedPotModelRenderer.Unbaked> getCodec() {
-         return CODEC;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Unbaked}.
+	 */
+	public record Unbaked() implements SpecialModelRenderer.Unbaked {
 
-      @Override
-      public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
-         return new DecoratedPotModelRenderer(new DecoratedPotBlockEntityRenderer(context));
-      }
-   }
+		public static final MapCodec<DecoratedPotModelRenderer.Unbaked>
+				CODEC =
+				MapCodec.unit(new DecoratedPotModelRenderer.Unbaked());
+
+		@Override
+		public MapCodec<DecoratedPotModelRenderer.Unbaked> getCodec() {
+			return CODEC;
+		}
+
+		@Override
+		public SpecialModelRenderer<?> bake(SpecialModelRenderer.BakeContext context) {
+			return new DecoratedPotModelRenderer(new DecoratedPotBlockEntityRenderer(context));
+		}
+	}
 }

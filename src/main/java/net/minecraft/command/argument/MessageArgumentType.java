@@ -5,11 +5,6 @@ import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.Dynamic2CommandExceptionType;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import net.minecraft.command.DefaultPermissions;
 import net.minecraft.command.EntitySelector;
 import net.minecraft.command.EntitySelectorReader;
@@ -24,149 +19,204 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
+
+/**
+ * {@code MessageArgumentType}.
+ */
 public class MessageArgumentType implements SignedArgumentType<MessageArgumentType.MessageFormat> {
-   private static final Collection<String> EXAMPLES = Arrays.asList("Hello world!", "foo", "@e", "Hello @p :)");
-   static final Dynamic2CommandExceptionType MESSAGE_TOO_LONG_EXCEPTION = new Dynamic2CommandExceptionType(
-      (length, maxLength) -> Text.stringifiedTranslatable("argument.message.too_long", length, maxLength)
-   );
 
-   public static MessageArgumentType message() {
-      return new MessageArgumentType();
-   }
+	private static final Collection<String> EXAMPLES = Arrays.asList("Hello world!", "foo", "@e", "Hello @p :)");
+	static final Dynamic2CommandExceptionType MESSAGE_TOO_LONG_EXCEPTION = new Dynamic2CommandExceptionType(
+			(length, maxLength) -> Text.stringifiedTranslatable("argument.message.too_long", length, maxLength)
+	);
 
-   public static Text getMessage(CommandContext<ServerCommandSource> context, String name) throws CommandSyntaxException {
-      MessageArgumentType.MessageFormat messageFormat = (MessageArgumentType.MessageFormat)context.getArgument(name, MessageArgumentType.MessageFormat.class);
-      return messageFormat.format((ServerCommandSource)context.getSource());
-   }
+	public static MessageArgumentType message() {
+		return new MessageArgumentType();
+	}
 
-   public static void getSignedMessage(CommandContext<ServerCommandSource> context, String name, Consumer<SignedMessage> callback) throws CommandSyntaxException {
-      MessageArgumentType.MessageFormat messageFormat = (MessageArgumentType.MessageFormat)context.getArgument(name, MessageArgumentType.MessageFormat.class);
-      ServerCommandSource serverCommandSource = (ServerCommandSource)context.getSource();
-      Text text = messageFormat.format(serverCommandSource);
-      SignedCommandArguments signedCommandArguments = serverCommandSource.getSignedArguments();
-      SignedMessage signedMessage = signedCommandArguments.getMessage(name);
-      if (signedMessage != null) {
-         chain(callback, serverCommandSource, signedMessage.withUnsignedContent(text));
-      } else {
-         chainUnsigned(callback, serverCommandSource, SignedMessage.ofUnsigned(messageFormat.contents).withUnsignedContent(text));
-      }
-   }
+	public static Text getMessage(CommandContext<ServerCommandSource> context, String name)
+	throws CommandSyntaxException {
+		MessageArgumentType.MessageFormat
+				messageFormat =
+				(MessageArgumentType.MessageFormat) context.getArgument(name, MessageArgumentType.MessageFormat.class);
+		return messageFormat.format((ServerCommandSource) context.getSource());
+	}
 
-   private static void chain(Consumer<SignedMessage> callback, ServerCommandSource source, SignedMessage message) {
-      MinecraftServer minecraftServer = source.getServer();
-      CompletableFuture<FilteredMessage> completableFuture = filterText(source, message);
-      Text text = minecraftServer.getMessageDecorator().decorate(source.getPlayer(), message.getContent());
-      source.getMessageChainTaskQueue().append(completableFuture, filtered -> {
-         SignedMessage signedMessage2 = message.withUnsignedContent(text).withFilterMask(filtered.mask());
-         callback.accept(signedMessage2);
-      });
-   }
+	public static void getSignedMessage(
+			CommandContext<ServerCommandSource> context,
+			String name,
+			Consumer<SignedMessage> callback
+	) throws CommandSyntaxException {
+		MessageArgumentType.MessageFormat
+				messageFormat =
+				(MessageArgumentType.MessageFormat) context.getArgument(name, MessageArgumentType.MessageFormat.class);
+		ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
+		Text text = messageFormat.format(serverCommandSource);
+		SignedCommandArguments signedCommandArguments = serverCommandSource.getSignedArguments();
+		SignedMessage signedMessage = signedCommandArguments.getMessage(name);
+		if (signedMessage != null) {
+			chain(callback, serverCommandSource, signedMessage.withUnsignedContent(text));
+		}
+		else {
+			chainUnsigned(
+					callback,
+					serverCommandSource,
+					SignedMessage.ofUnsigned(messageFormat.contents).withUnsignedContent(text)
+			);
+		}
+	}
 
-   private static void chainUnsigned(Consumer<SignedMessage> callback, ServerCommandSource source, SignedMessage message) {
-      MessageDecorator messageDecorator = source.getServer().getMessageDecorator();
-      Text text = messageDecorator.decorate(source.getPlayer(), message.getContent());
-      callback.accept(message.withUnsignedContent(text));
-   }
+	private static void chain(Consumer<SignedMessage> callback, ServerCommandSource source, SignedMessage message) {
+		MinecraftServer minecraftServer = source.getServer();
+		CompletableFuture<FilteredMessage> completableFuture = filterText(source, message);
+		Text text = minecraftServer.getMessageDecorator().decorate(source.getPlayer(), message.getContent());
+		source.getMessageChainTaskQueue().append(
+				completableFuture, filtered -> {
+					SignedMessage signedMessage2 = message.withUnsignedContent(text).withFilterMask(filtered.mask());
+					callback.accept(signedMessage2);
+				}
+		);
+	}
 
-   private static CompletableFuture<FilteredMessage> filterText(ServerCommandSource source, SignedMessage message) {
-      ServerPlayerEntity serverPlayerEntity = source.getPlayer();
-      return serverPlayerEntity != null && message.canVerifyFrom(serverPlayerEntity.getUuid())
-         ? serverPlayerEntity.getTextStream().filterText(message.getSignedContent())
-         : CompletableFuture.completedFuture(FilteredMessage.permitted(message.getSignedContent()));
-   }
+	private static void chainUnsigned(
+			Consumer<SignedMessage> callback,
+			ServerCommandSource source,
+			SignedMessage message
+	) {
+		MessageDecorator messageDecorator = source.getServer().getMessageDecorator();
+		Text text = messageDecorator.decorate(source.getPlayer(), message.getContent());
+		callback.accept(message.withUnsignedContent(text));
+	}
 
-   public MessageArgumentType.MessageFormat parse(StringReader stringReader) throws CommandSyntaxException {
-      return MessageArgumentType.MessageFormat.parse(stringReader, true);
-   }
+	private static CompletableFuture<FilteredMessage> filterText(ServerCommandSource source, SignedMessage message) {
+		ServerPlayerEntity serverPlayerEntity = source.getPlayer();
+		return serverPlayerEntity != null && message.canVerifyFrom(serverPlayerEntity.getUuid())
+		       ? serverPlayerEntity.getTextStream().filterText(message.getSignedContent())
+		       : CompletableFuture.completedFuture(FilteredMessage.permitted(message.getSignedContent()));
+	}
 
-   public <S> MessageArgumentType.MessageFormat parse(StringReader stringReader, @Nullable S object) throws CommandSyntaxException {
-      return MessageArgumentType.MessageFormat.parse(stringReader, EntitySelectorReader.shouldAllowAtSelectors(object));
-   }
+	public MessageArgumentType.MessageFormat parse(StringReader stringReader) throws CommandSyntaxException {
+		return MessageArgumentType.MessageFormat.parse(stringReader, true);
+	}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+	public <S> MessageArgumentType.MessageFormat parse(StringReader stringReader, @Nullable S object)
+	throws CommandSyntaxException {
+		return MessageArgumentType.MessageFormat.parse(
+				stringReader,
+				EntitySelectorReader.shouldAllowAtSelectors(object)
+		);
+	}
 
-   public record MessageFormat(String contents, MessageArgumentType.MessageSelector[] selectors) {
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 
-      Text format(ServerCommandSource source) throws CommandSyntaxException {
-         return this.format(source, source.getPermissions().hasPermission(DefaultPermissions.ENTITY_SELECTORS));
-      }
+	/**
+	 * {@code MessageFormat}.
+	 */
+	public record MessageFormat(String contents, MessageArgumentType.MessageSelector[] selectors) {
 
-      public Text format(ServerCommandSource source, boolean canUseSelectors) throws CommandSyntaxException {
-         if (this.selectors.length != 0 && canUseSelectors) {
-            MutableText mutableText = Text.literal(this.contents.substring(0, this.selectors[0].start()));
-            int i = this.selectors[0].start();
+		Text format(ServerCommandSource source) throws CommandSyntaxException {
+			return this.format(source, source.getPermissions().hasPermission(DefaultPermissions.ENTITY_SELECTORS));
+		}
 
-            for (MessageArgumentType.MessageSelector messageSelector : this.selectors) {
-               Text text = messageSelector.format(source);
-               if (i < messageSelector.start()) {
-                  mutableText.append(this.contents.substring(i, messageSelector.start()));
-               }
+		public Text format(ServerCommandSource source, boolean canUseSelectors) throws CommandSyntaxException {
+			if (this.selectors.length != 0 && canUseSelectors) {
+				MutableText mutableText = Text.literal(this.contents.substring(0, this.selectors[0].start()));
+				int i = this.selectors[0].start();
 
-               mutableText.append(text);
-               i = messageSelector.end();
-            }
+				for (MessageArgumentType.MessageSelector messageSelector : this.selectors) {
+					Text text = messageSelector.format(source);
+					if (i < messageSelector.start()) {
+						mutableText.append(this.contents.substring(i, messageSelector.start()));
+					}
 
-            if (i < this.contents.length()) {
-               mutableText.append(this.contents.substring(i));
-            }
+					mutableText.append(text);
+					i = messageSelector.end();
+				}
 
-            return mutableText;
-         } else {
-            return Text.literal(this.contents);
-         }
-      }
+				if (i < this.contents.length()) {
+					mutableText.append(this.contents.substring(i));
+				}
 
-      public static MessageArgumentType.MessageFormat parse(StringReader reader, boolean allowAtSelectors) throws CommandSyntaxException {
-         if (reader.getRemainingLength() > 256) {
-            throw MessageArgumentType.MESSAGE_TOO_LONG_EXCEPTION.create(reader.getRemainingLength(), 256);
-         } else {
-            String string = reader.getRemaining();
-            if (!allowAtSelectors) {
-               reader.setCursor(reader.getTotalLength());
-               return new MessageArgumentType.MessageFormat(string, new MessageArgumentType.MessageSelector[0]);
-            } else {
-               List<MessageArgumentType.MessageSelector> list = Lists.newArrayList();
-               int i = reader.getCursor();
+				return mutableText;
+			}
+			else {
+				return Text.literal(this.contents);
+			}
+		}
 
-               while (true) {
-                  int j;
-                  EntitySelector entitySelector;
-                  while (true) {
-                     if (!reader.canRead()) {
-                        return new MessageArgumentType.MessageFormat(string, list.toArray(new MessageArgumentType.MessageSelector[0]));
-                     }
+		public static MessageArgumentType.MessageFormat parse(StringReader reader, boolean allowAtSelectors)
+		throws CommandSyntaxException {
+			if (reader.getRemainingLength() > 256) {
+				throw MessageArgumentType.MESSAGE_TOO_LONG_EXCEPTION.create(reader.getRemainingLength(), 256);
+			}
+			else {
+				String string = reader.getRemaining();
+				if (!allowAtSelectors) {
+					reader.setCursor(reader.getTotalLength());
+					return new MessageArgumentType.MessageFormat(string, new MessageArgumentType.MessageSelector[0]);
+				}
+				else {
+					List<MessageArgumentType.MessageSelector> list = Lists.newArrayList();
+					int i = reader.getCursor();
 
-                     if (reader.peek() == '@') {
-                        j = reader.getCursor();
+					while (true) {
+						int j;
+						EntitySelector entitySelector;
+						while (true) {
+							if (!reader.canRead()) {
+								return new MessageArgumentType.MessageFormat(
+										string,
+										list.toArray(new MessageArgumentType.MessageSelector[0])
+								);
+							}
 
-                        try {
-                           EntitySelectorReader entitySelectorReader = new EntitySelectorReader(reader, true);
-                           entitySelector = entitySelectorReader.read();
-                           break;
-                        } catch (CommandSyntaxException var8) {
-                           if (var8.getType() != EntitySelectorReader.MISSING_EXCEPTION && var8.getType() != EntitySelectorReader.UNKNOWN_SELECTOR_EXCEPTION) {
-                              throw var8;
-                           }
+							if (reader.peek() == '@') {
+								j = reader.getCursor();
 
-                           reader.setCursor(j + 1);
-                        }
-                     } else {
-                        reader.skip();
-                     }
-                  }
+								try {
+									EntitySelectorReader entitySelectorReader = new EntitySelectorReader(reader, true);
+									entitySelector = entitySelectorReader.read();
+									break;
+								}
+								catch (CommandSyntaxException var8) {
+									if (var8.getType() != EntitySelectorReader.MISSING_EXCEPTION
+											&& var8.getType() != EntitySelectorReader.UNKNOWN_SELECTOR_EXCEPTION) {
+										throw var8;
+									}
 
-                  list.add(new MessageArgumentType.MessageSelector(j - i, reader.getCursor() - i, entitySelector));
-               }
-            }
-         }
-      }
-   }
+									reader.setCursor(j + 1);
+								}
+							}
+							else {
+								reader.skip();
+							}
+						}
 
-   public record MessageSelector(int start, int end, EntitySelector selector) {
-      public Text format(ServerCommandSource source) throws CommandSyntaxException {
-         return EntitySelector.getNames(this.selector.getEntities(source));
-      }
-   }
+						list.add(new MessageArgumentType.MessageSelector(
+								j - i,
+								reader.getCursor() - i,
+								entitySelector
+						));
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * {@code MessageSelector}.
+	 */
+	public record MessageSelector(int start, int end, EntitySelector selector) {
+
+		public Text format(ServerCommandSource source) throws CommandSyntaxException {
+			return EntitySelector.getNames(this.selector.getEntities(source));
+		}
+	}
 }

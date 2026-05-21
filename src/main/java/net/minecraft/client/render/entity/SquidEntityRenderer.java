@@ -11,33 +11,47 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SquidEntityRenderer}.
+ */
 public class SquidEntityRenderer<T extends SquidEntity> extends AgeableMobEntityRenderer<T, SquidEntityRenderState, SquidEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/squid/squid.png");
 
-   public SquidEntityRenderer(EntityRendererFactory.Context context, SquidEntityModel model, SquidEntityModel babyModel) {
-      super(context, model, babyModel, 0.7F);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/squid/squid.png");
 
-   public Identifier getTexture(SquidEntityRenderState squidEntityRenderState) {
-      return TEXTURE;
-   }
+	public SquidEntityRenderer(
+			EntityRendererFactory.Context context,
+			SquidEntityModel model,
+			SquidEntityModel babyModel
+	) {
+		super(context, model, babyModel, 0.7F);
+	}
 
-   public SquidEntityRenderState createRenderState() {
-      return new SquidEntityRenderState();
-   }
+	public Identifier getTexture(SquidEntityRenderState squidEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(T squidEntity, SquidEntityRenderState squidEntityRenderState, float f) {
-      super.updateRenderState(squidEntity, squidEntityRenderState, f);
-      squidEntityRenderState.tentacleAngle = MathHelper.lerp(f, squidEntity.lastTentacleAngle, squidEntity.tentacleAngle);
-      squidEntityRenderState.tiltAngle = MathHelper.lerp(f, squidEntity.lastTiltAngle, squidEntity.tiltAngle);
-      squidEntityRenderState.rollAngle = MathHelper.lerp(f, squidEntity.lastRollAngle, squidEntity.rollAngle);
-   }
+	public SquidEntityRenderState createRenderState() {
+		return new SquidEntityRenderState();
+	}
 
-   protected void setupTransforms(SquidEntityRenderState squidEntityRenderState, MatrixStack matrixStack, float f, float g) {
-      matrixStack.translate(0.0F, squidEntityRenderState.baby ? 0.25F : 0.5F, 0.0F);
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - f));
-      matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(squidEntityRenderState.tiltAngle));
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(squidEntityRenderState.rollAngle));
-      matrixStack.translate(0.0F, squidEntityRenderState.baby ? -0.6F : -1.2F, 0.0F);
-   }
+	public void updateRenderState(T squidEntity, SquidEntityRenderState squidEntityRenderState, float f) {
+		super.updateRenderState(squidEntity, squidEntityRenderState, f);
+		squidEntityRenderState.tentacleAngle =
+				MathHelper.lerp(f, squidEntity.lastTentacleAngle, squidEntity.tentacleAngle);
+		squidEntityRenderState.tiltAngle = MathHelper.lerp(f, squidEntity.lastTiltAngle, squidEntity.tiltAngle);
+		squidEntityRenderState.rollAngle = MathHelper.lerp(f, squidEntity.lastRollAngle, squidEntity.rollAngle);
+	}
+
+	protected void setupTransforms(
+			SquidEntityRenderState squidEntityRenderState,
+			MatrixStack matrixStack,
+			float f,
+			float g
+	) {
+		matrixStack.translate(0.0F, squidEntityRenderState.baby ? 0.25F : 0.5F, 0.0F);
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - f));
+		matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(squidEntityRenderState.tiltAngle));
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(squidEntityRenderState.rollAngle));
+		matrixStack.translate(0.0F, squidEntityRenderState.baby ? -0.6F : -1.2F, 0.0F);
+	}
 }

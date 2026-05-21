@@ -11,59 +11,69 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code AbstractPlantPartBlock}.
+ */
 public abstract class AbstractPlantPartBlock extends Block {
-   protected final Direction growthDirection;
-   protected final boolean tickWater;
-   protected final VoxelShape outlineShape;
 
-   protected AbstractPlantPartBlock(AbstractBlock.Settings settings, Direction growthDirection, VoxelShape outlineShape, boolean tickWater) {
-      super(settings);
-      this.growthDirection = growthDirection;
-      this.outlineShape = outlineShape;
-      this.tickWater = tickWater;
-   }
+	protected final Direction growthDirection;
+	protected final boolean tickWater;
+	protected final VoxelShape outlineShape;
 
-   @Override
-   protected abstract MapCodec<? extends AbstractPlantPartBlock> getCodec();
+	protected AbstractPlantPartBlock(
+			AbstractBlock.Settings settings,
+			Direction growthDirection,
+			VoxelShape outlineShape,
+			boolean tickWater
+	) {
+		super(settings);
+		this.growthDirection = growthDirection;
+		this.outlineShape = outlineShape;
+		this.tickWater = tickWater;
+	}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos().offset(this.growthDirection));
-      return !blockState.isOf(this.getStem()) && !blockState.isOf(this.getPlant())
-         ? this.getRandomGrowthState(ctx.getWorld().random)
-         : this.getPlant().getDefaultState();
-   }
+	@Override
+	protected abstract MapCodec<? extends AbstractPlantPartBlock> getCodec();
 
-   public BlockState getRandomGrowthState(Random random) {
-      return this.getDefaultState();
-   }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos().offset(this.growthDirection));
+		return !blockState.isOf(this.getStem()) && !blockState.isOf(this.getPlant())
+		       ? this.getRandomGrowthState(ctx.getWorld().random)
+		       : this.getPlant().getDefaultState();
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      BlockPos blockPos = pos.offset(this.growthDirection.getOpposite());
-      BlockState blockState = world.getBlockState(blockPos);
-      return !this.canAttachTo(blockState)
-         ? false
-         : blockState.isOf(this.getStem()) || blockState.isOf(this.getPlant()) || blockState.isSideSolidFullSquare(world, blockPos, this.growthDirection);
-   }
+	public BlockState getRandomGrowthState(Random random) {
+		return this.getDefaultState();
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (!state.canPlaceAt(world, pos)) {
-         world.breakBlock(pos, true);
-      }
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		BlockPos blockPos = pos.offset(this.growthDirection.getOpposite());
+		BlockState blockState = world.getBlockState(blockPos);
+		return !this.canAttachTo(blockState)
+		       ? false
+		       : blockState.isOf(this.getStem()) || blockState.isOf(this.getPlant())
+		         || blockState.isSideSolidFullSquare(world, blockPos, this.growthDirection);
+	}
 
-   protected boolean canAttachTo(BlockState state) {
-      return true;
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (!state.canPlaceAt(world, pos)) {
+			world.breakBlock(pos, true);
+		}
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return this.outlineShape;
-   }
+	protected boolean canAttachTo(BlockState state) {
+		return true;
+	}
 
-   protected abstract AbstractPlantStemBlock getStem();
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return this.outlineShape;
+	}
 
-   protected abstract Block getPlant();
+	protected abstract AbstractPlantStemBlock getStem();
+
+	protected abstract Block getPlant();
 }

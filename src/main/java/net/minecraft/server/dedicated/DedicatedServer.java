@@ -2,20 +2,24 @@ package net.minecraft.server.dedicated;
 
 import net.minecraft.network.QueryableServer;
 
+/**
+ * {@code DedicatedServer}.
+ */
 public interface DedicatedServer extends QueryableServer {
-   ServerPropertiesHandler getProperties();
 
-   String getHostname();
+	ServerPropertiesHandler getProperties();
 
-   int getPort();
+	String getHostname();
 
-   String getMotd();
+	int getPort();
 
-   String[] getPlayerNames();
+	String getMotd();
 
-   String getLevelName();
+	String[] getPlayerNames();
 
-   String getPlugins();
+	String getLevelName();
 
-   String executeRconCommand(String command);
+	String getPlugins();
+
+	String executeRconCommand(String command);
 }

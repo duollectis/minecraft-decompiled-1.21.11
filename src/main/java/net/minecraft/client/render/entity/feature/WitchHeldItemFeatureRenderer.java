@@ -8,23 +8,28 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WitchHeldItemFeatureRenderer}.
+ */
 public class WitchHeldItemFeatureRenderer extends VillagerHeldItemFeatureRenderer<WitchEntityRenderState, WitchEntityModel> {
-   public WitchHeldItemFeatureRenderer(FeatureRendererContext<WitchEntityRenderState, WitchEntityModel> featureRendererContext) {
-      super(featureRendererContext);
-   }
 
-   protected void applyTransforms(WitchEntityRenderState witchEntityRenderState, MatrixStack matrixStack) {
-      if (witchEntityRenderState.holdingPotion) {
-         this.getContextModel().getRootPart().applyTransform(matrixStack);
-         this.getContextModel().applyTransform(matrixStack);
-         this.getContextModel().getNose().applyTransform(matrixStack);
-         matrixStack.translate(0.0625F, 0.25F, 0.0F);
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180.0F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(140.0F));
-         matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(10.0F));
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
-      } else {
-         super.applyTransforms(witchEntityRenderState, matrixStack);
-      }
-   }
+	public WitchHeldItemFeatureRenderer(FeatureRendererContext<WitchEntityRenderState, WitchEntityModel> featureRendererContext) {
+		super(featureRendererContext);
+	}
+
+	protected void applyTransforms(WitchEntityRenderState witchEntityRenderState, MatrixStack matrixStack) {
+		if (witchEntityRenderState.holdingPotion) {
+			this.getContextModel().getRootPart().applyTransform(matrixStack);
+			this.getContextModel().applyTransform(matrixStack);
+			this.getContextModel().getNose().applyTransform(matrixStack);
+			matrixStack.translate(0.0625F, 0.25F, 0.0F);
+			matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(180.0F));
+			matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(140.0F));
+			matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(10.0F));
+			matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
+		}
+		else {
+			super.applyTransforms(witchEntityRenderState, matrixStack);
+		}
+	}
 }

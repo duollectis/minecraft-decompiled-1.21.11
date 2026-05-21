@@ -10,81 +10,94 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.profiler.Profilers;
 import net.minecraft.util.profiler.ScopedProfiler;
 
+/**
+ * Клиентское представление другого игрока в мире.
+ * <p>В отличие от {@link ClientPlayerEntity}, этот класс представляет удалённых игроков,
+ * чьё движение интерполируется на основе данных от сервера. Физика отключена
+ * ({@code noClip = true}), а скорость плавно интерполируется к целевому значению.
+ */
 @Environment(EnvType.CLIENT)
 public class OtherClientPlayerEntity extends AbstractClientPlayerEntity {
-   private Vec3d clientVelocity = Vec3d.ZERO;
-   private int velocityLerpDivisor;
 
-   public OtherClientPlayerEntity(ClientWorld clientWorld, GameProfile gameProfile) {
-      super(clientWorld, gameProfile);
-      this.noClip = true;
-   }
+	private Vec3d clientVelocity = Vec3d.ZERO;
+	private int velocityLerpDivisor;
 
-   @Override
-   public boolean shouldRender(double distance) {
-      double d = this.getBoundingBox().getAverageSideLength() * 10.0;
-      if (Double.isNaN(d)) {
-         d = 1.0;
-      }
+	/**
+	 * Создаёт клиентское представление другого игрока.
+	 *
+	 * @param world       клиентский мир
+	 * @param gameProfile профиль игрока
+	 */
+	public OtherClientPlayerEntity(ClientWorld world, GameProfile gameProfile) {
+		super(world, gameProfile);
+		noClip = true;
+	}
 
-      d *= 64.0 * getRenderDistanceMultiplier();
-      return distance < d * d;
-   }
+	@Override
+	public boolean shouldRender(double distance) {
+		double size = getBoundingBox().getAverageSideLength() * 10.0;
 
-   @Override
-   public boolean clientDamage(DamageSource source) {
-      return true;
-   }
+		if (Double.isNaN(size)) {
+			size = 1.0;
+		}
 
-   @Override
-   public void tick() {
-      super.tick();
-      this.updateLimbs(false);
-   }
+		size *= 64.0 * getRenderDistanceMultiplier();
+		return distance < size * size;
+	}
 
-   @Override
-   public void tickMovement() {
-      if (this.isInterpolating()) {
-         this.getInterpolator().tick();
-      }
+	@Override
+	public boolean clientDamage(DamageSource source) {
+		return true;
+	}
 
-      if (this.headTrackingIncrements > 0) {
-         this.lerpHeadYaw(this.headTrackingIncrements, this.serverHeadYaw);
-         this.headTrackingIncrements--;
-      }
+	@Override
+	public void tick() {
+		super.tick();
+		updateLimbs(false);
+	}
 
-      if (this.velocityLerpDivisor > 0) {
-         this.addVelocityInternal(
-            new Vec3d(
-               (this.clientVelocity.x - this.getVelocity().x) / this.velocityLerpDivisor,
-               (this.clientVelocity.y - this.getVelocity().y) / this.velocityLerpDivisor,
-               (this.clientVelocity.z - this.getVelocity().z) / this.velocityLerpDivisor
-            )
-         );
-         this.velocityLerpDivisor--;
-      }
+	@Override
+	public void tickMovement() {
+		if (isInterpolating()) {
+			getInterpolator().tick();
+		}
 
-      this.tickHandSwing();
-      this.tickPlayerMovement();
+		if (headTrackingIncrements > 0) {
+			lerpHeadYaw(headTrackingIncrements, serverHeadYaw);
+			headTrackingIncrements--;
+		}
 
-      try (ScopedProfiler scopedProfiler = Profilers.get().scoped("push")) {
-         this.tickCramming();
-      }
-   }
+		if (velocityLerpDivisor > 0) {
+			Vec3d currentVelocity = getVelocity();
+			addVelocityInternal(new Vec3d(
+					(clientVelocity.x - currentVelocity.x) / velocityLerpDivisor,
+					(clientVelocity.y - currentVelocity.y) / velocityLerpDivisor,
+					(clientVelocity.z - currentVelocity.z) / velocityLerpDivisor
+			));
+			velocityLerpDivisor--;
+		}
 
-   @Override
-   public void setVelocityClient(Vec3d clientVelocity) {
-      this.clientVelocity = clientVelocity;
-      this.velocityLerpDivisor = this.getType().getTrackTickInterval() + 1;
-   }
+		tickHandSwing();
+		tickPlayerMovement();
 
-   @Override
-   protected void updatePose() {
-   }
+		try (ScopedProfiler ignored = Profilers.get().scoped("push")) {
+			tickCramming();
+		}
+	}
 
-   @Override
-   public void onSpawnPacket(EntitySpawnS2CPacket packet) {
-      super.onSpawnPacket(packet);
-      this.resetPosition();
-   }
+	@Override
+	public void setVelocityClient(Vec3d velocity) {
+		clientVelocity = velocity;
+		velocityLerpDivisor = getType().getTrackTickInterval() + 1;
+	}
+
+	@Override
+	protected void updatePose() {
+	}
+
+	@Override
+	public void onSpawnPacket(EntitySpawnS2CPacket packet) {
+		super.onSpawnPacket(packet);
+		resetPosition();
+	}
 }

@@ -3,60 +3,68 @@ package net.minecraft.component;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import java.util.Map.Entry;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
+import java.util.Map.Entry;
+
+/**
+ * {@code Component}.
+ */
 public record Component<T>(ComponentType<T> type, T value) {
-   public static final PacketCodec<RegistryByteBuf, Component<?>> PACKET_CODEC = new PacketCodec<RegistryByteBuf, Component<?>>() {
-      public Component<?> decode(RegistryByteBuf registryByteBuf) {
-         ComponentType<?> componentType = ComponentType.PACKET_CODEC.decode(registryByteBuf);
-         return readWildcard(registryByteBuf, componentType);
-      }
 
-      @SuppressWarnings("unchecked")
-      private <X> Component<X> readWildcard(RegistryByteBuf buf, ComponentType<?> type) {
-         return read(buf, (ComponentType<X>) type);
-      }
+	public static final PacketCodec<RegistryByteBuf, Component<?>>
+			PACKET_CODEC =
+			new PacketCodec<RegistryByteBuf, Component<?>>() {
+				public Component<?> decode(RegistryByteBuf registryByteBuf) {
+					ComponentType<?> componentType = ComponentType.PACKET_CODEC.decode(registryByteBuf);
+					return readWildcard(registryByteBuf, componentType);
+				}
 
-      private static <T> Component<T> read(RegistryByteBuf buf, ComponentType<T> type) {
-         return new Component<>(type, type.getPacketCodec().decode(buf));
-      }
+				@SuppressWarnings("unchecked")
+				private <X> Component<X> readWildcard(RegistryByteBuf buf, ComponentType<?> type) {
+					return read(buf, (ComponentType<X>) type);
+				}
 
-      public void encode(RegistryByteBuf registryByteBuf, Component<?> component) {
-         writeWildcard(registryByteBuf, component);
-      }
+				private static <T> Component<T> read(RegistryByteBuf buf, ComponentType<T> type) {
+					return new Component<>(type, type.getPacketCodec().decode(buf));
+				}
 
-      @SuppressWarnings("unchecked")
-      private <X> void writeWildcard(RegistryByteBuf buf, Component<?> component) {
-         write(buf, (Component<X>) component);
-      }
+				public void encode(RegistryByteBuf registryByteBuf, Component<?> component) {
+					writeWildcard(registryByteBuf, component);
+				}
 
-      private static <T> void write(RegistryByteBuf buf, Component<T> component) {
-         ComponentType.PACKET_CODEC.encode(buf, component.type());
-         component.type().getPacketCodec().encode(buf, component.value());
-      }
-   };
+				@SuppressWarnings("unchecked")
+				private <X> void writeWildcard(RegistryByteBuf buf, Component<?> component) {
+					write(buf, (Component<X>) component);
+				}
 
-   static Component<?> of(Entry<ComponentType<?>, Object> entry) {
-      return of(entry.getKey(), entry.getValue());
-   }
+				private static <T> void write(RegistryByteBuf buf, Component<T> component) {
+					ComponentType.PACKET_CODEC.encode(buf, component.type());
+					component.type().getPacketCodec().encode(buf, component.value());
+				}
+			};
 
-   public static <T> Component<T> of(ComponentType<T> type, Object value) {
-      return new Component<>(type, (T)value);
-   }
+	static Component<?> of(Entry<ComponentType<?>, Object> entry) {
+		return of(entry.getKey(), entry.getValue());
+	}
 
-   public void apply(MergedComponentMap components) {
-      components.set(this.type, this.value);
-   }
+	public static <T> Component<T> of(ComponentType<T> type, Object value) {
+		return new Component<>(type, (T) value);
+	}
 
-   public <D> DataResult<D> encode(DynamicOps<D> ops) {
-      Codec<T> codec = this.type.getCodec();
-      return codec == null ? DataResult.error(() -> "Component of type " + this.type + " is not encodable") : codec.encodeStart(ops, this.value);
-   }
+	public void apply(MergedComponentMap components) {
+		components.set(this.type, this.value);
+	}
 
-   @Override
-   public String toString() {
-      return this.type + "=>" + this.value;
-   }
+	public <D> DataResult<D> encode(DynamicOps<D> ops) {
+		Codec<T> codec = this.type.getCodec();
+		return codec == null ? DataResult.error(() -> "Component of type " + this.type + " is not encodable")
+		                     : codec.encodeStart(ops, this.value);
+	}
+
+	@Override
+	public String toString() {
+		return this.type + "=>" + this.value;
+	}
 }

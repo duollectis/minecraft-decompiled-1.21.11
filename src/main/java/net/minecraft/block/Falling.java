@@ -6,14 +6,24 @@ import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code Falling}.
+ */
 public interface Falling {
-   default void onLanding(World world, BlockPos pos, BlockState fallingBlockState, BlockState currentStateInPos, FallingBlockEntity fallingBlockEntity) {
-   }
 
-   default void onDestroyedOnLanding(World world, BlockPos pos, FallingBlockEntity fallingBlockEntity) {
-   }
+	default void onLanding(
+			World world,
+			BlockPos pos,
+			BlockState fallingBlockState,
+			BlockState currentStateInPos,
+			FallingBlockEntity fallingBlockEntity
+	) {
+	}
 
-   default DamageSource getDamageSource(Entity attacker) {
-      return attacker.getDamageSources().fallingBlock(attacker);
-   }
+	default void onDestroyedOnLanding(World world, BlockPos pos, FallingBlockEntity fallingBlockEntity) {
+	}
+
+	default DamageSource getDamageSource(Entity attacker) {
+		return attacker.getDamageSources().fallingBlock(attacker);
+	}
 }

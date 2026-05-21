@@ -9,21 +9,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.debug.DebugSubscriptionType;
 
-public record EntityValueDebugS2CPacket(int entityId, DebugSubscriptionType.OptionalValue<?> update) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, EntityValueDebugS2CPacket> PACKET_CODEC = PacketCodec.tuple(
-      PacketCodecs.VAR_INT,
-      EntityValueDebugS2CPacket::entityId,
-      DebugSubscriptionType.OptionalValue.PACKET_CODEC,
-      EntityValueDebugS2CPacket::update,
-      EntityValueDebugS2CPacket::new
-   );
+public record EntityValueDebugS2CPacket(
+		int entityId,
+		DebugSubscriptionType.OptionalValue<?> update
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<EntityValueDebugS2CPacket> getPacketType() {
-      return PlayPackets.ENTITY_VALUE_DEBUG;
-   }
+	public static final PacketCodec<RegistryByteBuf, EntityValueDebugS2CPacket> PACKET_CODEC = PacketCodec.tuple(
+			PacketCodecs.VAR_INT,
+			EntityValueDebugS2CPacket::entityId,
+			DebugSubscriptionType.OptionalValue.PACKET_CODEC,
+			EntityValueDebugS2CPacket::update,
+			EntityValueDebugS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntityValueDebug(this);
-   }
+	@Override
+	public PacketType<EntityValueDebugS2CPacket> getPacketType() {
+		return PlayPackets.ENTITY_VALUE_DEBUG;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntityValueDebug(this);
+	}
 }

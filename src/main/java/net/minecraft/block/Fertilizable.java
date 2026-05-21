@@ -1,7 +1,5 @@
 package net.minecraft.block;
 
-import java.util.List;
-import java.util.Optional;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -9,45 +7,60 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * {@code Fertilizable}.
+ */
 public interface Fertilizable {
-   boolean isFertilizable(WorldView world, BlockPos pos, BlockState state);
 
-   boolean canGrow(World world, Random random, BlockPos pos, BlockState state);
+	boolean isFertilizable(WorldView world, BlockPos pos, BlockState state);
 
-   void grow(ServerWorld world, Random random, BlockPos pos, BlockState state);
+	boolean canGrow(World world, Random random, BlockPos pos, BlockState state);
 
-   static boolean canSpread(WorldView world, BlockPos pos, BlockState state) {
-      return findPosToSpreadTo(Direction.Type.HORIZONTAL.stream().toList(), world, pos, state).isPresent();
-   }
+	void grow(ServerWorld world, Random random, BlockPos pos, BlockState state);
 
-   static Optional<BlockPos> findPosToSpreadTo(World world, BlockPos pos, BlockState state) {
-      return findPosToSpreadTo(Direction.Type.HORIZONTAL.getShuffled(world.random), world, pos, state);
-   }
+	static boolean canSpread(WorldView world, BlockPos pos, BlockState state) {
+		return findPosToSpreadTo(Direction.Type.HORIZONTAL.stream().toList(), world, pos, state).isPresent();
+	}
 
-   private static Optional<BlockPos> findPosToSpreadTo(List<Direction> directions, WorldView world, BlockPos pos, BlockState state) {
-      for (Direction direction : directions) {
-         BlockPos blockPos = pos.offset(direction);
-         if (world.isAir(blockPos) && state.canPlaceAt(world, blockPos)) {
-            return Optional.of(blockPos);
-         }
-      }
+	static Optional<BlockPos> findPosToSpreadTo(World world, BlockPos pos, BlockState state) {
+		return findPosToSpreadTo(Direction.Type.HORIZONTAL.getShuffled(world.random), world, pos, state);
+	}
 
-      return Optional.empty();
-   }
+	private static Optional<BlockPos> findPosToSpreadTo(
+			List<Direction> directions,
+			WorldView world,
+			BlockPos pos,
+			BlockState state
+	) {
+		for (Direction direction : directions) {
+			BlockPos blockPos = pos.offset(direction);
+			if (world.isAir(blockPos) && state.canPlaceAt(world, blockPos)) {
+				return Optional.of(blockPos);
+			}
+		}
 
-   default BlockPos getFertilizeParticlePos(BlockPos pos) {
-      return switch (this.getFertilizableType()) {
-         case NEIGHBOR_SPREADER -> pos.up();
-         case GROWER -> pos;
-      };
-   }
+		return Optional.empty();
+	}
 
-   default Fertilizable.FertilizableType getFertilizableType() {
-      return Fertilizable.FertilizableType.GROWER;
-   }
+	default BlockPos getFertilizeParticlePos(BlockPos pos) {
+		return switch (this.getFertilizableType()) {
+			case NEIGHBOR_SPREADER -> pos.up();
+			case GROWER -> pos;
+		};
+	}
 
-   public static enum FertilizableType {
-      NEIGHBOR_SPREADER,
-      GROWER;
-   }
+	default Fertilizable.FertilizableType getFertilizableType() {
+		return Fertilizable.FertilizableType.GROWER;
+	}
+
+	/**
+	 * {@code FertilizableType}.
+	 */
+	public static enum FertilizableType {
+		NEIGHBOR_SPREADER,
+		GROWER;
+	}
 }

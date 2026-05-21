@@ -1,386 +1,416 @@
 package net.minecraft.client.resource.server;
 
 import com.google.common.hash.HashCode;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.Downloader;
 import org.jspecify.annotations.Nullable;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.file.Path;
+import java.util.*;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ServerResourcePackManager}.
+ */
 public class ServerResourcePackManager {
-   private final DownloadQueuer queuer;
-   final PackStateChangeCallback stateChangeCallback;
-   private final ReloadScheduler reloadScheduler;
-   private final Runnable packChangeCallback;
-   private ServerResourcePackManager.AcceptanceStatus acceptanceStatus;
-   final List<ServerResourcePackManager.PackEntry> packs = new ArrayList<>();
 
-   public ServerResourcePackManager(
-      DownloadQueuer queuer,
-      PackStateChangeCallback stateChangeCallback,
-      ReloadScheduler reloadScheduler,
-      Runnable packChangeCallback,
-      ServerResourcePackManager.AcceptanceStatus acceptanceStatus
-   ) {
-      this.queuer = queuer;
-      this.stateChangeCallback = stateChangeCallback;
-      this.reloadScheduler = reloadScheduler;
-      this.packChangeCallback = packChangeCallback;
-      this.acceptanceStatus = acceptanceStatus;
-   }
+	private final DownloadQueuer queuer;
+	final PackStateChangeCallback stateChangeCallback;
+	private final ReloadScheduler reloadScheduler;
+	private final Runnable packChangeCallback;
+	private ServerResourcePackManager.AcceptanceStatus acceptanceStatus;
+	final List<ServerResourcePackManager.PackEntry> packs = new ArrayList<>();
 
-   void onPackChanged() {
-      this.packChangeCallback.run();
-   }
+	public ServerResourcePackManager(
+			DownloadQueuer queuer,
+			PackStateChangeCallback stateChangeCallback,
+			ReloadScheduler reloadScheduler,
+			Runnable packChangeCallback,
+			ServerResourcePackManager.AcceptanceStatus acceptanceStatus
+	) {
+		this.queuer = queuer;
+		this.stateChangeCallback = stateChangeCallback;
+		this.reloadScheduler = reloadScheduler;
+		this.packChangeCallback = packChangeCallback;
+		this.acceptanceStatus = acceptanceStatus;
+	}
 
-   private void markReplaced(UUID id) {
-      for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
-         if (packEntry.id.equals(id)) {
-            packEntry.discard(ServerResourcePackManager.DiscardReason.SERVER_REPLACED);
-         }
-      }
-   }
+	void onPackChanged() {
+		this.packChangeCallback.run();
+	}
 
-   public void addResourcePack(UUID id, URL url, @Nullable HashCode hashCode) {
-      if (this.acceptanceStatus == ServerResourcePackManager.AcceptanceStatus.DECLINED) {
-         this.stateChangeCallback.onFinish(id, PackStateChangeCallback.FinishState.DECLINED);
-      } else {
-         this.onAdd(id, new ServerResourcePackManager.PackEntry(id, url, hashCode));
-      }
-   }
+	private void markReplaced(UUID id) {
+		for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
+			if (packEntry.id.equals(id)) {
+				packEntry.discard(ServerResourcePackManager.DiscardReason.SERVER_REPLACED);
+			}
+		}
+	}
 
-   public void addResourcePack(UUID id, Path path) {
-      if (this.acceptanceStatus == ServerResourcePackManager.AcceptanceStatus.DECLINED) {
-         this.stateChangeCallback.onFinish(id, PackStateChangeCallback.FinishState.DECLINED);
-      } else {
-         URL uRL;
-         try {
-            uRL = path.toUri().toURL();
-         } catch (MalformedURLException var5) {
-            throw new IllegalStateException("Can't convert path to URL " + path, var5);
-         }
+	public void addResourcePack(UUID id, URL url, @Nullable HashCode hashCode) {
+		if (this.acceptanceStatus == ServerResourcePackManager.AcceptanceStatus.DECLINED) {
+			this.stateChangeCallback.onFinish(id, PackStateChangeCallback.FinishState.DECLINED);
+		}
+		else {
+			this.onAdd(id, new ServerResourcePackManager.PackEntry(id, url, hashCode));
+		}
+	}
 
-         ServerResourcePackManager.PackEntry packEntry = new ServerResourcePackManager.PackEntry(id, uRL, null);
-         packEntry.loadStatus = ServerResourcePackManager.LoadStatus.DONE;
-         packEntry.path = path;
-         this.onAdd(id, packEntry);
-      }
-   }
+	public void addResourcePack(UUID id, Path path) {
+		if (this.acceptanceStatus == ServerResourcePackManager.AcceptanceStatus.DECLINED) {
+			this.stateChangeCallback.onFinish(id, PackStateChangeCallback.FinishState.DECLINED);
+		}
+		else {
+			URL uRL;
+			try {
+				uRL = path.toUri().toURL();
+			}
+			catch (MalformedURLException var5) {
+				throw new IllegalStateException("Can't convert path to URL " + path, var5);
+			}
 
-   private void onAdd(UUID id, ServerResourcePackManager.PackEntry pack) {
-      this.markReplaced(id);
-      this.packs.add(pack);
-      if (this.acceptanceStatus == ServerResourcePackManager.AcceptanceStatus.ALLOWED) {
-         this.accept(pack);
-      }
+			ServerResourcePackManager.PackEntry packEntry = new ServerResourcePackManager.PackEntry(id, uRL, null);
+			packEntry.loadStatus = ServerResourcePackManager.LoadStatus.DONE;
+			packEntry.path = path;
+			this.onAdd(id, packEntry);
+		}
+	}
 
-      this.onPackChanged();
-   }
+	private void onAdd(UUID id, ServerResourcePackManager.PackEntry pack) {
+		this.markReplaced(id);
+		this.packs.add(pack);
+		if (this.acceptanceStatus == ServerResourcePackManager.AcceptanceStatus.ALLOWED) {
+			this.accept(pack);
+		}
 
-   private void accept(ServerResourcePackManager.PackEntry pack) {
-      this.stateChangeCallback.onStateChanged(pack.id, PackStateChangeCallback.State.ACCEPTED);
-      pack.accepted = true;
-   }
+		this.onPackChanged();
+	}
 
-   private ServerResourcePackManager.@Nullable PackEntry get(UUID id) {
-      for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
-         if (!packEntry.isDiscarded() && packEntry.id.equals(id)) {
-            return packEntry;
-         }
-      }
+	private void accept(ServerResourcePackManager.PackEntry pack) {
+		this.stateChangeCallback.onStateChanged(pack.id, PackStateChangeCallback.State.ACCEPTED);
+		pack.accepted = true;
+	}
 
-      return null;
-   }
+	private ServerResourcePackManager.@Nullable PackEntry get(UUID id) {
+		for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
+			if (!packEntry.isDiscarded() && packEntry.id.equals(id)) {
+				return packEntry;
+			}
+		}
 
-   public void remove(UUID id) {
-      ServerResourcePackManager.PackEntry packEntry = this.get(id);
-      if (packEntry != null) {
-         packEntry.discard(ServerResourcePackManager.DiscardReason.SERVER_REMOVED);
-         this.onPackChanged();
-      }
-   }
+		return null;
+	}
 
-   public void removeAll() {
-      for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
-         packEntry.discard(ServerResourcePackManager.DiscardReason.SERVER_REMOVED);
-      }
+	public void remove(UUID id) {
+		ServerResourcePackManager.PackEntry packEntry = this.get(id);
+		if (packEntry != null) {
+			packEntry.discard(ServerResourcePackManager.DiscardReason.SERVER_REMOVED);
+			this.onPackChanged();
+		}
+	}
 
-      this.onPackChanged();
-   }
+	public void removeAll() {
+		for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
+			packEntry.discard(ServerResourcePackManager.DiscardReason.SERVER_REMOVED);
+		}
 
-   public void acceptAll() {
-      this.acceptanceStatus = ServerResourcePackManager.AcceptanceStatus.ALLOWED;
+		this.onPackChanged();
+	}
 
-      for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
-         if (!packEntry.accepted && !packEntry.isDiscarded()) {
-            this.accept(packEntry);
-         }
-      }
+	public void acceptAll() {
+		this.acceptanceStatus = ServerResourcePackManager.AcceptanceStatus.ALLOWED;
 
-      this.onPackChanged();
-   }
+		for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
+			if (!packEntry.accepted && !packEntry.isDiscarded()) {
+				this.accept(packEntry);
+			}
+		}
 
-   public void declineAll() {
-      this.acceptanceStatus = ServerResourcePackManager.AcceptanceStatus.DECLINED;
+		this.onPackChanged();
+	}
 
-      for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
-         if (!packEntry.accepted) {
-            packEntry.discard(ServerResourcePackManager.DiscardReason.DECLINED);
-         }
-      }
+	public void declineAll() {
+		this.acceptanceStatus = ServerResourcePackManager.AcceptanceStatus.DECLINED;
 
-      this.onPackChanged();
-   }
+		for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
+			if (!packEntry.accepted) {
+				packEntry.discard(ServerResourcePackManager.DiscardReason.DECLINED);
+			}
+		}
 
-   public void resetAcceptanceStatus() {
-      this.acceptanceStatus = ServerResourcePackManager.AcceptanceStatus.PENDING;
-   }
+		this.onPackChanged();
+	}
 
-   public void update() {
-      boolean bl = this.enqueueDownloads();
-      if (!bl) {
-         this.applyDownloadedPacks();
-      }
+	public void resetAcceptanceStatus() {
+		this.acceptanceStatus = ServerResourcePackManager.AcceptanceStatus.PENDING;
+	}
 
-      this.removeInactivePacks();
-   }
+	public void update() {
+		boolean bl = this.enqueueDownloads();
+		if (!bl) {
+			this.applyDownloadedPacks();
+		}
 
-   private void removeInactivePacks() {
-      this.packs.removeIf(pack -> {
-         if (pack.status != ServerResourcePackManager.Status.INACTIVE) {
-            return false;
-         } else if (pack.discardReason != null) {
-            PackStateChangeCallback.FinishState finishState = pack.discardReason.state;
-            if (finishState != null) {
-               this.stateChangeCallback.onFinish(pack.id, finishState);
-            }
+		this.removeInactivePacks();
+	}
 
-            return true;
-         } else {
-            return false;
-         }
-      });
-   }
+	private void removeInactivePacks() {
+		this.packs.removeIf(pack -> {
+			if (pack.status != ServerResourcePackManager.Status.INACTIVE) {
+				return false;
+			}
+			else if (pack.discardReason != null) {
+				PackStateChangeCallback.FinishState finishState = pack.discardReason.state;
+				if (finishState != null) {
+					this.stateChangeCallback.onFinish(pack.id, finishState);
+				}
 
-   private void onDownload(Collection<ServerResourcePackManager.PackEntry> packs, Downloader.DownloadResult result) {
-      if (!result.failed().isEmpty()) {
-         for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
-            if (packEntry.status != ServerResourcePackManager.Status.ACTIVE) {
-               if (result.failed().contains(packEntry.id)) {
-                  packEntry.discard(ServerResourcePackManager.DiscardReason.DOWNLOAD_FAILED);
-               } else {
-                  packEntry.discard(ServerResourcePackManager.DiscardReason.DISCARDED);
-               }
-            }
-         }
-      }
+				return true;
+			}
+			else {
+				return false;
+			}
+		});
+	}
 
-      for (ServerResourcePackManager.PackEntry packEntryx : packs) {
-         Path path = result.downloaded().get(packEntryx.id);
-         if (path != null) {
-            packEntryx.loadStatus = ServerResourcePackManager.LoadStatus.DONE;
-            packEntryx.path = path;
-            if (!packEntryx.isDiscarded()) {
-               this.stateChangeCallback.onStateChanged(packEntryx.id, PackStateChangeCallback.State.DOWNLOADED);
-            }
-         }
-      }
+	private void onDownload(Collection<ServerResourcePackManager.PackEntry> packs, Downloader.DownloadResult result) {
+		if (!result.failed().isEmpty()) {
+			for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
+				if (packEntry.status != ServerResourcePackManager.Status.ACTIVE) {
+					if (result.failed().contains(packEntry.id)) {
+						packEntry.discard(ServerResourcePackManager.DiscardReason.DOWNLOAD_FAILED);
+					}
+					else {
+						packEntry.discard(ServerResourcePackManager.DiscardReason.DISCARDED);
+					}
+				}
+			}
+		}
 
-      this.onPackChanged();
-   }
+		for (ServerResourcePackManager.PackEntry packEntryx : packs) {
+			Path path = result.downloaded().get(packEntryx.id);
+			if (path != null) {
+				packEntryx.loadStatus = ServerResourcePackManager.LoadStatus.DONE;
+				packEntryx.path = path;
+				if (!packEntryx.isDiscarded()) {
+					this.stateChangeCallback.onStateChanged(packEntryx.id, PackStateChangeCallback.State.DOWNLOADED);
+				}
+			}
+		}
 
-   private boolean enqueueDownloads() {
-      List<ServerResourcePackManager.PackEntry> list = new ArrayList<>();
-      boolean bl = false;
+		this.onPackChanged();
+	}
 
-      for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
-         if (!packEntry.isDiscarded() && packEntry.accepted) {
-            if (packEntry.loadStatus != ServerResourcePackManager.LoadStatus.DONE) {
-               bl = true;
-            }
+	private boolean enqueueDownloads() {
+		List<ServerResourcePackManager.PackEntry> list = new ArrayList<>();
+		boolean bl = false;
 
-            if (packEntry.loadStatus == ServerResourcePackManager.LoadStatus.REQUESTED) {
-               packEntry.loadStatus = ServerResourcePackManager.LoadStatus.PENDING;
-               list.add(packEntry);
-            }
-         }
-      }
+		for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
+			if (!packEntry.isDiscarded() && packEntry.accepted) {
+				if (packEntry.loadStatus != ServerResourcePackManager.LoadStatus.DONE) {
+					bl = true;
+				}
 
-      if (!list.isEmpty()) {
-         Map<UUID, Downloader.DownloadEntry> map = new HashMap<>();
+				if (packEntry.loadStatus == ServerResourcePackManager.LoadStatus.REQUESTED) {
+					packEntry.loadStatus = ServerResourcePackManager.LoadStatus.PENDING;
+					list.add(packEntry);
+				}
+			}
+		}
 
-         for (ServerResourcePackManager.PackEntry packEntry2 : list) {
-            map.put(packEntry2.id, new Downloader.DownloadEntry(packEntry2.url, packEntry2.hashCode));
-         }
+		if (!list.isEmpty()) {
+			Map<UUID, Downloader.DownloadEntry> map = new HashMap<>();
 
-         this.queuer.enqueue(map, result -> this.onDownload(list, result));
-      }
+			for (ServerResourcePackManager.PackEntry packEntry2 : list) {
+				map.put(packEntry2.id, new Downloader.DownloadEntry(packEntry2.url, packEntry2.hashCode));
+			}
 
-      return bl;
-   }
+			this.queuer.enqueue(map, result -> this.onDownload(list, result));
+		}
 
-   private void applyDownloadedPacks() {
-      boolean bl = false;
-      final List<ServerResourcePackManager.PackEntry> list = new ArrayList<>();
-      final List<ServerResourcePackManager.PackEntry> list2 = new ArrayList<>();
+		return bl;
+	}
 
-      for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
-         if (packEntry.status == ServerResourcePackManager.Status.PENDING) {
-            return;
-         }
+	private void applyDownloadedPacks() {
+		boolean bl = false;
+		final List<ServerResourcePackManager.PackEntry> list = new ArrayList<>();
+		final List<ServerResourcePackManager.PackEntry> list2 = new ArrayList<>();
 
-         boolean bl2 = packEntry.accepted && packEntry.loadStatus == ServerResourcePackManager.LoadStatus.DONE && !packEntry.isDiscarded();
-         if (bl2 && packEntry.status == ServerResourcePackManager.Status.INACTIVE) {
-            list.add(packEntry);
-            bl = true;
-         }
+		for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
+			if (packEntry.status == ServerResourcePackManager.Status.PENDING) {
+				return;
+			}
 
-         if (packEntry.status == ServerResourcePackManager.Status.ACTIVE) {
-            if (!bl2) {
-               bl = true;
-               list2.add(packEntry);
-            } else {
-               list.add(packEntry);
-            }
-         }
-      }
+			boolean
+					bl2 =
+					packEntry.accepted && packEntry.loadStatus == ServerResourcePackManager.LoadStatus.DONE
+							&& !packEntry.isDiscarded();
+			if (bl2 && packEntry.status == ServerResourcePackManager.Status.INACTIVE) {
+				list.add(packEntry);
+				bl = true;
+			}
 
-      if (bl) {
-         for (ServerResourcePackManager.PackEntry packEntry : list) {
-            if (packEntry.status != ServerResourcePackManager.Status.ACTIVE) {
-               packEntry.status = ServerResourcePackManager.Status.PENDING;
-            }
-         }
+			if (packEntry.status == ServerResourcePackManager.Status.ACTIVE) {
+				if (!bl2) {
+					bl = true;
+					list2.add(packEntry);
+				}
+				else {
+					list.add(packEntry);
+				}
+			}
+		}
 
-         for (ServerResourcePackManager.PackEntry packEntryx : list2) {
-            packEntryx.status = ServerResourcePackManager.Status.PENDING;
-         }
+		if (bl) {
+			for (ServerResourcePackManager.PackEntry packEntry : list) {
+				if (packEntry.status != ServerResourcePackManager.Status.ACTIVE) {
+					packEntry.status = ServerResourcePackManager.Status.PENDING;
+				}
+			}
 
-         this.reloadScheduler.scheduleReload(new ReloadScheduler.ReloadContext() {
-            @Override
-            public void onSuccess() {
-               for (ServerResourcePackManager.PackEntry packEntryx : list) {
-                  packEntryx.status = ServerResourcePackManager.Status.ACTIVE;
-                  if (packEntryx.discardReason == null) {
-                     ServerResourcePackManager.this.stateChangeCallback.onFinish(packEntryx.id, PackStateChangeCallback.FinishState.APPLIED);
-                  }
-               }
+			for (ServerResourcePackManager.PackEntry packEntryx : list2) {
+				packEntryx.status = ServerResourcePackManager.Status.PENDING;
+			}
 
-               for (ServerResourcePackManager.PackEntry packEntryx : list2) {
-                  packEntryx.status = ServerResourcePackManager.Status.INACTIVE;
-               }
+			this.reloadScheduler.scheduleReload(new ReloadScheduler.ReloadContext() {
+				@Override
+				public void onSuccess() {
+					for (ServerResourcePackManager.PackEntry packEntryx : list) {
+						packEntryx.status = ServerResourcePackManager.Status.ACTIVE;
+						if (packEntryx.discardReason == null) {
+							ServerResourcePackManager.this.stateChangeCallback.onFinish(
+									packEntryx.id,
+									PackStateChangeCallback.FinishState.APPLIED
+							);
+						}
+					}
 
-               ServerResourcePackManager.this.onPackChanged();
-            }
+					for (ServerResourcePackManager.PackEntry packEntryx : list2) {
+						packEntryx.status = ServerResourcePackManager.Status.INACTIVE;
+					}
 
-            @Override
-            public void onFailure(boolean force) {
-               if (!force) {
-                  list.clear();
+					ServerResourcePackManager.this.onPackChanged();
+				}
 
-                  for (ServerResourcePackManager.PackEntry packEntryx : ServerResourcePackManager.this.packs) {
-                     switch (packEntryx.status) {
-                        case INACTIVE:
-                           packEntryx.discard(ServerResourcePackManager.DiscardReason.DISCARDED);
-                           break;
-                        case PENDING:
-                           packEntryx.status = ServerResourcePackManager.Status.INACTIVE;
-                           packEntryx.discard(ServerResourcePackManager.DiscardReason.ACTIVATION_FAILED);
-                           break;
-                        case ACTIVE:
-                           list.add(packEntryx);
-                     }
-                  }
+				@Override
+				public void onFailure(boolean force) {
+					if (!force) {
+						list.clear();
 
-                  ServerResourcePackManager.this.onPackChanged();
-               } else {
-                  for (ServerResourcePackManager.PackEntry packEntryx : ServerResourcePackManager.this.packs) {
-                     if (packEntryx.status == ServerResourcePackManager.Status.PENDING) {
-                        packEntryx.status = ServerResourcePackManager.Status.INACTIVE;
-                     }
-                  }
-               }
-            }
+						for (ServerResourcePackManager.PackEntry packEntryx : ServerResourcePackManager.this.packs) {
+							switch (packEntryx.status) {
+								case INACTIVE:
+									packEntryx.discard(ServerResourcePackManager.DiscardReason.DISCARDED);
+									break;
+								case PENDING:
+									packEntryx.status = ServerResourcePackManager.Status.INACTIVE;
+									packEntryx.discard(ServerResourcePackManager.DiscardReason.ACTIVATION_FAILED);
+									break;
+								case ACTIVE:
+									list.add(packEntryx);
+							}
+						}
 
-            @Override
-            public List<ReloadScheduler.PackInfo> getPacks() {
-               return list.stream().map(pack -> new ReloadScheduler.PackInfo(pack.id, pack.path)).toList();
-            }
-         });
-      }
-   }
+						ServerResourcePackManager.this.onPackChanged();
+					}
+					else {
+						for (ServerResourcePackManager.PackEntry packEntryx : ServerResourcePackManager.this.packs) {
+							if (packEntryx.status == ServerResourcePackManager.Status.PENDING) {
+								packEntryx.status = ServerResourcePackManager.Status.INACTIVE;
+							}
+						}
+					}
+				}
 
-   @Environment(EnvType.CLIENT)
-   public static enum AcceptanceStatus {
-      PENDING,
-      ALLOWED,
-      DECLINED;
-   }
+				@Override
+				public List<ReloadScheduler.PackInfo> getPacks() {
+					return list.stream().map(pack -> new ReloadScheduler.PackInfo(pack.id, pack.path)).toList();
+				}
+			});
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   static enum DiscardReason {
-      DOWNLOAD_FAILED(PackStateChangeCallback.FinishState.DOWNLOAD_FAILED),
-      ACTIVATION_FAILED(PackStateChangeCallback.FinishState.ACTIVATION_FAILED),
-      DECLINED(PackStateChangeCallback.FinishState.DECLINED),
-      DISCARDED(PackStateChangeCallback.FinishState.DISCARDED),
-      SERVER_REMOVED(null),
-      SERVER_REPLACED(null);
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code AcceptanceStatus}.
+	 */
+	public static enum AcceptanceStatus {
+		PENDING,
+		ALLOWED,
+		DECLINED;
+	}
 
-      final PackStateChangeCallback.@Nullable FinishState state;
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code DiscardReason}.
+	 */
+	static enum DiscardReason {
+		DOWNLOAD_FAILED(PackStateChangeCallback.FinishState.DOWNLOAD_FAILED),
+		ACTIVATION_FAILED(PackStateChangeCallback.FinishState.ACTIVATION_FAILED),
+		DECLINED(PackStateChangeCallback.FinishState.DECLINED),
+		DISCARDED(PackStateChangeCallback.FinishState.DISCARDED),
+		SERVER_REMOVED(null),
+		SERVER_REPLACED(null);
 
-      private DiscardReason(final PackStateChangeCallback.FinishState state) {
-         this.state = state;
-      }
-   }
+		final PackStateChangeCallback.@Nullable FinishState state;
 
-   @Environment(EnvType.CLIENT)
-   static enum LoadStatus {
-      REQUESTED,
-      PENDING,
-      DONE;
-   }
+		private DiscardReason(final PackStateChangeCallback.FinishState state) {
+			this.state = state;
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   static class PackEntry {
-      final UUID id;
-      final URL url;
-      final @Nullable HashCode hashCode;
-      @Nullable Path path;
-      ServerResourcePackManager.@Nullable DiscardReason discardReason;
-      ServerResourcePackManager.LoadStatus loadStatus = ServerResourcePackManager.LoadStatus.REQUESTED;
-      ServerResourcePackManager.Status status = ServerResourcePackManager.Status.INACTIVE;
-      boolean accepted;
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code LoadStatus}.
+	 */
+	static enum LoadStatus {
+		REQUESTED,
+		PENDING,
+		DONE;
+	}
 
-      PackEntry(UUID id, URL url, @Nullable HashCode hashCode) {
-         this.id = id;
-         this.url = url;
-         this.hashCode = hashCode;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code PackEntry}.
+	 */
+	static class PackEntry {
 
-      public void discard(ServerResourcePackManager.DiscardReason reason) {
-         if (this.discardReason == null) {
-            this.discardReason = reason;
-         }
-      }
+		final UUID id;
+		final URL url;
+		final @Nullable HashCode hashCode;
+		@Nullable Path path;
+		ServerResourcePackManager.@Nullable DiscardReason discardReason;
+		ServerResourcePackManager.LoadStatus loadStatus = ServerResourcePackManager.LoadStatus.REQUESTED;
+		ServerResourcePackManager.Status status = ServerResourcePackManager.Status.INACTIVE;
+		boolean accepted;
 
-      public boolean isDiscarded() {
-         return this.discardReason != null;
-      }
-   }
+		PackEntry(UUID id, URL url, @Nullable HashCode hashCode) {
+			this.id = id;
+			this.url = url;
+			this.hashCode = hashCode;
+		}
 
-   @Environment(EnvType.CLIENT)
-   static enum Status {
-      INACTIVE,
-      PENDING,
-      ACTIVE;
-   }
+		public void discard(ServerResourcePackManager.DiscardReason reason) {
+			if (this.discardReason == null) {
+				this.discardReason = reason;
+			}
+		}
+
+		public boolean isDiscarded() {
+			return this.discardReason != null;
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Status}.
+	 */
+	static enum Status {
+		INACTIVE,
+		PENDING,
+		ACTIVE;
+	}
 }

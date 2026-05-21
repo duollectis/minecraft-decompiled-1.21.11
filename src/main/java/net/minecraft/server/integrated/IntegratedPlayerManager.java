@@ -1,7 +1,6 @@
 package net.minecraft.server.integrated;
 
 import com.mojang.logging.LogUtils;
-import java.net.SocketAddress;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.nbt.NbtCompound;
@@ -17,42 +16,53 @@ import net.minecraft.world.PlayerSaveHandler;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.net.SocketAddress;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code IntegratedPlayerManager}.
+ */
 public class IntegratedPlayerManager extends PlayerManager {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private @Nullable NbtCompound userData;
 
-   public IntegratedPlayerManager(IntegratedServer server, CombinedDynamicRegistries<ServerDynamicRegistryType> registryManager, PlayerSaveHandler saveHandler) {
-      super(server, registryManager, saveHandler, server.getManagementListener());
-      this.setViewDistance(10);
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private @Nullable NbtCompound userData;
 
-   @Override
-   protected void savePlayerData(ServerPlayerEntity player) {
-      if (this.getServer().isHost(player.getPlayerConfigEntry())) {
-         try (ErrorReporter.Logging logging = new ErrorReporter.Logging(player.getErrorReporterContext(), LOGGER)) {
-            NbtWriteView nbtWriteView = NbtWriteView.create(logging, player.getRegistryManager());
-            player.writeData(nbtWriteView);
-            this.userData = nbtWriteView.getNbt();
-         }
-      }
+	public IntegratedPlayerManager(
+			IntegratedServer server,
+			CombinedDynamicRegistries<ServerDynamicRegistryType> registryManager,
+			PlayerSaveHandler saveHandler
+	) {
+		super(server, registryManager, saveHandler, server.getManagementListener());
+		this.setViewDistance(10);
+	}
 
-      super.savePlayerData(player);
-   }
+	@Override
+	protected void savePlayerData(ServerPlayerEntity player) {
+		if (this.getServer().isHost(player.getPlayerConfigEntry())) {
+			try (ErrorReporter.Logging logging = new ErrorReporter.Logging(player.getErrorReporterContext(), LOGGER)) {
+				NbtWriteView nbtWriteView = NbtWriteView.create(logging, player.getRegistryManager());
+				player.writeData(nbtWriteView);
+				this.userData = nbtWriteView.getNbt();
+			}
+		}
 
-   @Override
-   public Text checkCanJoin(SocketAddress address, PlayerConfigEntry configEntry) {
-      return (Text)(this.getServer().isHost(configEntry) && this.getPlayer(configEntry.name()) != null
-         ? Text.translatable("multiplayer.disconnect.name_taken")
-         : super.checkCanJoin(address, configEntry));
-   }
+		super.savePlayerData(player);
+	}
 
-   public IntegratedServer getServer() {
-      return (IntegratedServer)super.getServer();
-   }
+	@Override
+	public Text checkCanJoin(SocketAddress address, PlayerConfigEntry configEntry) {
+		return (Text) (this.getServer().isHost(configEntry) && this.getPlayer(configEntry.name()) != null
+		               ? Text.translatable("multiplayer.disconnect.name_taken")
+		               : super.checkCanJoin(address, configEntry)
+		);
+	}
 
-   @Override
-   public @Nullable NbtCompound getUserData() {
-      return this.userData;
-   }
+	public IntegratedServer getServer() {
+		return (IntegratedServer) super.getServer();
+	}
+
+	@Override
+	public @Nullable NbtCompound getUserData() {
+		return this.userData;
+	}
 }

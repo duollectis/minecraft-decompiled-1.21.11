@@ -5,12 +5,16 @@ import net.fabricmc.api.Environment;
 import net.minecraft.item.ItemStack;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LivingHorseEntityRenderState}.
+ */
 public class LivingHorseEntityRenderState extends LivingEntityRenderState {
-   public ItemStack saddleStack = ItemStack.EMPTY;
-   public ItemStack armorStack = ItemStack.EMPTY;
-   public boolean hasPassengers;
-   public boolean waggingTail;
-   public float eatingGrassAnimationProgress;
-   public float angryAnimationProgress;
-   public float eatingAnimationProgress;
+
+	public ItemStack saddleStack = ItemStack.EMPTY;
+	public ItemStack armorStack = ItemStack.EMPTY;
+	public boolean hasPassengers;
+	public boolean waggingTail;
+	public float eatingGrassAnimationProgress;
+	public float angryAnimationProgress;
+	public float eatingAnimationProgress;
 }

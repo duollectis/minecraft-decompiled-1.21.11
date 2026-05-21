@@ -9,16 +9,17 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.recipe.NetworkRecipeId;
 
 public record RecipeBookDataC2SPacket(NetworkRecipeId recipeId) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, RecipeBookDataC2SPacket> CODEC = PacketCodec.tuple(
-      NetworkRecipeId.PACKET_CODEC, RecipeBookDataC2SPacket::recipeId, RecipeBookDataC2SPacket::new
-   );
 
-   @Override
-   public PacketType<RecipeBookDataC2SPacket> getPacketType() {
-      return PlayPackets.RECIPE_BOOK_SEEN_RECIPE;
-   }
+	public static final PacketCodec<PacketByteBuf, RecipeBookDataC2SPacket> CODEC = PacketCodec.tuple(
+			NetworkRecipeId.PACKET_CODEC, RecipeBookDataC2SPacket::recipeId, RecipeBookDataC2SPacket::new
+	);
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onRecipeBookData(this);
-   }
+	@Override
+	public PacketType<RecipeBookDataC2SPacket> getPacketType() {
+		return PlayPackets.RECIPE_BOOK_SEEN_RECIPE;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onRecipeBookData(this);
+	}
 }

@@ -17,114 +17,129 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code HangingMossBlock}.
+ */
 public class HangingMossBlock extends Block implements Fertilizable {
-   public static final MapCodec<HangingMossBlock> CODEC = createCodec(HangingMossBlock::new);
-   private static final VoxelShape SHAPE = Block.createColumnShape(14.0, 0.0, 16.0);
-   private static final VoxelShape TIP_SHAPE = Block.createColumnShape(14.0, 2.0, 16.0);
-   public static final BooleanProperty TIP = Properties.TIP;
 
-   @Override
-   public MapCodec<HangingMossBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<HangingMossBlock> CODEC = createCodec(HangingMossBlock::new);
+	private static final VoxelShape SHAPE = Block.createColumnShape(14.0, 0.0, 16.0);
+	private static final VoxelShape TIP_SHAPE = Block.createColumnShape(14.0, 2.0, 16.0);
+	public static final BooleanProperty TIP = Properties.TIP;
 
-   public HangingMossBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(TIP, true));
-   }
+	@Override
+	public MapCodec<HangingMossBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return state.get(TIP) ? TIP_SHAPE : SHAPE;
-   }
+	public HangingMossBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(TIP, true));
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      if (random.nextInt(500) == 0) {
-         BlockState blockState = world.getBlockState(pos.up());
-         if (blockState.isIn(BlockTags.PALE_OAK_LOGS) || blockState.isOf(Blocks.PALE_OAK_LEAVES)) {
-            world.playSoundClient(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.BLOCK_PALE_HANGING_MOSS_IDLE, SoundCategory.AMBIENT, 1.0F, 1.0F, false);
-         }
-      }
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return state.get(TIP) ? TIP_SHAPE : SHAPE;
+	}
 
-   @Override
-   protected boolean isTransparent(BlockState state) {
-      return true;
-   }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		if (random.nextInt(500) == 0) {
+			BlockState blockState = world.getBlockState(pos.up());
+			if (blockState.isIn(BlockTags.PALE_OAK_LOGS) || blockState.isOf(Blocks.PALE_OAK_LEAVES)) {
+				world.playSoundClient(
+						pos.getX(),
+						pos.getY(),
+						pos.getZ(),
+						SoundEvents.BLOCK_PALE_HANGING_MOSS_IDLE,
+						SoundCategory.AMBIENT,
+						1.0F,
+						1.0F,
+						false
+				);
+			}
+		}
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      return this.canPlaceAt(world, pos);
-   }
+	@Override
+	protected boolean isTransparent(BlockState state) {
+		return true;
+	}
 
-   private boolean canPlaceAt(BlockView world, BlockPos pos) {
-      BlockPos blockPos = pos.offset(Direction.UP);
-      BlockState blockState = world.getBlockState(blockPos);
-      return MultifaceBlock.canGrowOn(world, Direction.UP, blockPos, blockState) || blockState.isOf(Blocks.PALE_HANGING_MOSS);
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		return this.canPlaceAt(world, pos);
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (!this.canPlaceAt(world, pos)) {
-         tickView.scheduleBlockTick(pos, this, 1);
-      }
+	private boolean canPlaceAt(BlockView world, BlockPos pos) {
+		BlockPos blockPos = pos.offset(Direction.UP);
+		BlockState blockState = world.getBlockState(blockPos);
+		return MultifaceBlock.canGrowOn(world, Direction.UP, blockPos, blockState)
+				|| blockState.isOf(Blocks.PALE_HANGING_MOSS);
+	}
 
-      return state.with(TIP, !world.getBlockState(pos.down()).isOf(this));
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (!this.canPlaceAt(world, pos)) {
+			tickView.scheduleBlockTick(pos, this, 1);
+		}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (!this.canPlaceAt(world, pos)) {
-         world.breakBlock(pos, true);
-      }
-   }
+		return state.with(TIP, !world.getBlockState(pos.down()).isOf(this));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(TIP);
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (!this.canPlaceAt(world, pos)) {
+			world.breakBlock(pos, true);
+		}
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return this.canGrowInto(world.getBlockState(this.getTipPos(world, pos).down()));
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(TIP);
+	}
 
-   private boolean canGrowInto(BlockState state) {
-      return state.isAir();
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return this.canGrowInto(world.getBlockState(this.getTipPos(world, pos).down()));
+	}
 
-   public BlockPos getTipPos(BlockView world, BlockPos pos) {
-      BlockPos.Mutable mutable = pos.mutableCopy();
+	private boolean canGrowInto(BlockState state) {
+		return state.isAir();
+	}
 
-      BlockState blockState;
-      do {
-         mutable.move(Direction.DOWN);
-         blockState = world.getBlockState(mutable);
-      } while (blockState.isOf(this));
+	public BlockPos getTipPos(BlockView world, BlockPos pos) {
+		BlockPos.Mutable mutable = pos.mutableCopy();
 
-      return mutable.offset(Direction.UP).toImmutable();
-   }
+		BlockState blockState;
+		do {
+			mutable.move(Direction.DOWN);
+			blockState = world.getBlockState(mutable);
+		}
+		while (blockState.isOf(this));
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+		return mutable.offset(Direction.UP).toImmutable();
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      BlockPos blockPos = this.getTipPos(world, pos).down();
-      if (this.canGrowInto(world.getBlockState(blockPos))) {
-         world.setBlockState(blockPos, state.with(TIP, true));
-      }
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
+
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		BlockPos blockPos = this.getTipPos(world, pos).down();
+		if (this.canGrowInto(world.getBlockState(blockPos))) {
+			world.setBlockState(blockPos, state.with(TIP, true));
+		}
+	}
 }

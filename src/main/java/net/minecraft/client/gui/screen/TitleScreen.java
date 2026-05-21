@@ -2,8 +2,6 @@ package net.minecraft.client.gui.screen;
 
 import com.mojang.authlib.minecraft.BanDetails;
 import com.mojang.logging.LogUtils;
-import java.io.IOException;
-import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.SharedConstants;
@@ -41,313 +39,395 @@ import net.minecraft.world.level.storage.LevelStorage;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.util.Objects;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TitleScreen}.
+ */
 public class TitleScreen extends Screen {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final Text NARRATOR_SCREEN_TITLE = Text.translatable("narrator.screen.title");
-   private static final Text COPYRIGHT = Text.translatable("title.credits");
-   private static final String DEMO_WORLD_NAME = "Demo_World";
-   private @Nullable SplashTextRenderer splashText;
-   private @Nullable RealmsNotificationsScreen realmsNotificationGui;
-   private boolean doBackgroundFade;
-   private long backgroundFadeStart;
-   private final LogoDrawer logoDrawer;
 
-   public TitleScreen() {
-      this(false);
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final Text NARRATOR_SCREEN_TITLE = Text.translatable("narrator.screen.title");
+	private static final Text COPYRIGHT = Text.translatable("title.credits");
+	private static final String DEMO_WORLD_NAME = "Demo_World";
+	private @Nullable SplashTextRenderer splashText;
+	private @Nullable RealmsNotificationsScreen realmsNotificationGui;
+	private boolean doBackgroundFade;
+	private long backgroundFadeStart;
+	private final LogoDrawer logoDrawer;
 
-   public TitleScreen(boolean doBackgroundFade) {
-      this(doBackgroundFade, null);
-   }
+	public TitleScreen() {
+		this(false);
+	}
 
-   public TitleScreen(boolean doBackgroundFade, @Nullable LogoDrawer logoDrawer) {
-      super(NARRATOR_SCREEN_TITLE);
-      this.doBackgroundFade = doBackgroundFade;
-      this.logoDrawer = Objects.requireNonNullElseGet(logoDrawer, () -> new LogoDrawer(false));
-   }
+	public TitleScreen(boolean doBackgroundFade) {
+		this(doBackgroundFade, null);
+	}
 
-   private boolean isRealmsNotificationsGuiDisplayed() {
-      return this.realmsNotificationGui != null;
-   }
+	public TitleScreen(boolean doBackgroundFade, @Nullable LogoDrawer logoDrawer) {
+		super(NARRATOR_SCREEN_TITLE);
+		this.doBackgroundFade = doBackgroundFade;
+		this.logoDrawer = Objects.requireNonNullElseGet(logoDrawer, () -> new LogoDrawer(false));
+	}
 
-   @Override
-   public void tick() {
-      if (this.isRealmsNotificationsGuiDisplayed()) {
-         this.realmsNotificationGui.tick();
-      }
-   }
+	private boolean isRealmsNotificationsGuiDisplayed() {
+		return this.realmsNotificationGui != null;
+	}
 
-   public static void registerTextures(TextureManager textureManager) {
-      textureManager.registerTexture(LogoDrawer.LOGO_TEXTURE);
-      textureManager.registerTexture(LogoDrawer.EDITION_TEXTURE);
-      textureManager.registerTexture(RotatingCubeMapRenderer.OVERLAY_TEXTURE);
-   }
+	@Override
+	public void tick() {
+		if (this.isRealmsNotificationsGuiDisplayed()) {
+			this.realmsNotificationGui.tick();
+		}
+	}
 
-   @Override
-   public boolean shouldPause() {
-      return false;
-   }
+	public static void registerTextures(TextureManager textureManager) {
+		textureManager.registerTexture(LogoDrawer.LOGO_TEXTURE);
+		textureManager.registerTexture(LogoDrawer.EDITION_TEXTURE);
+		textureManager.registerTexture(RotatingCubeMapRenderer.OVERLAY_TEXTURE);
+	}
 
-   @Override
-   public boolean shouldCloseOnEsc() {
-      return false;
-   }
+	@Override
+	public boolean shouldPause() {
+		return false;
+	}
 
-   @Override
-   protected void init() {
-      if (this.splashText == null) {
-         this.splashText = this.client.getSplashTextLoader().get();
-      }
+	@Override
+	public boolean shouldCloseOnEsc() {
+		return false;
+	}
 
-      int i = this.textRenderer.getWidth(COPYRIGHT);
-      int j = this.width - i - 2;
-      int k = 24;
-      int l = this.height / 4 + 48;
-      if (this.client.isDemo()) {
-         l = this.addDemoWidgets(l, 24);
-      } else {
-         l = this.addNormalWidgets(l, 24);
-      }
+	@Override
+	protected void init() {
+		if (this.splashText == null) {
+			this.splashText = this.client.getSplashTextLoader().get();
+		}
 
-      l = this.addDevelopmentWidgets(l, 24);
-      TextIconButtonWidget textIconButtonWidget = this.addDrawableChild(
-         AccessibilityOnboardingButtons.createLanguageButton(
-            20, button -> this.client.setScreen(new LanguageOptionsScreen(this, this.client.options, this.client.getLanguageManager())), true
-         )
-      );
-      int var10001 = this.width / 2 - 124;
-      l += 36;
-      textIconButtonWidget.setPosition(var10001, l);
-      this.addDrawableChild(
-         ButtonWidget.builder(Text.translatable("menu.options"), button -> this.client.setScreen(new OptionsScreen(this, this.client.options)))
-            .dimensions(this.width / 2 - 100, l, 98, 20)
-            .build()
-      );
-      this.addDrawableChild(
-         ButtonWidget.builder(Text.translatable("menu.quit"), button -> this.client.scheduleStop()).dimensions(this.width / 2 + 2, l, 98, 20).build()
-      );
-      TextIconButtonWidget textIconButtonWidget2 = this.addDrawableChild(
-         AccessibilityOnboardingButtons.createAccessibilityButton(
-            20, button -> this.client.setScreen(new AccessibilityOptionsScreen(this, this.client.options)), true
-         )
-      );
-      textIconButtonWidget2.setPosition(this.width / 2 + 104, l);
-      this.addDrawableChild(
-         new PressableTextWidget(
-            j, this.height - 10, i, 10, COPYRIGHT, button -> this.client.setScreen(new CreditsAndAttributionScreen(this)), this.textRenderer
-         )
-      );
-      if (this.realmsNotificationGui == null) {
-         this.realmsNotificationGui = new RealmsNotificationsScreen();
-      }
+		int i = this.textRenderer.getWidth(COPYRIGHT);
+		int j = this.width - i - 2;
+		int k = 24;
+		int l = this.height / 4 + 48;
+		if (this.client.isDemo()) {
+			l = this.addDemoWidgets(l, 24);
+		}
+		else {
+			l = this.addNormalWidgets(l, 24);
+		}
 
-      if (this.isRealmsNotificationsGuiDisplayed()) {
-         this.realmsNotificationGui.init(this.width, this.height);
-      }
-   }
+		l = this.addDevelopmentWidgets(l, 24);
+		TextIconButtonWidget textIconButtonWidget = this.addDrawableChild(
+				AccessibilityOnboardingButtons.createLanguageButton(
+						20,
+						button -> this.client.setScreen(new LanguageOptionsScreen(
+								this,
+								this.client.options,
+								this.client.getLanguageManager()
+						)),
+						true
+				)
+		);
+		int var10001 = this.width / 2 - 124;
+		l += 36;
+		textIconButtonWidget.setPosition(var10001, l);
+		this.addDrawableChild(
+				ButtonWidget
+						.builder(
+								Text.translatable("menu.options"),
+								button -> this.client.setScreen(new OptionsScreen(this, this.client.options))
+						)
+						.dimensions(this.width / 2 - 100, l, 98, 20)
+						.build()
+		);
+		this.addDrawableChild(
+				ButtonWidget
+						.builder(Text.translatable("menu.quit"), button -> this.client.scheduleStop())
+						.dimensions(this.width / 2 + 2, l, 98, 20)
+						.build()
+		);
+		TextIconButtonWidget textIconButtonWidget2 = this.addDrawableChild(
+				AccessibilityOnboardingButtons.createAccessibilityButton(
+						20,
+						button -> this.client.setScreen(new AccessibilityOptionsScreen(this, this.client.options)),
+						true
+				)
+		);
+		textIconButtonWidget2.setPosition(this.width / 2 + 104, l);
+		this.addDrawableChild(
+				new PressableTextWidget(
+						j,
+						this.height - 10,
+						i,
+						10,
+						COPYRIGHT,
+						button -> this.client.setScreen(new CreditsAndAttributionScreen(this)),
+						this.textRenderer
+				)
+		);
+		if (this.realmsNotificationGui == null) {
+			this.realmsNotificationGui = new RealmsNotificationsScreen();
+		}
 
-   private int addDevelopmentWidgets(int y, int spacingY) {
-      if (SharedConstants.isDevelopment) {
-         this.addDrawableChild(
-            ButtonWidget.builder(Text.literal("Create Test World"), button -> CreateWorldScreen.showTestWorld(this.client, () -> this.client.setScreen(this)))
-               .dimensions(this.width / 2 - 100, y += spacingY, 200, 20)
-               .build()
-         );
-      }
+		if (this.isRealmsNotificationsGuiDisplayed()) {
+			this.realmsNotificationGui.init(this.width, this.height);
+		}
+	}
 
-      return y;
-   }
+	private int addDevelopmentWidgets(int y, int spacingY) {
+		if (SharedConstants.isDevelopment) {
+			this.addDrawableChild(
+					ButtonWidget
+							.builder(
+									Text.literal("Create Test World"),
+									button -> CreateWorldScreen.showTestWorld(
+											this.client,
+											() -> this.client.setScreen(this)
+									)
+							)
+							.dimensions(this.width / 2 - 100, y += spacingY, 200, 20)
+							.build()
+			);
+		}
 
-   private int addNormalWidgets(int y, int spacingY) {
-      this.addDrawableChild(
-         ButtonWidget.builder(Text.translatable("menu.singleplayer"), button -> this.client.setScreen(new SelectWorldScreen(this)))
-            .dimensions(this.width / 2 - 100, y, 200, 20)
-            .build()
-      );
-      Text text = this.getMultiplayerDisabledText();
-      boolean bl = text == null;
-      Tooltip tooltip = text != null ? Tooltip.of(text) : null;
-      int var6;
-      this.addDrawableChild(ButtonWidget.builder(Text.translatable("menu.multiplayer"), button -> {
-         Screen screen = (Screen)(this.client.options.skipMultiplayerWarning ? new MultiplayerScreen(this) : new MultiplayerWarningScreen(this));
-         this.client.setScreen(screen);
-      }).dimensions(this.width / 2 - 100, var6 = y + spacingY, 200, 20).tooltip(tooltip).build()).active = bl;
-      this.addDrawableChild(
-            ButtonWidget.builder(Text.translatable("menu.online"), button -> this.client.setScreen(new RealmsMainScreen(this)))
-               .dimensions(this.width / 2 - 100, y = var6 + spacingY, 200, 20)
-               .tooltip(tooltip)
-               .build()
-         )
-         .active = bl;
-      return y;
-   }
+		return y;
+	}
 
-   private @Nullable Text getMultiplayerDisabledText() {
-      if (this.client.isMultiplayerEnabled()) {
-         return null;
-      } else if (this.client.isUsernameBanned()) {
-         return Text.translatable("title.multiplayer.disabled.banned.name");
-      } else {
-         BanDetails banDetails = this.client.getMultiplayerBanDetails();
-         if (banDetails != null) {
-            return banDetails.expires() != null
-               ? Text.translatable("title.multiplayer.disabled.banned.temporary")
-               : Text.translatable("title.multiplayer.disabled.banned.permanent");
-         } else {
-            return Text.translatable("title.multiplayer.disabled");
-         }
-      }
-   }
+	private int addNormalWidgets(int y, int spacingY) {
+		this.addDrawableChild(
+				ButtonWidget
+						.builder(
+								Text.translatable("menu.singleplayer"),
+								button -> this.client.setScreen(new SelectWorldScreen(this))
+						)
+						.dimensions(this.width / 2 - 100, y, 200, 20)
+						.build()
+		);
+		Text text = this.getMultiplayerDisabledText();
+		boolean bl = text == null;
+		Tooltip tooltip = text != null ? Tooltip.of(text) : null;
+		int var6;
+		this.addDrawableChild(ButtonWidget.builder(
+				Text.translatable("menu.multiplayer"), button -> {
+					Screen
+							screen =
+							(Screen) (this.client.options.skipMultiplayerWarning ? new MultiplayerScreen(this)
+							                                                     : new MultiplayerWarningScreen(this)
+							);
+					this.client.setScreen(screen);
+				}
+		).dimensions(this.width / 2 - 100, var6 = y + spacingY, 200, 20).tooltip(tooltip).build()).active = bl;
+		this.addDrawableChild(
+				ButtonWidget
+						.builder(
+								Text.translatable("menu.online"),
+								button -> this.client.setScreen(new RealmsMainScreen(this))
+						)
+						.dimensions(this.width / 2 - 100, y = var6 + spacingY, 200, 20)
+						.tooltip(tooltip)
+						.build()
+		)
+				.active = bl;
+		return y;
+	}
 
-   private int addDemoWidgets(int y, int spacingY) {
-      boolean bl = this.canReadDemoWorldData();
-      this.addDrawableChild(
-         ButtonWidget.builder(
-               Text.translatable("menu.playdemo"),
-               button -> {
-                  if (bl) {
-                     this.client.createIntegratedServerLoader().start("Demo_World", () -> this.client.setScreen(this));
-                  } else {
-                     this.client
-                        .createIntegratedServerLoader()
-                        .createAndStart("Demo_World", MinecraftServer.DEMO_LEVEL_INFO, GeneratorOptions.DEMO_OPTIONS, WorldPresets::createDemoOptions, this);
-                  }
-               }
-            )
-            .dimensions(this.width / 2 - 100, y, 200, 20)
-            .build()
-      );
-      int var5;
-      ButtonWidget buttonWidget = this.addDrawableChild(
-         ButtonWidget.builder(
-               Text.translatable("menu.resetdemo"),
-               button -> {
-                  LevelStorage levelStorage = this.client.getLevelStorage();
+	private @Nullable Text getMultiplayerDisabledText() {
+		if (this.client.isMultiplayerEnabled()) {
+			return null;
+		}
+		else if (this.client.isUsernameBanned()) {
+			return Text.translatable("title.multiplayer.disabled.banned.name");
+		}
+		else {
+			BanDetails banDetails = this.client.getMultiplayerBanDetails();
+			if (banDetails != null) {
+				return banDetails.expires() != null
+				       ? Text.translatable("title.multiplayer.disabled.banned.temporary")
+				       : Text.translatable("title.multiplayer.disabled.banned.permanent");
+			}
+			else {
+				return Text.translatable("title.multiplayer.disabled");
+			}
+		}
+	}
 
-                  try (LevelStorage.Session session = levelStorage.createSessionWithoutSymlinkCheck("Demo_World")) {
-                     if (session.levelDatExists()) {
-                        this.client
-                           .setScreen(
-                              new ConfirmScreen(
-                                 this::onDemoDeletionConfirmed,
-                                 Text.translatable("selectWorld.deleteQuestion"),
-                                 Text.translatable("selectWorld.deleteWarning", MinecraftServer.DEMO_LEVEL_INFO.getLevelName()),
-                                 Text.translatable("selectWorld.deleteButton"),
-                                 ScreenTexts.CANCEL
-                              )
-                           );
-                     }
-                  } catch (IOException var8) {
-                     SystemToast.addWorldAccessFailureToast(this.client, "Demo_World");
-                     LOGGER.warn("Failed to access demo world", var8);
-                  }
-               }
-            )
-            .dimensions(this.width / 2 - 100, var5 = y + spacingY, 200, 20)
-            .build()
-      );
-      buttonWidget.active = bl;
-      return var5;
-   }
+	private int addDemoWidgets(int y, int spacingY) {
+		boolean bl = this.canReadDemoWorldData();
+		this.addDrawableChild(
+				ButtonWidget.builder(
+						            Text.translatable("menu.playdemo"),
+						            button -> {
+							            if (bl) {
+								            this.client
+										            .createIntegratedServerLoader()
+										            .start("Demo_World", () -> this.client.setScreen(this));
+							            }
+							            else {
+								            this.client
+										            .createIntegratedServerLoader()
+										            .createAndStart(
+												            "Demo_World",
+												            MinecraftServer.DEMO_LEVEL_INFO,
+												            GeneratorOptions.DEMO_OPTIONS,
+												            WorldPresets::createDemoOptions,
+												            this
+										            );
+							            }
+						            }
+				            )
+				            .dimensions(this.width / 2 - 100, y, 200, 20)
+				            .build()
+		);
+		int var5;
+		ButtonWidget buttonWidget = this.addDrawableChild(
+				ButtonWidget.builder(
+						            Text.translatable("menu.resetdemo"),
+						            button -> {
+							            LevelStorage levelStorage = this.client.getLevelStorage();
 
-   private boolean canReadDemoWorldData() {
-      try {
-         boolean var2;
-         try (LevelStorage.Session session = this.client.getLevelStorage().createSessionWithoutSymlinkCheck("Demo_World")) {
-            var2 = session.levelDatExists();
-         }
+							            try (LevelStorage.Session session = levelStorage.createSessionWithoutSymlinkCheck(
+									            "Demo_World")
+							            ) {
+								            if (session.levelDatExists()) {
+									            this.client
+											            .setScreen(
+													            new ConfirmScreen(
+															            this::onDemoDeletionConfirmed,
+															            Text.translatable("selectWorld.deleteQuestion"),
+															            Text.translatable(
+																	            "selectWorld.deleteWarning",
+																	            MinecraftServer.DEMO_LEVEL_INFO.getLevelName()
+															            ),
+															            Text.translatable("selectWorld.deleteButton"),
+															            ScreenTexts.CANCEL
+													            )
+											            );
+								            }
+							            }
+							            catch (IOException var8) {
+								            SystemToast.addWorldAccessFailureToast(this.client, "Demo_World");
+								            LOGGER.warn("Failed to access demo world", var8);
+							            }
+						            }
+				            )
+				            .dimensions(this.width / 2 - 100, var5 = y + spacingY, 200, 20)
+				            .build()
+		);
+		buttonWidget.active = bl;
+		return var5;
+	}
 
-         return var2;
-      } catch (IOException var6) {
-         SystemToast.addWorldAccessFailureToast(this.client, "Demo_World");
-         LOGGER.warn("Failed to read demo world data", var6);
-         return false;
-      }
-   }
+	private boolean canReadDemoWorldData() {
+		try {
+			boolean var2;
+			try (LevelStorage.Session session = this.client
+					.getLevelStorage()
+					.createSessionWithoutSymlinkCheck("Demo_World")
+			) {
+				var2 = session.levelDatExists();
+			}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      if (this.backgroundFadeStart == 0L && this.doBackgroundFade) {
-         this.backgroundFadeStart = Util.getMeasuringTimeMs();
-      }
+			return var2;
+		}
+		catch (IOException var6) {
+			SystemToast.addWorldAccessFailureToast(this.client, "Demo_World");
+			LOGGER.warn("Failed to read demo world data", var6);
+			return false;
+		}
+	}
 
-      float f = 1.0F;
-      if (this.doBackgroundFade) {
-         float g = (float)(Util.getMeasuringTimeMs() - this.backgroundFadeStart) / 2000.0F;
-         if (g > 1.0F) {
-            this.doBackgroundFade = false;
-         } else {
-            g = MathHelper.clamp(g, 0.0F, 1.0F);
-            f = MathHelper.clampedMap(g, 0.5F, 1.0F, 0.0F, 1.0F);
-         }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		if (this.backgroundFadeStart == 0L && this.doBackgroundFade) {
+			this.backgroundFadeStart = Util.getMeasuringTimeMs();
+		}
 
-         this.setWidgetAlpha(f);
-      }
+		float f = 1.0F;
+		if (this.doBackgroundFade) {
+			float g = (float) (Util.getMeasuringTimeMs() - this.backgroundFadeStart) / 2000.0F;
+			if (g > 1.0F) {
+				this.doBackgroundFade = false;
+			}
+			else {
+				g = MathHelper.clamp(g, 0.0F, 1.0F);
+				f = MathHelper.clampedMap(g, 0.5F, 1.0F, 0.0F, 1.0F);
+			}
 
-      this.renderPanoramaBackground(context, deltaTicks);
-      super.render(context, mouseX, mouseY, deltaTicks);
-      this.logoDrawer.draw(context, this.width, this.logoDrawer.shouldIgnoreAlpha() ? 1.0F : f);
-      if (this.splashText != null && !this.client.options.getHideSplashTexts().getValue()) {
-         this.splashText.render(context, this.width, this.textRenderer, f);
-      }
+			this.setWidgetAlpha(f);
+		}
 
-      String string = "Minecraft " + SharedConstants.getGameVersion().name();
-      if (this.client.isDemo()) {
-         string = string + " Demo";
-      } else {
-         string = string + ("release".equalsIgnoreCase(this.client.getVersionType()) ? "" : "/" + this.client.getVersionType());
-      }
+		this.renderPanoramaBackground(context, deltaTicks);
+		super.render(context, mouseX, mouseY, deltaTicks);
+		this.logoDrawer.draw(context, this.width, this.logoDrawer.shouldIgnoreAlpha() ? 1.0F : f);
+		if (this.splashText != null && !this.client.options.getHideSplashTexts().getValue()) {
+			this.splashText.render(context, this.width, this.textRenderer, f);
+		}
 
-      if (MinecraftClient.getModStatus().isModded()) {
-         string = string + I18n.translate("menu.modded");
-      }
+		String string = "Minecraft " + SharedConstants.getGameVersion().name();
+		if (this.client.isDemo()) {
+			string = string + " Demo";
+		}
+		else {
+			string =
+					string + ("release".equalsIgnoreCase(this.client.getVersionType()) ? "" : "/"
+					                                                                          + this.client.getVersionType()
+					);
+		}
 
-      context.drawTextWithShadow(this.textRenderer, string, 2, this.height - 10, ColorHelper.getWhite(f));
-      if (this.isRealmsNotificationsGuiDisplayed() && f >= 1.0F) {
-         this.realmsNotificationGui.render(context, mouseX, mouseY, deltaTicks);
-      }
-   }
+		if (MinecraftClient.getModStatus().isModded()) {
+			string = string + I18n.translate("menu.modded");
+		}
 
-   @Override
-   public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-   }
+		context.drawTextWithShadow(this.textRenderer, string, 2, this.height - 10, ColorHelper.getWhite(f));
+		if (this.isRealmsNotificationsGuiDisplayed() && f >= 1.0F) {
+			this.realmsNotificationGui.render(context, mouseX, mouseY, deltaTicks);
+		}
+	}
 
-   @Override
-   public boolean mouseClicked(Click click, boolean doubled) {
-      return super.mouseClicked(click, doubled) ? true : this.isRealmsNotificationsGuiDisplayed() && this.realmsNotificationGui.mouseClicked(click, doubled);
-   }
+	@Override
+	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+	}
 
-   @Override
-   public void removed() {
-      if (this.realmsNotificationGui != null) {
-         this.realmsNotificationGui.removed();
-      }
-   }
+	@Override
+	public boolean mouseClicked(Click click, boolean doubled) {
+		return super.mouseClicked(click, doubled) ? true : this.isRealmsNotificationsGuiDisplayed()
+		                                                   && this.realmsNotificationGui.mouseClicked(click, doubled);
+	}
 
-   @Override
-   public void onDisplayed() {
-      super.onDisplayed();
-      if (this.realmsNotificationGui != null) {
-         this.realmsNotificationGui.onDisplayed();
-      }
-   }
+	@Override
+	public void removed() {
+		if (this.realmsNotificationGui != null) {
+			this.realmsNotificationGui.removed();
+		}
+	}
 
-   private void onDemoDeletionConfirmed(boolean delete) {
-      if (delete) {
-         try (LevelStorage.Session session = this.client.getLevelStorage().createSessionWithoutSymlinkCheck("Demo_World")) {
-            session.deleteSessionLock();
-         } catch (IOException var7) {
-            SystemToast.addWorldDeleteFailureToast(this.client, "Demo_World");
-            LOGGER.warn("Failed to delete demo world", var7);
-         }
-      }
+	@Override
+	public void onDisplayed() {
+		super.onDisplayed();
+		if (this.realmsNotificationGui != null) {
+			this.realmsNotificationGui.onDisplayed();
+		}
+	}
 
-      this.client.setScreen(this);
-   }
+	private void onDemoDeletionConfirmed(boolean delete) {
+		if (delete) {
+			try (LevelStorage.Session session = this.client
+					.getLevelStorage()
+					.createSessionWithoutSymlinkCheck("Demo_World")
+			) {
+				session.deleteSessionLock();
+			}
+			catch (IOException var7) {
+				SystemToast.addWorldDeleteFailureToast(this.client, "Demo_World");
+				LOGGER.warn("Failed to delete demo world", var7);
+			}
+		}
 
-   @Override
-   public boolean canInterruptOtherScreen() {
-      return true;
-   }
+		this.client.setScreen(this);
+	}
+
+	@Override
+	public boolean canInterruptOtherScreen() {
+		return true;
+	}
 }

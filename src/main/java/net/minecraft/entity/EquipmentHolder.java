@@ -1,8 +1,5 @@
 package net.minecraft.entity;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.EquippableComponent;
 import net.minecraft.item.ItemStack;
@@ -11,58 +8,77 @@ import net.minecraft.loot.context.LootWorldContext;
 import net.minecraft.registry.RegistryKey;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * {@code EquipmentHolder}.
+ */
 public interface EquipmentHolder {
-   void equipStack(EquipmentSlot slot, ItemStack stack);
 
-   ItemStack getEquippedStack(EquipmentSlot slot);
+	void equipStack(EquipmentSlot slot, ItemStack stack);
 
-   void setEquipmentDropChance(EquipmentSlot slot, float dropChance);
+	ItemStack getEquippedStack(EquipmentSlot slot);
 
-   default void setEquipmentFromTable(EquipmentTable equipmentTable, LootWorldContext parameters) {
-      this.setEquipmentFromTable(equipmentTable.lootTable(), parameters, equipmentTable.slotDropChances());
-   }
+	void setEquipmentDropChance(EquipmentSlot slot, float dropChance);
 
-   default void setEquipmentFromTable(RegistryKey<LootTable> lootTable, LootWorldContext parameters, Map<EquipmentSlot, Float> slotDropChances) {
-      this.setEquipmentFromTable(lootTable, parameters, 0L, slotDropChances);
-   }
+	default void setEquipmentFromTable(EquipmentTable equipmentTable, LootWorldContext parameters) {
+		this.setEquipmentFromTable(equipmentTable.lootTable(), parameters, equipmentTable.slotDropChances());
+	}
 
-   default void setEquipmentFromTable(RegistryKey<LootTable> lootTable, LootWorldContext parameters, long seed, Map<EquipmentSlot, Float> slotDropChances) {
-      LootTable lootTable2 = parameters.getWorld().getServer().getReloadableRegistries().getLootTable(lootTable);
-      if (lootTable2 != LootTable.EMPTY) {
-         List<ItemStack> list = lootTable2.generateLoot(parameters, seed);
-         List<EquipmentSlot> list2 = new ArrayList<>();
+	default void setEquipmentFromTable(
+			RegistryKey<LootTable> lootTable,
+			LootWorldContext parameters,
+			Map<EquipmentSlot, Float> slotDropChances
+	) {
+		this.setEquipmentFromTable(lootTable, parameters, 0L, slotDropChances);
+	}
 
-         for (ItemStack itemStack : list) {
-            EquipmentSlot equipmentSlot = this.getSlotForStack(itemStack, list2);
-            if (equipmentSlot != null) {
-               ItemStack itemStack2 = equipmentSlot.split(itemStack);
-               this.equipStack(equipmentSlot, itemStack2);
-               Float float_ = slotDropChances.get(equipmentSlot);
-               if (float_ != null) {
-                  this.setEquipmentDropChance(equipmentSlot, float_);
-               }
+	default void setEquipmentFromTable(
+			RegistryKey<LootTable> lootTable,
+			LootWorldContext parameters,
+			long seed,
+			Map<EquipmentSlot, Float> slotDropChances
+	) {
+		LootTable lootTable2 = parameters.getWorld().getServer().getReloadableRegistries().getLootTable(lootTable);
+		if (lootTable2 != LootTable.EMPTY) {
+			List<ItemStack> list = lootTable2.generateLoot(parameters, seed);
+			List<EquipmentSlot> list2 = new ArrayList<>();
 
-               list2.add(equipmentSlot);
-            }
-         }
-      }
-   }
+			for (ItemStack itemStack : list) {
+				EquipmentSlot equipmentSlot = this.getSlotForStack(itemStack, list2);
+				if (equipmentSlot != null) {
+					ItemStack itemStack2 = equipmentSlot.split(itemStack);
+					this.equipStack(equipmentSlot, itemStack2);
+					Float float_ = slotDropChances.get(equipmentSlot);
+					if (float_ != null) {
+						this.setEquipmentDropChance(equipmentSlot, float_);
+					}
 
-   default @Nullable EquipmentSlot getSlotForStack(ItemStack stack, List<EquipmentSlot> slotBlacklist) {
-      if (stack.isEmpty()) {
-         return null;
-      } else {
-         EquippableComponent equippableComponent = stack.get(DataComponentTypes.EQUIPPABLE);
-         if (equippableComponent != null) {
-            EquipmentSlot equipmentSlot = equippableComponent.slot();
-            if (!slotBlacklist.contains(equipmentSlot)) {
-               return equipmentSlot;
-            }
-         } else if (!slotBlacklist.contains(EquipmentSlot.MAINHAND)) {
-            return EquipmentSlot.MAINHAND;
-         }
+					list2.add(equipmentSlot);
+				}
+			}
+		}
+	}
 
-         return null;
-      }
-   }
+	default @Nullable EquipmentSlot getSlotForStack(ItemStack stack, List<EquipmentSlot> slotBlacklist) {
+		if (stack.isEmpty()) {
+			return null;
+		}
+		else {
+			EquippableComponent equippableComponent = stack.get(DataComponentTypes.EQUIPPABLE);
+			if (equippableComponent != null) {
+				EquipmentSlot equipmentSlot = equippableComponent.slot();
+				if (!slotBlacklist.contains(equipmentSlot)) {
+					return equipmentSlot;
+				}
+			}
+			else if (!slotBlacklist.contains(EquipmentSlot.MAINHAND)) {
+				return EquipmentSlot.MAINHAND;
+			}
+
+			return null;
+		}
+	}
 }

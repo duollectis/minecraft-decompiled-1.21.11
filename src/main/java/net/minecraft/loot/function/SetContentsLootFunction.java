@@ -3,8 +3,6 @@ package net.minecraft.loot.function;
 import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.stream.Stream;
 import net.minecraft.item.ItemStack;
 import net.minecraft.loot.ContainerComponentModifier;
 import net.minecraft.loot.ContainerComponentModifiers;
@@ -16,77 +14,104 @@ import net.minecraft.loot.entry.LootPoolEntry;
 import net.minecraft.loot.entry.LootPoolEntryTypes;
 import net.minecraft.util.ErrorReporter;
 
+import java.util.List;
+import java.util.stream.Stream;
+
+/**
+ * {@code SetContentsLootFunction}.
+ */
 public class SetContentsLootFunction extends ConditionalLootFunction {
-   public static final MapCodec<SetContentsLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> addConditionsField(instance)
-         .and(
-            instance.group(
-               ContainerComponentModifiers.MODIFIER_CODEC.fieldOf("component").forGetter(function -> function.component),
-               LootPoolEntryTypes.CODEC.listOf().fieldOf("entries").forGetter(function -> function.entries)
-            )
-         )
-         .apply(instance, SetContentsLootFunction::new)
-   );
-   private final ContainerComponentModifier<?> component;
-   private final List<LootPoolEntry> entries;
 
-   SetContentsLootFunction(List<LootCondition> conditions, ContainerComponentModifier<?> component, List<LootPoolEntry> entries) {
-      super(conditions);
-      this.component = component;
-      this.entries = List.copyOf(entries);
-   }
+	public static final MapCodec<SetContentsLootFunction> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> addConditionsField(instance)
+					.and(
+							instance.group(
+									ContainerComponentModifiers.MODIFIER_CODEC
+											.fieldOf("component")
+											.forGetter(function -> function.component),
+									LootPoolEntryTypes.CODEC
+											.listOf()
+											.fieldOf("entries")
+											.forGetter(function -> function.entries)
+							)
+					)
+					.apply(instance, SetContentsLootFunction::new)
+	);
+	private final ContainerComponentModifier<?> component;
+	private final List<LootPoolEntry> entries;
 
-   @Override
-   public LootFunctionType<SetContentsLootFunction> getType() {
-      return LootFunctionTypes.SET_CONTENTS;
-   }
+	SetContentsLootFunction(
+			List<LootCondition> conditions,
+			ContainerComponentModifier<?> component,
+			List<LootPoolEntry> entries
+	) {
+		super(conditions);
+		this.component = component;
+		this.entries = List.copyOf(entries);
+	}
 
-   @Override
-   public ItemStack process(ItemStack stack, LootContext context) {
-      if (stack.isEmpty()) {
-         return stack;
-      } else {
-         Stream.Builder<ItemStack> builder = Stream.builder();
-         this.entries
-            .forEach(entry -> entry.expand(context, choice -> choice.generateLoot(LootTable.processStacks(context.getWorld(), builder::add), context)));
-         this.component.apply(stack, builder.build());
-         return stack;
-      }
-   }
+	@Override
+	public LootFunctionType<SetContentsLootFunction> getType() {
+		return LootFunctionTypes.SET_CONTENTS;
+	}
 
-   @Override
-   public void validate(LootTableReporter reporter) {
-      super.validate(reporter);
+	@Override
+	public ItemStack process(ItemStack stack, LootContext context) {
+		if (stack.isEmpty()) {
+			return stack;
+		}
+		else {
+			Stream.Builder<ItemStack> builder = Stream.builder();
+			this.entries
+					.forEach(entry -> entry.expand(
+							context,
+							choice -> choice.generateLoot(
+									LootTable.processStacks(context.getWorld(), builder::add),
+									context
+							)
+					));
+			this.component.apply(stack, builder.build());
+			return stack;
+		}
+	}
 
-      for (int i = 0; i < this.entries.size(); i++) {
-         this.entries.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("entries", i)));
-      }
-   }
+	@Override
+	public void validate(LootTableReporter reporter) {
+		super.validate(reporter);
 
-   public static SetContentsLootFunction.Builder builder(ContainerComponentModifier<?> componentModifier) {
-      return new SetContentsLootFunction.Builder(componentModifier);
-   }
+		for (int i = 0; i < this.entries.size(); i++) {
+			this.entries.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("entries", i)));
+		}
+	}
 
-   public static class Builder extends ConditionalLootFunction.Builder<SetContentsLootFunction.Builder> {
-      private final com.google.common.collect.ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
-      private final ContainerComponentModifier<?> componentModifier;
+	public static SetContentsLootFunction.Builder builder(ContainerComponentModifier<?> componentModifier) {
+		return new SetContentsLootFunction.Builder(componentModifier);
+	}
 
-      public Builder(ContainerComponentModifier<?> componentModifier) {
-         this.componentModifier = componentModifier;
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder extends ConditionalLootFunction.Builder<SetContentsLootFunction.Builder> {
 
-      protected SetContentsLootFunction.Builder getThisBuilder() {
-         return this;
-      }
+		private final com.google.common.collect.ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
+		private final ContainerComponentModifier<?> componentModifier;
 
-      public SetContentsLootFunction.Builder withEntry(LootPoolEntry.Builder<?> entryBuilder) {
-         this.entries.add(entryBuilder.build());
-         return this;
-      }
+		public Builder(ContainerComponentModifier<?> componentModifier) {
+			this.componentModifier = componentModifier;
+		}
 
-      @Override
-      public LootFunction build() {
-         return new SetContentsLootFunction(this.getConditions(), this.componentModifier, this.entries.build());
-      }
-   }
+		protected SetContentsLootFunction.Builder getThisBuilder() {
+			return this;
+		}
+
+		public SetContentsLootFunction.Builder withEntry(LootPoolEntry.Builder<?> entryBuilder) {
+			this.entries.add(entryBuilder.build());
+			return this;
+		}
+
+		@Override
+		public LootFunction build() {
+			return new SetContentsLootFunction(this.getConditions(), this.componentModifier, this.entries.build());
+		}
+	}
 }

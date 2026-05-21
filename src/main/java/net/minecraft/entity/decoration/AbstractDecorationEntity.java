@@ -1,7 +1,5 @@
 package net.minecraft.entity.decoration;
 
-import java.util.Objects;
-import java.util.function.Predicate;
 import net.minecraft.block.AbstractRedstoneGateBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.EntityType;
@@ -14,151 +12,159 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.BlockMirror;
 import net.minecraft.util.BlockRotation;
 import net.minecraft.util.TypeFilter;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.*;
 import net.minecraft.world.World;
 import org.apache.commons.lang3.Validate;
 
+import java.util.Objects;
+import java.util.function.Predicate;
+
+/**
+ * {@code AbstractDecorationEntity}.
+ */
 public abstract class AbstractDecorationEntity extends BlockAttachedEntity {
-   private static final TrackedData<Direction> FACING = DataTracker.registerData(AbstractDecorationEntity.class, TrackedDataHandlerRegistry.FACING);
-   private static final Direction DEFAULT_FACING = Direction.SOUTH;
 
-   protected AbstractDecorationEntity(EntityType<? extends AbstractDecorationEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final TrackedData<Direction>
+			FACING =
+			DataTracker.registerData(AbstractDecorationEntity.class, TrackedDataHandlerRegistry.FACING);
+	private static final Direction DEFAULT_FACING = Direction.SOUTH;
 
-   protected AbstractDecorationEntity(EntityType<? extends AbstractDecorationEntity> type, World world, BlockPos pos) {
-      this(type, world);
-      this.attachedBlockPos = pos;
-   }
+	protected AbstractDecorationEntity(EntityType<? extends AbstractDecorationEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      builder.add(FACING, DEFAULT_FACING);
-   }
+	protected AbstractDecorationEntity(EntityType<? extends AbstractDecorationEntity> type, World world, BlockPos pos) {
+		this(type, world);
+		this.attachedBlockPos = pos;
+	}
 
-   @Override
-   public void onTrackedDataSet(TrackedData<?> data) {
-      super.onTrackedDataSet(data);
-      if (data.equals(FACING)) {
-         this.setFacing(this.getHorizontalFacing());
-      }
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		builder.add(FACING, DEFAULT_FACING);
+	}
 
-   @Override
-   public Direction getHorizontalFacing() {
-      return this.dataTracker.get(FACING);
-   }
+	@Override
+	public void onTrackedDataSet(TrackedData<?> data) {
+		super.onTrackedDataSet(data);
+		if (data.equals(FACING)) {
+			this.setFacing(this.getHorizontalFacing());
+		}
+	}
 
-   protected void setFacingInternal(Direction facing) {
-      this.dataTracker.set(FACING, facing);
-   }
+	@Override
+	public Direction getHorizontalFacing() {
+		return this.dataTracker.get(FACING);
+	}
 
-   protected void setFacing(Direction facing) {
-      Objects.requireNonNull(facing);
-      Validate.isTrue(facing.getAxis().isHorizontal());
-      this.setFacingInternal(facing);
-      this.setYaw(facing.getHorizontalQuarterTurns() * 90);
-      this.lastYaw = this.getYaw();
-      this.updateAttachmentPosition();
-   }
+	protected void setFacingInternal(Direction facing) {
+		this.dataTracker.set(FACING, facing);
+	}
 
-   @Override
-   protected void updateAttachmentPosition() {
-      if (this.getHorizontalFacing() != null) {
-         Box box = this.calculateBoundingBox(this.attachedBlockPos, this.getHorizontalFacing());
-         Vec3d vec3d = box.getCenter();
-         this.setPos(vec3d.x, vec3d.y, vec3d.z);
-         this.setBoundingBox(box);
-      }
-   }
+	protected void setFacing(Direction facing) {
+		Objects.requireNonNull(facing);
+		Validate.isTrue(facing.getAxis().isHorizontal());
+		this.setFacingInternal(facing);
+		this.setYaw(facing.getHorizontalQuarterTurns() * 90);
+		this.lastYaw = this.getYaw();
+		this.updateAttachmentPosition();
+	}
 
-   protected abstract Box calculateBoundingBox(BlockPos pos, Direction side);
+	@Override
+	protected void updateAttachmentPosition() {
+		if (this.getHorizontalFacing() != null) {
+			Box box = this.calculateBoundingBox(this.attachedBlockPos, this.getHorizontalFacing());
+			Vec3d vec3d = box.getCenter();
+			this.setPos(vec3d.x, vec3d.y, vec3d.z);
+			this.setBoundingBox(box);
+		}
+	}
 
-   @Override
-   public boolean canStayAttached() {
-      if (this.method_76790(this.method_74963())) {
-         return false;
-      } else {
-         boolean bl = BlockPos.stream(this.getAttachmentBox()).allMatch(pos -> {
-            BlockState blockState = this.getEntityWorld().getBlockState(pos);
-            return blockState.isSolid() || AbstractRedstoneGateBlock.isRedstoneGate(blockState);
-         });
-         return bl && this.hasNoIntersectingDecoration(false);
-      }
-   }
+	protected abstract Box calculateBoundingBox(BlockPos pos, Direction side);
 
-   protected Box getAttachmentBox() {
-      return this.getBoundingBox().offset(this.getHorizontalFacing().getUnitVector().mul(-0.5F)).contract(1.0E-7);
-   }
+	@Override
+	public boolean canStayAttached() {
+		if (this.isSpaceBlocked(this.getCheckBoundingBox())) {
+			return false;
+		}
+		else {
+			boolean bl = BlockPos.stream(this.getAttachmentBox()).allMatch(pos -> {
+				BlockState blockState = this.getEntityWorld().getBlockState(pos);
+				return blockState.isSolid() || AbstractRedstoneGateBlock.isRedstoneGate(blockState);
+			});
+			return bl && this.hasNoIntersectingDecoration(false);
+		}
+	}
 
-   protected boolean hasNoIntersectingDecoration(boolean skipTypeCheck) {
-      Predicate<AbstractDecorationEntity> predicate = entity -> {
-         boolean bl2 = !skipTypeCheck && entity.getType() == this.getType();
-         boolean bl3 = entity.getHorizontalFacing() == this.getHorizontalFacing();
-         return entity != this && (bl2 || bl3);
-      };
-      return !this.getEntityWorld().hasEntities(TypeFilter.instanceOf(AbstractDecorationEntity.class), this.method_74963(), predicate);
-   }
+	protected Box getAttachmentBox() {
+		return this.getBoundingBox().offset(this.getHorizontalFacing().getUnitVector().mul(-0.5F)).contract(1.0E-7);
+	}
 
-   protected boolean method_76790(Box box) {
-      World world = this.getEntityWorld();
-      return !world.isBlockSpaceEmpty(this, box) || !world.method_76793(this, box);
-   }
+	protected boolean hasNoIntersectingDecoration(boolean skipTypeCheck) {
+		Predicate<AbstractDecorationEntity> predicate = entity -> {
+			boolean bl2 = !skipTypeCheck && entity.getType() == this.getType();
+			boolean bl3 = entity.getHorizontalFacing() == this.getHorizontalFacing();
+			return entity != this && (bl2 || bl3);
+		};
+		return !this
+				.getEntityWorld()
+				.hasEntities(TypeFilter.instanceOf(AbstractDecorationEntity.class), this.getCheckBoundingBox(), predicate);
+	}
 
-   protected Box method_74963() {
-      return this.getBoundingBox();
-   }
+	protected boolean isSpaceBlocked(Box box) {
+		World world = this.getEntityWorld();
+		return !world.isBlockSpaceEmpty(this, box) || !world.isSpaceEmpty(this, box);
+	}
 
-   public abstract void onPlace();
+	protected Box getCheckBoundingBox() {
+		return this.getBoundingBox();
+	}
 
-   @Override
-   public ItemEntity dropStack(ServerWorld world, ItemStack stack, float yOffset) {
-      ItemEntity itemEntity = new ItemEntity(
-         this.getEntityWorld(),
-         this.getX() + this.getHorizontalFacing().getOffsetX() * 0.15F,
-         this.getY() + yOffset,
-         this.getZ() + this.getHorizontalFacing().getOffsetZ() * 0.15F,
-         stack
-      );
-      itemEntity.setToDefaultPickupDelay();
-      this.getEntityWorld().spawnEntity(itemEntity);
-      return itemEntity;
-   }
+	public abstract void onPlace();
 
-   @Override
-   public float applyRotation(BlockRotation rotation) {
-      Direction direction = this.getHorizontalFacing();
-      if (direction.getAxis() != Direction.Axis.Y) {
-         switch (rotation) {
-            case CLOCKWISE_180:
-               direction = direction.getOpposite();
-               break;
-            case COUNTERCLOCKWISE_90:
-               direction = direction.rotateYCounterclockwise();
-               break;
-            case CLOCKWISE_90:
-               direction = direction.rotateYClockwise();
-         }
+	@Override
+	public ItemEntity dropStack(ServerWorld world, ItemStack stack, float yOffset) {
+		ItemEntity itemEntity = new ItemEntity(
+				this.getEntityWorld(),
+				this.getX() + this.getHorizontalFacing().getOffsetX() * 0.15F,
+				this.getY() + yOffset,
+				this.getZ() + this.getHorizontalFacing().getOffsetZ() * 0.15F,
+				stack
+		);
+		itemEntity.setToDefaultPickupDelay();
+		this.getEntityWorld().spawnEntity(itemEntity);
+		return itemEntity;
+	}
 
-         this.setFacing(direction);
-      }
+	@Override
+	public float applyRotation(BlockRotation rotation) {
+		Direction direction = this.getHorizontalFacing();
+		if (direction.getAxis() != Direction.Axis.Y) {
+			switch (rotation) {
+				case CLOCKWISE_180:
+					direction = direction.getOpposite();
+					break;
+				case COUNTERCLOCKWISE_90:
+					direction = direction.rotateYCounterclockwise();
+					break;
+				case CLOCKWISE_90:
+					direction = direction.rotateYClockwise();
+			}
 
-      float f = MathHelper.wrapDegrees(this.getYaw());
+			this.setFacing(direction);
+		}
 
-      return switch (rotation) {
-         case CLOCKWISE_180 -> f + 180.0F;
-         case COUNTERCLOCKWISE_90 -> f + 90.0F;
-         case CLOCKWISE_90 -> f + 270.0F;
-         default -> f;
-      };
-   }
+		float f = MathHelper.wrapDegrees(this.getYaw());
 
-   @Override
-   public float applyMirror(BlockMirror mirror) {
-      return this.applyRotation(mirror.getRotation(this.getHorizontalFacing()));
-   }
+		return switch (rotation) {
+			case CLOCKWISE_180 -> f + 180.0F;
+			case COUNTERCLOCKWISE_90 -> f + 90.0F;
+			case CLOCKWISE_90 -> f + 270.0F;
+			default -> f;
+		};
+	}
+
+	@Override
+	public float applyMirror(BlockMirror mirror) {
+		return this.applyRotation(mirror.getRotation(this.getHorizontalFacing()));
+	}
 }

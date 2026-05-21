@@ -13,37 +13,41 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
 
+/**
+ * {@code SnowballItem}.
+ */
 public class SnowballItem extends Item implements ProjectileItem {
-   public static float POWER = 1.5F;
 
-   public SnowballItem(Item.Settings settings) {
-      super(settings);
-   }
+	public static float POWER = 1.5F;
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      world.playSound(
-         null,
-         user.getX(),
-         user.getY(),
-         user.getZ(),
-         SoundEvents.ENTITY_SNOWBALL_THROW,
-         SoundCategory.NEUTRAL,
-         0.5F,
-         0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
-      );
-      if (world instanceof ServerWorld serverWorld) {
-         ProjectileEntity.spawnWithVelocity(SnowballEntity::new, serverWorld, itemStack, user, 0.0F, POWER, 1.0F);
-      }
+	public SnowballItem(Item.Settings settings) {
+		super(settings);
+	}
 
-      user.incrementStat(Stats.USED.getOrCreateStat(this));
-      itemStack.decrementUnlessCreative(1, user);
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		world.playSound(
+				null,
+				user.getX(),
+				user.getY(),
+				user.getZ(),
+				SoundEvents.ENTITY_SNOWBALL_THROW,
+				SoundCategory.NEUTRAL,
+				0.5F,
+				0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
+		);
+		if (world instanceof ServerWorld serverWorld) {
+			ProjectileEntity.spawnWithVelocity(SnowballEntity::new, serverWorld, itemStack, user, 0.0F, POWER, 1.0F);
+		}
 
-   @Override
-   public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-      return new SnowballEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack);
-   }
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+		itemStack.decrementUnlessCreative(1, user);
+		return ActionResult.SUCCESS;
+	}
+
+	@Override
+	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
+		return new SnowballEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack);
+	}
 }

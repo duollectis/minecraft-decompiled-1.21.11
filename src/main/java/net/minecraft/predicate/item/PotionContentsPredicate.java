@@ -1,7 +1,6 @@
 package net.minecraft.predicate.item;
 
 import com.mojang.serialization.Codec;
-import java.util.Optional;
 import net.minecraft.component.ComponentType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.PotionContentsComponent;
@@ -13,21 +12,30 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
 
+import java.util.Optional;
+
+/**
+ * {@code PotionContentsPredicate}.
+ */
 public record PotionContentsPredicate(RegistryEntryList<Potion> potions) implements ComponentSubPredicate<PotionContentsComponent> {
-   public static final Codec<PotionContentsPredicate> CODEC = RegistryCodecs.entryList(RegistryKeys.POTION)
-      .xmap(PotionContentsPredicate::new, PotionContentsPredicate::potions);
 
-   @Override
-   public ComponentType<PotionContentsComponent> getComponentType() {
-      return DataComponentTypes.POTION_CONTENTS;
-   }
+	public static final Codec<PotionContentsPredicate> CODEC = RegistryCodecs.entryList(RegistryKeys.POTION)
+	                                                                         .xmap(
+			                                                                         PotionContentsPredicate::new,
+			                                                                         PotionContentsPredicate::potions
+	                                                                         );
 
-   public boolean test(PotionContentsComponent potionContentsComponent) {
-      Optional<RegistryEntry<Potion>> optional = potionContentsComponent.potion();
-      return !optional.isEmpty() && this.potions.contains(optional.get());
-   }
+	@Override
+	public ComponentType<PotionContentsComponent> getComponentType() {
+		return DataComponentTypes.POTION_CONTENTS;
+	}
 
-   public static ComponentPredicate potionContents(RegistryEntryList<Potion> potions) {
-      return new PotionContentsPredicate(potions);
-   }
+	public boolean test(PotionContentsComponent potionContentsComponent) {
+		Optional<RegistryEntry<Potion>> optional = potionContentsComponent.potion();
+		return !optional.isEmpty() && this.potions.contains(optional.get());
+	}
+
+	public static ComponentPredicate potionContents(RegistryEntryList<Potion> potions) {
+		return new PotionContentsPredicate(potions);
+	}
 }

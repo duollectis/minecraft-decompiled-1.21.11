@@ -7,21 +7,25 @@ import net.minecraft.client.WindowSettings;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WindowProvider}.
+ */
 public final class WindowProvider implements AutoCloseable {
-   private final MinecraftClient client;
-   private final MonitorTracker monitorTracker;
 
-   public WindowProvider(MinecraftClient client) {
-      this.client = client;
-      this.monitorTracker = new MonitorTracker(Monitor::new);
-   }
+	private final MinecraftClient client;
+	private final MonitorTracker monitorTracker;
 
-   public Window createWindow(WindowSettings settings, @Nullable String videoMode, String title) {
-      return new Window(this.client, this.monitorTracker, settings, videoMode, title);
-   }
+	public WindowProvider(MinecraftClient client) {
+		this.client = client;
+		this.monitorTracker = new MonitorTracker(Monitor::new);
+	}
 
-   @Override
-   public void close() {
-      this.monitorTracker.stop();
-   }
+	public Window createWindow(WindowSettings settings, @Nullable String videoMode, String title) {
+		return new Window(this.client, this.monitorTracker, settings, videoMode, title);
+	}
+
+	@Override
+	public void close() {
+		this.monitorTracker.stop();
+	}
 }

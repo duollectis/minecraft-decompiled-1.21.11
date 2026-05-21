@@ -4,9 +4,13 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
+/**
+ * {@code Permissions}.
+ */
 public class Permissions {
-   public static MapCodec<? extends Permission> registerAndGetDefault(Registry<MapCodec<? extends Permission>> registry) {
-      Registry.register(registry, Identifier.ofVanilla("atom"), Permission.Atom.CODEC);
-      return Registry.register(registry, Identifier.ofVanilla("command_level"), Permission.Level.CODEC);
-   }
+
+	public static MapCodec<? extends Permission> registerAndGetDefault(Registry<MapCodec<? extends Permission>> registry) {
+		Registry.register(registry, Identifier.ofVanilla("atom"), Permission.Atom.CODEC);
+		return Registry.register(registry, Identifier.ofVanilla("command_level"), Permission.Level.CODEC);
+	}
 }

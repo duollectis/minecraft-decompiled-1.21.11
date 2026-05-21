@@ -2,7 +2,6 @@ package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
 import net.minecraft.component.type.SuspiciousStewEffectsComponent;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
@@ -13,43 +12,63 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
+/**
+ * {@code FlowerBlock}.
+ */
 public class FlowerBlock extends PlantBlock implements SuspiciousStewIngredient {
-   protected static final MapCodec<SuspiciousStewEffectsComponent> STEW_EFFECT_CODEC = SuspiciousStewEffectsComponent.CODEC.fieldOf("suspicious_stew_effects");
-   public static final MapCodec<FlowerBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(STEW_EFFECT_CODEC.forGetter(FlowerBlock::getStewEffects), createSettingsCodec()).apply(instance, FlowerBlock::new)
-   );
-   private static final VoxelShape SHAPE = Block.createColumnShape(6.0, 0.0, 10.0);
-   private final SuspiciousStewEffectsComponent stewEffects;
 
-   @Override
-   public MapCodec<? extends FlowerBlock> getCodec() {
-      return CODEC;
-   }
+	protected static final MapCodec<SuspiciousStewEffectsComponent>
+			STEW_EFFECT_CODEC =
+			SuspiciousStewEffectsComponent.CODEC.fieldOf("suspicious_stew_effects");
+	public static final MapCodec<FlowerBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(STEW_EFFECT_CODEC.forGetter(FlowerBlock::getStewEffects), createSettingsCodec())
+					.apply(instance, FlowerBlock::new)
+	);
+	private static final VoxelShape SHAPE = Block.createColumnShape(6.0, 0.0, 10.0);
+	private final SuspiciousStewEffectsComponent stewEffects;
 
-   public FlowerBlock(RegistryEntry<StatusEffect> stewEffect, float effectLengthInSeconds, AbstractBlock.Settings settings) {
-      this(createStewEffectList(stewEffect, effectLengthInSeconds), settings);
-   }
+	@Override
+	public MapCodec<? extends FlowerBlock> getCodec() {
+		return CODEC;
+	}
 
-   public FlowerBlock(SuspiciousStewEffectsComponent stewEffects, AbstractBlock.Settings settings) {
-      super(settings);
-      this.stewEffects = stewEffects;
-   }
+	public FlowerBlock(
+			RegistryEntry<StatusEffect> stewEffect,
+			float effectLengthInSeconds,
+			AbstractBlock.Settings settings
+	) {
+		this(createStewEffectList(stewEffect, effectLengthInSeconds), settings);
+	}
 
-   protected static SuspiciousStewEffectsComponent createStewEffectList(RegistryEntry<StatusEffect> effect, float effectLengthInSeconds) {
-      return new SuspiciousStewEffectsComponent(List.of(new SuspiciousStewEffectsComponent.StewEffect(effect, MathHelper.floor(effectLengthInSeconds * 20.0F))));
-   }
+	public FlowerBlock(SuspiciousStewEffectsComponent stewEffects, AbstractBlock.Settings settings) {
+		super(settings);
+		this.stewEffects = stewEffects;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE.offset(state.getModelOffset(pos));
-   }
+	protected static SuspiciousStewEffectsComponent createStewEffectList(
+			RegistryEntry<StatusEffect> effect,
+			float effectLengthInSeconds
+	) {
+		return new SuspiciousStewEffectsComponent(List.of(new SuspiciousStewEffectsComponent.StewEffect(
+				effect,
+				MathHelper.floor(effectLengthInSeconds * 20.0F)
+		)));
+	}
 
-   @Override
-   public SuspiciousStewEffectsComponent getStewEffects() {
-      return this.stewEffects;
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE.offset(state.getModelOffset(pos));
+	}
 
-   public @Nullable StatusEffectInstance getContactEffect() {
-      return null;
-   }
+	@Override
+	public SuspiciousStewEffectsComponent getStewEffects() {
+		return this.stewEffects;
+	}
+
+	public @Nullable StatusEffectInstance getContactEffect() {
+		return null;
+	}
 }

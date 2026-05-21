@@ -9,20 +9,31 @@ import net.minecraft.entity.mob.StrayEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code StrayEntityRenderer}.
+ */
 public class StrayEntityRenderer extends AbstractSkeletonEntityRenderer<StrayEntity, SkeletonEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/stray.png");
-   private static final Identifier OVERLAY_TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/stray_overlay.png");
 
-   public StrayEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, EntityModelLayers.STRAY, EntityModelLayers.STRAY_EQUIPMENT);
-      this.addFeature(new SkeletonOverlayFeatureRenderer<>(this, context.getEntityModels(), EntityModelLayers.STRAY_OUTER, OVERLAY_TEXTURE));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/stray.png");
+	private static final Identifier
+			OVERLAY_TEXTURE =
+			Identifier.ofVanilla("textures/entity/skeleton/stray_overlay.png");
 
-   public Identifier getTexture(SkeletonEntityRenderState skeletonEntityRenderState) {
-      return TEXTURE;
-   }
+	public StrayEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, EntityModelLayers.STRAY, EntityModelLayers.STRAY_EQUIPMENT);
+		this.addFeature(new SkeletonOverlayFeatureRenderer<>(
+				this,
+				context.getEntityModels(),
+				EntityModelLayers.STRAY_OUTER,
+				OVERLAY_TEXTURE
+		));
+	}
 
-   public SkeletonEntityRenderState createRenderState() {
-      return new SkeletonEntityRenderState();
-   }
+	public Identifier getTexture(SkeletonEntityRenderState skeletonEntityRenderState) {
+		return TEXTURE;
+	}
+
+	public SkeletonEntityRenderState createRenderState() {
+		return new SkeletonEntityRenderState();
+	}
 }

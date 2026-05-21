@@ -1,148 +1,174 @@
 package net.minecraft.server.command;
 
 import com.mojang.brigadier.context.CommandContext;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.test.*;
+import net.minecraft.util.math.BlockPos;
+
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.stream.Stream;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.test.RuntimeTestInstances;
-import net.minecraft.test.TestInstance;
-import net.minecraft.test.TestInstanceBlockFinder;
-import net.minecraft.test.TestInstanceFinder;
-import net.minecraft.test.TestInstanceUtil;
-import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code TestFinder}.
+ */
 public class TestFinder implements TestInstanceFinder, TestInstanceBlockFinder {
-   static final TestInstanceFinder NOOP_TEST_FUNCTION_FINDER = Stream::empty;
-   static final TestInstanceBlockFinder NOOP_TEST_INSTANCE_BLOCK_FINDER = Stream::empty;
-   private final TestInstanceFinder instanceFinder;
-   private final TestInstanceBlockFinder blockFinder;
-   private final ServerCommandSource commandSource;
 
-   @Override
-   public Stream<BlockPos> findTestPos() {
-      return this.blockFinder.findTestPos();
-   }
+	static final TestInstanceFinder NOOP_TEST_FUNCTION_FINDER = Stream::empty;
+	static final TestInstanceBlockFinder NOOP_TEST_INSTANCE_BLOCK_FINDER = Stream::empty;
+	private final TestInstanceFinder instanceFinder;
+	private final TestInstanceBlockFinder blockFinder;
+	private final ServerCommandSource commandSource;
 
-   public static TestFinder.Builder builder() {
-      return new TestFinder.Builder();
-   }
+	@Override
+	public Stream<BlockPos> findTestPos() {
+		return this.blockFinder.findTestPos();
+	}
 
-   TestFinder(ServerCommandSource commandSource, TestInstanceFinder instanceFinder, TestInstanceBlockFinder blockFinder) {
-      this.commandSource = commandSource;
-      this.instanceFinder = instanceFinder;
-      this.blockFinder = blockFinder;
-   }
+	public static TestFinder.Builder builder() {
+		return new TestFinder.Builder();
+	}
 
-   public ServerCommandSource getCommandSource() {
-      return this.commandSource;
-   }
+	TestFinder(
+			ServerCommandSource commandSource,
+			TestInstanceFinder instanceFinder,
+			TestInstanceBlockFinder blockFinder
+	) {
+		this.commandSource = commandSource;
+		this.instanceFinder = instanceFinder;
+		this.blockFinder = blockFinder;
+	}
 
-   @Override
-   public Stream<RegistryEntry.Reference<TestInstance>> findTests() {
-      return this.instanceFinder.findTests();
-   }
+	public ServerCommandSource getCommandSource() {
+		return this.commandSource;
+	}
 
-   public static class Builder {
-      private final UnaryOperator<Supplier<Stream<RegistryEntry.Reference<TestInstance>>>> testInstanceFinderMapper;
-      private final UnaryOperator<Supplier<Stream<BlockPos>>> testInstanceBlockFinderMapper;
+	@Override
+	public Stream<RegistryEntry.Reference<TestInstance>> findTests() {
+		return this.instanceFinder.findTests();
+	}
 
-      public Builder() {
-         this.testInstanceFinderMapper = finder -> finder;
-         this.testInstanceBlockFinderMapper = finder -> finder;
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder {
 
-      private Builder(
-         UnaryOperator<Supplier<Stream<RegistryEntry.Reference<TestInstance>>>> testInstanceFinderMapper,
-         UnaryOperator<Supplier<Stream<BlockPos>>> testInstanceBlockFinderMapper
-      ) {
-         this.testInstanceFinderMapper = testInstanceFinderMapper;
-         this.testInstanceBlockFinderMapper = testInstanceBlockFinderMapper;
-      }
+		private final UnaryOperator<Supplier<Stream<RegistryEntry.Reference<TestInstance>>>> testInstanceFinderMapper;
+		private final UnaryOperator<Supplier<Stream<BlockPos>>> testInstanceBlockFinderMapper;
 
-      public TestFinder.Builder repeat(int count) {
-         return new TestFinder.Builder(repeating(count), repeating(count));
-      }
+		public Builder() {
+			this.testInstanceFinderMapper = finder -> finder;
+			this.testInstanceBlockFinderMapper = finder -> finder;
+		}
 
-      private static <Q> UnaryOperator<Supplier<Stream<Q>>> repeating(int count) {
-         return supplier -> {
-            List<Q> list = new LinkedList<>();
-            List<Q> list2 = ((Stream)supplier.get()).toList();
+		private Builder(
+				UnaryOperator<Supplier<Stream<RegistryEntry.Reference<TestInstance>>>> testInstanceFinderMapper,
+				UnaryOperator<Supplier<Stream<BlockPos>>> testInstanceBlockFinderMapper
+		) {
+			this.testInstanceFinderMapper = testInstanceFinderMapper;
+			this.testInstanceBlockFinderMapper = testInstanceBlockFinderMapper;
+		}
 
-            for (int j = 0; j < count; j++) {
-               list.addAll(list2);
-            }
+		public TestFinder.Builder repeat(int count) {
+			return new TestFinder.Builder(repeating(count), repeating(count));
+		}
 
-            return list::stream;
-         };
-      }
+		private static <Q> UnaryOperator<Supplier<Stream<Q>>> repeating(int count) {
+			return supplier -> {
+				List<Q> list = new LinkedList<>();
+				List<Q> list2 = ((Stream) supplier.get()).toList();
 
-      private TestFinder build(ServerCommandSource source, TestInstanceFinder instanceFinder, TestInstanceBlockFinder blockFinder) {
-         return new TestFinder(
-            source,
-            this.testInstanceFinderMapper.apply(instanceFinder::findTests)::get,
-            this.testInstanceBlockFinderMapper.apply(blockFinder::findTestPos)::get
-         );
-      }
+				for (int j = 0; j < count; j++) {
+					list.addAll(list2);
+				}
 
-      public TestFinder surface(CommandContext<ServerCommandSource> context, int radius) {
-         ServerCommandSource serverCommandSource = (ServerCommandSource)context.getSource();
-         BlockPos blockPos = BlockPos.ofFloored(serverCommandSource.getPosition());
-         return this.build(
-            serverCommandSource,
-            TestFinder.NOOP_TEST_FUNCTION_FINDER,
-            () -> TestInstanceUtil.findTestInstanceBlocks(blockPos, radius, serverCommandSource.getWorld())
-         );
-      }
+				return list::stream;
+			};
+		}
 
-      public TestFinder nearest(CommandContext<ServerCommandSource> context) {
-         ServerCommandSource serverCommandSource = (ServerCommandSource)context.getSource();
-         BlockPos blockPos = BlockPos.ofFloored(serverCommandSource.getPosition());
-         return this.build(
-            serverCommandSource,
-            TestFinder.NOOP_TEST_FUNCTION_FINDER,
-            () -> TestInstanceUtil.findNearestTestInstanceBlock(blockPos, 15, serverCommandSource.getWorld()).stream()
-         );
-      }
+		private TestFinder build(
+				ServerCommandSource source,
+				TestInstanceFinder instanceFinder,
+				TestInstanceBlockFinder blockFinder
+		) {
+			return new TestFinder(
+					source,
+					this.testInstanceFinderMapper.apply(instanceFinder::findTests)::get,
+					this.testInstanceBlockFinderMapper.apply(blockFinder::findTestPos)::get
+			);
+		}
 
-      public TestFinder allStructures(CommandContext<ServerCommandSource> context) {
-         ServerCommandSource serverCommandSource = (ServerCommandSource)context.getSource();
-         BlockPos blockPos = BlockPos.ofFloored(serverCommandSource.getPosition());
-         return this.build(
-            serverCommandSource,
-            TestFinder.NOOP_TEST_FUNCTION_FINDER,
-            () -> TestInstanceUtil.findTestInstanceBlocks(blockPos, 250, serverCommandSource.getWorld())
-         );
-      }
+		public TestFinder surface(CommandContext<ServerCommandSource> context, int radius) {
+			ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
+			BlockPos blockPos = BlockPos.ofFloored(serverCommandSource.getPosition());
+			return this.build(
+					serverCommandSource,
+					TestFinder.NOOP_TEST_FUNCTION_FINDER,
+					() -> TestInstanceUtil.findTestInstanceBlocks(blockPos, radius, serverCommandSource.getWorld())
+			);
+		}
 
-      public TestFinder targeted(CommandContext<ServerCommandSource> context) {
-         ServerCommandSource serverCommandSource = (ServerCommandSource)context.getSource();
-         return this.build(
-            serverCommandSource,
-            TestFinder.NOOP_TEST_FUNCTION_FINDER,
-            () -> TestInstanceUtil.findTargetedTestInstanceBlock(
-               BlockPos.ofFloored(serverCommandSource.getPosition()), serverCommandSource.getPlayer().getCameraEntity(), serverCommandSource.getWorld()
-            )
-         );
-      }
+		public TestFinder nearest(CommandContext<ServerCommandSource> context) {
+			ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
+			BlockPos blockPos = BlockPos.ofFloored(serverCommandSource.getPosition());
+			return this.build(
+					serverCommandSource,
+					TestFinder.NOOP_TEST_FUNCTION_FINDER,
+					() -> TestInstanceUtil
+							.findNearestTestInstanceBlock(blockPos, 15, serverCommandSource.getWorld())
+							.stream()
+			);
+		}
 
-      public TestFinder failed(CommandContext<ServerCommandSource> context, boolean onlyRequired) {
-         return this.build(
-            (ServerCommandSource)context.getSource(),
-            () -> RuntimeTestInstances.stream().filter(instance -> !onlyRequired || instance.value().isRequired()),
-            TestFinder.NOOP_TEST_INSTANCE_BLOCK_FINDER
-         );
-      }
+		public TestFinder allStructures(CommandContext<ServerCommandSource> context) {
+			ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
+			BlockPos blockPos = BlockPos.ofFloored(serverCommandSource.getPosition());
+			return this.build(
+					serverCommandSource,
+					TestFinder.NOOP_TEST_FUNCTION_FINDER,
+					() -> TestInstanceUtil.findTestInstanceBlocks(blockPos, 250, serverCommandSource.getWorld())
+			);
+		}
 
-      public TestFinder selector(CommandContext<ServerCommandSource> context, Collection<RegistryEntry.Reference<TestInstance>> selected) {
-         return this.build((ServerCommandSource)context.getSource(), selected::stream, TestFinder.NOOP_TEST_INSTANCE_BLOCK_FINDER);
-      }
+		public TestFinder targeted(CommandContext<ServerCommandSource> context) {
+			ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
+			return this.build(
+					serverCommandSource,
+					TestFinder.NOOP_TEST_FUNCTION_FINDER,
+					() -> TestInstanceUtil.findTargetedTestInstanceBlock(
+							BlockPos.ofFloored(serverCommandSource.getPosition()),
+							serverCommandSource.getPlayer().getCameraEntity(),
+							serverCommandSource.getWorld()
+					)
+			);
+		}
 
-      public TestFinder failed(CommandContext<ServerCommandSource> context) {
-         return this.failed(context, false);
-      }
-   }
+		public TestFinder failed(CommandContext<ServerCommandSource> context, boolean onlyRequired) {
+			return this.build(
+					(ServerCommandSource) context.getSource(),
+					() -> RuntimeTestInstances
+							.stream()
+							.filter(instance -> !onlyRequired || instance.value().isRequired()),
+					TestFinder.NOOP_TEST_INSTANCE_BLOCK_FINDER
+			);
+		}
+
+		public TestFinder selector(
+				CommandContext<ServerCommandSource> context,
+				Collection<RegistryEntry.Reference<TestInstance>> selected
+		) {
+			return this.build(
+					(ServerCommandSource) context.getSource(),
+					selected::stream,
+					TestFinder.NOOP_TEST_INSTANCE_BLOCK_FINDER
+			);
+		}
+
+		public TestFinder failed(CommandContext<ServerCommandSource> context) {
+			return this.failed(context, false);
+		}
+	}
 }

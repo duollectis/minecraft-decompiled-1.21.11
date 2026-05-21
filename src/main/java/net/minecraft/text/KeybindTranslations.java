@@ -3,10 +3,14 @@ package net.minecraft.text;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+/**
+ * {@code KeybindTranslations}.
+ */
 public class KeybindTranslations {
-   static Function<String, Supplier<Text>> factory = key -> () -> Text.literal(key);
 
-   public static void setFactory(Function<String, Supplier<Text>> factory) {
-      KeybindTranslations.factory = factory;
-   }
+	static Function<String, Supplier<Text>> factory = key -> () -> Text.literal(key);
+
+	public static void setFactory(Function<String, Supplier<Text>> factory) {
+		KeybindTranslations.factory = factory;
+	}
 }

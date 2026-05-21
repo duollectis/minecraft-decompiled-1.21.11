@@ -12,40 +12,51 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DataPackFailureScreen}.
+ */
 public class DataPackFailureScreen extends Screen {
-   private MultilineText wrappedText = MultilineText.EMPTY;
-   private final Runnable goBack;
-   private final Runnable runServerInSafeMode;
 
-   public DataPackFailureScreen(Runnable goBack, Runnable runServerInSafeMode) {
-      super(Text.translatable("datapackFailure.title"));
-      this.goBack = goBack;
-      this.runServerInSafeMode = runServerInSafeMode;
-   }
+	private MultilineText wrappedText = MultilineText.EMPTY;
+	private final Runnable goBack;
+	private final Runnable runServerInSafeMode;
 
-   @Override
-   protected void init() {
-      super.init();
-      this.wrappedText = MultilineText.create(this.textRenderer, this.getTitle(), this.width - 50);
-      this.addDrawableChild(
-         ButtonWidget.builder(Text.translatable("datapackFailure.safeMode"), button -> this.runServerInSafeMode.run())
-            .dimensions(this.width / 2 - 155, this.height / 6 + 96, 150, 20)
-            .build()
-      );
-      this.addDrawableChild(
-         ButtonWidget.builder(ScreenTexts.BACK, button -> this.goBack.run()).dimensions(this.width / 2 - 155 + 160, this.height / 6 + 96, 150, 20).build()
-      );
-   }
+	public DataPackFailureScreen(Runnable goBack, Runnable runServerInSafeMode) {
+		super(Text.translatable("datapackFailure.title"));
+		this.goBack = goBack;
+		this.runServerInSafeMode = runServerInSafeMode;
+	}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
-      this.wrappedText.draw(Alignment.CENTER, this.width / 2, 70, 9, drawnTextConsumer);
-   }
+	@Override
+	protected void init() {
+		super.init();
+		this.wrappedText = MultilineText.create(this.textRenderer, this.getTitle(), this.width - 50);
+		this.addDrawableChild(
+				ButtonWidget
+						.builder(
+								Text.translatable("datapackFailure.safeMode"),
+								button -> this.runServerInSafeMode.run()
+						)
+						.dimensions(this.width / 2 - 155, this.height / 6 + 96, 150, 20)
+						.build()
+		);
+		this.addDrawableChild(
+				ButtonWidget
+						.builder(ScreenTexts.BACK, button -> this.goBack.run())
+						.dimensions(this.width / 2 - 155 + 160, this.height / 6 + 96, 150, 20)
+						.build()
+		);
+	}
 
-   @Override
-   public boolean shouldCloseOnEsc() {
-      return false;
-   }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();
+		this.wrappedText.draw(Alignment.CENTER, this.width / 2, 70, 9, drawnTextConsumer);
+	}
+
+	@Override
+	public boolean shouldCloseOnEsc() {
+		return false;
+	}
 }

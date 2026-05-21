@@ -1,282 +1,293 @@
 package net.minecraft.util.packrat;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * {@code ParseResults}.
+ */
 public final class ParseResults {
-   private static final int MISSING = -1;
-   private static final Object FRAME = new Object() {
-      @Override
-      public String toString() {
-         return "frame";
-      }
-   };
-   private static final int ENTRY_SIZE = 2;
-   private @Nullable Object[] stack = new Object[128];
-   private int stackTop = 0;
-   private int stackBottom = 0;
 
-   public ParseResults() {
-      this.stack[0] = FRAME;
-      this.stack[1] = null;
-   }
+	private static final int MISSING = -1;
+	private static final Object FRAME = new Object() {
+		@Override
+		public String toString() {
+			return "frame";
+		}
+	};
+	private static final int ENTRY_SIZE = 2;
+	private @Nullable Object[] stack = new Object[128];
+	private int stackTop = 0;
+	private int stackBottom = 0;
 
-   private int indexOf(Symbol<?> symbol) {
-      for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
-         Object object = this.stack[i];
+	public ParseResults() {
+		this.stack[0] = FRAME;
+		this.stack[1] = null;
+	}
 
-         assert object instanceof Symbol;
+	private int indexOf(Symbol<?> symbol) {
+		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
+			Object object = this.stack[i];
 
-         if (object == symbol) {
-            return i + 1;
-         }
-      }
+			assert object instanceof Symbol;
 
-      return -1;
-   }
+			if (object == symbol) {
+				return i + 1;
+			}
+		}
 
-   public int indexOf(Symbol<?>... symbols) {
-      for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
-         Object object = this.stack[i];
+		return -1;
+	}
 
-         assert object instanceof Symbol;
+	public int indexOf(Symbol<?>... symbols) {
+		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
+			Object object = this.stack[i];
 
-         for (Symbol<?> symbol : symbols) {
-            if (symbol == object) {
-               return i + 1;
-            }
-         }
-      }
+			assert object instanceof Symbol;
 
-      return -1;
-   }
+			for (Symbol<?> symbol : symbols) {
+				if (symbol == object) {
+					return i + 1;
+				}
+			}
+		}
 
-   private void expandIfNeeded(int amount) {
-      int i = this.stack.length;
-      int j = this.stackTop + 1;
-      int k = j + amount * 2;
-      if (k >= i) {
-         int l = Util.nextCapacity(i, k + 1);
-         Object[] objects = new Object[l];
-         System.arraycopy(this.stack, 0, objects, 0, i);
-         this.stack = objects;
-      }
+		return -1;
+	}
 
-      assert this.isValid();
-   }
+	private void expandIfNeeded(int amount) {
+		int i = this.stack.length;
+		int j = this.stackTop + 1;
+		int k = j + amount * 2;
+		if (k >= i) {
+			int l = Util.nextCapacity(i, k + 1);
+			Object[] objects = new Object[l];
+			System.arraycopy(this.stack, 0, objects, 0, i);
+			this.stack = objects;
+		}
 
-   private void addFrame() {
-      this.stackTop += 2;
-      this.stack[this.stackTop] = FRAME;
-      this.stack[this.stackTop + 1] = this.stackBottom;
-      this.stackBottom = this.stackTop;
-   }
+		assert this.isValid();
+	}
 
-   public void pushFrame() {
-      this.expandIfNeeded(1);
-      this.addFrame();
+	private void addFrame() {
+		this.stackTop += 2;
+		this.stack[this.stackTop] = FRAME;
+		this.stack[this.stackTop + 1] = this.stackBottom;
+		this.stackBottom = this.stackTop;
+	}
 
-      assert this.isValid();
-   }
+	public void pushFrame() {
+		this.expandIfNeeded(1);
+		this.addFrame();
 
-   private int getPreviousStackBottom(int current) {
-      return (Integer)this.stack[current + 1];
-   }
+		assert this.isValid();
+	}
 
-   public void popFrame() {
-      assert this.stackBottom != 0;
+	private int getPreviousStackBottom(int current) {
+		return (Integer) this.stack[current + 1];
+	}
 
-      this.stackTop = this.stackBottom - 2;
-      this.stackBottom = this.getPreviousStackBottom(this.stackBottom);
+	public void popFrame() {
+		assert this.stackBottom != 0;
 
-      assert this.isValid();
-   }
+		this.stackTop = this.stackBottom - 2;
+		this.stackBottom = this.getPreviousStackBottom(this.stackBottom);
 
-   public void duplicateFrames() {
-      int i = this.stackBottom;
-      int j = (this.stackTop - this.stackBottom) / 2;
-      this.expandIfNeeded(j + 1);
-      this.addFrame();
-      int k = i + 2;
-      int l = this.stackTop;
+		assert this.isValid();
+	}
 
-      for (int m = 0; m < j; m++) {
-         l += 2;
-         Object object = this.stack[k];
+	public void duplicateFrames() {
+		int i = this.stackBottom;
+		int j = (this.stackTop - this.stackBottom) / 2;
+		this.expandIfNeeded(j + 1);
+		this.addFrame();
+		int k = i + 2;
+		int l = this.stackTop;
 
-         assert object != null;
+		for (int m = 0; m < j; m++) {
+			l += 2;
+			Object object = this.stack[k];
 
-         this.stack[l] = object;
-         this.stack[l + 1] = null;
-         k += 2;
-      }
+			assert object != null;
 
-      this.stackTop = l;
+			this.stack[l] = object;
+			this.stack[l + 1] = null;
+			k += 2;
+		}
 
-      assert this.isValid();
-   }
+		this.stackTop = l;
 
-   public void clearFrameValues() {
-      for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
-         assert this.stack[i] instanceof Symbol;
+		assert this.isValid();
+	}
 
-         this.stack[i + 1] = null;
-      }
+	public void clearFrameValues() {
+		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
+			assert this.stack[i] instanceof Symbol;
 
-      assert this.isValid();
-   }
+			this.stack[i + 1] = null;
+		}
 
-   public void chooseCurrentFrame() {
-      int i = this.getPreviousStackBottom(this.stackBottom);
-      int j = i;
-      int k = this.stackBottom;
+		assert this.isValid();
+	}
 
-      while (k < this.stackTop) {
-         j += 2;
-         k += 2;
-         Object object = this.stack[k];
+	public void chooseCurrentFrame() {
+		int i = this.getPreviousStackBottom(this.stackBottom);
+		int j = i;
+		int k = this.stackBottom;
 
-         assert object instanceof Symbol;
+		while (k < this.stackTop) {
+			j += 2;
+			k += 2;
+			Object object = this.stack[k];
 
-         Object object2 = this.stack[k + 1];
-         Object object3 = this.stack[j];
-         if (object3 != object) {
-            this.stack[j] = object;
-            this.stack[j + 1] = object2;
-         } else if (object2 != null) {
-            this.stack[j + 1] = object2;
-         }
-      }
+			assert object instanceof Symbol;
 
-      this.stackTop = j;
-      this.stackBottom = i;
+			Object object2 = this.stack[k + 1];
+			Object object3 = this.stack[j];
+			if (object3 != object) {
+				this.stack[j] = object;
+				this.stack[j + 1] = object2;
+			}
+			else if (object2 != null) {
+				this.stack[j + 1] = object2;
+			}
+		}
 
-      assert this.isValid();
-   }
+		this.stackTop = j;
+		this.stackBottom = i;
 
-   public <T> void put(Symbol<T> symbol, @Nullable T value) {
-      int i = this.indexOf(symbol);
-      if (i != -1) {
-         this.stack[i] = value;
-      } else {
-         this.expandIfNeeded(1);
-         this.stackTop += 2;
-         this.stack[this.stackTop] = symbol;
-         this.stack[this.stackTop + 1] = value;
-      }
+		assert this.isValid();
+	}
 
-      assert this.isValid();
-   }
+	public <T> void put(Symbol<T> symbol, @Nullable T value) {
+		int i = this.indexOf(symbol);
+		if (i != -1) {
+			this.stack[i] = value;
+		}
+		else {
+			this.expandIfNeeded(1);
+			this.stackTop += 2;
+			this.stack[this.stackTop] = symbol;
+			this.stack[this.stackTop + 1] = value;
+		}
 
-   public <T> @Nullable T get(Symbol<T> symbol) {
-      int i = this.indexOf(symbol);
-      return (T)(i != -1 ? this.stack[i] : null);
-   }
+		assert this.isValid();
+	}
 
-   public <T> T getOrThrow(Symbol<T> symbol) {
-      int i = this.indexOf(symbol);
-      if (i == -1) {
-         throw new IllegalArgumentException("No value for atom " + symbol);
-      } else {
-         return (T)this.stack[i];
-      }
-   }
+	public <T> @Nullable T get(Symbol<T> symbol) {
+		int i = this.indexOf(symbol);
+		return (T) (i != -1 ? this.stack[i] : null);
+	}
 
-   public <T> T getOrDefault(Symbol<T> symbol, T fallback) {
-      int i = this.indexOf(symbol);
-      return (T)(i != -1 ? this.stack[i] : fallback);
-   }
+	public <T> T getOrThrow(Symbol<T> symbol) {
+		int i = this.indexOf(symbol);
+		if (i == -1) {
+			throw new IllegalArgumentException("No value for atom " + symbol);
+		}
+		else {
+			return (T) this.stack[i];
+		}
+	}
 
-   @SafeVarargs
-   public final <T> @Nullable T getAny(Symbol<? extends T>... symbols) {
-      int i = this.indexOf(symbols);
-      return (T)(i != -1 ? this.stack[i] : null);
-   }
+	public <T> T getOrDefault(Symbol<T> symbol, T fallback) {
+		int i = this.indexOf(symbol);
+		return (T) (i != -1 ? this.stack[i] : fallback);
+	}
 
-   @SafeVarargs
-   public final <T> T getAnyOrThrow(Symbol<? extends T>... symbols) {
-      int i = this.indexOf(symbols);
-      if (i == -1) {
-         throw new IllegalArgumentException("No value for atoms " + Arrays.toString((Object[])symbols));
-      } else {
-         return (T)this.stack[i];
-      }
-   }
+	@SafeVarargs
+	public final <T> @Nullable T getAny(Symbol<? extends T>... symbols) {
+		int i = this.indexOf(symbols);
+		return (T) (i != -1 ? this.stack[i] : null);
+	}
 
-   @Override
-   public String toString() {
-      StringBuilder stringBuilder = new StringBuilder();
-      boolean bl = true;
+	@SafeVarargs
+	public final <T> T getAnyOrThrow(Symbol<? extends T>... symbols) {
+		int i = this.indexOf(symbols);
+		if (i == -1) {
+			throw new IllegalArgumentException("No value for atoms " + Arrays.toString((Object[]) symbols));
+		}
+		else {
+			return (T) this.stack[i];
+		}
+	}
 
-      for (int i = 0; i <= this.stackTop; i += 2) {
-         Object object = this.stack[i];
-         Object object2 = this.stack[i + 1];
-         if (object == FRAME) {
-            stringBuilder.append('|');
-            bl = true;
-         } else {
-            if (!bl) {
-               stringBuilder.append(',');
-            }
+	@Override
+	public String toString() {
+		StringBuilder stringBuilder = new StringBuilder();
+		boolean bl = true;
 
-            bl = false;
-            stringBuilder.append(object).append(':').append(object2);
-         }
-      }
+		for (int i = 0; i <= this.stackTop; i += 2) {
+			Object object = this.stack[i];
+			Object object2 = this.stack[i + 1];
+			if (object == FRAME) {
+				stringBuilder.append('|');
+				bl = true;
+			}
+			else {
+				if (!bl) {
+					stringBuilder.append(',');
+				}
 
-      return stringBuilder.toString();
-   }
+				bl = false;
+				stringBuilder.append(object).append(':').append(object2);
+			}
+		}
 
-   @VisibleForTesting
-   public Map<Symbol<?>, ?> toSymbolKeyedMap() {
-      HashMap<Symbol<?>, Object> hashMap = new HashMap<>();
+		return stringBuilder.toString();
+	}
 
-      for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
-         Object object = this.stack[i];
-         Object object2 = this.stack[i + 1];
-         hashMap.put((Symbol<?>)object, object2);
-      }
+	@VisibleForTesting
+	public Map<Symbol<?>, ?> toSymbolKeyedMap() {
+		HashMap<Symbol<?>, Object> hashMap = new HashMap<>();
 
-      return hashMap;
-   }
+		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
+			Object object = this.stack[i];
+			Object object2 = this.stack[i + 1];
+			hashMap.put((Symbol<?>) object, object2);
+		}
 
-   public boolean areFramesPlacedCorrectly() {
-      for (int i = this.stackTop; i > 0; i--) {
-         if (this.stack[i] == FRAME) {
-            return false;
-         }
-      }
+		return hashMap;
+	}
 
-      if (this.stack[0] != FRAME) {
-         throw new IllegalStateException("Corrupted stack");
-      } else {
-         return true;
-      }
-   }
+	public boolean areFramesPlacedCorrectly() {
+		for (int i = this.stackTop; i > 0; i--) {
+			if (this.stack[i] == FRAME) {
+				return false;
+			}
+		}
 
-   private boolean isValid() {
-      assert this.stackBottom >= 0;
+		if (this.stack[0] != FRAME) {
+			throw new IllegalStateException("Corrupted stack");
+		}
+		else {
+			return true;
+		}
+	}
 
-      assert this.stackTop >= this.stackBottom;
+	private boolean isValid() {
+		assert this.stackBottom >= 0;
 
-      for (int i = 0; i <= this.stackTop; i += 2) {
-         Object object = this.stack[i];
-         if (object != FRAME && !(object instanceof Symbol)) {
-            return false;
-         }
-      }
+		assert this.stackTop >= this.stackBottom;
 
-      for (int ix = this.stackBottom; ix != 0; ix = this.getPreviousStackBottom(ix)) {
-         Object object = this.stack[ix];
-         if (object != FRAME) {
-            return false;
-         }
-      }
+		for (int i = 0; i <= this.stackTop; i += 2) {
+			Object object = this.stack[i];
+			if (object != FRAME && !(object instanceof Symbol)) {
+				return false;
+			}
+		}
 
-      return true;
-   }
+		for (int ix = this.stackBottom; ix != 0; ix = this.getPreviousStackBottom(ix)) {
+			Object object = this.stack[ix];
+			if (object != FRAME) {
+				return false;
+			}
+		}
+
+		return true;
+	}
 }

@@ -9,16 +9,17 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public record CodeOfConductS2CPacket(String codeOfConduct) implements Packet<ClientConfigurationPacketListener> {
-   public static final PacketCodec<ByteBuf, CodeOfConductS2CPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.STRING, CodeOfConductS2CPacket::codeOfConduct, CodeOfConductS2CPacket::new
-   );
 
-   @Override
-   public PacketType<CodeOfConductS2CPacket> getPacketType() {
-      return ConfigPackets.CODE_OF_CONDUCT;
-   }
+	public static final PacketCodec<ByteBuf, CodeOfConductS2CPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.STRING, CodeOfConductS2CPacket::codeOfConduct, CodeOfConductS2CPacket::new
+	);
 
-   public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
-      clientConfigurationPacketListener.onCodeOfConduct(this);
-   }
+	@Override
+	public PacketType<CodeOfConductS2CPacket> getPacketType() {
+		return ConfigPackets.CODE_OF_CONDUCT;
+	}
+
+	public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
+		clientConfigurationPacketListener.onCodeOfConduct(this);
+	}
 }

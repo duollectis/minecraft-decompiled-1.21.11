@@ -8,63 +8,69 @@ import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code EnderChestInventory}.
+ */
 public class EnderChestInventory extends SimpleInventory {
-   private @Nullable EnderChestBlockEntity activeBlockEntity;
 
-   public EnderChestInventory() {
-      super(27);
-   }
+	private @Nullable EnderChestBlockEntity activeBlockEntity;
 
-   public void setActiveBlockEntity(EnderChestBlockEntity blockEntity) {
-      this.activeBlockEntity = blockEntity;
-   }
+	public EnderChestInventory() {
+		super(27);
+	}
 
-   public boolean isActiveBlockEntity(EnderChestBlockEntity blockEntity) {
-      return this.activeBlockEntity == blockEntity;
-   }
+	public void setActiveBlockEntity(EnderChestBlockEntity blockEntity) {
+		this.activeBlockEntity = blockEntity;
+	}
 
-   public void readData(ReadView.TypedListReadView<StackWithSlot> list) {
-      for (int i = 0; i < this.size(); i++) {
-         this.setStack(i, ItemStack.EMPTY);
-      }
+	public boolean isActiveBlockEntity(EnderChestBlockEntity blockEntity) {
+		return this.activeBlockEntity == blockEntity;
+	}
 
-      for (StackWithSlot stackWithSlot : list) {
-         if (stackWithSlot.isValidSlot(this.size())) {
-            this.setStack(stackWithSlot.slot(), stackWithSlot.stack());
-         }
-      }
-   }
+	public void readData(ReadView.TypedListReadView<StackWithSlot> list) {
+		for (int i = 0; i < this.size(); i++) {
+			this.setStack(i, ItemStack.EMPTY);
+		}
 
-   public void writeData(WriteView.ListAppender<StackWithSlot> list) {
-      for (int i = 0; i < this.size(); i++) {
-         ItemStack itemStack = this.getStack(i);
-         if (!itemStack.isEmpty()) {
-            list.add(new StackWithSlot(i, itemStack));
-         }
-      }
-   }
+		for (StackWithSlot stackWithSlot : list) {
+			if (stackWithSlot.isValidSlot(this.size())) {
+				this.setStack(stackWithSlot.slot(), stackWithSlot.stack());
+			}
+		}
+	}
 
-   @Override
-   public boolean canPlayerUse(PlayerEntity player) {
-      return this.activeBlockEntity != null && !this.activeBlockEntity.canPlayerUse(player) ? false : super.canPlayerUse(player);
-   }
+	public void writeData(WriteView.ListAppender<StackWithSlot> list) {
+		for (int i = 0; i < this.size(); i++) {
+			ItemStack itemStack = this.getStack(i);
+			if (!itemStack.isEmpty()) {
+				list.add(new StackWithSlot(i, itemStack));
+			}
+		}
+	}
 
-   @Override
-   public void onOpen(ContainerUser user) {
-      if (this.activeBlockEntity != null) {
-         this.activeBlockEntity.onOpen(user);
-      }
+	@Override
+	public boolean canPlayerUse(PlayerEntity player) {
+		return this.activeBlockEntity != null && !this.activeBlockEntity.canPlayerUse(player) ? false
+		                                                                                      : super.canPlayerUse(
+				                                                                                      player);
+	}
 
-      super.onOpen(user);
-   }
+	@Override
+	public void onOpen(ContainerUser user) {
+		if (this.activeBlockEntity != null) {
+			this.activeBlockEntity.onOpen(user);
+		}
 
-   @Override
-   public void onClose(ContainerUser user) {
-      if (this.activeBlockEntity != null) {
-         this.activeBlockEntity.onClose(user);
-      }
+		super.onOpen(user);
+	}
 
-      super.onClose(user);
-      this.activeBlockEntity = null;
-   }
+	@Override
+	public void onClose(ContainerUser user) {
+		if (this.activeBlockEntity != null) {
+			this.activeBlockEntity.onClose(user);
+		}
+
+		super.onClose(user);
+		this.activeBlockEntity = null;
+	}
 }

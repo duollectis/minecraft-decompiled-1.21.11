@@ -3,7 +3,6 @@ package net.minecraft.fluid;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectArrayMap;
-import java.util.stream.Stream;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCollisionHandler;
@@ -25,122 +24,136 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.stream.Stream;
+
+/**
+ * {@code FluidState}.
+ */
 public final class FluidState extends State<Fluid, FluidState> {
-   public static final Codec<FluidState> CODEC = createCodec(Registries.FLUID.getCodec(), Fluid::getDefaultState).stable();
-   public static final int MAX_AMOUNT = 9;
-   public static final int MAX_FLUID_LEVEL = 8;
 
-   public FluidState(Fluid fluid, Reference2ObjectArrayMap<Property<?>, Comparable<?>> propertyMap, MapCodec<FluidState> codec) {
-      super(fluid, propertyMap, codec);
-   }
+	public static final Codec<FluidState>
+			CODEC =
+			createCodec(Registries.FLUID.getCodec(), Fluid::getDefaultState).stable();
+	public static final int MAX_AMOUNT = 9;
+	public static final int MAX_FLUID_LEVEL = 8;
 
-   public Fluid getFluid() {
-      return this.owner;
-   }
+	public FluidState(
+			Fluid fluid,
+			Reference2ObjectArrayMap<Property<?>, Comparable<?>> propertyMap,
+			MapCodec<FluidState> codec
+	) {
+		super(fluid, propertyMap, codec);
+	}
 
-   public boolean isStill() {
-      return this.getFluid().isStill(this);
-   }
+	public Fluid getFluid() {
+		return this.owner;
+	}
 
-   public boolean isEqualAndStill(Fluid fluid) {
-      return this.owner == fluid && this.owner.isStill(this);
-   }
+	public boolean isStill() {
+		return this.getFluid().isStill(this);
+	}
 
-   public boolean isEmpty() {
-      return this.getFluid().isEmpty();
-   }
+	public boolean isEqualAndStill(Fluid fluid) {
+		return this.owner == fluid && this.owner.isStill(this);
+	}
 
-   public float getHeight(BlockView world, BlockPos pos) {
-      return this.getFluid().getHeight(this, world, pos);
-   }
+	public boolean isEmpty() {
+		return this.getFluid().isEmpty();
+	}
 
-   public float getHeight() {
-      return this.getFluid().getHeight(this);
-   }
+	public float getHeight(BlockView world, BlockPos pos) {
+		return this.getFluid().getHeight(this, world, pos);
+	}
 
-   public int getLevel() {
-      return this.getFluid().getLevel(this);
-   }
+	public float getHeight() {
+		return this.getFluid().getHeight(this);
+	}
 
-   public boolean canFlowTo(BlockView world, BlockPos pos) {
-      for (int i = -1; i <= 1; i++) {
-         for (int j = -1; j <= 1; j++) {
-            BlockPos blockPos = pos.add(i, 0, j);
-            FluidState fluidState = world.getFluidState(blockPos);
-            if (!fluidState.getFluid().matchesType(this.getFluid()) && !world.getBlockState(blockPos).isOpaqueFullCube()) {
-               return true;
-            }
-         }
-      }
+	public int getLevel() {
+		return this.getFluid().getLevel(this);
+	}
 
-      return false;
-   }
+	public boolean canFlowTo(BlockView world, BlockPos pos) {
+		for (int i = -1; i <= 1; i++) {
+			for (int j = -1; j <= 1; j++) {
+				BlockPos blockPos = pos.add(i, 0, j);
+				FluidState fluidState = world.getFluidState(blockPos);
+				if (!fluidState.getFluid().matchesType(this.getFluid()) && !world
+						.getBlockState(blockPos)
+						.isOpaqueFullCube()) {
+					return true;
+				}
+			}
+		}
 
-   public void onScheduledTick(ServerWorld world, BlockPos pos, BlockState state) {
-      this.getFluid().onScheduledTick(world, pos, state, this);
-   }
+		return false;
+	}
 
-   public void randomDisplayTick(World world, BlockPos pos, Random random) {
-      this.getFluid().randomDisplayTick(world, pos, this, random);
-   }
+	public void onScheduledTick(ServerWorld world, BlockPos pos, BlockState state) {
+		this.getFluid().onScheduledTick(world, pos, state, this);
+	}
 
-   public boolean hasRandomTicks() {
-      return this.getFluid().hasRandomTicks();
-   }
+	public void randomDisplayTick(World world, BlockPos pos, Random random) {
+		this.getFluid().randomDisplayTick(world, pos, this, random);
+	}
 
-   public void onRandomTick(ServerWorld world, BlockPos pos, Random random) {
-      this.getFluid().onRandomTick(world, pos, this, random);
-   }
+	public boolean hasRandomTicks() {
+		return this.getFluid().hasRandomTicks();
+	}
 
-   public Vec3d getVelocity(BlockView world, BlockPos pos) {
-      return this.getFluid().getVelocity(world, pos, this);
-   }
+	public void onRandomTick(ServerWorld world, BlockPos pos, Random random) {
+		this.getFluid().onRandomTick(world, pos, this, random);
+	}
 
-   public BlockState getBlockState() {
-      return this.getFluid().toBlockState(this);
-   }
+	public Vec3d getVelocity(BlockView world, BlockPos pos) {
+		return this.getFluid().getVelocity(world, pos, this);
+	}
 
-   public @Nullable ParticleEffect getParticle() {
-      return this.getFluid().getParticle();
-   }
+	public BlockState getBlockState() {
+		return this.getFluid().toBlockState(this);
+	}
 
-   public boolean isIn(TagKey<Fluid> tag) {
-      return this.getFluid().getRegistryEntry().isIn(tag);
-   }
+	public @Nullable ParticleEffect getParticle() {
+		return this.getFluid().getParticle();
+	}
 
-   public boolean isIn(RegistryEntryList<Fluid> fluids) {
-      return fluids.contains(this.getFluid().getRegistryEntry());
-   }
+	public boolean isIn(TagKey<Fluid> tag) {
+		return this.getFluid().getRegistryEntry().isIn(tag);
+	}
 
-   public boolean isOf(Fluid fluid) {
-      return this.getFluid() == fluid;
-   }
+	public boolean isIn(RegistryEntryList<Fluid> fluids) {
+		return fluids.contains(this.getFluid().getRegistryEntry());
+	}
 
-   public float getBlastResistance() {
-      return this.getFluid().getBlastResistance();
-   }
+	public boolean isOf(Fluid fluid) {
+		return this.getFluid() == fluid;
+	}
 
-   public boolean canBeReplacedWith(BlockView world, BlockPos pos, Fluid fluid, Direction direction) {
-      return this.getFluid().canBeReplacedWith(this, world, pos, fluid, direction);
-   }
+	public float getBlastResistance() {
+		return this.getFluid().getBlastResistance();
+	}
 
-   public VoxelShape getShape(BlockView world, BlockPos pos) {
-      return this.getFluid().getShape(this, world, pos);
-   }
+	public boolean canBeReplacedWith(BlockView world, BlockPos pos, Fluid fluid, Direction direction) {
+		return this.getFluid().canBeReplacedWith(this, world, pos, fluid, direction);
+	}
 
-   public @Nullable Box getCollisionBox(BlockView world, BlockPos pos) {
-      return this.getFluid().getCollisionBox(this, world, pos);
-   }
+	public VoxelShape getShape(BlockView world, BlockPos pos) {
+		return this.getFluid().getShape(this, world, pos);
+	}
 
-   public RegistryEntry<Fluid> getRegistryEntry() {
-      return this.owner.getRegistryEntry();
-   }
+	public @Nullable Box getCollisionBox(BlockView world, BlockPos pos) {
+		return this.getFluid().getCollisionBox(this, world, pos);
+	}
 
-   public Stream<TagKey<Fluid>> streamTags() {
-      return this.owner.getRegistryEntry().streamTags();
-   }
+	public RegistryEntry<Fluid> getRegistryEntry() {
+		return this.owner.getRegistryEntry();
+	}
 
-   public void onEntityCollision(World world, BlockPos pos, Entity entity, EntityCollisionHandler handler) {
-      this.getFluid().onEntityCollision(world, pos, entity, handler);
-   }
+	public Stream<TagKey<Fluid>> streamTags() {
+		return this.owner.getRegistryEntry().streamTags();
+	}
+
+	public void onEntityCollision(World world, BlockPos pos, Entity entity, EntityCollisionHandler handler) {
+		this.getFluid().onEntityCollision(world, pos, entity, handler);
+	}
 }

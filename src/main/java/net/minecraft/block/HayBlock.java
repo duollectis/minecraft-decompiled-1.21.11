@@ -6,21 +6,25 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 
+/**
+ * {@code HayBlock}.
+ */
 public class HayBlock extends PillarBlock {
-   public static final MapCodec<HayBlock> CODEC = createCodec(HayBlock::new);
 
-   @Override
-   public MapCodec<HayBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<HayBlock> CODEC = createCodec(HayBlock::new);
 
-   public HayBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(AXIS, Direction.Axis.Y));
-   }
+	@Override
+	public MapCodec<HayBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void onLandedUpon(World world, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
-      entity.handleFallDamage(fallDistance, 0.2F, world.getDamageSources().fall());
-   }
+	public HayBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(AXIS, Direction.Axis.Y));
+	}
+
+	@Override
+	public void onLandedUpon(World world, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
+		entity.handleFallDamage(fallDistance, 0.2F, world.getDamageSources().fall());
+	}
 }

@@ -3,32 +3,56 @@ package net.minecraft.world.attribute.timeline;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
-import java.util.Optional;
-import java.util.function.LongSupplier;
 import net.minecraft.util.Util;
 import net.minecraft.world.attribute.EnvironmentAttribute;
 import net.minecraft.world.attribute.EnvironmentAttributeModifier;
 
-public record TimelineEntry<Value, Argument>(EnvironmentAttributeModifier<Value, Argument> modifier, Track<Argument> argumentTrack) {
-   public static <Value> Codec<TimelineEntry<Value, ?>> createCodec(EnvironmentAttribute<Value> attribute) {
-      MapCodec<EnvironmentAttributeModifier<Value, ?>> mapCodec = attribute.getType()
-         .modifierCodec()
-         .optionalFieldOf("modifier", EnvironmentAttributeModifier.override());
-      return mapCodec.dispatch(TimelineEntry::modifier, Util.memoize(modifier -> createMapCodec(attribute, modifier)));
-   }
+import java.util.Optional;
+import java.util.function.LongSupplier;
 
-   private static <Value, Argument> MapCodec<TimelineEntry<Value, Argument>> createMapCodec(
-      EnvironmentAttribute<Value> attribute, EnvironmentAttributeModifier<Value, Argument> modifier
-   ) {
-      return Track.createCodec(modifier.argumentCodec(attribute))
-         .xmap(argumentTrack -> new TimelineEntry<>(modifier, argumentTrack), TimelineEntry::argumentTrack);
-   }
+/**
+ * {@code TimelineEntry}.
+ */
+public record TimelineEntry<Value, Argument>(
+		EnvironmentAttributeModifier<Value, Argument> modifier,
+		Track<Argument> argumentTrack
+) {
 
-   public TrackAttributeModification<Value, Argument> toModification(EnvironmentAttribute<Value> attribute, Optional<Integer> period, LongSupplier timeSupplier) {
-      return new TrackAttributeModification<>(period, this.modifier, this.argumentTrack, this.modifier.argumentKeyframeLerp(attribute), timeSupplier);
-   }
+	public static <Value> Codec<TimelineEntry<Value, ?>> createCodec(EnvironmentAttribute<Value> attribute) {
+		MapCodec<EnvironmentAttributeModifier<Value, ?>> mapCodec = attribute.getType()
+		                                                                     .modifierCodec()
+		                                                                     .optionalFieldOf(
+				                                                                     "modifier",
+				                                                                     EnvironmentAttributeModifier.override()
+		                                                                     );
+		return mapCodec.dispatch(
+				TimelineEntry::modifier,
+				Util.memoize(modifier -> createMapCodec(attribute, modifier))
+		);
+	}
 
-   public static DataResult<TimelineEntry<?, ?>> validateKeyframesInPeriod(TimelineEntry<?, ?> entry, int period) {
-      return Track.validateKeyframesInPeriod(entry.argumentTrack(), period).map(track -> entry);
-   }
+	private static <Value, Argument> MapCodec<TimelineEntry<Value, Argument>> createMapCodec(
+			EnvironmentAttribute<Value> attribute, EnvironmentAttributeModifier<Value, Argument> modifier
+	) {
+		return Track.createCodec(modifier.argumentCodec(attribute))
+		            .xmap(argumentTrack -> new TimelineEntry<>(modifier, argumentTrack), TimelineEntry::argumentTrack);
+	}
+
+	public TrackAttributeModification<Value, Argument> toModification(
+			EnvironmentAttribute<Value> attribute,
+			Optional<Integer> period,
+			LongSupplier timeSupplier
+	) {
+		return new TrackAttributeModification<>(
+				period,
+				this.modifier,
+				this.argumentTrack,
+				this.modifier.argumentKeyframeLerp(attribute),
+				timeSupplier
+		);
+	}
+
+	public static DataResult<TimelineEntry<?, ?>> validateKeyframesInPeriod(TimelineEntry<?, ?> entry, int period) {
+		return Track.validateKeyframesInPeriod(entry.argumentTrack(), period).map(track -> entry);
+	}
 }

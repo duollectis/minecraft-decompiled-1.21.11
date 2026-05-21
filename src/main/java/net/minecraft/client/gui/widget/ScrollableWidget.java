@@ -11,107 +11,134 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ScrollableWidget}.
+ */
 public abstract class ScrollableWidget extends ClickableWidget {
-   public static final int SCROLLBAR_WIDTH = 6;
-   private double scrollY;
-   private static final Identifier SCROLLER_TEXTURE = Identifier.ofVanilla("widget/scroller");
-   private static final Identifier SCROLLER_BACKGROUND_TEXTURE = Identifier.ofVanilla("widget/scroller_background");
-   private boolean scrollbarDragged;
 
-   public ScrollableWidget(int i, int j, int k, int l, Text text) {
-      super(i, j, k, l, text);
-   }
+	public static final int SCROLLBAR_WIDTH = 6;
+	private double scrollY;
+	private static final Identifier SCROLLER_TEXTURE = Identifier.ofVanilla("widget/scroller");
+	private static final Identifier SCROLLER_BACKGROUND_TEXTURE = Identifier.ofVanilla("widget/scroller_background");
+	private boolean scrollbarDragged;
 
-   @Override
-   public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-      if (!this.visible) {
-         return false;
-      } else {
-         this.setScrollY(this.getScrollY() - verticalAmount * this.getDeltaYPerScroll());
-         return true;
-      }
-   }
+	public ScrollableWidget(int i, int j, int k, int l, Text text) {
+		super(i, j, k, l, text);
+	}
 
-   @Override
-   public boolean mouseDragged(Click click, double offsetX, double offsetY) {
-      if (this.scrollbarDragged) {
-         if (click.y() < this.getY()) {
-            this.setScrollY(0.0);
-         } else if (click.y() > this.getBottom()) {
-            this.setScrollY(this.getMaxScrollY());
-         } else {
-            double d = Math.max(1, this.getMaxScrollY());
-            int i = this.getScrollbarThumbHeight();
-            double e = Math.max(1.0, d / (this.height - i));
-            this.setScrollY(this.getScrollY() + offsetY * e);
-         }
+	@Override
+	public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+		if (!this.visible) {
+			return false;
+		}
+		else {
+			this.setScrollY(this.getScrollY() - verticalAmount * this.getDeltaYPerScroll());
+			return true;
+		}
+	}
 
-         return true;
-      } else {
-         return super.mouseDragged(click, offsetX, offsetY);
-      }
-   }
+	@Override
+	public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+		if (this.scrollbarDragged) {
+			if (click.y() < this.getY()) {
+				this.setScrollY(0.0);
+			}
+			else if (click.y() > this.getBottom()) {
+				this.setScrollY(this.getMaxScrollY());
+			}
+			else {
+				double d = Math.max(1, this.getMaxScrollY());
+				int i = this.getScrollbarThumbHeight();
+				double e = Math.max(1.0, d / (this.height - i));
+				this.setScrollY(this.getScrollY() + offsetY * e);
+			}
 
-   @Override
-   public void onRelease(Click click) {
-      this.scrollbarDragged = false;
-   }
+			return true;
+		}
+		else {
+			return super.mouseDragged(click, offsetX, offsetY);
+		}
+	}
 
-   public double getScrollY() {
-      return this.scrollY;
-   }
+	@Override
+	public void onRelease(Click click) {
+		this.scrollbarDragged = false;
+	}
 
-   public void setScrollY(double scrollY) {
-      this.scrollY = MathHelper.clamp(scrollY, 0.0, (double)this.getMaxScrollY());
-   }
+	public double getScrollY() {
+		return this.scrollY;
+	}
 
-   public boolean checkScrollbarDragged(Click click) {
-      this.scrollbarDragged = this.overflows() && this.isValidClickButton(click.buttonInfo()) && this.isInScrollbar(click.x(), click.y());
-      return this.scrollbarDragged;
-   }
+	public void setScrollY(double scrollY) {
+		this.scrollY = MathHelper.clamp(scrollY, 0.0, (double) this.getMaxScrollY());
+	}
 
-   protected boolean isInScrollbar(double mouseX, double mouseY) {
-      return mouseX >= this.getScrollbarX() && mouseX <= this.getScrollbarX() + 6 && mouseY >= this.getY() && mouseY < this.getBottom();
-   }
+	public boolean checkScrollbarDragged(Click click) {
+		this.scrollbarDragged =
+				this.overflows() && this.isValidClickButton(click.buttonInfo()) && this.isInScrollbar(
+						click.x(),
+						click.y()
+				);
+		return this.scrollbarDragged;
+	}
 
-   public void refreshScroll() {
-      this.setScrollY(this.scrollY);
-   }
+	protected boolean isInScrollbar(double mouseX, double mouseY) {
+		return mouseX >= this.getScrollbarX() && mouseX <= this.getScrollbarX() + 6 && mouseY >= this.getY()
+				&& mouseY < this.getBottom();
+	}
 
-   public int getMaxScrollY() {
-      return Math.max(0, this.getContentsHeightWithPadding() - this.height);
-   }
+	public void refreshScroll() {
+		this.setScrollY(this.scrollY);
+	}
 
-   protected boolean overflows() {
-      return this.getMaxScrollY() > 0;
-   }
+	public int getMaxScrollY() {
+		return Math.max(0, this.getContentsHeightWithPadding() - this.height);
+	}
 
-   protected int getScrollbarThumbHeight() {
-      return MathHelper.clamp((int)((float)(this.height * this.height) / this.getContentsHeightWithPadding()), 32, this.height - 8);
-   }
+	protected boolean overflows() {
+		return this.getMaxScrollY() > 0;
+	}
 
-   protected int getScrollbarX() {
-      return this.getRight() - 6;
-   }
+	protected int getScrollbarThumbHeight() {
+		return MathHelper.clamp(
+				(int) ((float) (this.height * this.height) / this.getContentsHeightWithPadding()),
+				32,
+				this.height - 8
+		);
+	}
 
-   protected int getScrollbarThumbY() {
-      return Math.max(this.getY(), (int)this.scrollY * (this.height - this.getScrollbarThumbHeight()) / this.getMaxScrollY() + this.getY());
-   }
+	protected int getScrollbarX() {
+		return this.getRight() - 6;
+	}
 
-   protected void drawScrollbar(DrawContext context, int mouseX, int mouseY) {
-      if (this.overflows()) {
-         int i = this.getScrollbarX();
-         int j = this.getScrollbarThumbHeight();
-         int k = this.getScrollbarThumbY();
-         context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, SCROLLER_BACKGROUND_TEXTURE, i, this.getY(), 6, this.getHeight());
-         context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, SCROLLER_TEXTURE, i, k, 6, j);
-         if (this.isInScrollbar(mouseX, mouseY)) {
-            context.setCursor(this.scrollbarDragged ? StandardCursors.RESIZE_NS : StandardCursors.POINTING_HAND);
-         }
-      }
-   }
+	protected int getScrollbarThumbY() {
+		return Math.max(
+				this.getY(),
+				(int) this.scrollY * (this.height - this.getScrollbarThumbHeight()) / this.getMaxScrollY() + this.getY()
+		);
+	}
 
-   protected abstract int getContentsHeightWithPadding();
+	protected void drawScrollbar(DrawContext context, int mouseX, int mouseY) {
+		if (this.overflows()) {
+			int i = this.getScrollbarX();
+			int j = this.getScrollbarThumbHeight();
+			int k = this.getScrollbarThumbY();
+			context.drawGuiTexture(
+					RenderPipelines.GUI_TEXTURED,
+					SCROLLER_BACKGROUND_TEXTURE,
+					i,
+					this.getY(),
+					6,
+					this.getHeight()
+			);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, SCROLLER_TEXTURE, i, k, 6, j);
+			if (this.isInScrollbar(mouseX, mouseY)) {
+				context.setCursor(this.scrollbarDragged ? StandardCursors.RESIZE_NS : StandardCursors.POINTING_HAND);
+			}
+		}
+	}
 
-   protected abstract double getDeltaYPerScroll();
+	protected abstract int getContentsHeightWithPadding();
+
+	protected abstract double getDeltaYPerScroll();
 }

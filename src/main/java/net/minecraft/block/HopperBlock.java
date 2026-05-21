@@ -2,8 +2,6 @@ package net.minecraft.block;
 
 import com.google.common.collect.ImmutableMap;
 import com.mojang.serialization.MapCodec;
-import java.util.Map;
-import java.util.function.Function;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
@@ -36,136 +34,176 @@ import net.minecraft.world.World;
 import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Map;
+import java.util.function.Function;
+
+/**
+ * {@code HopperBlock}.
+ */
 public class HopperBlock extends BlockWithEntity {
-   public static final MapCodec<HopperBlock> CODEC = createCodec(HopperBlock::new);
-   public static final EnumProperty<Direction> FACING = Properties.HOPPER_FACING;
-   public static final BooleanProperty ENABLED = Properties.ENABLED;
-   private final Function<BlockState, VoxelShape> shapeFunction;
-   private final Map<Direction, VoxelShape> shapesByDirection;
 
-   @Override
-   public MapCodec<HopperBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<HopperBlock> CODEC = createCodec(HopperBlock::new);
+	public static final EnumProperty<Direction> FACING = Properties.HOPPER_FACING;
+	public static final BooleanProperty ENABLED = Properties.ENABLED;
+	private final Function<BlockState, VoxelShape> shapeFunction;
+	private final Map<Direction, VoxelShape> shapesByDirection;
 
-   public HopperBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.DOWN).with(ENABLED, true));
-      VoxelShape voxelShape = Block.createColumnShape(12.0, 11.0, 16.0);
-      this.shapeFunction = this.createShapeFunction(voxelShape);
-      this.shapesByDirection = ImmutableMap.<Direction, VoxelShape>builderWithExpectedSize(5)
-         .putAll(VoxelShapes.createHorizontalFacingShapeMap(VoxelShapes.union(voxelShape, Block.createCuboidZShape(4.0, 8.0, 10.0, 0.0, 4.0))))
-         .put(Direction.DOWN, voxelShape)
-         .build();
-   }
+	@Override
+	public MapCodec<HopperBlock> getCodec() {
+		return CODEC;
+	}
 
-   private Function<BlockState, VoxelShape> createShapeFunction(VoxelShape shape) {
-      VoxelShape voxelShape = VoxelShapes.union(Block.createColumnShape(16.0, 10.0, 16.0), Block.createColumnShape(8.0, 4.0, 10.0));
-      VoxelShape voxelShape2 = VoxelShapes.combineAndSimplify(voxelShape, shape, BooleanBiFunction.ONLY_FIRST);
-      Map<Direction, VoxelShape> map = VoxelShapes.createFacingShapeMap(
-         Block.createCuboidZShape(4.0, 4.0, 8.0, 0.0, 8.0), new Vec3d(8.0, 6.0, 8.0).multiply(0.0625)
-      );
-      return this.createShapeFunction(
-         state -> VoxelShapes.union(voxelShape2, VoxelShapes.combineAndSimplify(map.get(state.get(FACING)), VoxelShapes.fullCube(), BooleanBiFunction.AND)),
-         ENABLED
-      );
-   }
+	public HopperBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.DOWN).with(ENABLED, true));
+		VoxelShape voxelShape = Block.createColumnShape(12.0, 11.0, 16.0);
+		this.shapeFunction = this.createShapeFunction(voxelShape);
+		this.shapesByDirection = ImmutableMap.<Direction, VoxelShape>builderWithExpectedSize(5)
+		                                     .putAll(VoxelShapes.createHorizontalFacingShapeMap(VoxelShapes.union(
+				                                     voxelShape,
+				                                     Block.createCuboidZShape(4.0, 8.0, 10.0, 0.0, 4.0)
+		                                     )))
+		                                     .put(Direction.DOWN, voxelShape)
+		                                     .build();
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return this.shapeFunction.apply(state);
-   }
+	private Function<BlockState, VoxelShape> createShapeFunction(VoxelShape shape) {
+		VoxelShape
+				voxelShape =
+				VoxelShapes.union(Block.createColumnShape(16.0, 10.0, 16.0), Block.createColumnShape(8.0, 4.0, 10.0));
+		VoxelShape voxelShape2 = VoxelShapes.combineAndSimplify(voxelShape, shape, BooleanBiFunction.ONLY_FIRST);
+		Map<Direction, VoxelShape> map = VoxelShapes.createFacingShapeMap(
+				Block.createCuboidZShape(4.0, 4.0, 8.0, 0.0, 8.0), new Vec3d(8.0, 6.0, 8.0).multiply(0.0625)
+		);
+		return this.createShapeFunction(
+				state -> VoxelShapes.union(
+						voxelShape2,
+						VoxelShapes.combineAndSimplify(
+								map.get(state.get(FACING)),
+								VoxelShapes.fullCube(),
+								BooleanBiFunction.AND
+						)
+				),
+				ENABLED
+		);
+	}
 
-   @Override
-   protected VoxelShape getRaycastShape(BlockState state, BlockView world, BlockPos pos) {
-      return this.shapesByDirection.get(state.get(FACING));
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return this.shapeFunction.apply(state);
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      Direction direction = ctx.getSide().getOpposite();
-      return this.getDefaultState().with(FACING, direction.getAxis() == Direction.Axis.Y ? Direction.DOWN : direction).with(ENABLED, true);
-   }
+	@Override
+	protected VoxelShape getRaycastShape(BlockState state, BlockView world, BlockPos pos) {
+		return this.shapesByDirection.get(state.get(FACING));
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new HopperBlockEntity(pos, state);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		Direction direction = ctx.getSide().getOpposite();
+		return this
+				.getDefaultState()
+				.with(FACING, direction.getAxis() == Direction.Axis.Y ? Direction.DOWN : direction)
+				.with(ENABLED, true);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return world.isClient() ? null : validateTicker(type, BlockEntityType.HOPPER, HopperBlockEntity::serverTick);
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new HopperBlockEntity(pos, state);
+	}
 
-   @Override
-   protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-      if (!oldState.isOf(state.getBlock())) {
-         this.updateEnabled(world, pos, state);
-      }
-   }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return world.isClient() ? null : validateTicker(type, BlockEntityType.HOPPER, HopperBlockEntity::serverTick);
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient() && world.getBlockEntity(pos) instanceof HopperBlockEntity hopperBlockEntity) {
-         player.openHandledScreen(hopperBlockEntity);
-         player.incrementStat(Stats.INSPECT_HOPPER);
-      }
+	@Override
+	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
+		if (!oldState.isOf(state.getBlock())) {
+			this.updateEnabled(world, pos, state);
+		}
+	}
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient() && world.getBlockEntity(pos) instanceof HopperBlockEntity hopperBlockEntity) {
+			player.openHandledScreen(hopperBlockEntity);
+			player.incrementStat(Stats.INSPECT_HOPPER);
+		}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      this.updateEnabled(world, pos, state);
-   }
+		return ActionResult.SUCCESS;
+	}
 
-   private void updateEnabled(World world, BlockPos pos, BlockState state) {
-      boolean bl = !world.isReceivingRedstonePower(pos);
-      if (bl != state.get(ENABLED)) {
-         world.setBlockState(pos, state.with(ENABLED, bl), 2);
-      }
-   }
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		this.updateEnabled(world, pos, state);
+	}
 
-   @Override
-   protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-      ItemScatterer.onStateReplaced(state, world, pos);
-   }
+	private void updateEnabled(World world, BlockPos pos, BlockState state) {
+		boolean bl = !world.isReceivingRedstonePower(pos);
+		if (bl != state.get(ENABLED)) {
+			world.setBlockState(pos, state.with(ENABLED, bl), 2);
+		}
+	}
 
-   @Override
-   protected boolean hasComparatorOutput(BlockState state) {
-      return true;
-   }
+	@Override
+	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+		ItemScatterer.onStateReplaced(state, world, pos);
+	}
 
-   @Override
-   protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-      return ScreenHandler.calculateComparatorOutput(world.getBlockEntity(pos));
-   }
+	@Override
+	protected boolean hasComparatorOutput(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(FACING, rotation.rotate(state.get(FACING)));
-   }
+	@Override
+	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
+		return ScreenHandler.calculateComparatorOutput(world.getBlockEntity(pos));
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.rotate(mirror.getRotation(state.get(FACING)));
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(FACING, rotation.rotate(state.get(FACING)));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(FACING, ENABLED);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.rotate(mirror.getRotation(state.get(FACING)));
+	}
 
-   @Override
-   protected void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler, boolean bl) {
-      BlockEntity blockEntity = world.getBlockEntity(pos);
-      if (blockEntity instanceof HopperBlockEntity) {
-         HopperBlockEntity.onEntityCollided(world, pos, state, entity, (HopperBlockEntity)blockEntity);
-      }
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(FACING, ENABLED);
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected void onEntityCollision(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Entity entity,
+			EntityCollisionHandler handler,
+			boolean bl
+	) {
+		BlockEntity blockEntity = world.getBlockEntity(pos);
+		if (blockEntity instanceof HopperBlockEntity) {
+			HopperBlockEntity.onEntityCollided(world, pos, state, entity, (HopperBlockEntity) blockEntity);
+		}
+	}
+
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 }

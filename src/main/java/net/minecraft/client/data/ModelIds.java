@@ -8,33 +8,37 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ModelIds}.
+ */
 public class ModelIds {
-   @Deprecated
-   public static Identifier getMinecraftNamespacedBlock(String name) {
-      return Identifier.ofVanilla("block/" + name);
-   }
 
-   public static Identifier getMinecraftNamespacedItem(String name) {
-      return Identifier.ofVanilla("item/" + name);
-   }
+	@Deprecated
+	public static Identifier getMinecraftNamespacedBlock(String name) {
+		return Identifier.ofVanilla("block/" + name);
+	}
 
-   public static Identifier getBlockSubModelId(Block block, String suffix) {
-      Identifier identifier = Registries.BLOCK.getId(block);
-      return identifier.withPath(path -> "block/" + path + suffix);
-   }
+	public static Identifier getMinecraftNamespacedItem(String name) {
+		return Identifier.ofVanilla("item/" + name);
+	}
 
-   public static Identifier getBlockModelId(Block block) {
-      Identifier identifier = Registries.BLOCK.getId(block);
-      return identifier.withPrefixedPath("block/");
-   }
+	public static Identifier getBlockSubModelId(Block block, String suffix) {
+		Identifier identifier = Registries.BLOCK.getId(block);
+		return identifier.withPath(path -> "block/" + path + suffix);
+	}
 
-   public static Identifier getItemModelId(Item item) {
-      Identifier identifier = Registries.ITEM.getId(item);
-      return identifier.withPrefixedPath("item/");
-   }
+	public static Identifier getBlockModelId(Block block) {
+		Identifier identifier = Registries.BLOCK.getId(block);
+		return identifier.withPrefixedPath("block/");
+	}
 
-   public static Identifier getItemSubModelId(Item item, String suffix) {
-      Identifier identifier = Registries.ITEM.getId(item);
-      return identifier.withPath(path -> "item/" + path + suffix);
-   }
+	public static Identifier getItemModelId(Item item) {
+		Identifier identifier = Registries.ITEM.getId(item);
+		return identifier.withPrefixedPath("item/");
+	}
+
+	public static Identifier getItemSubModelId(Item item, String suffix) {
+		Identifier identifier = Registries.ITEM.getId(item);
+		return identifier.withPath(path -> "item/" + path + suffix);
+	}
 }

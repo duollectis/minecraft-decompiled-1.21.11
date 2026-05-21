@@ -6,8 +6,12 @@ import net.minecraft.client.render.entity.state.EntityRenderState;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MobSpawnerBlockEntityRenderState}.
+ */
 public class MobSpawnerBlockEntityRenderState extends BlockEntityRenderState {
-   public @Nullable EntityRenderState displayEntityRenderState;
-   public float displayEntityRotation;
-   public float displayEntityScale;
+
+	public @Nullable EntityRenderState displayEntityRenderState;
+	public float displayEntityRotation;
+	public float displayEntityScale;
 }

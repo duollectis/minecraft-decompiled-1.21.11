@@ -2,61 +2,71 @@ package net.minecraft.entity.ai.brain;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
 import net.minecraft.util.annotation.Debug;
 
+import java.util.Optional;
+
+/**
+ * {@code Memory}.
+ */
 public class Memory<T> {
-   private final T value;
-   private long expiry;
 
-   public Memory(T value, long expiry) {
-      this.value = value;
-      this.expiry = expiry;
-   }
+	private final T value;
+	private long expiry;
 
-   public void tick() {
-      if (this.isTimed()) {
-         this.expiry--;
-      }
-   }
+	public Memory(T value, long expiry) {
+		this.value = value;
+		this.expiry = expiry;
+	}
 
-   public static <T> Memory<T> permanent(T value) {
-      return new Memory<>(value, Long.MAX_VALUE);
-   }
+	public void tick() {
+		if (this.isTimed()) {
+			this.expiry--;
+		}
+	}
 
-   public static <T> Memory<T> timed(T value, long expiry) {
-      return new Memory<>(value, expiry);
-   }
+	public static <T> Memory<T> permanent(T value) {
+		return new Memory<>(value, Long.MAX_VALUE);
+	}
 
-   public long getExpiry() {
-      return this.expiry;
-   }
+	public static <T> Memory<T> timed(T value, long expiry) {
+		return new Memory<>(value, expiry);
+	}
 
-   public T getValue() {
-      return this.value;
-   }
+	public long getExpiry() {
+		return this.expiry;
+	}
 
-   public boolean isExpired() {
-      return this.expiry <= 0L;
-   }
+	public T getValue() {
+		return this.value;
+	}
 
-   @Override
-   public String toString() {
-      return this.value + (this.isTimed() ? " (ttl: " + this.expiry + ")" : "");
-   }
+	public boolean isExpired() {
+		return this.expiry <= 0L;
+	}
 
-   @Debug
-   public boolean isTimed() {
-      return this.expiry != Long.MAX_VALUE;
-   }
+	@Override
+	public String toString() {
+		return this.value + (this.isTimed() ? " (ttl: " + this.expiry + ")" : "");
+	}
 
-   public static <T> Codec<Memory<T>> createCodec(Codec<T> codec) {
-      return RecordCodecBuilder.create(
-         instance -> instance.group(
-               codec.fieldOf("value").forGetter(memory -> memory.value),
-               Codec.LONG.lenientOptionalFieldOf("ttl").forGetter(memory -> memory.isTimed() ? Optional.of(memory.expiry) : Optional.empty())
-            )
-            .apply(instance, (value, expiry) -> new Memory<>(value, expiry.orElse(Long.MAX_VALUE)))
-      );
-   }
+	@Debug
+	public boolean isTimed() {
+		return this.expiry != Long.MAX_VALUE;
+	}
+
+	public static <T> Codec<Memory<T>> createCodec(Codec<T> codec) {
+		return RecordCodecBuilder.create(
+				instance -> instance.group(
+						                    codec.fieldOf("value").forGetter(memory -> memory.value),
+						                    Codec.LONG
+								                    .lenientOptionalFieldOf("ttl")
+								                    .forGetter(memory -> memory.isTimed() ? Optional.of(memory.expiry) : Optional.empty())
+				                    )
+				                    .apply(
+						                    instance,
+						                    (value, expiry) -> new Memory<>(value, expiry.orElse(Long.MAX_VALUE))
+				                    )
+		);
+	}
 }

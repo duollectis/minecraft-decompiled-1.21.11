@@ -2,22 +2,26 @@ package net.minecraft.util.collection;
 
 import java.util.function.IntConsumer;
 
+/**
+ * {@code PaletteStorage}.
+ */
 public interface PaletteStorage {
-   int swap(int index, int value);
 
-   void set(int index, int value);
+	int swap(int index, int value);
 
-   int get(int index);
+	void set(int index, int value);
 
-   long[] getData();
+	int get(int index);
 
-   int getSize();
+	long[] getData();
 
-   int getElementBits();
+	int getSize();
 
-   void forEach(IntConsumer action);
+	int getElementBits();
 
-   void writePaletteIndices(int[] out);
+	void forEach(IntConsumer action);
 
-   PaletteStorage copy();
+	void writePaletteIndices(int[] out);
+
+	PaletteStorage copy();
 }

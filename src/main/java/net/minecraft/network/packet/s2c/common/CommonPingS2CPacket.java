@@ -8,31 +8,34 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public class CommonPingS2CPacket implements Packet<ClientCommonPacketListener> {
-   public static final PacketCodec<PacketByteBuf, CommonPingS2CPacket> CODEC = Packet.createCodec(CommonPingS2CPacket::write, CommonPingS2CPacket::new);
-   private final int parameter;
 
-   public CommonPingS2CPacket(int parameter) {
-      this.parameter = parameter;
-   }
+	public static final PacketCodec<PacketByteBuf, CommonPingS2CPacket>
+			CODEC =
+			Packet.createCodec(CommonPingS2CPacket::write, CommonPingS2CPacket::new);
+	private final int parameter;
 
-   private CommonPingS2CPacket(PacketByteBuf buf) {
-      this.parameter = buf.readInt();
-   }
+	public CommonPingS2CPacket(int parameter) {
+		this.parameter = parameter;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeInt(this.parameter);
-   }
+	private CommonPingS2CPacket(PacketByteBuf buf) {
+		this.parameter = buf.readInt();
+	}
 
-   @Override
-   public PacketType<CommonPingS2CPacket> getPacketType() {
-      return CommonPackets.PING;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeInt(this.parameter);
+	}
 
-   public void apply(ClientCommonPacketListener clientCommonPacketListener) {
-      clientCommonPacketListener.onPing(this);
-   }
+	@Override
+	public PacketType<CommonPingS2CPacket> getPacketType() {
+		return CommonPackets.PING;
+	}
 
-   public int getParameter() {
-      return this.parameter;
-   }
+	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
+		clientCommonPacketListener.onPing(this);
+	}
+
+	public int getParameter() {
+		return this.parameter;
+	}
 }

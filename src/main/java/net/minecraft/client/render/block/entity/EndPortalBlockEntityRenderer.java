@@ -6,8 +6,12 @@ import net.minecraft.block.entity.EndPortalBlockEntity;
 import net.minecraft.client.render.block.entity.state.EndPortalBlockEntityRenderState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EndPortalBlockEntityRenderer}.
+ */
 public class EndPortalBlockEntityRenderer extends AbstractEndPortalBlockEntityRenderer<EndPortalBlockEntity, EndPortalBlockEntityRenderState> {
-   public EndPortalBlockEntityRenderState createRenderState() {
-      return new EndPortalBlockEntityRenderState();
-   }
+
+	public EndPortalBlockEntityRenderState createRenderState() {
+		return new EndPortalBlockEntityRenderState();
+	}
 }

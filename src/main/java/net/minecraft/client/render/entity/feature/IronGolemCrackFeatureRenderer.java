@@ -1,7 +1,6 @@
 package net.minecraft.client.render.entity.feature;
 
 import com.google.common.collect.ImmutableMap;
-import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
@@ -11,35 +10,50 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.passive.Cracks;
 import net.minecraft.util.Identifier;
 
+import java.util.Map;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code IronGolemCrackFeatureRenderer}.
+ */
 public class IronGolemCrackFeatureRenderer extends FeatureRenderer<IronGolemEntityRenderState, IronGolemEntityModel> {
-   private static final Map<Cracks.CrackLevel, Identifier> CRACK_TEXTURES = ImmutableMap.of(
-      Cracks.CrackLevel.LOW,
-      Identifier.ofVanilla("textures/entity/iron_golem/iron_golem_crackiness_low.png"),
-      Cracks.CrackLevel.MEDIUM,
-      Identifier.ofVanilla("textures/entity/iron_golem/iron_golem_crackiness_medium.png"),
-      Cracks.CrackLevel.HIGH,
-      Identifier.ofVanilla("textures/entity/iron_golem/iron_golem_crackiness_high.png")
-   );
 
-   public IronGolemCrackFeatureRenderer(FeatureRendererContext<IronGolemEntityRenderState, IronGolemEntityModel> featureRendererContext) {
-      super(featureRendererContext);
-   }
+	private static final Map<Cracks.CrackLevel, Identifier> CRACK_TEXTURES = ImmutableMap.of(
+			Cracks.CrackLevel.LOW,
+			Identifier.ofVanilla("textures/entity/iron_golem/iron_golem_crackiness_low.png"),
+			Cracks.CrackLevel.MEDIUM,
+			Identifier.ofVanilla("textures/entity/iron_golem/iron_golem_crackiness_medium.png"),
+			Cracks.CrackLevel.HIGH,
+			Identifier.ofVanilla("textures/entity/iron_golem/iron_golem_crackiness_high.png")
+	);
 
-   public void render(
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      int i,
-      IronGolemEntityRenderState ironGolemEntityRenderState,
-      float f,
-      float g
-   ) {
-      if (!ironGolemEntityRenderState.invisible) {
-         Cracks.CrackLevel crackLevel = ironGolemEntityRenderState.crackLevel;
-         if (crackLevel != Cracks.CrackLevel.NONE) {
-            Identifier identifier = CRACK_TEXTURES.get(crackLevel);
-            renderModel(this.getContextModel(), identifier, matrixStack, orderedRenderCommandQueue, i, ironGolemEntityRenderState, -1, 1);
-         }
-      }
-   }
+	public IronGolemCrackFeatureRenderer(FeatureRendererContext<IronGolemEntityRenderState, IronGolemEntityModel> featureRendererContext) {
+		super(featureRendererContext);
+	}
+
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			IronGolemEntityRenderState ironGolemEntityRenderState,
+			float f,
+			float g
+	) {
+		if (!ironGolemEntityRenderState.invisible) {
+			Cracks.CrackLevel crackLevel = ironGolemEntityRenderState.crackLevel;
+			if (crackLevel != Cracks.CrackLevel.NONE) {
+				Identifier identifier = CRACK_TEXTURES.get(crackLevel);
+				renderModel(
+						this.getContextModel(),
+						identifier,
+						matrixStack,
+						orderedRenderCommandQueue,
+						i,
+						ironGolemEntityRenderState,
+						-1,
+						1
+				);
+			}
+		}
+	}
 }

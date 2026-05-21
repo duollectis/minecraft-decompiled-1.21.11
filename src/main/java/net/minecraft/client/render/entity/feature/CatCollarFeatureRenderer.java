@@ -12,25 +12,37 @@ import net.minecraft.util.DyeColor;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CatCollarFeatureRenderer}.
+ */
 public class CatCollarFeatureRenderer extends FeatureRenderer<CatEntityRenderState, CatEntityModel> {
-   private static final Identifier SKIN = Identifier.ofVanilla("textures/entity/cat/cat_collar.png");
-   private final CatEntityModel model;
-   private final CatEntityModel babyModel;
 
-   public CatCollarFeatureRenderer(FeatureRendererContext<CatEntityRenderState, CatEntityModel> context, LoadedEntityModels loader) {
-      super(context);
-      this.model = new CatEntityModel(loader.getModelPart(EntityModelLayers.CAT_COLLAR));
-      this.babyModel = new CatEntityModel(loader.getModelPart(EntityModelLayers.CAT_BABY_COLLAR));
-   }
+	private static final Identifier SKIN = Identifier.ofVanilla("textures/entity/cat/cat_collar.png");
+	private final CatEntityModel model;
+	private final CatEntityModel babyModel;
 
-   public void render(
-      MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, CatEntityRenderState catEntityRenderState, float f, float g
-   ) {
-      DyeColor dyeColor = catEntityRenderState.collarColor;
-      if (dyeColor != null) {
-         int j = dyeColor.getEntityColor();
-         CatEntityModel catEntityModel = catEntityRenderState.baby ? this.babyModel : this.model;
-         render(catEntityModel, SKIN, matrixStack, orderedRenderCommandQueue, i, catEntityRenderState, j, 1);
-      }
-   }
+	public CatCollarFeatureRenderer(
+			FeatureRendererContext<CatEntityRenderState, CatEntityModel> context,
+			LoadedEntityModels loader
+	) {
+		super(context);
+		this.model = new CatEntityModel(loader.getModelPart(EntityModelLayers.CAT_COLLAR));
+		this.babyModel = new CatEntityModel(loader.getModelPart(EntityModelLayers.CAT_BABY_COLLAR));
+	}
+
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			CatEntityRenderState catEntityRenderState,
+			float f,
+			float g
+	) {
+		DyeColor dyeColor = catEntityRenderState.collarColor;
+		if (dyeColor != null) {
+			int j = dyeColor.getEntityColor();
+			CatEntityModel catEntityModel = catEntityRenderState.baby ? this.babyModel : this.model;
+			render(catEntityModel, SKIN, matrixStack, orderedRenderCommandQueue, i, catEntityRenderState, j, 1);
+		}
+	}
 }

@@ -1,64 +1,69 @@
 package net.minecraft.util.collection;
 
+import org.jspecify.annotations.Nullable;
+
 import java.io.Serializable;
 import java.util.Deque;
 import java.util.List;
 import java.util.RandomAccess;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ListDeque}.
+ */
 public interface ListDeque<T> extends Serializable, Cloneable, Deque<T>, List<T>, RandomAccess {
-   ListDeque<T> reversed();
 
-   @Override
-   T getFirst();
+	ListDeque<T> reversed();
 
-   @Override
-   T getLast();
+	@Override
+	T getFirst();
 
-   @Override
-   void addFirst(T value);
+	@Override
+	T getLast();
 
-   @Override
-   void addLast(T value);
+	@Override
+	void addFirst(T value);
 
-   @Override
-   T removeFirst();
+	@Override
+	void addLast(T value);
 
-   @Override
-   T removeLast();
+	@Override
+	T removeFirst();
 
-   @Override
-   default boolean offer(T object) {
-      return this.offerLast(object);
-   }
+	@Override
+	T removeLast();
 
-   @Override
-   default T remove() {
-      return this.removeFirst();
-   }
+	@Override
+	default boolean offer(T object) {
+		return this.offerLast(object);
+	}
 
-   @Override
-   default @Nullable T poll() {
-      return this.pollFirst();
-   }
+	@Override
+	default T remove() {
+		return this.removeFirst();
+	}
 
-   @Override
-   default T element() {
-      return this.getFirst();
-   }
+	@Override
+	default @Nullable T poll() {
+		return this.pollFirst();
+	}
 
-   @Override
-   default @Nullable T peek() {
-      return this.peekFirst();
-   }
+	@Override
+	default T element() {
+		return this.getFirst();
+	}
 
-   @Override
-   default void push(T object) {
-      this.addFirst(object);
-   }
+	@Override
+	default @Nullable T peek() {
+		return this.peekFirst();
+	}
 
-   @Override
-   default T pop() {
-      return this.removeFirst();
-   }
+	@Override
+	default void push(T object) {
+		this.addFirst(object);
+	}
+
+	@Override
+	default T pop() {
+		return this.removeFirst();
+	}
 }

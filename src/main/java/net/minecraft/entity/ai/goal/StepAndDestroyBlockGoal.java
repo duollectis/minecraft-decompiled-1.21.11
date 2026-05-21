@@ -21,127 +21,157 @@ import net.minecraft.world.chunk.ChunkStatus;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code StepAndDestroyBlockGoal}.
+ */
 public class StepAndDestroyBlockGoal extends MoveToTargetPosGoal {
-   private final Block targetBlock;
-   private final MobEntity stepAndDestroyMob;
-   private int counter;
-   private static final int MAX_COOLDOWN = 20;
 
-   public StepAndDestroyBlockGoal(Block targetBlock, PathAwareEntity mob, double speed, int maxYDifference) {
-      super(mob, speed, 24, maxYDifference);
-      this.targetBlock = targetBlock;
-      this.stepAndDestroyMob = mob;
-   }
+	private final Block targetBlock;
+	private final MobEntity stepAndDestroyMob;
+	private int counter;
+	private static final int MAX_COOLDOWN = 20;
 
-   @Override
-   public boolean canStart() {
-      if (!getServerWorld(this.stepAndDestroyMob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-         return false;
-      } else if (this.cooldown > 0) {
-         this.cooldown--;
-         return false;
-      } else if (this.findTargetPos()) {
-         this.cooldown = toGoalTicks(20);
-         return true;
-      } else {
-         this.cooldown = this.getInterval(this.mob);
-         return false;
-      }
-   }
+	public StepAndDestroyBlockGoal(Block targetBlock, PathAwareEntity mob, double speed, int maxYDifference) {
+		super(mob, speed, 24, maxYDifference);
+		this.targetBlock = targetBlock;
+		this.stepAndDestroyMob = mob;
+	}
 
-   @Override
-   public void stop() {
-      super.stop();
-      this.stepAndDestroyMob.fallDistance = 1.0;
-   }
+	@Override
+	public boolean canStart() {
+		if (!getServerWorld(this.stepAndDestroyMob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+			return false;
+		}
+		else if (this.cooldown > 0) {
+			this.cooldown--;
+			return false;
+		}
+		else if (this.findTargetPos()) {
+			this.cooldown = toGoalTicks(20);
+			return true;
+		}
+		else {
+			this.cooldown = this.getInterval(this.mob);
+			return false;
+		}
+	}
 
-   @Override
-   public void start() {
-      super.start();
-      this.counter = 0;
-   }
+	@Override
+	public void stop() {
+		super.stop();
+		this.stepAndDestroyMob.fallDistance = 1.0;
+	}
 
-   public void tickStepping(WorldAccess world, BlockPos pos) {
-   }
+	@Override
+	public void start() {
+		super.start();
+		this.counter = 0;
+	}
 
-   public void onDestroyBlock(World world, BlockPos pos) {
-   }
+	public void tickStepping(WorldAccess world, BlockPos pos) {
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      World world = this.stepAndDestroyMob.getEntityWorld();
-      BlockPos blockPos = this.stepAndDestroyMob.getBlockPos();
-      BlockPos blockPos2 = this.tweakToProperPos(blockPos, world);
-      Random random = this.stepAndDestroyMob.getRandom();
-      if (this.hasReached() && blockPos2 != null) {
-         if (this.counter > 0) {
-            Vec3d vec3d = this.stepAndDestroyMob.getVelocity();
-            this.stepAndDestroyMob.setVelocity(vec3d.x, 0.3, vec3d.z);
-            if (!world.isClient()) {
-               double d = 0.08;
-               ((ServerWorld)world)
-                  .spawnParticles(
-                     new ItemStackParticleEffect(ParticleTypes.ITEM, new ItemStack(Items.EGG)),
-                     blockPos2.getX() + 0.5,
-                     blockPos2.getY() + 0.7,
-                     blockPos2.getZ() + 0.5,
-                     3,
-                     (random.nextFloat() - 0.5) * 0.08,
-                     (random.nextFloat() - 0.5) * 0.08,
-                     (random.nextFloat() - 0.5) * 0.08,
-                     0.15F
-                  );
-            }
-         }
+	public void onDestroyBlock(World world, BlockPos pos) {
+	}
 
-         if (this.counter % 2 == 0) {
-            Vec3d vec3d = this.stepAndDestroyMob.getVelocity();
-            this.stepAndDestroyMob.setVelocity(vec3d.x, -0.3, vec3d.z);
-            if (this.counter % 6 == 0) {
-               this.tickStepping(world, this.targetPos);
-            }
-         }
+	@Override
+	public void tick() {
+		super.tick();
+		World world = this.stepAndDestroyMob.getEntityWorld();
+		BlockPos blockPos = this.stepAndDestroyMob.getBlockPos();
+		BlockPos blockPos2 = this.tweakToProperPos(blockPos, world);
+		Random random = this.stepAndDestroyMob.getRandom();
+		if (this.hasReached() && blockPos2 != null) {
+			if (this.counter > 0) {
+				Vec3d vec3d = this.stepAndDestroyMob.getVelocity();
+				this.stepAndDestroyMob.setVelocity(vec3d.x, 0.3, vec3d.z);
+				if (!world.isClient()) {
+					double d = 0.08;
+					((ServerWorld) world)
+							.spawnParticles(
+									new ItemStackParticleEffect(ParticleTypes.ITEM, new ItemStack(Items.EGG)),
+									blockPos2.getX() + 0.5,
+									blockPos2.getY() + 0.7,
+									blockPos2.getZ() + 0.5,
+									3,
+									(random.nextFloat() - 0.5) * 0.08,
+									(random.nextFloat() - 0.5) * 0.08,
+									(random.nextFloat() - 0.5) * 0.08,
+									0.15F
+							);
+				}
+			}
 
-         if (this.counter > 60) {
-            world.removeBlock(blockPos2, false);
-            if (!world.isClient()) {
-               for (int i = 0; i < 20; i++) {
-                  double d = random.nextGaussian() * 0.02;
-                  double e = random.nextGaussian() * 0.02;
-                  double f = random.nextGaussian() * 0.02;
-                  ((ServerWorld)world).spawnParticles(ParticleTypes.POOF, blockPos2.getX() + 0.5, blockPos2.getY(), blockPos2.getZ() + 0.5, 1, d, e, f, 0.15F);
-               }
+			if (this.counter % 2 == 0) {
+				Vec3d vec3d = this.stepAndDestroyMob.getVelocity();
+				this.stepAndDestroyMob.setVelocity(vec3d.x, -0.3, vec3d.z);
+				if (this.counter % 6 == 0) {
+					this.tickStepping(world, this.targetPos);
+				}
+			}
 
-               this.onDestroyBlock(world, blockPos2);
-            }
-         }
+			if (this.counter > 60) {
+				world.removeBlock(blockPos2, false);
+				if (!world.isClient()) {
+					for (int i = 0; i < 20; i++) {
+						double d = random.nextGaussian() * 0.02;
+						double e = random.nextGaussian() * 0.02;
+						double f = random.nextGaussian() * 0.02;
+						((ServerWorld) world).spawnParticles(
+								ParticleTypes.POOF,
+								blockPos2.getX() + 0.5,
+								blockPos2.getY(),
+								blockPos2.getZ() + 0.5,
+								1,
+								d,
+								e,
+								f,
+								0.15F
+						);
+					}
 
-         this.counter++;
-      }
-   }
+					this.onDestroyBlock(world, blockPos2);
+				}
+			}
 
-   private @Nullable BlockPos tweakToProperPos(BlockPos pos, BlockView world) {
-      if (world.getBlockState(pos).isOf(this.targetBlock)) {
-         return pos;
-      } else {
-         BlockPos[] blockPoss = new BlockPos[]{pos.down(), pos.west(), pos.east(), pos.north(), pos.south(), pos.down().down()};
+			this.counter++;
+		}
+	}
 
-         for (BlockPos blockPos : blockPoss) {
-            if (world.getBlockState(blockPos).isOf(this.targetBlock)) {
-               return blockPos;
-            }
-         }
+	private @Nullable BlockPos tweakToProperPos(BlockPos pos, BlockView world) {
+		if (world.getBlockState(pos).isOf(this.targetBlock)) {
+			return pos;
+		}
+		else {
+			BlockPos[]
+					blockPoss =
+					new BlockPos[]{pos.down(), pos.west(), pos.east(), pos.north(), pos.south(), pos.down().down()};
 
-         return null;
-      }
-   }
+			for (BlockPos blockPos : blockPoss) {
+				if (world.getBlockState(blockPos).isOf(this.targetBlock)) {
+					return blockPos;
+				}
+			}
 
-   @Override
-   protected boolean isTargetPos(WorldView world, BlockPos pos) {
-      Chunk chunk = world.getChunk(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()), ChunkStatus.FULL, false);
-      return chunk == null
-         ? false
-         : chunk.getBlockState(pos).isOf(this.targetBlock) && chunk.getBlockState(pos.up()).isAir() && chunk.getBlockState(pos.up(2)).isAir();
-   }
+			return null;
+		}
+	}
+
+	@Override
+	protected boolean isTargetPos(WorldView world, BlockPos pos) {
+		Chunk
+				chunk =
+				world.getChunk(
+						ChunkSectionPos.getSectionCoord(pos.getX()),
+						ChunkSectionPos.getSectionCoord(pos.getZ()),
+						ChunkStatus.FULL,
+						false
+				);
+		return chunk == null
+		       ? false
+		       : chunk.getBlockState(pos).isOf(this.targetBlock) && chunk.getBlockState(pos.up()).isAir() && chunk
+		                                                                                                     .getBlockState(
+				                                                                                                     pos.up(2))
+		                                                                                                     .isAir();
+	}
 }

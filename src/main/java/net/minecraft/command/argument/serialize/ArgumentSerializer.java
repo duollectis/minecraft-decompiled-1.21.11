@@ -5,18 +5,26 @@ import com.mojang.brigadier.arguments.ArgumentType;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.network.PacketByteBuf;
 
+/**
+ * {@code ArgumentSerializer}.
+ */
 public interface ArgumentSerializer<A extends ArgumentType<?>, T extends ArgumentSerializer.ArgumentTypeProperties<A>> {
-   void writePacket(T properties, PacketByteBuf buf);
 
-   T fromPacket(PacketByteBuf buf);
+	void writePacket(T properties, PacketByteBuf buf);
 
-   void writeJson(T properties, JsonObject json);
+	T fromPacket(PacketByteBuf buf);
 
-   T getArgumentTypeProperties(A argumentType);
+	void writeJson(T properties, JsonObject json);
 
-   public interface ArgumentTypeProperties<A extends ArgumentType<?>> {
-      A createType(CommandRegistryAccess commandRegistryAccess);
+	T getArgumentTypeProperties(A argumentType);
 
-      ArgumentSerializer<A, ?> getSerializer();
-   }
+	/**
+	 * {@code ArgumentTypeProperties}.
+	 */
+	public interface ArgumentTypeProperties<A extends ArgumentType<?>> {
+
+		A createType(CommandRegistryAccess commandRegistryAccess);
+
+		ArgumentSerializer<A, ?> getSerializer();
+	}
 }

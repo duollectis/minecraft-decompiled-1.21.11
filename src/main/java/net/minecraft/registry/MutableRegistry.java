@@ -1,16 +1,21 @@
 package net.minecraft.registry;
 
-import java.util.List;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryInfo;
 import net.minecraft.registry.tag.TagKey;
 
+import java.util.List;
+
+/**
+ * {@code MutableRegistry}.
+ */
 public interface MutableRegistry<T> extends Registry<T> {
-   RegistryEntry.Reference<T> add(RegistryKey<T> key, T value, RegistryEntryInfo info);
 
-   void setEntries(TagKey<T> tag, List<RegistryEntry<T>> entries);
+	RegistryEntry.Reference<T> add(RegistryKey<T> key, T value, RegistryEntryInfo info);
 
-   boolean isEmpty();
+	void setEntries(TagKey<T> tag, List<RegistryEntry<T>> entries);
 
-   RegistryEntryLookup<T> createMutableRegistryLookup();
+	boolean isEmpty();
+
+	RegistryEntryLookup<T> createMutableRegistryLookup();
 }

@@ -1,91 +1,100 @@
 package net.minecraft.client.util;
 
 import com.google.common.annotations.VisibleForTesting;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.Iterator;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Pool}.
+ */
 public class Pool implements ObjectAllocator, AutoCloseable {
-   private final int lifespan;
-   private final Deque<Pool.Entry<?>> entries = new ArrayDeque<>();
 
-   public Pool(int lifespan) {
-      this.lifespan = lifespan;
-   }
+	private final int lifespan;
+	private final Deque<Pool.Entry<?>> entries = new ArrayDeque<>();
 
-   public void decrementLifespan() {
-      Iterator<? extends Pool.Entry<?>> iterator = this.entries.iterator();
+	public Pool(int lifespan) {
+		this.lifespan = lifespan;
+	}
 
-      while (iterator.hasNext()) {
-         Pool.Entry<?> entry = (Pool.Entry<?>)iterator.next();
-         if (entry.lifespan-- == 0) {
-            entry.close();
-            iterator.remove();
-         }
-      }
-   }
+	public void decrementLifespan() {
+		Iterator<? extends Pool.Entry<?>> iterator = this.entries.iterator();
 
-   @Override
-   public <T> T acquire(ClosableFactory<T> factory) {
-      T object = this.acquireUnprepared(factory);
-      factory.prepare(object);
-      return object;
-   }
+		while (iterator.hasNext()) {
+			Pool.Entry<?> entry = (Pool.Entry<?>) iterator.next();
+			if (entry.lifespan-- == 0) {
+				entry.close();
+				iterator.remove();
+			}
+		}
+	}
 
-   private <T> T acquireUnprepared(ClosableFactory<T> factory) {
-      Iterator<? extends Pool.Entry<?>> iterator = this.entries.iterator();
+	@Override
+	public <T> T acquire(ClosableFactory<T> factory) {
+		T object = this.acquireUnprepared(factory);
+		factory.prepare(object);
+		return object;
+	}
 
-      while (iterator.hasNext()) {
-         Pool.Entry<?> entry = (Pool.Entry<?>)iterator.next();
-         if (factory.equals(entry.factory)) {
-            iterator.remove();
-            return (T)entry.object;
-         }
-      }
+	private <T> T acquireUnprepared(ClosableFactory<T> factory) {
+		Iterator<? extends Pool.Entry<?>> iterator = this.entries.iterator();
 
-      return factory.create();
-   }
+		while (iterator.hasNext()) {
+			Pool.Entry<?> entry = (Pool.Entry<?>) iterator.next();
+			if (factory.equals(entry.factory)) {
+				iterator.remove();
+				return (T) entry.object;
+			}
+		}
 
-   @Override
-   public <T> void release(ClosableFactory<T> factory, T value) {
-      this.entries.addFirst(new Pool.Entry<>(factory, value, this.lifespan));
-   }
+		return factory.create();
+	}
 
-   public void clear() {
-      this.entries.forEach(Pool.Entry::close);
-      this.entries.clear();
-   }
+	@Override
+	public <T> void release(ClosableFactory<T> factory, T value) {
+		this.entries.addFirst(new Pool.Entry<>(factory, value, this.lifespan));
+	}
 
-   @Override
-   public void close() {
-      this.clear();
-   }
+	public void clear() {
+		this.entries.forEach(Pool.Entry::close);
+		this.entries.clear();
+	}
 
-   @VisibleForTesting
-   protected Collection<Pool.Entry<?>> getEntries() {
-      return this.entries;
-   }
+	@Override
+	public void close() {
+		this.clear();
+	}
 
-   @Environment(EnvType.CLIENT)
-   @VisibleForTesting
-   protected static final class Entry<T> implements AutoCloseable {
-      final ClosableFactory<T> factory;
-      final T object;
-      int lifespan;
+	@VisibleForTesting
+	protected Collection<Pool.Entry<?>> getEntries() {
+		return this.entries;
+	}
 
-      Entry(ClosableFactory<T> factory, T object, int lifespan) {
-         this.factory = factory;
-         this.object = object;
-         this.lifespan = lifespan;
-      }
+	@Environment(EnvType.CLIENT)
+	@VisibleForTesting
+	/**
+	 * {@code Entry}.
+	 */
+	protected static final class Entry<T> implements AutoCloseable {
 
-      @Override
-      public void close() {
-         this.factory.close(this.object);
-      }
-   }
+		final ClosableFactory<T> factory;
+		final T object;
+		int lifespan;
+
+		Entry(ClosableFactory<T> factory, T object, int lifespan) {
+			this.factory = factory;
+			this.object = object;
+			this.lifespan = lifespan;
+		}
+
+		@Override
+		public void close() {
+			this.factory.close(this.object);
+		}
+	}
 }

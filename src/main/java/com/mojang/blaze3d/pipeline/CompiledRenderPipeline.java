@@ -6,6 +6,10 @@ import net.minecraft.util.annotation.DeobfuscateClass;
 
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
+/**
+ * {@code CompiledRenderPipeline}.
+ */
 public interface CompiledRenderPipeline {
-   boolean isValid();
+
+	boolean isValid();
 }

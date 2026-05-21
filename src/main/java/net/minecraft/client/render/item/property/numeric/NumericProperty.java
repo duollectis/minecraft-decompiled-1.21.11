@@ -9,8 +9,12 @@ import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code NumericProperty}.
+ */
 public interface NumericProperty {
-   float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext context, int seed);
 
-   MapCodec<? extends NumericProperty> getCodec();
+	float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext context, int seed);
+
+	MapCodec<? extends NumericProperty> getCodec();
 }

@@ -10,16 +10,26 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DamagedProperty}.
+ */
 public record DamagedProperty() implements BooleanProperty {
-   public static final MapCodec<DamagedProperty> CODEC = MapCodec.unit(new DamagedProperty());
 
-   @Override
-   public boolean test(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity entity, int seed, ItemDisplayContext displayContext) {
-      return stack.isDamaged();
-   }
+	public static final MapCodec<DamagedProperty> CODEC = MapCodec.unit(new DamagedProperty());
 
-   @Override
-   public MapCodec<DamagedProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public boolean test(
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity entity,
+			int seed,
+			ItemDisplayContext displayContext
+	) {
+		return stack.isDamaged();
+	}
+
+	@Override
+	public MapCodec<DamagedProperty> getCodec() {
+		return CODEC;
+	}
 }

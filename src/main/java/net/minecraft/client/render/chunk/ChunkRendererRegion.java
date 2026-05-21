@@ -15,78 +15,88 @@ import net.minecraft.world.chunk.light.LightingProvider;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ChunkRendererRegion}.
+ */
 public class ChunkRendererRegion implements BlockRenderView {
-   public static final int field_52160 = 1;
-   public static final int SIDE_LENGTH_CHUNKS = 3;
-   private final int baseX;
-   private final int baseY;
-   private final int baseZ;
-   private final RenderedChunk[] renderedChunks;
-   private final World world;
 
-   ChunkRendererRegion(World world, int baseX, int baseY, int baseZ, RenderedChunk[] renderedChunks) {
-      this.world = world;
-      this.baseX = baseX;
-      this.baseY = baseY;
-      this.baseZ = baseZ;
-      this.renderedChunks = renderedChunks;
-   }
+	public static final int BORDER_SIZE = 1;
+	public static final int SIDE_LENGTH_CHUNKS = 3;
+	private final int baseX;
+	private final int baseY;
+	private final int baseZ;
+	private final RenderedChunk[] renderedChunks;
+	private final World world;
 
-   @Override
-   public BlockState getBlockState(BlockPos pos) {
-      return this.getRenderedChunk(
-            ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getY()), ChunkSectionPos.getSectionCoord(pos.getZ())
-         )
-         .getBlockState(pos);
-   }
+	ChunkRendererRegion(World world, int baseX, int baseY, int baseZ, RenderedChunk[] renderedChunks) {
+		this.world = world;
+		this.baseX = baseX;
+		this.baseY = baseY;
+		this.baseZ = baseZ;
+		this.renderedChunks = renderedChunks;
+	}
 
-   @Override
-   public FluidState getFluidState(BlockPos pos) {
-      return this.getRenderedChunk(
-            ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getY()), ChunkSectionPos.getSectionCoord(pos.getZ())
-         )
-         .getBlockState(pos)
-         .getFluidState();
-   }
+	@Override
+	public BlockState getBlockState(BlockPos pos) {
+		return this.getRenderedChunk(
+				           ChunkSectionPos.getSectionCoord(pos.getX()),
+				           ChunkSectionPos.getSectionCoord(pos.getY()),
+				           ChunkSectionPos.getSectionCoord(pos.getZ())
+		           )
+		           .getBlockState(pos);
+	}
 
-   @Override
-   public float getBrightness(Direction direction, boolean shaded) {
-      return this.world.getBrightness(direction, shaded);
-   }
+	@Override
+	public FluidState getFluidState(BlockPos pos) {
+		return this.getRenderedChunk(
+				           ChunkSectionPos.getSectionCoord(pos.getX()),
+				           ChunkSectionPos.getSectionCoord(pos.getY()),
+				           ChunkSectionPos.getSectionCoord(pos.getZ())
+		           )
+		           .getBlockState(pos)
+		           .getFluidState();
+	}
 
-   @Override
-   public LightingProvider getLightingProvider() {
-      return this.world.getLightingProvider();
-   }
+	@Override
+	public float getBrightness(Direction direction, boolean shaded) {
+		return this.world.getBrightness(direction, shaded);
+	}
 
-   @Override
-   public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
-      return this.getRenderedChunk(
-            ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getY()), ChunkSectionPos.getSectionCoord(pos.getZ())
-         )
-         .getBlockEntity(pos);
-   }
+	@Override
+	public LightingProvider getLightingProvider() {
+		return this.world.getLightingProvider();
+	}
 
-   private RenderedChunk getRenderedChunk(int sectionX, int sectionY, int sectionZ) {
-      return this.renderedChunks[getIndex(this.baseX, this.baseY, this.baseZ, sectionX, sectionY, sectionZ)];
-   }
+	@Override
+	public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
+		return this.getRenderedChunk(
+				           ChunkSectionPos.getSectionCoord(pos.getX()),
+				           ChunkSectionPos.getSectionCoord(pos.getY()),
+				           ChunkSectionPos.getSectionCoord(pos.getZ())
+		           )
+		           .getBlockEntity(pos);
+	}
 
-   @Override
-   public int getColor(BlockPos pos, ColorResolver colorResolver) {
-      return this.world.getColor(pos, colorResolver);
-   }
+	private RenderedChunk getRenderedChunk(int sectionX, int sectionY, int sectionZ) {
+		return this.renderedChunks[getIndex(this.baseX, this.baseY, this.baseZ, sectionX, sectionY, sectionZ)];
+	}
 
-   @Override
-   public int getBottomY() {
-      return this.world.getBottomY();
-   }
+	@Override
+	public int getColor(BlockPos pos, ColorResolver colorResolver) {
+		return this.world.getColor(pos, colorResolver);
+	}
 
-   @Override
-   public int getHeight() {
-      return this.world.getHeight();
-   }
+	@Override
+	public int getBottomY() {
+		return this.world.getBottomY();
+	}
 
-   public static int getIndex(int xOffset, int yOffset, int zOffset, int sectionX, int sectionY, int sectionZ) {
-      return sectionX - xOffset + (sectionY - yOffset) * 3 + (sectionZ - zOffset) * 3 * 3;
-   }
+	@Override
+	public int getHeight() {
+		return this.world.getHeight();
+	}
+
+	public static int getIndex(int xOffset, int yOffset, int zOffset, int sectionX, int sectionY, int sectionZ) {
+		return sectionX - xOffset + (sectionY - yOffset) * 3 + (sectionZ - zOffset) * 3 * 3;
+	}
 }

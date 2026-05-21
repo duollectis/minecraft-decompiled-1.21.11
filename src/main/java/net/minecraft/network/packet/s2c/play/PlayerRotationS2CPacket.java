@@ -8,25 +8,31 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
-public record PlayerRotationS2CPacket(float yaw, boolean relativeYaw, float pitch, boolean relativePitch) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, PlayerRotationS2CPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.FLOAT,
-      PlayerRotationS2CPacket::yaw,
-      PacketCodecs.BOOLEAN,
-      PlayerRotationS2CPacket::relativeYaw,
-      PacketCodecs.FLOAT,
-      PlayerRotationS2CPacket::pitch,
-      PacketCodecs.BOOLEAN,
-      PlayerRotationS2CPacket::relativePitch,
-      PlayerRotationS2CPacket::new
-   );
+public record PlayerRotationS2CPacket(
+		float yaw,
+		boolean relativeYaw,
+		float pitch,
+		boolean relativePitch
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<PlayerRotationS2CPacket> getPacketType() {
-      return PlayPackets.PLAYER_ROTATION;
-   }
+	public static final PacketCodec<PacketByteBuf, PlayerRotationS2CPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.FLOAT,
+			PlayerRotationS2CPacket::yaw,
+			PacketCodecs.BOOLEAN,
+			PlayerRotationS2CPacket::relativeYaw,
+			PacketCodecs.FLOAT,
+			PlayerRotationS2CPacket::pitch,
+			PacketCodecs.BOOLEAN,
+			PlayerRotationS2CPacket::relativePitch,
+			PlayerRotationS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onPlayerRotation(this);
-   }
+	@Override
+	public PacketType<PlayerRotationS2CPacket> getPacketType() {
+		return PlayPackets.PLAYER_ROTATION;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onPlayerRotation(this);
+	}
 }

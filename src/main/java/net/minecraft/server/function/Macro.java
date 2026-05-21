@@ -6,157 +6,192 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.ints.IntLists;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import net.minecraft.command.MacroInvocation;
 import net.minecraft.command.SourcedCommandAction;
-import net.minecraft.nbt.NbtByte;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtDouble;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtFloat;
-import net.minecraft.nbt.NbtLong;
-import net.minecraft.nbt.NbtShort;
-import net.minecraft.nbt.NbtString;
+import net.minecraft.nbt.*;
 import net.minecraft.server.command.AbstractServerCommandSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * {@code Macro}.
+ */
 public class Macro<T extends AbstractServerCommandSource<T>> implements CommandFunction<T> {
-   private static final DecimalFormat DECIMAL_FORMAT = Util.make(
-      new DecimalFormat("#", DecimalFormatSymbols.getInstance(Locale.ROOT)), decimalFormat -> decimalFormat.setMaximumFractionDigits(15)
-   );
-   private static final int CACHE_SIZE = 8;
-   private final List<String> varNames;
-   private final Object2ObjectLinkedOpenHashMap<List<String>, Procedure<T>> cache = new Object2ObjectLinkedOpenHashMap(8, 0.25F);
-   private final Identifier id;
-   private final List<Macro.Line<T>> lines;
 
-   public Macro(Identifier id, List<Macro.Line<T>> lines, List<String> varNames) {
-      this.id = id;
-      this.lines = lines;
-      this.varNames = varNames;
-   }
+	private static final DecimalFormat DECIMAL_FORMAT = Util.make(
+			new DecimalFormat("#", DecimalFormatSymbols.getInstance(Locale.ROOT)),
+			decimalFormat -> decimalFormat.setMaximumFractionDigits(15)
+	);
+	private static final int CACHE_SIZE = 8;
+	private final List<String> varNames;
+	private final Object2ObjectLinkedOpenHashMap<List<String>, Procedure<T>>
+			cache =
+			new Object2ObjectLinkedOpenHashMap(8, 0.25F);
+	private final Identifier id;
+	private final List<Macro.Line<T>> lines;
 
-   @Override
-   public Identifier id() {
-      return this.id;
-   }
+	public Macro(Identifier id, List<Macro.Line<T>> lines, List<String> varNames) {
+		this.id = id;
+		this.lines = lines;
+		this.varNames = varNames;
+	}
 
-   @Override
-   public Procedure<T> withMacroReplaced(@Nullable NbtCompound arguments, CommandDispatcher<T> dispatcher) throws MacroException {
-      if (arguments == null) {
-         throw new MacroException(Text.translatable("commands.function.error.missing_arguments", Text.of(this.id())));
-      } else {
-         List<String> list = new ArrayList<>(this.varNames.size());
+	@Override
+	public Identifier id() {
+		return this.id;
+	}
 
-         for (String string : this.varNames) {
-            NbtElement nbtElement = arguments.get(string);
-            if (nbtElement == null) {
-               throw new MacroException(Text.translatable("commands.function.error.missing_argument", Text.of(this.id()), string));
-            }
+	@Override
+	public Procedure<T> withMacroReplaced(@Nullable NbtCompound arguments, CommandDispatcher<T> dispatcher)
+	throws MacroException {
+		if (arguments == null) {
+			throw new MacroException(Text.translatable(
+					"commands.function.error.missing_arguments",
+					Text.of(this.id())
+			));
+		}
+		else {
+			List<String> list = new ArrayList<>(this.varNames.size());
 
-            list.add(toString(nbtElement));
-         }
+			for (String string : this.varNames) {
+				NbtElement nbtElement = arguments.get(string);
+				if (nbtElement == null) {
+					throw new MacroException(Text.translatable(
+							"commands.function.error.missing_argument",
+							Text.of(this.id()),
+							string
+					));
+				}
 
-         Procedure<T> procedure = (Procedure<T>)this.cache.getAndMoveToLast(list);
-         if (procedure != null) {
-            return procedure;
-         } else {
-            if (this.cache.size() >= 8) {
-               this.cache.removeFirst();
-            }
+				list.add(toString(nbtElement));
+			}
 
-            Procedure<T> procedure2 = this.withMacroReplaced(this.varNames, list, dispatcher);
-            this.cache.put(list, procedure2);
-            return procedure2;
-         }
-      }
-   }
+			Procedure<T> procedure = (Procedure<T>) this.cache.getAndMoveToLast(list);
+			if (procedure != null) {
+				return procedure;
+			}
+			else {
+				if (this.cache.size() >= 8) {
+					this.cache.removeFirst();
+				}
 
-   private static String toString(NbtElement nbt) {
-      return switch (nbt) {
-         case NbtFloat(float var24) -> DECIMAL_FORMAT.format(var24);
-         case NbtDouble(double var25) -> DECIMAL_FORMAT.format(var25);
-         case NbtByte(byte var26) -> String.valueOf((int)var26);
-         case NbtShort(short var27) -> String.valueOf((int)var27);
-         case NbtLong(long var28) -> String.valueOf(var28);
-         case NbtString(String var17) -> var17;
-         default -> nbt.toString();
-      };
-   }
+				Procedure<T> procedure2 = this.withMacroReplaced(this.varNames, list, dispatcher);
+				this.cache.put(list, procedure2);
+				return procedure2;
+			}
+		}
+	}
 
-   private static void addArgumentsByIndices(List<String> arguments, IntList indices, List<String> out) {
-      out.clear();
-      indices.forEach(index -> out.add(arguments.get(index)));
-   }
+	private static String toString(NbtElement nbt) {
+		return switch (nbt) {
+			case NbtFloat(float var24) -> DECIMAL_FORMAT.format(var24);
+			case NbtDouble(double var25) -> DECIMAL_FORMAT.format(var25);
+			case NbtByte(byte var26) -> String.valueOf((int) var26);
+			case NbtShort(short var27) -> String.valueOf((int) var27);
+			case NbtLong(long var28) -> String.valueOf(var28);
+			case NbtString(String var17) -> var17;
+			default -> nbt.toString();
+		};
+	}
 
-   private Procedure<T> withMacroReplaced(List<String> varNames, List<String> arguments, CommandDispatcher<T> dispatcher) throws MacroException {
-      List<SourcedCommandAction<T>> list = new ArrayList<>(this.lines.size());
-      List<String> list2 = new ArrayList<>(arguments.size());
+	private static void addArgumentsByIndices(List<String> arguments, IntList indices, List<String> out) {
+		out.clear();
+		indices.forEach(index -> out.add(arguments.get(index)));
+	}
 
-      for (Macro.Line<T> line : this.lines) {
-         addArgumentsByIndices(arguments, line.getDependentVariables(), list2);
-         list.add(line.instantiate(list2, dispatcher, this.id));
-      }
+	private Procedure<T> withMacroReplaced(
+			List<String> varNames,
+			List<String> arguments,
+			CommandDispatcher<T> dispatcher
+	) throws MacroException {
+		List<SourcedCommandAction<T>> list = new ArrayList<>(this.lines.size());
+		List<String> list2 = new ArrayList<>(arguments.size());
 
-      return new ExpandedMacro<>(this.id().withPath(path -> path + "/" + varNames.hashCode()), list);
-   }
+		for (Macro.Line<T> line : this.lines) {
+			addArgumentsByIndices(arguments, line.getDependentVariables(), list2);
+			list.add(line.instantiate(list2, dispatcher, this.id));
+		}
 
-   static class FixedLine<T> implements Macro.Line<T> {
-      private final SourcedCommandAction<T> action;
+		return new ExpandedMacro<>(this.id().withPath(path -> path + "/" + varNames.hashCode()), list);
+	}
 
-      public FixedLine(SourcedCommandAction<T> action) {
-         this.action = action;
-      }
+	/**
+	 * {@code FixedLine}.
+	 */
+	static class FixedLine<T> implements Macro.Line<T> {
 
-      @Override
-      public IntList getDependentVariables() {
-         return IntLists.emptyList();
-      }
+		private final SourcedCommandAction<T> action;
 
-      @Override
-      public SourcedCommandAction<T> instantiate(List<String> args, CommandDispatcher<T> dispatcher, Identifier id) {
-         return this.action;
-      }
-   }
+		public FixedLine(SourcedCommandAction<T> action) {
+			this.action = action;
+		}
 
-   interface Line<T> {
-      IntList getDependentVariables();
+		@Override
+		public IntList getDependentVariables() {
+			return IntLists.emptyList();
+		}
 
-      SourcedCommandAction<T> instantiate(List<String> args, CommandDispatcher<T> dispatcher, Identifier id) throws MacroException;
-   }
+		@Override
+		public SourcedCommandAction<T> instantiate(List<String> args, CommandDispatcher<T> dispatcher, Identifier id) {
+			return this.action;
+		}
+	}
 
-   static class VariableLine<T extends AbstractServerCommandSource<T>> implements Macro.Line<T> {
-      private final MacroInvocation invocation;
-      private final IntList variableIndices;
-      private final T source;
+	/**
+	 * {@code Line}.
+	 */
+	interface Line<T> {
 
-      public VariableLine(MacroInvocation invocation, IntList variableIndices, T source) {
-         this.invocation = invocation;
-         this.variableIndices = variableIndices;
-         this.source = source;
-      }
+		IntList getDependentVariables();
 
-      @Override
-      public IntList getDependentVariables() {
-         return this.variableIndices;
-      }
+		SourcedCommandAction<T> instantiate(List<String> args, CommandDispatcher<T> dispatcher, Identifier id)
+		throws MacroException;
+	}
 
-      @Override
-      public SourcedCommandAction<T> instantiate(List<String> args, CommandDispatcher<T> dispatcher, Identifier id) throws MacroException {
-         String string = this.invocation.apply(args);
+	/**
+	 * {@code VariableLine}.
+	 */
+	static class VariableLine<T extends AbstractServerCommandSource<T>> implements Macro.Line<T> {
 
-         try {
-            return CommandFunction.parse(dispatcher, this.source, new StringReader(string));
-         } catch (CommandSyntaxException var6) {
-            throw new MacroException(Text.translatable("commands.function.error.parse", Text.of(id), string, var6.getMessage()));
-         }
-      }
-   }
+		private final MacroInvocation invocation;
+		private final IntList variableIndices;
+		private final T source;
+
+		public VariableLine(MacroInvocation invocation, IntList variableIndices, T source) {
+			this.invocation = invocation;
+			this.variableIndices = variableIndices;
+			this.source = source;
+		}
+
+		@Override
+		public IntList getDependentVariables() {
+			return this.variableIndices;
+		}
+
+		@Override
+		public SourcedCommandAction<T> instantiate(List<String> args, CommandDispatcher<T> dispatcher, Identifier id)
+		throws MacroException {
+			String string = this.invocation.apply(args);
+
+			try {
+				return CommandFunction.parse(dispatcher, this.source, new StringReader(string));
+			}
+			catch (CommandSyntaxException var6) {
+				throw new MacroException(Text.translatable(
+						"commands.function.error.parse",
+						Text.of(id),
+						string,
+						var6.getMessage()
+				));
+			}
+		}
+	}
 }

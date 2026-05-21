@@ -1,32 +1,37 @@
 package net.minecraft.world.tick;
 
-import java.util.function.Function;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.function.Function;
+
+/**
+ * {@code MultiTickScheduler}.
+ */
 public class MultiTickScheduler<T> implements QueryableTickScheduler<T> {
-   private final Function<BlockPos, BasicTickScheduler<T>> mapper;
 
-   public MultiTickScheduler(Function<BlockPos, BasicTickScheduler<T>> mapper) {
-      this.mapper = mapper;
-   }
+	private final Function<BlockPos, BasicTickScheduler<T>> mapper;
 
-   @Override
-   public boolean isQueued(BlockPos pos, T type) {
-      return this.mapper.apply(pos).isQueued(pos, type);
-   }
+	public MultiTickScheduler(Function<BlockPos, BasicTickScheduler<T>> mapper) {
+		this.mapper = mapper;
+	}
 
-   @Override
-   public void scheduleTick(OrderedTick<T> orderedTick) {
-      this.mapper.apply(orderedTick.pos()).scheduleTick(orderedTick);
-   }
+	@Override
+	public boolean isQueued(BlockPos pos, T type) {
+		return this.mapper.apply(pos).isQueued(pos, type);
+	}
 
-   @Override
-   public boolean isTicking(BlockPos pos, T type) {
-      return false;
-   }
+	@Override
+	public void scheduleTick(OrderedTick<T> orderedTick) {
+		this.mapper.apply(orderedTick.pos()).scheduleTick(orderedTick);
+	}
 
-   @Override
-   public int getTickCount() {
-      return 0;
-   }
+	@Override
+	public boolean isTicking(BlockPos pos, T type) {
+		return false;
+	}
+
+	@Override
+	public int getTickCount() {
+		return 0;
+	}
 }

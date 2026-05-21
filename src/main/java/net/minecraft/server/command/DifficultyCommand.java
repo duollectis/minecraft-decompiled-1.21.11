@@ -8,43 +8,63 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.text.Text;
 import net.minecraft.world.Difficulty;
 
+/**
+ * {@code DifficultyCommand}.
+ */
 public class DifficultyCommand {
-   private static final DynamicCommandExceptionType FAILURE_EXCEPTION = new DynamicCommandExceptionType(
-      difficulty -> Text.stringifiedTranslatable("commands.difficulty.failure", difficulty)
-   );
 
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      LiteralArgumentBuilder<ServerCommandSource> literalArgumentBuilder = CommandManager.literal("difficulty");
+	private static final DynamicCommandExceptionType FAILURE_EXCEPTION = new DynamicCommandExceptionType(
+			difficulty -> Text.stringifiedTranslatable("commands.difficulty.failure", difficulty)
+	);
 
-      for (Difficulty difficulty : Difficulty.values()) {
-         literalArgumentBuilder.then(
-            CommandManager.literal(difficulty.getName()).executes(context -> execute((ServerCommandSource)context.getSource(), difficulty))
-         );
-      }
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		LiteralArgumentBuilder<ServerCommandSource> literalArgumentBuilder = CommandManager.literal("difficulty");
 
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)literalArgumentBuilder.requires(
-               CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK)
-            ))
-            .executes(
-               context -> {
-                  Difficulty difficultyx = ((ServerCommandSource)context.getSource()).getWorld().getDifficulty();
-                  ((ServerCommandSource)context.getSource())
-                     .sendFeedback(() -> Text.translatable("commands.difficulty.query", difficultyx.getTranslatableName()), false);
-                  return difficultyx.getId();
-               }
-            )
-      );
-   }
+		for (Difficulty difficulty : Difficulty.values()) {
+			literalArgumentBuilder.then(
+					CommandManager
+							.literal(difficulty.getName())
+							.executes(context -> execute((ServerCommandSource) context.getSource(), difficulty))
+			);
+		}
 
-   public static int execute(ServerCommandSource source, Difficulty difficulty) throws CommandSyntaxException {
-      MinecraftServer minecraftServer = source.getServer();
-      if (minecraftServer.getSaveProperties().getDifficulty() == difficulty) {
-         throw FAILURE_EXCEPTION.create(difficulty.getName());
-      } else {
-         minecraftServer.setDifficulty(difficulty, true);
-         source.sendFeedback(() -> Text.translatable("commands.difficulty.success", difficulty.getTranslatableName()), true);
-         return 0;
-      }
-   }
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) literalArgumentBuilder.requires(
+						CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK)
+				)
+				)
+						.executes(
+								context -> {
+									Difficulty
+											difficultyx =
+											((ServerCommandSource) context.getSource()).getWorld().getDifficulty();
+									((ServerCommandSource) context.getSource())
+											.sendFeedback(
+													() -> Text.translatable(
+															"commands.difficulty.query",
+															difficultyx.getTranslatableName()
+													), false
+											);
+									return difficultyx.getId();
+								}
+						)
+		);
+	}
+
+	public static int execute(ServerCommandSource source, Difficulty difficulty) throws CommandSyntaxException {
+		MinecraftServer minecraftServer = source.getServer();
+		if (minecraftServer.getSaveProperties().getDifficulty() == difficulty) {
+			throw FAILURE_EXCEPTION.create(difficulty.getName());
+		}
+		else {
+			minecraftServer.setDifficulty(difficulty, true);
+			source.sendFeedback(
+					() -> Text.translatable(
+							"commands.difficulty.success",
+							difficulty.getTranslatableName()
+					), true
+			);
+			return 0;
+		}
+	}
 }

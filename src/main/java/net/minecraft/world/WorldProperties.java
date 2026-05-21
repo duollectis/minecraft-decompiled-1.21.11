@@ -4,7 +4,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import io.netty.buffer.ByteBuf;
-import java.util.Locale;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.registry.RegistryKey;
@@ -13,63 +12,88 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.util.math.MathHelper;
 
+import java.util.Locale;
+
+/**
+ * {@code WorldProperties}.
+ */
 public interface WorldProperties {
-   WorldProperties.SpawnPoint getSpawnPoint();
 
-   long getTime();
+	WorldProperties.SpawnPoint getSpawnPoint();
 
-   long getTimeOfDay();
+	long getTime();
 
-   boolean isThundering();
+	long getTimeOfDay();
 
-   boolean isRaining();
+	boolean isThundering();
 
-   void setRaining(boolean raining);
+	boolean isRaining();
 
-   boolean isHardcore();
+	void setRaining(boolean raining);
 
-   Difficulty getDifficulty();
+	boolean isHardcore();
 
-   boolean isDifficultyLocked();
+	Difficulty getDifficulty();
 
-   default void populateCrashReport(CrashReportSection reportSection, HeightLimitView world) {
-      reportSection.add("Level spawn location", () -> CrashReportSection.createPositionString(world, this.getSpawnPoint().getPos()));
-      reportSection.add("Level time", () -> String.format(Locale.ROOT, "%d game time, %d day time", this.getTime(), this.getTimeOfDay()));
-   }
+	boolean isDifficultyLocked();
 
-   public record SpawnPoint(GlobalPos globalPos, float yaw, float pitch) {
-      public static final WorldProperties.SpawnPoint DEFAULT = new WorldProperties.SpawnPoint(GlobalPos.create(World.OVERWORLD, BlockPos.ORIGIN), 0.0F, 0.0F);
-      public static final MapCodec<WorldProperties.SpawnPoint> MAP_CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(
-               GlobalPos.MAP_CODEC.forGetter(WorldProperties.SpawnPoint::globalPos),
-               Codec.floatRange(-180.0F, 180.0F).fieldOf("yaw").forGetter(WorldProperties.SpawnPoint::yaw),
-               Codec.floatRange(-90.0F, 90.0F).fieldOf("pitch").forGetter(WorldProperties.SpawnPoint::pitch)
-            )
-            .apply(instance, WorldProperties.SpawnPoint::new)
-      );
-      public static final Codec<WorldProperties.SpawnPoint> CODEC = MAP_CODEC.codec();
-      public static final PacketCodec<ByteBuf, WorldProperties.SpawnPoint> PACKET_CODEC = PacketCodec.tuple(
-         GlobalPos.PACKET_CODEC,
-         WorldProperties.SpawnPoint::globalPos,
-         PacketCodecs.FLOAT,
-         WorldProperties.SpawnPoint::yaw,
-         PacketCodecs.FLOAT,
-         WorldProperties.SpawnPoint::pitch,
-         WorldProperties.SpawnPoint::new
-      );
+	default void populateCrashReport(CrashReportSection reportSection, HeightLimitView world) {
+		reportSection.add(
+				"Level spawn location",
+				() -> CrashReportSection.createPositionString(world, this.getSpawnPoint().getPos())
+		);
+		reportSection.add(
+				"Level time",
+				() -> String.format(Locale.ROOT, "%d game time, %d day time", this.getTime(), this.getTimeOfDay())
+		);
+	}
 
-      public static WorldProperties.SpawnPoint create(RegistryKey<World> dimension, BlockPos pos, float yaw, float pitch) {
-         return new WorldProperties.SpawnPoint(
-            GlobalPos.create(dimension, pos.toImmutable()), MathHelper.wrapDegrees(yaw), MathHelper.clamp(pitch, -90.0F, 90.0F)
-         );
-      }
+	/**
+	 * {@code SpawnPoint}.
+	 */
+	public record SpawnPoint(GlobalPos globalPos, float yaw, float pitch) {
 
-      public RegistryKey<World> getDimension() {
-         return this.globalPos.dimension();
-      }
+		public static final WorldProperties.SpawnPoint
+				DEFAULT =
+				new WorldProperties.SpawnPoint(GlobalPos.create(World.OVERWORLD, BlockPos.ORIGIN), 0.0F, 0.0F);
+		public static final MapCodec<WorldProperties.SpawnPoint> MAP_CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance.group(
+						                    GlobalPos.MAP_CODEC.forGetter(WorldProperties.SpawnPoint::globalPos),
+						                    Codec.floatRange(-180.0F, 180.0F).fieldOf("yaw").forGetter(WorldProperties.SpawnPoint::yaw),
+						                    Codec.floatRange(-90.0F, 90.0F).fieldOf("pitch").forGetter(WorldProperties.SpawnPoint::pitch)
+				                    )
+				                    .apply(instance, WorldProperties.SpawnPoint::new)
+		);
+		public static final Codec<WorldProperties.SpawnPoint> CODEC = MAP_CODEC.codec();
+		public static final PacketCodec<ByteBuf, WorldProperties.SpawnPoint> PACKET_CODEC = PacketCodec.tuple(
+				GlobalPos.PACKET_CODEC,
+				WorldProperties.SpawnPoint::globalPos,
+				PacketCodecs.FLOAT,
+				WorldProperties.SpawnPoint::yaw,
+				PacketCodecs.FLOAT,
+				WorldProperties.SpawnPoint::pitch,
+				WorldProperties.SpawnPoint::new
+		);
 
-      public BlockPos getPos() {
-         return this.globalPos.pos();
-      }
-   }
+		public static WorldProperties.SpawnPoint create(
+				RegistryKey<World> dimension,
+				BlockPos pos,
+				float yaw,
+				float pitch
+		) {
+			return new WorldProperties.SpawnPoint(
+					GlobalPos.create(dimension, pos.toImmutable()),
+					MathHelper.wrapDegrees(yaw),
+					MathHelper.clamp(pitch, -90.0F, 90.0F)
+			);
+		}
+
+		public RegistryKey<World> getDimension() {
+			return this.globalPos.dimension();
+		}
+
+		public BlockPos getPos() {
+			return this.globalPos.pos();
+		}
+	}
 }

@@ -8,29 +8,33 @@ import net.minecraft.block.BlockState;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code RandomBlockMatchRuleTest}.
+ */
 public class RandomBlockMatchRuleTest extends RuleTest {
-   public static final MapCodec<RandomBlockMatchRuleTest> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Registries.BLOCK.getCodec().fieldOf("block").forGetter(ruleTest -> ruleTest.block),
-            Codec.FLOAT.fieldOf("probability").forGetter(ruleTest -> ruleTest.probability)
-         )
-         .apply(instance, RandomBlockMatchRuleTest::new)
-   );
-   private final Block block;
-   private final float probability;
 
-   public RandomBlockMatchRuleTest(Block block, float probability) {
-      this.block = block;
-      this.probability = probability;
-   }
+	public static final MapCodec<RandomBlockMatchRuleTest> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Registries.BLOCK.getCodec().fieldOf("block").forGetter(ruleTest -> ruleTest.block),
+					                    Codec.FLOAT.fieldOf("probability").forGetter(ruleTest -> ruleTest.probability)
+			                    )
+			                    .apply(instance, RandomBlockMatchRuleTest::new)
+	);
+	private final Block block;
+	private final float probability;
 
-   @Override
-   public boolean test(BlockState state, Random random) {
-      return state.isOf(this.block) && random.nextFloat() < this.probability;
-   }
+	public RandomBlockMatchRuleTest(Block block, float probability) {
+		this.block = block;
+		this.probability = probability;
+	}
 
-   @Override
-   protected RuleTestType<?> getType() {
-      return RuleTestType.RANDOM_BLOCK_MATCH;
-   }
+	@Override
+	public boolean test(BlockState state, Random random) {
+		return state.isOf(this.block) && random.nextFloat() < this.probability;
+	}
+
+	@Override
+	protected RuleTestType<?> getType() {
+		return RuleTestType.RANDOM_BLOCK_MATCH;
+	}
 }

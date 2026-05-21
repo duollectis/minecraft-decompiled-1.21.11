@@ -3,13 +3,8 @@ package net.minecraft.entity.passive;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Dynamic;
 import io.netty.buffer.ByteBuf;
-import java.util.function.IntFunction;
 import net.minecraft.block.BlockState;
-import net.minecraft.entity.AnimationState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.ai.brain.Brain;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.entity.ai.control.BodyControl;
@@ -48,384 +43,439 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.IntFunction;
+
+/**
+ * {@code ArmadilloEntity}.
+ */
 public class ArmadilloEntity extends AnimalEntity {
-   public static final float field_47778 = 0.6F;
-   public static final float field_48332 = 32.5F;
-   public static final int field_47779 = 80;
-   private static final double field_48333 = 7.0;
-   private static final double field_48334 = 2.0;
-   private static final TrackedData<ArmadilloEntity.State> STATE = DataTracker.registerData(ArmadilloEntity.class, TrackedDataHandlerRegistry.ARMADILLO_STATE);
-   private long currentStateTicks = 0L;
-   public final AnimationState unrollingAnimationState = new AnimationState();
-   public final AnimationState rollingAnimationState = new AnimationState();
-   public final AnimationState scaredAnimationState = new AnimationState();
-   private int nextScuteShedCooldown;
-   private boolean peeking = false;
 
-   public ArmadilloEntity(EntityType<? extends AnimalEntity> entityType, World world) {
-      super(entityType, world);
-      this.getNavigation().setCanSwim(true);
-      this.nextScuteShedCooldown = this.getNextScuteShedCooldown();
-   }
+	public static final float BABY_SCALE_FACTOR = 0.6F;
+	public static final float SCARED_DETECTION_ANGLE = 32.5F;
+	public static final int SCUTE_SHED_COOLDOWN_TICKS = 80;
+	private static final double THREAT_DETECTION_RANGE = 7.0;
+	private static final double THREAT_DETECTION_HEIGHT = 2.0;
+	private static final TrackedData<ArmadilloEntity.State>
+			STATE =
+			DataTracker.registerData(ArmadilloEntity.class, TrackedDataHandlerRegistry.ARMADILLO_STATE);
+	private long currentStateTicks = 0L;
+	public final AnimationState unrollingAnimationState = new AnimationState();
+	public final AnimationState rollingAnimationState = new AnimationState();
+	public final AnimationState scaredAnimationState = new AnimationState();
+	private int nextScuteShedCooldown;
+	private boolean peeking = false;
 
-   @Override
-   public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
-      return EntityType.ARMADILLO.create(world, SpawnReason.BREEDING);
-   }
+	public ArmadilloEntity(EntityType<? extends AnimalEntity> entityType, World world) {
+		super(entityType, world);
+		this.getNavigation().setCanSwim(true);
+		this.nextScuteShedCooldown = this.getNextScuteShedCooldown();
+	}
 
-   public static DefaultAttributeContainer.Builder createArmadilloAttributes() {
-      return AnimalEntity.createAnimalAttributes().add(EntityAttributes.MAX_HEALTH, 12.0).add(EntityAttributes.MOVEMENT_SPEED, 0.14);
-   }
+	@Override
+	public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
+		return EntityType.ARMADILLO.create(world, SpawnReason.BREEDING);
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(STATE, ArmadilloEntity.State.IDLE);
-   }
+	public static DefaultAttributeContainer.Builder createArmadilloAttributes() {
+		return AnimalEntity
+				.createAnimalAttributes()
+				.add(EntityAttributes.MAX_HEALTH, 12.0)
+				.add(EntityAttributes.MOVEMENT_SPEED, 0.14);
+	}
 
-   public boolean isNotIdle() {
-      return this.dataTracker.get(STATE) != ArmadilloEntity.State.IDLE;
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(STATE, ArmadilloEntity.State.IDLE);
+	}
 
-   public boolean isRolledUp() {
-      return this.getState().isRolledUp(this.currentStateTicks);
-   }
+	public boolean isNotIdle() {
+		return this.dataTracker.get(STATE) != ArmadilloEntity.State.IDLE;
+	}
 
-   public boolean shouldSwitchToScaredState() {
-      return this.getState() == ArmadilloEntity.State.ROLLING && this.currentStateTicks > ArmadilloEntity.State.ROLLING.getLengthInTicks();
-   }
+	public boolean isRolledUp() {
+		return this.getState().isRolledUp(this.currentStateTicks);
+	}
 
-   public ArmadilloEntity.State getState() {
-      return this.dataTracker.get(STATE);
-   }
+	public boolean shouldSwitchToScaredState() {
+		return this.getState() == ArmadilloEntity.State.ROLLING
+				&& this.currentStateTicks > ArmadilloEntity.State.ROLLING.getLengthInTicks();
+	}
 
-   public void setState(ArmadilloEntity.State state) {
-      this.dataTracker.set(STATE, state);
-   }
+	public ArmadilloEntity.State getState() {
+		return this.dataTracker.get(STATE);
+	}
 
-   @Override
-   public void onTrackedDataSet(TrackedData<?> data) {
-      if (STATE.equals(data)) {
-         this.currentStateTicks = 0L;
-      }
+	public void setState(ArmadilloEntity.State state) {
+		this.dataTracker.set(STATE, state);
+	}
 
-      super.onTrackedDataSet(data);
-   }
+	@Override
+	public void onTrackedDataSet(TrackedData<?> data) {
+		if (STATE.equals(data)) {
+			this.currentStateTicks = 0L;
+		}
 
-   @Override
-   protected Brain.Profile<ArmadilloEntity> createBrainProfile() {
-      return ArmadilloBrain.createBrainProfile();
-   }
+		super.onTrackedDataSet(data);
+	}
 
-   @Override
-   protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
-      return ArmadilloBrain.create(this.createBrainProfile().deserialize(dynamic));
-   }
+	@Override
+	protected Brain.Profile<ArmadilloEntity> createBrainProfile() {
+		return ArmadilloBrain.createBrainProfile();
+	}
 
-   @Override
-   protected void mobTick(ServerWorld world) {
-      Profiler profiler = Profilers.get();
-      profiler.push("armadilloBrain");
-      ((Brain<ArmadilloEntity>)this.brain).tick(world, this);
-      profiler.pop();
-      profiler.push("armadilloActivityUpdate");
-      ArmadilloBrain.updateActivities(this);
-      profiler.pop();
-      if (this.isAlive() && --this.nextScuteShedCooldown <= 0 && this.shouldDropLoot(world)) {
-         if (this.forEachGiftedItem(world, LootTables.ARMADILLO_SHED_GAMEPLAY, this::dropStack)) {
-            this.playSound(SoundEvents.ENTITY_ARMADILLO_SCUTE_DROP, 1.0F, (this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F);
-            this.emitGameEvent(GameEvent.ENTITY_PLACE);
-         }
+	@Override
+	protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
+		return ArmadilloBrain.create(this.createBrainProfile().deserialize(dynamic));
+	}
 
-         this.nextScuteShedCooldown = this.getNextScuteShedCooldown();
-      }
+	@Override
+	protected void mobTick(ServerWorld world) {
+		Profiler profiler = Profilers.get();
+		profiler.push("armadilloBrain");
+		((Brain<ArmadilloEntity>) this.brain).tick(world, this);
+		profiler.pop();
+		profiler.push("armadilloActivityUpdate");
+		ArmadilloBrain.updateActivities(this);
+		profiler.pop();
+		if (this.isAlive() && --this.nextScuteShedCooldown <= 0 && this.shouldDropLoot(world)) {
+			if (this.forEachGiftedItem(world, LootTables.ARMADILLO_SHED_GAMEPLAY, this::dropStack)) {
+				this.playSound(
+						SoundEvents.ENTITY_ARMADILLO_SCUTE_DROP,
+						1.0F,
+						(this.random.nextFloat() - this.random.nextFloat()) * 0.2F + 1.0F
+				);
+				this.emitGameEvent(GameEvent.ENTITY_PLACE);
+			}
 
-      super.mobTick(world);
-   }
+			this.nextScuteShedCooldown = this.getNextScuteShedCooldown();
+		}
 
-   private int getNextScuteShedCooldown() {
-      return this.random.nextInt(20 * TimeHelper.MINUTE_IN_SECONDS * 5) + 20 * TimeHelper.MINUTE_IN_SECONDS * 5;
-   }
+		super.mobTick(world);
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      if (this.getEntityWorld().isClient()) {
-         this.updateAnimationStates();
-      }
+	private int getNextScuteShedCooldown() {
+		return this.random.nextInt(20 * TimeHelper.MINUTE_IN_SECONDS * 5) + 20 * TimeHelper.MINUTE_IN_SECONDS * 5;
+	}
 
-      if (this.isNotIdle()) {
-         this.clampHeadYaw();
-      }
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.getEntityWorld().isClient()) {
+			this.updateAnimationStates();
+		}
 
-      this.currentStateTicks++;
-   }
+		if (this.isNotIdle()) {
+			this.clampHeadYaw();
+		}
 
-   @Override
-   public float getScaleFactor() {
-      return this.isBaby() ? 0.6F : 1.0F;
-   }
+		this.currentStateTicks++;
+	}
 
-   private void updateAnimationStates() {
-      switch (this.getState()) {
-         case IDLE:
-            this.unrollingAnimationState.stop();
-            this.rollingAnimationState.stop();
-            this.scaredAnimationState.stop();
-            break;
-         case ROLLING:
-            this.unrollingAnimationState.stop();
-            this.rollingAnimationState.startIfNotRunning(this.age);
-            this.scaredAnimationState.stop();
-            break;
-         case SCARED:
-            this.unrollingAnimationState.stop();
-            this.rollingAnimationState.stop();
-            if (this.peeking) {
-               this.scaredAnimationState.stop();
-               this.peeking = false;
-            }
+	@Override
+	public float getScaleFactor() {
+		return this.isBaby() ? 0.6F : 1.0F;
+	}
 
-            if (this.currentStateTicks == 0L) {
-               this.scaredAnimationState.start(this.age);
-               this.scaredAnimationState.skip(ArmadilloEntity.State.SCARED.getLengthInTicks(), 1.0F);
-            } else {
-               this.scaredAnimationState.startIfNotRunning(this.age);
-            }
-            break;
-         case UNROLLING:
-            this.unrollingAnimationState.startIfNotRunning(this.age);
-            this.rollingAnimationState.stop();
-            this.scaredAnimationState.stop();
-      }
-   }
+	private void updateAnimationStates() {
+		switch (this.getState()) {
+			case IDLE:
+				this.unrollingAnimationState.stop();
+				this.rollingAnimationState.stop();
+				this.scaredAnimationState.stop();
+				break;
+			case ROLLING:
+				this.unrollingAnimationState.stop();
+				this.rollingAnimationState.startIfNotRunning(this.age);
+				this.scaredAnimationState.stop();
+				break;
+			case SCARED:
+				this.unrollingAnimationState.stop();
+				this.rollingAnimationState.stop();
+				if (this.peeking) {
+					this.scaredAnimationState.stop();
+					this.peeking = false;
+				}
 
-   @Override
-   public void handleStatus(byte status) {
-      if (status == 64 && this.getEntityWorld().isClient()) {
-         this.peeking = true;
-         this.getEntityWorld()
-            .playSoundClient(this.getX(), this.getY(), this.getZ(), SoundEvents.ENTITY_ARMADILLO_PEEK, this.getSoundCategory(), 1.0F, 1.0F, false);
-      } else {
-         super.handleStatus(status);
-      }
-   }
+				if (this.currentStateTicks == 0L) {
+					this.scaredAnimationState.start(this.age);
+					this.scaredAnimationState.skip(ArmadilloEntity.State.SCARED.getLengthInTicks(), 1.0F);
+				}
+				else {
+					this.scaredAnimationState.startIfNotRunning(this.age);
+				}
+				break;
+			case UNROLLING:
+				this.unrollingAnimationState.startIfNotRunning(this.age);
+				this.rollingAnimationState.stop();
+				this.scaredAnimationState.stop();
+		}
+	}
 
-   @Override
-   public boolean isBreedingItem(ItemStack stack) {
-      return stack.isIn(ItemTags.ARMADILLO_FOOD);
-   }
+	@Override
+	public void handleStatus(byte status) {
+		if (status == 64 && this.getEntityWorld().isClient()) {
+			this.peeking = true;
+			this.getEntityWorld()
+			    .playSoundClient(
+					    this.getX(),
+					    this.getY(),
+					    this.getZ(),
+					    SoundEvents.ENTITY_ARMADILLO_PEEK,
+					    this.getSoundCategory(),
+					    1.0F,
+					    1.0F,
+					    false
+			    );
+		}
+		else {
+			super.handleStatus(status);
+		}
+	}
 
-   public static boolean canSpawn(EntityType<ArmadilloEntity> entityType, WorldAccess world, SpawnReason spawnReason, BlockPos pos, Random random) {
-      return world.getBlockState(pos.down()).isIn(BlockTags.ARMADILLO_SPAWNABLE_ON) && isLightLevelValidForNaturalSpawn(world, pos);
-   }
+	@Override
+	public boolean isBreedingItem(ItemStack stack) {
+		return stack.isIn(ItemTags.ARMADILLO_FOOD);
+	}
 
-   public boolean isEntityThreatening(LivingEntity entity) {
-      if (!this.getBoundingBox().expand(7.0, 2.0, 7.0).intersects(entity.getBoundingBox())) {
-         return false;
-      } else if (entity.getType().isIn(EntityTypeTags.UNDEAD)) {
-         return true;
-      } else if (this.getAttacker() == entity) {
-         return true;
-      } else if (entity instanceof PlayerEntity playerEntity) {
-         return playerEntity.isSpectator() ? false : playerEntity.isSprinting() || playerEntity.hasVehicle();
-      } else {
-         return false;
-      }
-   }
+	public static boolean canSpawn(
+			EntityType<ArmadilloEntity> entityType,
+			WorldAccess world,
+			SpawnReason spawnReason,
+			BlockPos pos,
+			Random random
+	) {
+		return world.getBlockState(pos.down()).isIn(BlockTags.ARMADILLO_SPAWNABLE_ON)
+				&& isLightLevelValidForNaturalSpawn(world, pos);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.put("state", ArmadilloEntity.State.CODEC, this.getState());
-      view.putInt("scute_time", this.nextScuteShedCooldown);
-   }
+	public boolean isEntityThreatening(LivingEntity entity) {
+		if (!this.getBoundingBox().expand(7.0, 2.0, 7.0).intersects(entity.getBoundingBox())) {
+			return false;
+		}
+		else if (entity.getType().isIn(EntityTypeTags.UNDEAD)) {
+			return true;
+		}
+		else if (this.getAttacker() == entity) {
+			return true;
+		}
+		else if (entity instanceof PlayerEntity playerEntity) {
+			return playerEntity.isSpectator() ? false : playerEntity.isSprinting() || playerEntity.hasVehicle();
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.setState(view.<ArmadilloEntity.State>read("state", ArmadilloEntity.State.CODEC).orElse(ArmadilloEntity.State.IDLE));
-      view.getOptionalInt("scute_time").ifPresent(scuteTime -> this.nextScuteShedCooldown = scuteTime);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.put("state", ArmadilloEntity.State.CODEC, this.getState());
+		view.putInt("scute_time", this.nextScuteShedCooldown);
+	}
 
-   public void startRolling() {
-      if (!this.isNotIdle()) {
-         this.stopMovement();
-         this.resetLoveTicks();
-         this.emitGameEvent(GameEvent.ENTITY_ACTION);
-         this.playSound(SoundEvents.ENTITY_ARMADILLO_ROLL);
-         this.setState(ArmadilloEntity.State.ROLLING);
-      }
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.setState(view
+				.<ArmadilloEntity.State>read("state", ArmadilloEntity.State.CODEC)
+				.orElse(ArmadilloEntity.State.IDLE));
+		view.getOptionalInt("scute_time").ifPresent(scuteTime -> this.nextScuteShedCooldown = scuteTime);
+	}
 
-   public void unroll() {
-      if (this.isNotIdle()) {
-         this.emitGameEvent(GameEvent.ENTITY_ACTION);
-         this.playSound(SoundEvents.ENTITY_ARMADILLO_UNROLL_FINISH);
-         this.setState(ArmadilloEntity.State.IDLE);
-      }
-   }
+	public void startRolling() {
+		if (!this.isNotIdle()) {
+			this.stopMovement();
+			this.resetLoveTicks();
+			this.emitGameEvent(GameEvent.ENTITY_ACTION);
+			this.playSound(SoundEvents.ENTITY_ARMADILLO_ROLL);
+			this.setState(ArmadilloEntity.State.ROLLING);
+		}
+	}
 
-   @Override
-   public boolean damage(ServerWorld world, DamageSource source, float amount) {
-      if (this.isNotIdle()) {
-         amount = (amount - 1.0F) / 2.0F;
-      }
+	public void unroll() {
+		if (this.isNotIdle()) {
+			this.emitGameEvent(GameEvent.ENTITY_ACTION);
+			this.playSound(SoundEvents.ENTITY_ARMADILLO_UNROLL_FINISH);
+			this.setState(ArmadilloEntity.State.IDLE);
+		}
+	}
 
-      return super.damage(world, source, amount);
-   }
+	@Override
+	public boolean damage(ServerWorld world, DamageSource source, float amount) {
+		if (this.isNotIdle()) {
+			amount = (amount - 1.0F) / 2.0F;
+		}
 
-   @Override
-   protected void applyDamage(ServerWorld world, DamageSource source, float amount) {
-      super.applyDamage(world, source, amount);
-      if (!this.isAiDisabled() && !this.isDead()) {
-         if (source.getAttacker() instanceof LivingEntity) {
-            this.getBrain().remember(MemoryModuleType.DANGER_DETECTED_RECENTLY, true, 80L);
-            if (this.canRollUp()) {
-               this.startRolling();
-            }
-         } else if (source.isIn(DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES)) {
-            this.unroll();
-         }
-      }
-   }
+		return super.damage(world, source, amount);
+	}
 
-   @Override
-   public ActionResult interactMob(PlayerEntity player, Hand hand) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if (itemStack.isOf(Items.BRUSH) && this.brushScute(player, itemStack)) {
-         itemStack.damage(16, player, hand.getEquipmentSlot());
-         return ActionResult.SUCCESS;
-      } else {
-         return (ActionResult)(this.isNotIdle() ? ActionResult.FAIL : super.interactMob(player, hand));
-      }
-   }
+	@Override
+	protected void applyDamage(ServerWorld world, DamageSource source, float amount) {
+		super.applyDamage(world, source, amount);
+		if (!this.isAiDisabled() && !this.isDead()) {
+			if (source.getAttacker() instanceof LivingEntity) {
+				this.getBrain().remember(MemoryModuleType.DANGER_DETECTED_RECENTLY, true, 80L);
+				if (this.canRollUp()) {
+					this.startRolling();
+				}
+			}
+			else if (source.isIn(DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES)) {
+				this.unroll();
+			}
+		}
+	}
 
-   public boolean brushScute(@Nullable Entity interactingEntity, ItemStack tool) {
-      if (this.isBaby()) {
-         return false;
-      } else {
-         if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-            this.forEachBrushedItem(serverWorld, LootTables.ARMADILLO_BRUSH, interactingEntity, tool, this::dropStack);
-            this.playSoundIfNotSilent(SoundEvents.ENTITY_ARMADILLO_BRUSH);
-            this.emitGameEvent(GameEvent.ENTITY_INTERACT);
-         }
+	@Override
+	public ActionResult interactMob(PlayerEntity player, Hand hand) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if (itemStack.isOf(Items.BRUSH) && this.brushScute(player, itemStack)) {
+			itemStack.damage(16, player, hand.getEquipmentSlot());
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return (ActionResult) (this.isNotIdle() ? ActionResult.FAIL : super.interactMob(player, hand));
+		}
+	}
 
-         return true;
-      }
-   }
+	public boolean brushScute(@Nullable Entity interactingEntity, ItemStack tool) {
+		if (this.isBaby()) {
+			return false;
+		}
+		else {
+			if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+				this.forEachBrushedItem(
+						serverWorld,
+						LootTables.ARMADILLO_BRUSH,
+						interactingEntity,
+						tool,
+						this::dropStack
+				);
+				this.playSoundIfNotSilent(SoundEvents.ENTITY_ARMADILLO_BRUSH);
+				this.emitGameEvent(GameEvent.ENTITY_INTERACT);
+			}
 
-   public boolean canRollUp() {
-      return !this.isPanicking() && !this.isInFluid() && !this.isLeashed() && !this.hasVehicle() && !this.hasPassengers();
-   }
+			return true;
+		}
+	}
 
-   @Override
-   public boolean canEat() {
-      return super.canEat() && !this.isNotIdle();
-   }
+	public boolean canRollUp() {
+		return !this.isPanicking() && !this.isInFluid() && !this.isLeashed() && !this.hasVehicle()
+				&& !this.hasPassengers();
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return this.isNotIdle() ? null : SoundEvents.ENTITY_ARMADILLO_AMBIENT;
-   }
+	@Override
+	public boolean canEat() {
+		return super.canEat() && !this.isNotIdle();
+	}
 
-   @Override
-   protected void playEatSound() {
-      this.playSound(SoundEvents.ENTITY_ARMADILLO_EAT);
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return this.isNotIdle() ? null : SoundEvents.ENTITY_ARMADILLO_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_ARMADILLO_DEATH;
-   }
+	@Override
+	protected void playEatSound() {
+		this.playSound(SoundEvents.ENTITY_ARMADILLO_EAT);
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return this.isNotIdle() ? SoundEvents.ENTITY_ARMADILLO_HURT_REDUCED : SoundEvents.ENTITY_ARMADILLO_HURT;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_ARMADILLO_DEATH;
+	}
 
-   @Override
-   protected void playStepSound(BlockPos pos, BlockState state) {
-      this.playSound(SoundEvents.ENTITY_ARMADILLO_STEP, 0.15F, 1.0F);
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return this.isNotIdle() ? SoundEvents.ENTITY_ARMADILLO_HURT_REDUCED : SoundEvents.ENTITY_ARMADILLO_HURT;
+	}
 
-   @Override
-   public int getMaxHeadRotation() {
-      return this.isNotIdle() ? 0 : 32;
-   }
+	@Override
+	protected void playStepSound(BlockPos pos, BlockState state) {
+		this.playSound(SoundEvents.ENTITY_ARMADILLO_STEP, 0.15F, 1.0F);
+	}
 
-   @Override
-   protected BodyControl createBodyControl() {
-      return new BodyControl(this) {
-         @Override
-         public void tick() {
-            if (!ArmadilloEntity.this.isNotIdle()) {
-               super.tick();
-            }
-         }
-      };
-   }
+	@Override
+	public int getMaxHeadRotation() {
+		return this.isNotIdle() ? 0 : 32;
+	}
 
-   public static enum State implements StringIdentifiable {
-      IDLE("idle", false, 0, 0) {
-         @Override
-         public boolean isRolledUp(long currentStateTicks) {
-            return false;
-         }
-      },
-      ROLLING("rolling", true, 10, 1) {
-         @Override
-         public boolean isRolledUp(long currentStateTicks) {
-            return currentStateTicks > 5L;
-         }
-      },
-      SCARED("scared", true, 50, 2) {
-         @Override
-         public boolean isRolledUp(long currentStateTicks) {
-            return true;
-         }
-      },
-      UNROLLING("unrolling", true, 30, 3) {
-         @Override
-         public boolean isRolledUp(long currentStateTicks) {
-            return currentStateTicks < 26L;
-         }
-      };
+	@Override
+	protected BodyControl createBodyControl() {
+		return new BodyControl(this) {
+			@Override
+			public void tick() {
+				if (!ArmadilloEntity.this.isNotIdle()) {
+					super.tick();
+				}
+			}
+		};
+	}
 
-      static final Codec<ArmadilloEntity.State> CODEC = StringIdentifiable.createCodec(ArmadilloEntity.State::values);
-      private static final IntFunction<ArmadilloEntity.State> INDEX_TO_VALUE = ValueLists.createIndexToValueFunction(
-         ArmadilloEntity.State::getIndex, values(), ValueLists.OutOfBoundsHandling.ZERO
-      );
-      public static final PacketCodec<ByteBuf, ArmadilloEntity.State> PACKET_CODEC = PacketCodecs.indexed(INDEX_TO_VALUE, ArmadilloEntity.State::getIndex);
-      private final String name;
-      private final boolean runRollUpTask;
-      private final int lengthInTicks;
-      private final int index;
+	/**
+	 * {@code State}.
+	 */
+	public static enum State implements StringIdentifiable {
+		IDLE("idle", false, 0, 0) {
+			@Override
+			public boolean isRolledUp(long currentStateTicks) {
+				return false;
+			}
+		},
+		ROLLING("rolling", true, 10, 1) {
+			@Override
+			public boolean isRolledUp(long currentStateTicks) {
+				return currentStateTicks > 5L;
+			}
+		},
+		SCARED("scared", true, 50, 2) {
+			@Override
+			public boolean isRolledUp(long currentStateTicks) {
+				return true;
+			}
+		},
+		UNROLLING("unrolling", true, 30, 3) {
+			@Override
+			public boolean isRolledUp(long currentStateTicks) {
+				return currentStateTicks < 26L;
+			}
+		};
 
-      State(final String name, final boolean runRollUpTask, final int lengthInTicks, final int index) {
-         this.name = name;
-         this.runRollUpTask = runRollUpTask;
-         this.lengthInTicks = lengthInTicks;
-         this.index = index;
-      }
+		static final Codec<ArmadilloEntity.State> CODEC = StringIdentifiable.createCodec(ArmadilloEntity.State::values);
+		private static final IntFunction<ArmadilloEntity.State> INDEX_TO_VALUE = ValueLists.createIndexToValueFunction(
+				ArmadilloEntity.State::getIndex, values(), ValueLists.OutOfBoundsHandling.ZERO
+		);
+		public static final PacketCodec<ByteBuf, ArmadilloEntity.State>
+				PACKET_CODEC =
+				PacketCodecs.indexed(INDEX_TO_VALUE, ArmadilloEntity.State::getIndex);
+		private final String name;
+		private final boolean runRollUpTask;
+		private final int lengthInTicks;
+		private final int index;
 
-      @Override
-      public String asString() {
-         return this.name;
-      }
+		State(final String name, final boolean runRollUpTask, final int lengthInTicks, final int index) {
+			this.name = name;
+			this.runRollUpTask = runRollUpTask;
+			this.lengthInTicks = lengthInTicks;
+			this.index = index;
+		}
 
-      private int getIndex() {
-         return this.index;
-      }
+		@Override
+		public String asString() {
+			return this.name;
+		}
 
-      public abstract boolean isRolledUp(long currentStateTicks);
+		private int getIndex() {
+			return this.index;
+		}
 
-      public boolean shouldRunRollUpTask() {
-         return this.runRollUpTask;
-      }
+		public abstract boolean isRolledUp(long currentStateTicks);
 
-      public int getLengthInTicks() {
-         return this.lengthInTicks;
-      }
-   }
+		public boolean shouldRunRollUpTask() {
+			return this.runRollUpTask;
+		}
+
+		public int getLengthInTicks() {
+			return this.lengthInTicks;
+		}
+	}
 }

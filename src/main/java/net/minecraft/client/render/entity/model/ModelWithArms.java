@@ -7,6 +7,10 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Arm;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ModelWithArms}.
+ */
 public interface ModelWithArms<T extends EntityRenderState> {
-   void setArmAngle(T state, Arm arm, MatrixStack matrices);
+
+	void setArmAngle(T state, Arm arm, MatrixStack matrices);
 }

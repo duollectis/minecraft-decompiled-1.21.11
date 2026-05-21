@@ -32,178 +32,245 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code DriedGhastBlock}.
+ */
 public class DriedGhastBlock extends HorizontalFacingBlock implements Waterloggable {
-   public static final MapCodec<DriedGhastBlock> CODEC = createCodec(DriedGhastBlock::new);
-   public static final int MAX_HYDRATION = 3;
-   public static final IntProperty HYDRATION = Properties.HYDRATION;
-   public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
-   public static final int HYDRATION_TICK_TIME = 5000;
-   private static final VoxelShape SHAPE = Block.createColumnShape(10.0, 10.0, 0.0, 10.0);
 
-   @Override
-   public MapCodec<DriedGhastBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<DriedGhastBlock> CODEC = createCodec(DriedGhastBlock::new);
+	public static final int MAX_HYDRATION = 3;
+	public static final IntProperty HYDRATION = Properties.HYDRATION;
+	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
+	public static final int HYDRATION_TICK_TIME = 5000;
+	private static final VoxelShape SHAPE = Block.createColumnShape(10.0, 10.0, 0.0, 10.0);
 
-   public DriedGhastBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(HYDRATION, 0).with(WATERLOGGED, false));
-   }
+	@Override
+	public MapCodec<DriedGhastBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(FACING, HYDRATION, WATERLOGGED);
-   }
+	public DriedGhastBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(FACING, Direction.NORTH)
+				.with(HYDRATION, 0)
+				.with(WATERLOGGED, false));
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (state.get(WATERLOGGED)) {
-         tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-      }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(FACING, HYDRATION, WATERLOGGED);
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
 
-   @Override
-   public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   public int getHydration(BlockState state) {
-      return state.get(HYDRATION);
-   }
+	@Override
+	public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   private boolean isFullyHydrated(BlockState state) {
-      return this.getHydration(state) == 3;
-   }
+	public int getHydration(BlockState state) {
+		return state.get(HYDRATION);
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (state.get(WATERLOGGED)) {
-         this.tickHydration(state, world, pos, random);
-      } else {
-         int i = this.getHydration(state);
-         if (i > 0) {
-            world.setBlockState(pos, state.with(HYDRATION, i - 1), 2);
-            world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(state));
-         }
-      }
-   }
+	private boolean isFullyHydrated(BlockState state) {
+		return this.getHydration(state) == 3;
+	}
 
-   private void tickHydration(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (!this.isFullyHydrated(state)) {
-         world.playSound(null, pos, SoundEvents.BLOCK_DRIED_GHAST_TRANSITION, SoundCategory.BLOCKS, 1.0F, 1.0F);
-         world.setBlockState(pos, state.with(HYDRATION, this.getHydration(state) + 1), 2);
-         world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(state));
-      } else {
-         this.spawnGhastling(world, pos, state);
-      }
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (state.get(WATERLOGGED)) {
+			this.tickHydration(state, world, pos, random);
+		}
+		else {
+			int i = this.getHydration(state);
+			if (i > 0) {
+				world.setBlockState(pos, state.with(HYDRATION, i - 1), 2);
+				world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(state));
+			}
+		}
+	}
 
-   private void spawnGhastling(ServerWorld world, BlockPos pos, BlockState state) {
-      world.removeBlock(pos, false);
-      HappyGhastEntity happyGhastEntity = EntityType.HAPPY_GHAST.create(world, SpawnReason.BREEDING);
-      if (happyGhastEntity != null) {
-         Vec3d vec3d = pos.toBottomCenterPos();
-         happyGhastEntity.setBaby(true);
-         float f = Direction.getHorizontalDegreesOrThrow(state.get(FACING));
-         happyGhastEntity.setHeadYaw(f);
-         happyGhastEntity.refreshPositionAndAngles(vec3d.getX(), vec3d.getY(), vec3d.getZ(), f, 0.0F);
-         world.spawnEntity(happyGhastEntity);
-         world.playSoundFromEntity(null, happyGhastEntity, SoundEvents.ENTITY_GHASTLING_SPAWN, SoundCategory.BLOCKS, 1.0F, 1.0F);
-      }
-   }
+	private void tickHydration(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (!this.isFullyHydrated(state)) {
+			world.playSound(null, pos, SoundEvents.BLOCK_DRIED_GHAST_TRANSITION, SoundCategory.BLOCKS, 1.0F, 1.0F);
+			world.setBlockState(pos, state.with(HYDRATION, this.getHydration(state) + 1), 2);
+			world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(state));
+		}
+		else {
+			this.spawnGhastling(world, pos, state);
+		}
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      double d = pos.getX() + 0.5;
-      double e = pos.getY() + 0.5;
-      double f = pos.getZ() + 0.5;
-      if (!state.get(WATERLOGGED)) {
-         if (random.nextInt(40) == 0 && world.getBlockState(pos.down()).isIn(BlockTags.TRIGGERS_AMBIENT_DRIED_GHAST_BLOCK_SOUNDS)) {
-            world.playSoundClient(d, e, f, SoundEvents.BLOCK_DRIED_GHAST_AMBIENT, SoundCategory.BLOCKS, 1.0F, 1.0F, false);
-         }
+	private void spawnGhastling(ServerWorld world, BlockPos pos, BlockState state) {
+		world.removeBlock(pos, false);
+		HappyGhastEntity happyGhastEntity = EntityType.HAPPY_GHAST.create(world, SpawnReason.BREEDING);
+		if (happyGhastEntity != null) {
+			Vec3d vec3d = pos.toBottomCenterPos();
+			happyGhastEntity.setBaby(true);
+			float f = Direction.getHorizontalDegreesOrThrow(state.get(FACING));
+			happyGhastEntity.setHeadYaw(f);
+			happyGhastEntity.refreshPositionAndAngles(vec3d.getX(), vec3d.getY(), vec3d.getZ(), f, 0.0F);
+			world.spawnEntity(happyGhastEntity);
+			world.playSoundFromEntity(
+					null,
+					happyGhastEntity,
+					SoundEvents.ENTITY_GHASTLING_SPAWN,
+					SoundCategory.BLOCKS,
+					1.0F,
+					1.0F
+			);
+		}
+	}
 
-         if (random.nextInt(6) == 0) {
-            world.addParticleClient(ParticleTypes.WHITE_SMOKE, d, e, f, 0.0, 0.02, 0.0);
-         }
-      } else {
-         if (random.nextInt(40) == 0) {
-            world.playSoundClient(d, e, f, SoundEvents.BLOCK_DRIED_GHAST_AMBIENT_WATER, SoundCategory.BLOCKS, 1.0F, 1.0F, false);
-         }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		double d = pos.getX() + 0.5;
+		double e = pos.getY() + 0.5;
+		double f = pos.getZ() + 0.5;
+		if (!state.get(WATERLOGGED)) {
+			if (random.nextInt(40) == 0 && world
+					.getBlockState(pos.down())
+					.isIn(BlockTags.TRIGGERS_AMBIENT_DRIED_GHAST_BLOCK_SOUNDS)) {
+				world.playSoundClient(
+						d,
+						e,
+						f,
+						SoundEvents.BLOCK_DRIED_GHAST_AMBIENT,
+						SoundCategory.BLOCKS,
+						1.0F,
+						1.0F,
+						false
+				);
+			}
 
-         if (random.nextInt(6) == 0) {
-            world.addParticleClient(
-               ParticleTypes.HAPPY_VILLAGER,
-               d + (random.nextFloat() * 2.0F - 1.0F) / 3.0F,
-               e + 0.4,
-               f + (random.nextFloat() * 2.0F - 1.0F) / 3.0F,
-               0.0,
-               random.nextFloat(),
-               0.0
-            );
-         }
-      }
-   }
+			if (random.nextInt(6) == 0) {
+				world.addParticleClient(ParticleTypes.WHITE_SMOKE, d, e, f, 0.0, 0.02, 0.0);
+			}
+		}
+		else {
+			if (random.nextInt(40) == 0) {
+				world.playSoundClient(
+						d,
+						e,
+						f,
+						SoundEvents.BLOCK_DRIED_GHAST_AMBIENT_WATER,
+						SoundCategory.BLOCKS,
+						1.0F,
+						1.0F,
+						false
+				);
+			}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if ((state.get(WATERLOGGED) || state.get(HYDRATION) > 0) && !world.getBlockTickScheduler().isQueued(pos, this)) {
-         world.scheduleBlockTick(pos, this, 5000);
-      }
-   }
+			if (random.nextInt(6) == 0) {
+				world.addParticleClient(
+						ParticleTypes.HAPPY_VILLAGER,
+						d + (random.nextFloat() * 2.0F - 1.0F) / 3.0F,
+						e + 0.4,
+						f + (random.nextFloat() * 2.0F - 1.0F) / 3.0F,
+						0.0,
+						random.nextFloat(),
+						0.0
+				);
+			}
+		}
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-      boolean bl = fluidState.getFluid() == Fluids.WATER;
-      return super.getPlacementState(ctx).with(WATERLOGGED, bl).with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
-   }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if ((state.get(WATERLOGGED) || state.get(HYDRATION) > 0) && !world
+				.getBlockTickScheduler()
+				.isQueued(pos, this)) {
+			world.scheduleBlockTick(pos, this, 5000);
+		}
+	}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
+		boolean bl = fluidState.getFluid() == Fluids.WATER;
+		return super
+				.getPlacementState(ctx)
+				.with(WATERLOGGED, bl)
+				.with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
+	}
 
-   @Override
-   public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
-      if (!state.get(Properties.WATERLOGGED) && fluidState.getFluid() == Fluids.WATER) {
-         if (!world.isClient()) {
-            world.setBlockState(pos, state.with(Properties.WATERLOGGED, true), 3);
-            world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
-            world.playSound(null, pos, SoundEvents.BLOCK_DRIED_GHAST_PLACE_IN_WATER, SoundCategory.BLOCKS, 1.0F, 1.0F);
-         }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
+	}
 
-         return true;
-      } else {
-         return false;
-      }
-   }
+	@Override
+	public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
+		if (!state.get(Properties.WATERLOGGED) && fluidState.getFluid() == Fluids.WATER) {
+			if (!world.isClient()) {
+				world.setBlockState(pos, state.with(Properties.WATERLOGGED, true), 3);
+				world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
+				world.playSound(
+						null,
+						pos,
+						SoundEvents.BLOCK_DRIED_GHAST_PLACE_IN_WATER,
+						SoundCategory.BLOCKS,
+						1.0F,
+						1.0F
+				);
+			}
 
-   @Override
-   public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
-      super.onPlaced(world, pos, state, placer, itemStack);
-      world.playSound(
-         null,
-         pos,
-         state.get(WATERLOGGED) ? SoundEvents.BLOCK_DRIED_GHAST_PLACE_IN_WATER : SoundEvents.BLOCK_DRIED_GHAST_PLACE,
-         SoundCategory.BLOCKS,
-         1.0F,
-         1.0F
-      );
-   }
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Override
-   public boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	public void onPlaced(
+			World world,
+			BlockPos pos,
+			BlockState state,
+			@Nullable LivingEntity placer,
+			ItemStack itemStack
+	) {
+		super.onPlaced(world, pos, state, placer, itemStack);
+		world.playSound(
+				null,
+				pos,
+				state.get(WATERLOGGED) ? SoundEvents.BLOCK_DRIED_GHAST_PLACE_IN_WATER
+				                       : SoundEvents.BLOCK_DRIED_GHAST_PLACE,
+				SoundCategory.BLOCKS,
+				1.0F,
+				1.0F
+		);
+	}
+
+	@Override
+	public boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 }

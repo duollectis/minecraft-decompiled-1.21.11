@@ -7,32 +7,43 @@ import net.minecraft.recipe.book.CookingRecipeCategory;
 import net.minecraft.recipe.book.RecipeBookCategories;
 import net.minecraft.recipe.book.RecipeBookCategory;
 
+/**
+ * {@code SmeltingRecipe}.
+ */
 public class SmeltingRecipe extends AbstractCookingRecipe {
-   public SmeltingRecipe(String string, CookingRecipeCategory cookingRecipeCategory, Ingredient ingredient, ItemStack itemStack, float f, int i) {
-      super(string, cookingRecipeCategory, ingredient, itemStack, f, i);
-   }
 
-   @Override
-   protected Item getCookerItem() {
-      return Items.FURNACE;
-   }
+	public SmeltingRecipe(
+			String string,
+			CookingRecipeCategory cookingRecipeCategory,
+			Ingredient ingredient,
+			ItemStack itemStack,
+			float f,
+			int i
+	) {
+		super(string, cookingRecipeCategory, ingredient, itemStack, f, i);
+	}
 
-   @Override
-   public RecipeSerializer<SmeltingRecipe> getSerializer() {
-      return RecipeSerializer.SMELTING;
-   }
+	@Override
+	protected Item getCookerItem() {
+		return Items.FURNACE;
+	}
 
-   @Override
-   public RecipeType<SmeltingRecipe> getType() {
-      return RecipeType.SMELTING;
-   }
+	@Override
+	public RecipeSerializer<SmeltingRecipe> getSerializer() {
+		return RecipeSerializer.SMELTING;
+	}
 
-   @Override
-   public RecipeBookCategory getRecipeBookCategory() {
-      return switch (this.getCategory()) {
-         case BLOCKS -> RecipeBookCategories.FURNACE_BLOCKS;
-         case FOOD -> RecipeBookCategories.FURNACE_FOOD;
-         case MISC -> RecipeBookCategories.FURNACE_MISC;
-      };
-   }
+	@Override
+	public RecipeType<SmeltingRecipe> getType() {
+		return RecipeType.SMELTING;
+	}
+
+	@Override
+	public RecipeBookCategory getRecipeBookCategory() {
+		return switch (this.getCategory()) {
+			case BLOCKS -> RecipeBookCategories.FURNACE_BLOCKS;
+			case FOOD -> RecipeBookCategories.FURNACE_FOOD;
+			case MISC -> RecipeBookCategories.FURNACE_MISC;
+		};
+	}
 }

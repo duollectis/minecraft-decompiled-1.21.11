@@ -9,40 +9,41 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class UpdatePlayerAbilitiesC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, UpdatePlayerAbilitiesC2SPacket> CODEC = Packet.createCodec(
-      UpdatePlayerAbilitiesC2SPacket::write, UpdatePlayerAbilitiesC2SPacket::new
-   );
-   private static final int FLYING_MASK = 2;
-   private final boolean flying;
 
-   public UpdatePlayerAbilitiesC2SPacket(PlayerAbilities abilities) {
-      this.flying = abilities.flying;
-   }
+	public static final PacketCodec<PacketByteBuf, UpdatePlayerAbilitiesC2SPacket> CODEC = Packet.createCodec(
+			UpdatePlayerAbilitiesC2SPacket::write, UpdatePlayerAbilitiesC2SPacket::new
+	);
+	private static final int FLYING_MASK = 2;
+	private final boolean flying;
 
-   private UpdatePlayerAbilitiesC2SPacket(PacketByteBuf buf) {
-      byte b = buf.readByte();
-      this.flying = (b & 2) != 0;
-   }
+	public UpdatePlayerAbilitiesC2SPacket(PlayerAbilities abilities) {
+		this.flying = abilities.flying;
+	}
 
-   private void write(PacketByteBuf buf) {
-      byte b = 0;
-      if (this.flying) {
-         b = (byte)(b | 2);
-      }
+	private UpdatePlayerAbilitiesC2SPacket(PacketByteBuf buf) {
+		byte b = buf.readByte();
+		this.flying = (b & 2) != 0;
+	}
 
-      buf.writeByte(b);
-   }
+	private void write(PacketByteBuf buf) {
+		byte b = 0;
+		if (this.flying) {
+			b = (byte) (b | 2);
+		}
 
-   @Override
-   public PacketType<UpdatePlayerAbilitiesC2SPacket> getPacketType() {
-      return PlayPackets.PLAYER_ABILITIES_C2S;
-   }
+		buf.writeByte(b);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onUpdatePlayerAbilities(this);
-   }
+	@Override
+	public PacketType<UpdatePlayerAbilitiesC2SPacket> getPacketType() {
+		return PlayPackets.PLAYER_ABILITIES_C2S;
+	}
 
-   public boolean isFlying() {
-      return this.flying;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onUpdatePlayerAbilities(this);
+	}
+
+	public boolean isFlying() {
+		return this.flying;
+	}
 }

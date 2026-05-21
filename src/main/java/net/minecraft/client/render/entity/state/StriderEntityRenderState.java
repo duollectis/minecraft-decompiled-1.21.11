@@ -5,8 +5,12 @@ import net.fabricmc.api.Environment;
 import net.minecraft.item.ItemStack;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code StriderEntityRenderState}.
+ */
 public class StriderEntityRenderState extends LivingEntityRenderState {
-   public ItemStack saddleStack = ItemStack.EMPTY;
-   public boolean cold;
-   public boolean hasPassengers;
+
+	public ItemStack saddleStack = ItemStack.EMPTY;
+	public boolean cold;
+	public boolean hasPassengers;
 }

@@ -13,33 +13,41 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code SmithingTableBlock}.
+ */
 public class SmithingTableBlock extends CraftingTableBlock {
-   public static final MapCodec<SmithingTableBlock> CODEC = createCodec(SmithingTableBlock::new);
-   private static final Text SCREEN_TITLE = Text.translatable("container.upgrade");
 
-   @Override
-   public MapCodec<SmithingTableBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SmithingTableBlock> CODEC = createCodec(SmithingTableBlock::new);
+	private static final Text SCREEN_TITLE = Text.translatable("container.upgrade");
 
-   public SmithingTableBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<SmithingTableBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
-      return new SimpleNamedScreenHandlerFactory(
-         (syncId, inventory, player) -> new SmithingScreenHandler(syncId, inventory, ScreenHandlerContext.create(world, pos)), SCREEN_TITLE
-      );
-   }
+	public SmithingTableBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient()) {
-         player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
-         player.incrementStat(Stats.INTERACT_WITH_SMITHING_TABLE);
-      }
+	@Override
+	protected NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
+		return new SimpleNamedScreenHandlerFactory(
+				(syncId, inventory, player) -> new SmithingScreenHandler(
+						syncId,
+						inventory,
+						ScreenHandlerContext.create(world, pos)
+				), SCREEN_TITLE
+		);
+	}
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient()) {
+			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
+			player.incrementStat(Stats.INTERACT_WITH_SMITHING_TABLE);
+		}
+
+		return ActionResult.SUCCESS;
+	}
 }

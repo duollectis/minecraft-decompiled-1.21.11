@@ -9,33 +9,34 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.border.WorldBorder;
 
 public class WorldBorderSizeChangedS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, WorldBorderSizeChangedS2CPacket> CODEC = Packet.createCodec(
-      WorldBorderSizeChangedS2CPacket::write, WorldBorderSizeChangedS2CPacket::new
-   );
-   private final double sizeLerpTarget;
 
-   public WorldBorderSizeChangedS2CPacket(WorldBorder worldBorder) {
-      this.sizeLerpTarget = worldBorder.getSizeLerpTarget();
-   }
+	public static final PacketCodec<PacketByteBuf, WorldBorderSizeChangedS2CPacket> CODEC = Packet.createCodec(
+			WorldBorderSizeChangedS2CPacket::write, WorldBorderSizeChangedS2CPacket::new
+	);
+	private final double sizeLerpTarget;
 
-   private WorldBorderSizeChangedS2CPacket(PacketByteBuf buf) {
-      this.sizeLerpTarget = buf.readDouble();
-   }
+	public WorldBorderSizeChangedS2CPacket(WorldBorder worldBorder) {
+		this.sizeLerpTarget = worldBorder.getSizeLerpTarget();
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeDouble(this.sizeLerpTarget);
-   }
+	private WorldBorderSizeChangedS2CPacket(PacketByteBuf buf) {
+		this.sizeLerpTarget = buf.readDouble();
+	}
 
-   @Override
-   public PacketType<WorldBorderSizeChangedS2CPacket> getPacketType() {
-      return PlayPackets.SET_BORDER_SIZE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeDouble(this.sizeLerpTarget);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onWorldBorderSizeChanged(this);
-   }
+	@Override
+	public PacketType<WorldBorderSizeChangedS2CPacket> getPacketType() {
+		return PlayPackets.SET_BORDER_SIZE;
+	}
 
-   public double getSizeLerpTarget() {
-      return this.sizeLerpTarget;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onWorldBorderSizeChanged(this);
+	}
+
+	public double getSizeLerpTarget() {
+		return this.sizeLerpTarget;
+	}
 }

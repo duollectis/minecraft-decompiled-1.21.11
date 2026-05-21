@@ -2,73 +2,80 @@ package net.minecraft.command;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableList.Builder;
-import java.util.List;
 import net.minecraft.server.function.CommandFunction;
 
+import java.util.List;
+
+/**
+ * {@code MacroInvocation}.
+ */
 public record MacroInvocation(List<String> segments, List<String> variables) {
-   public static MacroInvocation parse(String command) {
-      Builder<String> builder = ImmutableList.builder();
-      Builder<String> builder2 = ImmutableList.builder();
-      int i = command.length();
-      int j = 0;
-      int k = command.indexOf(36);
 
-      while (k != -1) {
-         if (k != i - 1 && command.charAt(k + 1) == '(') {
-            builder.add(command.substring(j, k));
-            int l = command.indexOf(41, k + 1);
-            if (l == -1) {
-               throw new IllegalArgumentException("Unterminated macro variable");
-            }
+	public static MacroInvocation parse(String command) {
+		Builder<String> builder = ImmutableList.builder();
+		Builder<String> builder2 = ImmutableList.builder();
+		int i = command.length();
+		int j = 0;
+		int k = command.indexOf(36);
 
-            String string = command.substring(k + 2, l);
-            if (!isValidMacroName(string)) {
-               throw new IllegalArgumentException("Invalid macro variable name '" + string + "'");
-            }
+		while (k != -1) {
+			if (k != i - 1 && command.charAt(k + 1) == '(') {
+				builder.add(command.substring(j, k));
+				int l = command.indexOf(41, k + 1);
+				if (l == -1) {
+					throw new IllegalArgumentException("Unterminated macro variable");
+				}
 
-            builder2.add(string);
-            j = l + 1;
-            k = command.indexOf(36, j);
-         } else {
-            k = command.indexOf(36, k + 1);
-         }
-      }
+				String string = command.substring(k + 2, l);
+				if (!isValidMacroName(string)) {
+					throw new IllegalArgumentException("Invalid macro variable name '" + string + "'");
+				}
 
-      if (j == 0) {
-         throw new IllegalArgumentException("No variables in macro");
-      } else {
-         if (j != i) {
-            builder.add(command.substring(j));
-         }
+				builder2.add(string);
+				j = l + 1;
+				k = command.indexOf(36, j);
+			}
+			else {
+				k = command.indexOf(36, k + 1);
+			}
+		}
 
-         return new MacroInvocation(builder.build(), builder2.build());
-      }
-   }
+		if (j == 0) {
+			throw new IllegalArgumentException("No variables in macro");
+		}
+		else {
+			if (j != i) {
+				builder.add(command.substring(j));
+			}
 
-   public static boolean isValidMacroName(String name) {
-      for (int i = 0; i < name.length(); i++) {
-         char c = name.charAt(i);
-         if (!Character.isLetterOrDigit(c) && c != '_') {
-            return false;
-         }
-      }
+			return new MacroInvocation(builder.build(), builder2.build());
+		}
+	}
 
-      return true;
-   }
+	public static boolean isValidMacroName(String name) {
+		for (int i = 0; i < name.length(); i++) {
+			char c = name.charAt(i);
+			if (!Character.isLetterOrDigit(c) && c != '_') {
+				return false;
+			}
+		}
 
-   public String apply(List<String> arguments) {
-      StringBuilder stringBuilder = new StringBuilder();
+		return true;
+	}
 
-      for (int i = 0; i < this.variables.size(); i++) {
-         stringBuilder.append(this.segments.get(i)).append(arguments.get(i));
-         CommandFunction.validateCommandLength(stringBuilder);
-      }
+	public String apply(List<String> arguments) {
+		StringBuilder stringBuilder = new StringBuilder();
 
-      if (this.segments.size() > this.variables.size()) {
-         stringBuilder.append(this.segments.getLast());
-      }
+		for (int i = 0; i < this.variables.size(); i++) {
+			stringBuilder.append(this.segments.get(i)).append(arguments.get(i));
+			CommandFunction.validateCommandLength(stringBuilder);
+		}
 
-      CommandFunction.validateCommandLength(stringBuilder);
-      return stringBuilder.toString();
-   }
+		if (this.segments.size() > this.variables.size()) {
+			stringBuilder.append(this.segments.getLast());
+		}
+
+		CommandFunction.validateCommandLength(stringBuilder);
+		return stringBuilder.toString();
+	}
 }

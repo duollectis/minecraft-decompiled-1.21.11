@@ -9,93 +9,102 @@ import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code NeedleAngleState}.
+ */
 public abstract class NeedleAngleState {
-   private final boolean wobble;
 
-   protected NeedleAngleState(boolean wobble) {
-      this.wobble = wobble;
-   }
+	private final boolean wobble;
 
-   public float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext pos, int seed) {
-      if (pos == null) {
-         pos = stack.getHolder();
-      }
+	protected NeedleAngleState(boolean wobble) {
+		this.wobble = wobble;
+	}
 
-      if (pos == null) {
-         return 0.0F;
-      } else {
-         if (world == null && pos.getEntityWorld() instanceof ClientWorld clientWorld) {
-            world = clientWorld;
-         }
+	public float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext pos, int seed) {
+		if (pos == null) {
+			pos = stack.getHolder();
+		}
 
-         return world == null ? 0.0F : this.getAngle(stack, world, seed, pos);
-      }
-   }
+		if (pos == null) {
+			return 0.0F;
+		}
+		else {
+			if (world == null && pos.getEntityWorld() instanceof ClientWorld clientWorld) {
+				world = clientWorld;
+			}
 
-   protected abstract float getAngle(ItemStack stack, ClientWorld world, int seed, HeldItemContext context);
+			return world == null ? 0.0F : this.getAngle(stack, world, seed, pos);
+		}
+	}
 
-   protected boolean hasWobble() {
-      return this.wobble;
-   }
+	protected abstract float getAngle(ItemStack stack, ClientWorld world, int seed, HeldItemContext context);
 
-   protected NeedleAngleState.Angler createAngler(float speedMultiplier) {
-      return this.wobble ? createWobblyAngler(speedMultiplier) : createInstantAngler();
-   }
+	protected boolean hasWobble() {
+		return this.wobble;
+	}
 
-   public static NeedleAngleState.Angler createWobblyAngler(float speedMultiplier) {
-      return new NeedleAngleState.Angler() {
-         private float angle;
-         private float speed;
-         private long lastUpdateTime;
+	protected NeedleAngleState.Angler createAngler(float speedMultiplier) {
+		return this.wobble ? createWobblyAngler(speedMultiplier) : createInstantAngler();
+	}
 
-         @Override
-         public float getAngle() {
-            return this.angle;
-         }
+	public static NeedleAngleState.Angler createWobblyAngler(float speedMultiplier) {
+		return new NeedleAngleState.Angler() {
+			private float angle;
+			private float speed;
+			private long lastUpdateTime;
 
-         @Override
-         public boolean shouldUpdate(long time) {
-            return this.lastUpdateTime != time;
-         }
+			@Override
+			public float getAngle() {
+				return this.angle;
+			}
 
-         @Override
-         public void update(long time, float target) {
-            this.lastUpdateTime = time;
-            float f = MathHelper.floorMod(target - this.angle + 0.5F, 1.0F) - 0.5F;
-            this.speed += f * 0.1F;
-            this.speed = this.speed * speedMultiplier;
-            this.angle = MathHelper.floorMod(this.angle + this.speed, 1.0F);
-         }
-      };
-   }
+			@Override
+			public boolean shouldUpdate(long time) {
+				return this.lastUpdateTime != time;
+			}
 
-   public static NeedleAngleState.Angler createInstantAngler() {
-      return new NeedleAngleState.Angler() {
-         private float angle;
+			@Override
+			public void update(long time, float target) {
+				this.lastUpdateTime = time;
+				float f = MathHelper.floorMod(target - this.angle + 0.5F, 1.0F) - 0.5F;
+				this.speed += f * 0.1F;
+				this.speed = this.speed * speedMultiplier;
+				this.angle = MathHelper.floorMod(this.angle + this.speed, 1.0F);
+			}
+		};
+	}
 
-         @Override
-         public float getAngle() {
-            return this.angle;
-         }
+	public static NeedleAngleState.Angler createInstantAngler() {
+		return new NeedleAngleState.Angler() {
+			private float angle;
 
-         @Override
-         public boolean shouldUpdate(long time) {
-            return true;
-         }
+			@Override
+			public float getAngle() {
+				return this.angle;
+			}
 
-         @Override
-         public void update(long time, float target) {
-            this.angle = target;
-         }
-      };
-   }
+			@Override
+			public boolean shouldUpdate(long time) {
+				return true;
+			}
 
-   @Environment(EnvType.CLIENT)
-   public interface Angler {
-      float getAngle();
+			@Override
+			public void update(long time, float target) {
+				this.angle = target;
+			}
+		};
+	}
 
-      boolean shouldUpdate(long time);
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Angler}.
+	 */
+	public interface Angler {
 
-      void update(long time, float target);
-   }
+		float getAngle();
+
+		boolean shouldUpdate(long time);
+
+		void update(long time, float target);
+	}
 }

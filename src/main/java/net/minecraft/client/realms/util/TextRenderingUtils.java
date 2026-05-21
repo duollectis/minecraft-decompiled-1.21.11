@@ -2,178 +2,202 @@ package net.minecraft.client.realms.util;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TextRenderingUtils}.
+ */
 public class TextRenderingUtils {
-   private TextRenderingUtils() {
-   }
 
-   @VisibleForTesting
-   protected static List<String> lineBreak(String text) {
-      return Arrays.asList(text.split("\\n"));
-   }
+	private TextRenderingUtils() {
+	}
 
-   public static List<TextRenderingUtils.Line> decompose(String text, TextRenderingUtils.LineSegment... links) {
-      return decompose(text, Arrays.asList(links));
-   }
+	@VisibleForTesting
+	protected static List<String> lineBreak(String text) {
+		return Arrays.asList(text.split("\\n"));
+	}
 
-   private static List<TextRenderingUtils.Line> decompose(String text, List<TextRenderingUtils.LineSegment> links) {
-      List<String> list = lineBreak(text);
-      return insertLinks(list, links);
-   }
+	public static List<TextRenderingUtils.Line> decompose(String text, TextRenderingUtils.LineSegment... links) {
+		return decompose(text, Arrays.asList(links));
+	}
 
-   private static List<TextRenderingUtils.Line> insertLinks(List<String> lines, List<TextRenderingUtils.LineSegment> links) {
-      int i = 0;
-      List<TextRenderingUtils.Line> list = Lists.newArrayList();
+	private static List<TextRenderingUtils.Line> decompose(String text, List<TextRenderingUtils.LineSegment> links) {
+		List<String> list = lineBreak(text);
+		return insertLinks(list, links);
+	}
 
-      for (String string : lines) {
-         List<TextRenderingUtils.LineSegment> list2 = Lists.newArrayList();
+	private static List<TextRenderingUtils.Line> insertLinks(
+			List<String> lines,
+			List<TextRenderingUtils.LineSegment> links
+	) {
+		int i = 0;
+		List<TextRenderingUtils.Line> list = Lists.newArrayList();
 
-         for (String string2 : split(string, "%link")) {
-            if ("%link".equals(string2)) {
-               list2.add(links.get(i++));
-            } else {
-               list2.add(TextRenderingUtils.LineSegment.text(string2));
-            }
-         }
+		for (String string : lines) {
+			List<TextRenderingUtils.LineSegment> list2 = Lists.newArrayList();
 
-         list.add(new TextRenderingUtils.Line(list2));
-      }
+			for (String string2 : split(string, "%link")) {
+				if ("%link".equals(string2)) {
+					list2.add(links.get(i++));
+				}
+				else {
+					list2.add(TextRenderingUtils.LineSegment.text(string2));
+				}
+			}
 
-      return list;
-   }
+			list.add(new TextRenderingUtils.Line(list2));
+		}
 
-   public static List<String> split(String line, String delimiter) {
-      if (delimiter.isEmpty()) {
-         throw new IllegalArgumentException("Delimiter cannot be the empty string");
-      } else {
-         List<String> list = Lists.newArrayList();
-         int i = 0;
+		return list;
+	}
 
-         int j;
-         while ((j = line.indexOf(delimiter, i)) != -1) {
-            if (j > i) {
-               list.add(line.substring(i, j));
-            }
+	public static List<String> split(String line, String delimiter) {
+		if (delimiter.isEmpty()) {
+			throw new IllegalArgumentException("Delimiter cannot be the empty string");
+		}
+		else {
+			List<String> list = Lists.newArrayList();
+			int i = 0;
 
-            list.add(delimiter);
-            i = j + delimiter.length();
-         }
+			int j;
+			while ((j = line.indexOf(delimiter, i)) != -1) {
+				if (j > i) {
+					list.add(line.substring(i, j));
+				}
 
-         if (i < line.length()) {
-            list.add(line.substring(i));
-         }
+				list.add(delimiter);
+				i = j + delimiter.length();
+			}
 
-         return list;
-      }
-   }
+			if (i < line.length()) {
+				list.add(line.substring(i));
+			}
 
-   @Environment(EnvType.CLIENT)
-   public static class Line {
-      public final List<TextRenderingUtils.LineSegment> segments;
+			return list;
+		}
+	}
 
-      Line(TextRenderingUtils.LineSegment... segments) {
-         this(Arrays.asList(segments));
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Line}.
+	 */
+	public static class Line {
 
-      Line(List<TextRenderingUtils.LineSegment> segments) {
-         this.segments = segments;
-      }
+		public final List<TextRenderingUtils.LineSegment> segments;
 
-      @Override
-      public String toString() {
-         return "Line{segments=" + this.segments + "}";
-      }
+		Line(TextRenderingUtils.LineSegment... segments) {
+			this(Arrays.asList(segments));
+		}
 
-      @Override
-      public boolean equals(Object o) {
-         if (this == o) {
-            return true;
-         } else if (o != null && this.getClass() == o.getClass()) {
-            TextRenderingUtils.Line line = (TextRenderingUtils.Line)o;
-            return Objects.equals(this.segments, line.segments);
-         } else {
-            return false;
-         }
-      }
+		Line(List<TextRenderingUtils.LineSegment> segments) {
+			this.segments = segments;
+		}
 
-      @Override
-      public int hashCode() {
-         return Objects.hash(this.segments);
-      }
-   }
+		@Override
+		public String toString() {
+			return "Line{segments=" + this.segments + "}";
+		}
 
-   @Environment(EnvType.CLIENT)
-   public static class LineSegment {
-      private final String fullText;
-      private final @Nullable String linkTitle;
-      private final @Nullable String linkUrl;
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			else if (o != null && this.getClass() == o.getClass()) {
+				TextRenderingUtils.Line line = (TextRenderingUtils.Line) o;
+				return Objects.equals(this.segments, line.segments);
+			}
+			else {
+				return false;
+			}
+		}
 
-      private LineSegment(String fullText) {
-         this.fullText = fullText;
-         this.linkTitle = null;
-         this.linkUrl = null;
-      }
+		@Override
+		public int hashCode() {
+			return Objects.hash(this.segments);
+		}
+	}
 
-      private LineSegment(String fullText, @Nullable String linkTitle, @Nullable String linkUrl) {
-         this.fullText = fullText;
-         this.linkTitle = linkTitle;
-         this.linkUrl = linkUrl;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code LineSegment}.
+	 */
+	public static class LineSegment {
 
-      @Override
-      public boolean equals(Object o) {
-         if (this == o) {
-            return true;
-         } else if (o != null && this.getClass() == o.getClass()) {
-            TextRenderingUtils.LineSegment lineSegment = (TextRenderingUtils.LineSegment)o;
-            return Objects.equals(this.fullText, lineSegment.fullText)
-               && Objects.equals(this.linkTitle, lineSegment.linkTitle)
-               && Objects.equals(this.linkUrl, lineSegment.linkUrl);
-         } else {
-            return false;
-         }
-      }
+		private final String fullText;
+		private final @Nullable String linkTitle;
+		private final @Nullable String linkUrl;
 
-      @Override
-      public int hashCode() {
-         return Objects.hash(this.fullText, this.linkTitle, this.linkUrl);
-      }
+		private LineSegment(String fullText) {
+			this.fullText = fullText;
+			this.linkTitle = null;
+			this.linkUrl = null;
+		}
 
-      @Override
-      public String toString() {
-         return "Segment{fullText='" + this.fullText + "', linkTitle='" + this.linkTitle + "', linkUrl='" + this.linkUrl + "'}";
-      }
+		private LineSegment(String fullText, @Nullable String linkTitle, @Nullable String linkUrl) {
+			this.fullText = fullText;
+			this.linkTitle = linkTitle;
+			this.linkUrl = linkUrl;
+		}
 
-      public String renderedText() {
-         return this.isLink() ? this.linkTitle : this.fullText;
-      }
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			else if (o != null && this.getClass() == o.getClass()) {
+				TextRenderingUtils.LineSegment lineSegment = (TextRenderingUtils.LineSegment) o;
+				return Objects.equals(this.fullText, lineSegment.fullText)
+						&& Objects.equals(this.linkTitle, lineSegment.linkTitle)
+						&& Objects.equals(this.linkUrl, lineSegment.linkUrl);
+			}
+			else {
+				return false;
+			}
+		}
 
-      public boolean isLink() {
-         return this.linkTitle != null;
-      }
+		@Override
+		public int hashCode() {
+			return Objects.hash(this.fullText, this.linkTitle, this.linkUrl);
+		}
 
-      public String getLinkUrl() {
-         if (!this.isLink()) {
-            throw new IllegalStateException("Not a link: " + this);
-         } else {
-            return this.linkUrl;
-         }
-      }
+		@Override
+		public String toString() {
+			return "Segment{fullText='" + this.fullText + "', linkTitle='" + this.linkTitle + "', linkUrl='"
+					+ this.linkUrl + "'}";
+		}
 
-      public static TextRenderingUtils.LineSegment link(String linkTitle, String linkUrl) {
-         return new TextRenderingUtils.LineSegment(null, linkTitle, linkUrl);
-      }
+		public String renderedText() {
+			return this.isLink() ? this.linkTitle : this.fullText;
+		}
 
-      @VisibleForTesting
-      protected static TextRenderingUtils.LineSegment text(String fullText) {
-         return new TextRenderingUtils.LineSegment(fullText);
-      }
-   }
+		public boolean isLink() {
+			return this.linkTitle != null;
+		}
+
+		public String getLinkUrl() {
+			if (!this.isLink()) {
+				throw new IllegalStateException("Not a link: " + this);
+			}
+			else {
+				return this.linkUrl;
+			}
+		}
+
+		public static TextRenderingUtils.LineSegment link(String linkTitle, String linkUrl) {
+			return new TextRenderingUtils.LineSegment(null, linkTitle, linkUrl);
+		}
+
+		@VisibleForTesting
+		protected static TextRenderingUtils.LineSegment text(String fullText) {
+			return new TextRenderingUtils.LineSegment(fullText);
+		}
+	}
 }

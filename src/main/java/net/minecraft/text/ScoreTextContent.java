@@ -5,8 +5,6 @@ import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.Optional;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.scoreboard.ReadableScoreboardScore;
@@ -18,68 +16,83 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * {@code ScoreTextContent}.
+ */
 public record ScoreTextContent(Either<ParsedSelector, String> name, String objective) implements TextContent {
-   public static final MapCodec<ScoreTextContent> INNER_CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codec.either(ParsedSelector.CODEC, Codec.STRING).fieldOf("name").forGetter(ScoreTextContent::name),
-            Codec.STRING.fieldOf("objective").forGetter(ScoreTextContent::objective)
-         )
-         .apply(instance, ScoreTextContent::new)
-   );
-   public static final MapCodec<ScoreTextContent> CODEC = INNER_CODEC.fieldOf("score");
 
-   @Override
-   public MapCodec<ScoreTextContent> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<ScoreTextContent> INNER_CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codec.either(ParsedSelector.CODEC, Codec.STRING).fieldOf("name").forGetter(ScoreTextContent::name),
+					                    Codec.STRING.fieldOf("objective").forGetter(ScoreTextContent::objective)
+			                    )
+			                    .apply(instance, ScoreTextContent::new)
+	);
+	public static final MapCodec<ScoreTextContent> CODEC = INNER_CODEC.fieldOf("score");
 
-   private ScoreHolder getScoreHolder(ServerCommandSource source) throws CommandSyntaxException {
-      Optional<ParsedSelector> optional = this.name.left();
-      if (optional.isPresent()) {
-         List<? extends Entity> list = optional.get().comp_3068().getEntities(source);
-         if (!list.isEmpty()) {
-            if (list.size() != 1) {
-               throw EntityArgumentType.TOO_MANY_ENTITIES_EXCEPTION.create();
-            } else {
-               return list.getFirst();
-            }
-         } else {
-            return ScoreHolder.fromName(optional.get().comp_3067());
-         }
-      } else {
-         return ScoreHolder.fromName((String)this.name.right().orElseThrow());
-      }
-   }
+	@Override
+	public MapCodec<ScoreTextContent> getCodec() {
+		return CODEC;
+	}
 
-   private MutableText getScore(ScoreHolder scoreHolder, ServerCommandSource source) {
-      MinecraftServer minecraftServer = source.getServer();
-      if (minecraftServer != null) {
-         Scoreboard scoreboard = minecraftServer.getScoreboard();
-         ScoreboardObjective scoreboardObjective = scoreboard.getNullableObjective(this.objective);
-         if (scoreboardObjective != null) {
-            ReadableScoreboardScore readableScoreboardScore = scoreboard.getScore(scoreHolder, scoreboardObjective);
-            if (readableScoreboardScore != null) {
-               return readableScoreboardScore.getFormattedScore(scoreboardObjective.getNumberFormatOr(StyledNumberFormat.EMPTY));
-            }
-         }
-      }
+	private ScoreHolder getScoreHolder(ServerCommandSource source) throws CommandSyntaxException {
+		Optional<ParsedSelector> optional = this.name.left();
+		if (optional.isPresent()) {
+			List<? extends Entity> list = optional.get().comp_3068().getEntities(source);
+			if (!list.isEmpty()) {
+				if (list.size() != 1) {
+					throw EntityArgumentType.TOO_MANY_ENTITIES_EXCEPTION.create();
+				}
+				else {
+					return list.getFirst();
+				}
+			}
+			else {
+				return ScoreHolder.fromName(optional.get().comp_3067());
+			}
+		}
+		else {
+			return ScoreHolder.fromName((String) this.name.right().orElseThrow());
+		}
+	}
 
-      return Text.empty();
-   }
+	private MutableText getScore(ScoreHolder scoreHolder, ServerCommandSource source) {
+		MinecraftServer minecraftServer = source.getServer();
+		if (minecraftServer != null) {
+			Scoreboard scoreboard = minecraftServer.getScoreboard();
+			ScoreboardObjective scoreboardObjective = scoreboard.getNullableObjective(this.objective);
+			if (scoreboardObjective != null) {
+				ReadableScoreboardScore readableScoreboardScore = scoreboard.getScore(scoreHolder, scoreboardObjective);
+				if (readableScoreboardScore != null) {
+					return readableScoreboardScore.getFormattedScore(scoreboardObjective.getNumberFormatOr(
+							StyledNumberFormat.EMPTY));
+				}
+			}
+		}
 
-   @Override
-   public MutableText parse(@Nullable ServerCommandSource source, @Nullable Entity sender, int depth) throws CommandSyntaxException {
-      if (source == null) {
-         return Text.empty();
-      } else {
-         ScoreHolder scoreHolder = this.getScoreHolder(source);
-         ScoreHolder scoreHolder2 = (ScoreHolder)(sender != null && scoreHolder.equals(ScoreHolder.WILDCARD) ? sender : scoreHolder);
-         return this.getScore(scoreHolder2, source);
-      }
-   }
+		return Text.empty();
+	}
 
-   @Override
-   public String toString() {
-      return "score{name='" + this.name + "', objective='" + this.objective + "'}";
-   }
+	@Override
+	public MutableText parse(@Nullable ServerCommandSource source, @Nullable Entity sender, int depth)
+	throws CommandSyntaxException {
+		if (source == null) {
+			return Text.empty();
+		}
+		else {
+			ScoreHolder scoreHolder = this.getScoreHolder(source);
+			ScoreHolder
+					scoreHolder2 =
+					(ScoreHolder) (sender != null && scoreHolder.equals(ScoreHolder.WILDCARD) ? sender : scoreHolder);
+			return this.getScore(scoreHolder2, source);
+		}
+	}
+
+	@Override
+	public String toString() {
+		return "score{name='" + this.name + "', objective='" + this.objective + "'}";
+	}
 }

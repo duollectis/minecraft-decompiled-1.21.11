@@ -11,11 +11,20 @@ import net.minecraft.world.storage.StorageKey;
 @Name("minecraft.ChunkRegionRead")
 @Label("Region File Read")
 @DontObfuscate
+/**
+ * {@code ChunkRegionReadEvent}.
+ */
 public class ChunkRegionReadEvent extends ChunkRegionEvent {
-   public static final String EVENT_NAME = "minecraft.ChunkRegionRead";
-   public static final EventType TYPE = EventType.getEventType(ChunkRegionReadEvent.class);
 
-   public ChunkRegionReadEvent(StorageKey storageKey, ChunkPos chunkPos, ChunkCompressionFormat chunkCompressionFormat, int i) {
-      super(storageKey, chunkPos, chunkCompressionFormat, i);
-   }
+	public static final String EVENT_NAME = "minecraft.ChunkRegionRead";
+	public static final EventType TYPE = EventType.getEventType(ChunkRegionReadEvent.class);
+
+	public ChunkRegionReadEvent(
+			StorageKey storageKey,
+			ChunkPos chunkPos,
+			ChunkCompressionFormat chunkCompressionFormat,
+			int i
+	) {
+		super(storageKey, chunkPos, chunkCompressionFormat, i);
+	}
 }

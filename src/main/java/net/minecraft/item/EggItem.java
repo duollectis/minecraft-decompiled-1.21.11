@@ -13,37 +13,41 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
 
+/**
+ * {@code EggItem}.
+ */
 public class EggItem extends Item implements ProjectileItem {
-   public static final float POWER = 1.5F;
 
-   public EggItem(Item.Settings settings) {
-      super(settings);
-   }
+	public static final float POWER = 1.5F;
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      world.playSound(
-         null,
-         user.getX(),
-         user.getY(),
-         user.getZ(),
-         SoundEvents.ENTITY_EGG_THROW,
-         SoundCategory.PLAYERS,
-         0.5F,
-         0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
-      );
-      if (world instanceof ServerWorld serverWorld) {
-         ProjectileEntity.spawnWithVelocity(EggEntity::new, serverWorld, itemStack, user, 0.0F, 1.5F, 1.0F);
-      }
+	public EggItem(Item.Settings settings) {
+		super(settings);
+	}
 
-      user.incrementStat(Stats.USED.getOrCreateStat(this));
-      itemStack.decrementUnlessCreative(1, user);
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		world.playSound(
+				null,
+				user.getX(),
+				user.getY(),
+				user.getZ(),
+				SoundEvents.ENTITY_EGG_THROW,
+				SoundCategory.PLAYERS,
+				0.5F,
+				0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
+		);
+		if (world instanceof ServerWorld serverWorld) {
+			ProjectileEntity.spawnWithVelocity(EggEntity::new, serverWorld, itemStack, user, 0.0F, 1.5F, 1.0F);
+		}
 
-   @Override
-   public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-      return new EggEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack);
-   }
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+		itemStack.decrementUnlessCreative(1, user);
+		return ActionResult.SUCCESS;
+	}
+
+	@Override
+	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
+		return new EggEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack);
+	}
 }

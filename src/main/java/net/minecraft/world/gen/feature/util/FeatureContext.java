@@ -1,6 +1,5 @@
 package net.minecraft.world.gen.feature.util;
 
-import java.util.Optional;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.StructureWorldAccess;
@@ -8,46 +7,57 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.feature.ConfiguredFeature;
 import net.minecraft.world.gen.feature.FeatureConfig;
 
+import java.util.Optional;
+
+/**
+ * {@code FeatureContext}.
+ */
 public class FeatureContext<FC extends FeatureConfig> {
-   private final Optional<ConfiguredFeature<?, ?>> feature;
-   private final StructureWorldAccess world;
-   private final ChunkGenerator generator;
-   private final Random random;
-   private final BlockPos origin;
-   private final FC config;
 
-   public FeatureContext(
-      Optional<ConfiguredFeature<?, ?>> feature, StructureWorldAccess world, ChunkGenerator generator, Random random, BlockPos origin, FC config
-   ) {
-      this.feature = feature;
-      this.world = world;
-      this.generator = generator;
-      this.random = random;
-      this.origin = origin;
-      this.config = config;
-   }
+	private final Optional<ConfiguredFeature<?, ?>> feature;
+	private final StructureWorldAccess world;
+	private final ChunkGenerator generator;
+	private final Random random;
+	private final BlockPos origin;
+	private final FC config;
 
-   public Optional<ConfiguredFeature<?, ?>> getFeature() {
-      return this.feature;
-   }
+	public FeatureContext(
+			Optional<ConfiguredFeature<?, ?>> feature,
+			StructureWorldAccess world,
+			ChunkGenerator generator,
+			Random random,
+			BlockPos origin,
+			FC config
+	) {
+		this.feature = feature;
+		this.world = world;
+		this.generator = generator;
+		this.random = random;
+		this.origin = origin;
+		this.config = config;
+	}
 
-   public StructureWorldAccess getWorld() {
-      return this.world;
-   }
+	public Optional<ConfiguredFeature<?, ?>> getFeature() {
+		return this.feature;
+	}
 
-   public ChunkGenerator getGenerator() {
-      return this.generator;
-   }
+	public StructureWorldAccess getWorld() {
+		return this.world;
+	}
 
-   public Random getRandom() {
-      return this.random;
-   }
+	public ChunkGenerator getGenerator() {
+		return this.generator;
+	}
 
-   public BlockPos getOrigin() {
-      return this.origin;
-   }
+	public Random getRandom() {
+		return this.random;
+	}
 
-   public FC getConfig() {
-      return this.config;
-   }
+	public BlockPos getOrigin() {
+		return this.origin;
+	}
+
+	public FC getConfig() {
+		return this.config;
+	}
 }

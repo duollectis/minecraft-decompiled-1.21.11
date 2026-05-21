@@ -1,7 +1,5 @@
 package net.minecraft.recipe;
 
-import java.util.ArrayList;
-import java.util.List;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.component.type.FireworksComponent;
@@ -12,70 +10,83 @@ import net.minecraft.recipe.input.CraftingRecipeInput;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.world.World;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * {@code FireworkRocketRecipe}.
+ */
 public class FireworkRocketRecipe extends SpecialCraftingRecipe {
-   private static final Ingredient PAPER = Ingredient.ofItem(Items.PAPER);
-   private static final Ingredient DURATION_MODIFIER = Ingredient.ofItem(Items.GUNPOWDER);
-   private static final Ingredient FIREWORK_STAR = Ingredient.ofItem(Items.FIREWORK_STAR);
 
-   public FireworkRocketRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-      super(craftingRecipeCategory);
-   }
+	private static final Ingredient PAPER = Ingredient.ofItem(Items.PAPER);
+	private static final Ingredient DURATION_MODIFIER = Ingredient.ofItem(Items.GUNPOWDER);
+	private static final Ingredient FIREWORK_STAR = Ingredient.ofItem(Items.FIREWORK_STAR);
 
-   public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-      if (craftingRecipeInput.getStackCount() < 2) {
-         return false;
-      } else {
-         boolean bl = false;
-         int i = 0;
+	public FireworkRocketRecipe(CraftingRecipeCategory craftingRecipeCategory) {
+		super(craftingRecipeCategory);
+	}
 
-         for (int j = 0; j < craftingRecipeInput.size(); j++) {
-            ItemStack itemStack = craftingRecipeInput.getStackInSlot(j);
-            if (!itemStack.isEmpty()) {
-               if (PAPER.test(itemStack)) {
-                  if (bl) {
-                     return false;
-                  }
+	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
+		if (craftingRecipeInput.getStackCount() < 2) {
+			return false;
+		}
+		else {
+			boolean bl = false;
+			int i = 0;
 
-                  bl = true;
-               } else if (DURATION_MODIFIER.test(itemStack)) {
-                  if (++i > 3) {
-                     return false;
-                  }
-               } else if (!FIREWORK_STAR.test(itemStack)) {
-                  return false;
-               }
-            }
-         }
+			for (int j = 0; j < craftingRecipeInput.size(); j++) {
+				ItemStack itemStack = craftingRecipeInput.getStackInSlot(j);
+				if (!itemStack.isEmpty()) {
+					if (PAPER.test(itemStack)) {
+						if (bl) {
+							return false;
+						}
 
-         return bl && i >= 1;
-      }
-   }
+						bl = true;
+					}
+					else if (DURATION_MODIFIER.test(itemStack)) {
+						if (++i > 3) {
+							return false;
+						}
+					}
+					else if (!FIREWORK_STAR.test(itemStack)) {
+						return false;
+					}
+				}
+			}
 
-   public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-      List<FireworkExplosionComponent> list = new ArrayList<>();
-      int i = 0;
+			return bl && i >= 1;
+		}
+	}
 
-      for (int j = 0; j < craftingRecipeInput.size(); j++) {
-         ItemStack itemStack = craftingRecipeInput.getStackInSlot(j);
-         if (!itemStack.isEmpty()) {
-            if (DURATION_MODIFIER.test(itemStack)) {
-               i++;
-            } else if (FIREWORK_STAR.test(itemStack)) {
-               FireworkExplosionComponent fireworkExplosionComponent = itemStack.get(DataComponentTypes.FIREWORK_EXPLOSION);
-               if (fireworkExplosionComponent != null) {
-                  list.add(fireworkExplosionComponent);
-               }
-            }
-         }
-      }
+	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
+		List<FireworkExplosionComponent> list = new ArrayList<>();
+		int i = 0;
 
-      ItemStack itemStack2 = new ItemStack(Items.FIREWORK_ROCKET, 3);
-      itemStack2.set(DataComponentTypes.FIREWORKS, new FireworksComponent(i, list));
-      return itemStack2;
-   }
+		for (int j = 0; j < craftingRecipeInput.size(); j++) {
+			ItemStack itemStack = craftingRecipeInput.getStackInSlot(j);
+			if (!itemStack.isEmpty()) {
+				if (DURATION_MODIFIER.test(itemStack)) {
+					i++;
+				}
+				else if (FIREWORK_STAR.test(itemStack)) {
+					FireworkExplosionComponent
+							fireworkExplosionComponent =
+							itemStack.get(DataComponentTypes.FIREWORK_EXPLOSION);
+					if (fireworkExplosionComponent != null) {
+						list.add(fireworkExplosionComponent);
+					}
+				}
+			}
+		}
 
-   @Override
-   public RecipeSerializer<FireworkRocketRecipe> getSerializer() {
-      return RecipeSerializer.FIREWORK_ROCKET;
-   }
+		ItemStack itemStack2 = new ItemStack(Items.FIREWORK_ROCKET, 3);
+		itemStack2.set(DataComponentTypes.FIREWORKS, new FireworksComponent(i, list));
+		return itemStack2;
+	}
+
+	@Override
+	public RecipeSerializer<FireworkRocketRecipe> getSerializer() {
+		return RecipeSerializer.FIREWORK_ROCKET;
+	}
 }

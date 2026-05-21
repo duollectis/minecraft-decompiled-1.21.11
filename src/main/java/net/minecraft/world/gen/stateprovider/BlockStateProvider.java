@@ -7,20 +7,24 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code BlockStateProvider}.
+ */
 public abstract class BlockStateProvider {
-   public static final Codec<BlockStateProvider> TYPE_CODEC = Registries.BLOCK_STATE_PROVIDER_TYPE
-      .getCodec()
-      .dispatch(BlockStateProvider::getType, BlockStateProviderType::getCodec);
 
-   public static SimpleBlockStateProvider of(BlockState state) {
-      return new SimpleBlockStateProvider(state);
-   }
+	public static final Codec<BlockStateProvider> TYPE_CODEC = Registries.BLOCK_STATE_PROVIDER_TYPE
+			.getCodec()
+			.dispatch(BlockStateProvider::getType, BlockStateProviderType::getCodec);
 
-   public static SimpleBlockStateProvider of(Block block) {
-      return new SimpleBlockStateProvider(block.getDefaultState());
-   }
+	public static SimpleBlockStateProvider of(BlockState state) {
+		return new SimpleBlockStateProvider(state);
+	}
 
-   protected abstract BlockStateProviderType<?> getType();
+	public static SimpleBlockStateProvider of(Block block) {
+		return new SimpleBlockStateProvider(block.getDefaultState());
+	}
 
-   public abstract BlockState get(Random random, BlockPos pos);
+	protected abstract BlockStateProviderType<?> getType();
+
+	public abstract BlockState get(Random random, BlockPos pos);
 }

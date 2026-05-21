@@ -11,175 +11,209 @@ import net.minecraft.screen.slot.ForgingSlotsManager;
 import net.minecraft.screen.slot.Slot;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ForgingScreenHandler}.
+ */
 public abstract class ForgingScreenHandler extends ScreenHandler {
-   private static final int field_41901 = 9;
-   private static final int field_41902 = 3;
-   private static final int field_54595 = 0;
-   protected final ScreenHandlerContext context;
-   protected final PlayerEntity player;
-   protected final Inventory input;
-   protected final CraftingResultInventory output = new CraftingResultInventory() {
-      @Override
-      public void markDirty() {
-         ForgingScreenHandler.this.onContentChanged(this);
-      }
-   };
-   private final int resultSlotIndex;
 
-   protected boolean canTakeOutput(PlayerEntity player, boolean present) {
-      return true;
-   }
+	private static final int HOTBAR_SIZE = 9;
+	private static final int INPUT_SLOT_COUNT = 3;
+	private static final int RESULT_SLOT_INDEX = 0;
+	protected final ScreenHandlerContext context;
+	protected final PlayerEntity player;
+	protected final Inventory input;
+	protected final CraftingResultInventory output = new CraftingResultInventory() {
+		@Override
+		public void markDirty() {
+			ForgingScreenHandler.this.onContentChanged(this);
+		}
+	};
+	private final int resultSlotIndex;
 
-   protected abstract void onTakeOutput(PlayerEntity player, ItemStack stack);
+	protected boolean canTakeOutput(PlayerEntity player, boolean present) {
+		return true;
+	}
 
-   protected abstract boolean canUse(BlockState state);
+	protected abstract void onTakeOutput(PlayerEntity player, ItemStack stack);
 
-   public ForgingScreenHandler(
-      @Nullable ScreenHandlerType<?> type, int syncId, PlayerInventory playerInventory, ScreenHandlerContext context, ForgingSlotsManager forgingSlotsManager
-   ) {
-      super(type, syncId);
-      this.context = context;
-      this.player = playerInventory.player;
-      this.input = this.createInputInventory(forgingSlotsManager.getInputSlotCount());
-      this.resultSlotIndex = forgingSlotsManager.getResultSlotIndex();
-      this.addInputSlots(forgingSlotsManager);
-      this.addResultSlot(forgingSlotsManager);
-      this.addPlayerSlots(playerInventory, 8, 84);
-   }
+	protected abstract boolean canUse(BlockState state);
 
-   private void addInputSlots(ForgingSlotsManager forgingSlotsManager) {
-      for (final ForgingSlotsManager.ForgingSlot forgingSlot : forgingSlotsManager.getInputSlots()) {
-         this.addSlot(new Slot(this.input, forgingSlot.slotId(), forgingSlot.x(), forgingSlot.y()) {
-            @Override
-            public boolean canInsert(ItemStack stack) {
-               return forgingSlot.mayPlace().test(stack);
-            }
-         });
-      }
-   }
+	public ForgingScreenHandler(
+			@Nullable ScreenHandlerType<?> type,
+			int syncId,
+			PlayerInventory playerInventory,
+			ScreenHandlerContext context,
+			ForgingSlotsManager forgingSlotsManager
+	) {
+		super(type, syncId);
+		this.context = context;
+		this.player = playerInventory.player;
+		this.input = this.createInputInventory(forgingSlotsManager.getInputSlotCount());
+		this.resultSlotIndex = forgingSlotsManager.getResultSlotIndex();
+		this.addInputSlots(forgingSlotsManager);
+		this.addResultSlot(forgingSlotsManager);
+		this.addPlayerSlots(playerInventory, 8, 84);
+	}
 
-   private void addResultSlot(ForgingSlotsManager forgingSlotsManager) {
-      this.addSlot(
-         new Slot(this.output, forgingSlotsManager.getResultSlot().slotId(), forgingSlotsManager.getResultSlot().x(), forgingSlotsManager.getResultSlot().y()) {
-            @Override
-            public boolean canInsert(ItemStack stack) {
-               return false;
-            }
+	private void addInputSlots(ForgingSlotsManager forgingSlotsManager) {
+		for (final ForgingSlotsManager.ForgingSlot forgingSlot : forgingSlotsManager.getInputSlots()) {
+			this.addSlot(new Slot(this.input, forgingSlot.slotId(), forgingSlot.x(), forgingSlot.y()) {
+				@Override
+				public boolean canInsert(ItemStack stack) {
+					return forgingSlot.mayPlace().test(stack);
+				}
+			});
+		}
+	}
 
-            @Override
-            public boolean canTakeItems(PlayerEntity playerEntity) {
-               return ForgingScreenHandler.this.canTakeOutput(playerEntity, this.hasStack());
-            }
+	private void addResultSlot(ForgingSlotsManager forgingSlotsManager) {
+		this.addSlot(
+				new Slot(
+						this.output,
+						forgingSlotsManager.getResultSlot().slotId(),
+						forgingSlotsManager.getResultSlot().x(),
+						forgingSlotsManager.getResultSlot().y()
+				) {
+					@Override
+					public boolean canInsert(ItemStack stack) {
+						return false;
+					}
 
-            @Override
-            public void onTakeItem(PlayerEntity player, ItemStack stack) {
-               ForgingScreenHandler.this.onTakeOutput(player, stack);
-            }
-         }
-      );
-   }
+					@Override
+					public boolean canTakeItems(PlayerEntity playerEntity) {
+						return ForgingScreenHandler.this.canTakeOutput(playerEntity, this.hasStack());
+					}
 
-   public abstract void updateResult();
+					@Override
+					public void onTakeItem(PlayerEntity player, ItemStack stack) {
+						ForgingScreenHandler.this.onTakeOutput(player, stack);
+					}
+				}
+		);
+	}
 
-   private SimpleInventory createInputInventory(int size) {
-      return new SimpleInventory(size) {
-         @Override
-         public void markDirty() {
-            super.markDirty();
-            ForgingScreenHandler.this.onContentChanged(this);
-         }
-      };
-   }
+	public abstract void updateResult();
 
-   @Override
-   public void onContentChanged(Inventory inventory) {
-      super.onContentChanged(inventory);
-      if (inventory == this.input) {
-         this.updateResult();
-      }
-   }
+	private SimpleInventory createInputInventory(int size) {
+		return new SimpleInventory(size) {
+			@Override
+			public void markDirty() {
+				super.markDirty();
+				ForgingScreenHandler.this.onContentChanged(this);
+			}
+		};
+	}
 
-   @Override
-   public void onClosed(PlayerEntity player) {
-      super.onClosed(player);
-      this.context.run((world, pos) -> this.dropInventory(player, this.input));
-   }
+	@Override
+	public void onContentChanged(Inventory inventory) {
+		super.onContentChanged(inventory);
+		if (inventory == this.input) {
+			this.updateResult();
+		}
+	}
 
-   @Override
-   public boolean canUse(PlayerEntity player) {
-      return this.context.get((world, pos) -> !this.canUse(world.getBlockState(pos)) ? false : player.canInteractWithBlockAt(pos, 4.0), true);
-   }
+	@Override
+	public void onClosed(PlayerEntity player) {
+		super.onClosed(player);
+		this.context.run((world, pos) -> this.dropInventory(player, this.input));
+	}
 
-   @Override
-   public ItemStack quickMove(PlayerEntity player, int slot) {
-      ItemStack itemStack = ItemStack.EMPTY;
-      Slot slot2 = this.slots.get(slot);
-      if (slot2 != null && slot2.hasStack()) {
-         ItemStack itemStack2 = slot2.getStack();
-         itemStack = itemStack2.copy();
-         int i = this.getPlayerInventoryStartIndex();
-         int j = this.getPlayerHotbarEndIndex();
-         if (slot == this.getResultSlotIndex()) {
-            if (!this.insertItem(itemStack2, i, j, true)) {
-               return ItemStack.EMPTY;
-            }
+	@Override
+	public boolean canUse(PlayerEntity player) {
+		return this.context.get(
+				(world, pos) -> !this.canUse(world.getBlockState(pos)) ? false : player.canInteractWithBlockAt(
+						pos,
+						4.0
+				), true
+		);
+	}
 
-            slot2.onQuickTransfer(itemStack2, itemStack);
-         } else if (slot >= 0 && slot < this.getResultSlotIndex()) {
-            if (!this.insertItem(itemStack2, i, j, false)) {
-               return ItemStack.EMPTY;
-            }
-         } else if (this.isValidIngredient(itemStack2) && slot >= this.getPlayerInventoryStartIndex() && slot < this.getPlayerHotbarEndIndex()) {
-            if (!this.insertItem(itemStack2, 0, this.getResultSlotIndex(), false)) {
-               return ItemStack.EMPTY;
-            }
-         } else if (slot >= this.getPlayerInventoryStartIndex() && slot < this.getPlayerInventoryEndIndex()) {
-            if (!this.insertItem(itemStack2, this.getPlayerHotbarStartIndex(), this.getPlayerHotbarEndIndex(), false)) {
-               return ItemStack.EMPTY;
-            }
-         } else if (slot >= this.getPlayerHotbarStartIndex()
-            && slot < this.getPlayerHotbarEndIndex()
-            && !this.insertItem(itemStack2, this.getPlayerInventoryStartIndex(), this.getPlayerInventoryEndIndex(), false)) {
-            return ItemStack.EMPTY;
-         }
+	@Override
+	public ItemStack quickMove(PlayerEntity player, int slot) {
+		ItemStack itemStack = ItemStack.EMPTY;
+		Slot slot2 = this.slots.get(slot);
+		if (slot2 != null && slot2.hasStack()) {
+			ItemStack itemStack2 = slot2.getStack();
+			itemStack = itemStack2.copy();
+			int i = this.getPlayerInventoryStartIndex();
+			int j = this.getPlayerHotbarEndIndex();
+			if (slot == this.getResultSlotIndex()) {
+				if (!this.insertItem(itemStack2, i, j, true)) {
+					return ItemStack.EMPTY;
+				}
 
-         if (itemStack2.isEmpty()) {
-            slot2.setStack(ItemStack.EMPTY);
-         } else {
-            slot2.markDirty();
-         }
+				slot2.onQuickTransfer(itemStack2, itemStack);
+			}
+			else if (slot >= 0 && slot < this.getResultSlotIndex()) {
+				if (!this.insertItem(itemStack2, i, j, false)) {
+					return ItemStack.EMPTY;
+				}
+			}
+			else if (this.isValidIngredient(itemStack2) && slot >= this.getPlayerInventoryStartIndex()
+					&& slot < this.getPlayerHotbarEndIndex()) {
+				if (!this.insertItem(itemStack2, 0, this.getResultSlotIndex(), false)) {
+					return ItemStack.EMPTY;
+				}
+			}
+			else if (slot >= this.getPlayerInventoryStartIndex() && slot < this.getPlayerInventoryEndIndex()) {
+				if (!this.insertItem(
+						itemStack2,
+						this.getPlayerHotbarStartIndex(),
+						this.getPlayerHotbarEndIndex(),
+						false
+				)) {
+					return ItemStack.EMPTY;
+				}
+			}
+			else if (slot >= this.getPlayerHotbarStartIndex()
+					&& slot < this.getPlayerHotbarEndIndex()
+					&& !this.insertItem(
+					itemStack2,
+					this.getPlayerInventoryStartIndex(),
+					this.getPlayerInventoryEndIndex(),
+					false
+			)) {
+				return ItemStack.EMPTY;
+			}
 
-         if (itemStack2.getCount() == itemStack.getCount()) {
-            return ItemStack.EMPTY;
-         }
+			if (itemStack2.isEmpty()) {
+				slot2.setStack(ItemStack.EMPTY);
+			}
+			else {
+				slot2.markDirty();
+			}
 
-         slot2.onTakeItem(player, itemStack2);
-      }
+			if (itemStack2.getCount() == itemStack.getCount()) {
+				return ItemStack.EMPTY;
+			}
 
-      return itemStack;
-   }
+			slot2.onTakeItem(player, itemStack2);
+		}
 
-   protected boolean isValidIngredient(ItemStack stack) {
-      return true;
-   }
+		return itemStack;
+	}
 
-   public int getResultSlotIndex() {
-      return this.resultSlotIndex;
-   }
+	protected boolean isValidIngredient(ItemStack stack) {
+		return true;
+	}
 
-   private int getPlayerInventoryStartIndex() {
-      return this.getResultSlotIndex() + 1;
-   }
+	public int getResultSlotIndex() {
+		return this.resultSlotIndex;
+	}
 
-   private int getPlayerInventoryEndIndex() {
-      return this.getPlayerInventoryStartIndex() + 27;
-   }
+	private int getPlayerInventoryStartIndex() {
+		return this.getResultSlotIndex() + 1;
+	}
 
-   private int getPlayerHotbarStartIndex() {
-      return this.getPlayerInventoryEndIndex();
-   }
+	private int getPlayerInventoryEndIndex() {
+		return this.getPlayerInventoryStartIndex() + 27;
+	}
 
-   private int getPlayerHotbarEndIndex() {
-      return this.getPlayerHotbarStartIndex() + 9;
-   }
+	private int getPlayerHotbarStartIndex() {
+		return this.getPlayerInventoryEndIndex();
+	}
+
+	private int getPlayerHotbarEndIndex() {
+		return this.getPlayerHotbarStartIndex() + 9;
+	}
 }

@@ -14,123 +14,144 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code AbstractPlantStemBlock}.
+ */
 public abstract class AbstractPlantStemBlock extends AbstractPlantPartBlock implements Fertilizable {
-   public static final IntProperty AGE = Properties.AGE_25;
-   public static final int MAX_AGE = 25;
-   private final double growthChance;
 
-   protected AbstractPlantStemBlock(AbstractBlock.Settings settings, Direction growthDirection, VoxelShape outlineShape, boolean tickWater, double growthChance) {
-      super(settings, growthDirection, outlineShape, tickWater);
-      this.growthChance = growthChance;
-      this.setDefaultState(this.stateManager.getDefaultState().with(AGE, 0));
-   }
+	public static final IntProperty AGE = Properties.AGE_25;
+	public static final int MAX_AGE = 25;
+	private final double growthChance;
 
-   @Override
-   protected abstract MapCodec<? extends AbstractPlantStemBlock> getCodec();
+	protected AbstractPlantStemBlock(
+			AbstractBlock.Settings settings,
+			Direction growthDirection,
+			VoxelShape outlineShape,
+			boolean tickWater,
+			double growthChance
+	) {
+		super(settings, growthDirection, outlineShape, tickWater);
+		this.growthChance = growthChance;
+		this.setDefaultState(this.stateManager.getDefaultState().with(AGE, 0));
+	}
 
-   @Override
-   public BlockState getRandomGrowthState(Random random) {
-      return this.getDefaultState().with(AGE, random.nextInt(25));
-   }
+	@Override
+	protected abstract MapCodec<? extends AbstractPlantStemBlock> getCodec();
 
-   @Override
-   protected boolean hasRandomTicks(BlockState state) {
-      return state.get(AGE) < 25;
-   }
+	@Override
+	public BlockState getRandomGrowthState(Random random) {
+		return this.getDefaultState().with(AGE, random.nextInt(25));
+	}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (state.get(AGE) < 25 && random.nextDouble() < this.growthChance) {
-         BlockPos blockPos = pos.offset(this.growthDirection);
-         if (this.chooseStemState(world.getBlockState(blockPos))) {
-            world.setBlockState(blockPos, this.age(state, world.random));
-         }
-      }
-   }
+	@Override
+	protected boolean hasRandomTicks(BlockState state) {
+		return state.get(AGE) < 25;
+	}
 
-   protected BlockState age(BlockState state, Random random) {
-      return state.cycle(AGE);
-   }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (state.get(AGE) < 25 && random.nextDouble() < this.growthChance) {
+			BlockPos blockPos = pos.offset(this.growthDirection);
+			if (this.chooseStemState(world.getBlockState(blockPos))) {
+				world.setBlockState(blockPos, this.age(state, world.random));
+			}
+		}
+	}
 
-   public BlockState withMaxAge(BlockState state) {
-      return state.with(AGE, 25);
-   }
+	protected BlockState age(BlockState state, Random random) {
+		return state.cycle(AGE);
+	}
 
-   public boolean hasMaxAge(BlockState state) {
-      return state.get(AGE) == 25;
-   }
+	public BlockState withMaxAge(BlockState state) {
+		return state.with(AGE, 25);
+	}
 
-   protected BlockState copyState(BlockState from, BlockState to) {
-      return to;
-   }
+	public boolean hasMaxAge(BlockState state) {
+		return state.get(AGE) == 25;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (direction == this.growthDirection.getOpposite()) {
-         if (!state.canPlaceAt(world, pos)) {
-            tickView.scheduleBlockTick(pos, this, 1);
-         } else {
-            BlockState blockState = world.getBlockState(pos.offset(this.growthDirection));
-            if (blockState.isOf(this) || blockState.isOf(this.getPlant())) {
-               return this.copyState(state, this.getPlant().getDefaultState());
-            }
-         }
-      }
+	protected BlockState copyState(BlockState from, BlockState to) {
+		return to;
+	}
 
-      if (direction != this.growthDirection || !neighborState.isOf(this) && !neighborState.isOf(this.getPlant())) {
-         if (this.tickWater) {
-            tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-         }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (direction == this.growthDirection.getOpposite()) {
+			if (!state.canPlaceAt(world, pos)) {
+				tickView.scheduleBlockTick(pos, this, 1);
+			}
+			else {
+				BlockState blockState = world.getBlockState(pos.offset(this.growthDirection));
+				if (blockState.isOf(this) || blockState.isOf(this.getPlant())) {
+					return this.copyState(state, this.getPlant().getDefaultState());
+				}
+			}
+		}
 
-         return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-      } else {
-         return this.copyState(state, this.getPlant().getDefaultState());
-      }
-   }
+		if (direction != this.growthDirection || !neighborState.isOf(this) && !neighborState.isOf(this.getPlant())) {
+			if (this.tickWater) {
+				tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+			}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(AGE);
-   }
+			return super.getStateForNeighborUpdate(
+					state,
+					world,
+					tickView,
+					pos,
+					direction,
+					neighborPos,
+					neighborState,
+					random
+			);
+		}
+		else {
+			return this.copyState(state, this.getPlant().getDefaultState());
+		}
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return this.chooseStemState(world.getBlockState(pos.offset(this.growthDirection)));
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(AGE);
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return this.chooseStemState(world.getBlockState(pos.offset(this.growthDirection)));
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      BlockPos blockPos = pos.offset(this.growthDirection);
-      int i = Math.min(state.get(AGE) + 1, 25);
-      int j = this.getGrowthLength(random);
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
 
-      for (int k = 0; k < j && this.chooseStemState(world.getBlockState(blockPos)); k++) {
-         world.setBlockState(blockPos, state.with(AGE, i));
-         blockPos = blockPos.offset(this.growthDirection);
-         i = Math.min(i + 1, 25);
-      }
-   }
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		BlockPos blockPos = pos.offset(this.growthDirection);
+		int i = Math.min(state.get(AGE) + 1, 25);
+		int j = this.getGrowthLength(random);
 
-   protected abstract int getGrowthLength(Random random);
+		for (int k = 0; k < j && this.chooseStemState(world.getBlockState(blockPos)); k++) {
+			world.setBlockState(blockPos, state.with(AGE, i));
+			blockPos = blockPos.offset(this.growthDirection);
+			i = Math.min(i + 1, 25);
+		}
+	}
 
-   protected abstract boolean chooseStemState(BlockState state);
+	protected abstract int getGrowthLength(Random random);
 
-   @Override
-   protected AbstractPlantStemBlock getStem() {
-      return this;
-   }
+	protected abstract boolean chooseStemState(BlockState state);
+
+	@Override
+	protected AbstractPlantStemBlock getStem() {
+		return this;
+	}
 }

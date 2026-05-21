@@ -7,41 +7,50 @@ import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 
+/**
+ * {@code MudBlock}.
+ */
 public class MudBlock extends Block {
-   public static final MapCodec<MudBlock> CODEC = createCodec(MudBlock::new);
-   private static final VoxelShape COLLISION_SHAPE = Block.createColumnShape(16.0, 0.0, 14.0);
 
-   @Override
-   public MapCodec<MudBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<MudBlock> CODEC = createCodec(MudBlock::new);
+	private static final VoxelShape COLLISION_SHAPE = Block.createColumnShape(16.0, 0.0, 14.0);
 
-   public MudBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<MudBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return COLLISION_SHAPE;
-   }
+	public MudBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected VoxelShape getSidesShape(BlockState state, BlockView world, BlockPos pos) {
-      return VoxelShapes.fullCube();
-   }
+	@Override
+	protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return COLLISION_SHAPE;
+	}
 
-   @Override
-   protected VoxelShape getCameraCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return VoxelShapes.fullCube();
-   }
+	@Override
+	protected VoxelShape getSidesShape(BlockState state, BlockView world, BlockPos pos) {
+		return VoxelShapes.fullCube();
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected VoxelShape getCameraCollisionShape(
+			BlockState state,
+			BlockView world,
+			BlockPos pos,
+			ShapeContext context
+	) {
+		return VoxelShapes.fullCube();
+	}
 
-   @Override
-   protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
-      return 0.2F;
-   }
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
+
+	@Override
+	protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
+		return 0.2F;
+	}
 }

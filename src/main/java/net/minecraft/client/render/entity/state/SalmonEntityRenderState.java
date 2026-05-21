@@ -5,6 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.entity.passive.SalmonEntity;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SalmonEntityRenderState}.
+ */
 public class SalmonEntityRenderState extends LivingEntityRenderState {
-   public SalmonEntity.Variant variant = SalmonEntity.Variant.MEDIUM;
+
+	public SalmonEntity.Variant variant = SalmonEntity.Variant.MEDIUM;
 }

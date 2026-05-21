@@ -13,35 +13,44 @@ import net.minecraft.entity.decoration.LeashKnotEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LeashKnotEntityRenderer}.
+ */
 public class LeashKnotEntityRenderer extends EntityRenderer<LeashKnotEntity, EntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/lead_knot.png");
-   private final LeashKnotEntityModel field_53192;
 
-   public LeashKnotEntityRenderer(EntityRendererFactory.Context context) {
-      super(context);
-      this.field_53192 = new LeashKnotEntityModel(context.getPart(EntityModelLayers.LEASH_KNOT));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/lead_knot.png");
+	private final LeashKnotEntityModel model;
 
-   @Override
-   public void render(EntityRenderState renderState, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState) {
-      matrices.push();
-      matrices.scale(-1.0F, -1.0F, 1.0F);
-      queue.submitModel(
-         this.field_53192,
-         renderState,
-         matrices,
-         this.field_53192.getLayer(TEXTURE),
-         renderState.light,
-         OverlayTexture.DEFAULT_UV,
-         renderState.outlineColor,
-         null
-      );
-      matrices.pop();
-      super.render(renderState, matrices, queue, cameraState);
-   }
+	public LeashKnotEntityRenderer(EntityRendererFactory.Context context) {
+		super(context);
+		this.model = new LeashKnotEntityModel(context.getPart(EntityModelLayers.LEASH_KNOT));
+	}
 
-   @Override
-   public EntityRenderState createRenderState() {
-      return new EntityRenderState();
-   }
+	@Override
+	public void render(
+			EntityRenderState renderState,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			CameraRenderState cameraState
+	) {
+		matrices.push();
+		matrices.scale(-1.0F, -1.0F, 1.0F);
+		queue.submitModel(
+				this.model,
+				renderState,
+				matrices,
+				this.model.getLayer(TEXTURE),
+				renderState.light,
+				OverlayTexture.DEFAULT_UV,
+				renderState.outlineColor,
+				null
+		);
+		matrices.pop();
+		super.render(renderState, matrices, queue, cameraState);
+	}
+
+	@Override
+	public EntityRenderState createRenderState() {
+		return new EntityRenderState();
+	}
 }

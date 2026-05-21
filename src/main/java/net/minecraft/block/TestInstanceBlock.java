@@ -10,37 +10,43 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code TestInstanceBlock}.
+ */
 public class TestInstanceBlock extends BlockWithEntity implements OperatorBlock {
-   public static final MapCodec<TestInstanceBlock> CODEC = createCodec(TestInstanceBlock::new);
 
-   public TestInstanceBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	public static final MapCodec<TestInstanceBlock> CODEC = createCodec(TestInstanceBlock::new);
 
-   @Override
-   public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new TestInstanceBlockEntity(pos, state);
-   }
+	public TestInstanceBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (world.getBlockEntity(pos) instanceof TestInstanceBlockEntity testInstanceBlockEntity) {
-         if (!player.isCreativeLevelTwoOp()) {
-            return ActionResult.PASS;
-         } else {
-            if (player.getEntityWorld().isClient()) {
-               player.openTestInstanceBlockScreen(testInstanceBlockEntity);
-            }
+	@Override
+	public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new TestInstanceBlockEntity(pos, state);
+	}
 
-            return ActionResult.SUCCESS;
-         }
-      } else {
-         return ActionResult.PASS;
-      }
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (world.getBlockEntity(pos) instanceof TestInstanceBlockEntity testInstanceBlockEntity) {
+			if (!player.isCreativeLevelTwoOp()) {
+				return ActionResult.PASS;
+			}
+			else {
+				if (player.getEntityWorld().isClient()) {
+					player.openTestInstanceBlockScreen(testInstanceBlockEntity);
+				}
 
-   @Override
-   protected MapCodec<TestInstanceBlock> getCodec() {
-      return CODEC;
-   }
+				return ActionResult.SUCCESS;
+			}
+		}
+		else {
+			return ActionResult.PASS;
+		}
+	}
+
+	@Override
+	protected MapCodec<TestInstanceBlock> getCodec() {
+		return CODEC;
+	}
 }

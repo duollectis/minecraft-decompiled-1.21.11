@@ -10,39 +10,42 @@ import net.minecraft.network.packet.PlayPackets;
 import org.jspecify.annotations.Nullable;
 
 public class EntityAttachS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, EntityAttachS2CPacket> CODEC = Packet.createCodec(EntityAttachS2CPacket::write, EntityAttachS2CPacket::new);
-   private final int attachedEntityId;
-   private final int holdingEntityId;
 
-   public EntityAttachS2CPacket(Entity attachedEntity, @Nullable Entity holdingEntity) {
-      this.attachedEntityId = attachedEntity.getId();
-      this.holdingEntityId = holdingEntity != null ? holdingEntity.getId() : 0;
-   }
+	public static final PacketCodec<PacketByteBuf, EntityAttachS2CPacket>
+			CODEC =
+			Packet.createCodec(EntityAttachS2CPacket::write, EntityAttachS2CPacket::new);
+	private final int attachedEntityId;
+	private final int holdingEntityId;
 
-   private EntityAttachS2CPacket(PacketByteBuf buf) {
-      this.attachedEntityId = buf.readInt();
-      this.holdingEntityId = buf.readInt();
-   }
+	public EntityAttachS2CPacket(Entity attachedEntity, @Nullable Entity holdingEntity) {
+		this.attachedEntityId = attachedEntity.getId();
+		this.holdingEntityId = holdingEntity != null ? holdingEntity.getId() : 0;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeInt(this.attachedEntityId);
-      buf.writeInt(this.holdingEntityId);
-   }
+	private EntityAttachS2CPacket(PacketByteBuf buf) {
+		this.attachedEntityId = buf.readInt();
+		this.holdingEntityId = buf.readInt();
+	}
 
-   @Override
-   public PacketType<EntityAttachS2CPacket> getPacketType() {
-      return PlayPackets.SET_ENTITY_LINK;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeInt(this.attachedEntityId);
+		buf.writeInt(this.holdingEntityId);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntityAttach(this);
-   }
+	@Override
+	public PacketType<EntityAttachS2CPacket> getPacketType() {
+		return PlayPackets.SET_ENTITY_LINK;
+	}
 
-   public int getAttachedEntityId() {
-      return this.attachedEntityId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntityAttach(this);
+	}
 
-   public int getHoldingEntityId() {
-      return this.holdingEntityId;
-   }
+	public int getAttachedEntityId() {
+		return this.attachedEntityId;
+	}
+
+	public int getHoldingEntityId() {
+		return this.holdingEntityId;
+	}
 }

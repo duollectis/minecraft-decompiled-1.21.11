@@ -6,9 +6,13 @@ import net.minecraft.entity.passive.LlamaEntity;
 import net.minecraft.item.ItemStack;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LlamaEntityRenderState}.
+ */
 public class LlamaEntityRenderState extends LivingEntityRenderState {
-   public LlamaEntity.Variant variant = LlamaEntity.Variant.DEFAULT;
-   public boolean hasChest;
-   public ItemStack bodyArmor = ItemStack.EMPTY;
-   public boolean trader;
+
+	public LlamaEntity.Variant variant = LlamaEntity.Variant.DEFAULT;
+	public boolean hasChest;
+	public ItemStack bodyArmor = ItemStack.EMPTY;
+	public boolean trader;
 }

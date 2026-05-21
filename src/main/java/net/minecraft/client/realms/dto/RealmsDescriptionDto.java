@@ -7,6 +7,12 @@ import net.minecraft.client.realms.RealmsSerializable;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
-public record RealmsDescriptionDto(@SerializedName("name") @Nullable String name, @SerializedName("description") String description)
-   implements RealmsSerializable {
+/**
+ * {@code RealmsDescriptionDto}.
+ */
+public record RealmsDescriptionDto(
+		@SerializedName("name") @Nullable String name,
+		@SerializedName("description") String description
+)
+		implements RealmsSerializable {
 }

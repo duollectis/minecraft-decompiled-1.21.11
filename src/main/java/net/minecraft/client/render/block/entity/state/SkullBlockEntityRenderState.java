@@ -7,10 +7,14 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.util.math.Direction;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SkullBlockEntityRenderState}.
+ */
 public class SkullBlockEntityRenderState extends BlockEntityRenderState {
-   public float poweredTicks;
-   public Direction facing = Direction.NORTH;
-   public float yaw;
-   public SkullBlock.SkullType skullType = SkullBlock.Type.ZOMBIE;
-   public RenderLayer renderLayer;
+
+	public float poweredTicks;
+	public Direction facing = Direction.NORTH;
+	public float yaw;
+	public SkullBlock.SkullType skullType = SkullBlock.Type.ZOMBIE;
+	public RenderLayer renderLayer;
 }

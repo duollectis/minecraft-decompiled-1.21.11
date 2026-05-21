@@ -13,58 +13,77 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.world.WorldProperties;
 
+/**
+ * {@code SetWorldSpawnCommand}.
+ */
 public class SetWorldSpawnCommand {
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("setworldspawn")
-                  .requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK)))
-               .executes(
-                  context -> execute(
-                     (ServerCommandSource)context.getSource(),
-                     BlockPos.ofFloored(((ServerCommandSource)context.getSource()).getPosition()),
-                     DefaultPosArgument.DEFAULT_ROTATION
-                  )
-               ))
-            .then(
-               ((RequiredArgumentBuilder)CommandManager.argument("pos", BlockPosArgumentType.blockPos())
-                     .executes(
-                        context -> execute(
-                           (ServerCommandSource)context.getSource(), BlockPosArgumentType.getValidBlockPos(context, "pos"), DefaultPosArgument.DEFAULT_ROTATION
-                        )
-                     ))
-                  .then(
-                     CommandManager.argument("rotation", RotationArgumentType.rotation())
-                        .executes(
-                           context -> execute(
-                              (ServerCommandSource)context.getSource(),
-                              BlockPosArgumentType.getValidBlockPos(context, "pos"),
-                              RotationArgumentType.getRotation(context, "rotation")
-                           )
-                        )
-                  )
-            )
-      );
-   }
 
-   private static int execute(ServerCommandSource source, BlockPos pos, PosArgument rotation) {
-      ServerWorld serverWorld = source.getWorld();
-      Vec2f vec2f = rotation.getRotation(source);
-      float f = vec2f.y;
-      float g = vec2f.x;
-      WorldProperties.SpawnPoint spawnPoint = WorldProperties.SpawnPoint.create(serverWorld.getRegistryKey(), pos, f, g);
-      serverWorld.setSpawnPoint(spawnPoint);
-      source.sendFeedback(
-         () -> Text.translatable(
-            "commands.setworldspawn.success",
-            pos.getX(),
-            pos.getY(),
-            pos.getZ(),
-            spawnPoint.yaw(),
-            spawnPoint.pitch(),
-            serverWorld.getRegistryKey().getValue().toString()
-         ),
-         true
-      );
-      return 1;
-   }
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
+						.literal("setworldspawn")
+						.requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK))
+				)
+						.executes(
+								context -> execute(
+										(ServerCommandSource) context.getSource(),
+										BlockPos.ofFloored(((ServerCommandSource) context.getSource()).getPosition()),
+										DefaultPosArgument.DEFAULT_ROTATION
+								)
+						)
+				)
+						.then(
+								((RequiredArgumentBuilder) CommandManager
+										.argument("pos", BlockPosArgumentType.blockPos())
+										.executes(
+												context -> execute(
+														(ServerCommandSource) context.getSource(),
+														BlockPosArgumentType.getValidBlockPos(context, "pos"),
+														DefaultPosArgument.DEFAULT_ROTATION
+												)
+										)
+								)
+										.then(
+												CommandManager.argument("rotation", RotationArgumentType.rotation())
+												              .executes(
+														              context -> execute(
+																              (ServerCommandSource) context.getSource(),
+																              BlockPosArgumentType.getValidBlockPos(
+																		              context,
+																		              "pos"
+																              ),
+																              RotationArgumentType.getRotation(
+																		              context,
+																		              "rotation"
+																              )
+														              )
+												              )
+										)
+						)
+		);
+	}
+
+	private static int execute(ServerCommandSource source, BlockPos pos, PosArgument rotation) {
+		ServerWorld serverWorld = source.getWorld();
+		Vec2f vec2f = rotation.getRotation(source);
+		float f = vec2f.y;
+		float g = vec2f.x;
+		WorldProperties.SpawnPoint
+				spawnPoint =
+				WorldProperties.SpawnPoint.create(serverWorld.getRegistryKey(), pos, f, g);
+		serverWorld.setSpawnPoint(spawnPoint);
+		source.sendFeedback(
+				() -> Text.translatable(
+						"commands.setworldspawn.success",
+						pos.getX(),
+						pos.getY(),
+						pos.getZ(),
+						spawnPoint.yaw(),
+						spawnPoint.pitch(),
+						serverWorld.getRegistryKey().getValue().toString()
+				),
+				true
+		);
+		return 1;
+	}
 }

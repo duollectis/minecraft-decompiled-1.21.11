@@ -14,36 +14,45 @@ import net.minecraft.entity.projectile.AbstractWindChargeEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WindChargeEntityRenderer}.
+ */
 public class WindChargeEntityRenderer extends EntityRenderer<AbstractWindChargeEntity, EntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/projectiles/wind_charge.png");
-   private final WindChargeEntityModel model;
 
-   public WindChargeEntityRenderer(EntityRendererFactory.Context context) {
-      super(context);
-      this.model = new WindChargeEntityModel(context.getPart(EntityModelLayers.WIND_CHARGE));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/projectiles/wind_charge.png");
+	private final WindChargeEntityModel model;
 
-   @Override
-   public void render(EntityRenderState renderState, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState) {
-      queue.submitModel(
-         this.model,
-         renderState,
-         matrices,
-         RenderLayers.breezeWind(TEXTURE, this.getXOffset(renderState.age) % 1.0F, 0.0F),
-         renderState.light,
-         OverlayTexture.DEFAULT_UV,
-         renderState.outlineColor,
-         null
-      );
-      super.render(renderState, matrices, queue, cameraState);
-   }
+	public WindChargeEntityRenderer(EntityRendererFactory.Context context) {
+		super(context);
+		this.model = new WindChargeEntityModel(context.getPart(EntityModelLayers.WIND_CHARGE));
+	}
 
-   protected float getXOffset(float tickProgress) {
-      return tickProgress * 0.03F;
-   }
+	@Override
+	public void render(
+			EntityRenderState renderState,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			CameraRenderState cameraState
+	) {
+		queue.submitModel(
+				this.model,
+				renderState,
+				matrices,
+				RenderLayers.breezeWind(TEXTURE, this.getXOffset(renderState.age) % 1.0F, 0.0F),
+				renderState.light,
+				OverlayTexture.DEFAULT_UV,
+				renderState.outlineColor,
+				null
+		);
+		super.render(renderState, matrices, queue, cameraState);
+	}
 
-   @Override
-   public EntityRenderState createRenderState() {
-      return new EntityRenderState();
-   }
+	protected float getXOffset(float tickProgress) {
+		return tickProgress * 0.03F;
+	}
+
+	@Override
+	public EntityRenderState createRenderState() {
+		return new EntityRenderState();
+	}
 }

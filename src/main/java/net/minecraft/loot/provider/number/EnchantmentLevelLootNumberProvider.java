@@ -6,24 +6,31 @@ import net.minecraft.enchantment.EnchantmentLevelBasedValue;
 import net.minecraft.loot.context.LootContext;
 import net.minecraft.loot.context.LootContextParameters;
 
+/**
+ * {@code EnchantmentLevelLootNumberProvider}.
+ */
 public record EnchantmentLevelLootNumberProvider(EnchantmentLevelBasedValue amount) implements LootNumberProvider {
-   public static final MapCodec<EnchantmentLevelLootNumberProvider> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(EnchantmentLevelBasedValue.CODEC.fieldOf("amount").forGetter(EnchantmentLevelLootNumberProvider::amount))
-         .apply(instance, EnchantmentLevelLootNumberProvider::new)
-   );
 
-   @Override
-   public float nextFloat(LootContext context) {
-      int i = context.getOrThrow(LootContextParameters.ENCHANTMENT_LEVEL);
-      return this.amount.getValue(i);
-   }
+	public static final MapCodec<EnchantmentLevelLootNumberProvider> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(EnchantmentLevelBasedValue.CODEC
+							.fieldOf("amount")
+							.forGetter(EnchantmentLevelLootNumberProvider::amount))
+					.apply(instance, EnchantmentLevelLootNumberProvider::new)
+	);
 
-   @Override
-   public LootNumberProviderType getType() {
-      return LootNumberProviderTypes.ENCHANTMENT_LEVEL;
-   }
+	@Override
+	public float nextFloat(LootContext context) {
+		int i = context.getOrThrow(LootContextParameters.ENCHANTMENT_LEVEL);
+		return this.amount.getValue(i);
+	}
 
-   public static EnchantmentLevelLootNumberProvider create(EnchantmentLevelBasedValue amount) {
-      return new EnchantmentLevelLootNumberProvider(amount);
-   }
+	@Override
+	public LootNumberProviderType getType() {
+		return LootNumberProviderTypes.ENCHANTMENT_LEVEL;
+	}
+
+	public static EnchantmentLevelLootNumberProvider create(EnchantmentLevelBasedValue amount) {
+		return new EnchantmentLevelLootNumberProvider(amount);
+	}
 }

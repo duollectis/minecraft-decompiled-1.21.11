@@ -11,30 +11,38 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.gen.feature.Feature;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ProtectedBlocksStructureProcessor}.
+ */
 public class ProtectedBlocksStructureProcessor extends StructureProcessor {
-   public final TagKey<Block> protectedBlocksTag;
-   public static final MapCodec<ProtectedBlocksStructureProcessor> CODEC = TagKey.codec(RegistryKeys.BLOCK)
-      .xmap(ProtectedBlocksStructureProcessor::new, processor -> processor.protectedBlocksTag)
-      .fieldOf("value");
 
-   public ProtectedBlocksStructureProcessor(TagKey<Block> protectedBlocksTag) {
-      this.protectedBlocksTag = protectedBlocksTag;
-   }
+	public final TagKey<Block> protectedBlocksTag;
+	public static final MapCodec<ProtectedBlocksStructureProcessor> CODEC = TagKey.codec(RegistryKeys.BLOCK)
+	                                                                              .xmap(
+			                                                                              ProtectedBlocksStructureProcessor::new,
+			                                                                              processor -> processor.protectedBlocksTag
+	                                                                              )
+	                                                                              .fieldOf("value");
 
-   @Override
-   public StructureTemplate.@Nullable StructureBlockInfo process(
-      WorldView world,
-      BlockPos pos,
-      BlockPos pivot,
-      StructureTemplate.StructureBlockInfo originalBlockInfo,
-      StructureTemplate.StructureBlockInfo currentBlockInfo,
-      StructurePlacementData data
-   ) {
-      return Feature.notInBlockTagPredicate(this.protectedBlocksTag).test(world.getBlockState(currentBlockInfo.pos())) ? currentBlockInfo : null;
-   }
+	public ProtectedBlocksStructureProcessor(TagKey<Block> protectedBlocksTag) {
+		this.protectedBlocksTag = protectedBlocksTag;
+	}
 
-   @Override
-   protected StructureProcessorType<?> getType() {
-      return StructureProcessorType.PROTECTED_BLOCKS;
-   }
+	@Override
+	public StructureTemplate.@Nullable StructureBlockInfo process(
+			WorldView world,
+			BlockPos pos,
+			BlockPos pivot,
+			StructureTemplate.StructureBlockInfo originalBlockInfo,
+			StructureTemplate.StructureBlockInfo currentBlockInfo,
+			StructurePlacementData data
+	) {
+		return Feature.notInBlockTagPredicate(this.protectedBlocksTag).test(world.getBlockState(currentBlockInfo.pos()))
+		       ? currentBlockInfo : null;
+	}
+
+	@Override
+	protected StructureProcessorType<?> getType() {
+		return StructureProcessorType.PROTECTED_BLOCKS;
+	}
 }

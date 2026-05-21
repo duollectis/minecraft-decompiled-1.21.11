@@ -6,16 +6,20 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 
+/**
+ * {@code WrittenBookItem}.
+ */
 public class WrittenBookItem extends Item {
-   public WrittenBookItem(Item.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      user.useBook(itemStack, hand);
-      user.incrementStat(Stats.USED.getOrCreateStat(this));
-      return ActionResult.SUCCESS;
-   }
+	public WrittenBookItem(Item.Settings settings) {
+		super(settings);
+	}
+
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		user.useBook(itemStack, hand);
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+		return ActionResult.SUCCESS;
+	}
 }

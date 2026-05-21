@@ -52,271 +52,346 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CampfireBlock}.
+ */
 public class CampfireBlock extends BlockWithEntity implements Waterloggable {
-   public static final MapCodec<CampfireBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codec.BOOL.fieldOf("spawn_particles").forGetter(block -> block.emitsParticles),
-            Codec.intRange(0, 1000).fieldOf("fire_damage").forGetter(block -> block.fireDamage),
-            createSettingsCodec()
-         )
-         .apply(instance, CampfireBlock::new)
-   );
-   public static final BooleanProperty LIT = Properties.LIT;
-   public static final BooleanProperty SIGNAL_FIRE = Properties.SIGNAL_FIRE;
-   public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
-   public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
-   private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 7.0);
-   private static final VoxelShape SMOKEY_SHAPE = Block.createColumnShape(4.0, 0.0, 16.0);
-   private static final int field_31049 = 5;
-   private final boolean emitsParticles;
-   private final int fireDamage;
 
-   @Override
-   public MapCodec<CampfireBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<CampfireBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codec.BOOL.fieldOf("spawn_particles").forGetter(block -> block.emitsParticles),
+					                    Codec.intRange(0, 1000).fieldOf("fire_damage").forGetter(block -> block.fireDamage),
+					                    createSettingsCodec()
+			                    )
+			                    .apply(instance, CampfireBlock::new)
+	);
+	public static final BooleanProperty LIT = Properties.LIT;
+	public static final BooleanProperty SIGNAL_FIRE = Properties.SIGNAL_FIRE;
+	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
+	public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
+	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 7.0);
+	private static final VoxelShape SMOKEY_SHAPE = Block.createColumnShape(4.0, 0.0, 16.0);
+	private static final int MAX_CAMPFIRE_SEARCH_DEPTH = 5;
+	private final boolean emitsParticles;
+	private final int fireDamage;
 
-   public CampfireBlock(boolean emitsParticles, int fireDamage, AbstractBlock.Settings settings) {
-      super(settings);
-      this.emitsParticles = emitsParticles;
-      this.fireDamage = fireDamage;
-      this.setDefaultState(this.stateManager.getDefaultState().with(LIT, true).with(SIGNAL_FIRE, false).with(WATERLOGGED, false).with(FACING, Direction.NORTH));
-   }
+	@Override
+	public MapCodec<CampfireBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      if (world.getBlockEntity(pos) instanceof CampfireBlockEntity campfireBlockEntity) {
-         ItemStack itemStack = player.getStackInHand(hand);
-         if (world.getRecipeManager().getPropertySet(RecipePropertySet.CAMPFIRE_INPUT).canUse(itemStack)) {
-            if (world instanceof ServerWorld serverWorld && campfireBlockEntity.addItem(serverWorld, player, itemStack)) {
-               player.incrementStat(Stats.INTERACT_WITH_CAMPFIRE);
-               return ActionResult.SUCCESS_SERVER;
-            }
+	public CampfireBlock(boolean emitsParticles, int fireDamage, AbstractBlock.Settings settings) {
+		super(settings);
+		this.emitsParticles = emitsParticles;
+		this.fireDamage = fireDamage;
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(LIT, true)
+				.with(SIGNAL_FIRE, false)
+				.with(WATERLOGGED, false)
+				.with(FACING, Direction.NORTH));
+	}
 
-            return ActionResult.CONSUME;
-         }
-      }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		if (world.getBlockEntity(pos) instanceof CampfireBlockEntity campfireBlockEntity) {
+			ItemStack itemStack = player.getStackInHand(hand);
+			if (world.getRecipeManager().getPropertySet(RecipePropertySet.CAMPFIRE_INPUT).canUse(itemStack)) {
+				if (world instanceof ServerWorld serverWorld && campfireBlockEntity.addItem(
+						serverWorld,
+						player,
+						itemStack
+				)) {
+					player.incrementStat(Stats.INTERACT_WITH_CAMPFIRE);
+					return ActionResult.SUCCESS_SERVER;
+				}
 
-      return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-   }
+				return ActionResult.CONSUME;
+			}
+		}
 
-   @Override
-   protected void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler, boolean bl) {
-      if (state.get(LIT) && entity instanceof LivingEntity) {
-         entity.serverDamage(world.getDamageSources().campfire(), this.fireDamage);
-      }
+		return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+	}
 
-      super.onEntityCollision(state, world, pos, entity, handler, bl);
-   }
+	@Override
+	protected void onEntityCollision(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Entity entity,
+			EntityCollisionHandler handler,
+			boolean bl
+	) {
+		if (state.get(LIT) && entity instanceof LivingEntity) {
+			entity.serverDamage(world.getDamageSources().campfire(), this.fireDamage);
+		}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      WorldAccess worldAccess = ctx.getWorld();
-      BlockPos blockPos = ctx.getBlockPos();
-      boolean bl = worldAccess.getFluidState(blockPos).getFluid() == Fluids.WATER;
-      return this.getDefaultState()
-         .with(WATERLOGGED, bl)
-         .with(SIGNAL_FIRE, this.isSignalFireBaseBlock(worldAccess.getBlockState(blockPos.down())))
-         .with(LIT, !bl)
-         .with(FACING, ctx.getHorizontalPlayerFacing());
-   }
+		super.onEntityCollision(state, world, pos, entity, handler, bl);
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (state.get(WATERLOGGED)) {
-         tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-      }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		WorldAccess worldAccess = ctx.getWorld();
+		BlockPos blockPos = ctx.getBlockPos();
+		boolean bl = worldAccess.getFluidState(blockPos).getFluid() == Fluids.WATER;
+		return this.getDefaultState()
+		           .with(WATERLOGGED, bl)
+		           .with(SIGNAL_FIRE, this.isSignalFireBaseBlock(worldAccess.getBlockState(blockPos.down())))
+		           .with(LIT, !bl)
+		           .with(FACING, ctx.getHorizontalPlayerFacing());
+	}
 
-      return direction == Direction.DOWN
-         ? state.with(SIGNAL_FIRE, this.isSignalFireBaseBlock(neighborState))
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
 
-   private boolean isSignalFireBaseBlock(BlockState state) {
-      return state.isOf(Blocks.HAY_BLOCK);
-   }
+		return direction == Direction.DOWN
+		       ? state.with(SIGNAL_FIRE, this.isSignalFireBaseBlock(neighborState))
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	private boolean isSignalFireBaseBlock(BlockState state) {
+		return state.isOf(Blocks.HAY_BLOCK);
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      if (state.get(LIT)) {
-         if (random.nextInt(10) == 0) {
-            world.playSoundClient(
-               pos.getX() + 0.5,
-               pos.getY() + 0.5,
-               pos.getZ() + 0.5,
-               SoundEvents.BLOCK_CAMPFIRE_CRACKLE,
-               SoundCategory.BLOCKS,
-               0.5F + random.nextFloat(),
-               random.nextFloat() * 0.7F + 0.6F,
-               false
-            );
-         }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-         if (this.emitsParticles && random.nextInt(5) == 0) {
-            for (int i = 0; i < random.nextInt(1) + 1; i++) {
-               world.addParticleClient(
-                  ParticleTypes.LAVA, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, random.nextFloat() / 2.0F, 5.0E-5, random.nextFloat() / 2.0F
-               );
-            }
-         }
-      }
-   }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		if (state.get(LIT)) {
+			if (random.nextInt(10) == 0) {
+				world.playSoundClient(
+						pos.getX() + 0.5,
+						pos.getY() + 0.5,
+						pos.getZ() + 0.5,
+						SoundEvents.BLOCK_CAMPFIRE_CRACKLE,
+						SoundCategory.BLOCKS,
+						0.5F + random.nextFloat(),
+						random.nextFloat() * 0.7F + 0.6F,
+						false
+				);
+			}
 
-   public static void extinguish(@Nullable Entity entity, WorldAccess world, BlockPos pos, BlockState state) {
-      if (world.isClient()) {
-         for (int i = 0; i < 20; i++) {
-            spawnSmokeParticle((World)world, pos, state.get(SIGNAL_FIRE), true);
-         }
-      }
+			if (this.emitsParticles && random.nextInt(5) == 0) {
+				for (int i = 0; i < random.nextInt(1) + 1; i++) {
+					world.addParticleClient(
+							ParticleTypes.LAVA,
+							pos.getX() + 0.5,
+							pos.getY() + 0.5,
+							pos.getZ() + 0.5,
+							random.nextFloat() / 2.0F,
+							5.0E-5,
+							random.nextFloat() / 2.0F
+					);
+				}
+			}
+		}
+	}
 
-      world.emitGameEvent(entity, GameEvent.BLOCK_CHANGE, pos);
-   }
+	public static void extinguish(@Nullable Entity entity, WorldAccess world, BlockPos pos, BlockState state) {
+		if (world.isClient()) {
+			for (int i = 0; i < 20; i++) {
+				spawnSmokeParticle((World) world, pos, state.get(SIGNAL_FIRE), true);
+			}
+		}
 
-   @Override
-   public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
-      if (!state.get(Properties.WATERLOGGED) && fluidState.getFluid() == Fluids.WATER) {
-         boolean bl = state.get(LIT);
-         if (bl) {
-            if (!world.isClient()) {
-               world.playSound(null, pos, SoundEvents.ENTITY_GENERIC_EXTINGUISH_FIRE, SoundCategory.BLOCKS, 1.0F, 1.0F);
-            }
+		world.emitGameEvent(entity, GameEvent.BLOCK_CHANGE, pos);
+	}
 
-            extinguish(null, world, pos, state);
-         }
+	@Override
+	public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
+		if (!state.get(Properties.WATERLOGGED) && fluidState.getFluid() == Fluids.WATER) {
+			boolean bl = state.get(LIT);
+			if (bl) {
+				if (!world.isClient()) {
+					world.playSound(
+							null,
+							pos,
+							SoundEvents.ENTITY_GENERIC_EXTINGUISH_FIRE,
+							SoundCategory.BLOCKS,
+							1.0F,
+							1.0F
+					);
+				}
 
-         world.setBlockState(pos, state.with(WATERLOGGED, true).with(LIT, false), 3);
-         world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
-         return true;
-      } else {
-         return false;
-      }
-   }
+				extinguish(null, world, pos, state);
+			}
 
-   @Override
-   protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
-      BlockPos blockPos = hit.getBlockPos();
-      if (world instanceof ServerWorld serverWorld
-         && projectile.isOnFire()
-         && projectile.canModifyAt(serverWorld, blockPos)
-         && !state.get(LIT)
-         && !state.get(WATERLOGGED)) {
-         world.setBlockState(blockPos, state.with(Properties.LIT, true), 11);
-      }
-   }
+			world.setBlockState(pos, state.with(WATERLOGGED, true).with(LIT, false), 3);
+			world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   public static void spawnSmokeParticle(World world, BlockPos pos, boolean isSignal, boolean lotsOfSmoke) {
-      Random random = world.getRandom();
-      SimpleParticleType simpleParticleType = isSignal ? ParticleTypes.CAMPFIRE_SIGNAL_SMOKE : ParticleTypes.CAMPFIRE_COSY_SMOKE;
-      world.addImportantParticleClient(
-         simpleParticleType,
-         true,
-         pos.getX() + 0.5 + random.nextDouble() / 3.0 * (random.nextBoolean() ? 1 : -1),
-         pos.getY() + random.nextDouble() + random.nextDouble(),
-         pos.getZ() + 0.5 + random.nextDouble() / 3.0 * (random.nextBoolean() ? 1 : -1),
-         0.0,
-         0.07,
-         0.0
-      );
-      if (lotsOfSmoke) {
-         world.addParticleClient(
-            ParticleTypes.SMOKE,
-            pos.getX() + 0.5 + random.nextDouble() / 4.0 * (random.nextBoolean() ? 1 : -1),
-            pos.getY() + 0.4,
-            pos.getZ() + 0.5 + random.nextDouble() / 4.0 * (random.nextBoolean() ? 1 : -1),
-            0.0,
-            0.005,
-            0.0
-         );
-      }
-   }
+	@Override
+	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
+		BlockPos blockPos = hit.getBlockPos();
+		if (world instanceof ServerWorld serverWorld
+				&& projectile.isOnFire()
+				&& projectile.canModifyAt(serverWorld, blockPos)
+				&& !state.get(LIT)
+				&& !state.get(WATERLOGGED)) {
+			world.setBlockState(blockPos, state.with(Properties.LIT, true), 11);
+		}
+	}
 
-   public static boolean isLitCampfireInRange(World world, BlockPos pos) {
-      for (int i = 1; i <= 5; i++) {
-         BlockPos blockPos = pos.down(i);
-         BlockState blockState = world.getBlockState(blockPos);
-         if (isLitCampfire(blockState)) {
-            return true;
-         }
+	public static void spawnSmokeParticle(World world, BlockPos pos, boolean isSignal, boolean lotsOfSmoke) {
+		Random random = world.getRandom();
+		SimpleParticleType
+				simpleParticleType =
+				isSignal ? ParticleTypes.CAMPFIRE_SIGNAL_SMOKE : ParticleTypes.CAMPFIRE_COSY_SMOKE;
+		world.addImportantParticleClient(
+				simpleParticleType,
+				true,
+				pos.getX() + 0.5 + random.nextDouble() / 3.0 * (random.nextBoolean() ? 1 : -1),
+				pos.getY() + random.nextDouble() + random.nextDouble(),
+				pos.getZ() + 0.5 + random.nextDouble() / 3.0 * (random.nextBoolean() ? 1 : -1),
+				0.0,
+				0.07,
+				0.0
+		);
+		if (lotsOfSmoke) {
+			world.addParticleClient(
+					ParticleTypes.SMOKE,
+					pos.getX() + 0.5 + random.nextDouble() / 4.0 * (random.nextBoolean() ? 1 : -1),
+					pos.getY() + 0.4,
+					pos.getZ() + 0.5 + random.nextDouble() / 4.0 * (random.nextBoolean() ? 1 : -1),
+					0.0,
+					0.005,
+					0.0
+			);
+		}
+	}
 
-         boolean bl = VoxelShapes.matchesAnywhere(SMOKEY_SHAPE, blockState.getCollisionShape(world, pos, ShapeContext.absent()), BooleanBiFunction.AND);
-         if (bl) {
-            BlockState blockState2 = world.getBlockState(blockPos.down());
-            return isLitCampfire(blockState2);
-         }
-      }
+	public static boolean isLitCampfireInRange(World world, BlockPos pos) {
+		for (int i = 1; i <= 5; i++) {
+			BlockPos blockPos = pos.down(i);
+			BlockState blockState = world.getBlockState(blockPos);
+			if (isLitCampfire(blockState)) {
+				return true;
+			}
 
-      return false;
-   }
+			boolean
+					bl =
+					VoxelShapes.matchesAnywhere(
+							SMOKEY_SHAPE,
+							blockState.getCollisionShape(world, pos, ShapeContext.absent()),
+							BooleanBiFunction.AND
+					);
+			if (bl) {
+				BlockState blockState2 = world.getBlockState(blockPos.down());
+				return isLitCampfire(blockState2);
+			}
+		}
 
-   public static boolean isLitCampfire(BlockState state) {
-      return state.contains(LIT) && state.isIn(BlockTags.CAMPFIRES) && state.get(LIT);
-   }
+		return false;
+	}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
-   }
+	public static boolean isLitCampfire(BlockState state) {
+		return state.contains(LIT) && state.isIn(BlockTags.CAMPFIRES) && state.get(LIT);
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(FACING, rotation.rotate(state.get(FACING)));
-   }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.rotate(mirror.getRotation(state.get(FACING)));
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(FACING, rotation.rotate(state.get(FACING)));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(LIT, SIGNAL_FIRE, WATERLOGGED, FACING);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.rotate(mirror.getRotation(state.get(FACING)));
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new CampfireBlockEntity(pos, state);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(LIT, SIGNAL_FIRE, WATERLOGGED, FACING);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      if (world instanceof ServerWorld serverWorld) {
-         if (state.get(LIT)) {
-            ServerRecipeManager.MatchGetter<SingleStackRecipeInput, CampfireCookingRecipe> matchGetter = ServerRecipeManager.createCachedMatchGetter(
-               RecipeType.CAMPFIRE_COOKING
-            );
-            return validateTicker(
-               type,
-               BlockEntityType.CAMPFIRE,
-               (worldx, pos, statex, blockEntity) -> CampfireBlockEntity.litServerTick(serverWorld, pos, statex, blockEntity, matchGetter)
-            );
-         } else {
-            return validateTicker(type, BlockEntityType.CAMPFIRE, CampfireBlockEntity::unlitServerTick);
-         }
-      } else {
-         return state.get(LIT) ? validateTicker(type, BlockEntityType.CAMPFIRE, CampfireBlockEntity::clientTick) : null;
-      }
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new CampfireBlockEntity(pos, state);
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		if (world instanceof ServerWorld serverWorld) {
+			if (state.get(LIT)) {
+				ServerRecipeManager.MatchGetter<SingleStackRecipeInput, CampfireCookingRecipe>
+						matchGetter =
+						ServerRecipeManager.createCachedMatchGetter(
+								RecipeType.CAMPFIRE_COOKING
+						);
+				return validateTicker(
+						type,
+						BlockEntityType.CAMPFIRE,
+						(worldx, pos, statex, blockEntity) -> CampfireBlockEntity.litServerTick(
+								serverWorld,
+								pos,
+								statex,
+								blockEntity,
+								matchGetter
+						)
+				);
+			}
+			else {
+				return validateTicker(type, BlockEntityType.CAMPFIRE, CampfireBlockEntity::unlitServerTick);
+			}
+		}
+		else {
+			return state.get(LIT) ? validateTicker(type, BlockEntityType.CAMPFIRE, CampfireBlockEntity::clientTick)
+			                      : null;
+		}
+	}
 
-   public static boolean canBeLit(BlockState state) {
-      return state.isIn(BlockTags.CAMPFIRES, statex -> statex.contains(WATERLOGGED) && statex.contains(LIT)) && !state.get(WATERLOGGED) && !state.get(LIT);
-   }
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
+
+	public static boolean canBeLit(BlockState state) {
+		return state.isIn(BlockTags.CAMPFIRES, statex -> statex.contains(WATERLOGGED) && statex.contains(LIT))
+				&& !state.get(WATERLOGGED) && !state.get(LIT);
+	}
 }

@@ -6,6 +6,10 @@ import net.minecraft.client.gui.widget.Widget;
 import net.minecraft.dialog.body.DialogBody;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DialogBodyHandler}.
+ */
 public interface DialogBodyHandler<T extends DialogBody> {
-   Widget createWidget(DialogScreen<?> dialogScreen, T body);
+
+	Widget createWidget(DialogScreen<?> dialogScreen, T body);
 }

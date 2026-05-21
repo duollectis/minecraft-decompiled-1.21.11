@@ -4,7 +4,6 @@ import com.mojang.datafixers.DataFixer;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.booleans.BooleanConsumer;
 import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
-import java.util.function.ToIntFunction;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -28,111 +27,172 @@ import net.minecraft.world.updater.WorldUpdater;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.function.ToIntFunction;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code OptimizeWorldScreen}.
+ */
 public class OptimizeWorldScreen extends Screen {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final ToIntFunction<RegistryKey<World>> DIMENSION_COLORS = Util.make(new Reference2IntOpenHashMap(), map -> {
-      map.put(World.OVERWORLD, -13408734);
-      map.put(World.NETHER, -10075085);
-      map.put(World.END, -8943531);
-      map.defaultReturnValue(-2236963);
-   });
-   private final BooleanConsumer callback;
-   private final WorldUpdater updater;
 
-   public static @Nullable OptimizeWorldScreen create(
-      MinecraftClient client, BooleanConsumer callback, DataFixer dataFixer, LevelStorage.Session storageSession, boolean eraseCache
-   ) {
-      try {
-         IntegratedServerLoader integratedServerLoader = client.createIntegratedServerLoader();
-         ResourcePackManager resourcePackManager = VanillaDataPackProvider.createManager(storageSession);
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final ToIntFunction<RegistryKey<World>> DIMENSION_COLORS = Util.make(
+			new Reference2IntOpenHashMap(), map -> {
+				map.put(World.OVERWORLD, -13408734);
+				map.put(World.NETHER, -10075085);
+				map.put(World.END, -8943531);
+				map.defaultReturnValue(-2236963);
+			}
+	);
+	private final BooleanConsumer callback;
+	private final WorldUpdater updater;
 
-         OptimizeWorldScreen var10;
-         try (SaveLoader saveLoader = integratedServerLoader.load(storageSession.readLevelProperties(), false, resourcePackManager)) {
-            SaveProperties saveProperties = saveLoader.saveProperties();
-            DynamicRegistryManager.Immutable immutable = saveLoader.combinedDynamicRegistries().getCombinedRegistryManager();
-            storageSession.backupLevelDataFile(immutable, saveProperties);
-            var10 = new OptimizeWorldScreen(callback, dataFixer, storageSession, saveProperties, eraseCache, immutable);
-         }
+	public static @Nullable OptimizeWorldScreen create(
+			MinecraftClient client,
+			BooleanConsumer callback,
+			DataFixer dataFixer,
+			LevelStorage.Session storageSession,
+			boolean eraseCache
+	) {
+		try {
+			IntegratedServerLoader integratedServerLoader = client.createIntegratedServerLoader();
+			ResourcePackManager resourcePackManager = VanillaDataPackProvider.createManager(storageSession);
 
-         return var10;
-      } catch (Exception var13) {
-         LOGGER.warn("Failed to load datapacks, can't optimize world", var13);
-         return null;
-      }
-   }
+			OptimizeWorldScreen var10;
+			try (SaveLoader saveLoader = integratedServerLoader.load(
+					storageSession.readLevelProperties(),
+					false,
+					resourcePackManager
+			)
+			) {
+				SaveProperties saveProperties = saveLoader.saveProperties();
+				DynamicRegistryManager.Immutable
+						immutable =
+						saveLoader.combinedDynamicRegistries().getCombinedRegistryManager();
+				storageSession.backupLevelDataFile(immutable, saveProperties);
+				var10 =
+						new OptimizeWorldScreen(
+								callback,
+								dataFixer,
+								storageSession,
+								saveProperties,
+								eraseCache,
+								immutable
+						);
+			}
 
-   private OptimizeWorldScreen(
-      BooleanConsumer callback,
-      DataFixer dataFixer,
-      LevelStorage.Session storageSession,
-      SaveProperties saveProperties,
-      boolean eraseCache,
-      DynamicRegistryManager registries
-   ) {
-      super(Text.translatable("optimizeWorld.title", saveProperties.getLevelInfo().getLevelName()));
-      this.callback = callback;
-      this.updater = new WorldUpdater(storageSession, dataFixer, saveProperties, registries, eraseCache, false);
-   }
+			return var10;
+		}
+		catch (Exception var13) {
+			LOGGER.warn("Failed to load datapacks, can't optimize world", var13);
+			return null;
+		}
+	}
 
-   @Override
-   protected void init() {
-      super.init();
-      this.addDrawableChild(ButtonWidget.builder(ScreenTexts.CANCEL, button -> {
-         this.updater.cancel();
-         this.callback.accept(false);
-      }).dimensions(this.width / 2 - 100, this.height / 4 + 150, 200, 20).build());
-   }
+	private OptimizeWorldScreen(
+			BooleanConsumer callback,
+			DataFixer dataFixer,
+			LevelStorage.Session storageSession,
+			SaveProperties saveProperties,
+			boolean eraseCache,
+			DynamicRegistryManager registries
+	) {
+		super(Text.translatable("optimizeWorld.title", saveProperties.getLevelInfo().getLevelName()));
+		this.callback = callback;
+		this.updater = new WorldUpdater(storageSession, dataFixer, saveProperties, registries, eraseCache, false);
+	}
 
-   @Override
-   public void tick() {
-      if (this.updater.isDone()) {
-         this.callback.accept(true);
-      }
-   }
+	@Override
+	protected void init() {
+		super.init();
+		this.addDrawableChild(ButtonWidget.builder(
+				ScreenTexts.CANCEL, button -> {
+					this.updater.cancel();
+					this.callback.accept(false);
+				}
+		).dimensions(this.width / 2 - 100, this.height / 4 + 150, 200, 20).build());
+	}
 
-   @Override
-   public void close() {
-      this.callback.accept(false);
-   }
+	@Override
+	public void tick() {
+		if (this.updater.isDone()) {
+			this.callback.accept(true);
+		}
+	}
 
-   @Override
-   public void removed() {
-      this.updater.cancel();
-      this.updater.close();
-   }
+	@Override
+	public void close() {
+		this.callback.accept(false);
+	}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, -1);
-      int i = this.width / 2 - 150;
-      int j = this.width / 2 + 150;
-      int k = this.height / 4 + 100;
-      int l = k + 10;
-      context.drawCenteredTextWithShadow(this.textRenderer, this.updater.getStatus(), this.width / 2, k - 9 - 2, -6250336);
-      if (this.updater.getTotalChunkCount() > 0) {
-         context.fill(i - 1, k - 1, j + 1, l + 1, -16777216);
-         context.drawTextWithShadow(this.textRenderer, Text.translatable("optimizeWorld.info.converted", this.updater.getUpgradedChunkCount()), i, 40, -6250336);
-         context.drawTextWithShadow(
-            this.textRenderer, Text.translatable("optimizeWorld.info.skipped", this.updater.getSkippedChunkCount()), i, 40 + 9 + 3, -6250336
-         );
-         context.drawTextWithShadow(
-            this.textRenderer, Text.translatable("optimizeWorld.info.total", this.updater.getTotalChunkCount()), i, 40 + (9 + 3) * 2, -6250336
-         );
-         int m = 0;
+	@Override
+	public void removed() {
+		this.updater.cancel();
+		this.updater.close();
+	}
 
-         for (RegistryKey<World> registryKey : this.updater.getWorlds()) {
-            int n = MathHelper.floor(this.updater.getProgress(registryKey) * (j - i));
-            context.fill(i + m, k, i + m + n, l, DIMENSION_COLORS.applyAsInt(registryKey));
-            m += n;
-         }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 20, -1);
+		int i = this.width / 2 - 150;
+		int j = this.width / 2 + 150;
+		int k = this.height / 4 + 100;
+		int l = k + 10;
+		context.drawCenteredTextWithShadow(
+				this.textRenderer,
+				this.updater.getStatus(),
+				this.width / 2,
+				k - 9 - 2,
+				-6250336
+		);
+		if (this.updater.getTotalChunkCount() > 0) {
+			context.fill(i - 1, k - 1, j + 1, l + 1, -16777216);
+			context.drawTextWithShadow(
+					this.textRenderer,
+					Text.translatable("optimizeWorld.info.converted", this.updater.getUpgradedChunkCount()),
+					i,
+					40,
+					-6250336
+			);
+			context.drawTextWithShadow(
+					this.textRenderer,
+					Text.translatable("optimizeWorld.info.skipped", this.updater.getSkippedChunkCount()),
+					i,
+					40 + 9 + 3,
+					-6250336
+			);
+			context.drawTextWithShadow(
+					this.textRenderer,
+					Text.translatable("optimizeWorld.info.total", this.updater.getTotalChunkCount()),
+					i,
+					40 + (9 + 3) * 2,
+					-6250336
+			);
+			int m = 0;
 
-         int o = this.updater.getUpgradedChunkCount() + this.updater.getSkippedChunkCount();
-         Text text = Text.translatable("optimizeWorld.progress.counter", o, this.updater.getTotalChunkCount());
-         Text text2 = Text.translatable("optimizeWorld.progress.percentage", MathHelper.floor(this.updater.getProgress() * 100.0F));
-         context.drawCenteredTextWithShadow(this.textRenderer, text, this.width / 2, k + 2 * 9 + 2, -6250336);
-         context.drawCenteredTextWithShadow(this.textRenderer, text2, this.width / 2, k + (l - k) / 2 - 9 / 2, -6250336);
-      }
-   }
+			for (RegistryKey<World> registryKey : this.updater.getWorlds()) {
+				int n = MathHelper.floor(this.updater.getProgress(registryKey) * (j - i));
+				context.fill(i + m, k, i + m + n, l, DIMENSION_COLORS.applyAsInt(registryKey));
+				m += n;
+			}
+
+			int o = this.updater.getUpgradedChunkCount() + this.updater.getSkippedChunkCount();
+			Text text = Text.translatable("optimizeWorld.progress.counter", o, this.updater.getTotalChunkCount());
+			Text
+					text2 =
+					Text.translatable(
+							"optimizeWorld.progress.percentage",
+							MathHelper.floor(this.updater.getProgress() * 100.0F)
+					);
+			context.drawCenteredTextWithShadow(this.textRenderer, text, this.width / 2, k + 2 * 9 + 2, -6250336);
+			context.drawCenteredTextWithShadow(
+					this.textRenderer,
+					text2,
+					this.width / 2,
+					k + (l - k) / 2 - 9 / 2,
+					-6250336
+			);
+		}
+	}
 }

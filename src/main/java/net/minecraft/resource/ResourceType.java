@@ -1,16 +1,19 @@
 package net.minecraft.resource;
 
+/**
+ * {@code ResourceType}.
+ */
 public enum ResourceType {
-   CLIENT_RESOURCES("assets"),
-   SERVER_DATA("data");
+	CLIENT_RESOURCES("assets"),
+	SERVER_DATA("data");
 
-   private final String directory;
+	private final String directory;
 
-   private ResourceType(final String directory) {
-      this.directory = directory;
-   }
+	private ResourceType(final String directory) {
+		this.directory = directory;
+	}
 
-   public String getDirectory() {
-      return this.directory;
-   }
+	public String getDirectory() {
+		return this.directory;
+	}
 }

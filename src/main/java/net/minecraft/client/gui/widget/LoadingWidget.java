@@ -14,39 +14,49 @@ import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LoadingWidget}.
+ */
 public class LoadingWidget extends ClickableWidget {
-   private final TextRenderer textRenderer;
 
-   public LoadingWidget(TextRenderer textRenderer, Text message) {
-      super(0, 0, textRenderer.getWidth(message), 9 * 3, message);
-      this.textRenderer = textRenderer;
-   }
+	private final TextRenderer textRenderer;
 
-   @Override
-   protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      int i = this.getX() + this.getWidth() / 2;
-      int j = this.getY() + this.getHeight() / 2;
-      Text text = this.getMessage();
-      context.drawTextWithShadow(this.textRenderer, text, i - this.textRenderer.getWidth(text) / 2, j - 9, -1);
-      String string = LoadingDisplay.get(Util.getMeasuringTimeMs());
-      context.drawTextWithShadow(this.textRenderer, string, i - this.textRenderer.getWidth(string) / 2, j + 9, -8355712);
-   }
+	public LoadingWidget(TextRenderer textRenderer, Text message) {
+		super(0, 0, textRenderer.getWidth(message), 9 * 3, message);
+		this.textRenderer = textRenderer;
+	}
 
-   @Override
-   protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-   }
+	@Override
+	protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		int i = this.getX() + this.getWidth() / 2;
+		int j = this.getY() + this.getHeight() / 2;
+		Text text = this.getMessage();
+		context.drawTextWithShadow(this.textRenderer, text, i - this.textRenderer.getWidth(text) / 2, j - 9, -1);
+		String string = LoadingDisplay.get(Util.getMeasuringTimeMs());
+		context.drawTextWithShadow(
+				this.textRenderer,
+				string,
+				i - this.textRenderer.getWidth(string) / 2,
+				j + 9,
+				-8355712
+		);
+	}
 
-   @Override
-   public void playDownSound(SoundManager soundManager) {
-   }
+	@Override
+	protected void appendClickableNarrations(NarrationMessageBuilder builder) {
+	}
 
-   @Override
-   public boolean isInteractable() {
-      return false;
-   }
+	@Override
+	public void playDownSound(SoundManager soundManager) {
+	}
 
-   @Override
-   public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-      return null;
-   }
+	@Override
+	public boolean isInteractable() {
+		return false;
+	}
+
+	@Override
+	public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+		return null;
+	}
 }

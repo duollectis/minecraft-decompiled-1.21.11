@@ -2,11 +2,6 @@ package net.minecraft.entity.effect;
 
 import com.mojang.serialization.Codec;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Map.Entry;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
 import net.fabricmc.fabric.api.entity.event.v1.effect.FabricMobEffect;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
@@ -37,174 +32,227 @@ import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+
+/**
+ * {@code StatusEffect}.
+ */
 public class StatusEffect implements ToggleableFeature, FabricMobEffect {
-   public static final Codec<RegistryEntry<StatusEffect>> ENTRY_CODEC = Registries.STATUS_EFFECT.getEntryCodec();
-   public static final PacketCodec<RegistryByteBuf, RegistryEntry<StatusEffect>> ENTRY_PACKET_CODEC = PacketCodecs.registryEntry(RegistryKeys.STATUS_EFFECT);
-   private static final int AMBIENT_PARTICLE_ALPHA = MathHelper.floor(38.25F);
-   private final Map<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator> attributeModifiers = new Object2ObjectOpenHashMap();
-   private final StatusEffectCategory category;
-   private final int color;
-   private final Function<StatusEffectInstance, ParticleEffect> particleFactory;
-   private @Nullable String translationKey;
-   private int fadeInTicks;
-   private int fadeOutTicks;
-   private int fadeOutThresholdTicks;
-   private Optional<SoundEvent> applySound = Optional.empty();
-   private FeatureSet requiredFeatures = FeatureFlags.VANILLA_FEATURES;
 
-   protected StatusEffect(StatusEffectCategory category, int color) {
-      this.category = category;
-      this.color = color;
-      this.particleFactory = effect -> {
-         int j = effect.isAmbient() ? AMBIENT_PARTICLE_ALPHA : 255;
-         return TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, ColorHelper.withAlpha(j, color));
-      };
-   }
+	public static final Codec<RegistryEntry<StatusEffect>> ENTRY_CODEC = Registries.STATUS_EFFECT.getEntryCodec();
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<StatusEffect>>
+			ENTRY_PACKET_CODEC =
+			PacketCodecs.registryEntry(RegistryKeys.STATUS_EFFECT);
+	private static final int AMBIENT_PARTICLE_ALPHA = MathHelper.floor(38.25F);
+	private final Map<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator>
+			attributeModifiers =
+			new Object2ObjectOpenHashMap();
+	private final StatusEffectCategory category;
+	private final int color;
+	private final Function<StatusEffectInstance, ParticleEffect> particleFactory;
+	private @Nullable String translationKey;
+	private int fadeInTicks;
+	private int fadeOutTicks;
+	private int fadeOutThresholdTicks;
+	private Optional<SoundEvent> applySound = Optional.empty();
+	private FeatureSet requiredFeatures = FeatureFlags.VANILLA_FEATURES;
 
-   protected StatusEffect(StatusEffectCategory category, int color, ParticleEffect particleEffect) {
-      this.category = category;
-      this.color = color;
-      this.particleFactory = effect -> particleEffect;
-   }
+	protected StatusEffect(StatusEffectCategory category, int color) {
+		this.category = category;
+		this.color = color;
+		this.particleFactory = effect -> {
+			int j = effect.isAmbient() ? AMBIENT_PARTICLE_ALPHA : 255;
+			return TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, ColorHelper.withAlpha(j, color));
+		};
+	}
 
-   public int getFadeInTicks() {
-      return this.fadeInTicks;
-   }
+	protected StatusEffect(StatusEffectCategory category, int color, ParticleEffect particleEffect) {
+		this.category = category;
+		this.color = color;
+		this.particleFactory = effect -> particleEffect;
+	}
 
-   public int getFadeOutTicks() {
-      return this.fadeOutTicks;
-   }
+	public int getFadeInTicks() {
+		return this.fadeInTicks;
+	}
 
-   public int getFadeOutThresholdTicks() {
-      return this.fadeOutThresholdTicks;
-   }
+	public int getFadeOutTicks() {
+		return this.fadeOutTicks;
+	}
 
-   public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
-      return true;
-   }
+	public int getFadeOutThresholdTicks() {
+		return this.fadeOutThresholdTicks;
+	}
 
-   public void applyInstantEffect(
-      ServerWorld world, @Nullable Entity effectEntity, @Nullable Entity attacker, LivingEntity target, int amplifier, double proximity
-   ) {
-      this.applyUpdateEffect(world, target, amplifier);
-   }
+	public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
+		return true;
+	}
 
-   public boolean canApplyUpdateEffect(int duration, int amplifier) {
-      return false;
-   }
+	public void applyInstantEffect(
+			ServerWorld world,
+			@Nullable Entity effectEntity,
+			@Nullable Entity attacker,
+			LivingEntity target,
+			int amplifier,
+			double proximity
+	) {
+		this.applyUpdateEffect(world, target, amplifier);
+	}
 
-   public void onApplied(LivingEntity entity, int amplifier) {
-   }
+	public boolean canApplyUpdateEffect(int duration, int amplifier) {
+		return false;
+	}
 
-   public void playApplySound(LivingEntity entity, int amplifier) {
-      this.applySound
-         .ifPresent(sound -> entity.getEntityWorld().playSound(null, entity.getX(), entity.getY(), entity.getZ(), sound, entity.getSoundCategory(), 1.0F, 1.0F));
-   }
+	public void onApplied(LivingEntity entity, int amplifier) {
+	}
 
-   public void onEntityRemoval(ServerWorld world, LivingEntity entity, int amplifier, Entity.RemovalReason reason) {
-   }
+	public void playApplySound(LivingEntity entity, int amplifier) {
+		this.applySound
+				.ifPresent(sound -> entity
+						.getEntityWorld()
+						.playSound(
+								null,
+								entity.getX(),
+								entity.getY(),
+								entity.getZ(),
+								sound,
+								entity.getSoundCategory(),
+								1.0F,
+								1.0F
+						));
+	}
 
-   public void onEntityDamage(ServerWorld world, LivingEntity entity, int amplifier, DamageSource source, float amount) {
-   }
+	public void onEntityRemoval(ServerWorld world, LivingEntity entity, int amplifier, Entity.RemovalReason reason) {
+	}
 
-   public boolean isInstant() {
-      return false;
-   }
+	public void onEntityDamage(
+			ServerWorld world,
+			LivingEntity entity,
+			int amplifier,
+			DamageSource source,
+			float amount
+	) {
+	}
 
-   protected String loadTranslationKey() {
-      if (this.translationKey == null) {
-         this.translationKey = Util.createTranslationKey("effect", Registries.STATUS_EFFECT.getId(this));
-      }
+	public boolean isInstant() {
+		return false;
+	}
 
-      return this.translationKey;
-   }
+	protected String loadTranslationKey() {
+		if (this.translationKey == null) {
+			this.translationKey = Util.createTranslationKey("effect", Registries.STATUS_EFFECT.getId(this));
+		}
 
-   public String getTranslationKey() {
-      return this.loadTranslationKey();
-   }
+		return this.translationKey;
+	}
 
-   public Text getName() {
-      return Text.translatable(this.getTranslationKey());
-   }
+	public String getTranslationKey() {
+		return this.loadTranslationKey();
+	}
 
-   public StatusEffectCategory getCategory() {
-      return this.category;
-   }
+	public Text getName() {
+		return Text.translatable(this.getTranslationKey());
+	}
 
-   public int getColor() {
-      return this.color;
-   }
+	public StatusEffectCategory getCategory() {
+		return this.category;
+	}
 
-   public StatusEffect addAttributeModifier(RegistryEntry<EntityAttribute> attribute, Identifier id, double amount, EntityAttributeModifier.Operation operation) {
-      this.attributeModifiers.put(attribute, new StatusEffect.EffectAttributeModifierCreator(id, amount, operation));
-      return this;
-   }
+	public int getColor() {
+		return this.color;
+	}
 
-   public StatusEffect fadeTicks(int fadeTicks) {
-      return this.fadeTicks(fadeTicks, fadeTicks, fadeTicks);
-   }
+	public StatusEffect addAttributeModifier(
+			RegistryEntry<EntityAttribute> attribute,
+			Identifier id,
+			double amount,
+			EntityAttributeModifier.Operation operation
+	) {
+		this.attributeModifiers.put(attribute, new StatusEffect.EffectAttributeModifierCreator(id, amount, operation));
+		return this;
+	}
 
-   public StatusEffect fadeTicks(int fadeInTicks, int fadeOutTicks, int fadeOutThresholdTicks) {
-      this.fadeInTicks = fadeInTicks;
-      this.fadeOutTicks = fadeOutTicks;
-      this.fadeOutThresholdTicks = fadeOutThresholdTicks;
-      return this;
-   }
+	public StatusEffect fadeTicks(int fadeTicks) {
+		return this.fadeTicks(fadeTicks, fadeTicks, fadeTicks);
+	}
 
-   public void forEachAttributeModifier(int amplifier, BiConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier> consumer) {
-      this.attributeModifiers
-         .forEach(
-            (attribute, attributeModifierCreator) -> consumer.accept(
-               (RegistryEntry<EntityAttribute>)attribute, attributeModifierCreator.createAttributeModifier(amplifier)
-            )
-         );
-   }
+	public StatusEffect fadeTicks(int fadeInTicks, int fadeOutTicks, int fadeOutThresholdTicks) {
+		this.fadeInTicks = fadeInTicks;
+		this.fadeOutTicks = fadeOutTicks;
+		this.fadeOutThresholdTicks = fadeOutThresholdTicks;
+		return this;
+	}
 
-   public void onRemoved(AttributeContainer attributeContainer) {
-      for (Entry<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator> entry : this.attributeModifiers.entrySet()) {
-         EntityAttributeInstance entityAttributeInstance = attributeContainer.getCustomInstance(entry.getKey());
-         if (entityAttributeInstance != null) {
-            entityAttributeInstance.removeModifier(entry.getValue().id());
-         }
-      }
-   }
+	public void forEachAttributeModifier(
+			int amplifier,
+			BiConsumer<RegistryEntry<EntityAttribute>, EntityAttributeModifier> consumer
+	) {
+		this.attributeModifiers
+				.forEach(
+						(attribute, attributeModifierCreator) -> consumer.accept(
+								(RegistryEntry<EntityAttribute>) attribute,
+								attributeModifierCreator.createAttributeModifier(amplifier)
+						)
+				);
+	}
 
-   public void onApplied(AttributeContainer attributeContainer, int amplifier) {
-      for (Entry<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator> entry : this.attributeModifiers.entrySet()) {
-         EntityAttributeInstance entityAttributeInstance = attributeContainer.getCustomInstance(entry.getKey());
-         if (entityAttributeInstance != null) {
-            entityAttributeInstance.removeModifier(entry.getValue().id());
-            entityAttributeInstance.addPersistentModifier(entry.getValue().createAttributeModifier(amplifier));
-         }
-      }
-   }
+	public void onRemoved(AttributeContainer attributeContainer) {
+		for (Entry<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator> entry : this.attributeModifiers.entrySet()) {
+			EntityAttributeInstance entityAttributeInstance = attributeContainer.getCustomInstance(entry.getKey());
+			if (entityAttributeInstance != null) {
+				entityAttributeInstance.removeModifier(entry.getValue().id());
+			}
+		}
+	}
 
-   public boolean isBeneficial() {
-      return this.category == StatusEffectCategory.BENEFICIAL;
-   }
+	public void onApplied(AttributeContainer attributeContainer, int amplifier) {
+		for (Entry<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator> entry : this.attributeModifiers.entrySet()) {
+			EntityAttributeInstance entityAttributeInstance = attributeContainer.getCustomInstance(entry.getKey());
+			if (entityAttributeInstance != null) {
+				entityAttributeInstance.removeModifier(entry.getValue().id());
+				entityAttributeInstance.addPersistentModifier(entry.getValue().createAttributeModifier(amplifier));
+			}
+		}
+	}
 
-   public ParticleEffect createParticle(StatusEffectInstance effect) {
-      return this.particleFactory.apply(effect);
-   }
+	public boolean isBeneficial() {
+		return this.category == StatusEffectCategory.BENEFICIAL;
+	}
 
-   public StatusEffect applySound(SoundEvent sound) {
-      this.applySound = Optional.of(sound);
-      return this;
-   }
+	public ParticleEffect createParticle(StatusEffectInstance effect) {
+		return this.particleFactory.apply(effect);
+	}
 
-   public StatusEffect requires(FeatureFlag... requiredFeatures) {
-      this.requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(requiredFeatures);
-      return this;
-   }
+	public StatusEffect applySound(SoundEvent sound) {
+		this.applySound = Optional.of(sound);
+		return this;
+	}
 
-   @Override
-   public FeatureSet getRequiredFeatures() {
-      return this.requiredFeatures;
-   }
+	public StatusEffect requires(FeatureFlag... requiredFeatures) {
+		this.requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(requiredFeatures);
+		return this;
+	}
 
-   record EffectAttributeModifierCreator(Identifier id, double baseValue, EntityAttributeModifier.Operation operation) {
-      public EntityAttributeModifier createAttributeModifier(int amplifier) {
-         return new EntityAttributeModifier(this.id, this.baseValue * (amplifier + 1), this.operation);
-      }
-   }
+	@Override
+	public FeatureSet getRequiredFeatures() {
+		return this.requiredFeatures;
+	}
+
+	/**
+	 * {@code EffectAttributeModifierCreator}.
+	 */
+	record EffectAttributeModifierCreator(
+			Identifier id,
+			double baseValue,
+			EntityAttributeModifier.Operation operation
+	) {
+
+		public EntityAttributeModifier createAttributeModifier(int amplifier) {
+			return new EntityAttributeModifier(this.id, this.baseValue * (amplifier + 1), this.operation);
+		}
+	}
 }

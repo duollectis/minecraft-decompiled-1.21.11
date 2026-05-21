@@ -9,31 +9,34 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Hand;
 
 public class HandSwingC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, HandSwingC2SPacket> CODEC = Packet.createCodec(HandSwingC2SPacket::write, HandSwingC2SPacket::new);
-   private final Hand hand;
 
-   public HandSwingC2SPacket(Hand hand) {
-      this.hand = hand;
-   }
+	public static final PacketCodec<PacketByteBuf, HandSwingC2SPacket>
+			CODEC =
+			Packet.createCodec(HandSwingC2SPacket::write, HandSwingC2SPacket::new);
+	private final Hand hand;
 
-   private HandSwingC2SPacket(PacketByteBuf buf) {
-      this.hand = buf.readEnumConstant(Hand.class);
-   }
+	public HandSwingC2SPacket(Hand hand) {
+		this.hand = hand;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeEnumConstant(this.hand);
-   }
+	private HandSwingC2SPacket(PacketByteBuf buf) {
+		this.hand = buf.readEnumConstant(Hand.class);
+	}
 
-   @Override
-   public PacketType<HandSwingC2SPacket> getPacketType() {
-      return PlayPackets.SWING;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeEnumConstant(this.hand);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onHandSwing(this);
-   }
+	@Override
+	public PacketType<HandSwingC2SPacket> getPacketType() {
+		return PlayPackets.SWING;
+	}
 
-   public Hand getHand() {
-      return this.hand;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onHandSwing(this);
+	}
+
+	public Hand getHand() {
+		return this.hand;
+	}
 }

@@ -4,21 +4,25 @@ import com.google.common.annotations.VisibleForTesting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code RandomSplitter}.
+ */
 public interface RandomSplitter {
-   default Random split(BlockPos pos) {
-      return this.split(pos.getX(), pos.getY(), pos.getZ());
-   }
 
-   default Random split(Identifier seed) {
-      return this.split(seed.toString());
-   }
+	default Random split(BlockPos pos) {
+		return this.split(pos.getX(), pos.getY(), pos.getZ());
+	}
 
-   Random split(String seed);
+	default Random split(Identifier seed) {
+		return this.split(seed.toString());
+	}
 
-   Random split(long seed);
+	Random split(String seed);
 
-   Random split(int x, int y, int z);
+	Random split(long seed);
 
-   @VisibleForTesting
-   void addDebugInfo(StringBuilder info);
+	Random split(int x, int y, int z);
+
+	@VisibleForTesting
+	void addDebugInfo(StringBuilder info);
 }

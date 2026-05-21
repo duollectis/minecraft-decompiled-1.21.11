@@ -8,33 +8,34 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class SelectMerchantTradeC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, SelectMerchantTradeC2SPacket> CODEC = Packet.createCodec(
-      SelectMerchantTradeC2SPacket::write, SelectMerchantTradeC2SPacket::new
-   );
-   private final int tradeId;
 
-   public SelectMerchantTradeC2SPacket(int tradeId) {
-      this.tradeId = tradeId;
-   }
+	public static final PacketCodec<PacketByteBuf, SelectMerchantTradeC2SPacket> CODEC = Packet.createCodec(
+			SelectMerchantTradeC2SPacket::write, SelectMerchantTradeC2SPacket::new
+	);
+	private final int tradeId;
 
-   private SelectMerchantTradeC2SPacket(PacketByteBuf buf) {
-      this.tradeId = buf.readVarInt();
-   }
+	public SelectMerchantTradeC2SPacket(int tradeId) {
+		this.tradeId = tradeId;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.tradeId);
-   }
+	private SelectMerchantTradeC2SPacket(PacketByteBuf buf) {
+		this.tradeId = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<SelectMerchantTradeC2SPacket> getPacketType() {
-      return PlayPackets.SELECT_TRADE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.tradeId);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onSelectMerchantTrade(this);
-   }
+	@Override
+	public PacketType<SelectMerchantTradeC2SPacket> getPacketType() {
+		return PlayPackets.SELECT_TRADE;
+	}
 
-   public int getTradeId() {
-      return this.tradeId;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onSelectMerchantTrade(this);
+	}
+
+	public int getTradeId() {
+		return this.tradeId;
+	}
 }

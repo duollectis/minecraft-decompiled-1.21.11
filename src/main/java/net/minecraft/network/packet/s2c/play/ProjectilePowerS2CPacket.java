@@ -8,41 +8,42 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class ProjectilePowerS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ProjectilePowerS2CPacket> CODEC = Packet.createCodec(
-      ProjectilePowerS2CPacket::write, ProjectilePowerS2CPacket::new
-   );
-   private final int entityId;
-   private final double accelerationPower;
 
-   public ProjectilePowerS2CPacket(int entityId, double accelerationPower) {
-      this.entityId = entityId;
-      this.accelerationPower = accelerationPower;
-   }
+	public static final PacketCodec<PacketByteBuf, ProjectilePowerS2CPacket> CODEC = Packet.createCodec(
+			ProjectilePowerS2CPacket::write, ProjectilePowerS2CPacket::new
+	);
+	private final int entityId;
+	private final double accelerationPower;
 
-   private ProjectilePowerS2CPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      this.accelerationPower = buf.readDouble();
-   }
+	public ProjectilePowerS2CPacket(int entityId, double accelerationPower) {
+		this.entityId = entityId;
+		this.accelerationPower = accelerationPower;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      buf.writeDouble(this.accelerationPower);
-   }
+	private ProjectilePowerS2CPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		this.accelerationPower = buf.readDouble();
+	}
 
-   @Override
-   public PacketType<ProjectilePowerS2CPacket> getPacketType() {
-      return PlayPackets.PROJECTILE_POWER;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		buf.writeDouble(this.accelerationPower);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onProjectilePower(this);
-   }
+	@Override
+	public PacketType<ProjectilePowerS2CPacket> getPacketType() {
+		return PlayPackets.PROJECTILE_POWER;
+	}
 
-   public int getEntityId() {
-      return this.entityId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onProjectilePower(this);
+	}
 
-   public double getAccelerationPower() {
-      return this.accelerationPower;
-   }
+	public int getEntityId() {
+		return this.entityId;
+	}
+
+	public double getAccelerationPower() {
+		return this.accelerationPower;
+	}
 }

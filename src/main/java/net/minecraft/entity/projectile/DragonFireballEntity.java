@@ -1,6 +1,5 @@
 package net.minecraft.entity.projectile;
 
-import java.util.List;
 import net.minecraft.entity.AreaEffectCloudEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -15,59 +14,79 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+import java.util.List;
+
+/**
+ * {@code DragonFireballEntity}.
+ */
 public class DragonFireballEntity extends ExplosiveProjectileEntity {
-   public static final float DAMAGE_RANGE = 4.0F;
 
-   public DragonFireballEntity(EntityType<? extends DragonFireballEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	public static final float DAMAGE_RANGE = 4.0F;
 
-   public DragonFireballEntity(World world, LivingEntity owner, Vec3d velocity) {
-      super(EntityType.DRAGON_FIREBALL, owner, velocity, world);
-   }
+	public DragonFireballEntity(EntityType<? extends DragonFireballEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected void onCollision(HitResult hitResult) {
-      super.onCollision(hitResult);
-      if (hitResult.getType() != HitResult.Type.ENTITY || !this.isOwner(((EntityHitResult)hitResult).getEntity())) {
-         if (!this.getEntityWorld().isClient()) {
-            List<LivingEntity> list = this.getEntityWorld().getNonSpectatingEntities(LivingEntity.class, this.getBoundingBox().expand(4.0, 2.0, 4.0));
-            AreaEffectCloudEntity areaEffectCloudEntity = new AreaEffectCloudEntity(this.getEntityWorld(), this.getX(), this.getY(), this.getZ());
-            Entity entity = this.getOwner();
-            if (entity instanceof LivingEntity) {
-               areaEffectCloudEntity.setOwner((LivingEntity)entity);
-            }
+	public DragonFireballEntity(World world, LivingEntity owner, Vec3d velocity) {
+		super(EntityType.DRAGON_FIREBALL, owner, velocity, world);
+	}
 
-            areaEffectCloudEntity.setParticleType(DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F));
-            areaEffectCloudEntity.setRadius(3.0F);
-            areaEffectCloudEntity.setDuration(600);
-            areaEffectCloudEntity.setRadiusGrowth((7.0F - areaEffectCloudEntity.getRadius()) / areaEffectCloudEntity.getDuration());
-            areaEffectCloudEntity.setPotionDurationScale(0.25F);
-            areaEffectCloudEntity.addEffect(new StatusEffectInstance(StatusEffects.INSTANT_DAMAGE, 1, 1));
-            if (!list.isEmpty()) {
-               for (LivingEntity livingEntity : list) {
-                  double d = this.squaredDistanceTo(livingEntity);
-                  if (d < 16.0) {
-                     areaEffectCloudEntity.setPosition(livingEntity.getX(), livingEntity.getY(), livingEntity.getZ());
-                     break;
-                  }
-               }
-            }
+	@Override
+	protected void onCollision(HitResult hitResult) {
+		super.onCollision(hitResult);
+		if (hitResult.getType() != HitResult.Type.ENTITY || !this.isOwner(((EntityHitResult) hitResult).getEntity())) {
+			if (!this.getEntityWorld().isClient()) {
+				List<LivingEntity>
+						list =
+						this
+								.getEntityWorld()
+								.getNonSpectatingEntities(
+										LivingEntity.class,
+										this.getBoundingBox().expand(4.0, 2.0, 4.0)
+								);
+				AreaEffectCloudEntity
+						areaEffectCloudEntity =
+						new AreaEffectCloudEntity(this.getEntityWorld(), this.getX(), this.getY(), this.getZ());
+				Entity entity = this.getOwner();
+				if (entity instanceof LivingEntity) {
+					areaEffectCloudEntity.setOwner((LivingEntity) entity);
+				}
 
-            this.getEntityWorld().syncWorldEvent(2006, this.getBlockPos(), this.isSilent() ? -1 : 1);
-            this.getEntityWorld().spawnEntity(areaEffectCloudEntity);
-            this.discard();
-         }
-      }
-   }
+				areaEffectCloudEntity.setParticleType(DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F));
+				areaEffectCloudEntity.setRadius(3.0F);
+				areaEffectCloudEntity.setDuration(600);
+				areaEffectCloudEntity.setRadiusGrowth(
+						(7.0F - areaEffectCloudEntity.getRadius()) / areaEffectCloudEntity.getDuration());
+				areaEffectCloudEntity.setPotionDurationScale(0.25F);
+				areaEffectCloudEntity.addEffect(new StatusEffectInstance(StatusEffects.INSTANT_DAMAGE, 1, 1));
+				if (!list.isEmpty()) {
+					for (LivingEntity livingEntity : list) {
+						double d = this.squaredDistanceTo(livingEntity);
+						if (d < 16.0) {
+							areaEffectCloudEntity.setPosition(
+									livingEntity.getX(),
+									livingEntity.getY(),
+									livingEntity.getZ()
+							);
+							break;
+						}
+					}
+				}
 
-   @Override
-   protected ParticleEffect getParticleType() {
-      return DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F);
-   }
+				this.getEntityWorld().syncWorldEvent(2006, this.getBlockPos(), this.isSilent() ? -1 : 1);
+				this.getEntityWorld().spawnEntity(areaEffectCloudEntity);
+				this.discard();
+			}
+		}
+	}
 
-   @Override
-   protected boolean isBurning() {
-      return false;
-   }
+	@Override
+	protected ParticleEffect getParticleType() {
+		return DragonBreathParticleEffect.of(ParticleTypes.DRAGON_BREATH, 1.0F);
+	}
+
+	@Override
+	protected boolean isBurning() {
+		return false;
+	}
 }

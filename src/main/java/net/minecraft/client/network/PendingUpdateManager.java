@@ -1,7 +1,7 @@
 package net.minecraft.client.network;
 
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap.Entry;
 import it.unimi.dsi.fastutil.objects.ObjectIterator;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -10,84 +10,140 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * Управляет ожидающими обновлениями блоков на стороне клиента.
+ * <p>Когда игрок взаимодействует с блоком, клиент оптимистично применяет изменение
+ * и сохраняет его здесь с порядковым номером. Когда сервер подтверждает транзакцию,
+ * обновления с номером ≤ подтверждённому применяются к миру через
+ * {@link #processPendingUpdates}.
+ * <p>Реализует {@link AutoCloseable} для использования в try-with-resources:
+ * закрытие сбрасывает флаг ожидающей последовательности.
+ */
 @Environment(EnvType.CLIENT)
 public class PendingUpdateManager implements AutoCloseable {
-   private final Long2ObjectOpenHashMap<PendingUpdateManager.PendingUpdate> blockPosToPendingUpdate = new Long2ObjectOpenHashMap();
-   private int sequence;
-   private boolean pendingSequence;
 
-   public void addPendingUpdate(BlockPos pos, BlockState state, ClientPlayerEntity player) {
-      this.blockPosToPendingUpdate
-         .compute(
-            pos.asLong(),
-            (posLong, pendingUpdate) -> pendingUpdate != null
-               ? pendingUpdate.withSequence(this.sequence)
-               : new PendingUpdateManager.PendingUpdate(this.sequence, state, player.getEntityPos())
-         );
-   }
+	private final Long2ObjectOpenHashMap<PendingUpdate> blockPosToPendingUpdate = new Long2ObjectOpenHashMap<>();
+	private int sequence;
+	private boolean pendingSequence;
 
-   public boolean hasPendingUpdate(BlockPos pos, BlockState state) {
-      PendingUpdateManager.PendingUpdate pendingUpdate = (PendingUpdateManager.PendingUpdate)this.blockPosToPendingUpdate.get(pos.asLong());
-      if (pendingUpdate == null) {
-         return false;
-      } else {
-         pendingUpdate.setBlockState(state);
-         return true;
-      }
-   }
+	/**
+	 * Добавляет ожидающее обновление блока с текущим порядковым номером.
+	 * Если обновление для этой позиции уже существует — обновляет его номер.
+	 *
+	 * @param pos    позиция блока
+	 * @param state  новое состояние блока
+	 * @param player игрок, инициировавший изменение
+	 */
+	public void addPendingUpdate(BlockPos pos, BlockState state, ClientPlayerEntity player) {
+		blockPosToPendingUpdate.compute(
+				pos.asLong(),
+				(posLong, existing) -> existing != null
+				                       ? existing.withSequence(sequence)
+				                       : new PendingUpdate(sequence, state, player.getEntityPos())
+		);
+	}
 
-   public void processPendingUpdates(int maxProcessableSequence, ClientWorld world) {
-      ObjectIterator<Entry<PendingUpdateManager.PendingUpdate>> objectIterator = this.blockPosToPendingUpdate.long2ObjectEntrySet().iterator();
+	/**
+	 * Проверяет наличие ожидающего обновления для позиции и обновляет его состояние.
+	 *
+	 * @param pos   позиция блока
+	 * @param state новое состояние блока от сервера
+	 * @return {@code true} если ожидающее обновление найдено
+	 */
+	public boolean hasPendingUpdate(BlockPos pos, BlockState state) {
+		PendingUpdate update = blockPosToPendingUpdate.get(pos.asLong());
 
-      while (objectIterator.hasNext()) {
-         Entry<PendingUpdateManager.PendingUpdate> entry = (Entry<PendingUpdateManager.PendingUpdate>)objectIterator.next();
-         PendingUpdateManager.PendingUpdate pendingUpdate = (PendingUpdateManager.PendingUpdate)entry.getValue();
-         if (pendingUpdate.sequence <= maxProcessableSequence) {
-            BlockPos blockPos = BlockPos.fromLong(entry.getLongKey());
-            objectIterator.remove();
-            world.processPendingUpdate(blockPos, pendingUpdate.blockState, pendingUpdate.playerPos);
-         }
-      }
-   }
+		if (update == null) {
+			return false;
+		}
 
-   public PendingUpdateManager incrementSequence() {
-      this.sequence++;
-      this.pendingSequence = true;
-      return this;
-   }
+		update.setBlockState(state);
+		return true;
+	}
 
-   @Override
-   public void close() {
-      this.pendingSequence = false;
-   }
+	/**
+	 * Применяет все ожидающие обновления с порядковым номером ≤ {@code maxProcessableSequence}.
+	 *
+	 * @param maxProcessableSequence максимальный подтверждённый порядковый номер
+	 * @param world                  клиентский мир для применения обновлений
+	 */
+	public void processPendingUpdates(int maxProcessableSequence, ClientWorld world) {
+		ObjectIterator<Long2ObjectMap.Entry<PendingUpdate>> iterator =
+				blockPosToPendingUpdate.long2ObjectEntrySet().iterator();
 
-   public int getSequence() {
-      return this.sequence;
-   }
+		while (iterator.hasNext()) {
+			Long2ObjectMap.Entry<PendingUpdate> entry = iterator.next();
+			PendingUpdate update = entry.getValue();
 
-   public boolean hasPendingSequence() {
-      return this.pendingSequence;
-   }
+			if (update.sequence <= maxProcessableSequence) {
+				BlockPos pos = BlockPos.fromLong(entry.getLongKey());
+				iterator.remove();
+				world.processPendingUpdate(pos, update.blockState, update.playerPos);
+			}
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   static class PendingUpdate {
-      final Vec3d playerPos;
-      int sequence;
-      BlockState blockState;
+	/**
+	 * Увеличивает порядковый номер и помечает наличие ожидающей последовательности.
+	 * Предназначен для использования в try-with-resources.
+	 *
+	 * @return {@code this} для цепочки вызовов
+	 */
+	public PendingUpdateManager incrementSequence() {
+		sequence++;
+		pendingSequence = true;
+		return this;
+	}
 
-      PendingUpdate(int sequence, BlockState blockState, Vec3d playerPos) {
-         this.sequence = sequence;
-         this.blockState = blockState;
-         this.playerPos = playerPos;
-      }
+	/**
+	 * Сбрасывает флаг ожидающей последовательности.
+	 */
+	@Override
+	public void close() {
+		pendingSequence = false;
+	}
 
-      PendingUpdateManager.PendingUpdate withSequence(int sequence) {
-         this.sequence = sequence;
-         return this;
-      }
+	/**
+	 * Возвращает текущий порядковый номер транзакции.
+	 *
+	 * @return порядковый номер
+	 */
+	public int getSequence() {
+		return sequence;
+	}
 
-      void setBlockState(BlockState state) {
-         this.blockState = state;
-      }
-   }
+	/**
+	 * Проверяет, есть ли активная ожидающая последовательность.
+	 *
+	 * @return {@code true} если последовательность ожидает подтверждения
+	 */
+	public boolean hasPendingSequence() {
+		return pendingSequence;
+	}
+
+	/**
+	 * Запись об ожидающем обновлении блока.
+	 */
+	@Environment(EnvType.CLIENT)
+	static class PendingUpdate {
+
+		final Vec3d playerPos;
+		int sequence;
+		BlockState blockState;
+
+		PendingUpdate(int sequence, BlockState blockState, Vec3d playerPos) {
+			this.sequence = sequence;
+			this.blockState = blockState;
+			this.playerPos = playerPos;
+		}
+
+		PendingUpdate withSequence(int sequence) {
+			this.sequence = sequence;
+			return this;
+		}
+
+		void setBlockState(BlockState state) {
+			blockState = state;
+		}
+	}
 }

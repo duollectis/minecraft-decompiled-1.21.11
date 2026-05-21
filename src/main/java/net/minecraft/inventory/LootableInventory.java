@@ -18,72 +18,85 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code LootableInventory}.
+ */
 public interface LootableInventory extends Inventory {
-   String LOOT_TABLE_KEY = "LootTable";
-   String LOOT_TABLE_SEED_KEY = "LootTableSeed";
 
-   @Nullable RegistryKey<LootTable> getLootTable();
+	String LOOT_TABLE_KEY = "LootTable";
 
-   void setLootTable(@Nullable RegistryKey<LootTable> lootTable);
+	String LOOT_TABLE_SEED_KEY = "LootTableSeed";
 
-   default void setLootTable(RegistryKey<LootTable> lootTableId, long lootTableSeed) {
-      this.setLootTable(lootTableId);
-      this.setLootTableSeed(lootTableSeed);
-   }
+	@Nullable RegistryKey<LootTable> getLootTable();
 
-   long getLootTableSeed();
+	void setLootTable(@Nullable RegistryKey<LootTable> lootTable);
 
-   void setLootTableSeed(long lootTableSeed);
+	default void setLootTable(RegistryKey<LootTable> lootTableId, long lootTableSeed) {
+		this.setLootTable(lootTableId);
+		this.setLootTableSeed(lootTableSeed);
+	}
 
-   BlockPos getPos();
+	long getLootTableSeed();
 
-   @Nullable World getWorld();
+	void setLootTableSeed(long lootTableSeed);
 
-   static void setLootTable(BlockView world, Random random, BlockPos pos, RegistryKey<LootTable> lootTableId) {
-      if (world.getBlockEntity(pos) instanceof LootableInventory lootableInventory) {
-         lootableInventory.setLootTable(lootTableId, random.nextLong());
-      }
-   }
+	BlockPos getPos();
 
-   default boolean readLootTable(ReadView view) {
-      RegistryKey<LootTable> registryKey = view.<RegistryKey<LootTable>>read("LootTable", LootTable.TABLE_KEY).orElse(null);
-      this.setLootTable(registryKey);
-      this.setLootTableSeed(view.getLong("LootTableSeed", 0L));
-      return registryKey != null;
-   }
+	@Nullable World getWorld();
 
-   default boolean writeLootTable(WriteView view) {
-      RegistryKey<LootTable> registryKey = this.getLootTable();
-      if (registryKey == null) {
-         return false;
-      } else {
-         view.put("LootTable", LootTable.TABLE_KEY, registryKey);
-         long l = this.getLootTableSeed();
-         if (l != 0L) {
-            view.putLong("LootTableSeed", l);
-         }
+	static void setLootTable(BlockView world, Random random, BlockPos pos, RegistryKey<LootTable> lootTableId) {
+		if (world.getBlockEntity(pos) instanceof LootableInventory lootableInventory) {
+			lootableInventory.setLootTable(lootTableId, random.nextLong());
+		}
+	}
 
-         return true;
-      }
-   }
+	default boolean readLootTable(ReadView view) {
+		RegistryKey<LootTable>
+				registryKey =
+				view.<RegistryKey<LootTable>>read("LootTable", LootTable.TABLE_KEY).orElse(null);
+		this.setLootTable(registryKey);
+		this.setLootTableSeed(view.getLong("LootTableSeed", 0L));
+		return registryKey != null;
+	}
 
-   default void generateLoot(@Nullable PlayerEntity player) {
-      World world = this.getWorld();
-      BlockPos blockPos = this.getPos();
-      RegistryKey<LootTable> registryKey = this.getLootTable();
-      if (registryKey != null && world != null && world.getServer() != null) {
-         LootTable lootTable = world.getServer().getReloadableRegistries().getLootTable(registryKey);
-         if (player instanceof ServerPlayerEntity) {
-            Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger((ServerPlayerEntity)player, registryKey);
-         }
+	default boolean writeLootTable(WriteView view) {
+		RegistryKey<LootTable> registryKey = this.getLootTable();
+		if (registryKey == null) {
+			return false;
+		}
+		else {
+			view.put("LootTable", LootTable.TABLE_KEY, registryKey);
+			long l = this.getLootTableSeed();
+			if (l != 0L) {
+				view.putLong("LootTableSeed", l);
+			}
 
-         this.setLootTable(null);
-         LootWorldContext.Builder builder = new LootWorldContext.Builder((ServerWorld)world).add(LootContextParameters.ORIGIN, Vec3d.ofCenter(blockPos));
-         if (player != null) {
-            builder.luck(player.getLuck()).add(LootContextParameters.THIS_ENTITY, player);
-         }
+			return true;
+		}
+	}
 
-         lootTable.supplyInventory(this, builder.build(LootContextTypes.CHEST), this.getLootTableSeed());
-      }
-   }
+	default void generateLoot(@Nullable PlayerEntity player) {
+		World world = this.getWorld();
+		BlockPos blockPos = this.getPos();
+		RegistryKey<LootTable> registryKey = this.getLootTable();
+		if (registryKey != null && world != null && world.getServer() != null) {
+			LootTable lootTable = world.getServer().getReloadableRegistries().getLootTable(registryKey);
+			if (player instanceof ServerPlayerEntity) {
+				Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger((ServerPlayerEntity) player, registryKey);
+			}
+
+			this.setLootTable(null);
+			LootWorldContext.Builder
+					builder =
+					new LootWorldContext.Builder((ServerWorld) world).add(
+							LootContextParameters.ORIGIN,
+							Vec3d.ofCenter(blockPos)
+					);
+			if (player != null) {
+				builder.luck(player.getLuck()).add(LootContextParameters.THIS_ENTITY, player);
+			}
+
+			lootTable.supplyInventory(this, builder.build(LootContextTypes.CHEST), this.getLootTableSeed());
+		}
+	}
 }

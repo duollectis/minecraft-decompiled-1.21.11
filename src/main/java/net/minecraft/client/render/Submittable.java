@@ -6,9 +6,13 @@ import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.state.CameraRenderState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Submittable}.
+ */
 public interface Submittable {
-   void submit(OrderedRenderCommandQueue queue, CameraRenderState cameraRenderState);
 
-   default void onFrameEnd() {
-   }
+	void submit(OrderedRenderCommandQueue queue, CameraRenderState cameraRenderState);
+
+	default void onFrameEnd() {
+	}
 }

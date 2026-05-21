@@ -9,11 +9,6 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.datafixers.util.Either;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Predicate;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.serialize.ArgumentSerializer;
@@ -25,136 +20,184 @@ import net.minecraft.registry.tag.TagKey;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.util.Identifier;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
+
+/**
+ * {@code RegistryPredicateArgumentType}.
+ */
 public class RegistryPredicateArgumentType<T> implements ArgumentType<RegistryPredicateArgumentType.RegistryPredicate<T>> {
-   private static final Collection<String> EXAMPLES = Arrays.asList("foo", "foo:bar", "012", "#skeletons", "#minecraft:skeletons");
-   final RegistryKey<? extends Registry<T>> registryRef;
 
-   public RegistryPredicateArgumentType(RegistryKey<? extends Registry<T>> registryRef) {
-      this.registryRef = registryRef;
-   }
+	private static final Collection<String>
+			EXAMPLES =
+			Arrays.asList("foo", "foo:bar", "012", "#skeletons", "#minecraft:skeletons");
+	final RegistryKey<? extends Registry<T>> registryRef;
 
-   public static <T> RegistryPredicateArgumentType<T> registryPredicate(RegistryKey<? extends Registry<T>> registryRef) {
-      return new RegistryPredicateArgumentType<>(registryRef);
-   }
+	public RegistryPredicateArgumentType(RegistryKey<? extends Registry<T>> registryRef) {
+		this.registryRef = registryRef;
+	}
 
-   public static <T> RegistryPredicateArgumentType.RegistryPredicate<T> getPredicate(
-      CommandContext<ServerCommandSource> context, String name, RegistryKey<Registry<T>> registryRef, DynamicCommandExceptionType invalidException
-   ) throws CommandSyntaxException {
-      RegistryPredicateArgumentType.RegistryPredicate<?> registryPredicate = (RegistryPredicateArgumentType.RegistryPredicate<?>)context.getArgument(
-         name, RegistryPredicateArgumentType.RegistryPredicate.class
-      );
-      Optional<RegistryPredicateArgumentType.RegistryPredicate<T>> optional = registryPredicate.tryCast(registryRef);
-      return optional.orElseThrow(() -> invalidException.create(registryPredicate));
-   }
+	public static <T> RegistryPredicateArgumentType<T> registryPredicate(RegistryKey<? extends Registry<T>> registryRef) {
+		return new RegistryPredicateArgumentType<>(registryRef);
+	}
 
-   public RegistryPredicateArgumentType.RegistryPredicate<T> parse(StringReader stringReader) throws CommandSyntaxException {
-      if (stringReader.canRead() && stringReader.peek() == '#') {
-         int i = stringReader.getCursor();
+	public static <T> RegistryPredicateArgumentType.RegistryPredicate<T> getPredicate(
+			CommandContext<ServerCommandSource> context,
+			String name,
+			RegistryKey<Registry<T>> registryRef,
+			DynamicCommandExceptionType invalidException
+	) throws CommandSyntaxException {
+		RegistryPredicateArgumentType.RegistryPredicate<?>
+				registryPredicate =
+				(RegistryPredicateArgumentType.RegistryPredicate<?>) context.getArgument(
+						name, RegistryPredicateArgumentType.RegistryPredicate.class
+				);
+		Optional<RegistryPredicateArgumentType.RegistryPredicate<T>> optional = registryPredicate.tryCast(registryRef);
+		return optional.orElseThrow(() -> invalidException.create(registryPredicate));
+	}
 
-         try {
-            stringReader.skip();
-            Identifier identifier = Identifier.fromCommandInput(stringReader);
-            return new RegistryPredicateArgumentType.TagBased<>(TagKey.of(this.registryRef, identifier));
-         } catch (CommandSyntaxException var4) {
-            stringReader.setCursor(i);
-            throw var4;
-         }
-      } else {
-         Identifier identifier2 = Identifier.fromCommandInput(stringReader);
-         return new RegistryPredicateArgumentType.RegistryKeyBased<>(RegistryKey.of(this.registryRef, identifier2));
-      }
-   }
+	public RegistryPredicateArgumentType.RegistryPredicate<T> parse(StringReader stringReader)
+	throws CommandSyntaxException {
+		if (stringReader.canRead() && stringReader.peek() == '#') {
+			int i = stringReader.getCursor();
 
-   public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-      return CommandSource.listSuggestions(context, builder, this.registryRef, CommandSource.SuggestedIdType.ALL);
-   }
+			try {
+				stringReader.skip();
+				Identifier identifier = Identifier.fromCommandInput(stringReader);
+				return new RegistryPredicateArgumentType.TagBased<>(TagKey.of(this.registryRef, identifier));
+			}
+			catch (CommandSyntaxException var4) {
+				stringReader.setCursor(i);
+				throw var4;
+			}
+		}
+		else {
+			Identifier identifier2 = Identifier.fromCommandInput(stringReader);
+			return new RegistryPredicateArgumentType.RegistryKeyBased<>(RegistryKey.of(this.registryRef, identifier2));
+		}
+	}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
+		return CommandSource.listSuggestions(context, builder, this.registryRef, CommandSource.SuggestedIdType.ALL);
+	}
 
-   record RegistryKeyBased<T>(RegistryKey<T> key) implements RegistryPredicateArgumentType.RegistryPredicate<T> {
-      @Override
-      public Either<RegistryKey<T>, TagKey<T>> getKey() {
-         return Either.left(this.key);
-      }
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 
-      @Override
-      public <E> Optional<RegistryPredicateArgumentType.RegistryPredicate<E>> tryCast(RegistryKey<? extends Registry<E>> registryRef) {
-         return this.key.tryCast(registryRef).map(RegistryPredicateArgumentType.RegistryKeyBased::new);
-      }
+	/**
+	 * {@code RegistryKeyBased}.
+	 */
+	record RegistryKeyBased<T>(RegistryKey<T> key) implements RegistryPredicateArgumentType.RegistryPredicate<T> {
 
-      public boolean test(RegistryEntry<T> registryEntry) {
-         return registryEntry.matchesKey(this.key);
-      }
+		@Override
+		public Either<RegistryKey<T>, TagKey<T>> getKey() {
+			return Either.left(this.key);
+		}
 
-      @Override
-      public String asString() {
-         return this.key.getValue().toString();
-      }
-   }
+		@Override
+		public <E> Optional<RegistryPredicateArgumentType.RegistryPredicate<E>> tryCast(RegistryKey<? extends Registry<E>> registryRef) {
+			return this.key.tryCast(registryRef).map(RegistryPredicateArgumentType.RegistryKeyBased::new);
+		}
 
-   public interface RegistryPredicate<T> extends Predicate<RegistryEntry<T>> {
-      Either<RegistryKey<T>, TagKey<T>> getKey();
+		public boolean test(RegistryEntry<T> registryEntry) {
+			return registryEntry.matchesKey(this.key);
+		}
 
-      <E> Optional<RegistryPredicateArgumentType.RegistryPredicate<E>> tryCast(RegistryKey<? extends Registry<E>> registryRef);
+		@Override
+		public String asString() {
+			return this.key.getValue().toString();
+		}
+	}
 
-      String asString();
-   }
+	/**
+	 * {@code RegistryPredicate}.
+	 */
+	public interface RegistryPredicate<T> extends Predicate<RegistryEntry<T>> {
 
-   public static class Serializer<T> implements ArgumentSerializer<RegistryPredicateArgumentType<T>, RegistryPredicateArgumentType.Serializer<T>.Properties> {
-      public void writePacket(RegistryPredicateArgumentType.Serializer<T>.Properties properties, PacketByteBuf packetByteBuf) {
-         packetByteBuf.writeRegistryKey(properties.registryRef);
-      }
+		Either<RegistryKey<T>, TagKey<T>> getKey();
 
-      public RegistryPredicateArgumentType.Serializer<T>.Properties fromPacket(PacketByteBuf packetByteBuf) {
-         return new RegistryPredicateArgumentType.Serializer.Properties(packetByteBuf.readRegistryRefKey());
-      }
+		<E> Optional<RegistryPredicateArgumentType.RegistryPredicate<E>> tryCast(RegistryKey<? extends Registry<E>> registryRef);
 
-      public void writeJson(RegistryPredicateArgumentType.Serializer<T>.Properties properties, JsonObject jsonObject) {
-         jsonObject.addProperty("registry", properties.registryRef.getValue().toString());
-      }
+		String asString();
+	}
 
-      public RegistryPredicateArgumentType.Serializer<T>.Properties getArgumentTypeProperties(RegistryPredicateArgumentType<T> registryPredicateArgumentType) {
-         return new RegistryPredicateArgumentType.Serializer.Properties(registryPredicateArgumentType.registryRef);
-      }
+	/**
+	 * {@code Serializer}.
+	 */
+	public static class Serializer<T> implements ArgumentSerializer<RegistryPredicateArgumentType<T>, RegistryPredicateArgumentType.Serializer<T>.Properties> {
 
-      public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<RegistryPredicateArgumentType<T>> {
-         final RegistryKey<? extends Registry<T>> registryRef;
+		public void writePacket(
+				RegistryPredicateArgumentType.Serializer<T>.Properties properties,
+				PacketByteBuf packetByteBuf
+		) {
+			packetByteBuf.writeRegistryKey(properties.registryRef);
+		}
 
-         Properties(final RegistryKey<? extends Registry<T>> registryRef) {
-            this.registryRef = registryRef;
-         }
+		public RegistryPredicateArgumentType.Serializer<T>.Properties fromPacket(PacketByteBuf packetByteBuf) {
+			return new RegistryPredicateArgumentType.Serializer.Properties(packetByteBuf.readRegistryRefKey());
+		}
 
-         public RegistryPredicateArgumentType<T> createType(CommandRegistryAccess commandRegistryAccess) {
-            return new RegistryPredicateArgumentType<>(this.registryRef);
-         }
+		public void writeJson(
+				RegistryPredicateArgumentType.Serializer<T>.Properties properties,
+				JsonObject jsonObject
+		) {
+			jsonObject.addProperty("registry", properties.registryRef.getValue().toString());
+		}
 
-         @Override
-         public ArgumentSerializer<RegistryPredicateArgumentType<T>, ?> getSerializer() {
-            return Serializer.this;
-         }
-      }
-   }
+		public RegistryPredicateArgumentType.Serializer<T>.Properties getArgumentTypeProperties(
+				RegistryPredicateArgumentType<T> registryPredicateArgumentType
+		) {
+			return new RegistryPredicateArgumentType.Serializer.Properties(registryPredicateArgumentType.registryRef);
+		}
 
-   record TagBased<T>(TagKey<T> key) implements RegistryPredicateArgumentType.RegistryPredicate<T> {
-      @Override
-      public Either<RegistryKey<T>, TagKey<T>> getKey() {
-         return Either.right(this.key);
-      }
+		/**
+		 * {@code Properties}.
+		 */
+		public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<RegistryPredicateArgumentType<T>> {
 
-      @Override
-      public <E> Optional<RegistryPredicateArgumentType.RegistryPredicate<E>> tryCast(RegistryKey<? extends Registry<E>> registryRef) {
-         return this.key.tryCast(registryRef).map(RegistryPredicateArgumentType.TagBased::new);
-      }
+			final RegistryKey<? extends Registry<T>> registryRef;
 
-      public boolean test(RegistryEntry<T> registryEntry) {
-         return registryEntry.isIn(this.key);
-      }
+			Properties(final RegistryKey<? extends Registry<T>> registryRef) {
+				this.registryRef = registryRef;
+			}
 
-      @Override
-      public String asString() {
-         return "#" + this.key.id();
-      }
-   }
+			public RegistryPredicateArgumentType<T> createType(CommandRegistryAccess commandRegistryAccess) {
+				return new RegistryPredicateArgumentType<>(this.registryRef);
+			}
+
+			@Override
+			public ArgumentSerializer<RegistryPredicateArgumentType<T>, ?> getSerializer() {
+				return Serializer.this;
+			}
+		}
+	}
+
+	/**
+	 * {@code TagBased}.
+	 */
+	record TagBased<T>(TagKey<T> key) implements RegistryPredicateArgumentType.RegistryPredicate<T> {
+
+		@Override
+		public Either<RegistryKey<T>, TagKey<T>> getKey() {
+			return Either.right(this.key);
+		}
+
+		@Override
+		public <E> Optional<RegistryPredicateArgumentType.RegistryPredicate<E>> tryCast(RegistryKey<? extends Registry<E>> registryRef) {
+			return this.key.tryCast(registryRef).map(RegistryPredicateArgumentType.TagBased::new);
+		}
+
+		public boolean test(RegistryEntry<T> registryEntry) {
+			return registryEntry.isIn(this.key);
+		}
+
+		@Override
+		public String asString() {
+			return "#" + this.key.id();
+		}
+	}
 }

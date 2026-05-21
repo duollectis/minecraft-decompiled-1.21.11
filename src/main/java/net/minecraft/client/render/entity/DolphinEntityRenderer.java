@@ -11,30 +11,38 @@ import net.minecraft.entity.passive.DolphinEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DolphinEntityRenderer}.
+ */
 public class DolphinEntityRenderer extends AgeableMobEntityRenderer<DolphinEntity, DolphinEntityRenderState, DolphinEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/dolphin.png");
 
-   public DolphinEntityRenderer(EntityRendererFactory.Context context) {
-      super(
-         context,
-         new DolphinEntityModel(context.getPart(EntityModelLayers.DOLPHIN)),
-         new DolphinEntityModel(context.getPart(EntityModelLayers.DOLPHIN_BABY)),
-         0.7F
-      );
-      this.addFeature(new DolphinHeldItemFeatureRenderer(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/dolphin.png");
 
-   public Identifier getTexture(DolphinEntityRenderState dolphinEntityRenderState) {
-      return TEXTURE;
-   }
+	public DolphinEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new DolphinEntityModel(context.getPart(EntityModelLayers.DOLPHIN)),
+				new DolphinEntityModel(context.getPart(EntityModelLayers.DOLPHIN_BABY)),
+				0.7F
+		);
+		this.addFeature(new DolphinHeldItemFeatureRenderer(this));
+	}
 
-   public DolphinEntityRenderState createRenderState() {
-      return new DolphinEntityRenderState();
-   }
+	public Identifier getTexture(DolphinEntityRenderState dolphinEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(DolphinEntity dolphinEntity, DolphinEntityRenderState dolphinEntityRenderState, float f) {
-      super.updateRenderState(dolphinEntity, dolphinEntityRenderState, f);
-      ItemHolderEntityRenderState.update(dolphinEntity, dolphinEntityRenderState, this.itemModelResolver);
-      dolphinEntityRenderState.moving = dolphinEntity.getVelocity().horizontalLengthSquared() > 1.0E-7;
-   }
+	public DolphinEntityRenderState createRenderState() {
+		return new DolphinEntityRenderState();
+	}
+
+	public void updateRenderState(
+			DolphinEntity dolphinEntity,
+			DolphinEntityRenderState dolphinEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(dolphinEntity, dolphinEntityRenderState, f);
+		ItemHolderEntityRenderState.update(dolphinEntity, dolphinEntityRenderState, this.itemModelResolver);
+		dolphinEntityRenderState.moving = dolphinEntity.getVelocity().horizontalLengthSquared() > 1.0E-7;
+	}
 }

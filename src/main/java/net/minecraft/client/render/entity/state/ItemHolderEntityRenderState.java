@@ -8,10 +8,23 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemDisplayContext;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ItemHolderEntityRenderState}.
+ */
 public class ItemHolderEntityRenderState extends LivingEntityRenderState {
-   public final ItemRenderState itemRenderState = new ItemRenderState();
 
-   public static void update(LivingEntity entity, ItemHolderEntityRenderState state, ItemModelManager itemModelManager) {
-      itemModelManager.updateForLivingEntity(state.itemRenderState, entity.getMainHandStack(), ItemDisplayContext.GROUND, entity);
-   }
+	public final ItemRenderState itemRenderState = new ItemRenderState();
+
+	public static void update(
+			LivingEntity entity,
+			ItemHolderEntityRenderState state,
+			ItemModelManager itemModelManager
+	) {
+		itemModelManager.updateForLivingEntity(
+				state.itemRenderState,
+				entity.getMainHandStack(),
+				ItemDisplayContext.GROUND,
+				entity
+		);
+	}
 }

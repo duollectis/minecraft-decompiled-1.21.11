@@ -10,16 +10,17 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
 public record TitleS2CPacket(Text text) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, TitleS2CPacket> CODEC = PacketCodec.tuple(
-      TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC, TitleS2CPacket::text, TitleS2CPacket::new
-   );
 
-   @Override
-   public PacketType<TitleS2CPacket> getPacketType() {
-      return PlayPackets.SET_TITLE_TEXT;
-   }
+	public static final PacketCodec<RegistryByteBuf, TitleS2CPacket> CODEC = PacketCodec.tuple(
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC, TitleS2CPacket::text, TitleS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onTitle(this);
-   }
+	@Override
+	public PacketType<TitleS2CPacket> getPacketType() {
+		return PlayPackets.SET_TITLE_TEXT;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onTitle(this);
+	}
 }

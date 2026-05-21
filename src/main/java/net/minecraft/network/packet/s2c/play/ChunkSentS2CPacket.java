@@ -8,22 +8,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record ChunkSentS2CPacket(int batchSize) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ChunkSentS2CPacket> CODEC = Packet.createCodec(ChunkSentS2CPacket::write, ChunkSentS2CPacket::new);
 
-   private ChunkSentS2CPacket(PacketByteBuf buf) {
-      this(buf.readVarInt());
-   }
+	public static final PacketCodec<PacketByteBuf, ChunkSentS2CPacket>
+			CODEC =
+			Packet.createCodec(ChunkSentS2CPacket::write, ChunkSentS2CPacket::new);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.batchSize);
-   }
+	private ChunkSentS2CPacket(PacketByteBuf buf) {
+		this(buf.readVarInt());
+	}
 
-   @Override
-   public PacketType<ChunkSentS2CPacket> getPacketType() {
-      return PlayPackets.CHUNK_BATCH_FINISHED;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.batchSize);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onChunkSent(this);
-   }
+	@Override
+	public PacketType<ChunkSentS2CPacket> getPacketType() {
+		return PlayPackets.CHUNK_BATCH_FINISHED;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onChunkSent(this);
+	}
 }

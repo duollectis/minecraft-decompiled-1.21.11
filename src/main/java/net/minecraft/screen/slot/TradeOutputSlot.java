@@ -7,60 +7,74 @@ import net.minecraft.village.Merchant;
 import net.minecraft.village.MerchantInventory;
 import net.minecraft.village.TradeOffer;
 
+/**
+ * {@code TradeOutputSlot}.
+ */
 public class TradeOutputSlot extends Slot {
-   private final MerchantInventory merchantInventory;
-   private final PlayerEntity player;
-   private int amount;
-   private final Merchant merchant;
 
-   public TradeOutputSlot(PlayerEntity player, Merchant merchant, MerchantInventory merchantInventory, int index, int x, int y) {
-      super(merchantInventory, index, x, y);
-      this.player = player;
-      this.merchant = merchant;
-      this.merchantInventory = merchantInventory;
-   }
+	private final MerchantInventory merchantInventory;
+	private final PlayerEntity player;
+	private int amount;
+	private final Merchant merchant;
 
-   @Override
-   public boolean canInsert(ItemStack stack) {
-      return false;
-   }
+	public TradeOutputSlot(
+			PlayerEntity player,
+			Merchant merchant,
+			MerchantInventory merchantInventory,
+			int index,
+			int x,
+			int y
+	) {
+		super(merchantInventory, index, x, y);
+		this.player = player;
+		this.merchant = merchant;
+		this.merchantInventory = merchantInventory;
+	}
 
-   @Override
-   public ItemStack takeStack(int amount) {
-      if (this.hasStack()) {
-         this.amount = this.amount + Math.min(amount, this.getStack().getCount());
-      }
+	@Override
+	public boolean canInsert(ItemStack stack) {
+		return false;
+	}
 
-      return super.takeStack(amount);
-   }
+	@Override
+	public ItemStack takeStack(int amount) {
+		if (this.hasStack()) {
+			this.amount = this.amount + Math.min(amount, this.getStack().getCount());
+		}
 
-   @Override
-   protected void onCrafted(ItemStack stack, int amount) {
-      this.amount += amount;
-      this.onCrafted(stack);
-   }
+		return super.takeStack(amount);
+	}
 
-   @Override
-   protected void onCrafted(ItemStack stack) {
-      stack.onCraftByPlayer(this.player, this.amount);
-      this.amount = 0;
-   }
+	@Override
+	protected void onCrafted(ItemStack stack, int amount) {
+		this.amount += amount;
+		this.onCrafted(stack);
+	}
 
-   @Override
-   public void onTakeItem(PlayerEntity player, ItemStack stack) {
-      this.onCrafted(stack);
-      TradeOffer tradeOffer = this.merchantInventory.getTradeOffer();
-      if (tradeOffer != null) {
-         ItemStack itemStack = this.merchantInventory.getStack(0);
-         ItemStack itemStack2 = this.merchantInventory.getStack(1);
-         if (tradeOffer.depleteBuyItems(itemStack, itemStack2) || tradeOffer.depleteBuyItems(itemStack2, itemStack)) {
-            this.merchant.trade(tradeOffer);
-            player.incrementStat(Stats.TRADED_WITH_VILLAGER);
-            this.merchantInventory.setStack(0, itemStack);
-            this.merchantInventory.setStack(1, itemStack2);
-         }
+	@Override
+	protected void onCrafted(ItemStack stack) {
+		stack.onCraftByPlayer(this.player, this.amount);
+		this.amount = 0;
+	}
 
-         this.merchant.setExperienceFromServer(this.merchant.getExperience() + tradeOffer.getMerchantExperience());
-      }
-   }
+	@Override
+	public void onTakeItem(PlayerEntity player, ItemStack stack) {
+		this.onCrafted(stack);
+		TradeOffer tradeOffer = this.merchantInventory.getTradeOffer();
+		if (tradeOffer != null) {
+			ItemStack itemStack = this.merchantInventory.getStack(0);
+			ItemStack itemStack2 = this.merchantInventory.getStack(1);
+			if (tradeOffer.depleteBuyItems(itemStack, itemStack2) || tradeOffer.depleteBuyItems(
+					itemStack2,
+					itemStack
+			)) {
+				this.merchant.trade(tradeOffer);
+				player.incrementStat(Stats.TRADED_WITH_VILLAGER);
+				this.merchantInventory.setStack(0, itemStack);
+				this.merchantInventory.setStack(1, itemStack2);
+			}
+
+			this.merchant.setExperienceFromServer(this.merchant.getExperience() + tradeOffer.getMerchantExperience());
+		}
+	}
 }

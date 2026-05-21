@@ -12,20 +12,26 @@ import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DamageProperty}.
+ */
 public record DamageProperty(boolean normalize) implements NumericProperty {
-   public static final MapCodec<DamageProperty> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codec.BOOL.optionalFieldOf("normalize", true).forGetter(DamageProperty::normalize)).apply(instance, DamageProperty::new)
-   );
 
-   @Override
-   public float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext context, int seed) {
-      float f = stack.getDamage();
-      float g = stack.getMaxDamage();
-      return this.normalize ? MathHelper.clamp(f / g, 0.0F, 1.0F) : MathHelper.clamp(f, 0.0F, g);
-   }
+	public static final MapCodec<DamageProperty> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codec.BOOL.optionalFieldOf("normalize", true).forGetter(DamageProperty::normalize))
+					.apply(instance, DamageProperty::new)
+	);
 
-   @Override
-   public MapCodec<DamageProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext context, int seed) {
+		float f = stack.getDamage();
+		float g = stack.getMaxDamage();
+		return this.normalize ? MathHelper.clamp(f / g, 0.0F, 1.0F) : MathHelper.clamp(f, 0.0F, g);
+	}
+
+	@Override
+	public MapCodec<DamageProperty> getCodec() {
+		return CODEC;
+	}
 }

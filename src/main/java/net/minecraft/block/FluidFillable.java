@@ -8,8 +8,18 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldAccess;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code FluidFillable}.
+ */
 public interface FluidFillable {
-   boolean canFillWithFluid(@Nullable LivingEntity filler, BlockView world, BlockPos pos, BlockState state, Fluid fluid);
 
-   boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState);
+	boolean canFillWithFluid(
+			@Nullable LivingEntity filler,
+			BlockView world,
+			BlockPos pos,
+			BlockState state,
+			Fluid fluid
+	);
+
+	boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState);
 }

@@ -7,31 +7,39 @@ import net.minecraft.util.collection.Pool;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code WeightedBlockStateProvider}.
+ */
 public class WeightedBlockStateProvider extends BlockStateProvider {
-   public static final MapCodec<WeightedBlockStateProvider> CODEC = Pool.createNonEmptyCodec(BlockState.CODEC)
-      .comapFlatMap(WeightedBlockStateProvider::wrap, weightedBlockStateProvider -> weightedBlockStateProvider.states)
-      .fieldOf("entries");
-   private final Pool<BlockState> states;
 
-   private static DataResult<WeightedBlockStateProvider> wrap(Pool<BlockState> states) {
-      return states.isEmpty() ? DataResult.error(() -> "WeightedStateProvider with no states") : DataResult.success(new WeightedBlockStateProvider(states));
-   }
+	public static final MapCodec<WeightedBlockStateProvider> CODEC = Pool.createNonEmptyCodec(BlockState.CODEC)
+	                                                                     .comapFlatMap(
+			                                                                     WeightedBlockStateProvider::wrap,
+			                                                                     weightedBlockStateProvider -> weightedBlockStateProvider.states
+	                                                                     )
+	                                                                     .fieldOf("entries");
+	private final Pool<BlockState> states;
 
-   public WeightedBlockStateProvider(Pool<BlockState> states) {
-      this.states = states;
-   }
+	private static DataResult<WeightedBlockStateProvider> wrap(Pool<BlockState> states) {
+		return states.isEmpty() ? DataResult.error(() -> "WeightedStateProvider with no states")
+		                        : DataResult.success(new WeightedBlockStateProvider(states));
+	}
 
-   public WeightedBlockStateProvider(Pool.Builder<BlockState> states) {
-      this(states.build());
-   }
+	public WeightedBlockStateProvider(Pool<BlockState> states) {
+		this.states = states;
+	}
 
-   @Override
-   protected BlockStateProviderType<?> getType() {
-      return BlockStateProviderType.WEIGHTED_STATE_PROVIDER;
-   }
+	public WeightedBlockStateProvider(Pool.Builder<BlockState> states) {
+		this(states.build());
+	}
 
-   @Override
-   public BlockState get(Random random, BlockPos pos) {
-      return this.states.get(random);
-   }
+	@Override
+	protected BlockStateProviderType<?> getType() {
+		return BlockStateProviderType.WEIGHTED_STATE_PROVIDER;
+	}
+
+	@Override
+	public BlockState get(Random random, BlockPos pos) {
+		return this.states.get(random);
+	}
 }

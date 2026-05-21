@@ -10,24 +10,36 @@ import net.minecraft.client.util.math.MatrixStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code OrderedRenderCommandQueue}.
+ */
 public interface OrderedRenderCommandQueue extends RenderCommandQueue {
-   RenderCommandQueue getBatchingQueue(int order);
 
-   @Environment(EnvType.CLIENT)
-   public interface Custom {
-      void render(MatrixStack.Entry matricesEntry, VertexConsumer vertexConsumer);
-   }
+	RenderCommandQueue getBatchingQueue(int order);
 
-   @Environment(EnvType.CLIENT)
-   public interface LayeredCustom {
-      BillboardParticleSubmittable.@Nullable Buffers submit(LayeredCustomCommandRenderer.VerticesCache cache);
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Custom}.
+	 */
+	public interface Custom {
 
-      void render(
-         BillboardParticleSubmittable.Buffers buffers,
-         LayeredCustomCommandRenderer.VerticesCache cache,
-         RenderPass renderPass,
-         TextureManager manager,
-         boolean translucent
-      );
-   }
+		void render(MatrixStack.Entry matricesEntry, VertexConsumer vertexConsumer);
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code LayeredCustom}.
+	 */
+	public interface LayeredCustom {
+
+		BillboardParticleSubmittable.@Nullable Buffers submit(LayeredCustomCommandRenderer.VerticesCache cache);
+
+		void render(
+				BillboardParticleSubmittable.Buffers buffers,
+				LayeredCustomCommandRenderer.VerticesCache cache,
+				RenderPass renderPass,
+				TextureManager manager,
+				boolean translucent
+		);
+	}
 }

@@ -8,43 +8,47 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code SoulFireBlock}.
+ */
 public class SoulFireBlock extends AbstractFireBlock {
-   public static final MapCodec<SoulFireBlock> CODEC = createCodec(SoulFireBlock::new);
 
-   @Override
-   public MapCodec<SoulFireBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SoulFireBlock> CODEC = createCodec(SoulFireBlock::new);
 
-   public SoulFireBlock(AbstractBlock.Settings settings) {
-      super(settings, 2.0F);
-   }
+	@Override
+	public MapCodec<SoulFireBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      return this.canPlaceAt(state, world, pos) ? this.getDefaultState() : Blocks.AIR.getDefaultState();
-   }
+	public SoulFireBlock(AbstractBlock.Settings settings) {
+		super(settings, 2.0F);
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      return isSoulBase(world.getBlockState(pos.down()));
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		return this.canPlaceAt(state, world, pos) ? this.getDefaultState() : Blocks.AIR.getDefaultState();
+	}
 
-   public static boolean isSoulBase(BlockState state) {
-      return state.isIn(BlockTags.SOUL_FIRE_BASE_BLOCKS);
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		return isSoulBase(world.getBlockState(pos.down()));
+	}
 
-   @Override
-   protected boolean isFlammable(BlockState state) {
-      return true;
-   }
+	public static boolean isSoulBase(BlockState state) {
+		return state.isIn(BlockTags.SOUL_FIRE_BASE_BLOCKS);
+	}
+
+	@Override
+	protected boolean isFlammable(BlockState state) {
+		return true;
+	}
 }

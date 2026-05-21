@@ -7,56 +7,65 @@ import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Buffers}.
+ */
 public final class Buffers implements AutoCloseable {
-   private GpuBuffer vertexBuffer;
-   private @Nullable GpuBuffer indexBuffer;
-   private int indexCount;
-   private VertexFormat.IndexType indexType;
 
-   public Buffers(GpuBuffer vertexBuffer, @Nullable GpuBuffer indexBuffer, int indexCount, VertexFormat.IndexType indexType) {
-      this.vertexBuffer = vertexBuffer;
-      this.indexBuffer = indexBuffer;
-      this.indexCount = indexCount;
-      this.indexType = indexType;
-   }
+	private GpuBuffer vertexBuffer;
+	private @Nullable GpuBuffer indexBuffer;
+	private int indexCount;
+	private VertexFormat.IndexType indexType;
 
-   public GpuBuffer getVertexBuffer() {
-      return this.vertexBuffer;
-   }
+	public Buffers(
+			GpuBuffer vertexBuffer,
+			@Nullable GpuBuffer indexBuffer,
+			int indexCount,
+			VertexFormat.IndexType indexType
+	) {
+		this.vertexBuffer = vertexBuffer;
+		this.indexBuffer = indexBuffer;
+		this.indexCount = indexCount;
+		this.indexType = indexType;
+	}
 
-   public @Nullable GpuBuffer getIndexBuffer() {
-      return this.indexBuffer;
-   }
+	public GpuBuffer getVertexBuffer() {
+		return this.vertexBuffer;
+	}
 
-   public void setIndexBuffer(@Nullable GpuBuffer indexBuffer) {
-      this.indexBuffer = indexBuffer;
-   }
+	public @Nullable GpuBuffer getIndexBuffer() {
+		return this.indexBuffer;
+	}
 
-   public int getIndexCount() {
-      return this.indexCount;
-   }
+	public void setIndexBuffer(@Nullable GpuBuffer indexBuffer) {
+		this.indexBuffer = indexBuffer;
+	}
 
-   public VertexFormat.IndexType getIndexType() {
-      return this.indexType;
-   }
+	public int getIndexCount() {
+		return this.indexCount;
+	}
 
-   public void setIndexType(VertexFormat.IndexType indexType) {
-      this.indexType = indexType;
-   }
+	public VertexFormat.IndexType getIndexType() {
+		return this.indexType;
+	}
 
-   public void setIndexCount(int indexCount) {
-      this.indexCount = indexCount;
-   }
+	public void setIndexType(VertexFormat.IndexType indexType) {
+		this.indexType = indexType;
+	}
 
-   public void setVertexBuffer(GpuBuffer vertexBuffer) {
-      this.vertexBuffer = vertexBuffer;
-   }
+	public void setIndexCount(int indexCount) {
+		this.indexCount = indexCount;
+	}
 
-   @Override
-   public void close() {
-      this.vertexBuffer.close();
-      if (this.indexBuffer != null) {
-         this.indexBuffer.close();
-      }
-   }
+	public void setVertexBuffer(GpuBuffer vertexBuffer) {
+		this.vertexBuffer = vertexBuffer;
+	}
+
+	@Override
+	public void close() {
+		this.vertexBuffer.close();
+		if (this.indexBuffer != null) {
+			this.indexBuffer.close();
+		}
+	}
 }

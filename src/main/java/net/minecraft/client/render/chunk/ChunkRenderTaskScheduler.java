@@ -1,73 +1,80 @@
 package net.minecraft.client.render.chunk;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.List;
-import java.util.ListIterator;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.ListIterator;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ChunkRenderTaskScheduler}.
+ */
 public class ChunkRenderTaskScheduler {
-   private static final int field_53953 = 2;
-   private int remainingPrioritizableTasks = 2;
-   private final List<ChunkBuilder.BuiltChunk.Task> queue = new ObjectArrayList();
 
-   public synchronized void enqueue(ChunkBuilder.BuiltChunk.Task task) {
-      this.queue.add(task);
-   }
+	private static final int MAX_UPLOAD_PER_FRAME = 2;
+	private int remainingPrioritizableTasks = 2;
+	private final List<ChunkBuilder.BuiltChunk.Task> queue = new ObjectArrayList();
 
-   public synchronized ChunkBuilder.BuiltChunk.@Nullable Task dequeueNearest(Vec3d pos) {
-      int i = -1;
-      int j = -1;
-      double d = Double.MAX_VALUE;
-      double e = Double.MAX_VALUE;
-      ListIterator<ChunkBuilder.BuiltChunk.Task> listIterator = this.queue.listIterator();
+	public synchronized void enqueue(ChunkBuilder.BuiltChunk.Task task) {
+		this.queue.add(task);
+	}
 
-      while (listIterator.hasNext()) {
-         int k = listIterator.nextIndex();
-         ChunkBuilder.BuiltChunk.Task task = listIterator.next();
-         if (task.cancelled.get()) {
-            listIterator.remove();
-         } else {
-            double f = task.getOrigin().getSquaredDistance(pos);
-            if (!task.isPrioritized() && f < d) {
-               d = f;
-               i = k;
-            }
+	public synchronized ChunkBuilder.BuiltChunk.@Nullable Task dequeueNearest(Vec3d pos) {
+		int i = -1;
+		int j = -1;
+		double d = Double.MAX_VALUE;
+		double e = Double.MAX_VALUE;
+		ListIterator<ChunkBuilder.BuiltChunk.Task> listIterator = this.queue.listIterator();
 
-            if (task.isPrioritized() && f < e) {
-               e = f;
-               j = k;
-            }
-         }
-      }
+		while (listIterator.hasNext()) {
+			int k = listIterator.nextIndex();
+			ChunkBuilder.BuiltChunk.Task task = listIterator.next();
+			if (task.cancelled.get()) {
+				listIterator.remove();
+			}
+			else {
+				double f = task.getOrigin().getSquaredDistance(pos);
+				if (!task.isPrioritized() && f < d) {
+					d = f;
+					i = k;
+				}
 
-      boolean bl = j >= 0;
-      boolean bl2 = i >= 0;
-      if (!bl || bl2 && (this.remainingPrioritizableTasks <= 0 || !(e < d))) {
-         this.remainingPrioritizableTasks = 2;
-         return this.remove(i);
-      } else {
-         this.remainingPrioritizableTasks--;
-         return this.remove(j);
-      }
-   }
+				if (task.isPrioritized() && f < e) {
+					e = f;
+					j = k;
+				}
+			}
+		}
 
-   public int size() {
-      return this.queue.size();
-   }
+		boolean bl = j >= 0;
+		boolean bl2 = i >= 0;
+		if (!bl || bl2 && (this.remainingPrioritizableTasks <= 0 || !(e < d))) {
+			this.remainingPrioritizableTasks = 2;
+			return this.remove(i);
+		}
+		else {
+			this.remainingPrioritizableTasks--;
+			return this.remove(j);
+		}
+	}
 
-   private ChunkBuilder.BuiltChunk.@Nullable Task remove(int index) {
-      return index >= 0 ? this.queue.remove(index) : null;
-   }
+	public int size() {
+		return this.queue.size();
+	}
 
-   public synchronized void cancelAll() {
-      for (ChunkBuilder.BuiltChunk.Task task : this.queue) {
-         task.cancel();
-      }
+	private ChunkBuilder.BuiltChunk.@Nullable Task remove(int index) {
+		return index >= 0 ? this.queue.remove(index) : null;
+	}
 
-      this.queue.clear();
-   }
+	public synchronized void cancelAll() {
+		for (ChunkBuilder.BuiltChunk.Task task : this.queue) {
+			task.cancel();
+		}
+
+		this.queue.clear();
+	}
 }

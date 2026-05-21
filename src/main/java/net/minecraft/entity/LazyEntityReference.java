@@ -3,8 +3,6 @@ package net.minecraft.entity;
 import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
-import java.util.Optional;
-import java.util.UUID;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.server.ServerConfigHandler;
@@ -16,126 +14,150 @@ import net.minecraft.world.entity.EntityQueriable;
 import net.minecraft.world.entity.UniquelyIdentifiable;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * {@code LazyEntityReference}.
+ */
 public final class LazyEntityReference<StoredEntityType extends UniquelyIdentifiable> {
-   private static final Codec<? extends LazyEntityReference<?>> CODEC = Uuids.INT_STREAM_CODEC.xmap(LazyEntityReference::new, LazyEntityReference::getUuid);
-   private static final PacketCodec<ByteBuf, ? extends LazyEntityReference<?>> PACKET_CODEC = Uuids.PACKET_CODEC
-      .xmap(LazyEntityReference::new, LazyEntityReference::getUuid);
-   private Either<UUID, StoredEntityType> value;
 
-   public static <Type extends UniquelyIdentifiable> Codec<LazyEntityReference<Type>> createCodec() {
-      return (Codec<LazyEntityReference<Type>>)CODEC;
-   }
+	private static final Codec<? extends LazyEntityReference<?>>
+			CODEC =
+			Uuids.INT_STREAM_CODEC.xmap(LazyEntityReference::new, LazyEntityReference::getUuid);
+	private static final PacketCodec<ByteBuf, ? extends LazyEntityReference<?>> PACKET_CODEC = Uuids.PACKET_CODEC
+			.xmap(LazyEntityReference::new, LazyEntityReference::getUuid);
+	private Either<UUID, StoredEntityType> value;
 
-   public static <Type extends UniquelyIdentifiable> PacketCodec<ByteBuf, LazyEntityReference<Type>> createPacketCodec() {
-      return (PacketCodec<ByteBuf, LazyEntityReference<Type>>)PACKET_CODEC;
-   }
+	public static <Type extends UniquelyIdentifiable> Codec<LazyEntityReference<Type>> createCodec() {
+		return (Codec<LazyEntityReference<Type>>) CODEC;
+	}
 
-   private LazyEntityReference(StoredEntityType value) {
-      this.value = Either.right(value);
-   }
+	public static <Type extends UniquelyIdentifiable> PacketCodec<ByteBuf, LazyEntityReference<Type>> createPacketCodec() {
+		return (PacketCodec<ByteBuf, LazyEntityReference<Type>>) PACKET_CODEC;
+	}
 
-   private LazyEntityReference(UUID value) {
-      this.value = Either.left(value);
-   }
+	private LazyEntityReference(StoredEntityType value) {
+		this.value = Either.right(value);
+	}
 
-   public static <T extends UniquelyIdentifiable> @Nullable LazyEntityReference<T> of(@Nullable T object) {
-      return object != null ? new LazyEntityReference<>(object) : null;
-   }
+	private LazyEntityReference(UUID value) {
+		this.value = Either.left(value);
+	}
 
-   public static <T extends UniquelyIdentifiable> LazyEntityReference<T> ofUUID(UUID uuid) {
-      return new LazyEntityReference<>(uuid);
-   }
+	public static <T extends UniquelyIdentifiable> @Nullable LazyEntityReference<T> of(@Nullable T object) {
+		return object != null ? new LazyEntityReference<>(object) : null;
+	}
 
-   public UUID getUuid() {
-      return (UUID)this.value.map(uuid -> uuid, UniquelyIdentifiable::getUuid);
-   }
+	public static <T extends UniquelyIdentifiable> LazyEntityReference<T> ofUUID(UUID uuid) {
+		return new LazyEntityReference<>(uuid);
+	}
 
-   public @Nullable StoredEntityType resolve(EntityQueriable<? extends UniquelyIdentifiable> world, Class<StoredEntityType> type) {
-      Optional<StoredEntityType> optional = this.value.right();
-      if (optional.isPresent()) {
-         StoredEntityType uniquelyIdentifiable = optional.get();
-         if (!uniquelyIdentifiable.isRemoved()) {
-            return uniquelyIdentifiable;
-         }
+	public UUID getUuid() {
+		return (UUID) this.value.map(uuid -> uuid, UniquelyIdentifiable::getUuid);
+	}
 
-         this.value = Either.left(uniquelyIdentifiable.getUuid());
-      }
+	public @Nullable StoredEntityType resolve(
+			EntityQueriable<? extends UniquelyIdentifiable> world,
+			Class<StoredEntityType> type
+	) {
+		Optional<StoredEntityType> optional = this.value.right();
+		if (optional.isPresent()) {
+			StoredEntityType uniquelyIdentifiable = optional.get();
+			if (!uniquelyIdentifiable.isRemoved()) {
+				return uniquelyIdentifiable;
+			}
 
-      Optional<UUID> optional2 = this.value.left();
-      if (optional2.isPresent()) {
-         StoredEntityType uniquelyIdentifiable2 = this.cast(world.lookup(optional2.get()), type);
-         if (uniquelyIdentifiable2 != null && !uniquelyIdentifiable2.isRemoved()) {
-            this.value = Either.right(uniquelyIdentifiable2);
-            return uniquelyIdentifiable2;
-         }
-      }
+			this.value = Either.left(uniquelyIdentifiable.getUuid());
+		}
 
-      return null;
-   }
+		Optional<UUID> optional2 = this.value.left();
+		if (optional2.isPresent()) {
+			StoredEntityType uniquelyIdentifiable2 = this.cast(world.lookup(optional2.get()), type);
+			if (uniquelyIdentifiable2 != null && !uniquelyIdentifiable2.isRemoved()) {
+				this.value = Either.right(uniquelyIdentifiable2);
+				return uniquelyIdentifiable2;
+			}
+		}
 
-   public @Nullable StoredEntityType getEntityByClass(World world, Class<StoredEntityType> clazz) {
-      return PlayerEntity.class.isAssignableFrom(clazz) ? this.resolve(world::getPlayerAnyDimension, clazz) : this.resolve(world::getEntityAnyDimension, clazz);
-   }
+		return null;
+	}
 
-   private @Nullable StoredEntityType cast(@Nullable UniquelyIdentifiable entity, Class<StoredEntityType> clazz) {
-      return entity != null && clazz.isAssignableFrom(entity.getClass()) ? clazz.cast(entity) : null;
-   }
+	public @Nullable StoredEntityType getEntityByClass(World world, Class<StoredEntityType> clazz) {
+		return PlayerEntity.class.isAssignableFrom(clazz) ? this.resolve(world::getPlayerAnyDimension, clazz)
+		                                                  : this.resolve(world::getEntityAnyDimension, clazz);
+	}
 
-   public boolean uuidEquals(StoredEntityType o) {
-      return this.getUuid().equals(o.getUuid());
-   }
+	private @Nullable StoredEntityType cast(@Nullable UniquelyIdentifiable entity, Class<StoredEntityType> clazz) {
+		return entity != null && clazz.isAssignableFrom(entity.getClass()) ? clazz.cast(entity) : null;
+	}
 
-   public void writeData(WriteView view, String key) {
-      view.put(key, Uuids.INT_STREAM_CODEC, this.getUuid());
-   }
+	public boolean uuidEquals(StoredEntityType o) {
+		return this.getUuid().equals(o.getUuid());
+	}
 
-   public static void writeData(@Nullable LazyEntityReference<?> entityRef, WriteView view, String key) {
-      if (entityRef != null) {
-         entityRef.writeData(view, key);
-      }
-   }
+	public void writeData(WriteView view, String key) {
+		view.put(key, Uuids.INT_STREAM_CODEC, this.getUuid());
+	}
 
-   public static <StoredEntityType extends UniquelyIdentifiable> @Nullable StoredEntityType resolve(
-      @Nullable LazyEntityReference<StoredEntityType> entity, World world, Class<StoredEntityType> type
-   ) {
-      return entity != null ? entity.getEntityByClass(world, type) : null;
-   }
+	public static void writeData(@Nullable LazyEntityReference<?> entityRef, WriteView view, String key) {
+		if (entityRef != null) {
+			entityRef.writeData(view, key);
+		}
+	}
 
-   public static @Nullable Entity getEntity(@Nullable LazyEntityReference<Entity> entityReference, World world) {
-      return resolve(entityReference, world, Entity.class);
-   }
+	public static <StoredEntityType extends UniquelyIdentifiable> @Nullable StoredEntityType resolve(
+			@Nullable LazyEntityReference<StoredEntityType> entity, World world, Class<StoredEntityType> type
+	) {
+		return entity != null ? entity.getEntityByClass(world, type) : null;
+	}
 
-   public static @Nullable LivingEntity getLivingEntity(@Nullable LazyEntityReference<LivingEntity> livingReference, World world) {
-      return resolve(livingReference, world, LivingEntity.class);
-   }
+	public static @Nullable Entity getEntity(@Nullable LazyEntityReference<Entity> entityReference, World world) {
+		return resolve(entityReference, world, Entity.class);
+	}
 
-   public static @Nullable PlayerEntity getPlayerEntity(@Nullable LazyEntityReference<PlayerEntity> playerReference, World world) {
-      return resolve(playerReference, world, PlayerEntity.class);
-   }
+	public static @Nullable LivingEntity getLivingEntity(
+			@Nullable LazyEntityReference<LivingEntity> livingReference,
+			World world
+	) {
+		return resolve(livingReference, world, LivingEntity.class);
+	}
 
-   public static <StoredEntityType extends UniquelyIdentifiable> @Nullable LazyEntityReference<StoredEntityType> fromData(ReadView view, String key) {
-      return view.<LazyEntityReference<StoredEntityType>>read(key, createCodec()).orElse(null);
-   }
+	public static @Nullable PlayerEntity getPlayerEntity(
+			@Nullable LazyEntityReference<PlayerEntity> playerReference,
+			World world
+	) {
+		return resolve(playerReference, world, PlayerEntity.class);
+	}
 
-   public static <StoredEntityType extends UniquelyIdentifiable> @Nullable LazyEntityReference<StoredEntityType> fromDataOrPlayerName(
-      ReadView view, String key, World world
-   ) {
-      Optional<UUID> optional = view.read(key, Uuids.INT_STREAM_CODEC);
-      return optional.isPresent()
-         ? ofUUID(optional.get())
-         : view.getOptionalString(key)
-            .map(name -> ServerConfigHandler.getPlayerUuidByName(world.getServer(), name))
-            .<LazyEntityReference<StoredEntityType>>map(LazyEntityReference::new)
-            .orElse(null);
-   }
+	public static <StoredEntityType extends UniquelyIdentifiable> @Nullable LazyEntityReference<StoredEntityType> fromData(
+			ReadView view,
+			String key
+	) {
+		return view.<LazyEntityReference<StoredEntityType>>read(key, createCodec()).orElse(null);
+	}
 
-   @Override
-   public boolean equals(Object object) {
-      return object == this ? true : object instanceof LazyEntityReference<?> lazyEntityReference && this.getUuid().equals(lazyEntityReference.getUuid());
-   }
+	public static <StoredEntityType extends UniquelyIdentifiable> @Nullable LazyEntityReference<StoredEntityType> fromDataOrPlayerName(
+			ReadView view, String key, World world
+	) {
+		Optional<UUID> optional = view.read(key, Uuids.INT_STREAM_CODEC);
+		return optional.isPresent()
+		       ? ofUUID(optional.get())
+		       : view.getOptionalString(key)
+		             .map(name -> ServerConfigHandler.getPlayerUuidByName(world.getServer(), name))
+		             .<LazyEntityReference<StoredEntityType>>map(LazyEntityReference::new)
+		             .orElse(null);
+	}
 
-   @Override
-   public int hashCode() {
-      return this.getUuid().hashCode();
-   }
+	@Override
+	public boolean equals(Object object) {
+		return object == this ? true : object instanceof LazyEntityReference<?> lazyEntityReference && this
+		                                                                                               .getUuid()
+		                                                                                               .equals(lazyEntityReference.getUuid());
+	}
+
+	@Override
+	public int hashCode() {
+		return this.getUuid().hashCode();
+	}
 }

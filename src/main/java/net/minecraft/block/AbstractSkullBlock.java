@@ -15,65 +15,80 @@ import net.minecraft.world.World;
 import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code AbstractSkullBlock}.
+ */
 public abstract class AbstractSkullBlock extends BlockWithEntity {
-   public static final BooleanProperty POWERED = Properties.POWERED;
-   private final SkullBlock.SkullType type;
 
-   public AbstractSkullBlock(SkullBlock.SkullType type, AbstractBlock.Settings settings) {
-      super(settings);
-      this.type = type;
-      this.setDefaultState(this.stateManager.getDefaultState().with(POWERED, false));
-   }
+	public static final BooleanProperty POWERED = Properties.POWERED;
+	private final SkullBlock.SkullType type;
 
-   @Override
-   protected abstract MapCodec<? extends AbstractSkullBlock> getCodec();
+	public AbstractSkullBlock(SkullBlock.SkullType type, AbstractBlock.Settings settings) {
+		super(settings);
+		this.type = type;
+		this.setDefaultState(this.stateManager.getDefaultState().with(POWERED, false));
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new SkullBlockEntity(pos, state);
-   }
+	@Override
+	protected abstract MapCodec<? extends AbstractSkullBlock> getCodec();
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      if (world.isClient()) {
-         boolean bl = state.isOf(Blocks.DRAGON_HEAD)
-            || state.isOf(Blocks.DRAGON_WALL_HEAD)
-            || state.isOf(Blocks.PIGLIN_HEAD)
-            || state.isOf(Blocks.PIGLIN_WALL_HEAD);
-         if (bl) {
-            return validateTicker(type, BlockEntityType.SKULL, SkullBlockEntity::tick);
-         }
-      }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new SkullBlockEntity(pos, state);
+	}
 
-      return null;
-   }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		if (world.isClient()) {
+			boolean bl = state.isOf(Blocks.DRAGON_HEAD)
+					|| state.isOf(Blocks.DRAGON_WALL_HEAD)
+					|| state.isOf(Blocks.PIGLIN_HEAD)
+					|| state.isOf(Blocks.PIGLIN_WALL_HEAD);
+			if (bl) {
+				return validateTicker(type, BlockEntityType.SKULL, SkullBlockEntity::tick);
+			}
+		}
 
-   public SkullBlock.SkullType getSkullType() {
-      return this.type;
-   }
+		return null;
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	public SkullBlock.SkullType getSkullType() {
+		return this.type;
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(POWERED);
-   }
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(POWERED, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()));
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(POWERED);
+	}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      if (!world.isClient()) {
-         boolean bl = world.isReceivingRedstonePower(pos);
-         if (bl != state.get(POWERED)) {
-            world.setBlockState(pos, state.with(POWERED, bl), 2);
-         }
-      }
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getDefaultState().with(POWERED, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()));
+	}
+
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		if (!world.isClient()) {
+			boolean bl = world.isReceivingRedstonePower(pos);
+			if (bl != state.get(POWERED)) {
+				world.setBlockState(pos, state.with(POWERED, bl), 2);
+			}
+		}
+	}
 }

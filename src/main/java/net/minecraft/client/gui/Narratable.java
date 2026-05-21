@@ -5,6 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Narratable}.
+ */
 public interface Narratable {
-   void appendNarrations(NarrationMessageBuilder builder);
+
+	void appendNarrations(NarrationMessageBuilder builder);
 }

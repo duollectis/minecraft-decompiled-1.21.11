@@ -11,21 +11,26 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
 public record GameMessageS2CPacket(Text content, boolean overlay) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, GameMessageS2CPacket> CODEC = PacketCodec.tuple(
-      TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC, GameMessageS2CPacket::content, PacketCodecs.BOOLEAN, GameMessageS2CPacket::overlay, GameMessageS2CPacket::new
-   );
 
-   @Override
-   public PacketType<GameMessageS2CPacket> getPacketType() {
-      return PlayPackets.SYSTEM_CHAT;
-   }
+	public static final PacketCodec<RegistryByteBuf, GameMessageS2CPacket> CODEC = PacketCodec.tuple(
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
+			GameMessageS2CPacket::content,
+			PacketCodecs.BOOLEAN,
+			GameMessageS2CPacket::overlay,
+			GameMessageS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onGameMessage(this);
-   }
+	@Override
+	public PacketType<GameMessageS2CPacket> getPacketType() {
+		return PlayPackets.SYSTEM_CHAT;
+	}
 
-   @Override
-   public boolean isWritingErrorSkippable() {
-      return true;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onGameMessage(this);
+	}
+
+	@Override
+	public boolean isWritingErrorSkippable() {
+		return true;
+	}
 }

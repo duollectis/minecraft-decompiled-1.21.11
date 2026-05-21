@@ -3,7 +3,6 @@ package net.minecraft.loot.provider.nbt;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Set;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.loot.context.LootContext;
@@ -13,49 +12,69 @@ import net.minecraft.predicate.NbtPredicate;
 import net.minecraft.util.context.ContextParameter;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Set;
+
+/**
+ * {@code ContextLootNbtProvider}.
+ */
 public class ContextLootNbtProvider implements LootNbtProvider {
-   private static final Codec<LootEntityValueSource<NbtElement>> TARGET_CODEC = LootEntityValueSource.createCodec(
-      builder -> builder.forBlockEntities(ContextLootNbtProvider.BlockEntityTarget::new).forEntities(ContextLootNbtProvider.EntityTarget::new)
-   );
-   public static final MapCodec<ContextLootNbtProvider> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(TARGET_CODEC.fieldOf("target").forGetter(provider -> provider.target)).apply(instance, ContextLootNbtProvider::new)
-   );
-   public static final Codec<ContextLootNbtProvider> INLINE_CODEC = TARGET_CODEC.xmap(ContextLootNbtProvider::new, provider -> provider.target);
-   private final LootEntityValueSource<NbtElement> target;
 
-   private ContextLootNbtProvider(LootEntityValueSource<NbtElement> target) {
-      this.target = target;
-   }
+	private static final Codec<LootEntityValueSource<NbtElement>> TARGET_CODEC = LootEntityValueSource.createCodec(
+			builder -> builder
+					.forBlockEntities(ContextLootNbtProvider.BlockEntityTarget::new)
+					.forEntities(ContextLootNbtProvider.EntityTarget::new)
+	);
+	public static final MapCodec<ContextLootNbtProvider> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(TARGET_CODEC.fieldOf("target").forGetter(provider -> provider.target))
+					.apply(instance, ContextLootNbtProvider::new)
+	);
+	public static final Codec<ContextLootNbtProvider>
+			INLINE_CODEC =
+			TARGET_CODEC.xmap(ContextLootNbtProvider::new, provider -> provider.target);
+	private final LootEntityValueSource<NbtElement> target;
 
-   @Override
-   public LootNbtProviderType getType() {
-      return LootNbtProviderTypes.CONTEXT;
-   }
+	private ContextLootNbtProvider(LootEntityValueSource<NbtElement> target) {
+		this.target = target;
+	}
 
-   @Override
-   public @Nullable NbtElement getNbt(LootContext context) {
-      return this.target.get(context);
-   }
+	@Override
+	public LootNbtProviderType getType() {
+		return LootNbtProviderTypes.CONTEXT;
+	}
 
-   @Override
-   public Set<ContextParameter<?>> getRequiredParameters() {
-      return Set.of(this.target.contextParam());
-   }
+	@Override
+	public @Nullable NbtElement getNbt(LootContext context) {
+		return this.target.get(context);
+	}
 
-   public static LootNbtProvider fromTarget(LootContext.EntityReference target) {
-      return new ContextLootNbtProvider(new ContextLootNbtProvider.EntityTarget(target.contextParam()));
-   }
+	@Override
+	public Set<ContextParameter<?>> getRequiredParameters() {
+		return Set.of(this.target.contextParam());
+	}
 
-   record BlockEntityTarget(ContextParameter<? extends BlockEntity> contextParam)
-      implements LootEntityValueSource.ContextComponentBased<BlockEntity, NbtElement> {
-      public NbtElement get(BlockEntity blockEntity) {
-         return blockEntity.createNbtWithIdentifyingData(blockEntity.getWorld().getRegistryManager());
-      }
-   }
+	public static LootNbtProvider fromTarget(LootContext.EntityReference target) {
+		return new ContextLootNbtProvider(new ContextLootNbtProvider.EntityTarget(target.contextParam()));
+	}
 
-   record EntityTarget(ContextParameter<? extends Entity> contextParam) implements LootEntityValueSource.ContextComponentBased<Entity, NbtElement> {
-      public NbtElement get(Entity entity) {
-         return NbtPredicate.entityToNbt(entity);
-      }
-   }
+	/**
+	 * {@code BlockEntityTarget}.
+	 */
+	record BlockEntityTarget(ContextParameter<? extends BlockEntity> contextParam)
+			implements LootEntityValueSource.ContextComponentBased<BlockEntity, NbtElement> {
+
+		public NbtElement get(BlockEntity blockEntity) {
+			return blockEntity.createNbtWithIdentifyingData(blockEntity.getWorld().getRegistryManager());
+		}
+	}
+
+	/**
+	 * {@code EntityTarget}.
+	 */
+	record EntityTarget(ContextParameter<? extends Entity> contextParam) implements LootEntityValueSource.ContextComponentBased<Entity, NbtElement> {
+
+		public NbtElement get(Entity entity) {
+			return NbtPredicate.entityToNbt(entity);
+		}
+	}
 }

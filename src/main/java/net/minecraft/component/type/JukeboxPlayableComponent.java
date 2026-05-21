@@ -1,7 +1,6 @@
 package net.minecraft.component.type;
 
 import com.mojang.serialization.Codec;
-import java.util.function.Consumer;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.JukeboxBlock;
@@ -29,47 +28,62 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+import java.util.function.Consumer;
+
+/**
+ * {@code JukeboxPlayableComponent}.
+ */
 public record JukeboxPlayableComponent(LazyRegistryEntryReference<JukeboxSong> song) implements TooltipAppender {
-   public static final Codec<JukeboxPlayableComponent> CODEC = LazyRegistryEntryReference.createCodec(RegistryKeys.JUKEBOX_SONG, JukeboxSong.ENTRY_CODEC)
-      .xmap(JukeboxPlayableComponent::new, JukeboxPlayableComponent::song);
-   public static final PacketCodec<RegistryByteBuf, JukeboxPlayableComponent> PACKET_CODEC = PacketCodec.tuple(
-      LazyRegistryEntryReference.createPacketCodec(RegistryKeys.JUKEBOX_SONG, JukeboxSong.ENTRY_PACKET_CODEC),
-      JukeboxPlayableComponent::song,
-      JukeboxPlayableComponent::new
-   );
 
-   @Override
-   public void appendTooltip(Item.TooltipContext context, Consumer<Text> textConsumer, TooltipType type, ComponentsAccess components) {
-      RegistryWrapper.WrapperLookup wrapperLookup = context.getRegistryLookup();
-      if (wrapperLookup != null) {
-         this.song.resolveEntry(wrapperLookup).ifPresent(entry -> {
-            Text text = Texts.withStyle(entry.value().description(), Style.EMPTY.withColor(Formatting.GRAY));
-            textConsumer.accept(text);
-         });
-      }
-   }
+	public static final Codec<JukeboxPlayableComponent>
+			CODEC =
+			LazyRegistryEntryReference.createCodec(RegistryKeys.JUKEBOX_SONG, JukeboxSong.ENTRY_CODEC)
+			                          .xmap(JukeboxPlayableComponent::new, JukeboxPlayableComponent::song);
+	public static final PacketCodec<RegistryByteBuf, JukeboxPlayableComponent> PACKET_CODEC = PacketCodec.tuple(
+			LazyRegistryEntryReference.createPacketCodec(RegistryKeys.JUKEBOX_SONG, JukeboxSong.ENTRY_PACKET_CODEC),
+			JukeboxPlayableComponent::song,
+			JukeboxPlayableComponent::new
+	);
 
-   public static ActionResult tryPlayStack(World world, BlockPos pos, ItemStack stack, PlayerEntity player) {
-      JukeboxPlayableComponent jukeboxPlayableComponent = stack.get(DataComponentTypes.JUKEBOX_PLAYABLE);
-      if (jukeboxPlayableComponent == null) {
-         return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-      } else {
-         BlockState blockState = world.getBlockState(pos);
-         if (blockState.isOf(Blocks.JUKEBOX) && !blockState.get(JukeboxBlock.HAS_RECORD)) {
-            if (!world.isClient()) {
-               ItemStack itemStack = stack.splitUnlessCreative(1, player);
-               if (world.getBlockEntity(pos) instanceof JukeboxBlockEntity jukeboxBlockEntity) {
-                  jukeboxBlockEntity.setStack(itemStack);
-                  world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(player, blockState));
-               }
+	@Override
+	public void appendTooltip(
+			Item.TooltipContext context,
+			Consumer<Text> textConsumer,
+			TooltipType type,
+			ComponentsAccess components
+	) {
+		RegistryWrapper.WrapperLookup wrapperLookup = context.getRegistryLookup();
+		if (wrapperLookup != null) {
+			this.song.resolveEntry(wrapperLookup).ifPresent(entry -> {
+				Text text = Texts.withStyle(entry.value().description(), Style.EMPTY.withColor(Formatting.GRAY));
+				textConsumer.accept(text);
+			});
+		}
+	}
 
-               player.incrementStat(Stats.PLAY_RECORD);
-            }
+	public static ActionResult tryPlayStack(World world, BlockPos pos, ItemStack stack, PlayerEntity player) {
+		JukeboxPlayableComponent jukeboxPlayableComponent = stack.get(DataComponentTypes.JUKEBOX_PLAYABLE);
+		if (jukeboxPlayableComponent == null) {
+			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+		}
+		else {
+			BlockState blockState = world.getBlockState(pos);
+			if (blockState.isOf(Blocks.JUKEBOX) && !blockState.get(JukeboxBlock.HAS_RECORD)) {
+				if (!world.isClient()) {
+					ItemStack itemStack = stack.splitUnlessCreative(1, player);
+					if (world.getBlockEntity(pos) instanceof JukeboxBlockEntity jukeboxBlockEntity) {
+						jukeboxBlockEntity.setStack(itemStack);
+						world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(player, blockState));
+					}
 
-            return ActionResult.SUCCESS;
-         } else {
-            return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-         }
-      }
-   }
+					player.incrementStat(Stats.PLAY_RECORD);
+				}
+
+				return ActionResult.SUCCESS;
+			}
+			else {
+				return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+			}
+		}
+	}
 }

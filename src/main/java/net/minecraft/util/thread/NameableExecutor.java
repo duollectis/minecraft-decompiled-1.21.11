@@ -2,113 +2,127 @@ package net.minecraft.util.thread;
 
 import com.mojang.jtracy.TracyClient;
 import com.mojang.jtracy.Zone;
+import net.minecraft.SharedConstants;
+
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import net.minecraft.SharedConstants;
 
+/**
+ * {@code NameableExecutor}.
+ */
 public record NameableExecutor(ExecutorService service) implements Executor {
-   public Executor named(String name) {
-      if (SharedConstants.isDevelopment) {
-         return runnable -> this.service.execute(() -> {
-            Thread thread = Thread.currentThread();
-            String string2 = thread.getName();
-            thread.setName(name);
 
-            try {
-               Zone zone = TracyClient.beginZone(name, SharedConstants.isDevelopment);
+	public Executor named(String name) {
+		if (SharedConstants.isDevelopment) {
+			return runnable -> this.service.execute(() -> {
+				Thread thread = Thread.currentThread();
+				String string2 = thread.getName();
+				thread.setName(name);
 
-               try {
-                  runnable.run();
-               } catch (Throwable var12) {
-                  if (zone != null) {
-                     try {
-                        zone.close();
-                     } catch (Throwable var11) {
-                        var12.addSuppressed(var11);
-                     }
-                  }
+				try {
+					Zone zone = TracyClient.beginZone(name, SharedConstants.isDevelopment);
 
-                  throw var12;
-               }
+					try {
+						runnable.run();
+					}
+					catch (Throwable var12) {
+						if (zone != null) {
+							try {
+								zone.close();
+							}
+							catch (Throwable var11) {
+								var12.addSuppressed(var11);
+							}
+						}
 
-               if (zone != null) {
-                  zone.close();
-               }
-            } finally {
-               thread.setName(string2);
-            }
-         });
-      } else {
-         if (TracyClient.isAvailable()) {
-            return runnable -> this.service.execute(() -> {
-               Zone zone = TracyClient.beginZone(name, SharedConstants.isDevelopment);
+						throw var12;
+					}
 
-               try {
-                  runnable.run();
-               } catch (Throwable var6) {
-                  if (zone != null) {
-                     try {
-                        zone.close();
-                     } catch (Throwable var5) {
-                        var6.addSuppressed(var5);
-                     }
-                  }
+					if (zone != null) {
+						zone.close();
+					}
+				}
+				finally {
+					thread.setName(string2);
+				}
+			});
+		}
+		else {
+			if (TracyClient.isAvailable()) {
+				return runnable -> this.service.execute(() -> {
+					Zone zone = TracyClient.beginZone(name, SharedConstants.isDevelopment);
 
-                  throw var6;
-               }
+					try {
+						runnable.run();
+					}
+					catch (Throwable var6) {
+						if (zone != null) {
+							try {
+								zone.close();
+							}
+							catch (Throwable var5) {
+								var6.addSuppressed(var5);
+							}
+						}
 
-               if (zone != null) {
-                  zone.close();
-               }
-            });
-         }
+						throw var6;
+					}
 
-         return this.service;
-      }
-   }
+					if (zone != null) {
+						zone.close();
+					}
+				});
+			}
 
-   @Override
-   public void execute(Runnable runnable) {
-      this.service.execute(wrapForTracy(runnable));
-   }
+			return this.service;
+		}
+	}
 
-   public void shutdown(long time, TimeUnit unit) {
-      this.service.shutdown();
+	@Override
+	public void execute(Runnable runnable) {
+		this.service.execute(wrapForTracy(runnable));
+	}
 
-      boolean bl;
-      try {
-         bl = this.service.awaitTermination(time, unit);
-      } catch (InterruptedException var6) {
-         bl = false;
-      }
+	public void shutdown(long time, TimeUnit unit) {
+		this.service.shutdown();
 
-      if (!bl) {
-         this.service.shutdownNow();
-      }
-   }
+		boolean bl;
+		try {
+			bl = this.service.awaitTermination(time, unit);
+		}
+		catch (InterruptedException var6) {
+			bl = false;
+		}
 
-   private static Runnable wrapForTracy(Runnable runnable) {
-      return !TracyClient.isAvailable() ? runnable : () -> {
-         Zone zone = TracyClient.beginZone("task", SharedConstants.isDevelopment);
+		if (!bl) {
+			this.service.shutdownNow();
+		}
+	}
 
-         try {
-            runnable.run();
-         } catch (Throwable var5) {
-            if (zone != null) {
-               try {
-                  zone.close();
-               } catch (Throwable var4) {
-                  var5.addSuppressed(var4);
-               }
-            }
+	private static Runnable wrapForTracy(Runnable runnable) {
+		return !TracyClient.isAvailable() ? runnable : () -> {
+			Zone zone = TracyClient.beginZone("task", SharedConstants.isDevelopment);
 
-            throw var5;
-         }
+			try {
+				runnable.run();
+			}
+			catch (Throwable var5) {
+				if (zone != null) {
+					try {
+						zone.close();
+					}
+					catch (Throwable var4) {
+						var5.addSuppressed(var4);
+					}
+				}
 
-         if (zone != null) {
-            zone.close();
-         }
-      };
-   }
+				throw var5;
+			}
+
+			if (zone != null) {
+				zone.close();
+			}
+		};
+	}
 }

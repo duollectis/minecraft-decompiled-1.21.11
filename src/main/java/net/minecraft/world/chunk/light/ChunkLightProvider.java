@@ -3,7 +3,6 @@ package net.minecraft.world.chunk.light;
 import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import java.util.Arrays;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -17,308 +16,326 @@ import net.minecraft.world.chunk.ChunkProvider;
 import net.minecraft.world.chunk.ChunkToNibbleArrayMap;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+
+/**
+ * {@code ChunkLightProvider}.
+ */
 public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S extends LightStorage<M>> implements ChunkLightingView {
-   public static final int field_44729 = 15;
-   protected static final int field_44730 = 1;
-   protected static final long field_44731 = ChunkLightProvider.PackedInfo.packWithAllDirectionsSet(1);
-   private static final int field_44732 = 512;
-   protected static final Direction[] DIRECTIONS = Direction.values();
-   protected final ChunkProvider chunkProvider;
-   protected final S lightStorage;
-   private final LongOpenHashSet blockPositionsToCheck = new LongOpenHashSet(512, 0.5F);
-   private final LongArrayFIFOQueue field_44734 = new LongArrayFIFOQueue();
-   private final LongArrayFIFOQueue field_44735 = new LongArrayFIFOQueue();
-   private static final int field_31709 = 2;
-   private final long[] cachedChunkPositions = new long[2];
-   private final LightSourceView[] cachedChunks = new LightSourceView[2];
 
-   protected ChunkLightProvider(ChunkProvider chunkProvider, S lightStorage) {
-      this.chunkProvider = chunkProvider;
-      this.lightStorage = lightStorage;
-      this.clearChunkCache();
-   }
+	public static final int MAX_LIGHT_LEVEL = 15;
+	protected static final int INITIAL_LIGHT_LEVEL = 1;
+	protected static final long INITIAL_PACKED_INFO = ChunkLightProvider.PackedInfo.packWithAllDirectionsSet(1);
+	private static final int BLOCK_POSITIONS_INITIAL_CAPACITY = 512;
+	protected static final Direction[] DIRECTIONS = Direction.values();
+	protected final ChunkProvider chunkProvider;
+	protected final S lightStorage;
+	private final LongOpenHashSet blockPositionsToCheck = new LongOpenHashSet(512, 0.5F);
+	private final LongArrayFIFOQueue lightDecreaseQueue = new LongArrayFIFOQueue();
+	private final LongArrayFIFOQueue lightIncreaseQueue = new LongArrayFIFOQueue();
+	private static final int CHUNK_CACHE_SIZE = 2;
+	private final long[] cachedChunkPositions = new long[2];
+	private final LightSourceView[] cachedChunks = new LightSourceView[2];
 
-   public static boolean needsLightUpdate(BlockState oldState, BlockState newState) {
-      return newState == oldState
-         ? false
-         : newState.getOpacity() != oldState.getOpacity()
-            || newState.getLuminance() != oldState.getLuminance()
-            || newState.hasSidedTransparency()
-            || oldState.hasSidedTransparency();
-   }
+	protected ChunkLightProvider(ChunkProvider chunkProvider, S lightStorage) {
+		this.chunkProvider = chunkProvider;
+		this.lightStorage = lightStorage;
+		this.clearChunkCache();
+	}
 
-   public static int getRealisticOpacity(BlockState state1, BlockState state2, Direction direction, int opacity2) {
-      boolean bl = isTrivialForLighting(state1);
-      boolean bl2 = isTrivialForLighting(state2);
-      if (bl && bl2) {
-         return opacity2;
-      } else {
-         VoxelShape voxelShape = bl ? VoxelShapes.empty() : state1.getCullingShape();
-         VoxelShape voxelShape2 = bl2 ? VoxelShapes.empty() : state2.getCullingShape();
-         return VoxelShapes.adjacentSidesCoverSquare(voxelShape, voxelShape2, direction) ? 16 : opacity2;
-      }
-   }
+	public static boolean needsLightUpdate(BlockState oldState, BlockState newState) {
+		return newState == oldState
+		       ? false
+		       : newState.getOpacity() != oldState.getOpacity()
+		         || newState.getLuminance() != oldState.getLuminance()
+		         || newState.hasSidedTransparency()
+		         || oldState.hasSidedTransparency();
+	}
 
-   public static VoxelShape getOpaqueShape(BlockState state, Direction direction) {
-      return isTrivialForLighting(state) ? VoxelShapes.empty() : state.getCullingFace(direction);
-   }
+	public static int getRealisticOpacity(BlockState state1, BlockState state2, Direction direction, int opacity2) {
+		boolean bl = isTrivialForLighting(state1);
+		boolean bl2 = isTrivialForLighting(state2);
+		if (bl && bl2) {
+			return opacity2;
+		}
+		else {
+			VoxelShape voxelShape = bl ? VoxelShapes.empty() : state1.getCullingShape();
+			VoxelShape voxelShape2 = bl2 ? VoxelShapes.empty() : state2.getCullingShape();
+			return VoxelShapes.adjacentSidesCoverSquare(voxelShape, voxelShape2, direction) ? 16 : opacity2;
+		}
+	}
 
-   protected static boolean isTrivialForLighting(BlockState blockState) {
-      return !blockState.isOpaque() || !blockState.hasSidedTransparency();
-   }
+	public static VoxelShape getOpaqueShape(BlockState state, Direction direction) {
+		return isTrivialForLighting(state) ? VoxelShapes.empty() : state.getCullingFace(direction);
+	}
 
-   protected BlockState getStateForLighting(BlockPos pos) {
-      int i = ChunkSectionPos.getSectionCoord(pos.getX());
-      int j = ChunkSectionPos.getSectionCoord(pos.getZ());
-      LightSourceView lightSourceView = this.getChunk(i, j);
-      return lightSourceView == null ? Blocks.BEDROCK.getDefaultState() : lightSourceView.getBlockState(pos);
-   }
+	protected static boolean isTrivialForLighting(BlockState blockState) {
+		return !blockState.isOpaque() || !blockState.hasSidedTransparency();
+	}
 
-   protected int getOpacity(BlockState state) {
-      return Math.max(1, state.getOpacity());
-   }
+	protected BlockState getStateForLighting(BlockPos pos) {
+		int i = ChunkSectionPos.getSectionCoord(pos.getX());
+		int j = ChunkSectionPos.getSectionCoord(pos.getZ());
+		LightSourceView lightSourceView = this.getChunk(i, j);
+		return lightSourceView == null ? Blocks.BEDROCK.getDefaultState() : lightSourceView.getBlockState(pos);
+	}
 
-   protected boolean shapesCoverFullCube(BlockState source, BlockState target, Direction direction) {
-      VoxelShape voxelShape = getOpaqueShape(source, direction);
-      VoxelShape voxelShape2 = getOpaqueShape(target, direction.getOpposite());
-      return VoxelShapes.unionCoversFullCube(voxelShape, voxelShape2);
-   }
+	protected int getOpacity(BlockState state) {
+		return Math.max(1, state.getOpacity());
+	}
 
-   protected @Nullable LightSourceView getChunk(int chunkX, int chunkZ) {
-      long l = ChunkPos.toLong(chunkX, chunkZ);
+	protected boolean shapesCoverFullCube(BlockState source, BlockState target, Direction direction) {
+		VoxelShape voxelShape = getOpaqueShape(source, direction);
+		VoxelShape voxelShape2 = getOpaqueShape(target, direction.getOpposite());
+		return VoxelShapes.unionCoversFullCube(voxelShape, voxelShape2);
+	}
 
-      for (int i = 0; i < 2; i++) {
-         if (l == this.cachedChunkPositions[i]) {
-            return this.cachedChunks[i];
-         }
-      }
+	protected @Nullable LightSourceView getChunk(int chunkX, int chunkZ) {
+		long l = ChunkPos.toLong(chunkX, chunkZ);
 
-      LightSourceView lightSourceView = this.chunkProvider.getChunk(chunkX, chunkZ);
+		for (int i = 0; i < 2; i++) {
+			if (l == this.cachedChunkPositions[i]) {
+				return this.cachedChunks[i];
+			}
+		}
 
-      for (int j = 1; j > 0; j--) {
-         this.cachedChunkPositions[j] = this.cachedChunkPositions[j - 1];
-         this.cachedChunks[j] = this.cachedChunks[j - 1];
-      }
+		LightSourceView lightSourceView = this.chunkProvider.getChunk(chunkX, chunkZ);
 
-      this.cachedChunkPositions[0] = l;
-      this.cachedChunks[0] = lightSourceView;
-      return lightSourceView;
-   }
+		for (int j = 1; j > 0; j--) {
+			this.cachedChunkPositions[j] = this.cachedChunkPositions[j - 1];
+			this.cachedChunks[j] = this.cachedChunks[j - 1];
+		}
 
-   private void clearChunkCache() {
-      Arrays.fill(this.cachedChunkPositions, ChunkPos.MARKER);
-      Arrays.fill(this.cachedChunks, null);
-   }
+		this.cachedChunkPositions[0] = l;
+		this.cachedChunks[0] = lightSourceView;
+		return lightSourceView;
+	}
 
-   @Override
-   public void checkBlock(BlockPos pos) {
-      this.blockPositionsToCheck.add(pos.asLong());
-   }
+	private void clearChunkCache() {
+		Arrays.fill(this.cachedChunkPositions, ChunkPos.MARKER);
+		Arrays.fill(this.cachedChunks, null);
+	}
 
-   public void enqueueSectionData(long sectionPos, @Nullable ChunkNibbleArray lightArray) {
-      this.lightStorage.enqueueSectionData(sectionPos, lightArray);
-   }
+	@Override
+	public void checkBlock(BlockPos pos) {
+		this.blockPositionsToCheck.add(pos.asLong());
+	}
 
-   public void setRetainColumn(ChunkPos pos, boolean retainData) {
-      this.lightStorage.setRetainColumn(ChunkSectionPos.withZeroY(pos.x, pos.z), retainData);
-   }
+	public void enqueueSectionData(long sectionPos, @Nullable ChunkNibbleArray lightArray) {
+		this.lightStorage.enqueueSectionData(sectionPos, lightArray);
+	}
 
-   @Override
-   public void setSectionStatus(ChunkSectionPos pos, boolean notReady) {
-      this.lightStorage.setSectionStatus(pos.asLong(), notReady);
-   }
+	public void setRetainColumn(ChunkPos pos, boolean retainData) {
+		this.lightStorage.setRetainColumn(ChunkSectionPos.withZeroY(pos.x, pos.z), retainData);
+	}
 
-   @Override
-   public void setColumnEnabled(ChunkPos pos, boolean retainData) {
-      this.lightStorage.setColumnEnabled(ChunkSectionPos.withZeroY(pos.x, pos.z), retainData);
-   }
+	@Override
+	public void setSectionStatus(ChunkSectionPos pos, boolean notReady) {
+		this.lightStorage.setSectionStatus(pos.asLong(), notReady);
+	}
 
-   @Override
-   public int doLightUpdates() {
-      LongIterator longIterator = this.blockPositionsToCheck.iterator();
+	@Override
+	public void setColumnEnabled(ChunkPos pos, boolean retainData) {
+		this.lightStorage.setColumnEnabled(ChunkSectionPos.withZeroY(pos.x, pos.z), retainData);
+	}
 
-      while (longIterator.hasNext()) {
-         this.checkForLightUpdate(longIterator.nextLong());
-      }
+	@Override
+	public int doLightUpdates() {
+		LongIterator longIterator = this.blockPositionsToCheck.iterator();
 
-      this.blockPositionsToCheck.clear();
-      this.blockPositionsToCheck.trim(512);
-      int i = 0;
-      i += this.method_51570();
-      i += this.method_51567();
-      this.clearChunkCache();
-      this.lightStorage.updateLight(this);
-      this.lightStorage.notifyChanges();
-      return i;
-   }
+		while (longIterator.hasNext()) {
+			this.checkForLightUpdate(longIterator.nextLong());
+		}
 
-   private int method_51567() {
-      int i;
-      for (i = 0; !this.field_44735.isEmpty(); i++) {
-         long l = this.field_44735.dequeueLong();
-         long m = this.field_44735.dequeueLong();
-         int j = this.lightStorage.get(l);
-         int k = ChunkLightProvider.PackedInfo.getLightLevel(m);
-         if (ChunkLightProvider.PackedInfo.forceSet(m) && j < k) {
-            this.lightStorage.set(l, k);
-            j = k;
-         }
+		this.blockPositionsToCheck.clear();
+		this.blockPositionsToCheck.trim(512);
+		int i = 0;
+		i += this.processLightDecreaseQueue();
+		i += this.processLightIncreaseQueue();
+		this.clearChunkCache();
+		this.lightStorage.updateLight(this);
+		this.lightStorage.notifyChanges();
+		return i;
+	}
 
-         if (j == k) {
-            this.propagateLightIncrease(l, m, j);
-         }
-      }
+	private int processLightIncreaseQueue() {
+		int i;
+		for (i = 0; !this.lightIncreaseQueue.isEmpty(); i++) {
+			long l = this.lightIncreaseQueue.dequeueLong();
+			long m = this.lightIncreaseQueue.dequeueLong();
+			int j = this.lightStorage.get(l);
+			int k = ChunkLightProvider.PackedInfo.getLightLevel(m);
+			if (ChunkLightProvider.PackedInfo.forceSet(m) && j < k) {
+				this.lightStorage.set(l, k);
+				j = k;
+			}
 
-      return i;
-   }
+			if (j == k) {
+				this.propagateLightIncrease(l, m, j);
+			}
+		}
 
-   private int method_51570() {
-      int i;
-      for (i = 0; !this.field_44734.isEmpty(); i++) {
-         long l = this.field_44734.dequeueLong();
-         long m = this.field_44734.dequeueLong();
-         this.propagateLightDecrease(l, m);
-      }
+		return i;
+	}
 
-      return i;
-   }
+	private int processLightDecreaseQueue() {
+		int i;
+		for (i = 0; !this.lightDecreaseQueue.isEmpty(); i++) {
+			long l = this.lightDecreaseQueue.dequeueLong();
+			long m = this.lightDecreaseQueue.dequeueLong();
+			this.propagateLightDecrease(l, m);
+		}
 
-   protected void queueLightDecrease(long blockPos, long flags) {
-      this.field_44734.enqueue(blockPos);
-      this.field_44734.enqueue(flags);
-   }
+		return i;
+	}
 
-   protected void queueLightIncrease(long blockPos, long flags) {
-      this.field_44735.enqueue(blockPos);
-      this.field_44735.enqueue(flags);
-   }
+	protected void queueLightDecrease(long blockPos, long flags) {
+		this.lightDecreaseQueue.enqueue(blockPos);
+		this.lightDecreaseQueue.enqueue(flags);
+	}
 
-   @Override
-   public boolean hasUpdates() {
-      return this.lightStorage.hasLightUpdates() || !this.blockPositionsToCheck.isEmpty() || !this.field_44734.isEmpty() || !this.field_44735.isEmpty();
-   }
+	protected void queueLightIncrease(long blockPos, long flags) {
+		this.lightIncreaseQueue.enqueue(blockPos);
+		this.lightIncreaseQueue.enqueue(flags);
+	}
 
-   @Override
-   public @Nullable ChunkNibbleArray getLightSection(ChunkSectionPos pos) {
-      return this.lightStorage.getLightSection(pos.asLong());
-   }
+	@Override
+	public boolean hasUpdates() {
+		return this.lightStorage.hasLightUpdates() || !this.blockPositionsToCheck.isEmpty()
+				|| !this.lightDecreaseQueue.isEmpty() || !this.lightIncreaseQueue.isEmpty();
+	}
 
-   @Override
-   public int getLightLevel(BlockPos pos) {
-      return this.lightStorage.getLight(pos.asLong());
-   }
+	@Override
+	public @Nullable ChunkNibbleArray getLightSection(ChunkSectionPos pos) {
+		return this.lightStorage.getLightSection(pos.asLong());
+	}
 
-   public String displaySectionLevel(long sectionPos) {
-      return this.getStatus(sectionPos).getSigil();
-   }
+	@Override
+	public int getLightLevel(BlockPos pos) {
+		return this.lightStorage.getLight(pos.asLong());
+	}
 
-   public LightStorage.Status getStatus(long sectionPos) {
-      return this.lightStorage.getStatus(sectionPos);
-   }
+	public String displaySectionLevel(long sectionPos) {
+		return this.getStatus(sectionPos).getSigil();
+	}
 
-   protected abstract void checkForLightUpdate(long blockPos);
+	public LightStorage.Status getStatus(long sectionPos) {
+		return this.lightStorage.getStatus(sectionPos);
+	}
 
-   protected abstract void propagateLightIncrease(long blockPos, long packed, int lightLevel);
+	protected abstract void checkForLightUpdate(long blockPos);
 
-   protected abstract void propagateLightDecrease(long blockPos, long packed);
+	protected abstract void propagateLightIncrease(long blockPos, long packed, int lightLevel);
 
-   public static class PackedInfo {
-      private static final int DIRECTION_BIT_OFFSET = 4;
-      private static final int field_44738 = 6;
-      private static final long LIGHT_LEVEL_MASK = 15L;
-      private static final long DIRECTION_BIT_MASK = 1008L;
-      private static final long TRIVIAL_FLAG = 1024L;
-      private static final long FORCE_SET_FLAG = 2048L;
+	protected abstract void propagateLightDecrease(long blockPos, long packed);
 
-      public static long packWithOneDirectionCleared(int lightLevel, Direction direction) {
-         long l = clearDirectionBit(1008L, direction);
-         return withLightLevel(l, lightLevel);
-      }
+	/**
+	 * {@code PackedInfo}.
+	 */
+	public static class PackedInfo {
 
-      public static long packWithAllDirectionsSet(int lightLevel) {
-         return withLightLevel(1008L, lightLevel);
-      }
+		private static final int DIRECTION_BIT_OFFSET = 4;
+		private static final int DIRECTION_COUNT = 6;
+		private static final long LIGHT_LEVEL_MASK = 15L;
+		private static final long DIRECTION_BIT_MASK = 1008L;
+		private static final long TRIVIAL_FLAG = 1024L;
+		private static final long FORCE_SET_FLAG = 2048L;
 
-      public static long packWithForce(int lightLevel, boolean trivial) {
-         long l = 1008L;
-         l |= 2048L;
-         if (trivial) {
-            l |= 1024L;
-         }
+		public static long packWithOneDirectionCleared(int lightLevel, Direction direction) {
+			long l = clearDirectionBit(1008L, direction);
+			return withLightLevel(l, lightLevel);
+		}
 
-         return withLightLevel(l, lightLevel);
-      }
+		public static long packWithAllDirectionsSet(int lightLevel) {
+			return withLightLevel(1008L, lightLevel);
+		}
 
-      public static long packWithOneDirectionCleared(int lightLevel, boolean trivial, Direction direction) {
-         long l = clearDirectionBit(1008L, direction);
-         if (trivial) {
-            l |= 1024L;
-         }
+		public static long packWithForce(int lightLevel, boolean trivial) {
+			long l = 1008L;
+			l |= 2048L;
+			if (trivial) {
+				l |= 1024L;
+			}
 
-         return withLightLevel(l, lightLevel);
-      }
+			return withLightLevel(l, lightLevel);
+		}
 
-      public static long packWithRepropagate(int lightLevel, boolean trivial, Direction direction) {
-         long l = 0L;
-         if (trivial) {
-            l |= 1024L;
-         }
+		public static long packWithOneDirectionCleared(int lightLevel, boolean trivial, Direction direction) {
+			long l = clearDirectionBit(1008L, direction);
+			if (trivial) {
+				l |= 1024L;
+			}
 
-         l = setDirectionBit(l, direction);
-         return withLightLevel(l, lightLevel);
-      }
+			return withLightLevel(l, lightLevel);
+		}
 
-      public static long packSkyLightPropagation(boolean down, boolean north, boolean south, boolean west, boolean east) {
-         long l = withLightLevel(0L, 15);
-         if (down) {
-            l = setDirectionBit(l, Direction.DOWN);
-         }
+		public static long packWithRepropagate(int lightLevel, boolean trivial, Direction direction) {
+			long l = 0L;
+			if (trivial) {
+				l |= 1024L;
+			}
 
-         if (north) {
-            l = setDirectionBit(l, Direction.NORTH);
-         }
+			l = setDirectionBit(l, direction);
+			return withLightLevel(l, lightLevel);
+		}
 
-         if (south) {
-            l = setDirectionBit(l, Direction.SOUTH);
-         }
+		public static long packSkyLightPropagation(
+				boolean down,
+				boolean north,
+				boolean south,
+				boolean west,
+				boolean east
+		) {
+			long l = withLightLevel(0L, 15);
+			if (down) {
+				l = setDirectionBit(l, Direction.DOWN);
+			}
 
-         if (west) {
-            l = setDirectionBit(l, Direction.WEST);
-         }
+			if (north) {
+				l = setDirectionBit(l, Direction.NORTH);
+			}
 
-         if (east) {
-            l = setDirectionBit(l, Direction.EAST);
-         }
+			if (south) {
+				l = setDirectionBit(l, Direction.SOUTH);
+			}
 
-         return l;
-      }
+			if (west) {
+				l = setDirectionBit(l, Direction.WEST);
+			}
 
-      public static int getLightLevel(long packed) {
-         return (int)(packed & 15L);
-      }
+			if (east) {
+				l = setDirectionBit(l, Direction.EAST);
+			}
 
-      public static boolean isTrivial(long packed) {
-         return (packed & 1024L) != 0L;
-      }
+			return l;
+		}
 
-      public static boolean forceSet(long packed) {
-         return (packed & 2048L) != 0L;
-      }
+		public static int getLightLevel(long packed) {
+			return (int) (packed & 15L);
+		}
 
-      public static boolean isDirectionBitSet(long packed, Direction direction) {
-         return (packed & 1L << direction.ordinal() + 4) != 0L;
-      }
+		public static boolean isTrivial(long packed) {
+			return (packed & 1024L) != 0L;
+		}
 
-      private static long withLightLevel(long packed, int lightLevel) {
-         return packed & -16L | lightLevel & 15L;
-      }
+		public static boolean forceSet(long packed) {
+			return (packed & 2048L) != 0L;
+		}
 
-      private static long setDirectionBit(long packed, Direction direction) {
-         return packed | 1L << direction.ordinal() + 4;
-      }
+		public static boolean isDirectionBitSet(long packed, Direction direction) {
+			return (packed & 1L << direction.ordinal() + 4) != 0L;
+		}
 
-      private static long clearDirectionBit(long packed, Direction direction) {
-         return packed & ~(1L << direction.ordinal() + 4);
-      }
-   }
+		private static long withLightLevel(long packed, int lightLevel) {
+			return packed & -16L | lightLevel & 15L;
+		}
+
+		private static long setDirectionBit(long packed, Direction direction) {
+			return packed | 1L << direction.ordinal() + 4;
+		}
+
+		private static long clearDirectionBit(long packed, Direction direction) {
+			return packed & ~(1L << direction.ordinal() + 4);
+		}
+	}
 }

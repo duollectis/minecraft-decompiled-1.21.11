@@ -2,8 +2,6 @@ package net.minecraft.client.network;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.logging.LogUtils;
-import java.util.List;
-import java.util.function.Function;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -24,12 +22,7 @@ import net.minecraft.network.packet.c2s.config.AcceptCodeOfConductC2SPacket;
 import net.minecraft.network.packet.c2s.config.ReadyC2SPacket;
 import net.minecraft.network.packet.c2s.config.SelectKnownPacksC2SPacket;
 import net.minecraft.network.packet.s2c.common.SynchronizeTagsS2CPacket;
-import net.minecraft.network.packet.s2c.config.CodeOfConductS2CPacket;
-import net.minecraft.network.packet.s2c.config.DynamicRegistriesS2CPacket;
-import net.minecraft.network.packet.s2c.config.FeaturesS2CPacket;
-import net.minecraft.network.packet.s2c.config.ReadyS2CPacket;
-import net.minecraft.network.packet.s2c.config.ResetChatS2CPacket;
-import net.minecraft.network.packet.s2c.config.SelectKnownPacksS2CPacket;
+import net.minecraft.network.packet.s2c.config.*;
 import net.minecraft.network.state.PlayStateFactories;
 import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.VersionedIdentifier;
@@ -41,170 +34,202 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.List;
+import java.util.function.Function;
+
+/**
+ * Обработчик пакетов фазы конфигурации на стороне клиента.
+ * Принимает реестры, теги, фичи и датапаки от сервера,
+ * затем переходит в фазу игры при получении {@link ReadyS2CPacket}.
+ */
 @Environment(EnvType.CLIENT)
-public class ClientConfigurationNetworkHandler extends ClientCommonNetworkHandler implements ClientConfigurationPacketListener, TickablePacketListener {
-   static final Logger LOGGER = LogUtils.getLogger();
-   public static final Text CODE_OF_CONDUCT_DISCONNECT_REASON = Text.translatable("multiplayer.disconnect.code_of_conduct");
-   private final ClientChunkLoadProgress chunkLoadProgress;
-   private final GameProfile profile;
-   private FeatureSet enabledFeatures;
-   private final DynamicRegistryManager.Immutable registryManager;
-   private final ClientRegistries clientRegistries = new ClientRegistries();
-   private @Nullable ClientDataPackManager dataPackManager;
-   protected ChatHud.@Nullable ChatState chatState;
-   private boolean receivedCodeOfConduct;
+public class ClientConfigurationNetworkHandler
+		extends ClientCommonNetworkHandler
+		implements ClientConfigurationPacketListener, TickablePacketListener {
 
-   public ClientConfigurationNetworkHandler(MinecraftClient minecraftClient, ClientConnection clientConnection, ClientConnectionState clientConnectionState) {
-      super(minecraftClient, clientConnection, clientConnectionState);
-      this.chunkLoadProgress = clientConnectionState.chunkLoadProgress();
-      this.profile = clientConnectionState.localGameProfile();
-      this.registryManager = clientConnectionState.receivedRegistries();
-      this.enabledFeatures = clientConnectionState.enabledFeatures();
-      this.chatState = clientConnectionState.chatState();
-   }
+	static final Logger LOGGER = LogUtils.getLogger();
 
-   @Override
-   public boolean isConnectionOpen() {
-      return this.connection.isOpen();
-   }
+	/**
+	 * Причина отключения при отказе от кодекса поведения.
+	 */
+	public static final Text CODE_OF_CONDUCT_DISCONNECT_REASON =
+			Text.translatable("multiplayer.disconnect.code_of_conduct");
 
-   @Override
-   protected void onCustomPayload(CustomPayload payload) {
-      this.handleCustomPayload(payload);
-   }
+	private final ClientChunkLoadProgress chunkLoadProgress;
+	private final GameProfile profile;
+	private FeatureSet enabledFeatures;
+	private final DynamicRegistryManager.Immutable registryManager;
+	private final ClientRegistries clientRegistries = new ClientRegistries();
+	private @Nullable ClientDataPackManager dataPackManager;
+	protected ChatHud.@Nullable ChatState chatState;
+	private boolean receivedCodeOfConduct;
 
-   private void handleCustomPayload(CustomPayload payload) {
-      LOGGER.warn("Unknown custom packet payload: {}", payload.getId().id());
-   }
+	/**
+	 * @param minecraftClient  клиент Minecraft
+	 * @param clientConnection сетевое соединение
+	 * @param connectionState  снимок состояния соединения
+	 */
+	public ClientConfigurationNetworkHandler(
+			MinecraftClient minecraftClient,
+			ClientConnection clientConnection,
+			ClientConnectionState connectionState
+	) {
+		super(minecraftClient, clientConnection, connectionState);
+		chunkLoadProgress = connectionState.chunkLoadProgress();
+		profile = connectionState.localGameProfile();
+		registryManager = connectionState.receivedRegistries();
+		enabledFeatures = connectionState.enabledFeatures();
+		chatState = connectionState.chatState();
+	}
 
-   @Override
-   public void onDynamicRegistries(DynamicRegistriesS2CPacket packet) {
-      NetworkThreadUtils.forceMainThread(packet, this, this.client.getPacketApplyBatcher());
-      this.clientRegistries.putDynamicRegistry(packet.registry(), packet.entries());
-   }
+	@Override
+	public boolean isConnectionOpen() {
+		return connection.isOpen();
+	}
 
-   @Override
-   public void onSynchronizeTags(SynchronizeTagsS2CPacket packet) {
-      NetworkThreadUtils.forceMainThread(packet, this, this.client.getPacketApplyBatcher());
-      this.clientRegistries.putTags(packet.getGroups());
-   }
+	@Override
+	protected void onCustomPayload(CustomPayload payload) {
+		LOGGER.warn("Unknown custom packet payload: {}", payload.getId().id());
+	}
 
-   @Override
-   public void onFeatures(FeaturesS2CPacket packet) {
-      this.enabledFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(packet.features());
-   }
+	@Override
+	public void onDynamicRegistries(DynamicRegistriesS2CPacket packet) {
+		NetworkThreadUtils.forceMainThread(packet, this, client.getPacketApplyBatcher());
+		clientRegistries.putDynamicRegistry(packet.registry(), packet.entries());
+	}
 
-   @Override
-   public void onSelectKnownPacks(SelectKnownPacksS2CPacket packet) {
-      NetworkThreadUtils.forceMainThread(packet, this, this.client.getPacketApplyBatcher());
-      if (this.dataPackManager == null) {
-         this.dataPackManager = new ClientDataPackManager();
-      }
+	@Override
+	public void onSynchronizeTags(SynchronizeTagsS2CPacket packet) {
+		NetworkThreadUtils.forceMainThread(packet, this, client.getPacketApplyBatcher());
+		clientRegistries.putTags(packet.getGroups());
+	}
 
-      List<VersionedIdentifier> list = this.dataPackManager.getCommonKnownPacks(packet.knownPacks());
-      this.sendPacket(new SelectKnownPacksC2SPacket(list));
-   }
+	@Override
+	public void onFeatures(FeaturesS2CPacket packet) {
+		enabledFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(packet.features());
+	}
 
-   @Override
-   public void onResetChat(ResetChatS2CPacket packet) {
-      this.chatState = null;
-   }
+	@Override
+	public void onSelectKnownPacks(SelectKnownPacksS2CPacket packet) {
+		NetworkThreadUtils.forceMainThread(packet, this, client.getPacketApplyBatcher());
 
-   private <T> T openClientDataPack(Function<ResourceFactory, T> opener) {
-      if (this.dataPackManager == null) {
-         return opener.apply(ResourceFactory.MISSING);
-      } else {
-         Object var3;
-         try (LifecycledResourceManager lifecycledResourceManager = this.dataPackManager.createResourceManager()) {
-            var3 = opener.apply(lifecycledResourceManager);
-         }
+		if (dataPackManager == null) {
+			dataPackManager = new ClientDataPackManager();
+		}
 
-         return (T)var3;
-      }
-   }
+		List<VersionedIdentifier> commonPacks = dataPackManager.getCommonKnownPacks(packet.knownPacks());
+		sendPacket(new SelectKnownPacksC2SPacket(commonPacks));
+	}
 
-   @Override
-   public void onCodeOfConduct(CodeOfConductS2CPacket packet) {
-      NetworkThreadUtils.forceMainThread(packet, this, this.client.getPacketApplyBatcher());
-      if (this.receivedCodeOfConduct) {
-         throw new IllegalStateException("Server sent duplicate Code of Conduct");
-      } else {
-         this.receivedCodeOfConduct = true;
-         String string = packet.codeOfConduct();
-         if (this.serverInfo != null && this.serverInfo.hasAcceptedCodeOfConduct(string)) {
-            this.sendPacket(AcceptCodeOfConductC2SPacket.INSTANCE);
-         } else {
-            Screen screen = this.client.currentScreen;
-            this.client.setScreen(new CodeOfConductScreen(this.serverInfo, screen, string, acknowledged -> {
-               if (acknowledged) {
-                  this.sendPacket(AcceptCodeOfConductC2SPacket.INSTANCE);
-                  this.client.setScreen(screen);
-               } else {
-                  this.createDialogNetworkAccess().disconnect(CODE_OF_CONDUCT_DISCONNECT_REASON);
-               }
-            }));
-         }
-      }
-   }
+	@Override
+	public void onResetChat(ResetChatS2CPacket packet) {
+		chatState = null;
+	}
 
-   @Override
-   public void onReady(ReadyS2CPacket packet) {
-      NetworkThreadUtils.forceMainThread(packet, this, this.client.getPacketApplyBatcher());
-      DynamicRegistryManager.Immutable immutable = this.openClientDataPack(
-         factory -> this.clientRegistries.createRegistryManager(factory, this.registryManager, this.connection.isLocal())
-      );
-      this.connection
-         .transitionInbound(
-            PlayStateFactories.S2C.bind(RegistryByteBuf.makeFactory(immutable)),
-            new ClientPlayNetworkHandler(
-               this.client,
-               this.connection,
-               new ClientConnectionState(
-                  this.chunkLoadProgress,
-                  this.profile,
-                  this.worldSession,
-                  immutable,
-                  this.enabledFeatures,
-                  this.brand,
-                  this.serverInfo,
-                  this.postDisconnectScreen,
-                  this.serverCookies,
-                  this.chatState,
-                  this.customReportDetails,
-                  this.getServerLinks(),
-                  this.seenPlayers,
-                  this.seenInsecureChatWarning
-               )
-            )
-         );
-      this.connection.send(ReadyC2SPacket.INSTANCE);
-      this.connection
-         .transitionOutbound(PlayStateFactories.C2S.bind(RegistryByteBuf.makeFactory(immutable), new PlayStateFactories.PacketCodecModifierContext() {
-            @Override
-            public boolean isInCreativeMode() {
-               return true;
-            }
-         }));
-   }
+	@Override
+	public void onCodeOfConduct(CodeOfConductS2CPacket packet) {
+		NetworkThreadUtils.forceMainThread(packet, this, client.getPacketApplyBatcher());
 
-   @Override
-   public void tick() {
-      this.sendQueuedPackets();
-   }
+		if (receivedCodeOfConduct) {
+			throw new IllegalStateException("Server sent duplicate Code of Conduct");
+		}
 
-   @Override
-   public void onDisconnected(DisconnectionInfo info) {
-      super.onDisconnected(info);
-      this.client.onDisconnected();
-   }
+		receivedCodeOfConduct = true;
+		String codeText = packet.codeOfConduct();
 
-   @Override
-   protected DialogNetworkAccess createDialogNetworkAccess() {
-      return new ClientCommonNetworkHandler.CommonDialogNetworkAccess() {
-         @Override
-         public void runClickEventCommand(String command, @Nullable Screen afterActionScreen) {
-            ClientConfigurationNetworkHandler.LOGGER.warn("Commands are not supported in configuration phase, trying to run '{}'", command);
-         }
-      };
-   }
+		if (serverInfo != null && serverInfo.hasAcceptedCodeOfConduct(codeText)) {
+			sendPacket(AcceptCodeOfConductC2SPacket.INSTANCE);
+			return;
+		}
+
+		Screen previousScreen = client.currentScreen;
+		client.setScreen(new CodeOfConductScreen(
+				serverInfo, previousScreen, codeText, acknowledged -> {
+			if (acknowledged) {
+				sendPacket(AcceptCodeOfConductC2SPacket.INSTANCE);
+				client.setScreen(previousScreen);
+			}
+			else {
+				createDialogNetworkAccess().disconnect(CODE_OF_CONDUCT_DISCONNECT_REASON);
+			}
+		}
+		));
+	}
+
+	@Override
+	public void onReady(ReadyS2CPacket packet) {
+		NetworkThreadUtils.forceMainThread(packet, this, client.getPacketApplyBatcher());
+
+		DynamicRegistryManager.Immutable finalRegistries = openClientDataPack(
+				factory -> clientRegistries.createRegistryManager(factory, registryManager, connection.isLocal())
+		);
+
+		connection.transitionInbound(
+				PlayStateFactories.S2C.bind(RegistryByteBuf.makeFactory(finalRegistries)),
+				new ClientPlayNetworkHandler(
+						client,
+						connection,
+						new ClientConnectionState(
+								chunkLoadProgress,
+								profile,
+								worldSession,
+								finalRegistries,
+								enabledFeatures,
+								brand,
+								serverInfo,
+								postDisconnectScreen,
+								serverCookies,
+								chatState,
+								customReportDetails,
+								getServerLinks(),
+								seenPlayers,
+								seenInsecureChatWarning
+						)
+				)
+		);
+
+		connection.send(ReadyC2SPacket.INSTANCE);
+		connection.transitionOutbound(
+				PlayStateFactories.C2S.bind(
+						RegistryByteBuf.makeFactory(finalRegistries),
+						new PlayStateFactories.PacketCodecModifierContext() {
+							@Override
+							public boolean isInCreativeMode() {
+								return true;
+							}
+						}
+				)
+		);
+	}
+
+	@Override
+	public void tick() {
+		sendQueuedPackets();
+	}
+
+	@Override
+	public void onDisconnected(DisconnectionInfo info) {
+		super.onDisconnected(info);
+		client.onDisconnected();
+	}
+
+	@Override
+	protected DialogNetworkAccess createDialogNetworkAccess() {
+		return new ClientCommonNetworkHandler.CommonDialogNetworkAccess() {
+			@Override
+			public void runClickEventCommand(String command, @Nullable Screen afterActionScreen) {
+				LOGGER.warn("Commands are not supported in configuration phase, trying to run '{}'", command);
+			}
+		};
+	}
+
+	private <T> T openClientDataPack(Function<ResourceFactory, T> opener) {
+		if (dataPackManager == null) {
+			return opener.apply(ResourceFactory.MISSING);
+		}
+
+		try (LifecycledResourceManager manager = dataPackManager.createResourceManager()) {
+			return opener.apply(manager);
+		}
+	}
 }

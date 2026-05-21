@@ -1,6 +1,5 @@
 package net.minecraft.entity.mob;
 
-import java.util.Optional;
 import net.minecraft.entity.LazyEntityReference;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -11,132 +10,149 @@ import net.minecraft.world.World;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+
+/**
+ * {@code Angerable}.
+ */
 public interface Angerable {
-   String ANGER_END_TIME_KEY = "anger_end_time";
-   String ANGRY_AT_KEY = "angry_at";
-   long NO_ANGER_END_TIME = -1L;
 
-   long getAngerEndTime();
+	String ANGER_END_TIME_KEY = "anger_end_time";
 
-   default void setAngerDuration(long durationInTicks) {
-      this.setAngerEndTime(this.getEntityWorld().getTime() + durationInTicks);
-   }
+	String ANGRY_AT_KEY = "angry_at";
 
-   void setAngerEndTime(long angerEndTime);
+	long NO_ANGER_END_TIME = -1L;
 
-   @Nullable LazyEntityReference<LivingEntity> getAngryAt();
+	long getAngerEndTime();
 
-   void setAngryAt(@Nullable LazyEntityReference<LivingEntity> angryAt);
+	default void setAngerDuration(long durationInTicks) {
+		this.setAngerEndTime(this.getEntityWorld().getTime() + durationInTicks);
+	}
 
-   void chooseRandomAngerTime();
+	void setAngerEndTime(long angerEndTime);
 
-   World getEntityWorld();
+	@Nullable LazyEntityReference<LivingEntity> getAngryAt();
 
-   default void writeAngerToData(WriteView view) {
-      view.putLong("anger_end_time", this.getAngerEndTime());
-      view.putNullable("angry_at", LazyEntityReference.createCodec(), this.getAngryAt());
-   }
+	void setAngryAt(@Nullable LazyEntityReference<LivingEntity> angryAt);
 
-   default void readAngerFromData(World world, ReadView view) {
-      Optional<Long> optional = view.getOptionalLong("anger_end_time");
-      if (optional.isPresent()) {
-         this.setAngerEndTime(optional.get());
-      } else {
-         Optional<Integer> optional2 = view.getOptionalInt("AngerTime");
-         if (optional2.isPresent()) {
-            this.setAngerDuration(optional2.get().intValue());
-         } else {
-            this.setAngerEndTime(-1L);
-         }
-      }
+	void chooseRandomAngerTime();
 
-      if (world instanceof ServerWorld) {
-         this.setAngryAt(LazyEntityReference.fromData(view, "angry_at"));
-         this.setTarget(LazyEntityReference.getLivingEntity(this.getAngryAt(), world));
-      }
-   }
+	World getEntityWorld();
 
-   default void tickAngerLogic(ServerWorld world, boolean angerPersistent) {
-      LivingEntity livingEntity = this.getTarget();
-      LazyEntityReference<LivingEntity> lazyEntityReference = this.getAngryAt();
-      if (livingEntity != null
-         && livingEntity.isDead()
-         && lazyEntityReference != null
-         && lazyEntityReference.uuidEquals(livingEntity)
-         && livingEntity instanceof MobEntity) {
-         this.stopAnger();
-      } else {
-         if (livingEntity != null) {
-            if (lazyEntityReference == null || !lazyEntityReference.uuidEquals(livingEntity)) {
-               this.setAngryAt(LazyEntityReference.of(livingEntity));
-            }
+	default void writeAngerToData(WriteView view) {
+		view.putLong("anger_end_time", this.getAngerEndTime());
+		view.putNullable("angry_at", LazyEntityReference.createCodec(), this.getAngryAt());
+	}
 
-            this.chooseRandomAngerTime();
-         }
+	default void readAngerFromData(World world, ReadView view) {
+		Optional<Long> optional = view.getOptionalLong("anger_end_time");
+		if (optional.isPresent()) {
+			this.setAngerEndTime(optional.get());
+		}
+		else {
+			Optional<Integer> optional2 = view.getOptionalInt("AngerTime");
+			if (optional2.isPresent()) {
+				this.setAngerDuration(optional2.get().intValue());
+			}
+			else {
+				this.setAngerEndTime(-1L);
+			}
+		}
 
-         if (lazyEntityReference != null && !this.hasAngerTime() && (livingEntity == null || !canAngerAt(livingEntity) || !angerPersistent)) {
-            this.stopAnger();
-         }
-      }
-   }
+		if (world instanceof ServerWorld) {
+			this.setAngryAt(LazyEntityReference.fromData(view, "angry_at"));
+			this.setTarget(LazyEntityReference.getLivingEntity(this.getAngryAt(), world));
+		}
+	}
 
-   private static boolean canAngerAt(LivingEntity target) {
-      return target instanceof PlayerEntity playerEntity && !playerEntity.isCreative() && !playerEntity.isSpectator();
-   }
+	default void tickAngerLogic(ServerWorld world, boolean angerPersistent) {
+		LivingEntity livingEntity = this.getTarget();
+		LazyEntityReference<LivingEntity> lazyEntityReference = this.getAngryAt();
+		if (livingEntity != null
+				&& livingEntity.isDead()
+				&& lazyEntityReference != null
+				&& lazyEntityReference.uuidEquals(livingEntity)
+				&& livingEntity instanceof MobEntity) {
+			this.stopAnger();
+		}
+		else {
+			if (livingEntity != null) {
+				if (lazyEntityReference == null || !lazyEntityReference.uuidEquals(livingEntity)) {
+					this.setAngryAt(LazyEntityReference.of(livingEntity));
+				}
 
-   default boolean shouldAngerAt(LivingEntity target, ServerWorld world) {
-      if (!this.canTarget(target)) {
-         return false;
-      } else if (canAngerAt(target) && this.isUniversallyAngry(world)) {
-         return true;
-      } else {
-         LazyEntityReference<LivingEntity> lazyEntityReference = this.getAngryAt();
-         return lazyEntityReference != null && lazyEntityReference.uuidEquals(target);
-      }
-   }
+				this.chooseRandomAngerTime();
+			}
 
-   default boolean isUniversallyAngry(ServerWorld world) {
-      return world.getGameRules().getValue(GameRules.UNIVERSAL_ANGER) && this.hasAngerTime() && this.getAngryAt() == null;
-   }
+			if (lazyEntityReference != null && !this.hasAngerTime() && (livingEntity == null
+					|| !canAngerAt(livingEntity) || !angerPersistent
+			)) {
+				this.stopAnger();
+			}
+		}
+	}
 
-   default boolean hasAngerTime() {
-      long l = this.getAngerEndTime();
-      if (l > 0L) {
-         long m = l - this.getEntityWorld().getTime();
-         return m > 0L;
-      } else {
-         return false;
-      }
-   }
+	private static boolean canAngerAt(LivingEntity target) {
+		return target instanceof PlayerEntity playerEntity && !playerEntity.isCreative() && !playerEntity.isSpectator();
+	}
 
-   default void forgive(ServerWorld world, PlayerEntity player) {
-      if (world.getGameRules().getValue(GameRules.FORGIVE_DEAD_PLAYERS)) {
-         LazyEntityReference<LivingEntity> lazyEntityReference = this.getAngryAt();
-         if (lazyEntityReference != null && lazyEntityReference.uuidEquals(player)) {
-            this.stopAnger();
-         }
-      }
-   }
+	default boolean shouldAngerAt(LivingEntity target, ServerWorld world) {
+		if (!this.canTarget(target)) {
+			return false;
+		}
+		else if (canAngerAt(target) && this.isUniversallyAngry(world)) {
+			return true;
+		}
+		else {
+			LazyEntityReference<LivingEntity> lazyEntityReference = this.getAngryAt();
+			return lazyEntityReference != null && lazyEntityReference.uuidEquals(target);
+		}
+	}
 
-   default void universallyAnger() {
-      this.stopAnger();
-      this.chooseRandomAngerTime();
-   }
+	default boolean isUniversallyAngry(ServerWorld world) {
+		return world.getGameRules().getValue(GameRules.UNIVERSAL_ANGER) && this.hasAngerTime()
+				&& this.getAngryAt() == null;
+	}
 
-   default void stopAnger() {
-      this.setAttacker(null);
-      this.setAngryAt(null);
-      this.setTarget(null);
-      this.setAngerEndTime(-1L);
-   }
+	default boolean hasAngerTime() {
+		long l = this.getAngerEndTime();
+		if (l > 0L) {
+			long m = l - this.getEntityWorld().getTime();
+			return m > 0L;
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Nullable LivingEntity getAttacker();
+	default void forgive(ServerWorld world, PlayerEntity player) {
+		if (world.getGameRules().getValue(GameRules.FORGIVE_DEAD_PLAYERS)) {
+			LazyEntityReference<LivingEntity> lazyEntityReference = this.getAngryAt();
+			if (lazyEntityReference != null && lazyEntityReference.uuidEquals(player)) {
+				this.stopAnger();
+			}
+		}
+	}
 
-   void setAttacker(@Nullable LivingEntity attacker);
+	default void universallyAnger() {
+		this.stopAnger();
+		this.chooseRandomAngerTime();
+	}
 
-   void setTarget(@Nullable LivingEntity target);
+	default void stopAnger() {
+		this.setAttacker(null);
+		this.setAngryAt(null);
+		this.setTarget(null);
+		this.setAngerEndTime(-1L);
+	}
 
-   boolean canTarget(LivingEntity target);
+	@Nullable LivingEntity getAttacker();
 
-   @Nullable LivingEntity getTarget();
+	void setAttacker(@Nullable LivingEntity attacker);
+
+	void setTarget(@Nullable LivingEntity target);
+
+	boolean canTarget(LivingEntity target);
+
+	@Nullable LivingEntity getTarget();
 }

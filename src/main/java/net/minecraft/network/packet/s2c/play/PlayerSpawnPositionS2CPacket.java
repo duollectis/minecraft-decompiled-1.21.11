@@ -9,16 +9,19 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.WorldProperties;
 
 public record PlayerSpawnPositionS2CPacket(WorldProperties.SpawnPoint respawnData) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, PlayerSpawnPositionS2CPacket> CODEC = PacketCodec.tuple(
-      WorldProperties.SpawnPoint.PACKET_CODEC, PlayerSpawnPositionS2CPacket::respawnData, PlayerSpawnPositionS2CPacket::new
-   );
 
-   @Override
-   public PacketType<PlayerSpawnPositionS2CPacket> getPacketType() {
-      return PlayPackets.SET_DEFAULT_SPAWN_POSITION;
-   }
+	public static final PacketCodec<PacketByteBuf, PlayerSpawnPositionS2CPacket> CODEC = PacketCodec.tuple(
+			WorldProperties.SpawnPoint.PACKET_CODEC,
+			PlayerSpawnPositionS2CPacket::respawnData,
+			PlayerSpawnPositionS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onPlayerSpawnPosition(this);
-   }
+	@Override
+	public PacketType<PlayerSpawnPositionS2CPacket> getPacketType() {
+		return PlayPackets.SET_DEFAULT_SPAWN_POSITION;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onPlayerSpawnPosition(this);
+	}
 }

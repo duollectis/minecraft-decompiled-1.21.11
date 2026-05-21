@@ -8,31 +8,34 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class RenameItemC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, RenameItemC2SPacket> CODEC = Packet.createCodec(RenameItemC2SPacket::write, RenameItemC2SPacket::new);
-   private final String name;
 
-   public RenameItemC2SPacket(String name) {
-      this.name = name;
-   }
+	public static final PacketCodec<PacketByteBuf, RenameItemC2SPacket>
+			CODEC =
+			Packet.createCodec(RenameItemC2SPacket::write, RenameItemC2SPacket::new);
+	private final String name;
 
-   private RenameItemC2SPacket(PacketByteBuf buf) {
-      this.name = buf.readString();
-   }
+	public RenameItemC2SPacket(String name) {
+		this.name = name;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeString(this.name);
-   }
+	private RenameItemC2SPacket(PacketByteBuf buf) {
+		this.name = buf.readString();
+	}
 
-   @Override
-   public PacketType<RenameItemC2SPacket> getPacketType() {
-      return PlayPackets.RENAME_ITEM;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeString(this.name);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onRenameItem(this);
-   }
+	@Override
+	public PacketType<RenameItemC2SPacket> getPacketType() {
+		return PlayPackets.RENAME_ITEM;
+	}
 
-   public String getName() {
-      return this.name;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onRenameItem(this);
+	}
+
+	public String getName() {
+		return this.name;
+	}
 }

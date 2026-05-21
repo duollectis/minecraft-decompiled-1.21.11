@@ -28,114 +28,132 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code BoggedEntity}.
+ */
 public class BoggedEntity extends AbstractSkeletonEntity implements Shearable {
-   private static final TrackedData<Boolean> SHEARED = DataTracker.registerData(BoggedEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final String SHEARED_KEY = "sheared";
-   private static final boolean DEFAULT_SHEARED = false;
 
-   public static DefaultAttributeContainer.Builder createBoggedAttributes() {
-      return AbstractSkeletonEntity.createAbstractSkeletonAttributes().add(EntityAttributes.MAX_HEALTH, 16.0);
-   }
+	private static final TrackedData<Boolean>
+			SHEARED =
+			DataTracker.registerData(BoggedEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final String SHEARED_KEY = "sheared";
+	private static final boolean DEFAULT_SHEARED = false;
 
-   public BoggedEntity(EntityType<? extends BoggedEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	public static DefaultAttributeContainer.Builder createBoggedAttributes() {
+		return AbstractSkeletonEntity.createAbstractSkeletonAttributes().add(EntityAttributes.MAX_HEALTH, 16.0);
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(SHEARED, false);
-   }
+	public BoggedEntity(EntityType<? extends BoggedEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putBoolean("sheared", this.isSheared());
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(SHEARED, false);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.setSheared(view.getBoolean("sheared", false));
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putBoolean("sheared", this.isSheared());
+	}
 
-   public boolean isSheared() {
-      return this.dataTracker.get(SHEARED);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.setSheared(view.getBoolean("sheared", false));
+	}
 
-   public void setSheared(boolean sheared) {
-      this.dataTracker.set(SHEARED, sheared);
-   }
+	public boolean isSheared() {
+		return this.dataTracker.get(SHEARED);
+	}
 
-   @Override
-   protected ActionResult interactMob(PlayerEntity player, Hand hand) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if (itemStack.isOf(Items.SHEARS) && this.isShearable()) {
-         if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-            this.sheared(serverWorld, SoundCategory.PLAYERS, itemStack);
-            this.emitGameEvent(GameEvent.SHEAR, player);
-            itemStack.damage(1, player, hand.getEquipmentSlot());
-         }
+	public void setSheared(boolean sheared) {
+		this.dataTracker.set(SHEARED, sheared);
+	}
 
-         return ActionResult.SUCCESS;
-      } else {
-         return super.interactMob(player, hand);
-      }
-   }
+	@Override
+	protected ActionResult interactMob(PlayerEntity player, Hand hand) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if (itemStack.isOf(Items.SHEARS) && this.isShearable()) {
+			if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+				this.sheared(serverWorld, SoundCategory.PLAYERS, itemStack);
+				this.emitGameEvent(GameEvent.SHEAR, player);
+				itemStack.damage(1, player, hand.getEquipmentSlot());
+			}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_BOGGED_AMBIENT;
-   }
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return super.interactMob(player, hand);
+		}
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_BOGGED_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_BOGGED_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_BOGGED_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_BOGGED_HURT;
+	}
 
-   @Override
-   protected SoundEvent getStepSound() {
-      return SoundEvents.ENTITY_BOGGED_STEP;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_BOGGED_DEATH;
+	}
 
-   @Override
-   protected PersistentProjectileEntity createArrowProjectile(ItemStack arrow, float damageModifier, @Nullable ItemStack shotFrom) {
-      PersistentProjectileEntity persistentProjectileEntity = super.createArrowProjectile(arrow, damageModifier, shotFrom);
-      if (persistentProjectileEntity instanceof ArrowEntity arrowEntity) {
-         arrowEntity.addEffect(new StatusEffectInstance(StatusEffects.POISON, 100));
-      }
+	@Override
+	protected SoundEvent getStepSound() {
+		return SoundEvents.ENTITY_BOGGED_STEP;
+	}
 
-      return persistentProjectileEntity;
-   }
+	@Override
+	protected PersistentProjectileEntity createArrowProjectile(
+			ItemStack arrow,
+			float damageModifier,
+			@Nullable ItemStack shotFrom
+	) {
+		PersistentProjectileEntity
+				persistentProjectileEntity =
+				super.createArrowProjectile(arrow, damageModifier, shotFrom);
+		if (persistentProjectileEntity instanceof ArrowEntity arrowEntity) {
+			arrowEntity.addEffect(new StatusEffectInstance(StatusEffects.POISON, 100));
+		}
 
-   @Override
-   protected int getHardAttackInterval() {
-      return 50;
-   }
+		return persistentProjectileEntity;
+	}
 
-   @Override
-   protected int getRegularAttackInterval() {
-      return 70;
-   }
+	@Override
+	protected int getHardAttackInterval() {
+		return 50;
+	}
 
-   @Override
-   public void sheared(ServerWorld world, SoundCategory shearedSoundCategory, ItemStack shears) {
-      world.playSoundFromEntity(null, this, SoundEvents.ENTITY_BOGGED_SHEAR, shearedSoundCategory, 1.0F, 1.0F);
-      this.dropShearedItems(world, shears);
-      this.setSheared(true);
-   }
+	@Override
+	protected int getRegularAttackInterval() {
+		return 70;
+	}
 
-   private void dropShearedItems(ServerWorld world, ItemStack shears) {
-      this.forEachShearedItem(world, LootTables.BOGGED_SHEARING, shears, (worldx, stack) -> this.dropStack(worldx, stack, this.getHeight()));
-   }
+	@Override
+	public void sheared(ServerWorld world, SoundCategory shearedSoundCategory, ItemStack shears) {
+		world.playSoundFromEntity(null, this, SoundEvents.ENTITY_BOGGED_SHEAR, shearedSoundCategory, 1.0F, 1.0F);
+		this.dropShearedItems(world, shears);
+		this.setSheared(true);
+	}
 
-   @Override
-   public boolean isShearable() {
-      return !this.isSheared() && this.isAlive();
-   }
+	private void dropShearedItems(ServerWorld world, ItemStack shears) {
+		this.forEachShearedItem(
+				world,
+				LootTables.BOGGED_SHEARING,
+				shears,
+				(worldx, stack) -> this.dropStack(worldx, stack, this.getHeight())
+		);
+	}
+
+	@Override
+	public boolean isShearable() {
+		return !this.isSheared() && this.isAlive();
+	}
 }

@@ -8,41 +8,42 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class RequestCommandCompletionsC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, RequestCommandCompletionsC2SPacket> CODEC = Packet.createCodec(
-      RequestCommandCompletionsC2SPacket::write, RequestCommandCompletionsC2SPacket::new
-   );
-   private final int completionId;
-   private final String partialCommand;
 
-   public RequestCommandCompletionsC2SPacket(int completionId, String partialCommand) {
-      this.completionId = completionId;
-      this.partialCommand = partialCommand;
-   }
+	public static final PacketCodec<PacketByteBuf, RequestCommandCompletionsC2SPacket> CODEC = Packet.createCodec(
+			RequestCommandCompletionsC2SPacket::write, RequestCommandCompletionsC2SPacket::new
+	);
+	private final int completionId;
+	private final String partialCommand;
 
-   private RequestCommandCompletionsC2SPacket(PacketByteBuf buf) {
-      this.completionId = buf.readVarInt();
-      this.partialCommand = buf.readString(32500);
-   }
+	public RequestCommandCompletionsC2SPacket(int completionId, String partialCommand) {
+		this.completionId = completionId;
+		this.partialCommand = partialCommand;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.completionId);
-      buf.writeString(this.partialCommand, 32500);
-   }
+	private RequestCommandCompletionsC2SPacket(PacketByteBuf buf) {
+		this.completionId = buf.readVarInt();
+		this.partialCommand = buf.readString(32500);
+	}
 
-   @Override
-   public PacketType<RequestCommandCompletionsC2SPacket> getPacketType() {
-      return PlayPackets.COMMAND_SUGGESTION;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.completionId);
+		buf.writeString(this.partialCommand, 32500);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onRequestCommandCompletions(this);
-   }
+	@Override
+	public PacketType<RequestCommandCompletionsC2SPacket> getPacketType() {
+		return PlayPackets.COMMAND_SUGGESTION;
+	}
 
-   public int getCompletionId() {
-      return this.completionId;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onRequestCommandCompletions(this);
+	}
 
-   public String getPartialCommand() {
-      return this.partialCommand;
-   }
+	public int getCompletionId() {
+		return this.completionId;
+	}
+
+	public String getPartialCommand() {
+		return this.partialCommand;
+	}
 }

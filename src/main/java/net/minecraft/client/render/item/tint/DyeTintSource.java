@@ -12,18 +12,24 @@ import net.minecraft.util.dynamic.Codecs;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DyeTintSource}.
+ */
 public record DyeTintSource(int defaultColor) implements TintSource {
-   public static final MapCodec<DyeTintSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codecs.RGB.fieldOf("default").forGetter(DyeTintSource::defaultColor)).apply(instance, DyeTintSource::new)
-   );
 
-   @Override
-   public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
-      return DyedColorComponent.getColor(stack, this.defaultColor);
-   }
+	public static final MapCodec<DyeTintSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codecs.RGB.fieldOf("default").forGetter(DyeTintSource::defaultColor))
+					.apply(instance, DyeTintSource::new)
+	);
 
-   @Override
-   public MapCodec<DyeTintSource> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
+		return DyedColorComponent.getColor(stack, this.defaultColor);
+	}
+
+	@Override
+	public MapCodec<DyeTintSource> getCodec() {
+		return CODEC;
+	}
 }

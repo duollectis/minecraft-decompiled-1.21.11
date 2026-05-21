@@ -2,7 +2,6 @@ package net.minecraft.network.packet.s2c.play;
 
 import com.google.common.collect.Lists;
 import com.mojang.datafixers.util.Pair;
-import java.util.List;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.RegistryByteBuf;
@@ -12,60 +11,64 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+import java.util.List;
+
 public class EntityEquipmentUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, EntityEquipmentUpdateS2CPacket> CODEC = Packet.createCodec(
-      EntityEquipmentUpdateS2CPacket::write, EntityEquipmentUpdateS2CPacket::new
-   );
-   private static final byte field_33342 = -128;
-   private final int entityId;
-   private final List<Pair<EquipmentSlot, ItemStack>> equipmentList;
 
-   public EntityEquipmentUpdateS2CPacket(int entityId, List<Pair<EquipmentSlot, ItemStack>> equipmentList) {
-      this.entityId = entityId;
-      this.equipmentList = equipmentList;
-   }
+	public static final PacketCodec<RegistryByteBuf, EntityEquipmentUpdateS2CPacket> CODEC = Packet.createCodec(
+			EntityEquipmentUpdateS2CPacket::write, EntityEquipmentUpdateS2CPacket::new
+	);
+	private static final byte MORE_ENTRIES_FLAG = -128;
+	private final int entityId;
+	private final List<Pair<EquipmentSlot, ItemStack>> equipmentList;
 
-   private EntityEquipmentUpdateS2CPacket(RegistryByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      this.equipmentList = Lists.newArrayList();
+	public EntityEquipmentUpdateS2CPacket(int entityId, List<Pair<EquipmentSlot, ItemStack>> equipmentList) {
+		this.entityId = entityId;
+		this.equipmentList = equipmentList;
+	}
 
-      int i;
-      do {
-         i = buf.readByte();
-         EquipmentSlot equipmentSlot = EquipmentSlot.VALUES.get(i & 127);
-         ItemStack itemStack = ItemStack.OPTIONAL_PACKET_CODEC.decode(buf);
-         this.equipmentList.add(Pair.of(equipmentSlot, itemStack));
-      } while ((i & -128) != 0);
-   }
+	private EntityEquipmentUpdateS2CPacket(RegistryByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		this.equipmentList = Lists.newArrayList();
 
-   private void write(RegistryByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      int i = this.equipmentList.size();
+		int i;
+		do {
+			i = buf.readByte();
+			EquipmentSlot equipmentSlot = EquipmentSlot.VALUES.get(i & 127);
+			ItemStack itemStack = ItemStack.OPTIONAL_PACKET_CODEC.decode(buf);
+			this.equipmentList.add(Pair.of(equipmentSlot, itemStack));
+		}
+		while ((i & -128) != 0);
+	}
 
-      for (int j = 0; j < i; j++) {
-         Pair<EquipmentSlot, ItemStack> pair = this.equipmentList.get(j);
-         EquipmentSlot equipmentSlot = (EquipmentSlot)pair.getFirst();
-         boolean bl = j != i - 1;
-         int k = equipmentSlot.ordinal();
-         buf.writeByte(bl ? k | -128 : k);
-         ItemStack.OPTIONAL_PACKET_CODEC.encode(buf, (ItemStack)pair.getSecond());
-      }
-   }
+	private void write(RegistryByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		int i = this.equipmentList.size();
 
-   @Override
-   public PacketType<EntityEquipmentUpdateS2CPacket> getPacketType() {
-      return PlayPackets.SET_EQUIPMENT;
-   }
+		for (int j = 0; j < i; j++) {
+			Pair<EquipmentSlot, ItemStack> pair = this.equipmentList.get(j);
+			EquipmentSlot equipmentSlot = (EquipmentSlot) pair.getFirst();
+			boolean bl = j != i - 1;
+			int k = equipmentSlot.ordinal();
+			buf.writeByte(bl ? k | -128 : k);
+			ItemStack.OPTIONAL_PACKET_CODEC.encode(buf, (ItemStack) pair.getSecond());
+		}
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntityEquipmentUpdate(this);
-   }
+	@Override
+	public PacketType<EntityEquipmentUpdateS2CPacket> getPacketType() {
+		return PlayPackets.SET_EQUIPMENT;
+	}
 
-   public int getEntityId() {
-      return this.entityId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntityEquipmentUpdate(this);
+	}
 
-   public List<Pair<EquipmentSlot, ItemStack>> getEquipmentList() {
-      return this.equipmentList;
-   }
+	public int getEntityId() {
+		return this.entityId;
+	}
+
+	public List<Pair<EquipmentSlot, ItemStack>> getEquipmentList() {
+		return this.equipmentList;
+	}
 }

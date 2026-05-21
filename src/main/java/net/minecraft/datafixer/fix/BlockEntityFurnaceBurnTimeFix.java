@@ -6,20 +6,30 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code BlockEntityFurnaceBurnTimeFix}.
+ */
 public class BlockEntityFurnaceBurnTimeFix extends ChoiceFix {
-   public BlockEntityFurnaceBurnTimeFix(Schema outputSchema, String blockEntityId) {
-      super(outputSchema, false, "BlockEntityFurnaceBurnTimeFix" + blockEntityId, TypeReferences.BLOCK_ENTITY, blockEntityId);
-   }
 
-   public Dynamic<?> fix(Dynamic<?> dynamic) {
-      dynamic = dynamic.renameField("CookTime", "cooking_time_spent");
-      dynamic = dynamic.renameField("CookTimeTotal", "cooking_total_time");
-      dynamic = dynamic.renameField("BurnTime", "lit_time_remaining");
-      return dynamic.setFieldIfPresent("lit_total_time", dynamic.get("lit_time_remaining").result());
-   }
+	public BlockEntityFurnaceBurnTimeFix(Schema outputSchema, String blockEntityId) {
+		super(
+				outputSchema,
+				false,
+				"BlockEntityFurnaceBurnTimeFix" + blockEntityId,
+				TypeReferences.BLOCK_ENTITY,
+				blockEntityId
+		);
+	}
 
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      return inputTyped.update(DSL.remainderFinder(), this::fix);
-   }
+	public Dynamic<?> fix(Dynamic<?> dynamic) {
+		dynamic = dynamic.renameField("CookTime", "cooking_time_spent");
+		dynamic = dynamic.renameField("CookTimeTotal", "cooking_total_time");
+		dynamic = dynamic.renameField("BurnTime", "lit_time_remaining");
+		return dynamic.setFieldIfPresent("lit_total_time", dynamic.get("lit_time_remaining").result());
+	}
+
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		return inputTyped.update(DSL.remainderFinder(), this::fix);
+	}
 }

@@ -1,6 +1,5 @@
 package net.minecraft.block.entity;
 
-import java.util.List;
 import net.minecraft.block.BarrelBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.ContainerUser;
@@ -22,117 +21,150 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.World;
 
+import java.util.List;
+
+/**
+ * {@code BarrelBlockEntity}.
+ */
 public class BarrelBlockEntity extends LootableContainerBlockEntity {
-   private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.barrel");
-   private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(27, ItemStack.EMPTY);
-   private final ViewerCountManager stateManager = new ViewerCountManager() {
-      @Override
-      protected void onContainerOpen(World world, BlockPos pos, BlockState state) {
-         BarrelBlockEntity.this.playSound(state, SoundEvents.BLOCK_BARREL_OPEN);
-         BarrelBlockEntity.this.setOpen(state, true);
-      }
 
-      @Override
-      protected void onContainerClose(World world, BlockPos pos, BlockState state) {
-         BarrelBlockEntity.this.playSound(state, SoundEvents.BLOCK_BARREL_CLOSE);
-         BarrelBlockEntity.this.setOpen(state, false);
-      }
+	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.barrel");
+	private DefaultedList<ItemStack> inventory = DefaultedList.ofSize(27, ItemStack.EMPTY);
+	private final ViewerCountManager stateManager = new ViewerCountManager() {
+		@Override
+		protected void onContainerOpen(World world, BlockPos pos, BlockState state) {
+			BarrelBlockEntity.this.playSound(state, SoundEvents.BLOCK_BARREL_OPEN);
+			BarrelBlockEntity.this.setOpen(state, true);
+		}
 
-      @Override
-      protected void onViewerCountUpdate(World world, BlockPos pos, BlockState state, int oldViewerCount, int newViewerCount) {
-      }
+		@Override
+		protected void onContainerClose(World world, BlockPos pos, BlockState state) {
+			BarrelBlockEntity.this.playSound(state, SoundEvents.BLOCK_BARREL_CLOSE);
+			BarrelBlockEntity.this.setOpen(state, false);
+		}
 
-      @Override
-      public boolean isPlayerViewing(PlayerEntity player) {
-         if (player.currentScreenHandler instanceof GenericContainerScreenHandler) {
-            Inventory inventory = ((GenericContainerScreenHandler)player.currentScreenHandler).getInventory();
-            return inventory == BarrelBlockEntity.this;
-         } else {
-            return false;
-         }
-      }
-   };
+		@Override
+		protected void onViewerCountUpdate(
+				World world,
+				BlockPos pos,
+				BlockState state,
+				int oldViewerCount,
+				int newViewerCount
+		) {
+		}
 
-   public BarrelBlockEntity(BlockPos pos, BlockState state) {
-      super(BlockEntityType.BARREL, pos, state);
-   }
+		@Override
+		public boolean isPlayerViewing(PlayerEntity player) {
+			if (player.currentScreenHandler instanceof GenericContainerScreenHandler) {
+				Inventory inventory = ((GenericContainerScreenHandler) player.currentScreenHandler).getInventory();
+				return inventory == BarrelBlockEntity.this;
+			}
+			else {
+				return false;
+			}
+		}
+	};
 
-   @Override
-   protected void writeData(WriteView view) {
-      super.writeData(view);
-      if (!this.writeLootTable(view)) {
-         Inventories.writeData(view, this.inventory);
-      }
-   }
+	public BarrelBlockEntity(BlockPos pos, BlockState state) {
+		super(BlockEntityType.BARREL, pos, state);
+	}
 
-   @Override
-   protected void readData(ReadView view) {
-      super.readData(view);
-      this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
-      if (!this.readLootTable(view)) {
-         Inventories.readData(view, this.inventory);
-      }
-   }
+	@Override
+	protected void writeData(WriteView view) {
+		super.writeData(view);
+		if (!this.writeLootTable(view)) {
+			Inventories.writeData(view, this.inventory);
+		}
+	}
 
-   @Override
-   public int size() {
-      return 27;
-   }
+	@Override
+	protected void readData(ReadView view) {
+		super.readData(view);
+		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
+		if (!this.readLootTable(view)) {
+			Inventories.readData(view, this.inventory);
+		}
+	}
 
-   @Override
-   protected DefaultedList<ItemStack> getHeldStacks() {
-      return this.inventory;
-   }
+	@Override
+	public int size() {
+		return 27;
+	}
 
-   @Override
-   protected void setHeldStacks(DefaultedList<ItemStack> inventory) {
-      this.inventory = inventory;
-   }
+	@Override
+	protected DefaultedList<ItemStack> getHeldStacks() {
+		return this.inventory;
+	}
 
-   @Override
-   protected Text getContainerName() {
-      return CONTAINER_NAME_TEXT;
-   }
+	@Override
+	protected void setHeldStacks(DefaultedList<ItemStack> inventory) {
+		this.inventory = inventory;
+	}
 
-   @Override
-   protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
-      return GenericContainerScreenHandler.createGeneric9x3(syncId, playerInventory, this);
-   }
+	@Override
+	protected Text getContainerName() {
+		return CONTAINER_NAME_TEXT;
+	}
 
-   @Override
-   public void onOpen(ContainerUser user) {
-      if (!this.removed && !user.asLivingEntity().isSpectator()) {
-         this.stateManager.openContainer(user.asLivingEntity(), this.getWorld(), this.getPos(), this.getCachedState(), user.getContainerInteractionRange());
-      }
-   }
+	@Override
+	protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
+		return GenericContainerScreenHandler.createGeneric9x3(syncId, playerInventory, this);
+	}
 
-   @Override
-   public void onClose(ContainerUser user) {
-      if (!this.removed && !user.asLivingEntity().isSpectator()) {
-         this.stateManager.closeContainer(user.asLivingEntity(), this.getWorld(), this.getPos(), this.getCachedState());
-      }
-   }
+	@Override
+	public void onOpen(ContainerUser user) {
+		if (!this.removed && !user.asLivingEntity().isSpectator()) {
+			this.stateManager.openContainer(
+					user.asLivingEntity(),
+					this.getWorld(),
+					this.getPos(),
+					this.getCachedState(),
+					user.getContainerInteractionRange()
+			);
+		}
+	}
 
-   @Override
-   public List<ContainerUser> getViewingUsers() {
-      return this.stateManager.getViewingUsers(this.getWorld(), this.getPos());
-   }
+	@Override
+	public void onClose(ContainerUser user) {
+		if (!this.removed && !user.asLivingEntity().isSpectator()) {
+			this.stateManager.closeContainer(
+					user.asLivingEntity(),
+					this.getWorld(),
+					this.getPos(),
+					this.getCachedState()
+			);
+		}
+	}
 
-   public void tick() {
-      if (!this.removed) {
-         this.stateManager.updateViewerCount(this.getWorld(), this.getPos(), this.getCachedState());
-      }
-   }
+	@Override
+	public List<ContainerUser> getViewingUsers() {
+		return this.stateManager.getViewingUsers(this.getWorld(), this.getPos());
+	}
 
-   void setOpen(BlockState state, boolean open) {
-      this.world.setBlockState(this.getPos(), state.with(BarrelBlock.OPEN, open), 3);
-   }
+	public void tick() {
+		if (!this.removed) {
+			this.stateManager.updateViewerCount(this.getWorld(), this.getPos(), this.getCachedState());
+		}
+	}
 
-   void playSound(BlockState state, SoundEvent soundEvent) {
-      Vec3i vec3i = state.get(BarrelBlock.FACING).getVector();
-      double d = this.pos.getX() + 0.5 + vec3i.getX() / 2.0;
-      double e = this.pos.getY() + 0.5 + vec3i.getY() / 2.0;
-      double f = this.pos.getZ() + 0.5 + vec3i.getZ() / 2.0;
-      this.world.playSound(null, d, e, f, soundEvent, SoundCategory.BLOCKS, 0.5F, this.world.random.nextFloat() * 0.1F + 0.9F);
-   }
+	void setOpen(BlockState state, boolean open) {
+		this.world.setBlockState(this.getPos(), state.with(BarrelBlock.OPEN, open), 3);
+	}
+
+	void playSound(BlockState state, SoundEvent soundEvent) {
+		Vec3i vec3i = state.get(BarrelBlock.FACING).getVector();
+		double d = this.pos.getX() + 0.5 + vec3i.getX() / 2.0;
+		double e = this.pos.getY() + 0.5 + vec3i.getY() / 2.0;
+		double f = this.pos.getZ() + 0.5 + vec3i.getZ() / 2.0;
+		this.world.playSound(
+				null,
+				d,
+				e,
+				f,
+				soundEvent,
+				SoundCategory.BLOCKS,
+				0.5F,
+				this.world.random.nextFloat() * 0.1F + 0.9F
+		);
+	}
 }

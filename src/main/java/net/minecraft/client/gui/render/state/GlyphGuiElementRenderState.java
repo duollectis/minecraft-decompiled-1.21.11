@@ -14,24 +14,35 @@ import org.joml.Matrix4f;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
-public record GlyphGuiElementRenderState(Matrix3x2fc pose, TextDrawable renderable, @Nullable ScreenRect scissorArea) implements SimpleGuiElementRenderState {
-   @Override
-   public void setupVertices(VertexConsumer vertices) {
-      this.renderable.render(new Matrix4f().mul(this.pose), vertices, 15728880, true);
-   }
+/**
+ * {@code GlyphGuiElementRenderState}.
+ */
+public record GlyphGuiElementRenderState(
+		Matrix3x2fc pose,
+		TextDrawable renderable,
+		@Nullable ScreenRect scissorArea
+) implements SimpleGuiElementRenderState {
 
-   @Override
-   public RenderPipeline pipeline() {
-      return this.renderable.getPipeline();
-   }
+	@Override
+	public void setupVertices(VertexConsumer vertices) {
+		this.renderable.render(new Matrix4f().mul(this.pose), vertices, 15728880, true);
+	}
 
-   @Override
-   public TextureSetup textureSetup() {
-      return TextureSetup.withLightmap(this.renderable.textureView(), RenderSystem.getSamplerCache().get(FilterMode.NEAREST));
-   }
+	@Override
+	public RenderPipeline pipeline() {
+		return this.renderable.getPipeline();
+	}
 
-   @Override
-   public @Nullable ScreenRect bounds() {
-      return null;
-   }
+	@Override
+	public TextureSetup textureSetup() {
+		return TextureSetup.withLightmap(
+				this.renderable.textureView(),
+				RenderSystem.getSamplerCache().get(FilterMode.NEAREST)
+		);
+	}
+
+	@Override
+	public @Nullable ScreenRect bounds() {
+		return null;
+	}
 }

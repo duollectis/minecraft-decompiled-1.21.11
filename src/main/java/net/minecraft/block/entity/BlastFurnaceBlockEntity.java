@@ -10,25 +10,29 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code BlastFurnaceBlockEntity}.
+ */
 public class BlastFurnaceBlockEntity extends AbstractFurnaceBlockEntity {
-   private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.blast_furnace");
 
-   public BlastFurnaceBlockEntity(BlockPos pos, BlockState state) {
-      super(BlockEntityType.BLAST_FURNACE, pos, state, RecipeType.BLASTING);
-   }
+	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.blast_furnace");
 
-   @Override
-   protected Text getContainerName() {
-      return CONTAINER_NAME_TEXT;
-   }
+	public BlastFurnaceBlockEntity(BlockPos pos, BlockState state) {
+		super(BlockEntityType.BLAST_FURNACE, pos, state, RecipeType.BLASTING);
+	}
 
-   @Override
-   protected int getFuelTime(FuelRegistry fuelRegistry, ItemStack stack) {
-      return super.getFuelTime(fuelRegistry, stack) / 2;
-   }
+	@Override
+	protected Text getContainerName() {
+		return CONTAINER_NAME_TEXT;
+	}
 
-   @Override
-   protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
-      return new BlastFurnaceScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
-   }
+	@Override
+	protected int getFuelTime(FuelRegistry fuelRegistry, ItemStack stack) {
+		return super.getFuelTime(fuelRegistry, stack) / 2;
+	}
+
+	@Override
+	protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
+		return new BlastFurnaceScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+	}
 }

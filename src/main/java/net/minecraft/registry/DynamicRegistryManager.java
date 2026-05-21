@@ -2,102 +2,130 @@ package net.minecraft.registry;
 
 import com.google.common.collect.ImmutableMap;
 import com.mojang.logging.LogUtils;
+import org.slf4j.Logger;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.slf4j.Logger;
 
+/**
+ * {@code DynamicRegistryManager}.
+ */
 public interface DynamicRegistryManager extends RegistryWrapper.WrapperLookup {
-   Logger LOGGER = LogUtils.getLogger();
-   DynamicRegistryManager.Immutable EMPTY = new DynamicRegistryManager.ImmutableImpl(Map.of()).toImmutable();
 
-   @Override
-   <E> Optional<Registry<E>> getOptional(RegistryKey<? extends Registry<? extends E>> registryRef);
+	Logger LOGGER = LogUtils.getLogger();
 
-   default <E> Registry<E> getOrThrow(RegistryKey<? extends Registry<? extends E>> key) {
-      return this.getOptional(key).orElseThrow(() -> new IllegalStateException("Missing registry: " + key));
-   }
+	DynamicRegistryManager.Immutable EMPTY = new DynamicRegistryManager.ImmutableImpl(Map.of()).toImmutable();
 
-   Stream<DynamicRegistryManager.Entry<?>> streamAllRegistries();
+	@Override
+	<E> Optional<Registry<E>> getOptional(RegistryKey<? extends Registry<? extends E>> registryRef);
 
-   @Override
-   default Stream<RegistryKey<? extends Registry<?>>> streamAllRegistryKeys() {
-      return this.streamAllRegistries().map(registry -> registry.key);
-   }
+	default <E> Registry<E> getOrThrow(RegistryKey<? extends Registry<? extends E>> key) {
+		return this.getOptional(key).orElseThrow(() -> new IllegalStateException("Missing registry: " + key));
+	}
 
-   static DynamicRegistryManager.Immutable of(Registry<? extends Registry<?>> registries) {
-      return new DynamicRegistryManager.Immutable() {
-         @Override
-         public <T> Optional<Registry<T>> getOptional(RegistryKey<? extends Registry<? extends T>> registryRef) {
-            Registry<Registry<T>> registry = (Registry<Registry<T>>)registries;
-            return registry.getOptionalValue((RegistryKey<Registry<T>>)registryRef);
-         }
+	Stream<DynamicRegistryManager.Entry<?>> streamAllRegistries();
 
-         @Override
-         public Stream<DynamicRegistryManager.Entry<?>> streamAllRegistries() {
-            return registries.getEntrySet().stream().map(DynamicRegistryManager.Entry::of);
-         }
+	@Override
+	default Stream<RegistryKey<? extends Registry<?>>> streamAllRegistryKeys() {
+		return this.streamAllRegistries().map(registry -> registry.key);
+	}
 
-         @Override
-         public DynamicRegistryManager.Immutable toImmutable() {
-            return this;
-         }
-      };
-   }
+	static DynamicRegistryManager.Immutable of(Registry<? extends Registry<?>> registries) {
+		return new DynamicRegistryManager.Immutable() {
+			@Override
+			public <T> Optional<Registry<T>> getOptional(RegistryKey<? extends Registry<? extends T>> registryRef) {
+				Registry<Registry<T>> registry = (Registry<Registry<T>>) registries;
+				return registry.getOptionalValue((RegistryKey<Registry<T>>) registryRef);
+			}
 
-   default DynamicRegistryManager.Immutable toImmutable() {
-      class Immutablized extends DynamicRegistryManager.ImmutableImpl implements DynamicRegistryManager.Immutable {
-         protected Immutablized(final Stream<DynamicRegistryManager.Entry<?>> entryStream) {
-            super(entryStream);
-         }
-      }
+			@Override
+			public Stream<DynamicRegistryManager.Entry<?>> streamAllRegistries() {
+				return registries.getEntrySet().stream().map(DynamicRegistryManager.Entry::of);
+			}
 
-      return new Immutablized(this.streamAllRegistries().map(DynamicRegistryManager.Entry::freeze));
-   }
+			@Override
+			public DynamicRegistryManager.Immutable toImmutable() {
+				return this;
+			}
+		};
+	}
 
-   public record Entry<T>(RegistryKey<? extends Registry<T>> key, Registry<T> value) {
+	default DynamicRegistryManager.Immutable toImmutable() {
+		/**
+		 * {@code Immutablized}.
+		 */
+		class Immutablized extends DynamicRegistryManager.ImmutableImpl implements DynamicRegistryManager.Immutable {
 
-      private static <T, R extends Registry<? extends T>> DynamicRegistryManager.Entry<T> of(Map.Entry<? extends RegistryKey<? extends Registry<?>>, R> entry) {
-         return of((RegistryKey<? extends Registry<?>>)entry.getKey(), entry.getValue());
-      }
+			protected Immutablized(final Stream<DynamicRegistryManager.Entry<?>> entryStream) {
+				super(entryStream);
+			}
+		}
 
-      private static <T> DynamicRegistryManager.Entry<T> of(RegistryKey<? extends Registry<?>> key, Registry<?> value) {
-         return new DynamicRegistryManager.Entry<>((RegistryKey<? extends Registry<T>>)key, (Registry<T>)value);
-      }
+		return new Immutablized(this.streamAllRegistries().map(DynamicRegistryManager.Entry::freeze));
+	}
 
-      private DynamicRegistryManager.Entry<T> freeze() {
-         return new DynamicRegistryManager.Entry<>(this.key, this.value.freeze());
-      }
-   }
+	/**
+	 * {@code Entry}.
+	 */
+	public record Entry<T>(RegistryKey<? extends Registry<T>> key, Registry<T> value) {
 
-   public interface Immutable extends DynamicRegistryManager {
-   }
+		private static <T, R extends Registry<? extends T>> DynamicRegistryManager.Entry<T> of(Map.Entry<? extends RegistryKey<? extends Registry<?>>, R> entry) {
+			return of((RegistryKey<? extends Registry<?>>) entry.getKey(), entry.getValue());
+		}
 
-   public static class ImmutableImpl implements DynamicRegistryManager {
-      private final Map<? extends RegistryKey<? extends Registry<?>>, ? extends Registry<?>> registries;
+		private static <T> DynamicRegistryManager.Entry<T> of(
+				RegistryKey<? extends Registry<?>> key,
+				Registry<?> value
+		) {
+			return new DynamicRegistryManager.Entry<>((RegistryKey<? extends Registry<T>>) key, (Registry<T>) value);
+		}
 
-      public ImmutableImpl(List<? extends Registry<?>> registries) {
-         this.registries = registries.stream().collect(Collectors.toUnmodifiableMap(Registry::getKey, registry -> registry));
-      }
+		private DynamicRegistryManager.Entry<T> freeze() {
+			return new DynamicRegistryManager.Entry<>(this.key, this.value.freeze());
+		}
+	}
 
-      public ImmutableImpl(Map<? extends RegistryKey<? extends Registry<?>>, ? extends Registry<?>> registries) {
-         this.registries = Map.copyOf(registries);
-      }
+	/**
+	 * {@code Immutable}.
+	 */
+	public interface Immutable extends DynamicRegistryManager {
+	}
 
-      public ImmutableImpl(Stream<DynamicRegistryManager.Entry<?>> entryStream) {
-         this.registries = entryStream.collect(ImmutableMap.toImmutableMap(DynamicRegistryManager.Entry::key, DynamicRegistryManager.Entry::value));
-      }
+	/**
+	 * {@code ImmutableImpl}.
+	 */
+	public static class ImmutableImpl implements DynamicRegistryManager {
 
-      @Override
-      public <E> Optional<Registry<E>> getOptional(RegistryKey<? extends Registry<? extends E>> registryRef) {
-         return Optional.ofNullable(this.registries.get(registryRef)).map(registry -> (Registry<E>)registry);
-      }
+		private final Map<? extends RegistryKey<? extends Registry<?>>, ? extends Registry<?>> registries;
 
-      @Override
-      public Stream<DynamicRegistryManager.Entry<?>> streamAllRegistries() {
-         return this.registries.entrySet().stream().map(DynamicRegistryManager.Entry::of);
-      }
-   }
+		public ImmutableImpl(List<? extends Registry<?>> registries) {
+			this.registries =
+					registries.stream().collect(Collectors.toUnmodifiableMap(Registry::getKey, registry -> registry));
+		}
+
+		public ImmutableImpl(Map<? extends RegistryKey<? extends Registry<?>>, ? extends Registry<?>> registries) {
+			this.registries = Map.copyOf(registries);
+		}
+
+		public ImmutableImpl(Stream<DynamicRegistryManager.Entry<?>> entryStream) {
+			this.registries =
+					entryStream.collect(ImmutableMap.toImmutableMap(
+							DynamicRegistryManager.Entry::key,
+							DynamicRegistryManager.Entry::value
+					));
+		}
+
+		@Override
+		public <E> Optional<Registry<E>> getOptional(RegistryKey<? extends Registry<? extends E>> registryRef) {
+			return Optional.ofNullable(this.registries.get(registryRef)).map(registry -> (Registry<E>) registry);
+		}
+
+		@Override
+		public Stream<DynamicRegistryManager.Entry<?>> streamAllRegistries() {
+			return this.registries.entrySet().stream().map(DynamicRegistryManager.Entry::of);
+		}
+	}
 }

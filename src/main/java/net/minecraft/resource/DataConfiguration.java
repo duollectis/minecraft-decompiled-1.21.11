@@ -6,19 +6,29 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resource.featuretoggle.FeatureFlags;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 
+/**
+ * {@code DataConfiguration}.
+ */
 public record DataConfiguration(DataPackSettings dataPacks, FeatureSet enabledFeatures) {
-   public static final String ENABLED_FEATURES_KEY = "enabled_features";
-   public static final MapCodec<DataConfiguration> MAP_CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            DataPackSettings.CODEC.lenientOptionalFieldOf("DataPacks", DataPackSettings.SAFE_MODE).forGetter(DataConfiguration::dataPacks),
-            FeatureFlags.CODEC.lenientOptionalFieldOf("enabled_features", FeatureFlags.DEFAULT_ENABLED_FEATURES).forGetter(DataConfiguration::enabledFeatures)
-         )
-         .apply(instance, DataConfiguration::new)
-   );
-   public static final Codec<DataConfiguration> CODEC = MAP_CODEC.codec();
-   public static final DataConfiguration SAFE_MODE = new DataConfiguration(DataPackSettings.SAFE_MODE, FeatureFlags.DEFAULT_ENABLED_FEATURES);
 
-   public DataConfiguration withFeaturesAdded(FeatureSet features) {
-      return new DataConfiguration(this.dataPacks, this.enabledFeatures.combine(features));
-   }
+	public static final String ENABLED_FEATURES_KEY = "enabled_features";
+	public static final MapCodec<DataConfiguration> MAP_CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    DataPackSettings.CODEC
+							                    .lenientOptionalFieldOf("DataPacks", DataPackSettings.SAFE_MODE)
+							                    .forGetter(DataConfiguration::dataPacks),
+					                    FeatureFlags.CODEC
+							                    .lenientOptionalFieldOf("enabled_features", FeatureFlags.DEFAULT_ENABLED_FEATURES)
+							                    .forGetter(DataConfiguration::enabledFeatures)
+			                    )
+			                    .apply(instance, DataConfiguration::new)
+	);
+	public static final Codec<DataConfiguration> CODEC = MAP_CODEC.codec();
+	public static final DataConfiguration
+			SAFE_MODE =
+			new DataConfiguration(DataPackSettings.SAFE_MODE, FeatureFlags.DEFAULT_ENABLED_FEATURES);
+
+	public DataConfiguration withFeaturesAdded(FeatureSet features) {
+		return new DataConfiguration(this.dataPacks, this.enabledFeatures.combine(features));
+	}
 }

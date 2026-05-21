@@ -5,17 +5,21 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code PassthroughRuleBlockEntityModifier}.
+ */
 public class PassthroughRuleBlockEntityModifier implements RuleBlockEntityModifier {
-   public static final PassthroughRuleBlockEntityModifier INSTANCE = new PassthroughRuleBlockEntityModifier();
-   public static final MapCodec<PassthroughRuleBlockEntityModifier> CODEC = MapCodec.unit(INSTANCE);
 
-   @Override
-   public @Nullable NbtCompound modifyBlockEntityNbt(Random random, @Nullable NbtCompound nbt) {
-      return nbt;
-   }
+	public static final PassthroughRuleBlockEntityModifier INSTANCE = new PassthroughRuleBlockEntityModifier();
+	public static final MapCodec<PassthroughRuleBlockEntityModifier> CODEC = MapCodec.unit(INSTANCE);
 
-   @Override
-   public RuleBlockEntityModifierType<?> getType() {
-      return RuleBlockEntityModifierType.PASSTHROUGH;
-   }
+	@Override
+	public @Nullable NbtCompound modifyBlockEntityNbt(Random random, @Nullable NbtCompound nbt) {
+		return nbt;
+	}
+
+	@Override
+	public RuleBlockEntityModifierType<?> getType() {
+		return RuleBlockEntityModifierType.PASSTHROUGH;
+	}
 }

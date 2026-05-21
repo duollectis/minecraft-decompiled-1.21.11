@@ -12,80 +12,108 @@ import com.mojang.datafixers.util.Unit;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.JavaOps;
 import com.mojang.serialization.JsonOps;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.util.JsonHelper;
 import net.minecraft.util.Util;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * {@code LegacyHoverEventFix}.
+ */
 public class LegacyHoverEventFix extends DataFix {
-   public LegacyHoverEventFix(Schema outputSchema) {
-      super(outputSchema, false);
-   }
 
-   @SuppressWarnings("unchecked")
-   protected TypeRewriteRule makeRule() {
-      Type<? extends Pair<String, ?>> type = (Type<? extends Pair<String, ?>>) this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT).findFieldType("hoverEvent");
-      return this.method_66084(this.getInputSchema().getTypeRaw(TypeReferences.TEXT_COMPONENT), type);
-   }
+	public LegacyHoverEventFix(Schema outputSchema) {
+		super(outputSchema, false);
+	}
 
-   private <C, H extends Pair<String, ?>> TypeRewriteRule method_66084(Type<C> type, Type<H> type2) {
-      Type<Pair<String, Either<Either<String, List<C>>, Pair<Either<List<C>, Unit>, Pair<Either<C, Unit>, Pair<Either<H, Unit>, Dynamic<?>>>>>>> type3 = DSL.named(
-         TypeReferences.TEXT_COMPONENT.typeName(),
-         DSL.or(
-            DSL.or(DSL.string(), DSL.list(type)),
-            DSL.and(
-               DSL.optional(DSL.field("extra", DSL.list(type))),
-               DSL.optional(DSL.field("separator", type)),
-               DSL.optional(DSL.field("hoverEvent", type2)),
-               DSL.remainderType()
-            )
-         )
-      );
-      if (!type3.equals(this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT))) {
-         throw new IllegalStateException(
-            "Text component type did not match, expected " + type3 + " but got " + this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT)
-         );
-      } else {
-         return this.fixTypeEverywhere(
-            "LegacyHoverEventFix",
-            type3,
-            dynamicOps -> pair -> pair.mapSecond(either -> either.mapRight(pairx -> pairx.mapSecond(pairxx -> pairxx.mapSecond(pairxxx -> {
-               Dynamic<?> dynamic = (Dynamic<?>)pairxxx.getSecond();
-               Optional<? extends Dynamic<?>> optional = dynamic.get("hoverEvent").result();
-               if (optional.isEmpty()) {
-                  return pairxxx;
-               } else {
-                  Optional<? extends Dynamic<?>> optional2 = optional.get().get("value").result();
-                  if (optional2.isEmpty()) {
-                     return pairxxx;
-                  } else {
-                     String string = ((Either<Pair<String, ?>, ?>)pairxxx.getFirst()).left().<String>map(innerPair -> (String)innerPair.getFirst()).orElse("");
-                     H pair2 = this.method_66089(type2, string, (Dynamic<?>)optional.get());
-                     return pairxxx.mapFirst(eitherx -> Either.left(pair2));
-                  }
-               }
-            }))))
-         );
-      }
-   }
+	@SuppressWarnings("unchecked")
+	protected TypeRewriteRule makeRule() {
+		Type<? extends Pair<String, ?>>
+				type =
+				(Type<? extends Pair<String, ?>>) this
+						.getInputSchema()
+						.getType(TypeReferences.TEXT_COMPONENT)
+						.findFieldType("hoverEvent");
+		return this.makeRewriteRule(this.getInputSchema().getTypeRaw(TypeReferences.TEXT_COMPONENT), type);
+	}
 
-   private <H> H method_66089(Type<H> type, String string, Dynamic<?> dynamic) {
-      return "show_text".equals(string) ? method_66087(type, dynamic) : method_66092(type, dynamic);
-   }
+	private <C, H extends Pair<String, ?>> TypeRewriteRule makeRewriteRule(Type<C> type, Type<H> type2) {
+		Type<Pair<String, Either<Either<String, List<C>>, Pair<Either<List<C>, Unit>, Pair<Either<C, Unit>, Pair<Either<H, Unit>, Dynamic<?>>>>>>>
+				type3 =
+				DSL.named(
+						TypeReferences.TEXT_COMPONENT.typeName(),
+						DSL.or(
+								DSL.or(DSL.string(), DSL.list(type)),
+								DSL.and(
+										DSL.optional(DSL.field("extra", DSL.list(type))),
+										DSL.optional(DSL.field("separator", type)),
+										DSL.optional(DSL.field("hoverEvent", type2)),
+										DSL.remainderType()
+								)
+						)
+				);
+		if (!type3.equals(this.getInputSchema().getType(TypeReferences.TEXT_COMPONENT))) {
+			throw new IllegalStateException(
+					"Text component type did not match, expected " + type3 + " but got " + this
+							.getInputSchema()
+							.getType(TypeReferences.TEXT_COMPONENT)
+			);
+		}
+		else {
+			return this.fixTypeEverywhere(
+					"LegacyHoverEventFix",
+					type3,
+					dynamicOps -> pair -> pair.mapSecond(either -> either.mapRight(pairx -> pairx.mapSecond(pairxx -> pairxx.mapSecond(
+							pairxxx -> {
+								Dynamic<?> dynamic = (Dynamic<?>) pairxxx.getSecond();
+								Optional<? extends Dynamic<?>> optional = dynamic.get("hoverEvent").result();
+								if (optional.isEmpty()) {
+									return pairxxx;
+								}
+								else {
+									Optional<? extends Dynamic<?>> optional2 = optional.get().get("value").result();
+									if (optional2.isEmpty()) {
+										return pairxxx;
+									}
+									else {
+										String
+												string =
+												((Either<Pair<String, ?>, ?>) pairxxx.getFirst())
+														.left()
+														.<String>map(innerPair -> (String) innerPair.getFirst())
+														.orElse("");
+										H pair2 = this.createHoverEventPair(type2, string, (Dynamic<?>) optional.get());
+										return pairxxx.mapFirst(eitherx -> Either.left(pair2));
+									}
+								}
+							}))))
+			);
+		}
+	}
 
-   private static <H> H method_66087(Type<H> type, Dynamic<?> dynamic) {
-      Dynamic<?> dynamic2 = dynamic.renameField("value", "contents");
-      return (H)Util.readTyped(type, dynamic2).getValue();
-   }
+	private <H> H createHoverEventPair(Type<H> type, String string, Dynamic<?> dynamic) {
+		return "show_text".equals(string) ? createShowTextEvent(type, dynamic) : createShowEntityOrItemEvent(type, dynamic);
+	}
 
-   private static <H> H method_66092(Type<H> type, Dynamic<?> dynamic) {
-      JsonElement jsonElement = (JsonElement)dynamic.convert(JsonOps.INSTANCE).getValue();
-      Dynamic<?> dynamic2 = new Dynamic(
-         JavaOps.INSTANCE,
-         Map.of("action", "show_text", "contents", Map.<String, String>of("text", "Legacy hoverEvent: " + JsonHelper.toSortedString(jsonElement)))
-      );
-      return (H)Util.readTyped(type, dynamic2).getValue();
-   }
+	private static <H> H createShowTextEvent(Type<H> type, Dynamic<?> dynamic) {
+		Dynamic<?> dynamic2 = dynamic.renameField("value", "contents");
+		return (H) Util.readTyped(type, dynamic2).getValue();
+	}
+
+	private static <H> H createShowEntityOrItemEvent(Type<H> type, Dynamic<?> dynamic) {
+		JsonElement jsonElement = (JsonElement) dynamic.convert(JsonOps.INSTANCE).getValue();
+		Dynamic<?> dynamic2 = new Dynamic(
+				JavaOps.INSTANCE,
+				Map.of(
+						"action",
+						"show_text",
+						"contents",
+						Map.<String, String>of("text", "Legacy hoverEvent: " + JsonHelper.toSortedString(jsonElement))
+				)
+		);
+		return (H) Util.readTyped(type, dynamic2).getValue();
+	}
 }

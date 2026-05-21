@@ -9,21 +9,34 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 
+/**
+ * {@code RecipeDisplay}.
+ */
 public interface RecipeDisplay {
-   Codec<RecipeDisplay> CODEC = Registries.RECIPE_DISPLAY.getCodec().dispatch(RecipeDisplay::serializer, RecipeDisplay.Serializer::codec);
-   PacketCodec<RegistryByteBuf, RecipeDisplay> PACKET_CODEC = PacketCodecs.registryValue(RegistryKeys.RECIPE_DISPLAY)
-      .dispatch(RecipeDisplay::serializer, RecipeDisplay.Serializer::streamCodec);
 
-   SlotDisplay result();
+	Codec<RecipeDisplay>
+			CODEC =
+			Registries.RECIPE_DISPLAY.getCodec().dispatch(RecipeDisplay::serializer, RecipeDisplay.Serializer::codec);
 
-   SlotDisplay craftingStation();
+	PacketCodec<RegistryByteBuf, RecipeDisplay> PACKET_CODEC = PacketCodecs.registryValue(RegistryKeys.RECIPE_DISPLAY)
+	                                                                       .dispatch(
+			                                                                       RecipeDisplay::serializer,
+			                                                                       RecipeDisplay.Serializer::streamCodec
+	                                                                       );
 
-   RecipeDisplay.Serializer<? extends RecipeDisplay> serializer();
+	SlotDisplay result();
 
-   default boolean isEnabled(FeatureSet features) {
-      return this.result().isEnabled(features) && this.craftingStation().isEnabled(features);
-   }
+	SlotDisplay craftingStation();
 
-   public record Serializer<T extends RecipeDisplay>(MapCodec<T> codec, PacketCodec<RegistryByteBuf, T> streamCodec) {
-   }
+	RecipeDisplay.Serializer<? extends RecipeDisplay> serializer();
+
+	default boolean isEnabled(FeatureSet features) {
+		return this.result().isEnabled(features) && this.craftingStation().isEnabled(features);
+	}
+
+	/**
+	 * {@code Serializer}.
+	 */
+	public record Serializer<T extends RecipeDisplay>(MapCodec<T> codec, PacketCodec<RegistryByteBuf, T> streamCodec) {
+	}
 }

@@ -14,49 +14,57 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EvokerFangsEntityRenderer}.
+ */
 public class EvokerFangsEntityRenderer extends EntityRenderer<EvokerFangsEntity, EvokerFangsEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/illager/evoker_fangs.png");
-   private final EvokerFangsEntityModel model;
 
-   public EvokerFangsEntityRenderer(EntityRendererFactory.Context context) {
-      super(context);
-      this.model = new EvokerFangsEntityModel(context.getPart(EntityModelLayers.EVOKER_FANGS));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/illager/evoker_fangs.png");
+	private final EvokerFangsEntityModel model;
 
-   public void render(
-      EvokerFangsEntityRenderState evokerFangsEntityRenderState,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      CameraRenderState cameraRenderState
-   ) {
-      float f = evokerFangsEntityRenderState.animationProgress;
-      if (f != 0.0F) {
-         matrixStack.push();
-         matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90.0F - evokerFangsEntityRenderState.yaw));
-         matrixStack.scale(-1.0F, -1.0F, 1.0F);
-         matrixStack.translate(0.0F, -1.501F, 0.0F);
-         orderedRenderCommandQueue.submitModel(
-            this.model,
-            evokerFangsEntityRenderState,
-            matrixStack,
-            this.model.getLayer(TEXTURE),
-            evokerFangsEntityRenderState.light,
-            OverlayTexture.DEFAULT_UV,
-            evokerFangsEntityRenderState.outlineColor,
-            null
-         );
-         matrixStack.pop();
-         super.render(evokerFangsEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
-      }
-   }
+	public EvokerFangsEntityRenderer(EntityRendererFactory.Context context) {
+		super(context);
+		this.model = new EvokerFangsEntityModel(context.getPart(EntityModelLayers.EVOKER_FANGS));
+	}
 
-   public EvokerFangsEntityRenderState createRenderState() {
-      return new EvokerFangsEntityRenderState();
-   }
+	public void render(
+			EvokerFangsEntityRenderState evokerFangsEntityRenderState,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			CameraRenderState cameraRenderState
+	) {
+		float f = evokerFangsEntityRenderState.animationProgress;
+		if (f != 0.0F) {
+			matrixStack.push();
+			matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90.0F - evokerFangsEntityRenderState.yaw));
+			matrixStack.scale(-1.0F, -1.0F, 1.0F);
+			matrixStack.translate(0.0F, -1.501F, 0.0F);
+			orderedRenderCommandQueue.submitModel(
+					this.model,
+					evokerFangsEntityRenderState,
+					matrixStack,
+					this.model.getLayer(TEXTURE),
+					evokerFangsEntityRenderState.light,
+					OverlayTexture.DEFAULT_UV,
+					evokerFangsEntityRenderState.outlineColor,
+					null
+			);
+			matrixStack.pop();
+			super.render(evokerFangsEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
+		}
+	}
 
-   public void updateRenderState(EvokerFangsEntity evokerFangsEntity, EvokerFangsEntityRenderState evokerFangsEntityRenderState, float f) {
-      super.updateRenderState(evokerFangsEntity, evokerFangsEntityRenderState, f);
-      evokerFangsEntityRenderState.yaw = evokerFangsEntity.getYaw();
-      evokerFangsEntityRenderState.animationProgress = evokerFangsEntity.getAnimationProgress(f);
-   }
+	public EvokerFangsEntityRenderState createRenderState() {
+		return new EvokerFangsEntityRenderState();
+	}
+
+	public void updateRenderState(
+			EvokerFangsEntity evokerFangsEntity,
+			EvokerFangsEntityRenderState evokerFangsEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(evokerFangsEntity, evokerFangsEntityRenderState, f);
+		evokerFangsEntityRenderState.yaw = evokerFangsEntity.getYaw();
+		evokerFangsEntityRenderState.animationProgress = evokerFangsEntity.getAnimationProgress(f);
+	}
 }

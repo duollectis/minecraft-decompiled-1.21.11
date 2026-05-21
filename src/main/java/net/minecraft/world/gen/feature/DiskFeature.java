@@ -7,55 +7,67 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+/**
+ * {@code DiskFeature}.
+ */
 public class DiskFeature extends Feature<DiskFeatureConfig> {
-   public DiskFeature(Codec<DiskFeatureConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<DiskFeatureConfig> context) {
-      DiskFeatureConfig diskFeatureConfig = context.getConfig();
-      BlockPos blockPos = context.getOrigin();
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      Random random = context.getRandom();
-      boolean bl = false;
-      int i = blockPos.getY();
-      int j = i + diskFeatureConfig.halfHeight();
-      int k = i - diskFeatureConfig.halfHeight() - 1;
-      int l = diskFeatureConfig.radius().get(random);
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
+	public DiskFeature(Codec<DiskFeatureConfig> codec) {
+		super(codec);
+	}
 
-      for (BlockPos blockPos2 : BlockPos.iterate(blockPos.add(-l, 0, -l), blockPos.add(l, 0, l))) {
-         int m = blockPos2.getX() - blockPos.getX();
-         int n = blockPos2.getZ() - blockPos.getZ();
-         if (m * m + n * n <= l * l) {
-            bl |= this.placeBlock(diskFeatureConfig, structureWorldAccess, random, j, k, mutable.set(blockPos2));
-         }
-      }
+	@Override
+	public boolean generate(FeatureContext<DiskFeatureConfig> context) {
+		DiskFeatureConfig diskFeatureConfig = context.getConfig();
+		BlockPos blockPos = context.getOrigin();
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		Random random = context.getRandom();
+		boolean bl = false;
+		int i = blockPos.getY();
+		int j = i + diskFeatureConfig.halfHeight();
+		int k = i - diskFeatureConfig.halfHeight() - 1;
+		int l = diskFeatureConfig.radius().get(random);
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-      return bl;
-   }
+		for (BlockPos blockPos2 : BlockPos.iterate(blockPos.add(-l, 0, -l), blockPos.add(l, 0, l))) {
+			int m = blockPos2.getX() - blockPos.getX();
+			int n = blockPos2.getZ() - blockPos.getZ();
+			if (m * m + n * n <= l * l) {
+				bl |= this.placeBlock(diskFeatureConfig, structureWorldAccess, random, j, k, mutable.set(blockPos2));
+			}
+		}
 
-   protected boolean placeBlock(DiskFeatureConfig config, StructureWorldAccess world, Random random, int topY, int bottomY, BlockPos.Mutable pos) {
-      boolean bl = false;
-      boolean bl2 = false;
+		return bl;
+	}
 
-      for (int i = topY; i > bottomY; i--) {
-         pos.setY(i);
-         if (config.target().test(world, pos)) {
-            BlockState blockState = config.stateProvider().getBlockState(world, random, pos);
-            world.setBlockState(pos, blockState, 2);
-            if (!bl2) {
-               this.markBlocksAboveForPostProcessing(world, pos);
-            }
+	protected boolean placeBlock(
+			DiskFeatureConfig config,
+			StructureWorldAccess world,
+			Random random,
+			int topY,
+			int bottomY,
+			BlockPos.Mutable pos
+	) {
+		boolean bl = false;
+		boolean bl2 = false;
 
-            bl = true;
-            bl2 = true;
-         } else {
-            bl2 = false;
-         }
-      }
+		for (int i = topY; i > bottomY; i--) {
+			pos.setY(i);
+			if (config.target().test(world, pos)) {
+				BlockState blockState = config.stateProvider().getBlockState(world, random, pos);
+				world.setBlockState(pos, blockState, 2);
+				if (!bl2) {
+					this.markBlocksAboveForPostProcessing(world, pos);
+				}
 
-      return bl;
-   }
+				bl = true;
+				bl2 = true;
+			}
+			else {
+				bl2 = false;
+			}
+		}
+
+		return bl;
+	}
 }

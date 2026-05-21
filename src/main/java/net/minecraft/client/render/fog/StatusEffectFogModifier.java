@@ -10,21 +10,26 @@ import net.minecraft.registry.entry.RegistryEntry;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code StatusEffectFogModifier}.
+ */
 public abstract class StatusEffectFogModifier extends FogModifier {
-   public abstract RegistryEntry<StatusEffect> getStatusEffect();
 
-   @Override
-   public boolean isColorSource() {
-      return false;
-   }
+	public abstract RegistryEntry<StatusEffect> getStatusEffect();
 
-   @Override
-   public boolean isDarknessModifier() {
-      return true;
-   }
+	@Override
+	public boolean isColorSource() {
+		return false;
+	}
 
-   @Override
-   public boolean shouldApply(@Nullable CameraSubmersionType submersionType, Entity cameraEntity) {
-      return cameraEntity instanceof LivingEntity livingEntity && livingEntity.hasStatusEffect(this.getStatusEffect());
-   }
+	@Override
+	public boolean isDarknessModifier() {
+		return true;
+	}
+
+	@Override
+	public boolean shouldApply(@Nullable CameraSubmersionType submersionType, Entity cameraEntity) {
+		return cameraEntity instanceof LivingEntity livingEntity
+				&& livingEntity.hasStatusEffect(this.getStatusEffect());
+	}
 }

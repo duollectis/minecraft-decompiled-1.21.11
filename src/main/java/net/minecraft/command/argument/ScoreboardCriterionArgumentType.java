@@ -8,10 +8,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import net.minecraft.command.CommandSource;
 import net.minecraft.registry.Registries;
 import net.minecraft.scoreboard.ScoreboardCriterion;
@@ -20,55 +16,64 @@ import net.minecraft.stat.Stat;
 import net.minecraft.stat.StatType;
 import net.minecraft.text.Text;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * {@code ScoreboardCriterionArgumentType}.
+ */
 public class ScoreboardCriterionArgumentType implements ArgumentType<ScoreboardCriterion> {
-   private static final Collection<String> EXAMPLES = Arrays.asList("foo", "foo.bar.baz", "minecraft:foo");
-   public static final DynamicCommandExceptionType INVALID_CRITERION_EXCEPTION = new DynamicCommandExceptionType(
-      name -> Text.stringifiedTranslatable("argument.criteria.invalid", name)
-   );
 
-   private ScoreboardCriterionArgumentType() {
-   }
+	private static final Collection<String> EXAMPLES = Arrays.asList("foo", "foo.bar.baz", "minecraft:foo");
+	public static final DynamicCommandExceptionType INVALID_CRITERION_EXCEPTION = new DynamicCommandExceptionType(
+			name -> Text.stringifiedTranslatable("argument.criteria.invalid", name)
+	);
 
-   public static ScoreboardCriterionArgumentType scoreboardCriterion() {
-      return new ScoreboardCriterionArgumentType();
-   }
+	private ScoreboardCriterionArgumentType() {
+	}
 
-   public static ScoreboardCriterion getCriterion(CommandContext<ServerCommandSource> context, String name) {
-      return (ScoreboardCriterion)context.getArgument(name, ScoreboardCriterion.class);
-   }
+	public static ScoreboardCriterionArgumentType scoreboardCriterion() {
+		return new ScoreboardCriterionArgumentType();
+	}
 
-   public ScoreboardCriterion parse(StringReader stringReader) throws CommandSyntaxException {
-      int i = stringReader.getCursor();
+	public static ScoreboardCriterion getCriterion(CommandContext<ServerCommandSource> context, String name) {
+		return (ScoreboardCriterion) context.getArgument(name, ScoreboardCriterion.class);
+	}
 
-      while (stringReader.canRead() && stringReader.peek() != ' ') {
-         stringReader.skip();
-      }
+	public ScoreboardCriterion parse(StringReader stringReader) throws CommandSyntaxException {
+		int i = stringReader.getCursor();
 
-      String string = stringReader.getString().substring(i, stringReader.getCursor());
-      return ScoreboardCriterion.getOrCreateStatCriterion(string).orElseThrow(() -> {
-         stringReader.setCursor(i);
-         return INVALID_CRITERION_EXCEPTION.createWithContext(stringReader, string);
-      });
-   }
+		while (stringReader.canRead() && stringReader.peek() != ' ') {
+			stringReader.skip();
+		}
 
-   public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-      List<String> list = Lists.newArrayList(ScoreboardCriterion.getAllSimpleCriteria());
+		String string = stringReader.getString().substring(i, stringReader.getCursor());
+		return ScoreboardCriterion.getOrCreateStatCriterion(string).orElseThrow(() -> {
+			stringReader.setCursor(i);
+			return INVALID_CRITERION_EXCEPTION.createWithContext(stringReader, string);
+		});
+	}
 
-      for (StatType<?> statType : Registries.STAT_TYPE) {
-         for (Object object : statType.getRegistry()) {
-            String string = this.getStatName(statType, object);
-            list.add(string);
-         }
-      }
+	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
+		List<String> list = Lists.newArrayList(ScoreboardCriterion.getAllSimpleCriteria());
 
-      return CommandSource.suggestMatching(list, builder);
-   }
+		for (StatType<?> statType : Registries.STAT_TYPE) {
+			for (Object object : statType.getRegistry()) {
+				String string = this.getStatName(statType, object);
+				list.add(string);
+			}
+		}
 
-   public <T> String getStatName(StatType<T> stat, Object value) {
-      return Stat.getName(stat, (T)value);
-   }
+		return CommandSource.suggestMatching(list, builder);
+	}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+	public <T> String getStatName(StatType<T> stat, Object value) {
+		return Stat.getName(stat, (T) value);
+	}
+
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 }

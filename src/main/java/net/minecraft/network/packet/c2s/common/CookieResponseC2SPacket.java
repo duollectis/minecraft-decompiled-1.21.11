@@ -10,26 +10,30 @@ import net.minecraft.network.packet.s2c.common.StoreCookieS2CPacket;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
-public record CookieResponseC2SPacket(Identifier key, byte @Nullable [] payload) implements Packet<ServerCookieResponsePacketListener> {
-   public static final PacketCodec<PacketByteBuf, CookieResponseC2SPacket> CODEC = Packet.createCodec(
-      CookieResponseC2SPacket::write, CookieResponseC2SPacket::new
-   );
+public record CookieResponseC2SPacket(
+		Identifier key,
+		byte @Nullable [] payload
+) implements Packet<ServerCookieResponsePacketListener> {
 
-   private CookieResponseC2SPacket(PacketByteBuf buf) {
-      this(buf.readIdentifier(), buf.readNullable(StoreCookieS2CPacket.COOKIE_PACKET_CODEC));
-   }
+	public static final PacketCodec<PacketByteBuf, CookieResponseC2SPacket> CODEC = Packet.createCodec(
+			CookieResponseC2SPacket::write, CookieResponseC2SPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeIdentifier(this.key);
-      buf.writeNullable(this.payload, StoreCookieS2CPacket.COOKIE_PACKET_CODEC);
-   }
+	private CookieResponseC2SPacket(PacketByteBuf buf) {
+		this(buf.readIdentifier(), buf.readNullable(StoreCookieS2CPacket.COOKIE_PACKET_CODEC));
+	}
 
-   @Override
-   public PacketType<CookieResponseC2SPacket> getPacketType() {
-      return CookiePackets.COOKIE_RESPONSE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeIdentifier(this.key);
+		buf.writeNullable(this.payload, StoreCookieS2CPacket.COOKIE_PACKET_CODEC);
+	}
 
-   public void apply(ServerCookieResponsePacketListener serverCookieResponsePacketListener) {
-      serverCookieResponsePacketListener.onCookieResponse(this);
-   }
+	@Override
+	public PacketType<CookieResponseC2SPacket> getPacketType() {
+		return CookiePackets.COOKIE_RESPONSE;
+	}
+
+	public void apply(ServerCookieResponsePacketListener serverCookieResponsePacketListener) {
+		serverCookieResponsePacketListener.onCookieResponse(this);
+	}
 }

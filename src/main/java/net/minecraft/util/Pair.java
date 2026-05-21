@@ -1,27 +1,31 @@
 package net.minecraft.util;
 
+/**
+ * {@code Pair}.
+ */
 public class Pair<A, B> {
-   private A left;
-   private B right;
 
-   public Pair(A left, B right) {
-      this.left = left;
-      this.right = right;
-   }
+	private A left;
+	private B right;
 
-   public A getLeft() {
-      return this.left;
-   }
+	public Pair(A left, B right) {
+		this.left = left;
+		this.right = right;
+	}
 
-   public void setLeft(A left) {
-      this.left = left;
-   }
+	public A getLeft() {
+		return this.left;
+	}
 
-   public B getRight() {
-      return this.right;
-   }
+	public void setLeft(A left) {
+		this.left = left;
+	}
 
-   public void setRight(B right) {
-      this.right = right;
-   }
+	public B getRight() {
+		return this.right;
+	}
+
+	public void setRight(B right) {
+		this.right = right;
+	}
 }

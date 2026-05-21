@@ -1,26 +1,38 @@
 package net.minecraft.block;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 import net.minecraft.component.type.SuspiciousStewEffectsComponent;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemConvertible;
 import net.minecraft.registry.Registries;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+/**
+ * {@code SuspiciousStewIngredient}.
+ */
 public interface SuspiciousStewIngredient {
-   SuspiciousStewEffectsComponent getStewEffects();
 
-   static List<SuspiciousStewIngredient> getAll() {
-      return Registries.ITEM.stream().map(SuspiciousStewIngredient::of).filter(Objects::nonNull).collect(Collectors.toList());
-   }
+	SuspiciousStewEffectsComponent getStewEffects();
 
-   static @Nullable SuspiciousStewIngredient of(ItemConvertible item) {
-      if (item.asItem() instanceof BlockItem blockItem && blockItem.getBlock() instanceof SuspiciousStewIngredient suspiciousStewIngredient) {
-         return suspiciousStewIngredient;
-      } else {
-         return item.asItem() instanceof SuspiciousStewIngredient suspiciousStewIngredient2 ? suspiciousStewIngredient2 : null;
-      }
-   }
+	static List<SuspiciousStewIngredient> getAll() {
+		return Registries.ITEM
+				.stream()
+				.map(SuspiciousStewIngredient::of)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toList());
+	}
+
+	static @Nullable SuspiciousStewIngredient of(ItemConvertible item) {
+		if (item.asItem() instanceof BlockItem blockItem
+				&& blockItem.getBlock() instanceof SuspiciousStewIngredient suspiciousStewIngredient) {
+			return suspiciousStewIngredient;
+		}
+		else {
+			return item.asItem() instanceof SuspiciousStewIngredient suspiciousStewIngredient2
+			       ? suspiciousStewIngredient2 : null;
+		}
+	}
 }

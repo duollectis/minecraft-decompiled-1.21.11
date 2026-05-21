@@ -5,23 +5,29 @@ import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.entity.projectile.WindChargeEntity;
 
+/**
+ * {@code AbstractSittingPhase}.
+ */
 public abstract class AbstractSittingPhase extends AbstractPhase {
-   public AbstractSittingPhase(EnderDragonEntity enderDragonEntity) {
-      super(enderDragonEntity);
-   }
 
-   @Override
-   public boolean isSittingOrHovering() {
-      return true;
-   }
+	public AbstractSittingPhase(EnderDragonEntity enderDragonEntity) {
+		super(enderDragonEntity);
+	}
 
-   @Override
-   public float modifyDamageTaken(DamageSource damageSource, float damage) {
-      if (!(damageSource.getSource() instanceof PersistentProjectileEntity) && !(damageSource.getSource() instanceof WindChargeEntity)) {
-         return super.modifyDamageTaken(damageSource, damage);
-      } else {
-         damageSource.getSource().setOnFireFor(1.0F);
-         return 0.0F;
-      }
-   }
+	@Override
+	public boolean isSittingOrHovering() {
+		return true;
+	}
+
+	@Override
+	public float modifyDamageTaken(DamageSource damageSource, float damage) {
+		if (!(damageSource.getSource() instanceof PersistentProjectileEntity)
+				&& !(damageSource.getSource() instanceof WindChargeEntity)) {
+			return super.modifyDamageTaken(damageSource, damage);
+		}
+		else {
+			damageSource.getSource().setOnFireFor(1.0F);
+			return 0.0F;
+		}
+	}
 }

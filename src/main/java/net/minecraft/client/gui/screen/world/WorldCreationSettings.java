@@ -6,5 +6,8 @@ import net.minecraft.resource.DataConfiguration;
 import net.minecraft.world.level.WorldGenSettings;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WorldCreationSettings}.
+ */
 public record WorldCreationSettings(WorldGenSettings worldGenSettings, DataConfiguration dataConfiguration) {
 }

@@ -19,100 +19,129 @@ import net.minecraft.util.math.intprovider.UniformIntProvider;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
+/**
+ * {@code RedstoneOreBlock}.
+ */
 public class RedstoneOreBlock extends Block {
-   public static final MapCodec<RedstoneOreBlock> CODEC = createCodec(RedstoneOreBlock::new);
-   public static final BooleanProperty LIT = RedstoneTorchBlock.LIT;
 
-   @Override
-   public MapCodec<RedstoneOreBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<RedstoneOreBlock> CODEC = createCodec(RedstoneOreBlock::new);
+	public static final BooleanProperty LIT = RedstoneTorchBlock.LIT;
 
-   public RedstoneOreBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.getDefaultState().with(LIT, false));
-   }
+	@Override
+	public MapCodec<RedstoneOreBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
-      light(state, world, pos);
-      super.onBlockBreakStart(state, world, pos, player);
-   }
+	public RedstoneOreBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.getDefaultState().with(LIT, false));
+	}
 
-   @Override
-   public void onSteppedOn(World world, BlockPos pos, BlockState state, Entity entity) {
-      if (!entity.bypassesSteppingEffects()) {
-         light(state, world, pos);
-      }
+	@Override
+	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
+		light(state, world, pos);
+		super.onBlockBreakStart(state, world, pos, player);
+	}
 
-      super.onSteppedOn(world, pos, state, entity);
-   }
+	@Override
+	public void onSteppedOn(World world, BlockPos pos, BlockState state, Entity entity) {
+		if (!entity.bypassesSteppingEffects()) {
+			light(state, world, pos);
+		}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      if (world.isClient()) {
-         spawnParticles(world, pos);
-      } else {
-         light(state, world, pos);
-      }
+		super.onSteppedOn(world, pos, state, entity);
+	}
 
-      return (ActionResult)(stack.getItem() instanceof BlockItem && new ItemPlacementContext(player, hand, stack, hit).canPlace()
-         ? ActionResult.PASS
-         : ActionResult.SUCCESS);
-   }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		if (world.isClient()) {
+			spawnParticles(world, pos);
+		}
+		else {
+			light(state, world, pos);
+		}
 
-   private static void light(BlockState state, World world, BlockPos pos) {
-      spawnParticles(world, pos);
-      if (!state.get(LIT)) {
-         world.setBlockState(pos, state.with(LIT, true), 3);
-      }
-   }
+		return (ActionResult) (
+				stack.getItem() instanceof BlockItem && new ItemPlacementContext(player, hand, stack, hit).canPlace()
+				? ActionResult.PASS
+				: ActionResult.SUCCESS
+		);
+	}
 
-   @Override
-   protected boolean hasRandomTicks(BlockState state) {
-      return state.get(LIT);
-   }
+	private static void light(BlockState state, World world, BlockPos pos) {
+		spawnParticles(world, pos);
+		if (!state.get(LIT)) {
+			world.setBlockState(pos, state.with(LIT, true), 3);
+		}
+	}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (state.get(LIT)) {
-         world.setBlockState(pos, state.with(LIT, false), 3);
-      }
-   }
+	@Override
+	protected boolean hasRandomTicks(BlockState state) {
+		return state.get(LIT);
+	}
 
-   @Override
-   protected void onStacksDropped(BlockState state, ServerWorld world, BlockPos pos, ItemStack tool, boolean dropExperience) {
-      super.onStacksDropped(state, world, pos, tool, dropExperience);
-      if (dropExperience) {
-         this.dropExperienceWhenMined(world, pos, tool, UniformIntProvider.create(1, 5));
-      }
-   }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (state.get(LIT)) {
+			world.setBlockState(pos, state.with(LIT, false), 3);
+		}
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      if (state.get(LIT)) {
-         spawnParticles(world, pos);
-      }
-   }
+	@Override
+	protected void onStacksDropped(
+			BlockState state,
+			ServerWorld world,
+			BlockPos pos,
+			ItemStack tool,
+			boolean dropExperience
+	) {
+		super.onStacksDropped(state, world, pos, tool, dropExperience);
+		if (dropExperience) {
+			this.dropExperienceWhenMined(world, pos, tool, UniformIntProvider.create(1, 5));
+		}
+	}
 
-   private static void spawnParticles(World world, BlockPos pos) {
-      double d = 0.5625;
-      Random random = world.random;
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		if (state.get(LIT)) {
+			spawnParticles(world, pos);
+		}
+	}
 
-      for (Direction direction : Direction.values()) {
-         BlockPos blockPos = pos.offset(direction);
-         if (!world.getBlockState(blockPos).isOpaqueFullCube()) {
-            Direction.Axis axis = direction.getAxis();
-            double e = axis == Direction.Axis.X ? 0.5 + 0.5625 * direction.getOffsetX() : random.nextFloat();
-            double f = axis == Direction.Axis.Y ? 0.5 + 0.5625 * direction.getOffsetY() : random.nextFloat();
-            double g = axis == Direction.Axis.Z ? 0.5 + 0.5625 * direction.getOffsetZ() : random.nextFloat();
-            world.addParticleClient(DustParticleEffect.DEFAULT, pos.getX() + e, pos.getY() + f, pos.getZ() + g, 0.0, 0.0, 0.0);
-         }
-      }
-   }
+	private static void spawnParticles(World world, BlockPos pos) {
+		double d = 0.5625;
+		Random random = world.random;
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(LIT);
-   }
+		for (Direction direction : Direction.values()) {
+			BlockPos blockPos = pos.offset(direction);
+			if (!world.getBlockState(blockPos).isOpaqueFullCube()) {
+				Direction.Axis axis = direction.getAxis();
+				double e = axis == Direction.Axis.X ? 0.5 + 0.5625 * direction.getOffsetX() : random.nextFloat();
+				double f = axis == Direction.Axis.Y ? 0.5 + 0.5625 * direction.getOffsetY() : random.nextFloat();
+				double g = axis == Direction.Axis.Z ? 0.5 + 0.5625 * direction.getOffsetZ() : random.nextFloat();
+				world.addParticleClient(
+						DustParticleEffect.DEFAULT,
+						pos.getX() + e,
+						pos.getY() + f,
+						pos.getZ() + g,
+						0.0,
+						0.0,
+						0.0
+				);
+			}
+		}
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(LIT);
+	}
 }

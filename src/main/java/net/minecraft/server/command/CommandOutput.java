@@ -2,37 +2,41 @@ package net.minecraft.server.command;
 
 import net.minecraft.text.Text;
 
+/**
+ * {@code CommandOutput}.
+ */
 public interface CommandOutput {
-   CommandOutput DUMMY = new CommandOutput() {
-      @Override
-      public void sendMessage(Text message) {
-      }
 
-      @Override
-      public boolean shouldReceiveFeedback() {
-         return false;
-      }
+	CommandOutput DUMMY = new CommandOutput() {
+		@Override
+		public void sendMessage(Text message) {
+		}
 
-      @Override
-      public boolean shouldTrackOutput() {
-         return false;
-      }
+		@Override
+		public boolean shouldReceiveFeedback() {
+			return false;
+		}
 
-      @Override
-      public boolean shouldBroadcastConsoleToOps() {
-         return false;
-      }
-   };
+		@Override
+		public boolean shouldTrackOutput() {
+			return false;
+		}
 
-   void sendMessage(Text message);
+		@Override
+		public boolean shouldBroadcastConsoleToOps() {
+			return false;
+		}
+	};
 
-   boolean shouldReceiveFeedback();
+	void sendMessage(Text message);
 
-   boolean shouldTrackOutput();
+	boolean shouldReceiveFeedback();
 
-   boolean shouldBroadcastConsoleToOps();
+	boolean shouldTrackOutput();
 
-   default boolean cannotBeSilenced() {
-      return false;
-   }
+	boolean shouldBroadcastConsoleToOps();
+
+	default boolean cannotBeSilenced() {
+		return false;
+	}
 }

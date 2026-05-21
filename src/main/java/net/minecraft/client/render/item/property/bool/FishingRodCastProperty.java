@@ -13,21 +13,32 @@ import net.minecraft.util.Arm;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FishingRodCastProperty}.
+ */
 public record FishingRodCastProperty() implements BooleanProperty {
-   public static final MapCodec<FishingRodCastProperty> CODEC = MapCodec.unit(new FishingRodCastProperty());
 
-   @Override
-   public boolean test(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity entity, int seed, ItemDisplayContext displayContext) {
-      if (entity instanceof PlayerEntity playerEntity && playerEntity.fishHook != null) {
-         Arm arm = FishingBobberEntityRenderer.getArmHoldingRod(playerEntity);
-         return entity.getStackInArm(arm) == stack;
-      } else {
-         return false;
-      }
-   }
+	public static final MapCodec<FishingRodCastProperty> CODEC = MapCodec.unit(new FishingRodCastProperty());
 
-   @Override
-   public MapCodec<FishingRodCastProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public boolean test(
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity entity,
+			int seed,
+			ItemDisplayContext displayContext
+	) {
+		if (entity instanceof PlayerEntity playerEntity && playerEntity.fishHook != null) {
+			Arm arm = FishingBobberEntityRenderer.getArmHoldingRod(playerEntity);
+			return entity.getStackInArm(arm) == stack;
+		}
+		else {
+			return false;
+		}
+	}
+
+	@Override
+	public MapCodec<FishingRodCastProperty> getCodec() {
+		return CODEC;
+	}
 }

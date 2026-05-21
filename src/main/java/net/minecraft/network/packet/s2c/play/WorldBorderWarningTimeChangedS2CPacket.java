@@ -9,33 +9,34 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.border.WorldBorder;
 
 public class WorldBorderWarningTimeChangedS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, WorldBorderWarningTimeChangedS2CPacket> CODEC = Packet.createCodec(
-      WorldBorderWarningTimeChangedS2CPacket::write, WorldBorderWarningTimeChangedS2CPacket::new
-   );
-   private final int warningTime;
 
-   public WorldBorderWarningTimeChangedS2CPacket(WorldBorder worldBorder) {
-      this.warningTime = worldBorder.getWarningTime();
-   }
+	public static final PacketCodec<PacketByteBuf, WorldBorderWarningTimeChangedS2CPacket> CODEC = Packet.createCodec(
+			WorldBorderWarningTimeChangedS2CPacket::write, WorldBorderWarningTimeChangedS2CPacket::new
+	);
+	private final int warningTime;
 
-   private WorldBorderWarningTimeChangedS2CPacket(PacketByteBuf buf) {
-      this.warningTime = buf.readVarInt();
-   }
+	public WorldBorderWarningTimeChangedS2CPacket(WorldBorder worldBorder) {
+		this.warningTime = worldBorder.getWarningTime();
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.warningTime);
-   }
+	private WorldBorderWarningTimeChangedS2CPacket(PacketByteBuf buf) {
+		this.warningTime = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<WorldBorderWarningTimeChangedS2CPacket> getPacketType() {
-      return PlayPackets.SET_BORDER_WARNING_DELAY;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.warningTime);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onWorldBorderWarningTimeChanged(this);
-   }
+	@Override
+	public PacketType<WorldBorderWarningTimeChangedS2CPacket> getPacketType() {
+		return PlayPackets.SET_BORDER_WARNING_DELAY;
+	}
 
-   public int getWarningTime() {
-      return this.warningTime;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onWorldBorderWarningTimeChanged(this);
+	}
+
+	public int getWarningTime() {
+		return this.warningTime;
+	}
 }

@@ -7,53 +7,59 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+/**
+ * {@code ChargingPlayerPhase}.
+ */
 public class ChargingPlayerPhase extends AbstractPhase {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final int DURATION = 10;
-   private @Nullable Vec3d pathTarget;
-   private int chargingTicks;
 
-   public ChargingPlayerPhase(EnderDragonEntity enderDragonEntity) {
-      super(enderDragonEntity);
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final int DURATION = 10;
+	private @Nullable Vec3d pathTarget;
+	private int chargingTicks;
 
-   @Override
-   public void serverTick(ServerWorld world) {
-      if (this.pathTarget == null) {
-         LOGGER.warn("Aborting charge player as no target was set.");
-         this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
-      } else if (this.chargingTicks > 0 && this.chargingTicks++ >= 10) {
-         this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
-      } else {
-         double d = this.pathTarget.squaredDistanceTo(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ());
-         if (d < 100.0 || d > 22500.0 || this.dragon.horizontalCollision || this.dragon.verticalCollision) {
-            this.chargingTicks++;
-         }
-      }
-   }
+	public ChargingPlayerPhase(EnderDragonEntity enderDragonEntity) {
+		super(enderDragonEntity);
+	}
 
-   @Override
-   public void beginPhase() {
-      this.pathTarget = null;
-      this.chargingTicks = 0;
-   }
+	@Override
+	public void serverTick(ServerWorld world) {
+		if (this.pathTarget == null) {
+			LOGGER.warn("Aborting charge player as no target was set.");
+			this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
+		}
+		else if (this.chargingTicks > 0 && this.chargingTicks++ >= 10) {
+			this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
+		}
+		else {
+			double d = this.pathTarget.squaredDistanceTo(this.dragon.getX(), this.dragon.getY(), this.dragon.getZ());
+			if (d < 100.0 || d > 22500.0 || this.dragon.horizontalCollision || this.dragon.verticalCollision) {
+				this.chargingTicks++;
+			}
+		}
+	}
 
-   public void setPathTarget(Vec3d pathTarget) {
-      this.pathTarget = pathTarget;
-   }
+	@Override
+	public void beginPhase() {
+		this.pathTarget = null;
+		this.chargingTicks = 0;
+	}
 
-   @Override
-   public float getMaxYAcceleration() {
-      return 3.0F;
-   }
+	public void setPathTarget(Vec3d pathTarget) {
+		this.pathTarget = pathTarget;
+	}
 
-   @Override
-   public @Nullable Vec3d getPathTarget() {
-      return this.pathTarget;
-   }
+	@Override
+	public float getMaxYAcceleration() {
+		return 3.0F;
+	}
 
-   @Override
-   public PhaseType<ChargingPlayerPhase> getType() {
-      return PhaseType.CHARGING_PLAYER;
-   }
+	@Override
+	public @Nullable Vec3d getPathTarget() {
+		return this.pathTarget;
+	}
+
+	@Override
+	public PhaseType<ChargingPlayerPhase> getType() {
+		return PhaseType.CHARGING_PLAYER;
+	}
 }

@@ -1,11 +1,6 @@
 package net.minecraft.entity.mob;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.ai.goal.ActiveTargetGoal;
 import net.minecraft.entity.ai.pathing.PathNodeType;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -27,87 +22,103 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code WitherSkeletonEntity}.
+ */
 public class WitherSkeletonEntity extends AbstractSkeletonEntity {
-   public WitherSkeletonEntity(EntityType<? extends WitherSkeletonEntity> entityType, World world) {
-      super(entityType, world);
-      this.setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
-   }
 
-   @Override
-   protected void initGoals() {
-      this.targetSelector.add(3, new ActiveTargetGoal<>(this, AbstractPiglinEntity.class, true));
-      super.initGoals();
-   }
+	public WitherSkeletonEntity(EntityType<? extends WitherSkeletonEntity> entityType, World world) {
+		super(entityType, world);
+		this.setPathfindingPenalty(PathNodeType.LAVA, 8.0F);
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_WITHER_SKELETON_AMBIENT;
-   }
+	@Override
+	protected void initGoals() {
+		this.targetSelector.add(3, new ActiveTargetGoal<>(this, AbstractPiglinEntity.class, true));
+		super.initGoals();
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_WITHER_SKELETON_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_WITHER_SKELETON_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_WITHER_SKELETON_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_WITHER_SKELETON_HURT;
+	}
 
-   @Override
-   SoundEvent getStepSound() {
-      return SoundEvents.ENTITY_WITHER_SKELETON_STEP;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_WITHER_SKELETON_DEATH;
+	}
 
-   @Override
-   public TagKey<Item> getPreferredWeapons() {
-      return null;
-   }
+	@Override
+	SoundEvent getStepSound() {
+		return SoundEvents.ENTITY_WITHER_SKELETON_STEP;
+	}
 
-   @Override
-   public boolean canPickupItem(ItemStack stack) {
-      return !stack.isIn(ItemTags.WITHER_SKELETON_DISLIKED_WEAPONS) && super.canPickupItem(stack);
-   }
+	@Override
+	public TagKey<Item> getPreferredWeapons() {
+		return null;
+	}
 
-   @Override
-   protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
-      this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
-   }
+	@Override
+	public boolean canPickupItem(ItemStack stack) {
+		return !stack.isIn(ItemTags.WITHER_SKELETON_DISLIKED_WEAPONS) && super.canPickupItem(stack);
+	}
 
-   @Override
-   protected void updateEnchantments(ServerWorldAccess world, Random random, LocalDifficulty localDifficulty) {
-   }
+	@Override
+	protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
+		this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_SWORD));
+	}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      EntityData entityData2 = super.initialize(world, difficulty, spawnReason, entityData);
-      this.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE).setBaseValue(4.0);
-      this.updateAttackType();
-      return entityData2;
-   }
+	@Override
+	protected void updateEnchantments(ServerWorldAccess world, Random random, LocalDifficulty localDifficulty) {
+	}
 
-   @Override
-   public boolean tryAttack(ServerWorld world, Entity target) {
-      if (!super.tryAttack(world, target)) {
-         return false;
-      } else {
-         if (target instanceof LivingEntity) {
-            ((LivingEntity)target).addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, 200), this);
-         }
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		EntityData entityData2 = super.initialize(world, difficulty, spawnReason, entityData);
+		this.getAttributeInstance(EntityAttributes.ATTACK_DAMAGE).setBaseValue(4.0);
+		this.updateAttackType();
+		return entityData2;
+	}
 
-         return true;
-      }
-   }
+	@Override
+	public boolean tryAttack(ServerWorld world, Entity target) {
+		if (!super.tryAttack(world, target)) {
+			return false;
+		}
+		else {
+			if (target instanceof LivingEntity) {
+				((LivingEntity) target).addStatusEffect(new StatusEffectInstance(StatusEffects.WITHER, 200), this);
+			}
 
-   @Override
-   protected PersistentProjectileEntity createArrowProjectile(ItemStack arrow, float damageModifier, @Nullable ItemStack shotFrom) {
-      PersistentProjectileEntity persistentProjectileEntity = super.createArrowProjectile(arrow, damageModifier, shotFrom);
-      persistentProjectileEntity.setOnFireFor(100.0F);
-      return persistentProjectileEntity;
-   }
+			return true;
+		}
+	}
 
-   @Override
-   public boolean canHaveStatusEffect(StatusEffectInstance effect) {
-      return effect.equals(StatusEffects.WITHER) ? false : super.canHaveStatusEffect(effect);
-   }
+	@Override
+	protected PersistentProjectileEntity createArrowProjectile(
+			ItemStack arrow,
+			float damageModifier,
+			@Nullable ItemStack shotFrom
+	) {
+		PersistentProjectileEntity
+				persistentProjectileEntity =
+				super.createArrowProjectile(arrow, damageModifier, shotFrom);
+		persistentProjectileEntity.setOnFireFor(100.0F);
+		return persistentProjectileEntity;
+	}
+
+	@Override
+	public boolean canHaveStatusEffect(StatusEffectInstance effect) {
+		return effect.equals(StatusEffects.WITHER) ? false : super.canHaveStatusEffect(effect);
+	}
 }

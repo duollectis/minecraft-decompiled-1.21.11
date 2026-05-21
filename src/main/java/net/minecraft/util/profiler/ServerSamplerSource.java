@@ -6,94 +6,113 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.function.LongSupplier;
-import java.util.function.Supplier;
-import java.util.function.ToDoubleFunction;
-import java.util.stream.IntStream;
 import net.minecraft.util.SystemDetails;
 import net.minecraft.util.thread.ExecutorSampling;
 import org.slf4j.Logger;
 import oshi.SystemInfo;
 import oshi.hardware.CentralProcessor;
 
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
+import java.util.function.Supplier;
+import java.util.function.ToDoubleFunction;
+import java.util.stream.IntStream;
+
+/**
+ * {@code ServerSamplerSource}.
+ */
 public class ServerSamplerSource implements SamplerSource {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private final Set<Sampler> samplers = new ObjectOpenHashSet();
-   private final SamplerFactory factory = new SamplerFactory();
 
-   public ServerSamplerSource(LongSupplier nanoTimeSupplier, boolean includeSystem) {
-      this.samplers.add(createTickTimeTracker(nanoTimeSupplier));
-      if (includeSystem) {
-         this.samplers.addAll(createSystemSamplers());
-      }
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private final Set<Sampler> samplers = new ObjectOpenHashSet();
+	private final SamplerFactory factory = new SamplerFactory();
 
-   public static Set<Sampler> createSystemSamplers() {
-      Builder<Sampler> builder = ImmutableSet.builder();
+	public ServerSamplerSource(LongSupplier nanoTimeSupplier, boolean includeSystem) {
+		this.samplers.add(createTickTimeTracker(nanoTimeSupplier));
+		if (includeSystem) {
+			this.samplers.addAll(createSystemSamplers());
+		}
+	}
 
-      try {
-         ServerSamplerSource.CpuUsageFetcher cpuUsageFetcher = new ServerSamplerSource.CpuUsageFetcher();
-         IntStream.range(0, cpuUsageFetcher.logicalProcessorCount)
-            .mapToObj(index -> Sampler.create("cpu#" + index, SampleType.CPU, () -> cpuUsageFetcher.getCpuUsage(index)))
-            .forEach(builder::add);
-      } catch (Throwable var2) {
-         LOGGER.warn("Failed to query cpu, no cpu stats will be recorded", var2);
-      }
+	public static Set<Sampler> createSystemSamplers() {
+		Builder<Sampler> builder = ImmutableSet.builder();
 
-      builder.add(
-         Sampler.create("heap MiB", SampleType.JVM, () -> SystemDetails.toMebibytes(Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()))
-      );
-      builder.addAll(ExecutorSampling.INSTANCE.createSamplers());
-      return builder.build();
-   }
+		try {
+			ServerSamplerSource.CpuUsageFetcher cpuUsageFetcher = new ServerSamplerSource.CpuUsageFetcher();
+			IntStream.range(0, cpuUsageFetcher.logicalProcessorCount)
+			         .mapToObj(index -> Sampler.create(
+					         "cpu#" + index,
+					         SampleType.CPU,
+					         () -> cpuUsageFetcher.getCpuUsage(index)
+			         ))
+			         .forEach(builder::add);
+		}
+		catch (Throwable var2) {
+			LOGGER.warn("Failed to query cpu, no cpu stats will be recorded", var2);
+		}
 
-   @Override
-   public Set<Sampler> getSamplers(Supplier<ReadableProfiler> profilerSupplier) {
-      this.samplers.addAll(this.factory.createSamplers(profilerSupplier));
-      return this.samplers;
-   }
+		builder.add(
+				Sampler.create(
+						"heap MiB",
+						SampleType.JVM,
+						() -> SystemDetails.toMebibytes(
+								Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())
+				)
+		);
+		builder.addAll(ExecutorSampling.INSTANCE.createSamplers());
+		return builder.build();
+	}
 
-   public static Sampler createTickTimeTracker(LongSupplier nanoTimeSupplier) {
-      Stopwatch stopwatch = Stopwatch.createUnstarted(new Ticker() {
-         public long read() {
-            return nanoTimeSupplier.getAsLong();
-         }
-      });
-      ToDoubleFunction<Stopwatch> toDoubleFunction = watch -> {
-         if (watch.isRunning()) {
-            watch.stop();
-         }
+	@Override
+	public Set<Sampler> getSamplers(Supplier<ReadableProfiler> profilerSupplier) {
+		this.samplers.addAll(this.factory.createSamplers(profilerSupplier));
+		return this.samplers;
+	}
 
-         long l = watch.elapsed(TimeUnit.NANOSECONDS);
-         watch.reset();
-         return l;
-      };
-      Sampler.RatioDeviationChecker ratioDeviationChecker = new Sampler.RatioDeviationChecker(2.0F);
-      return Sampler.builder("ticktime", SampleType.TICK_LOOP, toDoubleFunction, stopwatch)
-         .startAction(Stopwatch::start)
-         .deviationChecker(ratioDeviationChecker)
-         .build();
-   }
+	public static Sampler createTickTimeTracker(LongSupplier nanoTimeSupplier) {
+		Stopwatch stopwatch = Stopwatch.createUnstarted(new Ticker() {
+			public long read() {
+				return nanoTimeSupplier.getAsLong();
+			}
+		});
+		ToDoubleFunction<Stopwatch> toDoubleFunction = watch -> {
+			if (watch.isRunning()) {
+				watch.stop();
+			}
 
-   static class CpuUsageFetcher {
-      private final SystemInfo systemInfo = new SystemInfo();
-      private final CentralProcessor processor = this.systemInfo.getHardware().getProcessor();
-      public final int logicalProcessorCount = this.processor.getLogicalProcessorCount();
-      private long[][] loadTicks = this.processor.getProcessorCpuLoadTicks();
-      private double[] loadBetweenTicks = this.processor.getProcessorCpuLoadBetweenTicks(this.loadTicks);
-      private long lastCheckTime;
+			long l = watch.elapsed(TimeUnit.NANOSECONDS);
+			watch.reset();
+			return l;
+		};
+		Sampler.RatioDeviationChecker ratioDeviationChecker = new Sampler.RatioDeviationChecker(2.0F);
+		return Sampler.builder("ticktime", SampleType.TICK_LOOP, toDoubleFunction, stopwatch)
+		              .startAction(Stopwatch::start)
+		              .deviationChecker(ratioDeviationChecker)
+		              .build();
+	}
 
-      public double getCpuUsage(int index) {
-         long l = System.currentTimeMillis();
-         if (this.lastCheckTime == 0L || this.lastCheckTime + 501L < l) {
-            this.loadBetweenTicks = this.processor.getProcessorCpuLoadBetweenTicks(this.loadTicks);
-            this.loadTicks = this.processor.getProcessorCpuLoadTicks();
-            this.lastCheckTime = l;
-         }
+	/**
+	 * {@code CpuUsageFetcher}.
+	 */
+	static class CpuUsageFetcher {
 
-         return this.loadBetweenTicks[index] * 100.0;
-      }
-   }
+		private final SystemInfo systemInfo = new SystemInfo();
+		private final CentralProcessor processor = this.systemInfo.getHardware().getProcessor();
+		public final int logicalProcessorCount = this.processor.getLogicalProcessorCount();
+		private long[][] loadTicks = this.processor.getProcessorCpuLoadTicks();
+		private double[] loadBetweenTicks = this.processor.getProcessorCpuLoadBetweenTicks(this.loadTicks);
+		private long lastCheckTime;
+
+		public double getCpuUsage(int index) {
+			long l = System.currentTimeMillis();
+			if (this.lastCheckTime == 0L || this.lastCheckTime + 501L < l) {
+				this.loadBetweenTicks = this.processor.getProcessorCpuLoadBetweenTicks(this.loadTicks);
+				this.loadTicks = this.processor.getProcessorCpuLoadTicks();
+				this.lastCheckTime = l;
+			}
+
+			return this.loadBetweenTicks[index] * 100.0;
+		}
+	}
 }

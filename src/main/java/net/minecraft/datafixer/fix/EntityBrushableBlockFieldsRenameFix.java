@@ -6,17 +6,27 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code EntityBrushableBlockFieldsRenameFix}.
+ */
 public class EntityBrushableBlockFieldsRenameFix extends ChoiceFix {
-   public EntityBrushableBlockFieldsRenameFix(Schema outputSchema) {
-      super(outputSchema, false, "EntityBrushableBlockFieldsRenameFix", TypeReferences.BLOCK_ENTITY, "minecraft:brushable_block");
-   }
 
-   public Dynamic<?> renameFields(Dynamic<?> dynamic) {
-      return dynamic.renameField("loot_table", "LootTable").renameField("loot_table_seed", "LootTableSeed");
-   }
+	public EntityBrushableBlockFieldsRenameFix(Schema outputSchema) {
+		super(
+				outputSchema,
+				false,
+				"EntityBrushableBlockFieldsRenameFix",
+				TypeReferences.BLOCK_ENTITY,
+				"minecraft:brushable_block"
+		);
+	}
 
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      return inputTyped.update(DSL.remainderFinder(), this::renameFields);
-   }
+	public Dynamic<?> renameFields(Dynamic<?> dynamic) {
+		return dynamic.renameField("loot_table", "LootTable").renameField("loot_table_seed", "LootTableSeed");
+	}
+
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		return inputTyped.update(DSL.remainderFinder(), this::renameFields);
+	}
 }

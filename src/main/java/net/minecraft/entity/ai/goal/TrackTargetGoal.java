@@ -9,127 +9,141 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.scoreboard.AbstractTeam;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code TrackTargetGoal}.
+ */
 public abstract class TrackTargetGoal extends Goal {
-   private static final int UNSET = 0;
-   private static final int CAN_TRACK = 1;
-   private static final int CANNOT_TRACK = 2;
-   protected final MobEntity mob;
-   protected final boolean checkVisibility;
-   private final boolean checkCanNavigate;
-   private int canNavigateFlag;
-   private int checkCanNavigateCooldown;
-   private int timeWithoutVisibility;
-   protected @Nullable LivingEntity target;
-   protected int maxTimeWithoutVisibility = 60;
 
-   public TrackTargetGoal(MobEntity mob, boolean checkVisibility) {
-      this(mob, checkVisibility, false);
-   }
+	private static final int UNSET = 0;
+	private static final int CAN_TRACK = 1;
+	private static final int CANNOT_TRACK = 2;
+	protected final MobEntity mob;
+	protected final boolean checkVisibility;
+	private final boolean checkCanNavigate;
+	private int canNavigateFlag;
+	private int checkCanNavigateCooldown;
+	private int timeWithoutVisibility;
+	protected @Nullable LivingEntity target;
+	protected int maxTimeWithoutVisibility = 60;
 
-   public TrackTargetGoal(MobEntity mob, boolean checkVisibility, boolean checkNavigable) {
-      this.mob = mob;
-      this.checkVisibility = checkVisibility;
-      this.checkCanNavigate = checkNavigable;
-   }
+	public TrackTargetGoal(MobEntity mob, boolean checkVisibility) {
+		this(mob, checkVisibility, false);
+	}
 
-   @Override
-   public boolean shouldContinue() {
-      LivingEntity livingEntity = this.mob.getTarget();
-      if (livingEntity == null) {
-         livingEntity = this.target;
-      }
+	public TrackTargetGoal(MobEntity mob, boolean checkVisibility, boolean checkNavigable) {
+		this.mob = mob;
+		this.checkVisibility = checkVisibility;
+		this.checkCanNavigate = checkNavigable;
+	}
 
-      if (livingEntity == null) {
-         return false;
-      } else if (!this.mob.canTarget(livingEntity)) {
-         return false;
-      } else {
-         AbstractTeam abstractTeam = this.mob.getScoreboardTeam();
-         AbstractTeam abstractTeam2 = livingEntity.getScoreboardTeam();
-         if (abstractTeam != null && abstractTeam2 == abstractTeam) {
-            return false;
-         } else {
-            double d = this.getFollowRange();
-            if (this.mob.squaredDistanceTo(livingEntity) > d * d) {
-               return false;
-            } else {
-               if (this.checkVisibility) {
-                  if (this.mob.getVisibilityCache().canSee(livingEntity)) {
-                     this.timeWithoutVisibility = 0;
-                  } else if (++this.timeWithoutVisibility > toGoalTicks(this.maxTimeWithoutVisibility)) {
-                     return false;
-                  }
-               }
+	@Override
+	public boolean shouldContinue() {
+		LivingEntity livingEntity = this.mob.getTarget();
+		if (livingEntity == null) {
+			livingEntity = this.target;
+		}
 
-               this.mob.setTarget(livingEntity);
-               return true;
-            }
-         }
-      }
-   }
+		if (livingEntity == null) {
+			return false;
+		}
+		else if (!this.mob.canTarget(livingEntity)) {
+			return false;
+		}
+		else {
+			AbstractTeam abstractTeam = this.mob.getScoreboardTeam();
+			AbstractTeam abstractTeam2 = livingEntity.getScoreboardTeam();
+			if (abstractTeam != null && abstractTeam2 == abstractTeam) {
+				return false;
+			}
+			else {
+				double d = this.getFollowRange();
+				if (this.mob.squaredDistanceTo(livingEntity) > d * d) {
+					return false;
+				}
+				else {
+					if (this.checkVisibility) {
+						if (this.mob.getVisibilityCache().canSee(livingEntity)) {
+							this.timeWithoutVisibility = 0;
+						}
+						else if (++this.timeWithoutVisibility > toGoalTicks(this.maxTimeWithoutVisibility)) {
+							return false;
+						}
+					}
 
-   protected double getFollowRange() {
-      return this.mob.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
-   }
+					this.mob.setTarget(livingEntity);
+					return true;
+				}
+			}
+		}
+	}
 
-   @Override
-   public void start() {
-      this.canNavigateFlag = 0;
-      this.checkCanNavigateCooldown = 0;
-      this.timeWithoutVisibility = 0;
-   }
+	protected double getFollowRange() {
+		return this.mob.getAttributeValue(EntityAttributes.FOLLOW_RANGE);
+	}
 
-   @Override
-   public void stop() {
-      this.mob.setTarget(null);
-      this.target = null;
-   }
+	@Override
+	public void start() {
+		this.canNavigateFlag = 0;
+		this.checkCanNavigateCooldown = 0;
+		this.timeWithoutVisibility = 0;
+	}
 
-   protected boolean canTrack(@Nullable LivingEntity target, TargetPredicate targetPredicate) {
-      if (target == null) {
-         return false;
-      } else if (!targetPredicate.test(getServerWorld(this.mob), this.mob, target)) {
-         return false;
-      } else if (!this.mob.isInPositionTargetRange(target.getBlockPos())) {
-         return false;
-      } else {
-         if (this.checkCanNavigate) {
-            if (--this.checkCanNavigateCooldown <= 0) {
-               this.canNavigateFlag = 0;
-            }
+	@Override
+	public void stop() {
+		this.mob.setTarget(null);
+		this.target = null;
+	}
 
-            if (this.canNavigateFlag == 0) {
-               this.canNavigateFlag = this.canNavigateToEntity(target) ? 1 : 2;
-            }
+	protected boolean canTrack(@Nullable LivingEntity target, TargetPredicate targetPredicate) {
+		if (target == null) {
+			return false;
+		}
+		else if (!targetPredicate.test(getServerWorld(this.mob), this.mob, target)) {
+			return false;
+		}
+		else if (!this.mob.isInPositionTargetRange(target.getBlockPos())) {
+			return false;
+		}
+		else {
+			if (this.checkCanNavigate) {
+				if (--this.checkCanNavigateCooldown <= 0) {
+					this.canNavigateFlag = 0;
+				}
 
-            if (this.canNavigateFlag == 2) {
-               return false;
-            }
-         }
+				if (this.canNavigateFlag == 0) {
+					this.canNavigateFlag = this.canNavigateToEntity(target) ? 1 : 2;
+				}
 
-         return true;
-      }
-   }
+				if (this.canNavigateFlag == 2) {
+					return false;
+				}
+			}
 
-   private boolean canNavigateToEntity(LivingEntity entity) {
-      this.checkCanNavigateCooldown = toGoalTicks(10 + this.mob.getRandom().nextInt(5));
-      Path path = this.mob.getNavigation().findPathTo(entity, 0);
-      if (path == null) {
-         return false;
-      } else {
-         PathNode pathNode = path.getEnd();
-         if (pathNode == null) {
-            return false;
-         } else {
-            int i = pathNode.x - entity.getBlockX();
-            int j = pathNode.z - entity.getBlockZ();
-            return i * i + j * j <= 2.25;
-         }
-      }
-   }
+			return true;
+		}
+	}
 
-   public TrackTargetGoal setMaxTimeWithoutVisibility(int time) {
-      this.maxTimeWithoutVisibility = time;
-      return this;
-   }
+	private boolean canNavigateToEntity(LivingEntity entity) {
+		this.checkCanNavigateCooldown = toGoalTicks(10 + this.mob.getRandom().nextInt(5));
+		Path path = this.mob.getNavigation().findPathTo(entity, 0);
+		if (path == null) {
+			return false;
+		}
+		else {
+			PathNode pathNode = path.getEnd();
+			if (pathNode == null) {
+				return false;
+			}
+			else {
+				int i = pathNode.x - entity.getBlockX();
+				int j = pathNode.z - entity.getBlockZ();
+				return i * i + j * j <= 2.25;
+			}
+		}
+	}
+
+	public TrackTargetGoal setMaxTimeWithoutVisibility(int time) {
+		this.maxTimeWithoutVisibility = time;
+		return this;
+	}
 }

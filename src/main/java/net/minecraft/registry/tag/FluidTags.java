@@ -4,14 +4,18 @@ import net.minecraft.fluid.Fluid;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
+/**
+ * {@code FluidTags}.
+ */
 public final class FluidTags {
-   public static final TagKey<Fluid> WATER = of("water");
-   public static final TagKey<Fluid> LAVA = of("lava");
 
-   private FluidTags() {
-   }
+	public static final TagKey<Fluid> WATER = of("water");
+	public static final TagKey<Fluid> LAVA = of("lava");
 
-   private static TagKey<Fluid> of(String id) {
-      return TagKey.of(RegistryKeys.FLUID, Identifier.ofVanilla(id));
-   }
+	private FluidTags() {
+	}
+
+	private static TagKey<Fluid> of(String id) {
+		return TagKey.of(RegistryKeys.FLUID, Identifier.ofVanilla(id));
+	}
 }

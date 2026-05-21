@@ -1,6 +1,5 @@
 package net.minecraft.entity.ai.goal;
 
-import java.util.EnumSet;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.MovementType;
@@ -11,68 +10,75 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.WorldView;
 
+import java.util.EnumSet;
+
+/**
+ * {@code BreatheAirGoal}.
+ */
 public class BreatheAirGoal extends Goal {
-   private final PathAwareEntity mob;
 
-   public BreatheAirGoal(PathAwareEntity mob) {
-      this.mob = mob;
-      this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
-   }
+	private final PathAwareEntity mob;
 
-   @Override
-   public boolean canStart() {
-      return this.mob.getAir() < 140;
-   }
+	public BreatheAirGoal(PathAwareEntity mob) {
+		this.mob = mob;
+		this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+	}
 
-   @Override
-   public boolean shouldContinue() {
-      return this.canStart();
-   }
+	@Override
+	public boolean canStart() {
+		return this.mob.getAir() < 140;
+	}
 
-   @Override
-   public boolean canStop() {
-      return false;
-   }
+	@Override
+	public boolean shouldContinue() {
+		return this.canStart();
+	}
 
-   @Override
-   public void start() {
-      this.moveToAir();
-   }
+	@Override
+	public boolean canStop() {
+		return false;
+	}
 
-   private void moveToAir() {
-      Iterable<BlockPos> iterable = BlockPos.iterate(
-         MathHelper.floor(this.mob.getX() - 1.0),
-         this.mob.getBlockY(),
-         MathHelper.floor(this.mob.getZ() - 1.0),
-         MathHelper.floor(this.mob.getX() + 1.0),
-         MathHelper.floor(this.mob.getY() + 8.0),
-         MathHelper.floor(this.mob.getZ() + 1.0)
-      );
-      BlockPos blockPos = null;
+	@Override
+	public void start() {
+		this.moveToAir();
+	}
 
-      for (BlockPos blockPos2 : iterable) {
-         if (this.isAirPos(this.mob.getEntityWorld(), blockPos2)) {
-            blockPos = blockPos2;
-            break;
-         }
-      }
+	private void moveToAir() {
+		Iterable<BlockPos> iterable = BlockPos.iterate(
+				MathHelper.floor(this.mob.getX() - 1.0),
+				this.mob.getBlockY(),
+				MathHelper.floor(this.mob.getZ() - 1.0),
+				MathHelper.floor(this.mob.getX() + 1.0),
+				MathHelper.floor(this.mob.getY() + 8.0),
+				MathHelper.floor(this.mob.getZ() + 1.0)
+		);
+		BlockPos blockPos = null;
 
-      if (blockPos == null) {
-         blockPos = BlockPos.ofFloored(this.mob.getX(), this.mob.getY() + 8.0, this.mob.getZ());
-      }
+		for (BlockPos blockPos2 : iterable) {
+			if (this.isAirPos(this.mob.getEntityWorld(), blockPos2)) {
+				blockPos = blockPos2;
+				break;
+			}
+		}
 
-      this.mob.getNavigation().startMovingTo(blockPos.getX(), blockPos.getY() + 1, blockPos.getZ(), 1.0);
-   }
+		if (blockPos == null) {
+			blockPos = BlockPos.ofFloored(this.mob.getX(), this.mob.getY() + 8.0, this.mob.getZ());
+		}
 
-   @Override
-   public void tick() {
-      this.moveToAir();
-      this.mob.updateVelocity(0.02F, new Vec3d(this.mob.sidewaysSpeed, this.mob.upwardSpeed, this.mob.forwardSpeed));
-      this.mob.move(MovementType.SELF, this.mob.getVelocity());
-   }
+		this.mob.getNavigation().startMovingTo(blockPos.getX(), blockPos.getY() + 1, blockPos.getZ(), 1.0);
+	}
 
-   private boolean isAirPos(WorldView world, BlockPos pos) {
-      BlockState blockState = world.getBlockState(pos);
-      return (world.getFluidState(pos).isEmpty() || blockState.isOf(Blocks.BUBBLE_COLUMN)) && blockState.canPathfindThrough(NavigationType.LAND);
-   }
+	@Override
+	public void tick() {
+		this.moveToAir();
+		this.mob.updateVelocity(0.02F, new Vec3d(this.mob.sidewaysSpeed, this.mob.upwardSpeed, this.mob.forwardSpeed));
+		this.mob.move(MovementType.SELF, this.mob.getVelocity());
+	}
+
+	private boolean isAirPos(WorldView world, BlockPos pos) {
+		BlockState blockState = world.getBlockState(pos);
+		return (world.getFluidState(pos).isEmpty() || blockState.isOf(Blocks.BUBBLE_COLUMN))
+				&& blockState.canPathfindThrough(NavigationType.LAND);
+	}
 }

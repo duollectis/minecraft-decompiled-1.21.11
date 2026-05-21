@@ -4,130 +4,164 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.TextureFormat;
-import java.util.List;
-import java.util.Objects;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.util.TextureAllocationException;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Objects;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WindowFramebuffer}.
+ */
 public class WindowFramebuffer extends Framebuffer {
-   public static final int DEFAULT_WIDTH = 854;
-   public static final int DEFAULT_HEIGHT = 480;
-   static final WindowFramebuffer.Size DEFAULT = new WindowFramebuffer.Size(854, 480);
 
-   public WindowFramebuffer(int width, int height) {
-      super("Main", true);
-      this.init(width, height);
-   }
+	public static final int DEFAULT_WIDTH = 854;
+	public static final int DEFAULT_HEIGHT = 480;
+	static final WindowFramebuffer.Size DEFAULT = new WindowFramebuffer.Size(854, 480);
 
-   private void init(int width, int height) {
-      WindowFramebuffer.Size size = this.findSuitableSize(width, height);
-      if (this.colorAttachment != null && this.depthAttachment != null) {
-         this.textureWidth = size.width;
-         this.textureHeight = size.height;
-      } else {
-         throw new IllegalStateException("Missing color and/or depth textures");
-      }
-   }
+	public WindowFramebuffer(int width, int height) {
+		super("Main", true);
+		this.init(width, height);
+	}
 
-   private WindowFramebuffer.Size findSuitableSize(int width, int height) {
-      RenderSystem.assertOnRenderThread();
+	private void init(int width, int height) {
+		WindowFramebuffer.Size size = this.findSuitableSize(width, height);
+		if (this.colorAttachment != null && this.depthAttachment != null) {
+			this.textureWidth = size.width;
+			this.textureHeight = size.height;
+		}
+		else {
+			throw new IllegalStateException("Missing color and/or depth textures");
+		}
+	}
 
-      for (WindowFramebuffer.Size size : WindowFramebuffer.Size.findCompatible(width, height)) {
-         if (this.colorAttachment != null) {
-            this.colorAttachment.close();
-            this.colorAttachment = null;
-         }
+	private WindowFramebuffer.Size findSuitableSize(int width, int height) {
+		RenderSystem.assertOnRenderThread();
 
-         if (this.colorAttachmentView != null) {
-            this.colorAttachmentView.close();
-            this.colorAttachmentView = null;
-         }
+		for (WindowFramebuffer.Size size : WindowFramebuffer.Size.findCompatible(width, height)) {
+			if (this.colorAttachment != null) {
+				this.colorAttachment.close();
+				this.colorAttachment = null;
+			}
 
-         if (this.depthAttachment != null) {
-            this.depthAttachment.close();
-            this.depthAttachment = null;
-         }
+			if (this.colorAttachmentView != null) {
+				this.colorAttachmentView.close();
+				this.colorAttachmentView = null;
+			}
 
-         if (this.depthAttachmentView != null) {
-            this.depthAttachmentView.close();
-            this.depthAttachmentView = null;
-         }
+			if (this.depthAttachment != null) {
+				this.depthAttachment.close();
+				this.depthAttachment = null;
+			}
 
-         this.colorAttachment = this.createColorAttachment(size);
-         this.depthAttachment = this.createDepthAttachment(size);
-         if (this.colorAttachment != null && this.depthAttachment != null) {
-            this.colorAttachmentView = RenderSystem.getDevice().createTextureView(this.colorAttachment);
-            this.depthAttachmentView = RenderSystem.getDevice().createTextureView(this.depthAttachment);
-            return size;
-         }
-      }
+			if (this.depthAttachmentView != null) {
+				this.depthAttachmentView.close();
+				this.depthAttachmentView = null;
+			}
 
-      throw new RuntimeException(
-         "Unrecoverable GL_OUT_OF_MEMORY ("
-            + (this.colorAttachment == null ? "missing color" : "have color")
-            + ", "
-            + (this.depthAttachment == null ? "missing depth" : "have depth")
-            + ")"
-      );
-   }
+			this.colorAttachment = this.createColorAttachment(size);
+			this.depthAttachment = this.createDepthAttachment(size);
+			if (this.colorAttachment != null && this.depthAttachment != null) {
+				this.colorAttachmentView = RenderSystem.getDevice().createTextureView(this.colorAttachment);
+				this.depthAttachmentView = RenderSystem.getDevice().createTextureView(this.depthAttachment);
+				return size;
+			}
+		}
 
-   private @Nullable GpuTexture createColorAttachment(WindowFramebuffer.Size size) {
-      try {
-         return RenderSystem.getDevice().createTexture(() -> this.name + " / Color", 15, TextureFormat.RGBA8, size.width, size.height, 1, 1);
-      } catch (TextureAllocationException var3) {
-         return null;
-      }
-   }
+		throw new RuntimeException(
+				"Unrecoverable GL_OUT_OF_MEMORY ("
+						+ (this.colorAttachment == null ? "missing color" : "have color")
+						+ ", "
+						+ (this.depthAttachment == null ? "missing depth" : "have depth")
+						+ ")"
+		);
+	}
 
-   private @Nullable GpuTexture createDepthAttachment(WindowFramebuffer.Size size) {
-      try {
-         return RenderSystem.getDevice().createTexture(() -> this.name + " / Depth", 15, TextureFormat.DEPTH32, size.width, size.height, 1, 1);
-      } catch (TextureAllocationException var3) {
-         return null;
-      }
-   }
+	private @Nullable GpuTexture createColorAttachment(WindowFramebuffer.Size size) {
+		try {
+			return RenderSystem
+					.getDevice()
+					.createTexture(
+							() -> this.name + " / Color",
+							15,
+							TextureFormat.RGBA8,
+							size.width,
+							size.height,
+							1,
+							1
+					);
+		}
+		catch (TextureAllocationException var3) {
+			return null;
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   static class Size {
-      public final int width;
-      public final int height;
+	private @Nullable GpuTexture createDepthAttachment(WindowFramebuffer.Size size) {
+		try {
+			return RenderSystem
+					.getDevice()
+					.createTexture(
+							() -> this.name + " / Depth",
+							15,
+							TextureFormat.DEPTH32,
+							size.width,
+							size.height,
+							1,
+							1
+					);
+		}
+		catch (TextureAllocationException var3) {
+			return null;
+		}
+	}
 
-      Size(int width, int height) {
-         this.width = width;
-         this.height = height;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Size}.
+	 */
+	static class Size {
 
-      static List<WindowFramebuffer.Size> findCompatible(int width, int height) {
-         RenderSystem.assertOnRenderThread();
-         int i = RenderSystem.getDevice().getMaxTextureSize();
-         return width > 0 && width <= i && height > 0 && height <= i
-            ? ImmutableList.of(new WindowFramebuffer.Size(width, height), WindowFramebuffer.DEFAULT)
-            : ImmutableList.of(WindowFramebuffer.DEFAULT);
-      }
+		public final int width;
+		public final int height;
 
-      @Override
-      public boolean equals(Object o) {
-         if (this == o) {
-            return true;
-         } else if (o != null && this.getClass() == o.getClass()) {
-            WindowFramebuffer.Size size = (WindowFramebuffer.Size)o;
-            return this.width == size.width && this.height == size.height;
-         } else {
-            return false;
-         }
-      }
+		Size(int width, int height) {
+			this.width = width;
+			this.height = height;
+		}
 
-      @Override
-      public int hashCode() {
-         return Objects.hash(this.width, this.height);
-      }
+		static List<WindowFramebuffer.Size> findCompatible(int width, int height) {
+			RenderSystem.assertOnRenderThread();
+			int i = RenderSystem.getDevice().getMaxTextureSize();
+			return width > 0 && width <= i && height > 0 && height <= i
+			       ? ImmutableList.of(new WindowFramebuffer.Size(width, height), WindowFramebuffer.DEFAULT)
+			       : ImmutableList.of(WindowFramebuffer.DEFAULT);
+		}
 
-      @Override
-      public String toString() {
-         return this.width + "x" + this.height;
-      }
-   }
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			else if (o != null && this.getClass() == o.getClass()) {
+				WindowFramebuffer.Size size = (WindowFramebuffer.Size) o;
+				return this.width == size.width && this.height == size.height;
+			}
+			else {
+				return false;
+			}
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(this.width, this.height);
+		}
+
+		@Override
+		public String toString() {
+			return this.width + "x" + this.height;
+		}
+	}
 }

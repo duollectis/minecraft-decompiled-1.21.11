@@ -7,12 +7,16 @@ import net.minecraft.client.render.item.model.ItemModel;
 import net.minecraft.item.Item;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ItemModelOutput}.
+ */
 public interface ItemModelOutput {
-   default void accept(Item item, ItemModel.Unbaked model) {
-      this.accept(item, model, ItemAsset.Properties.DEFAULT);
-   }
 
-   void accept(Item item, ItemModel.Unbaked model, ItemAsset.Properties properties);
+	default void accept(Item item, ItemModel.Unbaked model) {
+		this.accept(item, model, ItemAsset.Properties.DEFAULT);
+	}
 
-   void acceptAlias(Item base, Item alias);
+	void accept(Item item, ItemModel.Unbaked model, ItemAsset.Properties properties);
+
+	void acceptAlias(Item base, Item alias);
 }

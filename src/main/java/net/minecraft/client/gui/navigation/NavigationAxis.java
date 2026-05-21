@@ -4,32 +4,35 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code NavigationAxis}.
+ */
 public enum NavigationAxis {
-   HORIZONTAL,
-   VERTICAL;
+	HORIZONTAL,
+	VERTICAL;
 
-   public NavigationAxis getOther() {
-      return switch (this) {
-         case HORIZONTAL -> VERTICAL;
-         case VERTICAL -> HORIZONTAL;
-      };
-   }
+	public NavigationAxis getOther() {
+		return switch (this) {
+			case HORIZONTAL -> VERTICAL;
+			case VERTICAL -> HORIZONTAL;
+		};
+	}
 
-   public NavigationDirection getPositiveDirection() {
-      return switch (this) {
-         case HORIZONTAL -> NavigationDirection.RIGHT;
-         case VERTICAL -> NavigationDirection.DOWN;
-      };
-   }
+	public NavigationDirection getPositiveDirection() {
+		return switch (this) {
+			case HORIZONTAL -> NavigationDirection.RIGHT;
+			case VERTICAL -> NavigationDirection.DOWN;
+		};
+	}
 
-   public NavigationDirection getNegativeDirection() {
-      return switch (this) {
-         case HORIZONTAL -> NavigationDirection.LEFT;
-         case VERTICAL -> NavigationDirection.UP;
-      };
-   }
+	public NavigationDirection getNegativeDirection() {
+		return switch (this) {
+			case HORIZONTAL -> NavigationDirection.LEFT;
+			case VERTICAL -> NavigationDirection.UP;
+		};
+	}
 
-   public NavigationDirection getDirection(boolean positive) {
-      return positive ? this.getPositiveDirection() : this.getNegativeDirection();
-   }
+	public NavigationDirection getDirection(boolean positive) {
+		return positive ? this.getPositiveDirection() : this.getNegativeDirection();
+	}
 }

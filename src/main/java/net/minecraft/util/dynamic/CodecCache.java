@@ -9,49 +9,65 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import net.minecraft.nbt.NbtElement;
 
+/**
+ * {@code CodecCache}.
+ */
 public class CodecCache {
-   final LoadingCache<CodecCache.Key<?, ?>, DataResult<?>> cache;
 
-   public CodecCache(int size) {
-      this.cache = CacheBuilder.newBuilder().maximumSize(size).concurrencyLevel(1).softValues().build(new CacheLoader<CodecCache.Key<?, ?>, DataResult<?>>() {
-         public DataResult<?> load(CodecCache.Key<?, ?> key) {
-            return key.encode();
-         }
-      });
-   }
+	final LoadingCache<CodecCache.Key<?, ?>, DataResult<?>> cache;
 
-   public <A> Codec<A> wrap(Codec<A> codec) {
-      return new Codec<A>() {
-         public <T> DataResult<Pair<A, T>> decode(DynamicOps<T> ops, T input) {
-            return codec.decode(ops, input);
-         }
+	public CodecCache(int size) {
+		this.cache =
+				CacheBuilder
+						.newBuilder()
+						.maximumSize(size)
+						.concurrencyLevel(1)
+						.softValues()
+						.build(new CacheLoader<CodecCache.Key<?, ?>, DataResult<?>>() {
+							public DataResult<?> load(CodecCache.Key<?, ?> key) {
+								return key.encode();
+							}
+						});
+	}
 
-         public <T> DataResult<T> encode(A value, DynamicOps<T> ops, T prefix) {
-            return ((DataResult)CodecCache.this.cache.getUnchecked(new CodecCache.Key(codec, value, ops)))
-               .map(object -> object instanceof NbtElement nbtElement ? nbtElement.copy() : object);
-         }
-      };
-   }
+	public <A> Codec<A> wrap(Codec<A> codec) {
+		return new Codec<A>() {
+			public <T> DataResult<Pair<A, T>> decode(DynamicOps<T> ops, T input) {
+				return codec.decode(ops, input);
+			}
 
-   record Key<A, T>(Codec<A> codec, A value, DynamicOps<T> ops) {
-      public DataResult<T> encode() {
-         return this.codec.encodeStart(this.ops, this.value);
-      }
+			public <T> DataResult<T> encode(A value, DynamicOps<T> ops, T prefix) {
+				return ((DataResult) CodecCache.this.cache.getUnchecked(new CodecCache.Key(codec, value, ops)))
+						.map(object -> object instanceof NbtElement nbtElement ? nbtElement.copy() : object);
+			}
+		};
+	}
 
-      @Override
-      public boolean equals(Object o) {
-         if (this == o) {
-            return true;
-         } else {
-            return !(o instanceof CodecCache.Key<?, ?> key) ? false : this.codec == key.codec && this.value.equals(key.value) && this.ops.equals(key.ops);
-         }
-      }
+	/**
+	 * {@code Key}.
+	 */
+	record Key<A, T>(Codec<A> codec, A value, DynamicOps<T> ops) {
 
-      @Override
-      public int hashCode() {
-         int i = System.identityHashCode(this.codec);
-         i = 31 * i + this.value.hashCode();
-         return 31 * i + this.ops.hashCode();
-      }
-   }
+		public DataResult<T> encode() {
+			return this.codec.encodeStart(this.ops, this.value);
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+			else {
+				return !(o instanceof CodecCache.Key<?, ?> key) ? false : this.codec == key.codec && this.value.equals(
+						key.value) && this.ops.equals(key.ops);
+			}
+		}
+
+		@Override
+		public int hashCode() {
+			int i = System.identityHashCode(this.codec);
+			i = 31 * i + this.value.hashCode();
+			return 31 * i + this.ops.hashCode();
+		}
+	}
 }

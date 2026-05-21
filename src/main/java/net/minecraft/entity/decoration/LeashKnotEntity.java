@@ -25,135 +25,152 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code LeashKnotEntity}.
+ */
 public class LeashKnotEntity extends BlockAttachedEntity {
-   public static final double field_30455 = 0.375;
 
-   public LeashKnotEntity(EntityType<? extends LeashKnotEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	public static final double KNOT_Y_OFFSET = 0.375;
 
-   public LeashKnotEntity(World world, BlockPos pos) {
-      super(EntityType.LEASH_KNOT, world, pos);
-      this.setPosition(pos.getX(), pos.getY(), pos.getZ());
-   }
+	public LeashKnotEntity(EntityType<? extends LeashKnotEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-   }
+	public LeashKnotEntity(World world, BlockPos pos) {
+		super(EntityType.LEASH_KNOT, world, pos);
+		this.setPosition(pos.getX(), pos.getY(), pos.getZ());
+	}
 
-   @Override
-   protected void updateAttachmentPosition() {
-      this.setPos(this.attachedBlockPos.getX() + 0.5, this.attachedBlockPos.getY() + 0.375, this.attachedBlockPos.getZ() + 0.5);
-      double d = this.getType().getWidth() / 2.0;
-      double e = this.getType().getHeight();
-      this.setBoundingBox(new Box(this.getX() - d, this.getY(), this.getZ() - d, this.getX() + d, this.getY() + e, this.getZ() + d));
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+	}
 
-   @Override
-   public boolean shouldRender(double distance) {
-      return distance < 1024.0;
-   }
+	@Override
+	protected void updateAttachmentPosition() {
+		this.setPos(
+				this.attachedBlockPos.getX() + 0.5,
+				this.attachedBlockPos.getY() + 0.375,
+				this.attachedBlockPos.getZ() + 0.5
+		);
+		double d = this.getType().getWidth() / 2.0;
+		double e = this.getType().getHeight();
+		this.setBoundingBox(new Box(
+				this.getX() - d,
+				this.getY(),
+				this.getZ() - d,
+				this.getX() + d,
+				this.getY() + e,
+				this.getZ() + d
+		));
+	}
 
-   @Override
-   public void onBreak(ServerWorld world, @Nullable Entity breaker) {
-      this.playSound(SoundEvents.ITEM_LEAD_UNTIED, 1.0F, 1.0F);
-   }
+	@Override
+	public boolean shouldRender(double distance) {
+		return distance < 1024.0;
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-   }
+	@Override
+	public void onBreak(ServerWorld world, @Nullable Entity breaker) {
+		this.playSound(SoundEvents.ITEM_LEAD_UNTIED, 1.0F, 1.0F);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+	}
 
-   @Override
-   public ActionResult interact(PlayerEntity player, Hand hand) {
-      if (this.getEntityWorld().isClient()) {
-         return ActionResult.SUCCESS;
-      } else {
-         if (player.getStackInHand(hand).isOf(Items.SHEARS)) {
-            ActionResult actionResult = super.interact(player, hand);
-            if (actionResult instanceof ActionResult.Success success && success.shouldIncrementStat()) {
-               return actionResult;
-            }
-         }
+	@Override
+	protected void readCustomData(ReadView view) {
+	}
 
-         boolean bl = false;
+	@Override
+	public ActionResult interact(PlayerEntity player, Hand hand) {
+		if (this.getEntityWorld().isClient()) {
+			return ActionResult.SUCCESS;
+		}
+		else {
+			if (player.getStackInHand(hand).isOf(Items.SHEARS)) {
+				ActionResult actionResult = super.interact(player, hand);
+				if (actionResult instanceof ActionResult.Success success && success.shouldIncrementStat()) {
+					return actionResult;
+				}
+			}
 
-         for (Leashable leashable : Leashable.collectLeashablesHeldBy(player)) {
-            if (leashable.canBeLeashedTo(this)) {
-               leashable.attachLeash(this, true);
-               bl = true;
-            }
-         }
+			boolean bl = false;
 
-         boolean bl2 = false;
-         if (!bl && !player.shouldCancelInteraction()) {
-            for (Leashable leashable2 : Leashable.collectLeashablesHeldBy(this)) {
-               if (leashable2.canBeLeashedTo(player)) {
-                  leashable2.attachLeash(player, true);
-                  bl2 = true;
-               }
-            }
-         }
+			for (Leashable leashable : Leashable.collectLeashablesHeldBy(player)) {
+				if (leashable.canBeLeashedTo(this)) {
+					leashable.attachLeash(this, true);
+					bl = true;
+				}
+			}
 
-         if (!bl && !bl2) {
-            return super.interact(player, hand);
-         } else {
-            this.emitGameEvent(GameEvent.BLOCK_ATTACH, player);
-            this.playSoundIfNotSilent(SoundEvents.ITEM_LEAD_TIED);
-            return ActionResult.SUCCESS;
-         }
-      }
-   }
+			boolean bl2 = false;
+			if (!bl && !player.shouldCancelInteraction()) {
+				for (Leashable leashable2 : Leashable.collectLeashablesHeldBy(this)) {
+					if (leashable2.canBeLeashedTo(player)) {
+						leashable2.attachLeash(player, true);
+						bl2 = true;
+					}
+				}
+			}
 
-   @Override
-   public void onHeldLeashUpdate(Leashable heldLeashable) {
-      if (Leashable.collectLeashablesHeldBy(this).isEmpty()) {
-         this.discard();
-      }
-   }
+			if (!bl && !bl2) {
+				return super.interact(player, hand);
+			}
+			else {
+				this.emitGameEvent(GameEvent.BLOCK_ATTACH, player);
+				this.playSoundIfNotSilent(SoundEvents.ITEM_LEAD_TIED);
+				return ActionResult.SUCCESS;
+			}
+		}
+	}
 
-   @Override
-   public boolean canStayAttached() {
-      return this.getEntityWorld().getBlockState(this.attachedBlockPos).isIn(BlockTags.FENCES);
-   }
+	@Override
+	public void onHeldLeashUpdate(Leashable heldLeashable) {
+		if (Leashable.collectLeashablesHeldBy(this).isEmpty()) {
+			this.discard();
+		}
+	}
 
-   public static LeashKnotEntity getOrCreate(World world, BlockPos pos) {
-      int i = pos.getX();
-      int j = pos.getY();
-      int k = pos.getZ();
+	@Override
+	public boolean canStayAttached() {
+		return this.getEntityWorld().getBlockState(this.attachedBlockPos).isIn(BlockTags.FENCES);
+	}
 
-      for (LeashKnotEntity leashKnotEntity : world.getNonSpectatingEntities(
-         LeashKnotEntity.class, new Box(i - 1.0, j - 1.0, k - 1.0, i + 1.0, j + 1.0, k + 1.0)
-      )) {
-         if (leashKnotEntity.getAttachedBlockPos().equals(pos)) {
-            return leashKnotEntity;
-         }
-      }
+	public static LeashKnotEntity getOrCreate(World world, BlockPos pos) {
+		int i = pos.getX();
+		int j = pos.getY();
+		int k = pos.getZ();
 
-      LeashKnotEntity leashKnotEntity2 = new LeashKnotEntity(world, pos);
-      world.spawnEntity(leashKnotEntity2);
-      return leashKnotEntity2;
-   }
+		for (LeashKnotEntity leashKnotEntity : world.getNonSpectatingEntities(
+				LeashKnotEntity.class, new Box(i - 1.0, j - 1.0, k - 1.0, i + 1.0, j + 1.0, k + 1.0)
+		)) {
+			if (leashKnotEntity.getAttachedBlockPos().equals(pos)) {
+				return leashKnotEntity;
+			}
+		}
 
-   public void onPlace() {
-      this.playSound(SoundEvents.ITEM_LEAD_TIED, 1.0F, 1.0F);
-   }
+		LeashKnotEntity leashKnotEntity2 = new LeashKnotEntity(world, pos);
+		world.spawnEntity(leashKnotEntity2);
+		return leashKnotEntity2;
+	}
 
-   @Override
-   public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
-      return new EntitySpawnS2CPacket(this, 0, this.getAttachedBlockPos());
-   }
+	public void onPlace() {
+		this.playSound(SoundEvents.ITEM_LEAD_TIED, 1.0F, 1.0F);
+	}
 
-   @Override
-   public Vec3d getLeashPos(float tickProgress) {
-      return this.getLerpedPos(tickProgress).add(0.0, 0.2, 0.0);
-   }
+	@Override
+	public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
+		return new EntitySpawnS2CPacket(this, 0, this.getAttachedBlockPos());
+	}
 
-   @Override
-   public ItemStack getPickBlockStack() {
-      return new ItemStack(Items.LEAD);
-   }
+	@Override
+	public Vec3d getLeashPos(float tickProgress) {
+		return this.getLerpedPos(tickProgress).add(0.0, 0.2, 0.0);
+	}
+
+	@Override
+	public ItemStack getPickBlockStack() {
+		return new ItemStack(Items.LEAD);
+	}
 }

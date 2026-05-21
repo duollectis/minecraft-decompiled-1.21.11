@@ -2,65 +2,78 @@ package net.minecraft.storage;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
-import java.util.Optional;
-import java.util.stream.Stream;
 import net.fabricmc.fabric.api.serialization.v1.view.FabricReadView;
 import net.minecraft.registry.RegistryWrapper;
 
+import java.util.Optional;
+import java.util.stream.Stream;
+
+/**
+ * {@code ReadView}.
+ */
 public interface ReadView extends FabricReadView {
-   <T> Optional<T> read(String key, Codec<T> codec);
 
-   @Deprecated
-   <T> Optional<T> read(MapCodec<T> mapCodec);
+	<T> Optional<T> read(String key, Codec<T> codec);
 
-   Optional<ReadView> getOptionalReadView(String key);
+	@Deprecated
+	<T> Optional<T> read(MapCodec<T> mapCodec);
 
-   ReadView getReadView(String key);
+	Optional<ReadView> getOptionalReadView(String key);
 
-   Optional<ReadView.ListReadView> getOptionalListReadView(String key);
+	ReadView getReadView(String key);
 
-   ReadView.ListReadView getListReadView(String key);
+	Optional<ReadView.ListReadView> getOptionalListReadView(String key);
 
-   <T> Optional<ReadView.TypedListReadView<T>> getOptionalTypedListView(String key, Codec<T> typeCodec);
+	ReadView.ListReadView getListReadView(String key);
 
-   <T> ReadView.TypedListReadView<T> getTypedListView(String key, Codec<T> typeCodec);
+	<T> Optional<ReadView.TypedListReadView<T>> getOptionalTypedListView(String key, Codec<T> typeCodec);
 
-   boolean getBoolean(String key, boolean fallback);
+	<T> ReadView.TypedListReadView<T> getTypedListView(String key, Codec<T> typeCodec);
 
-   byte getByte(String key, byte fallback);
+	boolean getBoolean(String key, boolean fallback);
 
-   int getShort(String key, short fallback);
+	byte getByte(String key, byte fallback);
 
-   Optional<Integer> getOptionalInt(String key);
+	int getShort(String key, short fallback);
 
-   int getInt(String key, int fallback);
+	Optional<Integer> getOptionalInt(String key);
 
-   long getLong(String key, long fallback);
+	int getInt(String key, int fallback);
 
-   Optional<Long> getOptionalLong(String key);
+	long getLong(String key, long fallback);
 
-   float getFloat(String key, float fallback);
+	Optional<Long> getOptionalLong(String key);
 
-   double getDouble(String key, double fallback);
+	float getFloat(String key, float fallback);
 
-   Optional<String> getOptionalString(String key);
+	double getDouble(String key, double fallback);
 
-   String getString(String key, String fallback);
+	Optional<String> getOptionalString(String key);
 
-   Optional<int[]> getOptionalIntArray(String key);
+	String getString(String key, String fallback);
 
-   @Deprecated
-   RegistryWrapper.WrapperLookup getRegistries();
+	Optional<int[]> getOptionalIntArray(String key);
 
-   public interface ListReadView extends Iterable<ReadView> {
-      boolean isEmpty();
+	@Deprecated
+	RegistryWrapper.WrapperLookup getRegistries();
 
-      Stream<ReadView> stream();
-   }
+	/**
+	 * {@code ListReadView}.
+	 */
+	public interface ListReadView extends Iterable<ReadView> {
 
-   public interface TypedListReadView<T> extends Iterable<T> {
-      boolean isEmpty();
+		boolean isEmpty();
 
-      Stream<T> stream();
-   }
+		Stream<ReadView> stream();
+	}
+
+	/**
+	 * {@code TypedListReadView}.
+	 */
+	public interface TypedListReadView<T> extends Iterable<T> {
+
+		boolean isEmpty();
+
+		Stream<T> stream();
+	}
 }

@@ -12,30 +12,39 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CodEntityRenderer}.
+ */
 public class CodEntityRenderer extends MobEntityRenderer<CodEntity, LivingEntityRenderState, CodEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/fish/cod.png");
 
-   public CodEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new CodEntityModel(context.getPart(EntityModelLayers.COD)), 0.3F);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/fish/cod.png");
 
-   @Override
-   public Identifier getTexture(LivingEntityRenderState state) {
-      return TEXTURE;
-   }
+	public CodEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new CodEntityModel(context.getPart(EntityModelLayers.COD)), 0.3F);
+	}
 
-   public LivingEntityRenderState createRenderState() {
-      return new LivingEntityRenderState();
-   }
+	@Override
+	public Identifier getTexture(LivingEntityRenderState state) {
+		return TEXTURE;
+	}
 
-   @Override
-   protected void setupTransforms(LivingEntityRenderState state, MatrixStack matrices, float bodyYaw, float baseHeight) {
-      super.setupTransforms(state, matrices, bodyYaw, baseHeight);
-      float f = 4.3F * MathHelper.sin(0.6F * state.age);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f));
-      if (!state.touchingWater) {
-         matrices.translate(0.1F, 0.1F, -0.1F);
-         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90.0F));
-      }
-   }
+	public LivingEntityRenderState createRenderState() {
+		return new LivingEntityRenderState();
+	}
+
+	@Override
+	protected void setupTransforms(
+			LivingEntityRenderState state,
+			MatrixStack matrices,
+			float bodyYaw,
+			float baseHeight
+	) {
+		super.setupTransforms(state, matrices, bodyYaw, baseHeight);
+		float f = 4.3F * MathHelper.sin(0.6F * state.age);
+		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(f));
+		if (!state.touchingWater) {
+			matrices.translate(0.1F, 0.1F, -0.1F);
+			matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90.0F));
+		}
+	}
 }

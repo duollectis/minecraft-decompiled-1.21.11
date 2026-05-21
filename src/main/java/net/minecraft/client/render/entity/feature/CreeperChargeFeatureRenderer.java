@@ -9,30 +9,37 @@ import net.minecraft.client.render.entity.state.CreeperEntityRenderState;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CreeperChargeFeatureRenderer}.
+ */
 public class CreeperChargeFeatureRenderer extends EnergySwirlOverlayFeatureRenderer<CreeperEntityRenderState, CreeperEntityModel> {
-   private static final Identifier SKIN = Identifier.ofVanilla("textures/entity/creeper/creeper_armor.png");
-   private final CreeperEntityModel model;
 
-   public CreeperChargeFeatureRenderer(FeatureRendererContext<CreeperEntityRenderState, CreeperEntityModel> context, LoadedEntityModels loader) {
-      super(context);
-      this.model = new CreeperEntityModel(loader.getModelPart(EntityModelLayers.CREEPER_ARMOR));
-   }
+	private static final Identifier SKIN = Identifier.ofVanilla("textures/entity/creeper/creeper_armor.png");
+	private final CreeperEntityModel model;
 
-   protected boolean shouldRender(CreeperEntityRenderState creeperEntityRenderState) {
-      return creeperEntityRenderState.charged;
-   }
+	public CreeperChargeFeatureRenderer(
+			FeatureRendererContext<CreeperEntityRenderState, CreeperEntityModel> context,
+			LoadedEntityModels loader
+	) {
+		super(context);
+		this.model = new CreeperEntityModel(loader.getModelPart(EntityModelLayers.CREEPER_ARMOR));
+	}
 
-   @Override
-   protected float getEnergySwirlX(float partialAge) {
-      return partialAge * 0.01F;
-   }
+	protected boolean shouldRender(CreeperEntityRenderState creeperEntityRenderState) {
+		return creeperEntityRenderState.charged;
+	}
 
-   @Override
-   protected Identifier getEnergySwirlTexture() {
-      return SKIN;
-   }
+	@Override
+	protected float getEnergySwirlX(float partialAge) {
+		return partialAge * 0.01F;
+	}
 
-   protected CreeperEntityModel getEnergySwirlModel() {
-      return this.model;
-   }
+	@Override
+	protected Identifier getEnergySwirlTexture() {
+		return SKIN;
+	}
+
+	protected CreeperEntityModel getEnergySwirlModel() {
+		return this.model;
+	}
 }

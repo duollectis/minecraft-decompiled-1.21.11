@@ -11,27 +11,43 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PandaHeldItemFeatureRenderer}.
+ */
 public class PandaHeldItemFeatureRenderer extends FeatureRenderer<PandaEntityRenderState, PandaEntityModel> {
-   public PandaHeldItemFeatureRenderer(FeatureRendererContext<PandaEntityRenderState, PandaEntityModel> featureRendererContext) {
-      super(featureRendererContext);
-   }
 
-   public void render(
-      MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, PandaEntityRenderState pandaEntityRenderState, float f, float g
-   ) {
-      ItemRenderState itemRenderState = pandaEntityRenderState.itemRenderState;
-      if (!itemRenderState.isEmpty() && pandaEntityRenderState.sitting && !pandaEntityRenderState.scaredByThunderstorm) {
-         float h = -0.6F;
-         float j = 1.4F;
-         if (pandaEntityRenderState.eating) {
-            h -= 0.2F * MathHelper.sin(pandaEntityRenderState.age * 0.6F) + 0.2F;
-            j -= 0.09F * MathHelper.sin(pandaEntityRenderState.age * 0.6F);
-         }
+	public PandaHeldItemFeatureRenderer(FeatureRendererContext<PandaEntityRenderState, PandaEntityModel> featureRendererContext) {
+		super(featureRendererContext);
+	}
 
-         matrixStack.push();
-         matrixStack.translate(0.1F, j, h);
-         itemRenderState.render(matrixStack, orderedRenderCommandQueue, i, OverlayTexture.DEFAULT_UV, pandaEntityRenderState.outlineColor);
-         matrixStack.pop();
-      }
-   }
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			PandaEntityRenderState pandaEntityRenderState,
+			float f,
+			float g
+	) {
+		ItemRenderState itemRenderState = pandaEntityRenderState.itemRenderState;
+		if (!itemRenderState.isEmpty() && pandaEntityRenderState.sitting
+				&& !pandaEntityRenderState.scaredByThunderstorm) {
+			float h = -0.6F;
+			float j = 1.4F;
+			if (pandaEntityRenderState.eating) {
+				h -= 0.2F * MathHelper.sin(pandaEntityRenderState.age * 0.6F) + 0.2F;
+				j -= 0.09F * MathHelper.sin(pandaEntityRenderState.age * 0.6F);
+			}
+
+			matrixStack.push();
+			matrixStack.translate(0.1F, j, h);
+			itemRenderState.render(
+					matrixStack,
+					orderedRenderCommandQueue,
+					i,
+					OverlayTexture.DEFAULT_UV,
+					pandaEntityRenderState.outlineColor
+			);
+			matrixStack.pop();
+		}
+	}
 }

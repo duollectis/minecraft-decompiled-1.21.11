@@ -10,37 +10,45 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Box;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SnifferEntityRenderer}.
+ */
 public class SnifferEntityRenderer extends AgeableMobEntityRenderer<SnifferEntity, SnifferEntityRenderState, SnifferEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/sniffer/sniffer.png");
 
-   public SnifferEntityRenderer(EntityRendererFactory.Context context) {
-      super(
-         context,
-         new SnifferEntityModel(context.getPart(EntityModelLayers.SNIFFER)),
-         new SnifferEntityModel(context.getPart(EntityModelLayers.SNIFFER_BABY)),
-         1.1F
-      );
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/sniffer/sniffer.png");
 
-   public Identifier getTexture(SnifferEntityRenderState snifferEntityRenderState) {
-      return TEXTURE;
-   }
+	public SnifferEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new SnifferEntityModel(context.getPart(EntityModelLayers.SNIFFER)),
+				new SnifferEntityModel(context.getPart(EntityModelLayers.SNIFFER_BABY)),
+				1.1F
+		);
+	}
 
-   public SnifferEntityRenderState createRenderState() {
-      return new SnifferEntityRenderState();
-   }
+	public Identifier getTexture(SnifferEntityRenderState snifferEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(SnifferEntity snifferEntity, SnifferEntityRenderState snifferEntityRenderState, float f) {
-      super.updateRenderState(snifferEntity, snifferEntityRenderState, f);
-      snifferEntityRenderState.searching = snifferEntity.isSearching();
-      snifferEntityRenderState.diggingAnimationState.copyFrom(snifferEntity.diggingAnimationState);
-      snifferEntityRenderState.sniffingAnimationState.copyFrom(snifferEntity.sniffingAnimationState);
-      snifferEntityRenderState.risingAnimationState.copyFrom(snifferEntity.risingAnimationState);
-      snifferEntityRenderState.feelingHappyAnimationState.copyFrom(snifferEntity.feelingHappyAnimationState);
-      snifferEntityRenderState.scentingAnimationState.copyFrom(snifferEntity.scentingAnimationState);
-   }
+	public SnifferEntityRenderState createRenderState() {
+		return new SnifferEntityRenderState();
+	}
 
-   protected Box getBoundingBox(SnifferEntity snifferEntity) {
-      return super.getBoundingBox(snifferEntity).expand(0.6F);
-   }
+	public void updateRenderState(
+			SnifferEntity snifferEntity,
+			SnifferEntityRenderState snifferEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(snifferEntity, snifferEntityRenderState, f);
+		snifferEntityRenderState.searching = snifferEntity.isSearching();
+		snifferEntityRenderState.diggingAnimationState.copyFrom(snifferEntity.diggingAnimationState);
+		snifferEntityRenderState.sniffingAnimationState.copyFrom(snifferEntity.sniffingAnimationState);
+		snifferEntityRenderState.risingAnimationState.copyFrom(snifferEntity.risingAnimationState);
+		snifferEntityRenderState.feelingHappyAnimationState.copyFrom(snifferEntity.feelingHappyAnimationState);
+		snifferEntityRenderState.scentingAnimationState.copyFrom(snifferEntity.scentingAnimationState);
+	}
+
+	protected Box getBoundingBox(SnifferEntity snifferEntity) {
+		return super.getBoundingBox(snifferEntity).expand(0.6F);
+	}
 }

@@ -11,41 +11,46 @@ import net.minecraft.client.realms.dto.RealmsServerAddress;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsConnectTask}.
+ */
 public class RealmsConnectTask extends LongRunningTask {
-   private static final Text TITLE = Text.translatable("mco.connect.connecting");
-   private final RealmsConnection realmsConnection;
-   private final RealmsServer server;
-   private final RealmsServerAddress address;
 
-   public RealmsConnectTask(Screen lastScreen, RealmsServer server, RealmsServerAddress address) {
-      this.server = server;
-      this.address = address;
-      this.realmsConnection = new RealmsConnection(lastScreen);
-   }
+	private static final Text TITLE = Text.translatable("mco.connect.connecting");
+	private final RealmsConnection realmsConnection;
+	private final RealmsServer server;
+	private final RealmsServerAddress address;
 
-   @Override
-   public void run() {
-      if (this.address.address() != null) {
-         this.realmsConnection.connect(this.server, ServerAddress.parse(this.address.address()));
-      } else {
-         this.abortTask();
-      }
-   }
+	public RealmsConnectTask(Screen lastScreen, RealmsServer server, RealmsServerAddress address) {
+		this.server = server;
+		this.address = address;
+		this.realmsConnection = new RealmsConnection(lastScreen);
+	}
 
-   @Override
-   public void abortTask() {
-      super.abortTask();
-      this.realmsConnection.abort();
-      MinecraftClient.getInstance().getServerResourcePackProvider().clear();
-   }
+	@Override
+	public void run() {
+		if (this.address.address() != null) {
+			this.realmsConnection.connect(this.server, ServerAddress.parse(this.address.address()));
+		}
+		else {
+			this.abortTask();
+		}
+	}
 
-   @Override
-   public void tick() {
-      this.realmsConnection.tick();
-   }
+	@Override
+	public void abortTask() {
+		super.abortTask();
+		this.realmsConnection.abort();
+		MinecraftClient.getInstance().getServerResourcePackProvider().clear();
+	}
 
-   @Override
-   public Text getTitle() {
-      return TITLE;
-   }
+	@Override
+	public void tick() {
+		this.realmsConnection.tick();
+	}
+
+	@Override
+	public Text getTitle() {
+		return TITLE;
+	}
 }

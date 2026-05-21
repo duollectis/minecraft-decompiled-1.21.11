@@ -8,47 +8,78 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.ParsedCommandNode;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.tree.CommandNode;
-import java.util.Map;
 import net.minecraft.text.Text;
 
+import java.util.Map;
+
+/**
+ * {@code HelpCommand}.
+ */
 public class HelpCommand {
-   private static final SimpleCommandExceptionType FAILED_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.help.failed"));
 
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("help").executes(context -> {
-               Map<CommandNode<ServerCommandSource>, String> map = dispatcher.getSmartUsage(dispatcher.getRoot(), (ServerCommandSource)context.getSource());
+	private static final SimpleCommandExceptionType
+			FAILED_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.help.failed"));
 
-               for (String string : map.values()) {
-                  ((ServerCommandSource)context.getSource()).sendFeedback(() -> Text.literal("/" + string), false);
-               }
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("help").executes(context -> {
+					Map<CommandNode<ServerCommandSource>, String>
+							map =
+							dispatcher.getSmartUsage(dispatcher.getRoot(), (ServerCommandSource) context.getSource());
 
-               return map.size();
-            }))
-            .then(
-               CommandManager.argument("command", StringArgumentType.greedyString())
-                  .executes(
-                     context -> {
-                        ParseResults<ServerCommandSource> parseResults = dispatcher.parse(
-                           StringArgumentType.getString(context, "command"), (ServerCommandSource)context.getSource()
-                        );
-                        if (parseResults.getContext().getNodes().isEmpty()) {
-                           throw FAILED_EXCEPTION.create();
-                        } else {
-                           Map<CommandNode<ServerCommandSource>, String> map = dispatcher.getSmartUsage(
-                              ((ParsedCommandNode)Iterables.getLast(parseResults.getContext().getNodes())).getNode(), (ServerCommandSource)context.getSource()
-                           );
+					for (String string : map.values()) {
+						((ServerCommandSource) context.getSource()).sendFeedback(
+								() -> Text.literal("/" + string),
+								false
+						);
+					}
 
-                           for (String string : map.values()) {
-                              ((ServerCommandSource)context.getSource())
-                                 .sendFeedback(() -> Text.literal("/" + parseResults.getReader().getString() + " " + string), false);
-                           }
+					return map.size();
+				})
+				)
+						.then(
+								CommandManager.argument("command", StringArgumentType.greedyString())
+								              .executes(
+										              context -> {
+											              ParseResults<ServerCommandSource>
+													              parseResults =
+													              dispatcher.parse(
+															              StringArgumentType.getString(
+																	              context,
+																	              "command"
+															              ), (ServerCommandSource) context.getSource()
+													              );
+											              if (parseResults.getContext().getNodes().isEmpty()) {
+												              throw FAILED_EXCEPTION.create();
+											              }
+											              else {
+												              Map<CommandNode<ServerCommandSource>, String>
+														              map =
+														              dispatcher.getSmartUsage(
+																              ((ParsedCommandNode) Iterables.getLast(
+																		              parseResults
+																				              .getContext()
+																				              .getNodes())
+																              ).getNode(),
+																              (ServerCommandSource) context.getSource()
+														              );
 
-                           return map.size();
-                        }
-                     }
-                  )
-            )
-      );
-   }
+												              for (String string : map.values()) {
+													              ((ServerCommandSource) context.getSource())
+															              .sendFeedback(
+																	              () -> Text.literal("/" + parseResults
+																			              .getReader()
+																			              .getString() + " " + string),
+																	              false
+															              );
+												              }
+
+												              return map.size();
+											              }
+										              }
+								              )
+						)
+		);
+	}
 }

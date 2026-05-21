@@ -5,6 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.render.item.ItemRenderState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FlyingItemEntityRenderState}.
+ */
 public class FlyingItemEntityRenderState extends EntityRenderState {
-   public final ItemRenderState itemRenderState = new ItemRenderState();
+
+	public final ItemRenderState itemRenderState = new ItemRenderState();
 }

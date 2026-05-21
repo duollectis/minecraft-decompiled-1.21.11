@@ -1,19 +1,12 @@
 package net.minecraft.entity.mob;
 
-import java.util.EnumSet;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.InfestedBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.ai.goal.ActiveTargetGoal;
-import net.minecraft.entity.ai.goal.Goal;
-import net.minecraft.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.entity.ai.goal.PowderSnowJumpGoal;
-import net.minecraft.entity.ai.goal.RevengeGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.ai.goal.WanderAroundGoal;
+import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
@@ -31,200 +24,244 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+
+/**
+ * {@code SilverfishEntity}.
+ */
 public class SilverfishEntity extends HostileEntity {
-   private SilverfishEntity.@Nullable CallForHelpGoal callForHelpGoal;
 
-   public SilverfishEntity(EntityType<? extends SilverfishEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private SilverfishEntity.@Nullable CallForHelpGoal callForHelpGoal;
 
-   @Override
-   protected void initGoals() {
-      this.callForHelpGoal = new SilverfishEntity.CallForHelpGoal(this);
-      this.goalSelector.add(1, new SwimGoal(this));
-      this.goalSelector.add(1, new PowderSnowJumpGoal(this, this.getEntityWorld()));
-      this.goalSelector.add(3, this.callForHelpGoal);
-      this.goalSelector.add(4, new MeleeAttackGoal(this, 1.0, false));
-      this.goalSelector.add(5, new SilverfishEntity.WanderAndInfestGoal(this));
-      this.targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
-      this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-   }
+	public SilverfishEntity(EntityType<? extends SilverfishEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public static DefaultAttributeContainer.Builder createSilverfishAttributes() {
-      return HostileEntity.createHostileAttributes()
-         .add(EntityAttributes.MAX_HEALTH, 8.0)
-         .add(EntityAttributes.MOVEMENT_SPEED, 0.25)
-         .add(EntityAttributes.ATTACK_DAMAGE, 1.0);
-   }
+	@Override
+	protected void initGoals() {
+		this.callForHelpGoal = new SilverfishEntity.CallForHelpGoal(this);
+		this.goalSelector.add(1, new SwimGoal(this));
+		this.goalSelector.add(1, new PowderSnowJumpGoal(this, this.getEntityWorld()));
+		this.goalSelector.add(3, this.callForHelpGoal);
+		this.goalSelector.add(4, new MeleeAttackGoal(this, 1.0, false));
+		this.goalSelector.add(5, new SilverfishEntity.WanderAndInfestGoal(this));
+		this.targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
+		this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+	}
 
-   @Override
-   protected Entity.MoveEffect getMoveEffect() {
-      return Entity.MoveEffect.EVENTS;
-   }
+	public static DefaultAttributeContainer.Builder createSilverfishAttributes() {
+		return HostileEntity.createHostileAttributes()
+		                    .add(EntityAttributes.MAX_HEALTH, 8.0)
+		                    .add(EntityAttributes.MOVEMENT_SPEED, 0.25)
+		                    .add(EntityAttributes.ATTACK_DAMAGE, 1.0);
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_SILVERFISH_AMBIENT;
-   }
+	@Override
+	protected Entity.MoveEffect getMoveEffect() {
+		return Entity.MoveEffect.EVENTS;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_SILVERFISH_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_SILVERFISH_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_SILVERFISH_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_SILVERFISH_HURT;
+	}
 
-   @Override
-   protected void playStepSound(BlockPos pos, BlockState state) {
-      this.playSound(SoundEvents.ENTITY_SILVERFISH_STEP, 0.15F, 1.0F);
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_SILVERFISH_DEATH;
+	}
 
-   @Override
-   public boolean damage(ServerWorld world, DamageSource source, float amount) {
-      if (this.isInvulnerableTo(world, source)) {
-         return false;
-      } else {
-         if ((source.getAttacker() != null || source.isIn(DamageTypeTags.ALWAYS_TRIGGERS_SILVERFISH)) && this.callForHelpGoal != null) {
-            this.callForHelpGoal.onHurt();
-         }
+	@Override
+	protected void playStepSound(BlockPos pos, BlockState state) {
+		this.playSound(SoundEvents.ENTITY_SILVERFISH_STEP, 0.15F, 1.0F);
+	}
 
-         return super.damage(world, source, amount);
-      }
-   }
+	@Override
+	public boolean damage(ServerWorld world, DamageSource source, float amount) {
+		if (this.isInvulnerableTo(world, source)) {
+			return false;
+		}
+		else {
+			if ((source.getAttacker() != null || source.isIn(DamageTypeTags.ALWAYS_TRIGGERS_SILVERFISH))
+					&& this.callForHelpGoal != null) {
+				this.callForHelpGoal.onHurt();
+			}
 
-   @Override
-   public void tick() {
-      this.bodyYaw = this.getYaw();
-      super.tick();
-   }
+			return super.damage(world, source, amount);
+		}
+	}
 
-   @Override
-   public void setBodyYaw(float bodyYaw) {
-      this.setYaw(bodyYaw);
-      super.setBodyYaw(bodyYaw);
-   }
+	@Override
+	public void tick() {
+		this.bodyYaw = this.getYaw();
+		super.tick();
+	}
 
-   @Override
-   public float getPathfindingFavor(BlockPos pos, WorldView world) {
-      return InfestedBlock.isInfestable(world.getBlockState(pos.down())) ? 10.0F : super.getPathfindingFavor(pos, world);
-   }
+	@Override
+	public void setBodyYaw(float bodyYaw) {
+		this.setYaw(bodyYaw);
+		super.setBodyYaw(bodyYaw);
+	}
 
-   public static boolean canSpawn(EntityType<SilverfishEntity> type, WorldAccess world, SpawnReason spawnReason, BlockPos pos, Random random) {
-      if (!canSpawnIgnoreLightLevel(type, world, spawnReason, pos, random)) {
-         return false;
-      } else if (SpawnReason.isAnySpawner(spawnReason)) {
-         return true;
-      } else {
-         PlayerEntity playerEntity = world.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 5.0, true);
-         return playerEntity == null;
-      }
-   }
+	@Override
+	public float getPathfindingFavor(BlockPos pos, WorldView world) {
+		return InfestedBlock.isInfestable(world.getBlockState(pos.down())) ? 10.0F
+		                                                                   : super.getPathfindingFavor(pos, world);
+	}
 
-   static class CallForHelpGoal extends Goal {
-      private final SilverfishEntity silverfish;
-      private int delay;
+	public static boolean canSpawn(
+			EntityType<SilverfishEntity> type,
+			WorldAccess world,
+			SpawnReason spawnReason,
+			BlockPos pos,
+			Random random
+	) {
+		if (!canSpawnIgnoreLightLevel(type, world, spawnReason, pos, random)) {
+			return false;
+		}
+		else if (SpawnReason.isAnySpawner(spawnReason)) {
+			return true;
+		}
+		else {
+			PlayerEntity
+					playerEntity =
+					world.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 5.0, true);
+			return playerEntity == null;
+		}
+	}
 
-      public CallForHelpGoal(SilverfishEntity silverfish) {
-         this.silverfish = silverfish;
-      }
+	/**
+	 * {@code CallForHelpGoal}.
+	 */
+	static class CallForHelpGoal extends Goal {
 
-      public void onHurt() {
-         if (this.delay == 0) {
-            this.delay = this.getTickCount(20);
-         }
-      }
+		private final SilverfishEntity silverfish;
+		private int delay;
 
-      @Override
-      public boolean canStart() {
-         return this.delay > 0;
-      }
+		public CallForHelpGoal(SilverfishEntity silverfish) {
+			this.silverfish = silverfish;
+		}
 
-      @Override
-      public void tick() {
-         this.delay--;
-         if (this.delay <= 0) {
-            World world = this.silverfish.getEntityWorld();
-            Random random = this.silverfish.getRandom();
-            BlockPos blockPos = this.silverfish.getBlockPos();
+		public void onHurt() {
+			if (this.delay == 0) {
+				this.delay = this.getTickCount(20);
+			}
+		}
 
-            for (int i = 0; i <= 5 && i >= -5; i = (i <= 0 ? 1 : 0) - i) {
-               for (int j = 0; j <= 10 && j >= -10; j = (j <= 0 ? 1 : 0) - j) {
-                  for (int k = 0; k <= 10 && k >= -10; k = (k <= 0 ? 1 : 0) - k) {
-                     BlockPos blockPos2 = blockPos.add(j, i, k);
-                     BlockState blockState = world.getBlockState(blockPos2);
-                     Block block = blockState.getBlock();
-                     if (block instanceof InfestedBlock) {
-                        if (castToServerWorld(world).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-                           world.breakBlock(blockPos2, true, this.silverfish);
-                        } else {
-                           world.setBlockState(blockPos2, ((InfestedBlock)block).toRegularState(world.getBlockState(blockPos2)), 3);
-                        }
+		@Override
+		public boolean canStart() {
+			return this.delay > 0;
+		}
 
-                        if (random.nextBoolean()) {
-                           return;
-                        }
-                     }
-                  }
-               }
-            }
-         }
-      }
-   }
+		@Override
+		public void tick() {
+			this.delay--;
+			if (this.delay <= 0) {
+				World world = this.silverfish.getEntityWorld();
+				Random random = this.silverfish.getRandom();
+				BlockPos blockPos = this.silverfish.getBlockPos();
 
-   static class WanderAndInfestGoal extends WanderAroundGoal {
-      private @Nullable Direction direction;
-      private boolean canInfest;
+				for (int i = 0; i <= 5 && i >= -5; i = (i <= 0 ? 1 : 0) - i) {
+					for (int j = 0; j <= 10 && j >= -10; j = (j <= 0 ? 1 : 0) - j) {
+						for (int k = 0; k <= 10 && k >= -10; k = (k <= 0 ? 1 : 0) - k) {
+							BlockPos blockPos2 = blockPos.add(j, i, k);
+							BlockState blockState = world.getBlockState(blockPos2);
+							Block block = blockState.getBlock();
+							if (block instanceof InfestedBlock) {
+								if (castToServerWorld(world).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+									world.breakBlock(blockPos2, true, this.silverfish);
+								}
+								else {
+									world.setBlockState(
+											blockPos2,
+											((InfestedBlock) block).toRegularState(world.getBlockState(blockPos2)),
+											3
+									);
+								}
 
-      public WanderAndInfestGoal(SilverfishEntity silverfish) {
-         super(silverfish, 1.0, 10);
-         this.setControls(EnumSet.of(Goal.Control.MOVE));
-      }
+								if (random.nextBoolean()) {
+									return;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
-      @Override
-      public boolean canStart() {
-         if (this.mob.getTarget() != null) {
-            return false;
-         } else if (!this.mob.getNavigation().isIdle()) {
-            return false;
-         } else {
-            Random random = this.mob.getRandom();
-            if (getServerWorld(this.mob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING) && random.nextInt(toGoalTicks(10)) == 0) {
-               this.direction = Direction.random(random);
-               BlockPos blockPos = BlockPos.ofFloored(this.mob.getX(), this.mob.getY() + 0.5, this.mob.getZ()).offset(this.direction);
-               BlockState blockState = this.mob.getEntityWorld().getBlockState(blockPos);
-               if (InfestedBlock.isInfestable(blockState)) {
-                  this.canInfest = true;
-                  return true;
-               }
-            }
+	/**
+	 * {@code WanderAndInfestGoal}.
+	 */
+	static class WanderAndInfestGoal extends WanderAroundGoal {
 
-            this.canInfest = false;
-            return super.canStart();
-         }
-      }
+		private @Nullable Direction direction;
+		private boolean canInfest;
 
-      @Override
-      public boolean shouldContinue() {
-         return this.canInfest ? false : super.shouldContinue();
-      }
+		public WanderAndInfestGoal(SilverfishEntity silverfish) {
+			super(silverfish, 1.0, 10);
+			this.setControls(EnumSet.of(Goal.Control.MOVE));
+		}
 
-      @Override
-      public void start() {
-         if (!this.canInfest) {
-            super.start();
-         } else {
-            WorldAccess worldAccess = this.mob.getEntityWorld();
-            BlockPos blockPos = BlockPos.ofFloored(this.mob.getX(), this.mob.getY() + 0.5, this.mob.getZ()).offset(this.direction);
-            BlockState blockState = worldAccess.getBlockState(blockPos);
-            if (InfestedBlock.isInfestable(blockState)) {
-               worldAccess.setBlockState(blockPos, InfestedBlock.fromRegularState(blockState), 3);
-               this.mob.playSpawnEffects();
-               this.mob.discard();
-            }
-         }
-      }
-   }
+		@Override
+		public boolean canStart() {
+			if (this.mob.getTarget() != null) {
+				return false;
+			}
+			else if (!this.mob.getNavigation().isIdle()) {
+				return false;
+			}
+			else {
+				Random random = this.mob.getRandom();
+				if (getServerWorld(this.mob).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
+						&& random.nextInt(toGoalTicks(10)) == 0) {
+					this.direction = Direction.random(random);
+					BlockPos
+							blockPos =
+							BlockPos
+									.ofFloored(this.mob.getX(), this.mob.getY() + 0.5, this.mob.getZ())
+									.offset(this.direction);
+					BlockState blockState = this.mob.getEntityWorld().getBlockState(blockPos);
+					if (InfestedBlock.isInfestable(blockState)) {
+						this.canInfest = true;
+						return true;
+					}
+				}
+
+				this.canInfest = false;
+				return super.canStart();
+			}
+		}
+
+		@Override
+		public boolean shouldContinue() {
+			return this.canInfest ? false : super.shouldContinue();
+		}
+
+		@Override
+		public void start() {
+			if (!this.canInfest) {
+				super.start();
+			}
+			else {
+				WorldAccess worldAccess = this.mob.getEntityWorld();
+				BlockPos
+						blockPos =
+						BlockPos
+								.ofFloored(this.mob.getX(), this.mob.getY() + 0.5, this.mob.getZ())
+								.offset(this.direction);
+				BlockState blockState = worldAccess.getBlockState(blockPos);
+				if (InfestedBlock.isInfestable(blockState)) {
+					worldAccess.setBlockState(blockPos, InfestedBlock.fromRegularState(blockState), 3);
+					this.mob.playSpawnEffects();
+					this.mob.discard();
+				}
+			}
+		}
+	}
 }

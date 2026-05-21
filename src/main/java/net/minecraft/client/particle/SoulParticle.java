@@ -7,65 +7,102 @@ import net.minecraft.particle.SimpleParticleType;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SoulParticle}.
+ */
 public class SoulParticle extends AbstractSlowingParticle {
-   private final SpriteProvider spriteProvider;
-   protected boolean sculk;
 
-   SoulParticle(ClientWorld world, double x, double y, double z, double velocityX, double velocityY, double velocityZ, SpriteProvider spriteProvider) {
-      super(world, x, y, z, velocityX, velocityY, velocityZ, spriteProvider.getFirst());
-      this.spriteProvider = spriteProvider;
-      this.scale(1.5F);
-      this.updateSprite(spriteProvider);
-   }
+	private final SpriteProvider spriteProvider;
+	protected boolean sculk;
 
-   @Override
-   public int getBrightness(float tint) {
-      return this.sculk ? 240 : super.getBrightness(tint);
-   }
+	SoulParticle(
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
+			SpriteProvider spriteProvider
+	) {
+		super(world, x, y, z, velocityX, velocityY, velocityZ, spriteProvider.getFirst());
+		this.spriteProvider = spriteProvider;
+		this.scale(1.5F);
+		this.updateSprite(spriteProvider);
+	}
 
-   @Override
-   public BillboardParticle.RenderType getRenderType() {
-      return BillboardParticle.RenderType.PARTICLE_ATLAS_TRANSLUCENT;
-   }
+	@Override
+	public int getBrightness(float tint) {
+		return this.sculk ? 240 : super.getBrightness(tint);
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      this.updateSprite(this.spriteProvider);
-   }
+	@Override
+	public BillboardParticle.RenderType getRenderType() {
+		return BillboardParticle.RenderType.PARTICLE_ATLAS_TRANSLUCENT;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static class Factory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+	@Override
+	public void tick() {
+		super.tick();
+		this.updateSprite(this.spriteProvider);
+	}
 
-      public Factory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Factory}.
+	 */
+	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         SoulParticle soulParticle = new SoulParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
-         soulParticle.setAlpha(1.0F);
-         return soulParticle;
-      }
-   }
+		private final SpriteProvider spriteProvider;
 
-   @Environment(EnvType.CLIENT)
-   public static class SculkSoulFactory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+		public Factory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
 
-      public SculkSoulFactory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			SoulParticle soulParticle = new SoulParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
+			soulParticle.setAlpha(1.0F);
+			return soulParticle;
+		}
+	}
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         SoulParticle soulParticle = new SoulParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
-         soulParticle.setAlpha(1.0F);
-         soulParticle.sculk = true;
-         return soulParticle;
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code SculkSoulFactory}.
+	 */
+	public static class SculkSoulFactory implements ParticleFactory<SimpleParticleType> {
+
+		private final SpriteProvider spriteProvider;
+
+		public SculkSoulFactory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
+
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			SoulParticle soulParticle = new SoulParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider);
+			soulParticle.setAlpha(1.0F);
+			soulParticle.sculk = true;
+			return soulParticle;
+		}
+	}
 }

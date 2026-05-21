@@ -13,62 +13,77 @@ import net.minecraft.world.World;
 import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code BulbBlock}.
+ */
 public class BulbBlock extends Block {
-   public static final MapCodec<BulbBlock> CODEC = createCodec(BulbBlock::new);
-   public static final BooleanProperty POWERED = Properties.POWERED;
-   public static final BooleanProperty LIT = Properties.LIT;
 
-   @Override
-   protected MapCodec<? extends BulbBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<BulbBlock> CODEC = createCodec(BulbBlock::new);
+	public static final BooleanProperty POWERED = Properties.POWERED;
+	public static final BooleanProperty LIT = Properties.LIT;
 
-   public BulbBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.getDefaultState().with(LIT, false).with(POWERED, false));
-   }
+	@Override
+	protected MapCodec<? extends BulbBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-      if (oldState.getBlock() != state.getBlock() && world instanceof ServerWorld serverWorld) {
-         this.update(state, serverWorld, pos);
-      }
-   }
+	public BulbBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.getDefaultState().with(LIT, false).with(POWERED, false));
+	}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      if (world instanceof ServerWorld serverWorld) {
-         this.update(state, serverWorld, pos);
-      }
-   }
+	@Override
+	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
+		if (oldState.getBlock() != state.getBlock() && world instanceof ServerWorld serverWorld) {
+			this.update(state, serverWorld, pos);
+		}
+	}
 
-   public void update(BlockState state, ServerWorld world, BlockPos pos) {
-      boolean bl = world.isReceivingRedstonePower(pos);
-      if (bl != state.get(POWERED)) {
-         BlockState blockState = state;
-         if (!state.get(POWERED)) {
-            blockState = state.cycle(LIT);
-            world.playSound(
-               null, pos, blockState.get(LIT) ? SoundEvents.BLOCK_COPPER_BULB_TURN_ON : SoundEvents.BLOCK_COPPER_BULB_TURN_OFF, SoundCategory.BLOCKS
-            );
-         }
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		if (world instanceof ServerWorld serverWorld) {
+			this.update(state, serverWorld, pos);
+		}
+	}
 
-         world.setBlockState(pos, blockState.with(POWERED, bl), 3);
-      }
-   }
+	public void update(BlockState state, ServerWorld world, BlockPos pos) {
+		boolean bl = world.isReceivingRedstonePower(pos);
+		if (bl != state.get(POWERED)) {
+			BlockState blockState = state;
+			if (!state.get(POWERED)) {
+				blockState = state.cycle(LIT);
+				world.playSound(
+						null,
+						pos,
+						blockState.get(LIT) ? SoundEvents.BLOCK_COPPER_BULB_TURN_ON
+						                    : SoundEvents.BLOCK_COPPER_BULB_TURN_OFF,
+						SoundCategory.BLOCKS
+				);
+			}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(LIT, POWERED);
-   }
+			world.setBlockState(pos, blockState.with(POWERED, bl), 3);
+		}
+	}
 
-   @Override
-   protected boolean hasComparatorOutput(BlockState state) {
-      return true;
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(LIT, POWERED);
+	}
 
-   @Override
-   protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-      return world.getBlockState(pos).get(LIT) ? 15 : 0;
-   }
+	@Override
+	protected boolean hasComparatorOutput(BlockState state) {
+		return true;
+	}
+
+	@Override
+	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
+		return world.getBlockState(pos).get(LIT) ? 15 : 0;
+	}
 }

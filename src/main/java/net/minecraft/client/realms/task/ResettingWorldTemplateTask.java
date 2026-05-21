@@ -8,16 +8,20 @@ import net.minecraft.client.realms.exception.RealmsServiceException;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ResettingWorldTemplateTask}.
+ */
 public class ResettingWorldTemplateTask extends ResettingWorldTask {
-   private final WorldTemplate template;
 
-   public ResettingWorldTemplateTask(WorldTemplate template, long serverId, Text title, Runnable callback) {
-      super(serverId, title, callback);
-      this.template = template;
-   }
+	private final WorldTemplate template;
 
-   @Override
-   protected void resetWorld(RealmsClient client, long worldId) throws RealmsServiceException {
-      client.resetWorldWithTemplate(worldId, this.template.id());
-   }
+	public ResettingWorldTemplateTask(WorldTemplate template, long serverId, Text title, Runnable callback) {
+		super(serverId, title, callback);
+		this.template = template;
+	}
+
+	@Override
+	protected void resetWorld(RealmsClient client, long worldId) throws RealmsServiceException {
+		client.resetWorldWithTemplate(worldId, this.template.id());
+	}
 }

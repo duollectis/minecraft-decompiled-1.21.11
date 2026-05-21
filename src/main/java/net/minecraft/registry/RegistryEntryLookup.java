@@ -1,44 +1,56 @@
 package net.minecraft.registry;
 
-import java.util.Optional;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.math.random.Random;
 
+import java.util.Optional;
+
+/**
+ * {@code RegistryEntryLookup}.
+ */
 public interface RegistryEntryLookup<T> {
-   Optional<RegistryEntry.Reference<T>> getOptional(RegistryKey<T> key);
 
-   default RegistryEntry.Reference<T> getOrThrow(RegistryKey<T> key) {
-      return this.getOptional(key).orElseThrow(() -> new IllegalStateException("Missing element " + key));
-   }
+	Optional<RegistryEntry.Reference<T>> getOptional(RegistryKey<T> key);
 
-   Optional<RegistryEntryList.Named<T>> getOptional(TagKey<T> tag);
+	default RegistryEntry.Reference<T> getOrThrow(RegistryKey<T> key) {
+		return this.getOptional(key).orElseThrow(() -> new IllegalStateException("Missing element " + key));
+	}
 
-   default RegistryEntryList.Named<T> getOrThrow(TagKey<T> tag) {
-      return this.getOptional(tag).orElseThrow(() -> new IllegalStateException("Missing tag " + tag));
-   }
+	Optional<RegistryEntryList.Named<T>> getOptional(TagKey<T> tag);
 
-   default Optional<RegistryEntry<T>> getRandomEntry(TagKey<T> tag, Random random) {
-      return this.getOptional(tag).flatMap(entryList -> entryList.getRandom(random));
-   }
+	default RegistryEntryList.Named<T> getOrThrow(TagKey<T> tag) {
+		return this.getOptional(tag).orElseThrow(() -> new IllegalStateException("Missing tag " + tag));
+	}
 
-   public interface RegistryLookup {
-      <T> Optional<? extends RegistryEntryLookup<T>> getOptional(RegistryKey<? extends Registry<? extends T>> registryRef);
+	default Optional<RegistryEntry<T>> getRandomEntry(TagKey<T> tag, Random random) {
+		return this.getOptional(tag).flatMap(entryList -> entryList.getRandom(random));
+	}
 
-      default <T> RegistryEntryLookup<T> getOrThrow(RegistryKey<? extends Registry<? extends T>> registryRef) {
-         return (RegistryEntryLookup<T>)this.getOptional(registryRef)
-            .orElseThrow(() -> new IllegalStateException("Registry " + registryRef.getValue() + " not found"));
-      }
+	/**
+	 * {@code RegistryLookup}.
+	 */
+	public interface RegistryLookup {
 
-      default <T> Optional<RegistryEntry.Reference<T>> getOptionalEntry(RegistryKey<T> registryRef) {
-         return this.getOptional(registryRef.getRegistryRef()).flatMap(registryEntryLookup -> registryEntryLookup.getOptional(registryRef));
-      }
+		<T> Optional<? extends RegistryEntryLookup<T>> getOptional(RegistryKey<? extends Registry<? extends T>> registryRef);
 
-      default <T> RegistryEntry.Reference<T> getEntryOrThrow(RegistryKey<T> key) {
-         return this.getOptional(key.getRegistryRef())
-            .flatMap(registry -> registry.getOptional(key))
-            .orElseThrow(() -> new IllegalStateException("Missing element " + key));
-      }
-   }
+		default <T> RegistryEntryLookup<T> getOrThrow(RegistryKey<? extends Registry<? extends T>> registryRef) {
+			return (RegistryEntryLookup<T>) this.getOptional(registryRef)
+			                                    .orElseThrow(() -> new IllegalStateException(
+					                                    "Registry " + registryRef.getValue() + " not found"));
+		}
+
+		default <T> Optional<RegistryEntry.Reference<T>> getOptionalEntry(RegistryKey<T> registryRef) {
+			return this
+					.getOptional(registryRef.getRegistryRef())
+					.flatMap(registryEntryLookup -> registryEntryLookup.getOptional(registryRef));
+		}
+
+		default <T> RegistryEntry.Reference<T> getEntryOrThrow(RegistryKey<T> key) {
+			return this.getOptional(key.getRegistryRef())
+			           .flatMap(registry -> registry.getOptional(key))
+			           .orElseThrow(() -> new IllegalStateException("Missing element " + key));
+		}
+	}
 }

@@ -2,10 +2,6 @@ package net.minecraft.world.gen.chunk;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
@@ -27,107 +23,133 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.noise.NoiseConfig;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
+/**
+ * {@code DebugChunkGenerator}.
+ */
 public class DebugChunkGenerator extends ChunkGenerator {
-   public static final MapCodec<DebugChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(RegistryOps.getEntryCodec(BiomeKeys.PLAINS)).apply(instance, instance.stable(DebugChunkGenerator::new))
-   );
-   private static final int field_31467 = 2;
-   private static final List<BlockState> BLOCK_STATES = StreamSupport.stream(Registries.BLOCK.spliterator(), false)
-      .flatMap(block -> block.getStateManager().getStates().stream())
-      .collect(Collectors.toList());
-   private static final int X_SIDE_LENGTH = MathHelper.ceil(MathHelper.sqrt(BLOCK_STATES.size()));
-   private static final int Z_SIDE_LENGTH = MathHelper.ceil((float)BLOCK_STATES.size() / X_SIDE_LENGTH);
-   protected static final BlockState AIR = Blocks.AIR.getDefaultState();
-   protected static final BlockState BARRIER = Blocks.BARRIER.getDefaultState();
-   public static final int field_31465 = 70;
-   public static final int field_31466 = 60;
 
-   public DebugChunkGenerator(RegistryEntry.Reference<Biome> biomeEntry) {
-      super(new FixedBiomeSource(biomeEntry));
-   }
+	public static final MapCodec<DebugChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(RegistryOps.getEntryCodec(BiomeKeys.PLAINS))
+					.apply(instance, instance.stable(DebugChunkGenerator::new))
+	);
+	private static final int BLOCK_UPDATE_FLAGS = 2;
+	private static final List<BlockState> BLOCK_STATES = StreamSupport.stream(Registries.BLOCK.spliterator(), false)
+	                                                                  .flatMap(block -> block
+			                                                                  .getStateManager()
+			                                                                  .getStates()
+			                                                                  .stream())
+	                                                                  .collect(Collectors.toList());
+	private static final int X_SIDE_LENGTH = MathHelper.ceil(MathHelper.sqrt(BLOCK_STATES.size()));
+	private static final int Z_SIDE_LENGTH = MathHelper.ceil((float) BLOCK_STATES.size() / X_SIDE_LENGTH);
+	protected static final BlockState AIR = Blocks.AIR.getDefaultState();
+	protected static final BlockState BARRIER = Blocks.BARRIER.getDefaultState();
+	public static final int BLOCK_STATE_Y = 70;
+	public static final int BARRIER_Y = 60;
 
-   @Override
-   protected MapCodec<? extends ChunkGenerator> getCodec() {
-      return CODEC;
-   }
+	public DebugChunkGenerator(RegistryEntry.Reference<Biome> biomeEntry) {
+		super(new FixedBiomeSource(biomeEntry));
+	}
 
-   @Override
-   public void buildSurface(ChunkRegion region, StructureAccessor structures, NoiseConfig noiseConfig, Chunk chunk) {
-   }
+	@Override
+	protected MapCodec<? extends ChunkGenerator> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void generateFeatures(StructureWorldAccess world, Chunk chunk, StructureAccessor structureAccessor) {
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
-      ChunkPos chunkPos = chunk.getPos();
-      int i = chunkPos.x;
-      int j = chunkPos.z;
+	@Override
+	public void buildSurface(ChunkRegion region, StructureAccessor structures, NoiseConfig noiseConfig, Chunk chunk) {
+	}
 
-      for (int k = 0; k < 16; k++) {
-         for (int l = 0; l < 16; l++) {
-            int m = ChunkSectionPos.getOffsetPos(i, k);
-            int n = ChunkSectionPos.getOffsetPos(j, l);
-            world.setBlockState(mutable.set(m, 60, n), BARRIER, 2);
-            BlockState blockState = getBlockState(m, n);
-            world.setBlockState(mutable.set(m, 70, n), blockState, 2);
-         }
-      }
-   }
+	@Override
+	public void generateFeatures(StructureWorldAccess world, Chunk chunk, StructureAccessor structureAccessor) {
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
+		ChunkPos chunkPos = chunk.getPos();
+		int i = chunkPos.x;
+		int j = chunkPos.z;
 
-   @Override
-   public CompletableFuture<Chunk> populateNoise(Blender blender, NoiseConfig noiseConfig, StructureAccessor structureAccessor, Chunk chunk) {
-      return CompletableFuture.completedFuture(chunk);
-   }
+		for (int k = 0; k < 16; k++) {
+			for (int l = 0; l < 16; l++) {
+				int m = ChunkSectionPos.getOffsetPos(i, k);
+				int n = ChunkSectionPos.getOffsetPos(j, l);
+				world.setBlockState(mutable.set(m, 60, n), BARRIER, 2);
+				BlockState blockState = getBlockState(m, n);
+				world.setBlockState(mutable.set(m, 70, n), blockState, 2);
+			}
+		}
+	}
 
-   @Override
-   public int getHeight(int x, int z, Heightmap.Type heightmap, HeightLimitView world, NoiseConfig noiseConfig) {
-      return 0;
-   }
+	@Override
+	public CompletableFuture<Chunk> populateNoise(
+			Blender blender,
+			NoiseConfig noiseConfig,
+			StructureAccessor structureAccessor,
+			Chunk chunk
+	) {
+		return CompletableFuture.completedFuture(chunk);
+	}
 
-   @Override
-   public VerticalBlockSample getColumnSample(int x, int z, HeightLimitView world, NoiseConfig noiseConfig) {
-      return new VerticalBlockSample(0, new BlockState[0]);
-   }
+	@Override
+	public int getHeight(int x, int z, Heightmap.Type heightmap, HeightLimitView world, NoiseConfig noiseConfig) {
+		return 0;
+	}
 
-   @Override
-   public void appendDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
-   }
+	@Override
+	public VerticalBlockSample getColumnSample(int x, int z, HeightLimitView world, NoiseConfig noiseConfig) {
+		return new VerticalBlockSample(0, new BlockState[0]);
+	}
 
-   public static BlockState getBlockState(int x, int z) {
-      BlockState blockState = AIR;
-      if (x > 0 && z > 0 && x % 2 != 0 && z % 2 != 0) {
-         x /= 2;
-         z /= 2;
-         if (x <= X_SIDE_LENGTH && z <= Z_SIDE_LENGTH) {
-            int i = MathHelper.abs(x * X_SIDE_LENGTH + z);
-            if (i < BLOCK_STATES.size()) {
-               blockState = BLOCK_STATES.get(i);
-            }
-         }
-      }
+	@Override
+	public void appendDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
+	}
 
-      return blockState;
-   }
+	public static BlockState getBlockState(int x, int z) {
+		BlockState blockState = AIR;
+		if (x > 0 && z > 0 && x % 2 != 0 && z % 2 != 0) {
+			x /= 2;
+			z /= 2;
+			if (x <= X_SIDE_LENGTH && z <= Z_SIDE_LENGTH) {
+				int i = MathHelper.abs(x * X_SIDE_LENGTH + z);
+				if (i < BLOCK_STATES.size()) {
+					blockState = BLOCK_STATES.get(i);
+				}
+			}
+		}
 
-   @Override
-   public void carve(ChunkRegion chunkRegion, long seed, NoiseConfig noiseConfig, BiomeAccess biomeAccess, StructureAccessor structureAccessor, Chunk chunk) {
-   }
+		return blockState;
+	}
 
-   @Override
-   public void populateEntities(ChunkRegion region) {
-   }
+	@Override
+	public void carve(
+			ChunkRegion chunkRegion,
+			long seed,
+			NoiseConfig noiseConfig,
+			BiomeAccess biomeAccess,
+			StructureAccessor structureAccessor,
+			Chunk chunk
+	) {
+	}
 
-   @Override
-   public int getMinimumY() {
-      return 0;
-   }
+	@Override
+	public void populateEntities(ChunkRegion region) {
+	}
 
-   @Override
-   public int getWorldHeight() {
-      return 384;
-   }
+	@Override
+	public int getMinimumY() {
+		return 0;
+	}
 
-   @Override
-   public int getSeaLevel() {
-      return 63;
-   }
+	@Override
+	public int getWorldHeight() {
+		return 384;
+	}
+
+	@Override
+	public int getSeaLevel() {
+		return 63;
+	}
 }

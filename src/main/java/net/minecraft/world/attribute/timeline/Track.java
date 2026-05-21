@@ -6,90 +6,105 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.util.math.Interpolator;
+
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import net.minecraft.util.math.Interpolator;
 
+/**
+ * {@code Track}.
+ */
 public record Track<T>(List<Keyframe<T>> keyframes, EasingType easingType) {
-   public Track(List<Keyframe<T>> keyframes, EasingType easingType) {
-      if (keyframes.isEmpty()) {
-         throw new IllegalArgumentException("Track has no keyframes");
-      } else {
-         this.keyframes = keyframes;
-         this.easingType = easingType;
-      }
-   }
 
-   public static <T> MapCodec<Track<T>> createCodec(Codec<T> valueCodec) {
-      Codec<List<Keyframe<T>>> codec = Keyframe.createCodec(valueCodec).listOf().validate(Track::validateKeyframes);
-      return RecordCodecBuilder.mapCodec(
-         instance -> instance.group(
-               codec.fieldOf("keyframes").forGetter(Track::keyframes), EasingType.CODEC.optionalFieldOf("ease", EasingType.LINEAR).forGetter(Track::easingType)
-            )
-            .apply(instance, Track::new)
-      );
-   }
+	public Track(List<Keyframe<T>> keyframes, EasingType easingType) {
+		if (keyframes.isEmpty()) {
+			throw new IllegalArgumentException("Track has no keyframes");
+		}
+		else {
+			this.keyframes = keyframes;
+			this.easingType = easingType;
+		}
+	}
 
-   static <T> DataResult<List<Keyframe<T>>> validateKeyframes(List<Keyframe<T>> keyframes) {
-      if (keyframes.isEmpty()) {
-         return DataResult.error(() -> "Keyframes must not be empty");
-      } else if (!Comparators.isInOrder(keyframes, Comparator.comparingInt(Keyframe::ticks))) {
-         return DataResult.error(() -> "Keyframes must be ordered by ticks field");
-      } else {
-         if (keyframes.size() > 1) {
-            int i = 0;
-            int j = keyframes.getLast().ticks();
+	public static <T> MapCodec<Track<T>> createCodec(Codec<T> valueCodec) {
+		Codec<List<Keyframe<T>>> codec = Keyframe.createCodec(valueCodec).listOf().validate(Track::validateKeyframes);
+		return RecordCodecBuilder.mapCodec(
+				instance -> instance.group(
+						                    codec.fieldOf("keyframes").forGetter(Track::keyframes),
+						                    EasingType.CODEC.optionalFieldOf("ease", EasingType.LINEAR).forGetter(Track::easingType)
+				                    )
+				                    .apply(instance, Track::new)
+		);
+	}
 
-            for (Keyframe<T> keyframe : keyframes) {
-               if (keyframe.ticks() == j) {
-                  if (++i > 2) {
-                     return DataResult.error(() -> "More than 2 keyframes on same tick: " + keyframe.ticks());
-                  }
-               } else {
-                  i = 0;
-               }
+	static <T> DataResult<List<Keyframe<T>>> validateKeyframes(List<Keyframe<T>> keyframes) {
+		if (keyframes.isEmpty()) {
+			return DataResult.error(() -> "Keyframes must not be empty");
+		}
+		else if (!Comparators.isInOrder(keyframes, Comparator.comparingInt(Keyframe::ticks))) {
+			return DataResult.error(() -> "Keyframes must be ordered by ticks field");
+		}
+		else {
+			if (keyframes.size() > 1) {
+				int i = 0;
+				int j = keyframes.getLast().ticks();
 
-               j = keyframe.ticks();
-            }
-         }
+				for (Keyframe<T> keyframe : keyframes) {
+					if (keyframe.ticks() == j) {
+						if (++i > 2) {
+							return DataResult.error(() -> "More than 2 keyframes on same tick: " + keyframe.ticks());
+						}
+					}
+					else {
+						i = 0;
+					}
 
-         return DataResult.success(keyframes);
-      }
-   }
+					j = keyframe.ticks();
+				}
+			}
 
-   public static DataResult<Track<?>> validateKeyframesInPeriod(Track<?> track, int period) {
-      for (Keyframe<?> keyframe : track.keyframes()) {
-         int i = keyframe.ticks();
-         if (i < 0 || i > period) {
-            return DataResult.error(() -> "Keyframe at tick " + keyframe.ticks() + " must be in range [0; " + period + "]");
-         }
-      }
+			return DataResult.success(keyframes);
+		}
+	}
 
-      return DataResult.success(track);
-   }
+	public static DataResult<Track<?>> validateKeyframesInPeriod(Track<?> track, int period) {
+		for (Keyframe<?> keyframe : track.keyframes()) {
+			int i = keyframe.ticks();
+			if (i < 0 || i > period) {
+				return DataResult.error(() -> "Keyframe at tick " + keyframe.ticks() + " must be in range [0; " + period
+						+ "]");
+			}
+		}
 
-   public TrackEvaluator<T> createEvaluator(Optional<Integer> period, Interpolator<T> interpolator) {
-      return new TrackEvaluator<>(this, period, interpolator);
-   }
+		return DataResult.success(track);
+	}
 
-   public static class Builder<T> {
-      private final com.google.common.collect.ImmutableList.Builder<Keyframe<T>> keyframes = ImmutableList.builder();
-      private EasingType easingType = EasingType.LINEAR;
+	public TrackEvaluator<T> createEvaluator(Optional<Integer> period, Interpolator<T> interpolator) {
+		return new TrackEvaluator<>(this, period, interpolator);
+	}
 
-      public Track.Builder<T> keyframe(int ticks, T value) {
-         this.keyframes.add(new Keyframe(ticks, value));
-         return this;
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder<T> {
 
-      public Track.Builder<T> easingType(EasingType easingType) {
-         this.easingType = easingType;
-         return this;
-      }
+		private final com.google.common.collect.ImmutableList.Builder<Keyframe<T>> keyframes = ImmutableList.builder();
+		private EasingType easingType = EasingType.LINEAR;
 
-      public Track<T> build() {
-         List<Keyframe<T>> list = (List<Keyframe<T>>)Track.validateKeyframes(this.keyframes.build()).getOrThrow();
-         return new Track<>(list, this.easingType);
-      }
-   }
+		public Track.Builder<T> keyframe(int ticks, T value) {
+			this.keyframes.add(new Keyframe(ticks, value));
+			return this;
+		}
+
+		public Track.Builder<T> easingType(EasingType easingType) {
+			this.easingType = easingType;
+			return this;
+		}
+
+		public Track<T> build() {
+			List<Keyframe<T>> list = (List<Keyframe<T>>) Track.validateKeyframes(this.keyframes.build()).getOrThrow();
+			return new Track<>(list, this.easingType);
+		}
+	}
 }

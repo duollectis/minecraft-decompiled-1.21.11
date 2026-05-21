@@ -10,28 +10,32 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TutorialStepHandler}.
+ */
 public interface TutorialStepHandler {
-   default void destroy() {
-   }
 
-   default void tick() {
-   }
+	default void destroy() {
+	}
 
-   default void onMovement(Input input) {
-   }
+	default void tick() {
+	}
 
-   default void onMouseUpdate(double deltaX, double deltaY) {
-   }
+	default void onMovement(Input input) {
+	}
 
-   default void onTarget(ClientWorld world, HitResult hitResult) {
-   }
+	default void onMouseUpdate(double deltaX, double deltaY) {
+	}
 
-   default void onBlockBreaking(ClientWorld client, BlockPos pos, BlockState state, float progress) {
-   }
+	default void onTarget(ClientWorld world, HitResult hitResult) {
+	}
 
-   default void onInventoryOpened() {
-   }
+	default void onBlockBreaking(ClientWorld client, BlockPos pos, BlockState state, float progress) {
+	}
 
-   default void onSlotUpdate(ItemStack stack) {
-   }
+	default void onInventoryOpened() {
+	}
+
+	default void onSlotUpdate(ItemStack stack) {
+	}
 }

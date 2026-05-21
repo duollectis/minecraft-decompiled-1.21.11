@@ -6,12 +6,16 @@ import net.minecraft.registry.Registries;
 import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code RuleBlockEntityModifier}.
+ */
 public interface RuleBlockEntityModifier {
-   Codec<RuleBlockEntityModifier> TYPE_CODEC = Registries.RULE_BLOCK_ENTITY_MODIFIER
-      .getCodec()
-      .dispatch(RuleBlockEntityModifier::getType, RuleBlockEntityModifierType::codec);
 
-   @Nullable NbtCompound modifyBlockEntityNbt(Random random, @Nullable NbtCompound nbt);
+	Codec<RuleBlockEntityModifier> TYPE_CODEC = Registries.RULE_BLOCK_ENTITY_MODIFIER
+			.getCodec()
+			.dispatch(RuleBlockEntityModifier::getType, RuleBlockEntityModifierType::codec);
 
-   RuleBlockEntityModifierType<?> getType();
+	@Nullable NbtCompound modifyBlockEntityNbt(Random random, @Nullable NbtCompound nbt);
+
+	RuleBlockEntityModifierType<?> getType();
 }

@@ -1,7 +1,5 @@
 package net.minecraft.entity;
 
-import java.util.Objects;
-import java.util.UUID;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
@@ -30,405 +28,461 @@ import net.minecraft.world.explosion.Explosion;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Objects;
+import java.util.UUID;
+
+/**
+ * {@code ItemEntity}.
+ */
 public class ItemEntity extends Entity implements Ownable {
-   private static final TrackedData<ItemStack> STACK = DataTracker.registerData(ItemEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
-   private static final float field_48703 = 0.1F;
-   public static final float field_48702 = 0.2125F;
-   private static final int DESPAWN_AGE = 6000;
-   private static final int CANNOT_PICK_UP_DELAY = 32767;
-   private static final int NEVER_DESPAWN_AGE = -32768;
-   private static final int DEFAULT_HEALTH = 5;
-   private static final short DEFAULT_AGE = 0;
-   private static final short DEFAULT_PICKUP_DELAY = 0;
-   private int itemAge = 0;
-   private int pickupDelay = 0;
-   private int health = 5;
-   private @Nullable LazyEntityReference<Entity> thrower;
-   private @Nullable UUID owner;
-   public final float uniqueOffset = this.random.nextFloat() * (float) Math.PI * 2.0F;
 
-   public ItemEntity(EntityType<? extends ItemEntity> entityType, World world) {
-      super(entityType, world);
-      this.setYaw(this.random.nextFloat() * 360.0F);
-   }
+	private static final TrackedData<ItemStack>
+			STACK =
+			DataTracker.registerData(ItemEntity.class, TrackedDataHandlerRegistry.ITEM_STACK);
+	private static final float ITEM_VERTICAL_OFFSET = 0.1F;
+	public static final float ITEM_EYE_HEIGHT = 0.2125F;
+	private static final int DESPAWN_AGE = 6000;
+	private static final int CANNOT_PICK_UP_DELAY = 32767;
+	private static final int NEVER_DESPAWN_AGE = -32768;
+	private static final int DEFAULT_HEALTH = 5;
+	private static final short DEFAULT_AGE = 0;
+	private static final short DEFAULT_PICKUP_DELAY = 0;
+	private int itemAge = 0;
+	private int pickupDelay = 0;
+	private int health = 5;
+	private @Nullable LazyEntityReference<Entity> thrower;
+	private @Nullable UUID owner;
+	public final float uniqueOffset = this.random.nextFloat() * (float) Math.PI * 2.0F;
 
-   public ItemEntity(World world, double x, double y, double z, ItemStack stack) {
-      this(world, x, y, z, stack, world.random.nextDouble() * 0.2 - 0.1, 0.2, world.random.nextDouble() * 0.2 - 0.1);
-   }
+	public ItemEntity(EntityType<? extends ItemEntity> entityType, World world) {
+		super(entityType, world);
+		this.setYaw(this.random.nextFloat() * 360.0F);
+	}
 
-   public ItemEntity(World world, double x, double y, double z, ItemStack stack, double velocityX, double velocityY, double velocityZ) {
-      this(EntityType.ITEM, world);
-      this.setPosition(x, y, z);
-      this.setVelocity(velocityX, velocityY, velocityZ);
-      this.setStack(stack);
-   }
+	public ItemEntity(World world, double x, double y, double z, ItemStack stack) {
+		this(world, x, y, z, stack, world.random.nextDouble() * 0.2 - 0.1, 0.2, world.random.nextDouble() * 0.2 - 0.1);
+	}
 
-   @Override
-   public boolean occludeVibrationSignals() {
-      return this.getStack().isIn(ItemTags.DAMPENS_VIBRATIONS);
-   }
+	public ItemEntity(
+			World world,
+			double x,
+			double y,
+			double z,
+			ItemStack stack,
+			double velocityX,
+			double velocityY,
+			double velocityZ
+	) {
+		this(EntityType.ITEM, world);
+		this.setPosition(x, y, z);
+		this.setVelocity(velocityX, velocityY, velocityZ);
+		this.setStack(stack);
+	}
 
-   @Override
-   public @Nullable Entity getOwner() {
-      return LazyEntityReference.getEntity(this.thrower, this.getEntityWorld());
-   }
+	@Override
+	public boolean occludeVibrationSignals() {
+		return this.getStack().isIn(ItemTags.DAMPENS_VIBRATIONS);
+	}
 
-   @Override
-   public void copyFrom(Entity original) {
-      super.copyFrom(original);
-      if (original instanceof ItemEntity itemEntity) {
-         this.thrower = itemEntity.thrower;
-      }
-   }
+	@Override
+	public @Nullable Entity getOwner() {
+		return LazyEntityReference.getEntity(this.thrower, this.getEntityWorld());
+	}
 
-   @Override
-   protected Entity.MoveEffect getMoveEffect() {
-      return Entity.MoveEffect.NONE;
-   }
+	@Override
+	public void copyFrom(Entity original) {
+		super.copyFrom(original);
+		if (original instanceof ItemEntity itemEntity) {
+			this.thrower = itemEntity.thrower;
+		}
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      builder.add(STACK, ItemStack.EMPTY);
-   }
+	@Override
+	protected Entity.MoveEffect getMoveEffect() {
+		return Entity.MoveEffect.NONE;
+	}
 
-   @Override
-   protected double getGravity() {
-      return 0.04;
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		builder.add(STACK, ItemStack.EMPTY);
+	}
 
-   @Override
-   public void tick() {
-      if (this.getStack().isEmpty()) {
-         this.discard();
-      } else {
-         super.tick();
-         if (this.pickupDelay > 0 && this.pickupDelay != 32767) {
-            this.pickupDelay--;
-         }
+	@Override
+	protected double getGravity() {
+		return 0.04;
+	}
 
-         this.lastX = this.getX();
-         this.lastY = this.getY();
-         this.lastZ = this.getZ();
-         Vec3d vec3d = this.getVelocity();
-         if (this.isTouchingWater() && this.getFluidHeight(FluidTags.WATER) > 0.1F) {
-            this.applyWaterBuoyancy();
-         } else if (this.isInLava() && this.getFluidHeight(FluidTags.LAVA) > 0.1F) {
-            this.applyLavaBuoyancy();
-         } else {
-            this.applyGravity();
-         }
+	@Override
+	public void tick() {
+		if (this.getStack().isEmpty()) {
+			this.discard();
+		}
+		else {
+			super.tick();
+			if (this.pickupDelay > 0 && this.pickupDelay != 32767) {
+				this.pickupDelay--;
+			}
 
-         if (this.getEntityWorld().isClient()) {
-            this.noClip = false;
-         } else {
-            this.noClip = !this.getEntityWorld().isSpaceEmpty(this, this.getBoundingBox().contract(1.0E-7));
-            if (this.noClip) {
-               this.pushOutOfBlocks(this.getX(), (this.getBoundingBox().minY + this.getBoundingBox().maxY) / 2.0, this.getZ());
-            }
-         }
+			this.lastX = this.getX();
+			this.lastY = this.getY();
+			this.lastZ = this.getZ();
+			Vec3d vec3d = this.getVelocity();
+			if (this.isTouchingWater() && this.getFluidHeight(FluidTags.WATER) > 0.1F) {
+				this.applyWaterBuoyancy();
+			}
+			else if (this.isInLava() && this.getFluidHeight(FluidTags.LAVA) > 0.1F) {
+				this.applyLavaBuoyancy();
+			}
+			else {
+				this.applyGravity();
+			}
 
-         if (!this.isOnGround() || this.getVelocity().horizontalLengthSquared() > 1.0E-5F || (this.age + this.getId()) % 4 == 0) {
-            this.move(MovementType.SELF, this.getVelocity());
-            this.tickBlockCollision();
-            float f = 0.98F;
-            if (this.isOnGround()) {
-               f = this.getEntityWorld().getBlockState(this.getVelocityAffectingPos()).getBlock().getSlipperiness() * 0.98F;
-            }
+			if (this.getEntityWorld().isClient()) {
+				this.noClip = false;
+			}
+			else {
+				this.noClip = !this.getEntityWorld().isSpaceEmpty(this, this.getBoundingBox().contract(1.0E-7));
+				if (this.noClip) {
+					this.pushOutOfBlocks(
+							this.getX(),
+							(this.getBoundingBox().minY + this.getBoundingBox().maxY) / 2.0,
+							this.getZ()
+					);
+				}
+			}
 
-            this.setVelocity(this.getVelocity().multiply(f, 0.98, f));
-            if (this.isOnGround()) {
-               Vec3d vec3d2 = this.getVelocity();
-               if (vec3d2.y < 0.0) {
-                  this.setVelocity(vec3d2.multiply(1.0, -0.5, 1.0));
-               }
-            }
-         }
+			if (!this.isOnGround() || this.getVelocity().horizontalLengthSquared() > 1.0E-5F
+					|| (this.age + this.getId()) % 4 == 0) {
+				this.move(MovementType.SELF, this.getVelocity());
+				this.tickBlockCollision();
+				float f = 0.98F;
+				if (this.isOnGround()) {
+					f =
+							this
+									.getEntityWorld()
+									.getBlockState(this.getVelocityAffectingPos())
+									.getBlock()
+									.getSlipperiness() * 0.98F;
+				}
 
-         boolean bl = MathHelper.floor(this.lastX) != MathHelper.floor(this.getX())
-            || MathHelper.floor(this.lastY) != MathHelper.floor(this.getY())
-            || MathHelper.floor(this.lastZ) != MathHelper.floor(this.getZ());
-         int i = bl ? 2 : 40;
-         if (this.age % i == 0 && !this.getEntityWorld().isClient() && this.canMerge()) {
-            this.tryMerge();
-         }
+				this.setVelocity(this.getVelocity().multiply(f, 0.98, f));
+				if (this.isOnGround()) {
+					Vec3d vec3d2 = this.getVelocity();
+					if (vec3d2.y < 0.0) {
+						this.setVelocity(vec3d2.multiply(1.0, -0.5, 1.0));
+					}
+				}
+			}
 
-         if (this.itemAge != -32768) {
-            this.itemAge++;
-         }
+			boolean bl = MathHelper.floor(this.lastX) != MathHelper.floor(this.getX())
+					|| MathHelper.floor(this.lastY) != MathHelper.floor(this.getY())
+					|| MathHelper.floor(this.lastZ) != MathHelper.floor(this.getZ());
+			int i = bl ? 2 : 40;
+			if (this.age % i == 0 && !this.getEntityWorld().isClient() && this.canMerge()) {
+				this.tryMerge();
+			}
 
-         this.velocityDirty = this.velocityDirty | this.updateWaterState();
-         if (!this.getEntityWorld().isClient()) {
-            double d = this.getVelocity().subtract(vec3d).lengthSquared();
-            if (d > 0.01) {
-               this.velocityDirty = true;
-            }
-         }
+			if (this.itemAge != -32768) {
+				this.itemAge++;
+			}
 
-         if (!this.getEntityWorld().isClient() && this.itemAge >= 6000) {
-            this.discard();
-         }
-      }
-   }
+			this.velocityDirty = this.velocityDirty | this.updateWaterState();
+			if (!this.getEntityWorld().isClient()) {
+				double d = this.getVelocity().subtract(vec3d).lengthSquared();
+				if (d > 0.01) {
+					this.velocityDirty = true;
+				}
+			}
 
-   @Override
-   public BlockPos getVelocityAffectingPos() {
-      return this.getPosWithYOffset(0.999999F);
-   }
+			if (!this.getEntityWorld().isClient() && this.itemAge >= 6000) {
+				this.discard();
+			}
+		}
+	}
 
-   private void applyWaterBuoyancy() {
-      this.applyBuoyancy(0.99F);
-   }
+	@Override
+	public BlockPos getVelocityAffectingPos() {
+		return this.getPosWithYOffset(0.999999F);
+	}
 
-   private void applyLavaBuoyancy() {
-      this.applyBuoyancy(0.95F);
-   }
+	private void applyWaterBuoyancy() {
+		this.applyBuoyancy(0.99F);
+	}
 
-   private void applyBuoyancy(double horizontalMultiplier) {
-      Vec3d vec3d = this.getVelocity();
-      this.setVelocity(vec3d.x * horizontalMultiplier, vec3d.y + (vec3d.y < 0.06F ? 5.0E-4F : 0.0F), vec3d.z * horizontalMultiplier);
-   }
+	private void applyLavaBuoyancy() {
+		this.applyBuoyancy(0.95F);
+	}
 
-   private void tryMerge() {
-      if (this.canMerge()) {
-         for (ItemEntity itemEntity : this.getEntityWorld()
-            .getEntitiesByClass(
-               ItemEntity.class, this.getBoundingBox().expand(0.5, 0.0, 0.5), otherItemEntity -> otherItemEntity != this && otherItemEntity.canMerge()
-            )) {
-            if (itemEntity.canMerge()) {
-               this.tryMerge(itemEntity);
-               if (this.isRemoved()) {
-                  break;
-               }
-            }
-         }
-      }
-   }
+	private void applyBuoyancy(double horizontalMultiplier) {
+		Vec3d vec3d = this.getVelocity();
+		this.setVelocity(
+				vec3d.x * horizontalMultiplier,
+				vec3d.y + (vec3d.y < 0.06F ? 5.0E-4F : 0.0F),
+				vec3d.z * horizontalMultiplier
+		);
+	}
 
-   private boolean canMerge() {
-      ItemStack itemStack = this.getStack();
-      return this.isAlive() && this.pickupDelay != 32767 && this.itemAge != -32768 && this.itemAge < 6000 && itemStack.getCount() < itemStack.getMaxCount();
-   }
+	private void tryMerge() {
+		if (this.canMerge()) {
+			for (ItemEntity itemEntity : this.getEntityWorld()
+			                                 .getEntitiesByClass(
+					                                 ItemEntity.class,
+					                                 this.getBoundingBox().expand(0.5, 0.0, 0.5),
+					                                 otherItemEntity -> otherItemEntity != this
+							                                 && otherItemEntity.canMerge()
+			                                 )) {
+				if (itemEntity.canMerge()) {
+					this.tryMerge(itemEntity);
+					if (this.isRemoved()) {
+						break;
+					}
+				}
+			}
+		}
+	}
 
-   private void tryMerge(ItemEntity other) {
-      ItemStack itemStack = this.getStack();
-      ItemStack itemStack2 = other.getStack();
-      if (Objects.equals(this.owner, other.owner) && canMerge(itemStack, itemStack2)) {
-         if (itemStack2.getCount() < itemStack.getCount()) {
-            merge(this, itemStack, other, itemStack2);
-         } else {
-            merge(other, itemStack2, this, itemStack);
-         }
-      }
-   }
+	private boolean canMerge() {
+		ItemStack itemStack = this.getStack();
+		return this.isAlive() && this.pickupDelay != 32767 && this.itemAge != -32768 && this.itemAge < 6000
+				&& itemStack.getCount() < itemStack.getMaxCount();
+	}
 
-   public static boolean canMerge(ItemStack stack1, ItemStack stack2) {
-      return stack2.getCount() + stack1.getCount() > stack2.getMaxCount() ? false : ItemStack.areItemsAndComponentsEqual(stack1, stack2);
-   }
+	private void tryMerge(ItemEntity other) {
+		ItemStack itemStack = this.getStack();
+		ItemStack itemStack2 = other.getStack();
+		if (Objects.equals(this.owner, other.owner) && canMerge(itemStack, itemStack2)) {
+			if (itemStack2.getCount() < itemStack.getCount()) {
+				merge(this, itemStack, other, itemStack2);
+			}
+			else {
+				merge(other, itemStack2, this, itemStack);
+			}
+		}
+	}
 
-   public static ItemStack merge(ItemStack stack1, ItemStack stack2, int maxCount) {
-      int i = Math.min(Math.min(stack1.getMaxCount(), maxCount) - stack1.getCount(), stack2.getCount());
-      ItemStack itemStack = stack1.copyWithCount(stack1.getCount() + i);
-      stack2.decrement(i);
-      return itemStack;
-   }
+	public static boolean canMerge(ItemStack stack1, ItemStack stack2) {
+		return stack2.getCount() + stack1.getCount() > stack2.getMaxCount() ? false
+		                                                                    : ItemStack.areItemsAndComponentsEqual(
+				                                                                    stack1,
+				                                                                    stack2
+		                                                                    );
+	}
 
-   private static void merge(ItemEntity targetEntity, ItemStack stack1, ItemStack stack2) {
-      ItemStack itemStack = merge(stack1, stack2, 64);
-      targetEntity.setStack(itemStack);
-   }
+	public static ItemStack merge(ItemStack stack1, ItemStack stack2, int maxCount) {
+		int i = Math.min(Math.min(stack1.getMaxCount(), maxCount) - stack1.getCount(), stack2.getCount());
+		ItemStack itemStack = stack1.copyWithCount(stack1.getCount() + i);
+		stack2.decrement(i);
+		return itemStack;
+	}
 
-   private static void merge(ItemEntity targetEntity, ItemStack targetStack, ItemEntity sourceEntity, ItemStack sourceStack) {
-      merge(targetEntity, targetStack, sourceStack);
-      targetEntity.pickupDelay = Math.max(targetEntity.pickupDelay, sourceEntity.pickupDelay);
-      targetEntity.itemAge = Math.min(targetEntity.itemAge, sourceEntity.itemAge);
-      if (sourceStack.isEmpty()) {
-         sourceEntity.discard();
-      }
-   }
+	private static void merge(ItemEntity targetEntity, ItemStack stack1, ItemStack stack2) {
+		ItemStack itemStack = merge(stack1, stack2, 64);
+		targetEntity.setStack(itemStack);
+	}
 
-   @Override
-   public boolean isFireImmune() {
-      return !this.getStack().takesDamageFrom(this.getDamageSources().inFire()) || super.isFireImmune();
-   }
+	private static void merge(
+			ItemEntity targetEntity,
+			ItemStack targetStack,
+			ItemEntity sourceEntity,
+			ItemStack sourceStack
+	) {
+		merge(targetEntity, targetStack, sourceStack);
+		targetEntity.pickupDelay = Math.max(targetEntity.pickupDelay, sourceEntity.pickupDelay);
+		targetEntity.itemAge = Math.min(targetEntity.itemAge, sourceEntity.itemAge);
+		if (sourceStack.isEmpty()) {
+			sourceEntity.discard();
+		}
+	}
 
-   @Override
-   protected boolean shouldPlayBurnSoundInLava() {
-      return this.health <= 0 ? true : this.age % 10 == 0;
-   }
+	@Override
+	public boolean isFireImmune() {
+		return !this.getStack().takesDamageFrom(this.getDamageSources().inFire()) || super.isFireImmune();
+	}
 
-   @Override
-   public final boolean clientDamage(DamageSource source) {
-      return this.isAlwaysInvulnerableTo(source) ? false : this.getStack().takesDamageFrom(source);
-   }
+	@Override
+	protected boolean shouldPlayBurnSoundInLava() {
+		return this.health <= 0 ? true : this.age % 10 == 0;
+	}
 
-   @Override
-   public final boolean damage(ServerWorld world, DamageSource source, float amount) {
-      if (this.isAlwaysInvulnerableTo(source)) {
-         return false;
-      } else if (!world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING) && source.getAttacker() instanceof MobEntity) {
-         return false;
-      } else if (!this.getStack().takesDamageFrom(source)) {
-         return false;
-      } else {
-         this.scheduleVelocityUpdate();
-         this.health = (int)(this.health - amount);
-         this.emitGameEvent(GameEvent.ENTITY_DAMAGE, source.getAttacker());
-         if (this.health <= 0) {
-            this.getStack().onItemEntityDestroyed(this);
-            this.discard();
-         }
+	@Override
+	public final boolean clientDamage(DamageSource source) {
+		return this.isAlwaysInvulnerableTo(source) ? false : this.getStack().takesDamageFrom(source);
+	}
 
-         return true;
-      }
-   }
+	@Override
+	public final boolean damage(ServerWorld world, DamageSource source, float amount) {
+		if (this.isAlwaysInvulnerableTo(source)) {
+			return false;
+		}
+		else if (!world.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)
+				&& source.getAttacker() instanceof MobEntity) {
+			return false;
+		}
+		else if (!this.getStack().takesDamageFrom(source)) {
+			return false;
+		}
+		else {
+			this.scheduleVelocityUpdate();
+			this.health = (int) (this.health - amount);
+			this.emitGameEvent(GameEvent.ENTITY_DAMAGE, source.getAttacker());
+			if (this.health <= 0) {
+				this.getStack().onItemEntityDestroyed(this);
+				this.discard();
+			}
 
-   @Override
-   public boolean isImmuneToExplosion(Explosion explosion) {
-      return explosion.preservesDecorativeEntities() ? super.isImmuneToExplosion(explosion) : true;
-   }
+			return true;
+		}
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      view.putShort("Health", (short)this.health);
-      view.putShort("Age", (short)this.itemAge);
-      view.putShort("PickupDelay", (short)this.pickupDelay);
-      LazyEntityReference.writeData(this.thrower, view, "Thrower");
-      view.putNullable("Owner", Uuids.INT_STREAM_CODEC, this.owner);
-      if (!this.getStack().isEmpty()) {
-         view.put("Item", ItemStack.CODEC, this.getStack());
-      }
-   }
+	@Override
+	public boolean isImmuneToExplosion(Explosion explosion) {
+		return explosion.preservesDecorativeEntities() ? super.isImmuneToExplosion(explosion) : true;
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      this.health = view.getShort("Health", (short)5);
-      this.itemAge = view.getShort("Age", (short)0);
-      this.pickupDelay = view.getShort("PickupDelay", (short)0);
-      this.owner = view.<UUID>read("Owner", Uuids.INT_STREAM_CODEC).orElse(null);
-      this.thrower = LazyEntityReference.fromData(view, "Thrower");
-      this.setStack(view.<ItemStack>read("Item", ItemStack.CODEC).orElse(ItemStack.EMPTY));
-      if (this.getStack().isEmpty()) {
-         this.discard();
-      }
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		view.putShort("Health", (short) this.health);
+		view.putShort("Age", (short) this.itemAge);
+		view.putShort("PickupDelay", (short) this.pickupDelay);
+		LazyEntityReference.writeData(this.thrower, view, "Thrower");
+		view.putNullable("Owner", Uuids.INT_STREAM_CODEC, this.owner);
+		if (!this.getStack().isEmpty()) {
+			view.put("Item", ItemStack.CODEC, this.getStack());
+		}
+	}
 
-   @Override
-   public void onPlayerCollision(PlayerEntity player) {
-      if (!this.getEntityWorld().isClient()) {
-         ItemStack itemStack = this.getStack();
-         Item item = itemStack.getItem();
-         int i = itemStack.getCount();
-         if (this.pickupDelay == 0 && (this.owner == null || this.owner.equals(player.getUuid())) && player.getInventory().insertStack(itemStack)) {
-            player.sendPickup(this, i);
-            if (itemStack.isEmpty()) {
-               this.discard();
-               itemStack.setCount(i);
-            }
+	@Override
+	protected void readCustomData(ReadView view) {
+		this.health = view.getShort("Health", (short) 5);
+		this.itemAge = view.getShort("Age", (short) 0);
+		this.pickupDelay = view.getShort("PickupDelay", (short) 0);
+		this.owner = view.<UUID>read("Owner", Uuids.INT_STREAM_CODEC).orElse(null);
+		this.thrower = LazyEntityReference.fromData(view, "Thrower");
+		this.setStack(view.<ItemStack>read("Item", ItemStack.CODEC).orElse(ItemStack.EMPTY));
+		if (this.getStack().isEmpty()) {
+			this.discard();
+		}
+	}
 
-            player.increaseStat(Stats.PICKED_UP.getOrCreateStat(item), i);
-            player.triggerItemPickedUpByEntityCriteria(this);
-         }
-      }
-   }
+	@Override
+	public void onPlayerCollision(PlayerEntity player) {
+		if (!this.getEntityWorld().isClient()) {
+			ItemStack itemStack = this.getStack();
+			Item item = itemStack.getItem();
+			int i = itemStack.getCount();
+			if (this.pickupDelay == 0 && (this.owner == null || this.owner.equals(player.getUuid())) && player
+					.getInventory()
+					.insertStack(itemStack)) {
+				player.sendPickup(this, i);
+				if (itemStack.isEmpty()) {
+					this.discard();
+					itemStack.setCount(i);
+				}
 
-   @Override
-   public Text getName() {
-      Text text = this.getCustomName();
-      return text != null ? text : this.getStack().getItemName();
-   }
+				player.increaseStat(Stats.PICKED_UP.getOrCreateStat(item), i);
+				player.triggerItemPickedUpByEntityCriteria(this);
+			}
+		}
+	}
 
-   @Override
-   public boolean isAttackable() {
-      return false;
-   }
+	@Override
+	public Text getName() {
+		Text text = this.getCustomName();
+		return text != null ? text : this.getStack().getItemName();
+	}
 
-   @Override
-   public @Nullable Entity teleportTo(TeleportTarget teleportTarget) {
-      Entity entity = super.teleportTo(teleportTarget);
-      if (!this.getEntityWorld().isClient() && entity instanceof ItemEntity itemEntity) {
-         itemEntity.tryMerge();
-      }
+	@Override
+	public boolean isAttackable() {
+		return false;
+	}
 
-      return entity;
-   }
+	@Override
+	public @Nullable Entity teleportTo(TeleportTarget teleportTarget) {
+		Entity entity = super.teleportTo(teleportTarget);
+		if (!this.getEntityWorld().isClient() && entity instanceof ItemEntity itemEntity) {
+			itemEntity.tryMerge();
+		}
 
-   public ItemStack getStack() {
-      return this.getDataTracker().get(STACK);
-   }
+		return entity;
+	}
 
-   public void setStack(ItemStack stack) {
-      this.getDataTracker().set(STACK, stack);
-   }
+	public ItemStack getStack() {
+		return this.getDataTracker().get(STACK);
+	}
 
-   @Override
-   public void onTrackedDataSet(TrackedData<?> data) {
-      super.onTrackedDataSet(data);
-      if (STACK.equals(data)) {
-         this.getStack().setHolder(this);
-      }
-   }
+	public void setStack(ItemStack stack) {
+		this.getDataTracker().set(STACK, stack);
+	}
 
-   public void setOwner(@Nullable UUID owner) {
-      this.owner = owner;
-   }
+	@Override
+	public void onTrackedDataSet(TrackedData<?> data) {
+		super.onTrackedDataSet(data);
+		if (STACK.equals(data)) {
+			this.getStack().setHolder(this);
+		}
+	}
 
-   public void setThrower(Entity thrower) {
-      this.thrower = LazyEntityReference.of(thrower);
-   }
+	public void setOwner(@Nullable UUID owner) {
+		this.owner = owner;
+	}
 
-   public int getItemAge() {
-      return this.itemAge;
-   }
+	public void setThrower(Entity thrower) {
+		this.thrower = LazyEntityReference.of(thrower);
+	}
 
-   public void setToDefaultPickupDelay() {
-      this.pickupDelay = 10;
-   }
+	public int getItemAge() {
+		return this.itemAge;
+	}
 
-   public void resetPickupDelay() {
-      this.pickupDelay = 0;
-   }
+	public void setToDefaultPickupDelay() {
+		this.pickupDelay = 10;
+	}
 
-   public void setPickupDelayInfinite() {
-      this.pickupDelay = 32767;
-   }
+	public void resetPickupDelay() {
+		this.pickupDelay = 0;
+	}
 
-   public void setPickupDelay(int pickupDelay) {
-      this.pickupDelay = pickupDelay;
-   }
+	public void setPickupDelayInfinite() {
+		this.pickupDelay = 32767;
+	}
 
-   public boolean cannotPickup() {
-      return this.pickupDelay > 0;
-   }
+	public void setPickupDelay(int pickupDelay) {
+		this.pickupDelay = pickupDelay;
+	}
 
-   public void setNeverDespawn() {
-      this.itemAge = -32768;
-   }
+	public boolean cannotPickup() {
+		return this.pickupDelay > 0;
+	}
 
-   public void setCovetedItem() {
-      this.itemAge = -6000;
-   }
+	public void setNeverDespawn() {
+		this.itemAge = -32768;
+	}
 
-   public void setDespawnImmediately() {
-      this.setPickupDelayInfinite();
-      this.itemAge = 5999;
-   }
+	public void setCovetedItem() {
+		this.itemAge = -6000;
+	}
 
-   public static float getRotation(float f, float g) {
-      return f / 20.0F + g;
-   }
+	public void setDespawnImmediately() {
+		this.setPickupDelayInfinite();
+		this.itemAge = 5999;
+	}
 
-   @Override
-   public SoundCategory getSoundCategory() {
-      return SoundCategory.AMBIENT;
-   }
+	public static float getRotation(float f, float g) {
+		return f / 20.0F + g;
+	}
 
-   @Override
-   public float getBodyYaw() {
-      return 180.0F - getRotation(this.getItemAge() + 0.5F, this.uniqueOffset) / (float) (Math.PI * 2) * 360.0F;
-   }
+	@Override
+	public SoundCategory getSoundCategory() {
+		return SoundCategory.AMBIENT;
+	}
 
-   @Override
-   public @Nullable StackReference getStackReference(int slot) {
-      return slot == 0 ? StackReference.of(this::getStack, this::setStack) : super.getStackReference(slot);
-   }
+	@Override
+	public float getBodyYaw() {
+		return 180.0F - getRotation(this.getItemAge() + 0.5F, this.uniqueOffset) / (float) (Math.PI * 2) * 360.0F;
+	}
+
+	@Override
+	public @Nullable StackReference getStackReference(int slot) {
+		return slot == 0 ? StackReference.of(this::getStack, this::setStack) : super.getStackReference(slot);
+	}
 }

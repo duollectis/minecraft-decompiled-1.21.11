@@ -29,114 +29,118 @@ import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+/**
+ * {@code ShelfBlockEntity}.
+ */
 public class ShelfBlockEntity extends BlockEntity implements HeldItemContext, ListInventory {
-   public static final int SLOT_COUNT = 3;
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final String ALIGN_ITEMS_TO_BOTTOM_KEY = "align_items_to_bottom";
-   private final DefaultedList<ItemStack> heldStacks = DefaultedList.ofSize(3, ItemStack.EMPTY);
-   private boolean alignItemsToBottom;
 
-   public ShelfBlockEntity(BlockPos pos, BlockState state) {
-      super(BlockEntityType.SHELF, pos, state);
-   }
+	public static final int SLOT_COUNT = 3;
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final String ALIGN_ITEMS_TO_BOTTOM_KEY = "align_items_to_bottom";
+	private final DefaultedList<ItemStack> heldStacks = DefaultedList.ofSize(3, ItemStack.EMPTY);
+	private boolean alignItemsToBottom;
 
-   @Override
-   protected void readData(ReadView view) {
-      super.readData(view);
-      this.heldStacks.clear();
-      Inventories.readData(view, this.heldStacks);
-      this.alignItemsToBottom = view.getBoolean("align_items_to_bottom", false);
-   }
+	public ShelfBlockEntity(BlockPos pos, BlockState state) {
+		super(BlockEntityType.SHELF, pos, state);
+	}
 
-   @Override
-   protected void writeData(WriteView view) {
-      super.writeData(view);
-      Inventories.writeData(view, this.heldStacks, true);
-      view.putBoolean("align_items_to_bottom", this.alignItemsToBottom);
-   }
+	@Override
+	protected void readData(ReadView view) {
+		super.readData(view);
+		this.heldStacks.clear();
+		Inventories.readData(view, this.heldStacks);
+		this.alignItemsToBottom = view.getBoolean("align_items_to_bottom", false);
+	}
 
-   public BlockEntityUpdateS2CPacket toUpdatePacket() {
-      return BlockEntityUpdateS2CPacket.create(this);
-   }
+	@Override
+	protected void writeData(WriteView view) {
+		super.writeData(view);
+		Inventories.writeData(view, this.heldStacks, true);
+		view.putBoolean("align_items_to_bottom", this.alignItemsToBottom);
+	}
 
-   @Override
-   public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-      NbtCompound var4;
-      try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
-         NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
-         Inventories.writeData(nbtWriteView, this.heldStacks, true);
-         nbtWriteView.putBoolean("align_items_to_bottom", this.alignItemsToBottom);
-         var4 = nbtWriteView.getNbt();
-      }
+	public BlockEntityUpdateS2CPacket toUpdatePacket() {
+		return BlockEntityUpdateS2CPacket.create(this);
+	}
 
-      return var4;
-   }
+	@Override
+	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
+		NbtCompound var4;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
+			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
+			Inventories.writeData(nbtWriteView, this.heldStacks, true);
+			nbtWriteView.putBoolean("align_items_to_bottom", this.alignItemsToBottom);
+			var4 = nbtWriteView.getNbt();
+		}
 
-   @Override
-   public DefaultedList<ItemStack> getHeldStacks() {
-      return this.heldStacks;
-   }
+		return var4;
+	}
 
-   @Override
-   public boolean canPlayerUse(PlayerEntity player) {
-      return Inventory.canPlayerUse(this, player);
-   }
+	@Override
+	public DefaultedList<ItemStack> getHeldStacks() {
+		return this.heldStacks;
+	}
 
-   public ItemStack swapStackNoMarkDirty(int slot, ItemStack stack) {
-      ItemStack itemStack = this.removeStack(slot);
-      this.setStackNoMarkDirty(slot, stack);
-      return itemStack;
-   }
+	@Override
+	public boolean canPlayerUse(PlayerEntity player) {
+		return Inventory.canPlayerUse(this, player);
+	}
 
-   public void markDirty(RegistryEntry.@Nullable Reference<GameEvent> gameEvent) {
-      super.markDirty();
-      if (this.world != null) {
-         if (gameEvent != null) {
-            this.world.emitGameEvent(gameEvent, this.pos, GameEvent.Emitter.of(this.getCachedState()));
-         }
+	public ItemStack swapStackNoMarkDirty(int slot, ItemStack stack) {
+		ItemStack itemStack = this.removeStack(slot);
+		this.setStackNoMarkDirty(slot, stack);
+		return itemStack;
+	}
 
-         this.getWorld().updateListeners(this.getPos(), this.getCachedState(), this.getCachedState(), 3);
-      }
-   }
+	public void markDirty(RegistryEntry.@Nullable Reference<GameEvent> gameEvent) {
+		super.markDirty();
+		if (this.world != null) {
+			if (gameEvent != null) {
+				this.world.emitGameEvent(gameEvent, this.pos, GameEvent.Emitter.of(this.getCachedState()));
+			}
 
-   @Override
-   public void markDirty() {
-      this.markDirty(GameEvent.BLOCK_ACTIVATE);
-   }
+			this.getWorld().updateListeners(this.getPos(), this.getCachedState(), this.getCachedState(), 3);
+		}
+	}
 
-   @Override
-   protected void readComponents(ComponentsAccess components) {
-      super.readComponents(components);
-      components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyTo(this.heldStacks);
-   }
+	@Override
+	public void markDirty() {
+		this.markDirty(GameEvent.BLOCK_ACTIVATE);
+	}
 
-   @Override
-   protected void addComponents(ComponentMap.Builder builder) {
-      super.addComponents(builder);
-      builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(this.heldStacks));
-   }
+	@Override
+	protected void readComponents(ComponentsAccess components) {
+		super.readComponents(components);
+		components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyTo(this.heldStacks);
+	}
 
-   @Override
-   public void removeFromCopiedStackData(WriteView view) {
-      view.remove("Items");
-   }
+	@Override
+	protected void addComponents(ComponentMap.Builder builder) {
+		super.addComponents(builder);
+		builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(this.heldStacks));
+	}
 
-   @Override
-   public World getEntityWorld() {
-      return this.world;
-   }
+	@Override
+	public void removeFromCopiedStackData(WriteView view) {
+		view.remove("Items");
+	}
 
-   @Override
-   public Vec3d getEntityPos() {
-      return this.getPos().toCenterPos();
-   }
+	@Override
+	public World getEntityWorld() {
+		return this.world;
+	}
 
-   @Override
-   public float getBodyYaw() {
-      return this.getCachedState().get(ShelfBlock.FACING).getOpposite().getPositiveHorizontalDegrees();
-   }
+	@Override
+	public Vec3d getEntityPos() {
+		return this.getPos().toCenterPos();
+	}
 
-   public boolean shouldAlignItemsToBottom() {
-      return this.alignItemsToBottom;
-   }
+	@Override
+	public float getBodyYaw() {
+		return this.getCachedState().get(ShelfBlock.FACING).getOpposite().getPositiveHorizontalDegrees();
+	}
+
+	public boolean shouldAlignItemsToBottom() {
+		return this.alignItemsToBottom;
+	}
 }

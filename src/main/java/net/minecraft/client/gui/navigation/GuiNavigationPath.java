@@ -7,48 +7,61 @@ import net.minecraft.client.gui.ParentElement;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GuiNavigationPath}.
+ */
 public interface GuiNavigationPath {
-   static GuiNavigationPath of(Element leaf) {
-      return new GuiNavigationPath.Leaf(leaf);
-   }
 
-   static @Nullable GuiNavigationPath of(ParentElement element, @Nullable GuiNavigationPath childPath) {
-      return childPath == null ? null : new GuiNavigationPath.IntermediaryNode(element, childPath);
-   }
+	static GuiNavigationPath of(Element leaf) {
+		return new GuiNavigationPath.Leaf(leaf);
+	}
 
-   static GuiNavigationPath of(Element leaf, ParentElement... elements) {
-      GuiNavigationPath guiNavigationPath = of(leaf);
+	static @Nullable GuiNavigationPath of(ParentElement element, @Nullable GuiNavigationPath childPath) {
+		return childPath == null ? null : new GuiNavigationPath.IntermediaryNode(element, childPath);
+	}
 
-      for (ParentElement parentElement : elements) {
-         guiNavigationPath = of(parentElement, guiNavigationPath);
-      }
+	static GuiNavigationPath of(Element leaf, ParentElement... elements) {
+		GuiNavigationPath guiNavigationPath = of(leaf);
 
-      return guiNavigationPath;
-   }
+		for (ParentElement parentElement : elements) {
+			guiNavigationPath = of(parentElement, guiNavigationPath);
+		}
 
-   Element component();
+		return guiNavigationPath;
+	}
 
-   void setFocused(boolean focused);
+	Element component();
 
-   @Environment(EnvType.CLIENT)
-   public record IntermediaryNode(ParentElement component, GuiNavigationPath childPath) implements GuiNavigationPath {
-      @Override
-      public void setFocused(boolean focused) {
-         if (!focused) {
-            this.component.setFocused(null);
-         } else {
-            this.component.setFocused(this.childPath.component());
-         }
+	void setFocused(boolean focused);
 
-         this.childPath.setFocused(focused);
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code IntermediaryNode}.
+	 */
+	public record IntermediaryNode(ParentElement component, GuiNavigationPath childPath) implements GuiNavigationPath {
 
-   @Environment(EnvType.CLIENT)
-   public record Leaf(Element component) implements GuiNavigationPath {
-      @Override
-      public void setFocused(boolean focused) {
-         this.component.setFocused(focused);
-      }
-   }
+		@Override
+		public void setFocused(boolean focused) {
+			if (!focused) {
+				this.component.setFocused(null);
+			}
+			else {
+				this.component.setFocused(this.childPath.component());
+			}
+
+			this.childPath.setFocused(focused);
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Leaf}.
+	 */
+	public record Leaf(Element component) implements GuiNavigationPath {
+
+		@Override
+		public void setFocused(boolean focused) {
+			this.component.setFocused(focused);
+		}
+	}
 }

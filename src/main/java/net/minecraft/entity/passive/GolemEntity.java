@@ -7,33 +7,37 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code GolemEntity}.
+ */
 public abstract class GolemEntity extends PathAwareEntity {
-   protected GolemEntity(EntityType<? extends GolemEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   @Override
-   protected @Nullable SoundEvent getAmbientSound() {
-      return null;
-   }
+	protected GolemEntity(EntityType<? extends GolemEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected @Nullable SoundEvent getHurtSound(DamageSource source) {
-      return null;
-   }
+	@Override
+	protected @Nullable SoundEvent getAmbientSound() {
+		return null;
+	}
 
-   @Override
-   protected @Nullable SoundEvent getDeathSound() {
-      return null;
-   }
+	@Override
+	protected @Nullable SoundEvent getHurtSound(DamageSource source) {
+		return null;
+	}
 
-   @Override
-   public int getMinAmbientSoundDelay() {
-      return 120;
-   }
+	@Override
+	protected @Nullable SoundEvent getDeathSound() {
+		return null;
+	}
 
-   @Override
-   public boolean canImmediatelyDespawn(double distanceSquared) {
-      return false;
-   }
+	@Override
+	public int getMinAmbientSoundDelay() {
+		return 120;
+	}
+
+	@Override
+	public boolean canImmediatelyDespawn(double distanceSquared) {
+		return false;
+	}
 }

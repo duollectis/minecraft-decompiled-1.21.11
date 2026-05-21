@@ -2,8 +2,6 @@ package net.minecraft.client.render;
 
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
-import java.nio.ByteOrder;
-import java.util.stream.Collectors;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.util.BufferAllocator;
@@ -12,273 +10,311 @@ import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 import org.lwjgl.system.MemoryUtil;
 
+import java.nio.ByteOrder;
+import java.util.stream.Collectors;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BufferBuilder}.
+ */
 public class BufferBuilder implements VertexConsumer {
-   private static final int field_61051 = 16777215;
-   private static final long field_52068 = -1L;
-   private static final long field_52069 = -1L;
-   private static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
-   private final BufferAllocator allocator;
-   private long vertexPointer = -1L;
-   private int vertexCount;
-   private final VertexFormat vertexFormat;
-   private final VertexFormat.DrawMode drawMode;
-   private final boolean canSkipElementChecks;
-   private final boolean hasOverlay;
-   private final int vertexSizeByte;
-   private final int requiredMask;
-   private final int[] offsetsByElementId;
-   private int currentMask;
-   private boolean building = true;
 
-   public BufferBuilder(BufferAllocator allocator, VertexFormat.DrawMode drawMode, VertexFormat vertexFormat) {
-      if (!vertexFormat.contains(VertexFormatElement.POSITION)) {
-         throw new IllegalArgumentException("Cannot build mesh with no position element");
-      } else {
-         this.allocator = allocator;
-         this.drawMode = drawMode;
-         this.vertexFormat = vertexFormat;
-         this.vertexSizeByte = vertexFormat.getVertexSize();
-         this.requiredMask = vertexFormat.getElementsMask() & ~VertexFormatElement.POSITION.mask();
-         this.offsetsByElementId = vertexFormat.getOffsetsByElement();
-         boolean bl = vertexFormat == VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL;
-         boolean bl2 = vertexFormat == VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL;
-         this.canSkipElementChecks = bl || bl2;
-         this.hasOverlay = bl;
-      }
-   }
+	private static final int MAX_COLOR_VALUE = 16777215;
+	private static final long UNSET_SORT_KEY = -1L;
+	private static final long UNSET_OFFSET = -1L;
+	private static final boolean LITTLE_ENDIAN = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
+	private final BufferAllocator allocator;
+	private long vertexPointer = -1L;
+	private int vertexCount;
+	private final VertexFormat vertexFormat;
+	private final VertexFormat.DrawMode drawMode;
+	private final boolean canSkipElementChecks;
+	private final boolean hasOverlay;
+	private final int vertexSizeByte;
+	private final int requiredMask;
+	private final int[] offsetsByElementId;
+	private int currentMask;
+	private boolean building = true;
 
-   public @Nullable BuiltBuffer endNullable() {
-      this.ensureBuilding();
-      this.endVertex();
-      BuiltBuffer builtBuffer = this.build();
-      this.building = false;
-      this.vertexPointer = -1L;
-      return builtBuffer;
-   }
+	public BufferBuilder(BufferAllocator allocator, VertexFormat.DrawMode drawMode, VertexFormat vertexFormat) {
+		if (!vertexFormat.contains(VertexFormatElement.POSITION)) {
+			throw new IllegalArgumentException("Cannot build mesh with no position element");
+		}
+		else {
+			this.allocator = allocator;
+			this.drawMode = drawMode;
+			this.vertexFormat = vertexFormat;
+			this.vertexSizeByte = vertexFormat.getVertexSize();
+			this.requiredMask = vertexFormat.getElementsMask() & ~VertexFormatElement.POSITION.mask();
+			this.offsetsByElementId = vertexFormat.getOffsetsByElement();
+			boolean bl = vertexFormat == VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL;
+			boolean bl2 = vertexFormat == VertexFormats.POSITION_COLOR_TEXTURE_LIGHT_NORMAL;
+			this.canSkipElementChecks = bl || bl2;
+			this.hasOverlay = bl;
+		}
+	}
 
-   public BuiltBuffer end() {
-      BuiltBuffer builtBuffer = this.endNullable();
-      if (builtBuffer == null) {
-         throw new IllegalStateException("BufferBuilder was empty");
-      } else {
-         return builtBuffer;
-      }
-   }
+	public @Nullable BuiltBuffer endNullable() {
+		this.ensureBuilding();
+		this.endVertex();
+		BuiltBuffer builtBuffer = this.build();
+		this.building = false;
+		this.vertexPointer = -1L;
+		return builtBuffer;
+	}
 
-   private void ensureBuilding() {
-      if (!this.building) {
-         throw new IllegalStateException("Not building!");
-      }
-   }
+	public BuiltBuffer end() {
+		BuiltBuffer builtBuffer = this.endNullable();
+		if (builtBuffer == null) {
+			throw new IllegalStateException("BufferBuilder was empty");
+		}
+		else {
+			return builtBuffer;
+		}
+	}
 
-   private @Nullable BuiltBuffer build() {
-      if (this.vertexCount == 0) {
-         return null;
-      } else {
-         BufferAllocator.CloseableBuffer closeableBuffer = this.allocator.getAllocated();
-         if (closeableBuffer == null) {
-            return null;
-         } else {
-            int i = this.drawMode.getIndexCount(this.vertexCount);
-            VertexFormat.IndexType indexType = VertexFormat.IndexType.smallestFor(this.vertexCount);
-            return new BuiltBuffer(closeableBuffer, new BuiltBuffer.DrawParameters(this.vertexFormat, this.vertexCount, i, this.drawMode, indexType));
-         }
-      }
-   }
+	private void ensureBuilding() {
+		if (!this.building) {
+			throw new IllegalStateException("Not building!");
+		}
+	}
 
-   private long beginVertex() {
-      this.ensureBuilding();
-      this.endVertex();
-      if (this.vertexCount >= 16777215) {
-         throw new IllegalStateException("Trying to write too many vertices (>16777215) into BufferBuilder");
-      } else {
-         this.vertexCount++;
-         long l = this.allocator.allocate(this.vertexSizeByte);
-         this.vertexPointer = l;
-         return l;
-      }
-   }
+	private @Nullable BuiltBuffer build() {
+		if (this.vertexCount == 0) {
+			return null;
+		}
+		else {
+			BufferAllocator.CloseableBuffer closeableBuffer = this.allocator.getAllocated();
+			if (closeableBuffer == null) {
+				return null;
+			}
+			else {
+				int i = this.drawMode.getIndexCount(this.vertexCount);
+				VertexFormat.IndexType indexType = VertexFormat.IndexType.smallestFor(this.vertexCount);
+				return new BuiltBuffer(
+						closeableBuffer,
+						new BuiltBuffer.DrawParameters(this.vertexFormat, this.vertexCount, i, this.drawMode, indexType)
+				);
+			}
+		}
+	}
 
-   private long beginElement(VertexFormatElement element) {
-      int i = this.currentMask;
-      int j = i & ~element.mask();
-      if (j == i) {
-         return -1L;
-      } else {
-         this.currentMask = j;
-         long l = this.vertexPointer;
-         if (l == -1L) {
-            throw new IllegalArgumentException("Not currently building vertex");
-         } else {
-            return l + this.offsetsByElementId[element.id()];
-         }
-      }
-   }
+	private long beginVertex() {
+		this.ensureBuilding();
+		this.endVertex();
+		if (this.vertexCount >= 16777215) {
+			throw new IllegalStateException("Trying to write too many vertices (>16777215) into BufferBuilder");
+		}
+		else {
+			this.vertexCount++;
+			long l = this.allocator.allocate(this.vertexSizeByte);
+			this.vertexPointer = l;
+			return l;
+		}
+	}
 
-   private void endVertex() {
-      if (this.vertexCount != 0) {
-         if (this.currentMask != 0) {
-            String string = VertexFormatElement.elementsFromMask(this.currentMask).map(this.vertexFormat::getElementName).collect(Collectors.joining(", "));
-            throw new IllegalStateException("Missing elements in vertex: " + string);
-         } else {
-            if (this.drawMode == VertexFormat.DrawMode.LINES) {
-               long l = this.allocator.allocate(this.vertexSizeByte);
-               MemoryUtil.memCopy(l - this.vertexSizeByte, l, this.vertexSizeByte);
-               this.vertexCount++;
-            }
-         }
-      }
-   }
+	private long beginElement(VertexFormatElement element) {
+		int i = this.currentMask;
+		int j = i & ~element.mask();
+		if (j == i) {
+			return -1L;
+		}
+		else {
+			this.currentMask = j;
+			long l = this.vertexPointer;
+			if (l == -1L) {
+				throw new IllegalArgumentException("Not currently building vertex");
+			}
+			else {
+				return l + this.offsetsByElementId[element.id()];
+			}
+		}
+	}
 
-   private static void putColor(long pointer, int argb) {
-      int i = ColorHelper.toAbgr(argb);
-      MemoryUtil.memPutInt(pointer, LITTLE_ENDIAN ? i : Integer.reverseBytes(i));
-   }
+	private void endVertex() {
+		if (this.vertexCount != 0) {
+			if (this.currentMask != 0) {
+				String
+						string =
+						VertexFormatElement
+								.elementsFromMask(this.currentMask)
+								.map(this.vertexFormat::getElementName)
+								.collect(Collectors.joining(", "));
+				throw new IllegalStateException("Missing elements in vertex: " + string);
+			}
+			else {
+				if (this.drawMode == VertexFormat.DrawMode.LINES) {
+					long l = this.allocator.allocate(this.vertexSizeByte);
+					MemoryUtil.memCopy(l - this.vertexSizeByte, l, this.vertexSizeByte);
+					this.vertexCount++;
+				}
+			}
+		}
+	}
 
-   private static void putInt(long pointer, int i) {
-      if (LITTLE_ENDIAN) {
-         MemoryUtil.memPutInt(pointer, i);
-      } else {
-         MemoryUtil.memPutShort(pointer, (short)(i & 65535));
-         MemoryUtil.memPutShort(pointer + 2L, (short)(i >> 16 & 65535));
-      }
-   }
+	private static void putColor(long pointer, int argb) {
+		int i = ColorHelper.toAbgr(argb);
+		MemoryUtil.memPutInt(pointer, LITTLE_ENDIAN ? i : Integer.reverseBytes(i));
+	}
 
-   @Override
-   public VertexConsumer vertex(float x, float y, float z) {
-      long l = this.beginVertex() + this.offsetsByElementId[VertexFormatElement.POSITION.id()];
-      this.currentMask = this.requiredMask;
-      MemoryUtil.memPutFloat(l, x);
-      MemoryUtil.memPutFloat(l + 4L, y);
-      MemoryUtil.memPutFloat(l + 8L, z);
-      return this;
-   }
+	private static void putInt(long pointer, int i) {
+		if (LITTLE_ENDIAN) {
+			MemoryUtil.memPutInt(pointer, i);
+		}
+		else {
+			MemoryUtil.memPutShort(pointer, (short) (i & 65535));
+			MemoryUtil.memPutShort(pointer + 2L, (short) (i >> 16 & 65535));
+		}
+	}
 
-   @Override
-   public VertexConsumer color(int red, int green, int blue, int alpha) {
-      long l = this.beginElement(VertexFormatElement.COLOR);
-      if (l != -1L) {
-         MemoryUtil.memPutByte(l, (byte)red);
-         MemoryUtil.memPutByte(l + 1L, (byte)green);
-         MemoryUtil.memPutByte(l + 2L, (byte)blue);
-         MemoryUtil.memPutByte(l + 3L, (byte)alpha);
-      }
+	@Override
+	public VertexConsumer vertex(float x, float y, float z) {
+		long l = this.beginVertex() + this.offsetsByElementId[VertexFormatElement.POSITION.id()];
+		this.currentMask = this.requiredMask;
+		MemoryUtil.memPutFloat(l, x);
+		MemoryUtil.memPutFloat(l + 4L, y);
+		MemoryUtil.memPutFloat(l + 8L, z);
+		return this;
+	}
 
-      return this;
-   }
+	@Override
+	public VertexConsumer color(int red, int green, int blue, int alpha) {
+		long l = this.beginElement(VertexFormatElement.COLOR);
+		if (l != -1L) {
+			MemoryUtil.memPutByte(l, (byte) red);
+			MemoryUtil.memPutByte(l + 1L, (byte) green);
+			MemoryUtil.memPutByte(l + 2L, (byte) blue);
+			MemoryUtil.memPutByte(l + 3L, (byte) alpha);
+		}
 
-   @Override
-   public VertexConsumer color(int argb) {
-      long l = this.beginElement(VertexFormatElement.COLOR);
-      if (l != -1L) {
-         putColor(l, argb);
-      }
+		return this;
+	}
 
-      return this;
-   }
+	@Override
+	public VertexConsumer color(int argb) {
+		long l = this.beginElement(VertexFormatElement.COLOR);
+		if (l != -1L) {
+			putColor(l, argb);
+		}
 
-   @Override
-   public VertexConsumer texture(float u, float v) {
-      long l = this.beginElement(VertexFormatElement.UV0);
-      if (l != -1L) {
-         MemoryUtil.memPutFloat(l, u);
-         MemoryUtil.memPutFloat(l + 4L, v);
-      }
+		return this;
+	}
 
-      return this;
-   }
+	@Override
+	public VertexConsumer texture(float u, float v) {
+		long l = this.beginElement(VertexFormatElement.UV0);
+		if (l != -1L) {
+			MemoryUtil.memPutFloat(l, u);
+			MemoryUtil.memPutFloat(l + 4L, v);
+		}
 
-   @Override
-   public VertexConsumer overlay(int u, int v) {
-      return this.uv((short)u, (short)v, VertexFormatElement.UV1);
-   }
+		return this;
+	}
 
-   @Override
-   public VertexConsumer overlay(int uv) {
-      long l = this.beginElement(VertexFormatElement.UV1);
-      if (l != -1L) {
-         putInt(l, uv);
-      }
+	@Override
+	public VertexConsumer overlay(int u, int v) {
+		return this.uv((short) u, (short) v, VertexFormatElement.UV1);
+	}
 
-      return this;
-   }
+	@Override
+	public VertexConsumer overlay(int uv) {
+		long l = this.beginElement(VertexFormatElement.UV1);
+		if (l != -1L) {
+			putInt(l, uv);
+		}
 
-   @Override
-   public VertexConsumer light(int u, int v) {
-      return this.uv((short)u, (short)v, VertexFormatElement.UV2);
-   }
+		return this;
+	}
 
-   @Override
-   public VertexConsumer light(int uv) {
-      long l = this.beginElement(VertexFormatElement.UV2);
-      if (l != -1L) {
-         putInt(l, uv);
-      }
+	@Override
+	public VertexConsumer light(int u, int v) {
+		return this.uv((short) u, (short) v, VertexFormatElement.UV2);
+	}
 
-      return this;
-   }
+	@Override
+	public VertexConsumer light(int uv) {
+		long l = this.beginElement(VertexFormatElement.UV2);
+		if (l != -1L) {
+			putInt(l, uv);
+		}
 
-   private VertexConsumer uv(short u, short v, VertexFormatElement element) {
-      long l = this.beginElement(element);
-      if (l != -1L) {
-         MemoryUtil.memPutShort(l, u);
-         MemoryUtil.memPutShort(l + 2L, v);
-      }
+		return this;
+	}
 
-      return this;
-   }
+	private VertexConsumer uv(short u, short v, VertexFormatElement element) {
+		long l = this.beginElement(element);
+		if (l != -1L) {
+			MemoryUtil.memPutShort(l, u);
+			MemoryUtil.memPutShort(l + 2L, v);
+		}
 
-   @Override
-   public VertexConsumer normal(float x, float y, float z) {
-      long l = this.beginElement(VertexFormatElement.NORMAL);
-      if (l != -1L) {
-         MemoryUtil.memPutByte(l, floatToByte(x));
-         MemoryUtil.memPutByte(l + 1L, floatToByte(y));
-         MemoryUtil.memPutByte(l + 2L, floatToByte(z));
-      }
+		return this;
+	}
 
-      return this;
-   }
+	@Override
+	public VertexConsumer normal(float x, float y, float z) {
+		long l = this.beginElement(VertexFormatElement.NORMAL);
+		if (l != -1L) {
+			MemoryUtil.memPutByte(l, floatToByte(x));
+			MemoryUtil.memPutByte(l + 1L, floatToByte(y));
+			MemoryUtil.memPutByte(l + 2L, floatToByte(z));
+		}
 
-   @Override
-   public VertexConsumer lineWidth(float width) {
-      long l = this.beginElement(VertexFormatElement.LINE_WIDTH);
-      if (l != -1L) {
-         MemoryUtil.memPutFloat(l, width);
-      }
+		return this;
+	}
 
-      return this;
-   }
+	@Override
+	public VertexConsumer lineWidth(float width) {
+		long l = this.beginElement(VertexFormatElement.LINE_WIDTH);
+		if (l != -1L) {
+			MemoryUtil.memPutFloat(l, width);
+		}
 
-   private static byte floatToByte(float f) {
-      return (byte)((int)(MathHelper.clamp(f, -1.0F, 1.0F) * 127.0F) & 0xFF);
-   }
+		return this;
+	}
 
-   @Override
-   public void vertex(float x, float y, float z, int color, float u, float v, int overlay, int light, float normalX, float normalY, float normalZ) {
-      if (this.canSkipElementChecks) {
-         long l = this.beginVertex();
-         MemoryUtil.memPutFloat(l + 0L, x);
-         MemoryUtil.memPutFloat(l + 4L, y);
-         MemoryUtil.memPutFloat(l + 8L, z);
-         putColor(l + 12L, color);
-         MemoryUtil.memPutFloat(l + 16L, u);
-         MemoryUtil.memPutFloat(l + 20L, v);
-         long m;
-         if (this.hasOverlay) {
-            putInt(l + 24L, overlay);
-            m = l + 28L;
-         } else {
-            m = l + 24L;
-         }
+	private static byte floatToByte(float f) {
+		return (byte) ((int) (MathHelper.clamp(f, -1.0F, 1.0F) * 127.0F) & 0xFF);
+	}
 
-         putInt(m + 0L, light);
-         MemoryUtil.memPutByte(m + 4L, floatToByte(normalX));
-         MemoryUtil.memPutByte(m + 5L, floatToByte(normalY));
-         MemoryUtil.memPutByte(m + 6L, floatToByte(normalZ));
-      } else {
-         VertexConsumer.super.vertex(x, y, z, color, u, v, overlay, light, normalX, normalY, normalZ);
-      }
-   }
+	@Override
+	public void vertex(
+			float x,
+			float y,
+			float z,
+			int color,
+			float u,
+			float v,
+			int overlay,
+			int light,
+			float normalX,
+			float normalY,
+			float normalZ
+	) {
+		if (this.canSkipElementChecks) {
+			long l = this.beginVertex();
+			MemoryUtil.memPutFloat(l + 0L, x);
+			MemoryUtil.memPutFloat(l + 4L, y);
+			MemoryUtil.memPutFloat(l + 8L, z);
+			putColor(l + 12L, color);
+			MemoryUtil.memPutFloat(l + 16L, u);
+			MemoryUtil.memPutFloat(l + 20L, v);
+			long m;
+			if (this.hasOverlay) {
+				putInt(l + 24L, overlay);
+				m = l + 28L;
+			}
+			else {
+				m = l + 24L;
+			}
+
+			putInt(m + 0L, light);
+			MemoryUtil.memPutByte(m + 4L, floatToByte(normalX));
+			MemoryUtil.memPutByte(m + 5L, floatToByte(normalY));
+			MemoryUtil.memPutByte(m + 6L, floatToByte(normalZ));
+		}
+		else {
+			VertexConsumer.super.vertex(x, y, z, color, u, v, overlay, light, normalX, normalY, normalZ);
+		}
+	}
 }

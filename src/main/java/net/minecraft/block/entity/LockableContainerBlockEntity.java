@@ -26,148 +26,166 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code LockableContainerBlockEntity}.
+ */
 public abstract class LockableContainerBlockEntity extends BlockEntity implements Inventory, NamedScreenHandlerFactory, Nameable {
-   private ContainerLock lock = ContainerLock.EMPTY;
-   private @Nullable Text customName;
 
-   protected LockableContainerBlockEntity(BlockEntityType<?> blockEntityType, BlockPos blockPos, BlockState blockState) {
-      super(blockEntityType, blockPos, blockState);
-   }
+	private ContainerLock lock = ContainerLock.EMPTY;
+	private @Nullable Text customName;
 
-   @Override
-   protected void readData(ReadView view) {
-      super.readData(view);
-      this.lock = ContainerLock.read(view);
-      this.customName = tryParseCustomName(view, "CustomName");
-   }
+	protected LockableContainerBlockEntity(
+			BlockEntityType<?> blockEntityType,
+			BlockPos blockPos,
+			BlockState blockState
+	) {
+		super(blockEntityType, blockPos, blockState);
+	}
 
-   @Override
-   protected void writeData(WriteView view) {
-      super.writeData(view);
-      this.lock.write(view);
-      view.putNullable("CustomName", TextCodecs.CODEC, this.customName);
-   }
+	@Override
+	protected void readData(ReadView view) {
+		super.readData(view);
+		this.lock = ContainerLock.read(view);
+		this.customName = tryParseCustomName(view, "CustomName");
+	}
 
-   @Override
-   public Text getName() {
-      return this.customName != null ? this.customName : this.getContainerName();
-   }
+	@Override
+	protected void writeData(WriteView view) {
+		super.writeData(view);
+		this.lock.write(view);
+		view.putNullable("CustomName", TextCodecs.CODEC, this.customName);
+	}
 
-   @Override
-   public Text getDisplayName() {
-      return this.getName();
-   }
+	@Override
+	public Text getName() {
+		return this.customName != null ? this.customName : this.getContainerName();
+	}
 
-   @Override
-   public @Nullable Text getCustomName() {
-      return this.customName;
-   }
+	@Override
+	public Text getDisplayName() {
+		return this.getName();
+	}
 
-   protected abstract Text getContainerName();
+	@Override
+	public @Nullable Text getCustomName() {
+		return this.customName;
+	}
 
-   public boolean checkUnlocked(PlayerEntity player) {
-      return this.lock.checkUnlocked(player);
-   }
+	protected abstract Text getContainerName();
 
-   public static void handleLocked(Vec3d containerPos, PlayerEntity player, Text name) {
-      World world = player.getEntityWorld();
-      player.sendMessage(Text.translatable("container.isLocked", name), true);
-      if (!world.isClient()) {
-         world.playSound(null, containerPos.getX(), containerPos.getY(), containerPos.getZ(), SoundEvents.BLOCK_CHEST_LOCKED, SoundCategory.BLOCKS, 1.0F, 1.0F);
-      }
-   }
+	public boolean checkUnlocked(PlayerEntity player) {
+		return this.lock.checkUnlocked(player);
+	}
 
-   public boolean isLocked() {
-      return !this.lock.equals(ContainerLock.EMPTY);
-   }
+	public static void handleLocked(Vec3d containerPos, PlayerEntity player, Text name) {
+		World world = player.getEntityWorld();
+		player.sendMessage(Text.translatable("container.isLocked", name), true);
+		if (!world.isClient()) {
+			world.playSound(
+					null,
+					containerPos.getX(),
+					containerPos.getY(),
+					containerPos.getZ(),
+					SoundEvents.BLOCK_CHEST_LOCKED,
+					SoundCategory.BLOCKS,
+					1.0F,
+					1.0F
+			);
+		}
+	}
 
-   protected abstract DefaultedList<ItemStack> getHeldStacks();
+	public boolean isLocked() {
+		return !this.lock.equals(ContainerLock.EMPTY);
+	}
 
-   protected abstract void setHeldStacks(DefaultedList<ItemStack> inventory);
+	protected abstract DefaultedList<ItemStack> getHeldStacks();
 
-   @Override
-   public boolean isEmpty() {
-      for (ItemStack itemStack : this.getHeldStacks()) {
-         if (!itemStack.isEmpty()) {
-            return false;
-         }
-      }
+	protected abstract void setHeldStacks(DefaultedList<ItemStack> inventory);
 
-      return true;
-   }
+	@Override
+	public boolean isEmpty() {
+		for (ItemStack itemStack : this.getHeldStacks()) {
+			if (!itemStack.isEmpty()) {
+				return false;
+			}
+		}
 
-   @Override
-   public ItemStack getStack(int slot) {
-      return this.getHeldStacks().get(slot);
-   }
+		return true;
+	}
 
-   @Override
-   public ItemStack removeStack(int slot, int amount) {
-      ItemStack itemStack = Inventories.splitStack(this.getHeldStacks(), slot, amount);
-      if (!itemStack.isEmpty()) {
-         this.markDirty();
-      }
+	@Override
+	public ItemStack getStack(int slot) {
+		return this.getHeldStacks().get(slot);
+	}
 
-      return itemStack;
-   }
+	@Override
+	public ItemStack removeStack(int slot, int amount) {
+		ItemStack itemStack = Inventories.splitStack(this.getHeldStacks(), slot, amount);
+		if (!itemStack.isEmpty()) {
+			this.markDirty();
+		}
 
-   @Override
-   public ItemStack removeStack(int slot) {
-      return Inventories.removeStack(this.getHeldStacks(), slot);
-   }
+		return itemStack;
+	}
 
-   @Override
-   public void setStack(int slot, ItemStack stack) {
-      this.getHeldStacks().set(slot, stack);
-      stack.capCount(this.getMaxCount(stack));
-      this.markDirty();
-   }
+	@Override
+	public ItemStack removeStack(int slot) {
+		return Inventories.removeStack(this.getHeldStacks(), slot);
+	}
 
-   @Override
-   public boolean canPlayerUse(PlayerEntity player) {
-      return Inventory.canPlayerUse(this, player);
-   }
+	@Override
+	public void setStack(int slot, ItemStack stack) {
+		this.getHeldStacks().set(slot, stack);
+		stack.capCount(this.getMaxCount(stack));
+		this.markDirty();
+	}
 
-   @Override
-   public void clear() {
-      this.getHeldStacks().clear();
-   }
+	@Override
+	public boolean canPlayerUse(PlayerEntity player) {
+		return Inventory.canPlayerUse(this, player);
+	}
 
-   @Override
-   public @Nullable ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
-      if (this.checkUnlocked(playerEntity)) {
-         return this.createScreenHandler(i, playerInventory);
-      } else {
-         handleLocked(this.getPos().toCenterPos(), playerEntity, this.getDisplayName());
-         return null;
-      }
-   }
+	@Override
+	public void clear() {
+		this.getHeldStacks().clear();
+	}
 
-   protected abstract ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory);
+	@Override
+	public @Nullable ScreenHandler createMenu(int i, PlayerInventory playerInventory, PlayerEntity playerEntity) {
+		if (this.checkUnlocked(playerEntity)) {
+			return this.createScreenHandler(i, playerInventory);
+		}
+		else {
+			handleLocked(this.getPos().toCenterPos(), playerEntity, this.getDisplayName());
+			return null;
+		}
+	}
 
-   @Override
-   protected void readComponents(ComponentsAccess components) {
-      super.readComponents(components);
-      this.customName = components.get(DataComponentTypes.CUSTOM_NAME);
-      this.lock = components.getOrDefault(DataComponentTypes.LOCK, ContainerLock.EMPTY);
-      components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyTo(this.getHeldStacks());
-   }
+	protected abstract ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory);
 
-   @Override
-   protected void addComponents(ComponentMap.Builder builder) {
-      super.addComponents(builder);
-      builder.add(DataComponentTypes.CUSTOM_NAME, this.customName);
-      if (this.isLocked()) {
-         builder.add(DataComponentTypes.LOCK, this.lock);
-      }
+	@Override
+	protected void readComponents(ComponentsAccess components) {
+		super.readComponents(components);
+		this.customName = components.get(DataComponentTypes.CUSTOM_NAME);
+		this.lock = components.getOrDefault(DataComponentTypes.LOCK, ContainerLock.EMPTY);
+		components.getOrDefault(DataComponentTypes.CONTAINER, ContainerComponent.DEFAULT).copyTo(this.getHeldStacks());
+	}
 
-      builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(this.getHeldStacks()));
-   }
+	@Override
+	protected void addComponents(ComponentMap.Builder builder) {
+		super.addComponents(builder);
+		builder.add(DataComponentTypes.CUSTOM_NAME, this.customName);
+		if (this.isLocked()) {
+			builder.add(DataComponentTypes.LOCK, this.lock);
+		}
 
-   @Override
-   public void removeFromCopiedStackData(WriteView view) {
-      view.remove("CustomName");
-      view.remove("lock");
-      view.remove("Items");
-   }
+		builder.add(DataComponentTypes.CONTAINER, ContainerComponent.fromStacks(this.getHeldStacks()));
+	}
+
+	@Override
+	public void removeFromCopiedStackData(WriteView view) {
+		view.remove("CustomName");
+		view.remove("lock");
+		view.remove("Items");
+	}
 }

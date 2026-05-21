@@ -2,11 +2,6 @@ package net.minecraft.client.gui.screen.pack;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Stream;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -18,261 +13,293 @@ import net.minecraft.resource.ResourcePackSource;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ResourcePackOrganizer}.
+ */
 public class ResourcePackOrganizer {
-   private final ResourcePackManager resourcePackManager;
-   final List<ResourcePackProfile> enabledPacks;
-   final List<ResourcePackProfile> disabledPacks;
-   final Function<ResourcePackProfile, Identifier> iconIdSupplier;
-   final Consumer<ResourcePackOrganizer.AbstractPack> updateCallback;
-   private final Consumer<ResourcePackManager> applier;
 
-   public ResourcePackOrganizer(
-      Consumer<ResourcePackOrganizer.AbstractPack> updateCallback,
-      Function<ResourcePackProfile, Identifier> iconIdSupplier,
-      ResourcePackManager resourcePackManager,
-      Consumer<ResourcePackManager> applier
-   ) {
-      this.updateCallback = updateCallback;
-      this.iconIdSupplier = iconIdSupplier;
-      this.resourcePackManager = resourcePackManager;
-      this.enabledPacks = Lists.newArrayList(resourcePackManager.getEnabledProfiles());
-      Collections.reverse(this.enabledPacks);
-      this.disabledPacks = Lists.newArrayList(resourcePackManager.getProfiles());
-      this.disabledPacks.removeAll(this.enabledPacks);
-      this.applier = applier;
-   }
+	private final ResourcePackManager resourcePackManager;
+	final List<ResourcePackProfile> enabledPacks;
+	final List<ResourcePackProfile> disabledPacks;
+	final Function<ResourcePackProfile, Identifier> iconIdSupplier;
+	final Consumer<ResourcePackOrganizer.AbstractPack> updateCallback;
+	private final Consumer<ResourcePackManager> applier;
 
-   public Stream<ResourcePackOrganizer.Pack> getDisabledPacks() {
-      return this.disabledPacks.stream().map(pack -> new ResourcePackOrganizer.DisabledPack(pack));
-   }
+	public ResourcePackOrganizer(
+			Consumer<ResourcePackOrganizer.AbstractPack> updateCallback,
+			Function<ResourcePackProfile, Identifier> iconIdSupplier,
+			ResourcePackManager resourcePackManager,
+			Consumer<ResourcePackManager> applier
+	) {
+		this.updateCallback = updateCallback;
+		this.iconIdSupplier = iconIdSupplier;
+		this.resourcePackManager = resourcePackManager;
+		this.enabledPacks = Lists.newArrayList(resourcePackManager.getEnabledProfiles());
+		Collections.reverse(this.enabledPacks);
+		this.disabledPacks = Lists.newArrayList(resourcePackManager.getProfiles());
+		this.disabledPacks.removeAll(this.enabledPacks);
+		this.applier = applier;
+	}
 
-   public Stream<ResourcePackOrganizer.Pack> getEnabledPacks() {
-      return this.enabledPacks.stream().map(pack -> new ResourcePackOrganizer.EnabledPack(pack));
-   }
+	public Stream<ResourcePackOrganizer.Pack> getDisabledPacks() {
+		return this.disabledPacks.stream().map(pack -> new ResourcePackOrganizer.DisabledPack(pack));
+	}
 
-   void refreshEnabledProfiles() {
-      this.resourcePackManager
-         .setEnabledProfiles(Lists.reverse(this.enabledPacks).stream().map(ResourcePackProfile::getId).collect(ImmutableList.toImmutableList()));
-   }
+	public Stream<ResourcePackOrganizer.Pack> getEnabledPacks() {
+		return this.enabledPacks.stream().map(pack -> new ResourcePackOrganizer.EnabledPack(pack));
+	}
 
-   public void apply() {
-      this.refreshEnabledProfiles();
-      this.applier.accept(this.resourcePackManager);
-   }
+	void refreshEnabledProfiles() {
+		this.resourcePackManager
+				.setEnabledProfiles(Lists
+						.reverse(this.enabledPacks)
+						.stream()
+						.map(ResourcePackProfile::getId)
+						.collect(ImmutableList.toImmutableList()));
+	}
 
-   public void refresh() {
-      this.resourcePackManager.scanPacks();
-      this.enabledPacks.retainAll(this.resourcePackManager.getProfiles());
-      this.disabledPacks.clear();
-      this.disabledPacks.addAll(this.resourcePackManager.getProfiles());
-      this.disabledPacks.removeAll(this.enabledPacks);
-   }
+	public void apply() {
+		this.refreshEnabledProfiles();
+		this.applier.accept(this.resourcePackManager);
+	}
 
-   @Environment(EnvType.CLIENT)
-   public abstract class AbstractPack implements ResourcePackOrganizer.Pack {
-      private final ResourcePackProfile profile;
+	public void refresh() {
+		this.resourcePackManager.scanPacks();
+		this.enabledPacks.retainAll(this.resourcePackManager.getProfiles());
+		this.disabledPacks.clear();
+		this.disabledPacks.addAll(this.resourcePackManager.getProfiles());
+		this.disabledPacks.removeAll(this.enabledPacks);
+	}
 
-      public AbstractPack(final ResourcePackProfile profile) {
-         this.profile = profile;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code AbstractPack}.
+	 */
+	public abstract class AbstractPack implements ResourcePackOrganizer.Pack {
 
-      protected abstract List<ResourcePackProfile> getCurrentList();
+		private final ResourcePackProfile profile;
 
-      protected abstract List<ResourcePackProfile> getOppositeList();
+		public AbstractPack(final ResourcePackProfile profile) {
+			this.profile = profile;
+		}
 
-      @Override
-      public Identifier getIconId() {
-         return ResourcePackOrganizer.this.iconIdSupplier.apply(this.profile);
-      }
+		protected abstract List<ResourcePackProfile> getCurrentList();
 
-      @Override
-      public ResourcePackCompatibility getCompatibility() {
-         return this.profile.getCompatibility();
-      }
+		protected abstract List<ResourcePackProfile> getOppositeList();
 
-      @Override
-      public String getName() {
-         return this.profile.getId();
-      }
+		@Override
+		public Identifier getIconId() {
+			return ResourcePackOrganizer.this.iconIdSupplier.apply(this.profile);
+		}
 
-      @Override
-      public Text getDisplayName() {
-         return this.profile.getDisplayName();
-      }
+		@Override
+		public ResourcePackCompatibility getCompatibility() {
+			return this.profile.getCompatibility();
+		}
 
-      @Override
-      public Text getDescription() {
-         return this.profile.getDescription();
-      }
+		@Override
+		public String getName() {
+			return this.profile.getId();
+		}
 
-      @Override
-      public ResourcePackSource getSource() {
-         return this.profile.getSource();
-      }
+		@Override
+		public Text getDisplayName() {
+			return this.profile.getDisplayName();
+		}
 
-      @Override
-      public boolean isPinned() {
-         return this.profile.isPinned();
-      }
+		@Override
+		public Text getDescription() {
+			return this.profile.getDescription();
+		}
 
-      @Override
-      public boolean isAlwaysEnabled() {
-         return this.profile.isRequired();
-      }
+		@Override
+		public ResourcePackSource getSource() {
+			return this.profile.getSource();
+		}
 
-      protected void toggle() {
-         this.getCurrentList().remove(this.profile);
-         this.profile.getInitialPosition().insert(this.getOppositeList(), this.profile, ResourcePackProfile::getPosition, true);
-         ResourcePackOrganizer.this.updateCallback.accept(this);
-         ResourcePackOrganizer.this.refreshEnabledProfiles();
-         this.toggleHighContrastOption();
-      }
+		@Override
+		public boolean isPinned() {
+			return this.profile.isPinned();
+		}
 
-      private void toggleHighContrastOption() {
-         if (this.profile.getId().equals("high_contrast")) {
-            SimpleOption<Boolean> simpleOption = MinecraftClient.getInstance().options.getHighContrast();
-            simpleOption.setValue(!simpleOption.getValue());
-         }
-      }
+		@Override
+		public boolean isAlwaysEnabled() {
+			return this.profile.isRequired();
+		}
 
-      protected void move(int offset) {
-         List<ResourcePackProfile> list = this.getCurrentList();
-         int i = list.indexOf(this.profile);
-         list.remove(i);
-         list.add(i + offset, this.profile);
-         ResourcePackOrganizer.this.updateCallback.accept(this);
-      }
+		protected void toggle() {
+			this.getCurrentList().remove(this.profile);
+			this.profile
+					.getInitialPosition()
+					.insert(this.getOppositeList(), this.profile, ResourcePackProfile::getPosition, true);
+			ResourcePackOrganizer.this.updateCallback.accept(this);
+			ResourcePackOrganizer.this.refreshEnabledProfiles();
+			this.toggleHighContrastOption();
+		}
 
-      @Override
-      public boolean canMoveTowardStart() {
-         List<ResourcePackProfile> list = this.getCurrentList();
-         int i = list.indexOf(this.profile);
-         return i > 0 && !list.get(i - 1).isPinned();
-      }
+		private void toggleHighContrastOption() {
+			if (this.profile.getId().equals("high_contrast")) {
+				SimpleOption<Boolean> simpleOption = MinecraftClient.getInstance().options.getHighContrast();
+				simpleOption.setValue(!simpleOption.getValue());
+			}
+		}
 
-      @Override
-      public void moveTowardStart() {
-         this.move(-1);
-      }
+		protected void move(int offset) {
+			List<ResourcePackProfile> list = this.getCurrentList();
+			int i = list.indexOf(this.profile);
+			list.remove(i);
+			list.add(i + offset, this.profile);
+			ResourcePackOrganizer.this.updateCallback.accept(this);
+		}
 
-      @Override
-      public boolean canMoveTowardEnd() {
-         List<ResourcePackProfile> list = this.getCurrentList();
-         int i = list.indexOf(this.profile);
-         return i >= 0 && i < list.size() - 1 && !list.get(i + 1).isPinned();
-      }
+		@Override
+		public boolean canMoveTowardStart() {
+			List<ResourcePackProfile> list = this.getCurrentList();
+			int i = list.indexOf(this.profile);
+			return i > 0 && !list.get(i - 1).isPinned();
+		}
 
-      @Override
-      public void moveTowardEnd() {
-         this.move(1);
-      }
-   }
+		@Override
+		public void moveTowardStart() {
+			this.move(-1);
+		}
 
-   @Environment(EnvType.CLIENT)
-   class DisabledPack extends ResourcePackOrganizer.AbstractPack {
-      public DisabledPack(final ResourcePackProfile resourcePackProfile) {
-         super(resourcePackProfile);
-      }
+		@Override
+		public boolean canMoveTowardEnd() {
+			List<ResourcePackProfile> list = this.getCurrentList();
+			int i = list.indexOf(this.profile);
+			return i >= 0 && i < list.size() - 1 && !list.get(i + 1).isPinned();
+		}
 
-      @Override
-      protected List<ResourcePackProfile> getCurrentList() {
-         return ResourcePackOrganizer.this.disabledPacks;
-      }
+		@Override
+		public void moveTowardEnd() {
+			this.move(1);
+		}
+	}
 
-      @Override
-      protected List<ResourcePackProfile> getOppositeList() {
-         return ResourcePackOrganizer.this.enabledPacks;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code DisabledPack}.
+	 */
+	class DisabledPack extends ResourcePackOrganizer.AbstractPack {
 
-      @Override
-      public boolean isEnabled() {
-         return false;
-      }
+		public DisabledPack(final ResourcePackProfile resourcePackProfile) {
+			super(resourcePackProfile);
+		}
 
-      @Override
-      public void enable() {
-         this.toggle();
-      }
+		@Override
+		protected List<ResourcePackProfile> getCurrentList() {
+			return ResourcePackOrganizer.this.disabledPacks;
+		}
 
-      @Override
-      public void disable() {
-      }
-   }
+		@Override
+		protected List<ResourcePackProfile> getOppositeList() {
+			return ResourcePackOrganizer.this.enabledPacks;
+		}
 
-   @Environment(EnvType.CLIENT)
-   class EnabledPack extends ResourcePackOrganizer.AbstractPack {
-      public EnabledPack(final ResourcePackProfile resourcePackProfile) {
-         super(resourcePackProfile);
-      }
+		@Override
+		public boolean isEnabled() {
+			return false;
+		}
 
-      @Override
-      protected List<ResourcePackProfile> getCurrentList() {
-         return ResourcePackOrganizer.this.enabledPacks;
-      }
+		@Override
+		public void enable() {
+			this.toggle();
+		}
 
-      @Override
-      protected List<ResourcePackProfile> getOppositeList() {
-         return ResourcePackOrganizer.this.disabledPacks;
-      }
+		@Override
+		public void disable() {
+		}
+	}
 
-      @Override
-      public boolean isEnabled() {
-         return true;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code EnabledPack}.
+	 */
+	class EnabledPack extends ResourcePackOrganizer.AbstractPack {
 
-      @Override
-      public void enable() {
-      }
+		public EnabledPack(final ResourcePackProfile resourcePackProfile) {
+			super(resourcePackProfile);
+		}
 
-      @Override
-      public void disable() {
-         this.toggle();
-      }
-   }
+		@Override
+		protected List<ResourcePackProfile> getCurrentList() {
+			return ResourcePackOrganizer.this.enabledPacks;
+		}
 
-   @Environment(EnvType.CLIENT)
-   public interface Pack {
-      Identifier getIconId();
+		@Override
+		protected List<ResourcePackProfile> getOppositeList() {
+			return ResourcePackOrganizer.this.disabledPacks;
+		}
 
-      ResourcePackCompatibility getCompatibility();
+		@Override
+		public boolean isEnabled() {
+			return true;
+		}
 
-      String getName();
+		@Override
+		public void enable() {
+		}
 
-      Text getDisplayName();
+		@Override
+		public void disable() {
+			this.toggle();
+		}
+	}
 
-      Text getDescription();
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Pack}.
+	 */
+	public interface Pack {
 
-      ResourcePackSource getSource();
+		Identifier getIconId();
 
-      default Text getDecoratedDescription() {
-         return this.getSource().decorate(this.getDescription());
-      }
+		ResourcePackCompatibility getCompatibility();
 
-      boolean isPinned();
+		String getName();
 
-      boolean isAlwaysEnabled();
+		Text getDisplayName();
 
-      void enable();
+		Text getDescription();
 
-      void disable();
+		ResourcePackSource getSource();
 
-      void moveTowardStart();
+		default Text getDecoratedDescription() {
+			return this.getSource().decorate(this.getDescription());
+		}
 
-      void moveTowardEnd();
+		boolean isPinned();
 
-      boolean isEnabled();
+		boolean isAlwaysEnabled();
 
-      default boolean canBeEnabled() {
-         return !this.isEnabled();
-      }
+		void enable();
 
-      default boolean canBeDisabled() {
-         return this.isEnabled() && !this.isAlwaysEnabled();
-      }
+		void disable();
 
-      boolean canMoveTowardStart();
+		void moveTowardStart();
 
-      boolean canMoveTowardEnd();
-   }
+		void moveTowardEnd();
+
+		boolean isEnabled();
+
+		default boolean canBeEnabled() {
+			return !this.isEnabled();
+		}
+
+		default boolean canBeDisabled() {
+			return this.isEnabled() && !this.isAlwaysEnabled();
+		}
+
+		boolean canMoveTowardStart();
+
+		boolean canMoveTowardEnd();
+	}
 }

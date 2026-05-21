@@ -4,20 +4,24 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
 
+/**
+ * {@code LightingView}.
+ */
 public interface LightingView {
-   void checkBlock(BlockPos pos);
 
-   boolean hasUpdates();
+	void checkBlock(BlockPos pos);
 
-   int doLightUpdates();
+	boolean hasUpdates();
 
-   default void setSectionStatus(BlockPos pos, boolean notReady) {
-      this.setSectionStatus(ChunkSectionPos.from(pos), notReady);
-   }
+	int doLightUpdates();
 
-   void setSectionStatus(ChunkSectionPos pos, boolean notReady);
+	default void setSectionStatus(BlockPos pos, boolean notReady) {
+		this.setSectionStatus(ChunkSectionPos.from(pos), notReady);
+	}
 
-   void setColumnEnabled(ChunkPos pos, boolean retainData);
+	void setSectionStatus(ChunkSectionPos pos, boolean notReady);
 
-   void propagateLight(ChunkPos chunkPos);
+	void setColumnEnabled(ChunkPos pos, boolean retainData);
+
+	void propagateLight(ChunkPos chunkPos);
 }

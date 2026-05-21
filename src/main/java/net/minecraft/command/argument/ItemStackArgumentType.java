@@ -6,37 +6,42 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import net.minecraft.command.CommandRegistryAccess;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
-import net.minecraft.command.CommandRegistryAccess;
 
+/**
+ * {@code ItemStackArgumentType}.
+ */
 public class ItemStackArgumentType implements ArgumentType<ItemStackArgument> {
-   private static final Collection<String> EXAMPLES = Arrays.asList("stick", "minecraft:stick", "stick{foo=bar}");
-   private final ItemStringReader reader;
 
-   public ItemStackArgumentType(CommandRegistryAccess commandRegistryAccess) {
-      this.reader = new ItemStringReader(commandRegistryAccess);
-   }
+	private static final Collection<String> EXAMPLES = Arrays.asList("stick", "minecraft:stick", "stick{foo=bar}");
+	private final ItemStringReader reader;
 
-   public static ItemStackArgumentType itemStack(CommandRegistryAccess commandRegistryAccess) {
-      return new ItemStackArgumentType(commandRegistryAccess);
-   }
+	public ItemStackArgumentType(CommandRegistryAccess commandRegistryAccess) {
+		this.reader = new ItemStringReader(commandRegistryAccess);
+	}
 
-   public ItemStackArgument parse(StringReader stringReader) throws CommandSyntaxException {
-      ItemStringReader.ItemResult itemResult = this.reader.consume(stringReader);
-      return new ItemStackArgument(itemResult.item(), itemResult.components());
-   }
+	public static ItemStackArgumentType itemStack(CommandRegistryAccess commandRegistryAccess) {
+		return new ItemStackArgumentType(commandRegistryAccess);
+	}
 
-   public static <S> ItemStackArgument getItemStackArgument(CommandContext<S> context, String name) {
-      return (ItemStackArgument)context.getArgument(name, ItemStackArgument.class);
-   }
+	public ItemStackArgument parse(StringReader stringReader) throws CommandSyntaxException {
+		ItemStringReader.ItemResult itemResult = this.reader.consume(stringReader);
+		return new ItemStackArgument(itemResult.item(), itemResult.components());
+	}
 
-   public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-      return this.reader.getSuggestions(builder);
-   }
+	public static <S> ItemStackArgument getItemStackArgument(CommandContext<S> context, String name) {
+		return (ItemStackArgument) context.getArgument(name, ItemStackArgument.class);
+	}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
+		return this.reader.getSuggestions(builder);
+	}
+
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 }

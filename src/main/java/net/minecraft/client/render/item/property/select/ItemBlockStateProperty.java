@@ -14,30 +14,41 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ItemBlockStateProperty}.
+ */
 public record ItemBlockStateProperty(String property) implements SelectProperty<String> {
-   public static final PrimitiveCodec<String> VALUE_CODEC = Codec.STRING;
-   public static final SelectProperty.Type<ItemBlockStateProperty, String> TYPE = SelectProperty.Type.create(
-      RecordCodecBuilder.mapCodec(
-         instance -> instance.group(Codec.STRING.fieldOf("block_state_property").forGetter(ItemBlockStateProperty::property))
-            .apply(instance, ItemBlockStateProperty::new)
-      ),
-      VALUE_CODEC
-   );
 
-   public @Nullable String getValue(
-      ItemStack itemStack, @Nullable ClientWorld clientWorld, @Nullable LivingEntity livingEntity, int i, ItemDisplayContext itemDisplayContext
-   ) {
-      BlockStateComponent blockStateComponent = itemStack.get(DataComponentTypes.BLOCK_STATE);
-      return blockStateComponent == null ? null : blockStateComponent.properties().get(this.property);
-   }
+	public static final PrimitiveCodec<String> VALUE_CODEC = Codec.STRING;
+	public static final SelectProperty.Type<ItemBlockStateProperty, String> TYPE = SelectProperty.Type.create(
+			RecordCodecBuilder.mapCodec(
+					instance -> instance
+							.group(Codec.STRING
+									.fieldOf("block_state_property")
+									.forGetter(ItemBlockStateProperty::property))
+							.apply(instance, ItemBlockStateProperty::new)
+			),
+			VALUE_CODEC
+	);
 
-   @Override
-   public SelectProperty.Type<ItemBlockStateProperty, String> getType() {
-      return TYPE;
-   }
+	public @Nullable String getValue(
+			ItemStack itemStack,
+			@Nullable ClientWorld clientWorld,
+			@Nullable LivingEntity livingEntity,
+			int i,
+			ItemDisplayContext itemDisplayContext
+	) {
+		BlockStateComponent blockStateComponent = itemStack.get(DataComponentTypes.BLOCK_STATE);
+		return blockStateComponent == null ? null : blockStateComponent.properties().get(this.property);
+	}
 
-   @Override
-   public Codec<String> valueCodec() {
-      return VALUE_CODEC;
-   }
+	@Override
+	public SelectProperty.Type<ItemBlockStateProperty, String> getType() {
+		return TYPE;
+	}
+
+	@Override
+	public Codec<String> valueCodec() {
+		return VALUE_CODEC;
+	}
 }

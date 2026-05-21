@@ -18,44 +18,78 @@ import net.minecraft.item.equipment.EquipmentAssetKeys;
 import net.minecraft.registry.RegistryKey;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LlamaDecorFeatureRenderer}.
+ */
 public class LlamaDecorFeatureRenderer extends FeatureRenderer<LlamaEntityRenderState, LlamaEntityModel> {
-   private final LlamaEntityModel model;
-   private final LlamaEntityModel babyModel;
-   private final EquipmentRenderer equipmentRenderer;
 
-   public LlamaDecorFeatureRenderer(
-      FeatureRendererContext<LlamaEntityRenderState, LlamaEntityModel> context, LoadedEntityModels loader, EquipmentRenderer equipmentRenderer
-   ) {
-      super(context);
-      this.equipmentRenderer = equipmentRenderer;
-      this.model = new LlamaEntityModel(loader.getModelPart(EntityModelLayers.LLAMA_DECOR));
-      this.babyModel = new LlamaEntityModel(loader.getModelPart(EntityModelLayers.LLAMA_BABY_DECOR));
-   }
+	private final LlamaEntityModel model;
+	private final LlamaEntityModel babyModel;
+	private final EquipmentRenderer equipmentRenderer;
 
-   public void render(
-      MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, LlamaEntityRenderState llamaEntityRenderState, float f, float g
-   ) {
-      ItemStack itemStack = llamaEntityRenderState.bodyArmor;
-      EquippableComponent equippableComponent = itemStack.get(DataComponentTypes.EQUIPPABLE);
-      if (equippableComponent != null && equippableComponent.assetId().isPresent()) {
-         this.render(matrixStack, orderedRenderCommandQueue, llamaEntityRenderState, itemStack, equippableComponent.assetId().get(), i);
-      } else if (llamaEntityRenderState.trader) {
-         this.render(matrixStack, orderedRenderCommandQueue, llamaEntityRenderState, ItemStack.EMPTY, EquipmentAssetKeys.TRADER_LLAMA, i);
-      }
-   }
+	public LlamaDecorFeatureRenderer(
+			FeatureRendererContext<LlamaEntityRenderState, LlamaEntityModel> context,
+			LoadedEntityModels loader,
+			EquipmentRenderer equipmentRenderer
+	) {
+		super(context);
+		this.equipmentRenderer = equipmentRenderer;
+		this.model = new LlamaEntityModel(loader.getModelPart(EntityModelLayers.LLAMA_DECOR));
+		this.babyModel = new LlamaEntityModel(loader.getModelPart(EntityModelLayers.LLAMA_BABY_DECOR));
+	}
 
-   private void render(
-      MatrixStack matrices,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      LlamaEntityRenderState state,
-      ItemStack stack,
-      RegistryKey<EquipmentAsset> registryKey,
-      int light
-   ) {
-      LlamaEntityModel llamaEntityModel = state.baby ? this.babyModel : this.model;
-      this.equipmentRenderer
-         .render(
-            EquipmentModel.LayerType.LLAMA_BODY, registryKey, llamaEntityModel, state, stack, matrices, orderedRenderCommandQueue, light, state.outlineColor
-         );
-   }
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			LlamaEntityRenderState llamaEntityRenderState,
+			float f,
+			float g
+	) {
+		ItemStack itemStack = llamaEntityRenderState.bodyArmor;
+		EquippableComponent equippableComponent = itemStack.get(DataComponentTypes.EQUIPPABLE);
+		if (equippableComponent != null && equippableComponent.assetId().isPresent()) {
+			this.render(
+					matrixStack,
+					orderedRenderCommandQueue,
+					llamaEntityRenderState,
+					itemStack,
+					equippableComponent.assetId().get(),
+					i
+			);
+		}
+		else if (llamaEntityRenderState.trader) {
+			this.render(
+					matrixStack,
+					orderedRenderCommandQueue,
+					llamaEntityRenderState,
+					ItemStack.EMPTY,
+					EquipmentAssetKeys.TRADER_LLAMA,
+					i
+			);
+		}
+	}
+
+	private void render(
+			MatrixStack matrices,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			LlamaEntityRenderState state,
+			ItemStack stack,
+			RegistryKey<EquipmentAsset> registryKey,
+			int light
+	) {
+		LlamaEntityModel llamaEntityModel = state.baby ? this.babyModel : this.model;
+		this.equipmentRenderer
+				.render(
+						EquipmentModel.LayerType.LLAMA_BODY,
+						registryKey,
+						llamaEntityModel,
+						state,
+						stack,
+						matrices,
+						orderedRenderCommandQueue,
+						light,
+						state.outlineColor
+				);
+	}
 }

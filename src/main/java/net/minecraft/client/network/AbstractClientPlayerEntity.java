@@ -22,119 +22,157 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.GameMode;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Базовый класс для всех клиентских игроков.
+ * Связывает сущность игрока с записью в списке игроков, управляет скином,
+ * состоянием движения и полем зрения.
+ */
 @Environment(EnvType.CLIENT)
 public abstract class AbstractClientPlayerEntity extends PlayerEntity implements ClientPlayerLikeEntity {
-   private @Nullable PlayerListEntry playerListEntry;
-   private final boolean deadmau5;
-   private final ClientPlayerLikeState state = new ClientPlayerLikeState();
 
-   public AbstractClientPlayerEntity(ClientWorld world, GameProfile profile) {
-      super(world, profile);
-      this.deadmau5 = "deadmau5".equals(this.getGameProfile().name());
-   }
+	private @Nullable PlayerListEntry playerListEntry;
+	private final boolean deadmau5;
+	private final ClientPlayerLikeState state = new ClientPlayerLikeState();
 
-   @Override
-   public @Nullable GameMode getGameMode() {
-      PlayerListEntry playerListEntry = this.getPlayerListEntry();
-      return playerListEntry != null ? playerListEntry.getGameMode() : null;
-   }
+	/**
+	 * @param world   клиентский мир
+	 * @param profile профиль игрока
+	 */
+	public AbstractClientPlayerEntity(ClientWorld world, GameProfile profile) {
+		super(world, profile);
+		deadmau5 = "deadmau5".equals(getGameProfile().name());
+	}
 
-   protected @Nullable PlayerListEntry getPlayerListEntry() {
-      if (this.playerListEntry == null) {
-         this.playerListEntry = MinecraftClient.getInstance().getNetworkHandler().getPlayerListEntry(this.getUuid());
-      }
+	@Override
+	public @Nullable GameMode getGameMode() {
+		PlayerListEntry entry = getPlayerListEntry();
+		return entry != null ? entry.getGameMode() : null;
+	}
 
-      return this.playerListEntry;
-   }
+	/**
+	 * Возвращает запись игрока из списка игроков, кешируя результат.
+	 *
+	 * @return запись или {@code null} если игрок не найден
+	 */
+	protected @Nullable PlayerListEntry getPlayerListEntry() {
+		if (playerListEntry == null) {
+			playerListEntry = MinecraftClient.getInstance().getNetworkHandler().getPlayerListEntry(getUuid());
+		}
 
-   @Override
-   public void tick() {
-      this.state.tick(this.getEntityPos(), this.getVelocity());
-      super.tick();
-   }
+		return playerListEntry;
+	}
 
-   protected void addDistanceMoved(float distanceMoved) {
-      this.state.addDistanceMoved(distanceMoved);
-   }
+	@Override
+	public void tick() {
+		state.tick(getEntityPos(), getVelocity());
+		super.tick();
+	}
 
-   @Override
-   public ClientPlayerLikeState getState() {
-      return this.state;
-   }
+	/**
+	 * Добавляет пройденное расстояние к накопителю состояния движения.
+	 *
+	 * @param distanceMoved пройденное расстояние за тик
+	 */
+	protected void addDistanceMoved(float distanceMoved) {
+		state.addDistanceMoved(distanceMoved);
+	}
 
-   @Override
-   public @Nullable Text getMannequinName() {
-      Scoreboard scoreboard = this.getEntityWorld().getScoreboard();
-      ScoreboardObjective scoreboardObjective = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.BELOW_NAME);
-      if (scoreboardObjective != null) {
-         ReadableScoreboardScore readableScoreboardScore = scoreboard.getScore(this, scoreboardObjective);
-         Text text = ReadableScoreboardScore.getFormattedScore(readableScoreboardScore, scoreboardObjective.getNumberFormatOr(StyledNumberFormat.EMPTY));
-         return Text.empty().append(text).append(ScreenTexts.SPACE).append(scoreboardObjective.getDisplayName());
-      } else {
-         return null;
-      }
-   }
+	@Override
+	public ClientPlayerLikeState getState() {
+		return state;
+	}
 
-   @Override
-   public SkinTextures getSkin() {
-      PlayerListEntry playerListEntry = this.getPlayerListEntry();
-      return playerListEntry == null ? DefaultSkinHelper.getSkinTextures(this.getUuid()) : playerListEntry.getSkinTextures();
-   }
+	@Override
+	public @Nullable Text getMannequinName() {
+		Scoreboard scoreboard = getEntityWorld().getScoreboard();
+		ScoreboardObjective objective = scoreboard.getObjectiveForSlot(ScoreboardDisplaySlot.BELOW_NAME);
 
-   @Override
-   public ParrotEntity.@Nullable Variant getShoulderParrotVariant(boolean leftShoulder) {
-      return (leftShoulder ? this.getLeftShoulderParrotVariant() : this.getRightShoulderParrotVariant()).orElse(null);
-   }
+		if (objective == null) {
+			return null;
+		}
 
-   @Override
-   public void tickRiding() {
-      super.tickRiding();
-      this.getState().tickRiding();
-   }
+		ReadableScoreboardScore score = scoreboard.getScore(this, objective);
+		Text scoreText = ReadableScoreboardScore.getFormattedScore(
+				score,
+				objective.getNumberFormatOr(StyledNumberFormat.EMPTY)
+		);
+		return Text.empty().append(scoreText).append(ScreenTexts.SPACE).append(objective.getDisplayName());
+	}
 
-   @Override
-   public void tickMovement() {
-      this.tickPlayerMovement();
-      super.tickMovement();
-   }
+	@Override
+	public SkinTextures getSkin() {
+		PlayerListEntry entry = getPlayerListEntry();
+		return entry == null
+		       ? DefaultSkinHelper.getSkinTextures(getUuid())
+		       : entry.getSkinTextures();
+	}
 
-   protected void tickPlayerMovement() {
-      float f;
-      if (this.isOnGround() && !this.isDead() && !this.isSwimming()) {
-         f = Math.min(0.1F, (float)this.getVelocity().horizontalLength());
-      } else {
-         f = 0.0F;
-      }
+	@Override
+	public ParrotEntity.@Nullable Variant getShoulderParrotVariant(boolean leftShoulder) {
+		return leftShoulder
+		       ? getLeftShoulderParrotVariant().orElse(null)
+		       : getRightShoulderParrotVariant().orElse(null);
+	}
 
-      this.getState().tickMovement(f);
-   }
+	@Override
+	public void tickRiding() {
+		super.tickRiding();
+		getState().tickRiding();
+	}
 
-   public float getFovMultiplier(boolean firstPerson, float fovEffectScale) {
-      float f = 1.0F;
-      if (this.getAbilities().flying) {
-         f *= 1.1F;
-      }
+	@Override
+	public void tickMovement() {
+		tickPlayerMovement();
+		super.tickMovement();
+	}
 
-      float g = this.getAbilities().getWalkSpeed();
-      if (g != 0.0F) {
-         float h = (float)this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED) / g;
-         f *= (h + 1.0F) / 2.0F;
-      }
+	/**
+	 * Обновляет накопитель движения на основе горизонтальной скорости.
+	 * Движение учитывается только на земле, когда игрок жив и не плывёт.
+	 */
+	protected void tickPlayerMovement() {
+		boolean onGroundAlive = isOnGround() && isDead() == false && isSwimming() == false;
+		float movement = onGroundAlive
+		                 ? Math.min(0.1F, (float) getVelocity().horizontalLength())
+		                 : 0.0F;
+		getState().tickMovement(movement);
+	}
 
-      if (this.isUsingItem()) {
-         if (this.getActiveItem().isOf(Items.BOW)) {
-            float h = Math.min(this.getItemUseTime() / 20.0F, 1.0F);
-            f *= 1.0F - MathHelper.square(h) * 0.15F;
-         } else if (firstPerson && this.isUsingSpyglass()) {
-            return 0.1F;
-         }
-      }
+	/**
+	 * Вычисляет множитель поля зрения с учётом полёта, скорости и используемого предмета.
+	 *
+	 * @param firstPerson    {@code true} если вид от первого лица
+	 * @param fovEffectScale масштаб эффекта FOV из настроек
+	 * @return итоговый множитель FOV
+	 */
+	public float getFovMultiplier(boolean firstPerson, float fovEffectScale) {
+		float multiplier = 1.0F;
 
-      return MathHelper.lerp(fovEffectScale, 1.0F, f);
-   }
+		if (getAbilities().flying) {
+			multiplier *= 1.1F;
+		}
 
-   @Override
-   public boolean hasExtraEars() {
-      return this.deadmau5;
-   }
+		float walkSpeed = getAbilities().getWalkSpeed();
+		if (walkSpeed != 0.0F) {
+			float speedRatio = (float) getAttributeValue(EntityAttributes.MOVEMENT_SPEED) / walkSpeed;
+			multiplier *= (speedRatio + 1.0F) / 2.0F;
+		}
+
+		if (isUsingItem()) {
+			if (getActiveItem().isOf(Items.BOW)) {
+				float chargeProgress = Math.min(getItemUseTime() / 20.0F, 1.0F);
+				multiplier *= 1.0F - MathHelper.square(chargeProgress) * 0.15F;
+			}
+			else if (firstPerson && isUsingSpyglass()) {
+				return 0.1F;
+			}
+		}
+
+		return MathHelper.lerp(fovEffectScale, 1.0F, multiplier);
+	}
+
+	@Override
+	public boolean hasExtraEars() {
+		return deadmau5;
+	}
 }

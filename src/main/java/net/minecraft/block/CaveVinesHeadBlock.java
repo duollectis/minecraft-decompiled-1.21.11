@@ -14,73 +14,77 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code CaveVinesHeadBlock}.
+ */
 public class CaveVinesHeadBlock extends AbstractPlantStemBlock implements CaveVines {
-   public static final MapCodec<CaveVinesHeadBlock> CODEC = createCodec(CaveVinesHeadBlock::new);
-   private static final float GROW_CHANCE = 0.11F;
 
-   @Override
-   public MapCodec<CaveVinesHeadBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<CaveVinesHeadBlock> CODEC = createCodec(CaveVinesHeadBlock::new);
+	private static final float GROW_CHANCE = 0.11F;
 
-   public CaveVinesHeadBlock(AbstractBlock.Settings settings) {
-      super(settings, Direction.DOWN, SHAPE, false, 0.1);
-      this.setDefaultState(this.stateManager.getDefaultState().with(AGE, 0).with(BERRIES, false));
-   }
+	@Override
+	public MapCodec<CaveVinesHeadBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected int getGrowthLength(Random random) {
-      return 1;
-   }
+	public CaveVinesHeadBlock(AbstractBlock.Settings settings) {
+		super(settings, Direction.DOWN, SHAPE, false, 0.1);
+		this.setDefaultState(this.stateManager.getDefaultState().with(AGE, 0).with(BERRIES, false));
+	}
 
-   @Override
-   protected boolean chooseStemState(BlockState state) {
-      return state.isAir();
-   }
+	@Override
+	protected int getGrowthLength(Random random) {
+		return 1;
+	}
 
-   @Override
-   protected Block getPlant() {
-      return Blocks.CAVE_VINES_PLANT;
-   }
+	@Override
+	protected boolean chooseStemState(BlockState state) {
+		return state.isAir();
+	}
 
-   @Override
-   protected BlockState copyState(BlockState from, BlockState to) {
-      return to.with(BERRIES, from.get(BERRIES));
-   }
+	@Override
+	protected Block getPlant() {
+		return Blocks.CAVE_VINES_PLANT;
+	}
 
-   @Override
-   protected BlockState age(BlockState state, Random random) {
-      return super.age(state, random).with(BERRIES, random.nextFloat() < 0.11F);
-   }
+	@Override
+	protected BlockState copyState(BlockState from, BlockState to) {
+		return to.with(BERRIES, from.get(BERRIES));
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return new ItemStack(Items.GLOW_BERRIES);
-   }
+	@Override
+	protected BlockState age(BlockState state, Random random) {
+		return super.age(state, random).with(BERRIES, random.nextFloat() < 0.11F);
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      return CaveVines.pickBerries(player, state, world, pos);
-   }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return new ItemStack(Items.GLOW_BERRIES);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      super.appendProperties(builder);
-      builder.add(BERRIES);
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		return CaveVines.pickBerries(player, state, world, pos);
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return !state.get(BERRIES);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		super.appendProperties(builder);
+		builder.add(BERRIES);
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return !state.get(BERRIES);
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      world.setBlockState(pos, state.with(BERRIES, true), 2);
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
+
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		world.setBlockState(pos, state.with(BERRIES, true), 2);
+	}
 }

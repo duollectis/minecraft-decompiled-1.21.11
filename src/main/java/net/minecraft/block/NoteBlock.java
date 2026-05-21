@@ -32,140 +32,197 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code NoteBlock}.
+ */
 public class NoteBlock extends Block {
-   public static final MapCodec<NoteBlock> CODEC = createCodec(NoteBlock::new);
-   public static final EnumProperty<NoteBlockInstrument> INSTRUMENT = Properties.INSTRUMENT;
-   public static final BooleanProperty POWERED = Properties.POWERED;
-   public static final IntProperty NOTE = Properties.NOTE;
-   public static final int field_41678 = 3;
 
-   @Override
-   public MapCodec<NoteBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<NoteBlock> CODEC = createCodec(NoteBlock::new);
+	public static final EnumProperty<NoteBlockInstrument> INSTRUMENT = Properties.INSTRUMENT;
+	public static final BooleanProperty POWERED = Properties.POWERED;
+	public static final IntProperty NOTE = Properties.NOTE;
+	public static final int NOTES_PER_SEMITONE = 3;
 
-   public NoteBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(INSTRUMENT, NoteBlockInstrument.HARP).with(NOTE, 0).with(POWERED, false));
-   }
+	@Override
+	public MapCodec<NoteBlock> getCodec() {
+		return CODEC;
+	}
 
-   private BlockState getStateWithInstrument(WorldView world, BlockPos pos, BlockState state) {
-      NoteBlockInstrument noteBlockInstrument = world.getBlockState(pos.up()).getInstrument();
-      if (noteBlockInstrument.isNotBaseBlock()) {
-         return state.with(INSTRUMENT, noteBlockInstrument);
-      } else {
-         NoteBlockInstrument noteBlockInstrument2 = world.getBlockState(pos.down()).getInstrument();
-         NoteBlockInstrument noteBlockInstrument3 = noteBlockInstrument2.isNotBaseBlock() ? NoteBlockInstrument.HARP : noteBlockInstrument2;
-         return state.with(INSTRUMENT, noteBlockInstrument3);
-      }
-   }
+	public NoteBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(INSTRUMENT, NoteBlockInstrument.HARP)
+				.with(NOTE, 0)
+				.with(POWERED, false));
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getStateWithInstrument(ctx.getWorld(), ctx.getBlockPos(), this.getDefaultState());
-   }
+	private BlockState getStateWithInstrument(WorldView world, BlockPos pos, BlockState state) {
+		NoteBlockInstrument noteBlockInstrument = world.getBlockState(pos.up()).getInstrument();
+		if (noteBlockInstrument.isNotBaseBlock()) {
+			return state.with(INSTRUMENT, noteBlockInstrument);
+		}
+		else {
+			NoteBlockInstrument noteBlockInstrument2 = world.getBlockState(pos.down()).getInstrument();
+			NoteBlockInstrument
+					noteBlockInstrument3 =
+					noteBlockInstrument2.isNotBaseBlock() ? NoteBlockInstrument.HARP : noteBlockInstrument2;
+			return state.with(INSTRUMENT, noteBlockInstrument3);
+		}
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      boolean bl = direction.getAxis() == Direction.Axis.Y;
-      return bl
-         ? this.getStateWithInstrument(world, pos, state)
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getStateWithInstrument(ctx.getWorld(), ctx.getBlockPos(), this.getDefaultState());
+	}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      boolean bl = world.isReceivingRedstonePower(pos);
-      if (bl != state.get(POWERED)) {
-         if (bl) {
-            this.playNote(null, state, world, pos);
-         }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		boolean bl = direction.getAxis() == Direction.Axis.Y;
+		return bl
+		       ? this.getStateWithInstrument(world, pos, state)
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
 
-         world.setBlockState(pos, state.with(POWERED, bl), 3);
-      }
-   }
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		boolean bl = world.isReceivingRedstonePower(pos);
+		if (bl != state.get(POWERED)) {
+			if (bl) {
+				this.playNote(null, state, world, pos);
+			}
 
-   private void playNote(@Nullable Entity entity, BlockState state, World world, BlockPos pos) {
-      if (state.get(INSTRUMENT).isNotBaseBlock() || world.getBlockState(pos.up()).isAir()) {
-         world.addSyncedBlockEvent(pos, this, 0, 0);
-         world.emitGameEvent(entity, GameEvent.NOTE_BLOCK_PLAY, pos);
-      }
-   }
+			world.setBlockState(pos, state.with(POWERED, bl), 3);
+		}
+	}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      return (ActionResult)(stack.isIn(ItemTags.NOTEBLOCK_TOP_INSTRUMENTS) && hit.getSide() == Direction.UP
-         ? ActionResult.PASS
-         : super.onUseWithItem(stack, state, world, pos, player, hand, hit));
-   }
+	private void playNote(@Nullable Entity entity, BlockState state, World world, BlockPos pos) {
+		if (state.get(INSTRUMENT).isNotBaseBlock() || world.getBlockState(pos.up()).isAir()) {
+			world.addSyncedBlockEvent(pos, this, 0, 0);
+			world.emitGameEvent(entity, GameEvent.NOTE_BLOCK_PLAY, pos);
+		}
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient()) {
-         state = state.cycle(NOTE);
-         world.setBlockState(pos, state, 3);
-         this.playNote(player, state, world, pos);
-         player.incrementStat(Stats.TUNE_NOTEBLOCK);
-      }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		return (ActionResult) (stack.isIn(ItemTags.NOTEBLOCK_TOP_INSTRUMENTS) && hit.getSide() == Direction.UP
+		                       ? ActionResult.PASS
+		                       : super.onUseWithItem(stack, state, world, pos, player, hand, hit)
+		);
+	}
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient()) {
+			state = state.cycle(NOTE);
+			world.setBlockState(pos, state, 3);
+			this.playNote(player, state, world, pos);
+			player.incrementStat(Stats.TUNE_NOTEBLOCK);
+		}
 
-   @Override
-   protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
-      if (!world.isClient()) {
-         this.playNote(player, state, world, pos);
-         player.incrementStat(Stats.PLAY_NOTEBLOCK);
-      }
-   }
+		return ActionResult.SUCCESS;
+	}
 
-   public static float getNotePitch(int note) {
-      return (float)Math.pow(2.0, (note - 12) / 12.0);
-   }
+	@Override
+	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
+		if (!world.isClient()) {
+			this.playNote(player, state, world, pos);
+			player.incrementStat(Stats.PLAY_NOTEBLOCK);
+		}
+	}
 
-   @Override
-   protected boolean onSyncedBlockEvent(BlockState state, World world, BlockPos pos, int type, int data) {
-      NoteBlockInstrument noteBlockInstrument = state.get(INSTRUMENT);
-      float f;
-      if (noteBlockInstrument.canBePitched()) {
-         int i = state.get(NOTE);
-         f = getNotePitch(i);
-         world.addParticleClient(ParticleTypes.NOTE, pos.getX() + 0.5, pos.getY() + 1.2, pos.getZ() + 0.5, i / 24.0, 0.0, 0.0);
-      } else {
-         f = 1.0F;
-      }
+	public static float getNotePitch(int note) {
+		return (float) Math.pow(2.0, (note - 12) / 12.0);
+	}
 
-      RegistryEntry<SoundEvent> registryEntry;
-      if (noteBlockInstrument.hasCustomSound()) {
-         Identifier identifier = this.getCustomSound(world, pos);
-         if (identifier == null) {
-            return false;
-         }
+	@Override
+	protected boolean onSyncedBlockEvent(BlockState state, World world, BlockPos pos, int type, int data) {
+		NoteBlockInstrument noteBlockInstrument = state.get(INSTRUMENT);
+		float f;
+		if (noteBlockInstrument.canBePitched()) {
+			int i = state.get(NOTE);
+			f = getNotePitch(i);
+			world.addParticleClient(
+					ParticleTypes.NOTE,
+					pos.getX() + 0.5,
+					pos.getY() + 1.2,
+					pos.getZ() + 0.5,
+					i / 24.0,
+					0.0,
+					0.0
+			);
+		}
+		else {
+			f = 1.0F;
+		}
 
-         registryEntry = RegistryEntry.of(SoundEvent.of(identifier));
-      } else {
-         registryEntry = noteBlockInstrument.getSound();
-      }
+		RegistryEntry<SoundEvent> registryEntry;
+		if (noteBlockInstrument.hasCustomSound()) {
+			Identifier identifier = this.getCustomSound(world, pos);
+			if (identifier == null) {
+				return false;
+			}
 
-      world.playSound(null, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, registryEntry, SoundCategory.RECORDS, 3.0F, f, world.random.nextLong());
-      return true;
-   }
+			registryEntry = RegistryEntry.of(SoundEvent.of(identifier));
+		}
+		else {
+			registryEntry = noteBlockInstrument.getSound();
+		}
 
-   private @Nullable Identifier getCustomSound(World world, BlockPos pos) {
-      return world.getBlockEntity(pos.up()) instanceof SkullBlockEntity skullBlockEntity ? skullBlockEntity.getNoteBlockSound() : null;
-   }
+		world.playSound(
+				null,
+				pos.getX() + 0.5,
+				pos.getY() + 0.5,
+				pos.getZ() + 0.5,
+				registryEntry,
+				SoundCategory.RECORDS,
+				3.0F,
+				f,
+				world.random.nextLong()
+		);
+		return true;
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(INSTRUMENT, POWERED, NOTE);
-   }
+	private @Nullable Identifier getCustomSound(World world, BlockPos pos) {
+		return world.getBlockEntity(pos.up()) instanceof SkullBlockEntity skullBlockEntity
+		       ? skullBlockEntity.getNoteBlockSound() : null;
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(INSTRUMENT, POWERED, NOTE);
+	}
 }

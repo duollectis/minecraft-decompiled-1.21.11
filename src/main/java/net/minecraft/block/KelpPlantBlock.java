@@ -12,40 +12,50 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldAccess;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code KelpPlantBlock}.
+ */
 public class KelpPlantBlock extends AbstractPlantBlock implements FluidFillable {
-   public static final MapCodec<KelpPlantBlock> CODEC = createCodec(KelpPlantBlock::new);
 
-   @Override
-   public MapCodec<KelpPlantBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<KelpPlantBlock> CODEC = createCodec(KelpPlantBlock::new);
 
-   public KelpPlantBlock(AbstractBlock.Settings settings) {
-      super(settings, Direction.UP, VoxelShapes.fullCube(), true);
-   }
+	@Override
+	public MapCodec<KelpPlantBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected AbstractPlantStemBlock getStem() {
-      return (AbstractPlantStemBlock)Blocks.KELP;
-   }
+	public KelpPlantBlock(AbstractBlock.Settings settings) {
+		super(settings, Direction.UP, VoxelShapes.fullCube(), true);
+	}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return Fluids.WATER.getStill(false);
-   }
+	@Override
+	protected AbstractPlantStemBlock getStem() {
+		return (AbstractPlantStemBlock) Blocks.KELP;
+	}
 
-   @Override
-   protected boolean canAttachTo(BlockState state) {
-      return this.getStem().canAttachTo(state);
-   }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return Fluids.WATER.getStill(false);
+	}
 
-   @Override
-   public boolean canFillWithFluid(@Nullable LivingEntity filler, BlockView world, BlockPos pos, BlockState state, Fluid fluid) {
-      return false;
-   }
+	@Override
+	protected boolean canAttachTo(BlockState state) {
+		return this.getStem().canAttachTo(state);
+	}
 
-   @Override
-   public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
-      return false;
-   }
+	@Override
+	public boolean canFillWithFluid(
+			@Nullable LivingEntity filler,
+			BlockView world,
+			BlockPos pos,
+			BlockState state,
+			Fluid fluid
+	) {
+		return false;
+	}
+
+	@Override
+	public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
+		return false;
+	}
 }

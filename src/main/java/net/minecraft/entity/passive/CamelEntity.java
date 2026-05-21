@@ -4,16 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.block.BlockState;
 import net.minecraft.component.type.EquippableComponent;
-import net.minecraft.entity.AnimationState;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityDimensions;
-import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.Leashable;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.ai.brain.Brain;
 import net.minecraft.entity.ai.control.BodyControl;
 import net.minecraft.entity.ai.control.LookControl;
@@ -53,638 +44,729 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CamelEntity}.
+ */
 public class CamelEntity extends AbstractHorseEntity {
-   public static final float field_45127 = 0.45F;
-   public static final int field_40132 = 55;
-   public static final int field_41764 = 30;
-   private static final float field_40146 = 0.1F;
-   private static final float field_40147 = 1.4285F;
-   private static final float field_40148 = 22.2222F;
-   private static final int field_43388 = 5;
-   private static final int field_40149 = 40;
-   private static final int field_40133 = 52;
-   private static final int field_40134 = 80;
-   private static final float field_40135 = 1.43F;
-   private static final long DEFAULT_LAST_POSE_TICK = 0L;
-   public static final TrackedData<Boolean> DASHING = DataTracker.registerData(CamelEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   public static final TrackedData<Long> LAST_POSE_TICK = DataTracker.registerData(CamelEntity.class, TrackedDataHandlerRegistry.LONG);
-   public final AnimationState sittingTransitionAnimationState = new AnimationState();
-   public final AnimationState sittingAnimationState = new AnimationState();
-   public final AnimationState standingTransitionAnimationState = new AnimationState();
-   public final AnimationState idlingAnimationState = new AnimationState();
-   public final AnimationState dashingAnimationState = new AnimationState();
-   private static final EntityDimensions SITTING_DIMENSIONS = EntityDimensions.changing(EntityType.CAMEL.getWidth(), EntityType.CAMEL.getHeight() - 1.43F)
-      .withEyeHeight(0.845F);
-   private int dashCooldown = 0;
-   private int idleAnimationCooldown = 0;
-
-   public CamelEntity(EntityType<? extends CamelEntity> entityType, World world) {
-      super(entityType, world);
-      this.moveControl = new CamelEntity.CamelMoveControl();
-      this.lookControl = new CamelEntity.CamelLookControl();
-      MobNavigation mobNavigation = (MobNavigation)this.getNavigation();
-      mobNavigation.setCanSwim(true);
-      mobNavigation.setCanWalkOverFences(true);
-   }
-
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putLong("LastPoseTick", this.dataTracker.get(LAST_POSE_TICK));
-   }
-
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      long l = view.getLong("LastPoseTick", 0L);
-      if (l < 0L) {
-         this.setPose(EntityPose.SITTING);
-      }
-
-      this.setLastPoseTick(l);
-   }
-
-   public static DefaultAttributeContainer.Builder createCamelAttributes() {
-      return createBaseHorseAttributes()
-         .add(EntityAttributes.MAX_HEALTH, 32.0)
-         .add(EntityAttributes.MOVEMENT_SPEED, 0.09F)
-         .add(EntityAttributes.JUMP_STRENGTH, 0.42F)
-         .add(EntityAttributes.STEP_HEIGHT, 1.5);
-   }
-
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(DASHING, false);
-      builder.add(LAST_POSE_TICK, 0L);
-   }
-
-   @Override
-   public EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      CamelBrain.initialize(this, world.getRandom());
-      this.initLastPoseTick(world.toServerWorld().getTime());
-      return super.initialize(world, difficulty, spawnReason, entityData);
-   }
-
-   public static boolean canSpawn(EntityType<CamelEntity> type, WorldAccess world, SpawnReason reason, BlockPos pos, Random random) {
-      return world.getBlockState(pos.down()).isIn(BlockTags.CAMELS_SPAWNABLE_ON) && isLightLevelValidForNaturalSpawn(world, pos);
-   }
-
-   @Override
-   protected Brain.Profile<CamelEntity> createBrainProfile() {
-      return CamelBrain.createBrainProfile();
-   }
-
-   @Override
-   protected void initGoals() {
-   }
-
-   @Override
-   protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
-      return CamelBrain.create(this.createBrainProfile().deserialize(dynamic));
-   }
-
-   @Override
-   public EntityDimensions getBaseDimensions(EntityPose pose) {
-      return pose == EntityPose.SITTING ? SITTING_DIMENSIONS.scaled(this.getScaleFactor()) : super.getBaseDimensions(pose);
-   }
-
-   @Override
-   protected void mobTick(ServerWorld world) {
-      Profiler profiler = Profilers.get();
-      profiler.push("camelBrain");
-      Brain<?> brain = this.getBrain();
-      ((Brain<CamelEntity>)brain).tick(world, this);
-      profiler.pop();
-      profiler.push("camelActivityUpdate");
-      CamelBrain.updateActivities(this);
-      profiler.pop();
-      super.mobTick(world);
-   }
-
-   @Override
-   public void tick() {
-      super.tick();
-      if (this.isDashing() && this.dashCooldown < 50 && (this.isOnGround() || this.isInFluid() || this.hasVehicle())) {
-         this.setDashing(false);
-      }
-
-      if (this.dashCooldown > 0) {
-         this.dashCooldown--;
-         if (this.dashCooldown == 0) {
-            this.getEntityWorld().playSound(null, this.getBlockPos(), this.getDashReadySound(), SoundCategory.NEUTRAL, 1.0F, 1.0F);
-         }
-      }
-
-      if (this.getEntityWorld().isClient()) {
-         this.updateAnimations();
-      }
-
-      if (this.isStationary()) {
-         this.clampHeadYaw();
-      }
-
-      if (this.isSitting() && this.isTouchingWater()) {
-         this.setStanding();
-      }
-   }
-
-   private void updateAnimations() {
-      if (this.idleAnimationCooldown <= 0) {
-         this.idleAnimationCooldown = this.random.nextInt(40) + 80;
-         this.idlingAnimationState.start(this.age);
-      } else {
-         this.idleAnimationCooldown--;
-      }
-
-      if (this.shouldUpdateSittingAnimations()) {
-         this.standingTransitionAnimationState.stop();
-         this.dashingAnimationState.stop();
-         if (this.shouldPlaySittingTransitionAnimation()) {
-            this.sittingTransitionAnimationState.startIfNotRunning(this.age);
-            this.sittingAnimationState.stop();
-         } else {
-            this.sittingTransitionAnimationState.stop();
-            this.sittingAnimationState.startIfNotRunning(this.age);
-         }
-      } else {
-         this.sittingTransitionAnimationState.stop();
-         this.sittingAnimationState.stop();
-         this.dashingAnimationState.setRunning(this.isDashing(), this.age);
-         this.standingTransitionAnimationState.setRunning(this.isChangingPose() && this.getTimeSinceLastPoseTick() >= 0L, this.age);
-      }
-   }
-
-   @Override
-   protected void updateLimbs(float posDelta) {
-      float f;
-      if (this.getPose() == EntityPose.STANDING && !this.dashingAnimationState.isRunning()) {
-         f = Math.min(posDelta * 6.0F, 1.0F);
-      } else {
-         f = 0.0F;
-      }
-
-      this.limbAnimator.updateLimbs(f, 0.2F, this.isBaby() ? 3.0F : 1.0F);
-   }
-
-   @Override
-   public void travel(Vec3d movementInput) {
-      if (this.isStationary() && this.isOnGround()) {
-         this.setVelocity(this.getVelocity().multiply(0.0, 1.0, 0.0));
-         movementInput = movementInput.multiply(0.0, 1.0, 0.0);
-      }
-
-      super.travel(movementInput);
-   }
-
-   @Override
-   protected void tickControlled(PlayerEntity controllingPlayer, Vec3d movementInput) {
-      super.tickControlled(controllingPlayer, movementInput);
-      if (controllingPlayer.forwardSpeed > 0.0F && this.isSitting() && !this.isChangingPose()) {
-         this.startStanding();
-      }
-   }
-
-   public boolean isStationary() {
-      return this.isSitting() || this.isChangingPose();
-   }
-
-   @Override
-   protected float getSaddledSpeed(PlayerEntity controllingPlayer) {
-      float f = controllingPlayer.isSprinting() && this.getJumpCooldown() == 0 ? 0.1F : 0.0F;
-      return (float)this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED) + f;
-   }
-
-   @Override
-   protected Vec2f getControlledRotation(LivingEntity controllingPassenger) {
-      return this.isStationary() ? new Vec2f(this.getPitch(), this.getYaw()) : super.getControlledRotation(controllingPassenger);
-   }
-
-   @Override
-   protected Vec3d getControlledMovementInput(PlayerEntity controllingPlayer, Vec3d movementInput) {
-      return this.isStationary() ? Vec3d.ZERO : super.getControlledMovementInput(controllingPlayer, movementInput);
-   }
-
-   @Override
-   public boolean canJump() {
-      return !this.isStationary() && super.canJump();
-   }
-
-   @Override
-   public void setJumpStrength(int strength) {
-      if (this.hasSaddleEquipped() && this.dashCooldown <= 0 && this.isOnGround()) {
-         super.setJumpStrength(strength);
-      }
-   }
-
-   @Override
-   public boolean canSprintAsVehicle() {
-      return true;
-   }
-
-   @Override
-   protected void jump(float strength, Vec3d movementInput) {
-      double d = this.getJumpVelocity();
-      this.addVelocityInternal(
-         this.getRotationVector()
-            .multiply(1.0, 0.0, 1.0)
-            .normalize()
-            .multiply(22.2222F * strength * this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED) * this.getVelocityMultiplier())
-            .add(0.0, 1.4285F * strength * d, 0.0)
-      );
-      this.dashCooldown = 55;
-      this.setDashing(true);
-      this.velocityDirty = true;
-   }
-
-   public boolean isDashing() {
-      return this.dataTracker.get(DASHING);
-   }
-
-   public void setDashing(boolean dashing) {
-      this.dataTracker.set(DASHING, dashing);
-   }
-
-   @Override
-   public void startJumping(int height) {
-      this.playSound(this.getDashSound());
-      this.emitGameEvent(GameEvent.ENTITY_ACTION);
-      this.setDashing(true);
-   }
-
-   protected SoundEvent getDashSound() {
-      return SoundEvents.ENTITY_CAMEL_DASH;
-   }
-
-   protected SoundEvent getDashReadySound() {
-      return SoundEvents.ENTITY_CAMEL_DASH_READY;
-   }
-
-   @Override
-   public void stopJumping() {
-   }
-
-   @Override
-   public int getJumpCooldown() {
-      return this.dashCooldown;
-   }
-
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_CAMEL_AMBIENT;
-   }
-
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_CAMEL_DEATH;
-   }
-
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_CAMEL_HURT;
-   }
-
-   @Override
-   protected void playStepSound(BlockPos pos, BlockState state) {
-      if (state.isIn(BlockTags.CAMEL_SAND_STEP_SOUND_BLOCKS)) {
-         this.playSound(SoundEvents.ENTITY_CAMEL_STEP_SAND, 1.0F, 1.0F);
-      } else {
-         this.playSound(SoundEvents.ENTITY_CAMEL_STEP, 1.0F, 1.0F);
-      }
-   }
-
-   @Override
-   public boolean isBreedingItem(ItemStack stack) {
-      return stack.isIn(ItemTags.CAMEL_FOOD);
-   }
-
-   @Override
-   public ActionResult interactMob(PlayerEntity player, Hand hand) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if (player.shouldCancelInteraction() && !this.isBaby()) {
-         this.openInventory(player);
-         return ActionResult.SUCCESS;
-      } else {
-         ActionResult actionResult = itemStack.useOnEntity(player, this, hand);
-         if (actionResult.isAccepted()) {
-            return actionResult;
-         } else if (this.isBreedingItem(itemStack)) {
-            return this.interactHorse(player, itemStack);
-         } else {
-            if (this.getPassengerList().size() < 2 && !this.isBaby()) {
-               this.putPlayerOnBack(player);
-            }
-
-            return ActionResult.CONSUME;
-         }
-      }
-   }
-
-   @Override
-   public void onLongLeashTick() {
-      super.onLongLeashTick();
-      if (this.isSitting() && !this.isChangingPose() && this.canChangePose()) {
-         this.startStanding();
-      }
-   }
-
-   @Override
-   public Vec3d[] getQuadLeashOffsets() {
-      return Leashable.createQuadLeashOffsets(this, 0.02, 0.48, 0.25, 0.82);
-   }
-
-   public boolean canChangePose() {
-      return this.wouldNotSuffocateInPose(this.isSitting() ? EntityPose.STANDING : EntityPose.SITTING);
-   }
-
-   @Override
-   protected boolean receiveFood(PlayerEntity player, ItemStack item) {
-      if (!this.isBreedingItem(item)) {
-         return false;
-      } else {
-         boolean bl = this.getHealth() < this.getMaxHealth();
-         if (bl) {
-            this.heal(2.0F);
-         }
-
-         boolean bl2 = this.isTame() && this.getBreedingAge() == 0 && this.canEat();
-         if (bl2) {
-            this.lovePlayer(player);
-         }
-
-         boolean bl3 = this.isBaby();
-         if (bl3) {
-            this.getEntityWorld()
-               .addParticleClient(ParticleTypes.HAPPY_VILLAGER, this.getParticleX(1.0), this.getRandomBodyY() + 0.5, this.getParticleZ(1.0), 0.0, 0.0, 0.0);
-            if (!this.getEntityWorld().isClient()) {
-               this.growUp(10);
-            }
-         }
-
-         if (!bl && !bl2 && !bl3) {
-            return false;
-         } else {
-            if (!this.isSilent()) {
-               SoundEvent soundEvent = this.getEatSound();
-               if (soundEvent != null) {
-                  this.getEntityWorld()
-                     .playSound(
-                        null,
-                        this.getX(),
-                        this.getY(),
-                        this.getZ(),
-                        soundEvent,
-                        this.getSoundCategory(),
-                        1.0F,
-                        1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.2F
-                     );
-               }
-            }
-
-            this.emitGameEvent(GameEvent.EAT);
-            return true;
-         }
-      }
-   }
-
-   @Override
-   protected boolean shouldAmbientStand() {
-      return false;
-   }
-
-   @Override
-   public boolean canBreedWith(AnimalEntity other) {
-      return other != this && other instanceof CamelEntity camelEntity && this.canBreed() && camelEntity.canBreed();
-   }
-
-   public @Nullable CamelEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-      return EntityType.CAMEL.create(serverWorld, SpawnReason.BREEDING);
-   }
-
-   @Override
-   protected SoundEvent getEatSound() {
-      return SoundEvents.ENTITY_CAMEL_EAT;
-   }
-
-   @Override
-   protected void applyDamage(ServerWorld world, DamageSource source, float amount) {
-      this.setStanding();
-      super.applyDamage(world, source, amount);
-   }
-
-   @Override
-   protected Vec3d getPassengerAttachmentPos(Entity passenger, EntityDimensions dimensions, float scaleFactor) {
-      int i = Math.max(this.getPassengerList().indexOf(passenger), 0);
-      boolean bl = i == 0;
-      float f = 0.5F;
-      float g = (float)(this.isRemoved() ? 0.01F : this.getPassengerAttachmentY(bl, 0.0F, dimensions, scaleFactor));
-      if (this.getPassengerList().size() > 1) {
-         if (!bl) {
-            f = -0.7F;
-         }
-
-         if (passenger instanceof AnimalEntity) {
-            f += 0.2F;
-         }
-      }
-
-      return new Vec3d(0.0, g, f * scaleFactor).rotateY(-this.getYaw() * (float) (Math.PI / 180.0));
-   }
-
-   @Override
-   public float getScaleFactor() {
-      return this.isBaby() ? 0.45F : 1.0F;
-   }
-
-   private double getPassengerAttachmentY(boolean primaryPassenger, float tickProgress, EntityDimensions dimensions, float scaleFactor) {
-      double d = dimensions.height() - 0.375F * scaleFactor;
-      float f = scaleFactor * 1.43F;
-      float g = f - scaleFactor * 0.2F;
-      float h = f - g;
-      boolean bl = this.isChangingPose();
-      boolean bl2 = this.isSitting();
-      if (bl) {
-         int i = bl2 ? 40 : 52;
-         int j;
-         float k;
-         if (bl2) {
-            j = 28;
-            k = primaryPassenger ? 0.5F : 0.1F;
-         } else {
-            j = primaryPassenger ? 24 : 32;
-            k = primaryPassenger ? 0.6F : 0.35F;
-         }
-
-         float l = MathHelper.clamp((float)this.getTimeSinceLastPoseTick() + tickProgress, 0.0F, (float)i);
-         boolean bl3 = l < j;
-         float m = bl3 ? l / j : (l - j) / (i - j);
-         float n = f - k * g;
-         d += bl2 ? MathHelper.lerp(m, bl3 ? f : n, bl3 ? n : h) : MathHelper.lerp(m, bl3 ? h - f : h - n, bl3 ? h - n : 0.0F);
-      }
-
-      if (bl2 && !bl) {
-         d += h;
-      }
-
-      return d;
-   }
-
-   @Override
-   public Vec3d getLeashOffset(float tickProgress) {
-      EntityDimensions entityDimensions = this.getDimensions(this.getPose());
-      float f = this.getScaleFactor();
-      return new Vec3d(0.0, this.getPassengerAttachmentY(true, tickProgress, entityDimensions, f) - 0.2F * f, entityDimensions.width() * 0.56F);
-   }
-
-   @Override
-   public int getMaxHeadRotation() {
-      return 30;
-   }
-
-   @Override
-   protected boolean canAddPassenger(Entity passenger) {
-      return this.getPassengerList().size() <= 2;
-   }
-
-   public boolean isSitting() {
-      return this.dataTracker.get(LAST_POSE_TICK) < 0L;
-   }
-
-   public boolean shouldUpdateSittingAnimations() {
-      return this.getTimeSinceLastPoseTick() < 0L != this.isSitting();
-   }
-
-   public boolean isChangingPose() {
-      long l = this.getTimeSinceLastPoseTick();
-      return l < (this.isSitting() ? 40 : 52);
-   }
-
-   private boolean shouldPlaySittingTransitionAnimation() {
-      return this.isSitting() && this.getTimeSinceLastPoseTick() < 40L && this.getTimeSinceLastPoseTick() >= 0L;
-   }
-
-   public void startSitting() {
-      if (!this.isSitting()) {
-         this.playSound(this.getSitSound());
-         this.setPose(EntityPose.SITTING);
-         this.emitGameEvent(GameEvent.ENTITY_ACTION);
-         this.setLastPoseTick(-this.getEntityWorld().getTime());
-      }
-   }
-
-   public void startStanding() {
-      if (this.isSitting()) {
-         this.playSound(this.getStandSound());
-         this.setPose(EntityPose.STANDING);
-         this.emitGameEvent(GameEvent.ENTITY_ACTION);
-         this.setLastPoseTick(this.getEntityWorld().getTime());
-      }
-   }
-
-   protected SoundEvent getStandSound() {
-      return SoundEvents.ENTITY_CAMEL_STAND;
-   }
-
-   protected SoundEvent getSitSound() {
-      return SoundEvents.ENTITY_CAMEL_SIT;
-   }
-
-   public void setStanding() {
-      this.setPose(EntityPose.STANDING);
-      this.emitGameEvent(GameEvent.ENTITY_ACTION);
-      this.initLastPoseTick(this.getEntityWorld().getTime());
-   }
-
-   @VisibleForTesting
-   public void setLastPoseTick(long lastPoseTick) {
-      this.dataTracker.set(LAST_POSE_TICK, lastPoseTick);
-   }
-
-   private void initLastPoseTick(long time) {
-      this.setLastPoseTick(Math.max(0L, time - 52L - 1L));
-   }
-
-   public long getTimeSinceLastPoseTick() {
-      return this.getEntityWorld().getTime() - Math.abs(this.dataTracker.get(LAST_POSE_TICK));
-   }
-
-   @Override
-   protected RegistryEntry<SoundEvent> getEquipSound(EquipmentSlot slot, ItemStack stack, EquippableComponent equippableComponent) {
-      return (RegistryEntry<SoundEvent>)(slot == EquipmentSlot.SADDLE ? this.getSaddleSound() : super.getEquipSound(slot, stack, equippableComponent));
-   }
-
-   protected RegistryEntry.Reference<SoundEvent> getSaddleSound() {
-      return SoundEvents.ENTITY_CAMEL_SADDLE;
-   }
-
-   @Override
-   public void onTrackedDataSet(TrackedData<?> data) {
-      if (!this.firstUpdate && DASHING.equals(data)) {
-         this.dashCooldown = this.dashCooldown == 0 ? 55 : this.dashCooldown;
-      }
-
-      super.onTrackedDataSet(data);
-   }
-
-   @Override
-   public boolean isTame() {
-      return true;
-   }
-
-   @Override
-   public void openInventory(PlayerEntity player) {
-      if (!this.getEntityWorld().isClient()) {
-         player.openHorseInventory(this, this.items);
-      }
-   }
-
-   @Override
-   protected BodyControl createBodyControl() {
-      return new CamelEntity.CamelBodyControl(this);
-   }
-
-   class CamelBodyControl extends BodyControl {
-      public CamelBodyControl(final CamelEntity camel) {
-         super(camel);
-      }
-
-      @Override
-      public void tick() {
-         if (!CamelEntity.this.isStationary()) {
-            super.tick();
-         }
-      }
-   }
-
-   class CamelLookControl extends LookControl {
-      CamelLookControl() {
-         super(CamelEntity.this);
-      }
-
-      @Override
-      public void tick() {
-         if (!CamelEntity.this.hasControllingPassenger()) {
-            super.tick();
-         }
-      }
-   }
-
-   class CamelMoveControl extends MoveControl {
-      public CamelMoveControl() {
-         super(CamelEntity.this);
-      }
-
-      @Override
-      public void tick() {
-         if (this.state == MoveControl.State.MOVE_TO
-            && !CamelEntity.this.isLeashed()
-            && CamelEntity.this.isSitting()
-            && !CamelEntity.this.isChangingPose()
-            && CamelEntity.this.canChangePose()) {
-            CamelEntity.this.startStanding();
-         }
-
-         super.tick();
-      }
-   }
+
+	public static final float BABY_SCALE = 0.45F;
+	public static final int DASH_COOLDOWN_TICKS = 55;
+	public static final int MAX_HEAD_ROTATION = 30;
+	private static final float SPRINT_SPEED_BONUS = 0.1F;
+	private static final float DASH_VERTICAL_SPEED_FACTOR = 1.4285F;
+	private static final float DASH_HORIZONTAL_SPEED_FACTOR = 22.2222F;
+	private static final int IDLE_ANIMATION_COOLDOWN_RANDOM_RANGE = 5;
+	private static final int SITTING_POSE_CHANGE_TICKS = 40;
+	private static final int STANDING_POSE_CHANGE_TICKS = 52;
+	private static final int IDLE_ANIMATION_COOLDOWN_MIN = 80;
+	private static final float SITTING_HEIGHT_REDUCTION = 1.43F;
+	private static final long DEFAULT_LAST_POSE_TICK = 0L;
+	public static final TrackedData<Boolean>
+			DASHING =
+			DataTracker.registerData(CamelEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	public static final TrackedData<Long>
+			LAST_POSE_TICK =
+			DataTracker.registerData(CamelEntity.class, TrackedDataHandlerRegistry.LONG);
+	public final AnimationState sittingTransitionAnimationState = new AnimationState();
+	public final AnimationState sittingAnimationState = new AnimationState();
+	public final AnimationState standingTransitionAnimationState = new AnimationState();
+	public final AnimationState idlingAnimationState = new AnimationState();
+	public final AnimationState dashingAnimationState = new AnimationState();
+	private static final EntityDimensions
+			SITTING_DIMENSIONS =
+			EntityDimensions.changing(EntityType.CAMEL.getWidth(), EntityType.CAMEL.getHeight() - 1.43F)
+			                .withEyeHeight(0.845F);
+	private int dashCooldown = 0;
+	private int idleAnimationCooldown = 0;
+
+	public CamelEntity(EntityType<? extends CamelEntity> entityType, World world) {
+		super(entityType, world);
+		this.moveControl = new CamelEntity.CamelMoveControl();
+		this.lookControl = new CamelEntity.CamelLookControl();
+		MobNavigation mobNavigation = (MobNavigation) this.getNavigation();
+		mobNavigation.setCanSwim(true);
+		mobNavigation.setCanWalkOverFences(true);
+	}
+
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putLong("LastPoseTick", this.dataTracker.get(LAST_POSE_TICK));
+	}
+
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		long l = view.getLong("LastPoseTick", 0L);
+		if (l < 0L) {
+			this.setPose(EntityPose.SITTING);
+		}
+
+		this.setLastPoseTick(l);
+	}
+
+	public static DefaultAttributeContainer.Builder createCamelAttributes() {
+		return createBaseHorseAttributes()
+				.add(EntityAttributes.MAX_HEALTH, 32.0)
+				.add(EntityAttributes.MOVEMENT_SPEED, 0.09F)
+				.add(EntityAttributes.JUMP_STRENGTH, 0.42F)
+				.add(EntityAttributes.STEP_HEIGHT, 1.5);
+	}
+
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(DASHING, false);
+		builder.add(LAST_POSE_TICK, 0L);
+	}
+
+	@Override
+	public EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		CamelBrain.initialize(this, world.getRandom());
+		this.initLastPoseTick(world.toServerWorld().getTime());
+		return super.initialize(world, difficulty, spawnReason, entityData);
+	}
+
+	public static boolean canSpawn(
+			EntityType<CamelEntity> type,
+			WorldAccess world,
+			SpawnReason reason,
+			BlockPos pos,
+			Random random
+	) {
+		return world.getBlockState(pos.down()).isIn(BlockTags.CAMELS_SPAWNABLE_ON) && isLightLevelValidForNaturalSpawn(
+				world,
+				pos
+		);
+	}
+
+	@Override
+	protected Brain.Profile<CamelEntity> createBrainProfile() {
+		return CamelBrain.createBrainProfile();
+	}
+
+	@Override
+	protected void initGoals() {
+	}
+
+	@Override
+	protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
+		return CamelBrain.create(this.createBrainProfile().deserialize(dynamic));
+	}
+
+	@Override
+	public EntityDimensions getBaseDimensions(EntityPose pose) {
+		return pose == EntityPose.SITTING ? SITTING_DIMENSIONS.scaled(this.getScaleFactor())
+		                                  : super.getBaseDimensions(pose);
+	}
+
+	@Override
+	protected void mobTick(ServerWorld world) {
+		Profiler profiler = Profilers.get();
+		profiler.push("camelBrain");
+		Brain<?> brain = this.getBrain();
+		((Brain<CamelEntity>) brain).tick(world, this);
+		profiler.pop();
+		profiler.push("camelActivityUpdate");
+		CamelBrain.updateActivities(this);
+		profiler.pop();
+		super.mobTick(world);
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.isDashing() && this.dashCooldown < 50 && (this.isOnGround() || this.isInFluid() || this.hasVehicle()
+		)) {
+			this.setDashing(false);
+		}
+
+		if (this.dashCooldown > 0) {
+			this.dashCooldown--;
+			if (this.dashCooldown == 0) {
+				this
+						.getEntityWorld()
+						.playSound(
+								null,
+								this.getBlockPos(),
+								this.getDashReadySound(),
+								SoundCategory.NEUTRAL,
+								1.0F,
+								1.0F
+						);
+			}
+		}
+
+		if (this.getEntityWorld().isClient()) {
+			this.updateAnimations();
+		}
+
+		if (this.isStationary()) {
+			this.clampHeadYaw();
+		}
+
+		if (this.isSitting() && this.isTouchingWater()) {
+			this.setStanding();
+		}
+	}
+
+	private void updateAnimations() {
+		if (this.idleAnimationCooldown <= 0) {
+			this.idleAnimationCooldown = this.random.nextInt(40) + 80;
+			this.idlingAnimationState.start(this.age);
+		}
+		else {
+			this.idleAnimationCooldown--;
+		}
+
+		if (this.shouldUpdateSittingAnimations()) {
+			this.standingTransitionAnimationState.stop();
+			this.dashingAnimationState.stop();
+			if (this.shouldPlaySittingTransitionAnimation()) {
+				this.sittingTransitionAnimationState.startIfNotRunning(this.age);
+				this.sittingAnimationState.stop();
+			}
+			else {
+				this.sittingTransitionAnimationState.stop();
+				this.sittingAnimationState.startIfNotRunning(this.age);
+			}
+		}
+		else {
+			this.sittingTransitionAnimationState.stop();
+			this.sittingAnimationState.stop();
+			this.dashingAnimationState.setRunning(this.isDashing(), this.age);
+			this.standingTransitionAnimationState.setRunning(
+					this.isChangingPose() && this.getTimeSinceLastPoseTick() >= 0L,
+					this.age
+			);
+		}
+	}
+
+	@Override
+	protected void updateLimbs(float posDelta) {
+		float f;
+		if (this.getPose() == EntityPose.STANDING && !this.dashingAnimationState.isRunning()) {
+			f = Math.min(posDelta * 6.0F, 1.0F);
+		}
+		else {
+			f = 0.0F;
+		}
+
+		this.limbAnimator.updateLimbs(f, 0.2F, this.isBaby() ? 3.0F : 1.0F);
+	}
+
+	@Override
+	public void travel(Vec3d movementInput) {
+		if (this.isStationary() && this.isOnGround()) {
+			this.setVelocity(this.getVelocity().multiply(0.0, 1.0, 0.0));
+			movementInput = movementInput.multiply(0.0, 1.0, 0.0);
+		}
+
+		super.travel(movementInput);
+	}
+
+	@Override
+	protected void tickControlled(PlayerEntity controllingPlayer, Vec3d movementInput) {
+		super.tickControlled(controllingPlayer, movementInput);
+		if (controllingPlayer.forwardSpeed > 0.0F && this.isSitting() && !this.isChangingPose()) {
+			this.startStanding();
+		}
+	}
+
+	public boolean isStationary() {
+		return this.isSitting() || this.isChangingPose();
+	}
+
+	@Override
+	protected float getSaddledSpeed(PlayerEntity controllingPlayer) {
+		float f = controllingPlayer.isSprinting() && this.getJumpCooldown() == 0 ? 0.1F : 0.0F;
+		return (float) this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED) + f;
+	}
+
+	@Override
+	protected Vec2f getControlledRotation(LivingEntity controllingPassenger) {
+		return this.isStationary() ? new Vec2f(this.getPitch(), this.getYaw())
+		                           : super.getControlledRotation(controllingPassenger);
+	}
+
+	@Override
+	protected Vec3d getControlledMovementInput(PlayerEntity controllingPlayer, Vec3d movementInput) {
+		return this.isStationary() ? Vec3d.ZERO : super.getControlledMovementInput(controllingPlayer, movementInput);
+	}
+
+	@Override
+	public boolean canJump() {
+		return !this.isStationary() && super.canJump();
+	}
+
+	@Override
+	public void setJumpStrength(int strength) {
+		if (this.hasSaddleEquipped() && this.dashCooldown <= 0 && this.isOnGround()) {
+			super.setJumpStrength(strength);
+		}
+	}
+
+	@Override
+	public boolean canSprintAsVehicle() {
+		return true;
+	}
+
+	@Override
+	protected void jump(float strength, Vec3d movementInput) {
+		double d = this.getJumpVelocity();
+		this.addVelocityInternal(
+				this.getRotationVector()
+				    .multiply(1.0, 0.0, 1.0)
+				    .normalize()
+				    .multiply(22.2222F * strength * this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)
+						    * this.getVelocityMultiplier())
+				    .add(0.0, 1.4285F * strength * d, 0.0)
+		);
+		this.dashCooldown = 55;
+		this.setDashing(true);
+		this.velocityDirty = true;
+	}
+
+	public boolean isDashing() {
+		return this.dataTracker.get(DASHING);
+	}
+
+	public void setDashing(boolean dashing) {
+		this.dataTracker.set(DASHING, dashing);
+	}
+
+	@Override
+	public void startJumping(int height) {
+		this.playSound(this.getDashSound());
+		this.emitGameEvent(GameEvent.ENTITY_ACTION);
+		this.setDashing(true);
+	}
+
+	protected SoundEvent getDashSound() {
+		return SoundEvents.ENTITY_CAMEL_DASH;
+	}
+
+	protected SoundEvent getDashReadySound() {
+		return SoundEvents.ENTITY_CAMEL_DASH_READY;
+	}
+
+	@Override
+	public void stopJumping() {
+	}
+
+	@Override
+	public int getJumpCooldown() {
+		return this.dashCooldown;
+	}
+
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_CAMEL_AMBIENT;
+	}
+
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_CAMEL_DEATH;
+	}
+
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_CAMEL_HURT;
+	}
+
+	@Override
+	protected void playStepSound(BlockPos pos, BlockState state) {
+		if (state.isIn(BlockTags.CAMEL_SAND_STEP_SOUND_BLOCKS)) {
+			this.playSound(SoundEvents.ENTITY_CAMEL_STEP_SAND, 1.0F, 1.0F);
+		}
+		else {
+			this.playSound(SoundEvents.ENTITY_CAMEL_STEP, 1.0F, 1.0F);
+		}
+	}
+
+	@Override
+	public boolean isBreedingItem(ItemStack stack) {
+		return stack.isIn(ItemTags.CAMEL_FOOD);
+	}
+
+	@Override
+	public ActionResult interactMob(PlayerEntity player, Hand hand) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if (player.shouldCancelInteraction() && !this.isBaby()) {
+			this.openInventory(player);
+			return ActionResult.SUCCESS;
+		}
+		else {
+			ActionResult actionResult = itemStack.useOnEntity(player, this, hand);
+			if (actionResult.isAccepted()) {
+				return actionResult;
+			}
+			else if (this.isBreedingItem(itemStack)) {
+				return this.interactHorse(player, itemStack);
+			}
+			else {
+				if (this.getPassengerList().size() < 2 && !this.isBaby()) {
+					this.putPlayerOnBack(player);
+				}
+
+				return ActionResult.CONSUME;
+			}
+		}
+	}
+
+	@Override
+	public void onLongLeashTick() {
+		super.onLongLeashTick();
+		if (this.isSitting() && !this.isChangingPose() && this.canChangePose()) {
+			this.startStanding();
+		}
+	}
+
+	@Override
+	public Vec3d[] getQuadLeashOffsets() {
+		return Leashable.createQuadLeashOffsets(this, 0.02, 0.48, 0.25, 0.82);
+	}
+
+	public boolean canChangePose() {
+		return this.wouldNotSuffocateInPose(this.isSitting() ? EntityPose.STANDING : EntityPose.SITTING);
+	}
+
+	@Override
+	protected boolean receiveFood(PlayerEntity player, ItemStack item) {
+		if (!this.isBreedingItem(item)) {
+			return false;
+		}
+		else {
+			boolean bl = this.getHealth() < this.getMaxHealth();
+			if (bl) {
+				this.heal(2.0F);
+			}
+
+			boolean bl2 = this.isTame() && this.getBreedingAge() == 0 && this.canEat();
+			if (bl2) {
+				this.lovePlayer(player);
+			}
+
+			boolean bl3 = this.isBaby();
+			if (bl3) {
+				this.getEntityWorld()
+				    .addParticleClient(
+						    ParticleTypes.HAPPY_VILLAGER,
+						    this.getParticleX(1.0),
+						    this.getRandomBodyY() + 0.5,
+						    this.getParticleZ(1.0),
+						    0.0,
+						    0.0,
+						    0.0
+				    );
+				if (!this.getEntityWorld().isClient()) {
+					this.growUp(10);
+				}
+			}
+
+			if (!bl && !bl2 && !bl3) {
+				return false;
+			}
+			else {
+				if (!this.isSilent()) {
+					SoundEvent soundEvent = this.getEatSound();
+					if (soundEvent != null) {
+						this.getEntityWorld()
+						    .playSound(
+								    null,
+								    this.getX(),
+								    this.getY(),
+								    this.getZ(),
+								    soundEvent,
+								    this.getSoundCategory(),
+								    1.0F,
+								    1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.2F
+						    );
+					}
+				}
+
+				this.emitGameEvent(GameEvent.EAT);
+				return true;
+			}
+		}
+	}
+
+	@Override
+	protected boolean shouldAmbientStand() {
+		return false;
+	}
+
+	@Override
+	public boolean canBreedWith(AnimalEntity other) {
+		return other != this && other instanceof CamelEntity camelEntity && this.canBreed() && camelEntity.canBreed();
+	}
+
+	public @Nullable CamelEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
+		return EntityType.CAMEL.create(serverWorld, SpawnReason.BREEDING);
+	}
+
+	@Override
+	protected SoundEvent getEatSound() {
+		return SoundEvents.ENTITY_CAMEL_EAT;
+	}
+
+	@Override
+	protected void applyDamage(ServerWorld world, DamageSource source, float amount) {
+		this.setStanding();
+		super.applyDamage(world, source, amount);
+	}
+
+	@Override
+	protected Vec3d getPassengerAttachmentPos(Entity passenger, EntityDimensions dimensions, float scaleFactor) {
+		int i = Math.max(this.getPassengerList().indexOf(passenger), 0);
+		boolean bl = i == 0;
+		float f = 0.5F;
+		float g = (float) (this.isRemoved() ? 0.01F : this.getPassengerAttachmentY(bl, 0.0F, dimensions, scaleFactor));
+		if (this.getPassengerList().size() > 1) {
+			if (!bl) {
+				f = -0.7F;
+			}
+
+			if (passenger instanceof AnimalEntity) {
+				f += 0.2F;
+			}
+		}
+
+		return new Vec3d(0.0, g, f * scaleFactor).rotateY(-this.getYaw() * (float) (Math.PI / 180.0));
+	}
+
+	@Override
+	public float getScaleFactor() {
+		return this.isBaby() ? 0.45F : 1.0F;
+	}
+
+	private double getPassengerAttachmentY(
+			boolean primaryPassenger,
+			float tickProgress,
+			EntityDimensions dimensions,
+			float scaleFactor
+	) {
+		double d = dimensions.height() - 0.375F * scaleFactor;
+		float f = scaleFactor * 1.43F;
+		float g = f - scaleFactor * 0.2F;
+		float h = f - g;
+		boolean bl = this.isChangingPose();
+		boolean bl2 = this.isSitting();
+		if (bl) {
+			int i = bl2 ? 40 : 52;
+			int j;
+			float k;
+			if (bl2) {
+				j = 28;
+				k = primaryPassenger ? 0.5F : 0.1F;
+			}
+			else {
+				j = primaryPassenger ? 24 : 32;
+				k = primaryPassenger ? 0.6F : 0.35F;
+			}
+
+			float l = MathHelper.clamp((float) this.getTimeSinceLastPoseTick() + tickProgress, 0.0F, (float) i);
+			boolean bl3 = l < j;
+			float m = bl3 ? l / j : (l - j) / (i - j);
+			float n = f - k * g;
+			d +=
+					bl2 ? MathHelper.lerp(m, bl3 ? f : n, bl3 ? n : h)
+					    : MathHelper.lerp(m, bl3 ? h - f : h - n, bl3 ? h - n : 0.0F);
+		}
+
+		if (bl2 && !bl) {
+			d += h;
+		}
+
+		return d;
+	}
+
+	@Override
+	public Vec3d getLeashOffset(float tickProgress) {
+		EntityDimensions entityDimensions = this.getDimensions(this.getPose());
+		float f = this.getScaleFactor();
+		return new Vec3d(
+				0.0,
+				this.getPassengerAttachmentY(true, tickProgress, entityDimensions, f) - 0.2F * f,
+				entityDimensions.width() * 0.56F
+		);
+	}
+
+	@Override
+	public int getMaxHeadRotation() {
+		return 30;
+	}
+
+	@Override
+	protected boolean canAddPassenger(Entity passenger) {
+		return this.getPassengerList().size() <= 2;
+	}
+
+	public boolean isSitting() {
+		return this.dataTracker.get(LAST_POSE_TICK) < 0L;
+	}
+
+	public boolean shouldUpdateSittingAnimations() {
+		return this.getTimeSinceLastPoseTick() < 0L != this.isSitting();
+	}
+
+	public boolean isChangingPose() {
+		long l = this.getTimeSinceLastPoseTick();
+		return l < (this.isSitting() ? 40 : 52);
+	}
+
+	private boolean shouldPlaySittingTransitionAnimation() {
+		return this.isSitting() && this.getTimeSinceLastPoseTick() < 40L && this.getTimeSinceLastPoseTick() >= 0L;
+	}
+
+	public void startSitting() {
+		if (!this.isSitting()) {
+			this.playSound(this.getSitSound());
+			this.setPose(EntityPose.SITTING);
+			this.emitGameEvent(GameEvent.ENTITY_ACTION);
+			this.setLastPoseTick(-this.getEntityWorld().getTime());
+		}
+	}
+
+	public void startStanding() {
+		if (this.isSitting()) {
+			this.playSound(this.getStandSound());
+			this.setPose(EntityPose.STANDING);
+			this.emitGameEvent(GameEvent.ENTITY_ACTION);
+			this.setLastPoseTick(this.getEntityWorld().getTime());
+		}
+	}
+
+	protected SoundEvent getStandSound() {
+		return SoundEvents.ENTITY_CAMEL_STAND;
+	}
+
+	protected SoundEvent getSitSound() {
+		return SoundEvents.ENTITY_CAMEL_SIT;
+	}
+
+	public void setStanding() {
+		this.setPose(EntityPose.STANDING);
+		this.emitGameEvent(GameEvent.ENTITY_ACTION);
+		this.initLastPoseTick(this.getEntityWorld().getTime());
+	}
+
+	@VisibleForTesting
+	public void setLastPoseTick(long lastPoseTick) {
+		this.dataTracker.set(LAST_POSE_TICK, lastPoseTick);
+	}
+
+	private void initLastPoseTick(long time) {
+		this.setLastPoseTick(Math.max(0L, time - 52L - 1L));
+	}
+
+	public long getTimeSinceLastPoseTick() {
+		return this.getEntityWorld().getTime() - Math.abs(this.dataTracker.get(LAST_POSE_TICK));
+	}
+
+	@Override
+	protected RegistryEntry<SoundEvent> getEquipSound(
+			EquipmentSlot slot,
+			ItemStack stack,
+			EquippableComponent equippableComponent
+	) {
+		return (RegistryEntry<SoundEvent>) (slot == EquipmentSlot.SADDLE ? this.getSaddleSound() : super.getEquipSound(
+				slot,
+				stack,
+				equippableComponent
+		)
+		);
+	}
+
+	protected RegistryEntry.Reference<SoundEvent> getSaddleSound() {
+		return SoundEvents.ENTITY_CAMEL_SADDLE;
+	}
+
+	@Override
+	public void onTrackedDataSet(TrackedData<?> data) {
+		if (!this.firstUpdate && DASHING.equals(data)) {
+			this.dashCooldown = this.dashCooldown == 0 ? 55 : this.dashCooldown;
+		}
+
+		super.onTrackedDataSet(data);
+	}
+
+	@Override
+	public boolean isTame() {
+		return true;
+	}
+
+	@Override
+	public void openInventory(PlayerEntity player) {
+		if (!this.getEntityWorld().isClient()) {
+			player.openHorseInventory(this, this.items);
+		}
+	}
+
+	@Override
+	protected BodyControl createBodyControl() {
+		return new CamelEntity.CamelBodyControl(this);
+	}
+
+	/**
+	 * {@code CamelBodyControl}.
+	 */
+	class CamelBodyControl extends BodyControl {
+
+		public CamelBodyControl(final CamelEntity camel) {
+			super(camel);
+		}
+
+		@Override
+		public void tick() {
+			if (!CamelEntity.this.isStationary()) {
+				super.tick();
+			}
+		}
+	}
+
+	/**
+	 * {@code CamelLookControl}.
+	 */
+	class CamelLookControl extends LookControl {
+
+		CamelLookControl() {
+			super(CamelEntity.this);
+		}
+
+		@Override
+		public void tick() {
+			if (!CamelEntity.this.hasControllingPassenger()) {
+				super.tick();
+			}
+		}
+	}
+
+	/**
+	 * {@code CamelMoveControl}.
+	 */
+	class CamelMoveControl extends MoveControl {
+
+		public CamelMoveControl() {
+			super(CamelEntity.this);
+		}
+
+		@Override
+		public void tick() {
+			if (this.state == MoveControl.State.MOVE_TO
+					&& !CamelEntity.this.isLeashed()
+					&& CamelEntity.this.isSitting()
+					&& !CamelEntity.this.isChangingPose()
+					&& CamelEntity.this.canChangePose()) {
+				CamelEntity.this.startStanding();
+			}
+
+			super.tick();
+		}
+	}
 }

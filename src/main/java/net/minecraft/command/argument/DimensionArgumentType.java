@@ -7,10 +7,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import java.util.Collection;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import net.minecraft.command.CommandSource;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -20,40 +16,56 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 
+import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * {@code DimensionArgumentType}.
+ */
 public class DimensionArgumentType implements ArgumentType<Identifier> {
-   private static final Collection<String> EXAMPLES = Stream.of(World.OVERWORLD, World.NETHER)
-      .map(key -> key.getValue().toString())
-      .collect(Collectors.toList());
-   private static final DynamicCommandExceptionType INVALID_DIMENSION_EXCEPTION = new DynamicCommandExceptionType(
-      id -> Text.stringifiedTranslatable("argument.dimension.invalid", id)
-   );
 
-   public Identifier parse(StringReader stringReader) throws CommandSyntaxException {
-      return Identifier.fromCommandInput(stringReader);
-   }
+	private static final Collection<String> EXAMPLES = Stream.of(World.OVERWORLD, World.NETHER)
+	                                                         .map(key -> key.getValue().toString())
+	                                                         .collect(Collectors.toList());
+	private static final DynamicCommandExceptionType INVALID_DIMENSION_EXCEPTION = new DynamicCommandExceptionType(
+			id -> Text.stringifiedTranslatable("argument.dimension.invalid", id)
+	);
 
-   public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-      return context.getSource() instanceof CommandSource
-         ? CommandSource.suggestIdentifiers(((CommandSource)context.getSource()).getWorldKeys().stream().map(RegistryKey::getValue), builder)
-         : Suggestions.empty();
-   }
+	public Identifier parse(StringReader stringReader) throws CommandSyntaxException {
+		return Identifier.fromCommandInput(stringReader);
+	}
 
-   public Collection<String> getExamples() {
-      return EXAMPLES;
-   }
+	public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
+		return context.getSource() instanceof CommandSource
+		       ? CommandSource.suggestIdentifiers(
+				((CommandSource) context.getSource())
+				.getWorldKeys()
+				.stream()
+				.map(RegistryKey::getValue), builder
+		)
+		       : Suggestions.empty();
+	}
 
-   public static DimensionArgumentType dimension() {
-      return new DimensionArgumentType();
-   }
+	public Collection<String> getExamples() {
+		return EXAMPLES;
+	}
 
-   public static ServerWorld getDimensionArgument(CommandContext<ServerCommandSource> context, String name) throws CommandSyntaxException {
-      Identifier identifier = (Identifier)context.getArgument(name, Identifier.class);
-      RegistryKey<World> registryKey = RegistryKey.of(RegistryKeys.WORLD, identifier);
-      ServerWorld serverWorld = ((ServerCommandSource)context.getSource()).getServer().getWorld(registryKey);
-      if (serverWorld == null) {
-         throw INVALID_DIMENSION_EXCEPTION.create(identifier);
-      } else {
-         return serverWorld;
-      }
-   }
+	public static DimensionArgumentType dimension() {
+		return new DimensionArgumentType();
+	}
+
+	public static ServerWorld getDimensionArgument(CommandContext<ServerCommandSource> context, String name)
+	throws CommandSyntaxException {
+		Identifier identifier = (Identifier) context.getArgument(name, Identifier.class);
+		RegistryKey<World> registryKey = RegistryKey.of(RegistryKeys.WORLD, identifier);
+		ServerWorld serverWorld = ((ServerCommandSource) context.getSource()).getServer().getWorld(registryKey);
+		if (serverWorld == null) {
+			throw INVALID_DIMENSION_EXCEPTION.create(identifier);
+		}
+		else {
+			return serverWorld;
+		}
+	}
 }

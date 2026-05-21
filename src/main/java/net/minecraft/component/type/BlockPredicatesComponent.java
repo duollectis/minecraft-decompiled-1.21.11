@@ -2,9 +2,6 @@ package net.minecraft.component.type;
 
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Consumer;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.pattern.CachedBlockPosition;
 import net.minecraft.nbt.NbtCompound;
@@ -21,116 +18,147 @@ import net.minecraft.util.dynamic.Codecs;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+/**
+ * {@code BlockPredicatesComponent}.
+ */
 public class BlockPredicatesComponent {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final Codec<BlockPredicatesComponent> CODEC = Codecs.listOrSingle(BlockPredicate.CODEC, Codecs.nonEmptyList(BlockPredicate.CODEC.listOf()))
-      .xmap(BlockPredicatesComponent::new, checker -> checker.predicates);
-   public static final PacketCodec<RegistryByteBuf, BlockPredicatesComponent> PACKET_CODEC = PacketCodec.tuple(
-      BlockPredicate.PACKET_CODEC.collect(PacketCodecs.toList()), blockPredicatesChecker -> blockPredicatesChecker.predicates, BlockPredicatesComponent::new
-   );
-   public static final Text CAN_BREAK_TEXT = Text.translatable("item.canBreak").formatted(Formatting.GRAY);
-   public static final Text CAN_PLACE_TEXT = Text.translatable("item.canPlace").formatted(Formatting.GRAY);
-   private static final Text CAN_USE_UNKNOWN_TEXT = Text.translatable("item.canUse.unknown").formatted(Formatting.GRAY);
-   private final List<BlockPredicate> predicates;
-   private @Nullable List<Text> tooltipText;
-   private @Nullable CachedBlockPosition cachedPos;
-   private boolean lastResult;
-   private boolean nbtAware;
 
-   public BlockPredicatesComponent(List<BlockPredicate> predicates) {
-      this.predicates = predicates;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final Codec<BlockPredicatesComponent>
+			CODEC =
+			Codecs.listOrSingle(BlockPredicate.CODEC, Codecs.nonEmptyList(BlockPredicate.CODEC.listOf()))
+			      .xmap(BlockPredicatesComponent::new, checker -> checker.predicates);
+	public static final PacketCodec<RegistryByteBuf, BlockPredicatesComponent> PACKET_CODEC = PacketCodec.tuple(
+			BlockPredicate.PACKET_CODEC.collect(PacketCodecs.toList()),
+			blockPredicatesChecker -> blockPredicatesChecker.predicates,
+			BlockPredicatesComponent::new
+	);
+	public static final Text CAN_BREAK_TEXT = Text.translatable("item.canBreak").formatted(Formatting.GRAY);
+	public static final Text CAN_PLACE_TEXT = Text.translatable("item.canPlace").formatted(Formatting.GRAY);
+	private static final Text
+			CAN_USE_UNKNOWN_TEXT =
+			Text.translatable("item.canUse.unknown").formatted(Formatting.GRAY);
+	private final List<BlockPredicate> predicates;
+	private @Nullable List<Text> tooltipText;
+	private @Nullable CachedBlockPosition cachedPos;
+	private boolean lastResult;
+	private boolean nbtAware;
 
-   private static boolean canUseCache(CachedBlockPosition pos, @Nullable CachedBlockPosition cachedPos, boolean nbtAware) {
-      if (cachedPos == null || pos.getBlockState() != cachedPos.getBlockState()) {
-         return false;
-      } else if (!nbtAware) {
-         return true;
-      } else if (pos.getBlockEntity() == null && cachedPos.getBlockEntity() == null) {
-         return true;
-      } else if (pos.getBlockEntity() != null && cachedPos.getBlockEntity() != null) {
-         boolean var7;
-         try (ErrorReporter.Logging logging = new ErrorReporter.Logging(LOGGER)) {
-            DynamicRegistryManager dynamicRegistryManager = pos.getWorld().getRegistryManager();
-            NbtCompound nbtCompound = getNbt(pos.getBlockEntity(), dynamicRegistryManager, logging);
-            NbtCompound nbtCompound2 = getNbt(cachedPos.getBlockEntity(), dynamicRegistryManager, logging);
-            var7 = Objects.equals(nbtCompound, nbtCompound2);
-         }
+	public BlockPredicatesComponent(List<BlockPredicate> predicates) {
+		this.predicates = predicates;
+	}
 
-         return var7;
-      } else {
-         return false;
-      }
-   }
+	private static boolean canUseCache(
+			CachedBlockPosition pos,
+			@Nullable CachedBlockPosition cachedPos,
+			boolean nbtAware
+	) {
+		if (cachedPos == null || pos.getBlockState() != cachedPos.getBlockState()) {
+			return false;
+		}
+		else if (!nbtAware) {
+			return true;
+		}
+		else if (pos.getBlockEntity() == null && cachedPos.getBlockEntity() == null) {
+			return true;
+		}
+		else if (pos.getBlockEntity() != null && cachedPos.getBlockEntity() != null) {
+			boolean var7;
+			try (ErrorReporter.Logging logging = new ErrorReporter.Logging(LOGGER)) {
+				DynamicRegistryManager dynamicRegistryManager = pos.getWorld().getRegistryManager();
+				NbtCompound nbtCompound = getNbt(pos.getBlockEntity(), dynamicRegistryManager, logging);
+				NbtCompound nbtCompound2 = getNbt(cachedPos.getBlockEntity(), dynamicRegistryManager, logging);
+				var7 = Objects.equals(nbtCompound, nbtCompound2);
+			}
 
-   private static NbtCompound getNbt(BlockEntity blockEntity, DynamicRegistryManager registries, ErrorReporter errorReporter) {
-      NbtWriteView nbtWriteView = NbtWriteView.create(errorReporter.makeChild(blockEntity.getReporterContext()), registries);
-      blockEntity.writeDataWithId(nbtWriteView);
-      return nbtWriteView.getNbt();
-   }
+			return var7;
+		}
+		else {
+			return false;
+		}
+	}
 
-   public boolean check(CachedBlockPosition cachedPos) {
-      if (canUseCache(cachedPos, this.cachedPos, this.nbtAware)) {
-         return this.lastResult;
-      } else {
-         this.cachedPos = cachedPos;
-         this.nbtAware = false;
+	private static NbtCompound getNbt(
+			BlockEntity blockEntity,
+			DynamicRegistryManager registries,
+			ErrorReporter errorReporter
+	) {
+		NbtWriteView
+				nbtWriteView =
+				NbtWriteView.create(errorReporter.makeChild(blockEntity.getReporterContext()), registries);
+		blockEntity.writeDataWithId(nbtWriteView);
+		return nbtWriteView.getNbt();
+	}
 
-         for (BlockPredicate blockPredicate : this.predicates) {
-            if (blockPredicate.test(cachedPos)) {
-               this.nbtAware = this.nbtAware | blockPredicate.hasNbt();
-               this.lastResult = true;
-               return true;
-            }
-         }
+	public boolean check(CachedBlockPosition cachedPos) {
+		if (canUseCache(cachedPos, this.cachedPos, this.nbtAware)) {
+			return this.lastResult;
+		}
+		else {
+			this.cachedPos = cachedPos;
+			this.nbtAware = false;
 
-         this.lastResult = false;
-         return false;
-      }
-   }
+			for (BlockPredicate blockPredicate : this.predicates) {
+				if (blockPredicate.test(cachedPos)) {
+					this.nbtAware = this.nbtAware | blockPredicate.hasNbt();
+					this.lastResult = true;
+					return true;
+				}
+			}
 
-   private List<Text> getOrCreateTooltipText() {
-      if (this.tooltipText == null) {
-         this.tooltipText = createTooltipText(this.predicates);
-      }
+			this.lastResult = false;
+			return false;
+		}
+	}
 
-      return this.tooltipText;
-   }
+	private List<Text> getOrCreateTooltipText() {
+		if (this.tooltipText == null) {
+			this.tooltipText = createTooltipText(this.predicates);
+		}
 
-   public void addTooltips(Consumer<Text> adder) {
-      this.getOrCreateTooltipText().forEach(adder);
-   }
+		return this.tooltipText;
+	}
 
-   private static List<Text> createTooltipText(List<BlockPredicate> blockPredicates) {
-      for (BlockPredicate blockPredicate : blockPredicates) {
-         if (blockPredicate.blocks().isEmpty()) {
-            return List.of(CAN_USE_UNKNOWN_TEXT);
-         }
-      }
+	public void addTooltips(Consumer<Text> adder) {
+		this.getOrCreateTooltipText().forEach(adder);
+	}
 
-      return blockPredicates.stream()
-         .flatMap(predicate -> predicate.blocks().orElseThrow().stream())
-         .distinct()
-         .map(block -> (Text) block.value().getName().formatted(Formatting.DARK_GRAY))
-         .toList();
-   }
+	private static List<Text> createTooltipText(List<BlockPredicate> blockPredicates) {
+		for (BlockPredicate blockPredicate : blockPredicates) {
+			if (blockPredicate.blocks().isEmpty()) {
+				return List.of(CAN_USE_UNKNOWN_TEXT);
+			}
+		}
 
-   @Override
-   public boolean equals(Object o) {
-      if (this == o) {
-         return true;
-      } else {
-         return o instanceof BlockPredicatesComponent blockPredicatesComponent ? this.predicates.equals(blockPredicatesComponent.predicates) : false;
-      }
-   }
+		return blockPredicates.stream()
+		                      .flatMap(predicate -> predicate.blocks().orElseThrow().stream())
+		                      .distinct()
+		                      .map(block -> (Text) block.value().getName().formatted(Formatting.DARK_GRAY))
+		                      .toList();
+	}
 
-   @Override
-   public int hashCode() {
-      return this.predicates.hashCode();
-   }
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		else {
+			return o instanceof BlockPredicatesComponent blockPredicatesComponent ? this.predicates.equals(
+					blockPredicatesComponent.predicates) : false;
+		}
+	}
 
-   @Override
-   public String toString() {
-      return "AdventureModePredicate{predicates=" + this.predicates + "}";
-   }
+	@Override
+	public int hashCode() {
+		return this.predicates.hashCode();
+	}
+
+	@Override
+	public String toString() {
+		return "AdventureModePredicate{predicates=" + this.predicates + "}";
+	}
 }

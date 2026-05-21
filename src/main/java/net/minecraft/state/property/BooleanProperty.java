@@ -3,38 +3,42 @@ package net.minecraft.state.property;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * {@code BooleanProperty}.
+ */
 public final class BooleanProperty extends Property<Boolean> {
-   private static final List<Boolean> VALUES = List.of(true, false);
-   private static final int TRUE_ORDINAL = 0;
-   private static final int FALSE_ORDINAL = 1;
 
-   private BooleanProperty(String name) {
-      super(name, Boolean.class);
-   }
+	private static final List<Boolean> VALUES = List.of(true, false);
+	private static final int TRUE_ORDINAL = 0;
+	private static final int FALSE_ORDINAL = 1;
 
-   @Override
-   public List<Boolean> getValues() {
-      return VALUES;
-   }
+	private BooleanProperty(String name) {
+		super(name, Boolean.class);
+	}
 
-   public static BooleanProperty of(String name) {
-      return new BooleanProperty(name);
-   }
+	@Override
+	public List<Boolean> getValues() {
+		return VALUES;
+	}
 
-   @Override
-   public Optional<Boolean> parse(String name) {
-      return switch (name) {
-         case "true" -> Optional.of(true);
-         case "false" -> Optional.of(false);
-         default -> Optional.empty();
-      };
-   }
+	public static BooleanProperty of(String name) {
+		return new BooleanProperty(name);
+	}
 
-   public String name(Boolean boolean_) {
-      return boolean_.toString();
-   }
+	@Override
+	public Optional<Boolean> parse(String name) {
+		return switch (name) {
+			case "true" -> Optional.of(true);
+			case "false" -> Optional.of(false);
+			default -> Optional.empty();
+		};
+	}
 
-   public int ordinal(Boolean boolean_) {
-      return boolean_ ? 0 : 1;
-   }
+	public String name(Boolean boolean_) {
+		return boolean_.toString();
+	}
+
+	public int ordinal(Boolean boolean_) {
+		return boolean_ ? 0 : 1;
+	}
 }

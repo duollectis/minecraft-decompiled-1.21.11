@@ -8,14 +8,18 @@ import net.minecraft.entity.mob.ZoglinEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ZoglinEntityRenderer}.
+ */
 public class ZoglinEntityRenderer extends AbstractHoglinEntityRenderer<ZoglinEntity> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/hoglin/zoglin.png");
 
-   public ZoglinEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, EntityModelLayers.ZOGLIN, EntityModelLayers.ZOGLIN_BABY, 0.7F);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/hoglin/zoglin.png");
 
-   public Identifier getTexture(HoglinEntityRenderState hoglinEntityRenderState) {
-      return TEXTURE;
-   }
+	public ZoglinEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, EntityModelLayers.ZOGLIN, EntityModelLayers.ZOGLIN_BABY, 0.7F);
+	}
+
+	public Identifier getTexture(HoglinEntityRenderState hoglinEntityRenderState) {
+		return TEXTURE;
+	}
 }

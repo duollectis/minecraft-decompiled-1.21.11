@@ -6,86 +6,113 @@ import com.mojang.authlib.minecraft.UserApiService;
 import com.mojang.authlib.minecraft.report.AbuseReportLimits;
 import com.mojang.authlib.yggdrasil.request.AbuseReportRequest;
 import com.mojang.datafixers.util.Unit;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.text.Text;
 import net.minecraft.util.TextifiedException;
 import net.minecraft.util.Util;
 
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AbuseReportSender}.
+ */
 public interface AbuseReportSender {
-   static AbuseReportSender create(ReporterEnvironment environment, UserApiService userApiService) {
-      return new AbuseReportSender.Impl(environment, userApiService);
-   }
 
-   CompletableFuture<Unit> send(UUID id, AbuseReportType type, com.mojang.authlib.minecraft.report.AbuseReport report);
+	static AbuseReportSender create(ReporterEnvironment environment, UserApiService userApiService) {
+		return new AbuseReportSender.Impl(environment, userApiService);
+	}
 
-   boolean canSendReports();
+	CompletableFuture<Unit> send(UUID id, AbuseReportType type, com.mojang.authlib.minecraft.report.AbuseReport report);
 
-   default AbuseReportLimits getLimits() {
-      return AbuseReportLimits.DEFAULTS;
-   }
+	boolean canSendReports();
 
-   @Environment(EnvType.CLIENT)
-   public static class AbuseReportException extends TextifiedException {
-      public AbuseReportException(Text text, Throwable throwable) {
-         super(text, throwable);
-      }
-   }
+	default AbuseReportLimits getLimits() {
+		return AbuseReportLimits.DEFAULTS;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public record Impl(ReporterEnvironment environment, UserApiService userApiService) implements AbuseReportSender {
-      private static final Text SERVICE_UNAVAILABLE_ERROR_TEXT = Text.translatable("gui.abuseReport.send.service_unavailable");
-      private static final Text HTTP_ERROR_TEXT = Text.translatable("gui.abuseReport.send.http_error");
-      private static final Text JSON_ERROR_TEXT = Text.translatable("gui.abuseReport.send.json_error");
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code AbuseReportException}.
+	 */
+	public static class AbuseReportException extends TextifiedException {
 
-      @Override
-      public CompletableFuture<Unit> send(UUID id, AbuseReportType type, com.mojang.authlib.minecraft.report.AbuseReport report) {
-         return CompletableFuture.supplyAsync(
-            () -> {
-               AbuseReportRequest abuseReportRequest = new AbuseReportRequest(
-                  1, id, report, this.environment.toClientInfo(), this.environment.toThirdPartyServerInfo(), this.environment.toRealmInfo(), type.getName()
-               );
+		public AbuseReportException(Text text, Throwable throwable) {
+			super(text, throwable);
+		}
+	}
 
-               try {
-                  this.userApiService.reportAbuse(abuseReportRequest);
-                  return Unit.INSTANCE;
-               } catch (MinecraftClientHttpException var7) {
-                  Text text = this.getErrorText(var7);
-                  throw new CompletionException(new AbuseReportSender.AbuseReportException(text, var7));
-               } catch (MinecraftClientException var8) {
-                  Text textx = this.getErrorText(var8);
-                  throw new CompletionException(new AbuseReportSender.AbuseReportException(textx, var8));
-               }
-            },
-            Util.getIoWorkerExecutor()
-         );
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Impl}.
+	 */
+	public record Impl(ReporterEnvironment environment, UserApiService userApiService) implements AbuseReportSender {
 
-      @Override
-      public boolean canSendReports() {
-         return this.userApiService.canSendReports();
-      }
+		private static final Text
+				SERVICE_UNAVAILABLE_ERROR_TEXT =
+				Text.translatable("gui.abuseReport.send.service_unavailable");
+		private static final Text HTTP_ERROR_TEXT = Text.translatable("gui.abuseReport.send.http_error");
+		private static final Text JSON_ERROR_TEXT = Text.translatable("gui.abuseReport.send.json_error");
 
-      private Text getErrorText(MinecraftClientHttpException exception) {
-         return Text.translatable("gui.abuseReport.send.error_message", exception.getMessage());
-      }
+		@Override
+		public CompletableFuture<Unit> send(
+				UUID id,
+				AbuseReportType type,
+				com.mojang.authlib.minecraft.report.AbuseReport report
+		) {
+			return CompletableFuture.supplyAsync(
+					() -> {
+						AbuseReportRequest abuseReportRequest = new AbuseReportRequest(
+								1,
+								id,
+								report,
+								this.environment.toClientInfo(),
+								this.environment.toThirdPartyServerInfo(),
+								this.environment.toRealmInfo(),
+								type.getName()
+						);
 
-      private Text getErrorText(MinecraftClientException exception) {
-         return switch (exception.getType()) {
-            case SERVICE_UNAVAILABLE -> SERVICE_UNAVAILABLE_ERROR_TEXT;
-            case HTTP_ERROR -> HTTP_ERROR_TEXT;
-            case JSON_ERROR -> JSON_ERROR_TEXT;
-            default -> throw new MatchException(null, null);
-         };
-      }
+						try {
+							this.userApiService.reportAbuse(abuseReportRequest);
+							return Unit.INSTANCE;
+						}
+						catch (MinecraftClientHttpException var7) {
+							Text text = this.getErrorText(var7);
+							throw new CompletionException(new AbuseReportSender.AbuseReportException(text, var7));
+						}
+						catch (MinecraftClientException var8) {
+							Text textx = this.getErrorText(var8);
+							throw new CompletionException(new AbuseReportSender.AbuseReportException(textx, var8));
+						}
+					},
+					Util.getIoWorkerExecutor()
+			);
+		}
 
-      @Override
-      public AbuseReportLimits getLimits() {
-         return this.userApiService.getAbuseReportLimits();
-      }
-   }
+		@Override
+		public boolean canSendReports() {
+			return this.userApiService.canSendReports();
+		}
+
+		private Text getErrorText(MinecraftClientHttpException exception) {
+			return Text.translatable("gui.abuseReport.send.error_message", exception.getMessage());
+		}
+
+		private Text getErrorText(MinecraftClientException exception) {
+			return switch (exception.getType()) {
+				case SERVICE_UNAVAILABLE -> SERVICE_UNAVAILABLE_ERROR_TEXT;
+				case HTTP_ERROR -> HTTP_ERROR_TEXT;
+				case JSON_ERROR -> JSON_ERROR_TEXT;
+				default -> throw new MatchException(null, null);
+			};
+		}
+
+		@Override
+		public AbuseReportLimits getLimits() {
+			return this.userApiService.getAbuseReportLimits();
+		}
+	}
 }

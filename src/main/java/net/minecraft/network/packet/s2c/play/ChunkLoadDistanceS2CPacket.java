@@ -8,33 +8,34 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class ChunkLoadDistanceS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ChunkLoadDistanceS2CPacket> CODEC = Packet.createCodec(
-      ChunkLoadDistanceS2CPacket::write, ChunkLoadDistanceS2CPacket::new
-   );
-   private final int distance;
 
-   public ChunkLoadDistanceS2CPacket(int distance) {
-      this.distance = distance;
-   }
+	public static final PacketCodec<PacketByteBuf, ChunkLoadDistanceS2CPacket> CODEC = Packet.createCodec(
+			ChunkLoadDistanceS2CPacket::write, ChunkLoadDistanceS2CPacket::new
+	);
+	private final int distance;
 
-   private ChunkLoadDistanceS2CPacket(PacketByteBuf buf) {
-      this.distance = buf.readVarInt();
-   }
+	public ChunkLoadDistanceS2CPacket(int distance) {
+		this.distance = distance;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.distance);
-   }
+	private ChunkLoadDistanceS2CPacket(PacketByteBuf buf) {
+		this.distance = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<ChunkLoadDistanceS2CPacket> getPacketType() {
-      return PlayPackets.SET_CHUNK_CACHE_RADIUS;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.distance);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onChunkLoadDistance(this);
-   }
+	@Override
+	public PacketType<ChunkLoadDistanceS2CPacket> getPacketType() {
+		return PlayPackets.SET_CHUNK_CACHE_RADIUS;
+	}
 
-   public int getDistance() {
-      return this.distance;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onChunkLoadDistance(this);
+	}
+
+	public int getDistance() {
+		return this.distance;
+	}
 }

@@ -1,11 +1,5 @@
 package net.minecraft.screen.sync;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.IdentityHashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
 import net.minecraft.component.Component;
 import net.minecraft.component.ComponentChanges;
 import net.minecraft.component.ComponentType;
@@ -14,46 +8,71 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.registry.RegistryKeys;
 
-public record ComponentChangesHash(Map<ComponentType<?>, Integer> addedComponents, Set<ComponentType<?>> removedComponents) {
-   public static final PacketCodec<RegistryByteBuf, ComponentChangesHash> PACKET_CODEC = PacketCodec.tuple(
-      PacketCodecs.map(HashMap::new, PacketCodecs.registryValue(RegistryKeys.DATA_COMPONENT_TYPE), PacketCodecs.INTEGER, 256),
-      ComponentChangesHash::addedComponents,
-      PacketCodecs.collection(HashSet::new, PacketCodecs.registryValue(RegistryKeys.DATA_COMPONENT_TYPE), 256),
-      ComponentChangesHash::removedComponents,
-      ComponentChangesHash::new
-   );
+import java.util.*;
+import java.util.function.Function;
 
-   public static ComponentChangesHash fromComponents(ComponentChanges changes, ComponentChangesHash.ComponentHasher hasher) {
-      ComponentChanges.AddedRemovedPair addedRemovedPair = changes.toAddedRemovedPair();
-      Map<ComponentType<?>, Integer> map = new IdentityHashMap<>(addedRemovedPair.added().size());
-      addedRemovedPair.added().forEach(component -> map.put(component.type(), hasher.apply((Component<?>)component)));
-      return new ComponentChangesHash(map, addedRemovedPair.removed());
-   }
+/**
+ * {@code ComponentChangesHash}.
+ */
+public record ComponentChangesHash(
+		Map<ComponentType<?>, Integer> addedComponents,
+		Set<ComponentType<?>> removedComponents
+) {
 
-   public boolean hashEquals(ComponentChanges changes, ComponentChangesHash.ComponentHasher hasher) {
-      ComponentChanges.AddedRemovedPair addedRemovedPair = changes.toAddedRemovedPair();
-      if (!addedRemovedPair.removed().equals(this.removedComponents)) {
-         return false;
-      } else if (this.addedComponents.size() != addedRemovedPair.added().size()) {
-         return false;
-      } else {
-         for (Component<?> component : addedRemovedPair.added()) {
-            Integer integer = this.addedComponents.get(component.type());
-            if (integer == null) {
-               return false;
-            }
+	public static final PacketCodec<RegistryByteBuf, ComponentChangesHash> PACKET_CODEC = PacketCodec.tuple(
+			PacketCodecs.map(
+					HashMap::new,
+					PacketCodecs.registryValue(RegistryKeys.DATA_COMPONENT_TYPE),
+					PacketCodecs.INTEGER,
+					256
+			),
+			ComponentChangesHash::addedComponents,
+			PacketCodecs.collection(HashSet::new, PacketCodecs.registryValue(RegistryKeys.DATA_COMPONENT_TYPE), 256),
+			ComponentChangesHash::removedComponents,
+			ComponentChangesHash::new
+	);
 
-            Integer integer2 = hasher.apply(component);
-            if (!integer2.equals(integer)) {
-               return false;
-            }
-         }
+	public static ComponentChangesHash fromComponents(
+			ComponentChanges changes,
+			ComponentChangesHash.ComponentHasher hasher
+	) {
+		ComponentChanges.AddedRemovedPair addedRemovedPair = changes.toAddedRemovedPair();
+		Map<ComponentType<?>, Integer> map = new IdentityHashMap<>(addedRemovedPair.added().size());
+		addedRemovedPair
+				.added()
+				.forEach(component -> map.put(component.type(), hasher.apply((Component<?>) component)));
+		return new ComponentChangesHash(map, addedRemovedPair.removed());
+	}
 
-         return true;
-      }
-   }
+	public boolean hashEquals(ComponentChanges changes, ComponentChangesHash.ComponentHasher hasher) {
+		ComponentChanges.AddedRemovedPair addedRemovedPair = changes.toAddedRemovedPair();
+		if (!addedRemovedPair.removed().equals(this.removedComponents)) {
+			return false;
+		}
+		else if (this.addedComponents.size() != addedRemovedPair.added().size()) {
+			return false;
+		}
+		else {
+			for (Component<?> component : addedRemovedPair.added()) {
+				Integer integer = this.addedComponents.get(component.type());
+				if (integer == null) {
+					return false;
+				}
 
-   @FunctionalInterface
-   public interface ComponentHasher extends Function<Component<?>, Integer> {
-   }
+				Integer integer2 = hasher.apply(component);
+				if (!integer2.equals(integer)) {
+					return false;
+				}
+			}
+
+			return true;
+		}
+	}
+
+	@FunctionalInterface
+	/**
+	 * {@code ComponentHasher}.
+	 */
+	public interface ComponentHasher extends Function<Component<?>, Integer> {
+	}
 }

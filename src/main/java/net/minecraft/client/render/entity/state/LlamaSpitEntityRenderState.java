@@ -4,7 +4,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LlamaSpitEntityRenderState}.
+ */
 public class LlamaSpitEntityRenderState extends EntityRenderState {
-   public float yaw;
-   public float pitch;
+
+	public float yaw;
+	public float pitch;
 }

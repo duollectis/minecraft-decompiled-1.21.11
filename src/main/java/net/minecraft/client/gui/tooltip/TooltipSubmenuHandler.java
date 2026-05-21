@@ -7,12 +7,16 @@ import net.minecraft.screen.slot.Slot;
 import net.minecraft.screen.slot.SlotActionType;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TooltipSubmenuHandler}.
+ */
 public interface TooltipSubmenuHandler {
-   boolean isApplicableTo(Slot slot);
 
-   boolean onScroll(double horizontal, double vertical, int slotId, ItemStack item);
+	boolean isApplicableTo(Slot slot);
 
-   void reset(Slot slot);
+	boolean onScroll(double horizontal, double vertical, int slotId, ItemStack item);
 
-   void onMouseClick(Slot slot, SlotActionType actionType);
+	void reset(Slot slot);
+
+	void onMouseClick(Slot slot, SlotActionType actionType);
 }

@@ -1,12 +1,6 @@
 package net.minecraft.client.resource.language;
 
 import com.mojang.logging.LogUtils;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.resource.Resource;
@@ -18,64 +12,84 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Language;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TranslationStorage}.
+ */
 public class TranslationStorage extends Language {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private final Map<String, String> translations;
-   private final boolean rightToLeft;
 
-   private TranslationStorage(Map<String, String> translations, boolean rightToLeft) {
-      this.translations = translations;
-      this.rightToLeft = rightToLeft;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private final Map<String, String> translations;
+	private final boolean rightToLeft;
 
-   public static TranslationStorage load(ResourceManager resourceManager, List<String> definitions, boolean rightToLeft) {
-      Map<String, String> map = new HashMap<>();
+	private TranslationStorage(Map<String, String> translations, boolean rightToLeft) {
+		this.translations = translations;
+		this.rightToLeft = rightToLeft;
+	}
 
-      for (String string : definitions) {
-         String string2 = String.format(Locale.ROOT, "lang/%s.json", string);
+	public static TranslationStorage load(
+			ResourceManager resourceManager,
+			List<String> definitions,
+			boolean rightToLeft
+	) {
+		Map<String, String> map = new HashMap<>();
 
-         for (String string3 : resourceManager.getAllNamespaces()) {
-            try {
-               Identifier identifier = Identifier.of(string3, string2);
-               load(string, resourceManager.getAllResources(identifier), map);
-            } catch (Exception var10) {
-               LOGGER.warn("Skipped language file: {}:{} ({})", new Object[]{string3, string2, var10.toString()});
-            }
-         }
-      }
+		for (String string : definitions) {
+			String string2 = String.format(Locale.ROOT, "lang/%s.json", string);
 
-      DeprecatedLanguageData.create().apply(map);
-      return new TranslationStorage(Map.copyOf(map), rightToLeft);
-   }
+			for (String string3 : resourceManager.getAllNamespaces()) {
+				try {
+					Identifier identifier = Identifier.of(string3, string2);
+					load(string, resourceManager.getAllResources(identifier), map);
+				}
+				catch (Exception var10) {
+					LOGGER.warn("Skipped language file: {}:{} ({})", new Object[]{string3, string2, var10.toString()});
+				}
+			}
+		}
 
-   private static void load(String langCode, List<Resource> resourceRefs, Map<String, String> translations) {
-      for (Resource resource : resourceRefs) {
-         try (InputStream inputStream = resource.getInputStream()) {
-            Language.load(inputStream, translations::put);
-         } catch (IOException var10) {
-            LOGGER.warn("Failed to load translations for {} from pack {}", new Object[]{langCode, resource.getPackId(), var10});
-         }
-      }
-   }
+		DeprecatedLanguageData.create().apply(map);
+		return new TranslationStorage(Map.copyOf(map), rightToLeft);
+	}
 
-   @Override
-   public String get(String key, String fallback) {
-      return this.translations.getOrDefault(key, fallback);
-   }
+	private static void load(String langCode, List<Resource> resourceRefs, Map<String, String> translations) {
+		for (Resource resource : resourceRefs) {
+			try (InputStream inputStream = resource.getInputStream()) {
+				Language.load(inputStream, translations::put);
+			}
+			catch (IOException var10) {
+				LOGGER.warn(
+						"Failed to load translations for {} from pack {}",
+						new Object[]{langCode, resource.getPackId(), var10}
+				);
+			}
+		}
+	}
 
-   @Override
-   public boolean hasTranslation(String key) {
-      return this.translations.containsKey(key);
-   }
+	@Override
+	public String get(String key, String fallback) {
+		return this.translations.getOrDefault(key, fallback);
+	}
 
-   @Override
-   public boolean isRightToLeft() {
-      return this.rightToLeft;
-   }
+	@Override
+	public boolean hasTranslation(String key) {
+		return this.translations.containsKey(key);
+	}
 
-   @Override
-   public OrderedText reorder(StringVisitable text) {
-      return ReorderingUtil.reorder(text, this.rightToLeft);
-   }
+	@Override
+	public boolean isRightToLeft() {
+		return this.rightToLeft;
+	}
+
+	@Override
+	public OrderedText reorder(StringVisitable text) {
+		return ReorderingUtil.reorder(text, this.rightToLeft);
+	}
 }

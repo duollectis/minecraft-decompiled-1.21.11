@@ -6,13 +6,17 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GuardianEntityRenderState}.
+ */
 public class GuardianEntityRenderState extends LivingEntityRenderState {
-   public float spikesExtension;
-   public float tailAngle;
-   public Vec3d cameraPosVec = Vec3d.ZERO;
-   public @Nullable Vec3d rotationVec;
-   public @Nullable Vec3d lookAtPos;
-   public @Nullable Vec3d beamTargetPos;
-   public float beamTicks;
-   public float beamProgress;
+
+	public float spikesExtension;
+	public float tailAngle;
+	public Vec3d cameraPosVec = Vec3d.ZERO;
+	public @Nullable Vec3d rotationVec;
+	public @Nullable Vec3d lookAtPos;
+	public @Nullable Vec3d beamTargetPos;
+	public float beamTicks;
+	public float beamProgress;
 }

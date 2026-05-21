@@ -6,63 +6,80 @@ import com.mojang.datafixers.DataFixUtils;
 import com.mojang.datafixers.Typed;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
-import java.util.Map;
 import net.minecraft.datafixer.TypeReferences;
 
+import java.util.Map;
+
+/**
+ * {@code VillagerProfessionFix}.
+ */
 public class VillagerProfessionFix extends ChoiceFix {
-   public VillagerProfessionFix(Schema outputSchema, String entity) {
-      super(outputSchema, false, "Villager profession data fix (" + entity + ")", TypeReferences.ENTITY, entity);
-   }
 
-   @SuppressWarnings("unchecked")
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      Dynamic<?> dynamic = (Dynamic<?>)inputTyped.get(DSL.remainderFinder());
-      Dynamic<?> level = (Dynamic<?>)DataFixUtils.orElse(dynamic.get("CareerLevel").result(), dynamic.createInt(1));
-      return inputTyped.set(
-         DSL.remainderFinder(),
-         dynamic.remove("Profession")
-            .remove("Career")
-            .remove("CareerLevel")
-            .set(
-               "VillagerData",
-               dynamic.createMap(
-                  (Map)ImmutableMap.of(
-                     dynamic.createString("type"),
-                     dynamic.createString("minecraft:plains"),
-                     dynamic.createString("profession"),
-                     dynamic.createString(convertProfessionId(dynamic.get("Profession").asInt(0), dynamic.get("Career").asInt(0))),
-                     dynamic.createString("level"),
-                     level
-                  )
-               )
-            )
-      );
-   }
+	public VillagerProfessionFix(Schema outputSchema, String entity) {
+		super(outputSchema, false, "Villager profession data fix (" + entity + ")", TypeReferences.ENTITY, entity);
+	}
 
-   private static String convertProfessionId(int professionId, int careerId) {
-      if (professionId == 0) {
-         if (careerId == 2) {
-            return "minecraft:fisherman";
-         } else if (careerId == 3) {
-            return "minecraft:shepherd";
-         } else {
-            return careerId == 4 ? "minecraft:fletcher" : "minecraft:farmer";
-         }
-      } else if (professionId == 1) {
-         return careerId == 2 ? "minecraft:cartographer" : "minecraft:librarian";
-      } else if (professionId == 2) {
-         return "minecraft:cleric";
-      } else if (professionId == 3) {
-         if (careerId == 2) {
-            return "minecraft:weaponsmith";
-         } else {
-            return careerId == 3 ? "minecraft:toolsmith" : "minecraft:armorer";
-         }
-      } else if (professionId == 4) {
-         return careerId == 2 ? "minecraft:leatherworker" : "minecraft:butcher";
-      } else {
-         return professionId == 5 ? "minecraft:nitwit" : "minecraft:none";
-      }
-   }
+	@SuppressWarnings("unchecked")
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		Dynamic<?> dynamic = (Dynamic<?>) inputTyped.get(DSL.remainderFinder());
+		Dynamic<?> level = (Dynamic<?>) DataFixUtils.orElse(dynamic.get("CareerLevel").result(), dynamic.createInt(1));
+		return inputTyped.set(
+				DSL.remainderFinder(),
+				dynamic.remove("Profession")
+				       .remove("Career")
+				       .remove("CareerLevel")
+				       .set(
+						       "VillagerData",
+						       dynamic.createMap(
+								       (Map) ImmutableMap.of(
+										       dynamic.createString("type"),
+										       dynamic.createString("minecraft:plains"),
+										       dynamic.createString("profession"),
+										       dynamic.createString(convertProfessionId(
+												       dynamic
+														       .get("Profession")
+														       .asInt(0), dynamic.get("Career").asInt(0)
+										       )),
+										       dynamic.createString("level"),
+										       level
+								       )
+						       )
+				       )
+		);
+	}
+
+	private static String convertProfessionId(int professionId, int careerId) {
+		if (professionId == 0) {
+			if (careerId == 2) {
+				return "minecraft:fisherman";
+			}
+			else if (careerId == 3) {
+				return "minecraft:shepherd";
+			}
+			else {
+				return careerId == 4 ? "minecraft:fletcher" : "minecraft:farmer";
+			}
+		}
+		else if (professionId == 1) {
+			return careerId == 2 ? "minecraft:cartographer" : "minecraft:librarian";
+		}
+		else if (professionId == 2) {
+			return "minecraft:cleric";
+		}
+		else if (professionId == 3) {
+			if (careerId == 2) {
+				return "minecraft:weaponsmith";
+			}
+			else {
+				return careerId == 3 ? "minecraft:toolsmith" : "minecraft:armorer";
+			}
+		}
+		else if (professionId == 4) {
+			return careerId == 2 ? "minecraft:leatherworker" : "minecraft:butcher";
+		}
+		else {
+			return professionId == 5 ? "minecraft:nitwit" : "minecraft:none";
+		}
+	}
 }

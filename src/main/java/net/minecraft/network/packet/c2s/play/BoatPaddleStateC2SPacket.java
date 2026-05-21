@@ -8,41 +8,42 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class BoatPaddleStateC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, BoatPaddleStateC2SPacket> CODEC = Packet.createCodec(
-      BoatPaddleStateC2SPacket::write, BoatPaddleStateC2SPacket::new
-   );
-   private final boolean leftPaddling;
-   private final boolean rightPaddling;
 
-   public BoatPaddleStateC2SPacket(boolean leftPaddling, boolean rightPaddling) {
-      this.leftPaddling = leftPaddling;
-      this.rightPaddling = rightPaddling;
-   }
+	public static final PacketCodec<PacketByteBuf, BoatPaddleStateC2SPacket> CODEC = Packet.createCodec(
+			BoatPaddleStateC2SPacket::write, BoatPaddleStateC2SPacket::new
+	);
+	private final boolean leftPaddling;
+	private final boolean rightPaddling;
 
-   private BoatPaddleStateC2SPacket(PacketByteBuf buf) {
-      this.leftPaddling = buf.readBoolean();
-      this.rightPaddling = buf.readBoolean();
-   }
+	public BoatPaddleStateC2SPacket(boolean leftPaddling, boolean rightPaddling) {
+		this.leftPaddling = leftPaddling;
+		this.rightPaddling = rightPaddling;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeBoolean(this.leftPaddling);
-      buf.writeBoolean(this.rightPaddling);
-   }
+	private BoatPaddleStateC2SPacket(PacketByteBuf buf) {
+		this.leftPaddling = buf.readBoolean();
+		this.rightPaddling = buf.readBoolean();
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onBoatPaddleState(this);
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeBoolean(this.leftPaddling);
+		buf.writeBoolean(this.rightPaddling);
+	}
 
-   @Override
-   public PacketType<BoatPaddleStateC2SPacket> getPacketType() {
-      return PlayPackets.PADDLE_BOAT;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onBoatPaddleState(this);
+	}
 
-   public boolean isLeftPaddling() {
-      return this.leftPaddling;
-   }
+	@Override
+	public PacketType<BoatPaddleStateC2SPacket> getPacketType() {
+		return PlayPackets.PADDLE_BOAT;
+	}
 
-   public boolean isRightPaddling() {
-      return this.rightPaddling;
-   }
+	public boolean isLeftPaddling() {
+		return this.leftPaddling;
+	}
+
+	public boolean isRightPaddling() {
+		return this.rightPaddling;
+	}
 }

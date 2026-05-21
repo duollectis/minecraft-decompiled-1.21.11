@@ -4,210 +4,249 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import it.unimi.dsi.fastutil.ints.Int2DoubleMap;
 import it.unimi.dsi.fastutil.ints.Int2DoubleOpenHashMap;
+import org.jspecify.annotations.Nullable;
+
 import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.DoubleSupplier;
 import java.util.function.ToDoubleFunction;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code Sampler}.
+ */
 public class Sampler {
-   private final String name;
-   private final SampleType type;
-   private final DoubleSupplier retriever;
-   private final ByteBuf ticksBuffer;
-   private final ByteBuf valueBuffer;
-   private volatile boolean active;
-   private final @Nullable Runnable startAction;
-   public final Sampler.@Nullable DeviationChecker deviationChecker;
-   private double currentSample;
 
-   protected Sampler(
-      String name, SampleType type, DoubleSupplier retriever, @Nullable Runnable startAction, Sampler.@Nullable DeviationChecker deviationChecker
-   ) {
-      this.name = name;
-      this.type = type;
-      this.startAction = startAction;
-      this.retriever = retriever;
-      this.deviationChecker = deviationChecker;
-      this.valueBuffer = ByteBufAllocator.DEFAULT.buffer();
-      this.ticksBuffer = ByteBufAllocator.DEFAULT.buffer();
-      this.active = true;
-   }
+	private final String name;
+	private final SampleType type;
+	private final DoubleSupplier retriever;
+	private final ByteBuf ticksBuffer;
+	private final ByteBuf valueBuffer;
+	private volatile boolean active;
+	private final @Nullable Runnable startAction;
+	public final Sampler.@Nullable DeviationChecker deviationChecker;
+	private double currentSample;
 
-   public static Sampler create(String name, SampleType type, DoubleSupplier retriever) {
-      return new Sampler(name, type, retriever, null, null);
-   }
+	protected Sampler(
+			String name,
+			SampleType type,
+			DoubleSupplier retriever,
+			@Nullable Runnable startAction,
+			Sampler.@Nullable DeviationChecker deviationChecker
+	) {
+		this.name = name;
+		this.type = type;
+		this.startAction = startAction;
+		this.retriever = retriever;
+		this.deviationChecker = deviationChecker;
+		this.valueBuffer = ByteBufAllocator.DEFAULT.buffer();
+		this.ticksBuffer = ByteBufAllocator.DEFAULT.buffer();
+		this.active = true;
+	}
 
-   public static <T> Sampler create(String name, SampleType type, T context, ToDoubleFunction<T> retriever) {
-      return builder(name, type, retriever, context).build();
-   }
+	public static Sampler create(String name, SampleType type, DoubleSupplier retriever) {
+		return new Sampler(name, type, retriever, null, null);
+	}
 
-   public static <T> Sampler.Builder<T> builder(String name, SampleType type, ToDoubleFunction<T> retriever, T context) {
-      if (retriever == null) {
-         throw new IllegalStateException();
-      } else {
-         return new Sampler.Builder<>(name, type, retriever, context);
-      }
-   }
+	public static <T> Sampler create(String name, SampleType type, T context, ToDoubleFunction<T> retriever) {
+		return builder(name, type, retriever, context).build();
+	}
 
-   public void start() {
-      if (!this.active) {
-         throw new IllegalStateException("Not running");
-      } else {
-         if (this.startAction != null) {
-            this.startAction.run();
-         }
-      }
-   }
+	public static <T> Sampler.Builder<T> builder(
+			String name,
+			SampleType type,
+			ToDoubleFunction<T> retriever,
+			T context
+	) {
+		if (retriever == null) {
+			throw new IllegalStateException();
+		}
+		else {
+			return new Sampler.Builder<>(name, type, retriever, context);
+		}
+	}
 
-   public void sample(int tick) {
-      this.ensureActive();
-      this.currentSample = this.retriever.getAsDouble();
-      this.valueBuffer.writeDouble(this.currentSample);
-      this.ticksBuffer.writeInt(tick);
-   }
+	public void start() {
+		if (!this.active) {
+			throw new IllegalStateException("Not running");
+		}
+		else {
+			if (this.startAction != null) {
+				this.startAction.run();
+			}
+		}
+	}
 
-   public void stop() {
-      this.ensureActive();
-      this.valueBuffer.release();
-      this.ticksBuffer.release();
-      this.active = false;
-   }
+	public void sample(int tick) {
+		this.ensureActive();
+		this.currentSample = this.retriever.getAsDouble();
+		this.valueBuffer.writeDouble(this.currentSample);
+		this.ticksBuffer.writeInt(tick);
+	}
 
-   private void ensureActive() {
-      if (!this.active) {
-         throw new IllegalStateException(String.format(Locale.ROOT, "Sampler for metric %s not started!", this.name));
-      }
-   }
+	public void stop() {
+		this.ensureActive();
+		this.valueBuffer.release();
+		this.ticksBuffer.release();
+		this.active = false;
+	}
 
-   public DoubleSupplier getRetriever() {
-      return this.retriever;
-   }
+	private void ensureActive() {
+		if (!this.active) {
+			throw new IllegalStateException(String.format(
+					Locale.ROOT,
+					"Sampler for metric %s not started!",
+					this.name
+			));
+		}
+	}
 
-   public String getName() {
-      return this.name;
-   }
+	public DoubleSupplier getRetriever() {
+		return this.retriever;
+	}
 
-   public SampleType getType() {
-      return this.type;
-   }
+	public String getName() {
+		return this.name;
+	}
 
-   public Sampler.Data collectData() {
-      Int2DoubleMap int2DoubleMap = new Int2DoubleOpenHashMap();
-      int i = Integer.MIN_VALUE;
-      int j = Integer.MIN_VALUE;
+	public SampleType getType() {
+		return this.type;
+	}
 
-      while (this.valueBuffer.isReadable(8)) {
-         int k = this.ticksBuffer.readInt();
-         if (i == Integer.MIN_VALUE) {
-            i = k;
-         }
+	public Sampler.Data collectData() {
+		Int2DoubleMap int2DoubleMap = new Int2DoubleOpenHashMap();
+		int i = Integer.MIN_VALUE;
+		int j = Integer.MIN_VALUE;
 
-         int2DoubleMap.put(k, this.valueBuffer.readDouble());
-         j = k;
-      }
+		while (this.valueBuffer.isReadable(8)) {
+			int k = this.ticksBuffer.readInt();
+			if (i == Integer.MIN_VALUE) {
+				i = k;
+			}
 
-      return new Sampler.Data(i, j, int2DoubleMap);
-   }
+			int2DoubleMap.put(k, this.valueBuffer.readDouble());
+			j = k;
+		}
 
-   public boolean hasDeviated() {
-      return this.deviationChecker != null && this.deviationChecker.check(this.currentSample);
-   }
+		return new Sampler.Data(i, j, int2DoubleMap);
+	}
 
-   @Override
-   public boolean equals(Object o) {
-      if (this == o) {
-         return true;
-      } else if (o != null && this.getClass() == o.getClass()) {
-         Sampler sampler = (Sampler)o;
-         return this.name.equals(sampler.name) && this.type.equals(sampler.type);
-      } else {
-         return false;
-      }
-   }
+	public boolean hasDeviated() {
+		return this.deviationChecker != null && this.deviationChecker.check(this.currentSample);
+	}
 
-   @Override
-   public int hashCode() {
-      return this.name.hashCode();
-   }
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		else if (o != null && this.getClass() == o.getClass()) {
+			Sampler sampler = (Sampler) o;
+			return this.name.equals(sampler.name) && this.type.equals(sampler.type);
+		}
+		else {
+			return false;
+		}
+	}
 
-   public static class Builder<T> {
-      private final String name;
-      private final SampleType type;
-      private final DoubleSupplier timeGetter;
-      private final T context;
-      private @Nullable Runnable startAction;
-      private Sampler.@Nullable DeviationChecker deviationChecker;
+	@Override
+	public int hashCode() {
+		return this.name.hashCode();
+	}
 
-      public Builder(String name, SampleType type, ToDoubleFunction<T> timeFunction, T context) {
-         this.name = name;
-         this.type = type;
-         this.timeGetter = () -> timeFunction.applyAsDouble(context);
-         this.context = context;
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder<T> {
 
-      public Sampler.Builder<T> startAction(Consumer<T> action) {
-         this.startAction = () -> action.accept(this.context);
-         return this;
-      }
+		private final String name;
+		private final SampleType type;
+		private final DoubleSupplier timeGetter;
+		private final T context;
+		private @Nullable Runnable startAction;
+		private Sampler.@Nullable DeviationChecker deviationChecker;
 
-      public Sampler.Builder<T> deviationChecker(Sampler.DeviationChecker deviationChecker) {
-         this.deviationChecker = deviationChecker;
-         return this;
-      }
+		public Builder(String name, SampleType type, ToDoubleFunction<T> timeFunction, T context) {
+			this.name = name;
+			this.type = type;
+			this.timeGetter = () -> timeFunction.applyAsDouble(context);
+			this.context = context;
+		}
 
-      public Sampler build() {
-         return new Sampler(this.name, this.type, this.timeGetter, this.startAction, this.deviationChecker);
-      }
-   }
+		public Sampler.Builder<T> startAction(Consumer<T> action) {
+			this.startAction = () -> action.accept(this.context);
+			return this;
+		}
 
-   public static class Data {
-      private final Int2DoubleMap values;
-      private final int startTick;
-      private final int endTick;
+		public Sampler.Builder<T> deviationChecker(Sampler.DeviationChecker deviationChecker) {
+			this.deviationChecker = deviationChecker;
+			return this;
+		}
 
-      public Data(int startTick, int endTick, Int2DoubleMap values) {
-         this.startTick = startTick;
-         this.endTick = endTick;
-         this.values = values;
-      }
+		public Sampler build() {
+			return new Sampler(this.name, this.type, this.timeGetter, this.startAction, this.deviationChecker);
+		}
+	}
 
-      public double getValue(int tick) {
-         return this.values.get(tick);
-      }
+	/**
+	 * {@code Data}.
+	 */
+	public static class Data {
 
-      public int getStartTick() {
-         return this.startTick;
-      }
+		private final Int2DoubleMap values;
+		private final int startTick;
+		private final int endTick;
 
-      public int getEndTick() {
-         return this.endTick;
-      }
-   }
+		public Data(int startTick, int endTick, Int2DoubleMap values) {
+			this.startTick = startTick;
+			this.endTick = endTick;
+			this.values = values;
+		}
 
-   public interface DeviationChecker {
-      boolean check(double value);
-   }
+		public double getValue(int tick) {
+			return this.values.get(tick);
+		}
 
-   public static class RatioDeviationChecker implements Sampler.DeviationChecker {
-      private final float threshold;
-      private double lastValue = Double.MIN_VALUE;
+		public int getStartTick() {
+			return this.startTick;
+		}
 
-      public RatioDeviationChecker(float threshold) {
-         this.threshold = threshold;
-      }
+		public int getEndTick() {
+			return this.endTick;
+		}
+	}
 
-      @Override
-      public boolean check(double value) {
-         boolean bl;
-         if (this.lastValue != Double.MIN_VALUE && !(value <= this.lastValue)) {
-            bl = (value - this.lastValue) / this.lastValue >= this.threshold;
-         } else {
-            bl = false;
-         }
+	/**
+	 * {@code DeviationChecker}.
+	 */
+	public interface DeviationChecker {
 
-         this.lastValue = value;
-         return bl;
-      }
-   }
+		boolean check(double value);
+	}
+
+	/**
+	 * {@code RatioDeviationChecker}.
+	 */
+	public static class RatioDeviationChecker implements Sampler.DeviationChecker {
+
+		private final float threshold;
+		private double lastValue = Double.MIN_VALUE;
+
+		public RatioDeviationChecker(float threshold) {
+			this.threshold = threshold;
+		}
+
+		@Override
+		public boolean check(double value) {
+			boolean bl;
+			if (this.lastValue != Double.MIN_VALUE && !(value <= this.lastValue)) {
+				bl = (value - this.lastValue) / this.lastValue >= this.threshold;
+			}
+			else {
+				bl = false;
+			}
+
+			this.lastValue = value;
+			return bl;
+		}
+	}
 }

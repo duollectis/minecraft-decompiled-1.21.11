@@ -3,9 +3,6 @@ package net.minecraft.loot.condition;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.item.ItemStack;
@@ -15,39 +12,53 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.context.ContextParameter;
 import net.minecraft.util.dynamic.Codecs;
 
-public record TableBonusLootCondition(RegistryEntry<Enchantment> enchantment, List<Float> chances) implements LootCondition {
-   public static final MapCodec<TableBonusLootCondition> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Enchantment.ENTRY_CODEC.fieldOf("enchantment").forGetter(TableBonusLootCondition::enchantment),
-            Codecs.nonEmptyList(Codec.FLOAT.listOf()).fieldOf("chances").forGetter(TableBonusLootCondition::chances)
-         )
-         .apply(instance, TableBonusLootCondition::new)
-   );
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 
-   @Override
-   public LootConditionType getType() {
-      return LootConditionTypes.TABLE_BONUS;
-   }
+/**
+ * {@code TableBonusLootCondition}.
+ */
+public record TableBonusLootCondition(
+		RegistryEntry<Enchantment> enchantment,
+		List<Float> chances
+) implements LootCondition {
 
-   @Override
-   public Set<ContextParameter<?>> getAllowedParameters() {
-      return Set.of(LootContextParameters.TOOL);
-   }
+	public static final MapCodec<TableBonusLootCondition> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Enchantment.ENTRY_CODEC.fieldOf("enchantment").forGetter(TableBonusLootCondition::enchantment),
+					                    Codecs
+							                    .nonEmptyList(Codec.FLOAT.listOf())
+							                    .fieldOf("chances")
+							                    .forGetter(TableBonusLootCondition::chances)
+			                    )
+			                    .apply(instance, TableBonusLootCondition::new)
+	);
 
-   public boolean test(LootContext lootContext) {
-      ItemStack itemStack = lootContext.get(LootContextParameters.TOOL);
-      int i = itemStack != null ? EnchantmentHelper.getLevel(this.enchantment, itemStack) : 0;
-      float f = this.chances.get(Math.min(i, this.chances.size() - 1));
-      return lootContext.getRandom().nextFloat() < f;
-   }
+	@Override
+	public LootConditionType getType() {
+		return LootConditionTypes.TABLE_BONUS;
+	}
 
-   public static LootCondition.Builder builder(RegistryEntry<Enchantment> enchantment, float... chances) {
-      List<Float> list = new ArrayList<>(chances.length);
+	@Override
+	public Set<ContextParameter<?>> getAllowedParameters() {
+		return Set.of(LootContextParameters.TOOL);
+	}
 
-      for (float f : chances) {
-         list.add(f);
-      }
+	public boolean test(LootContext lootContext) {
+		ItemStack itemStack = lootContext.get(LootContextParameters.TOOL);
+		int i = itemStack != null ? EnchantmentHelper.getLevel(this.enchantment, itemStack) : 0;
+		float f = this.chances.get(Math.min(i, this.chances.size() - 1));
+		return lootContext.getRandom().nextFloat() < f;
+	}
 
-      return () -> new TableBonusLootCondition(enchantment, list);
-   }
+	public static LootCondition.Builder builder(RegistryEntry<Enchantment> enchantment, float... chances) {
+		List<Float> list = new ArrayList<>(chances.length);
+
+		for (float f : chances) {
+			list.add(f);
+		}
+
+		return () -> new TableBonusLootCondition(enchantment, list);
+	}
 }

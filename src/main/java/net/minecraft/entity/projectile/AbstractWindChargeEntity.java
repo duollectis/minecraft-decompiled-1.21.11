@@ -1,7 +1,5 @@
 package net.minecraft.entity.projectile;
 
-import java.util.Optional;
-import java.util.function.Function;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -24,127 +22,153 @@ import net.minecraft.world.explosion.AdvancedExplosionBehavior;
 import net.minecraft.world.explosion.ExplosionBehavior;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+import java.util.function.Function;
+
+/**
+ * {@code AbstractWindChargeEntity}.
+ */
 public abstract class AbstractWindChargeEntity extends ExplosiveProjectileEntity implements FlyingItemEntity {
-   public static final ExplosionBehavior EXPLOSION_BEHAVIOR = new AdvancedExplosionBehavior(
-      true, false, Optional.empty(), Registries.BLOCK.getOptional(BlockTags.BLOCKS_WIND_CHARGE_EXPLOSIONS).map(Function.identity())
-   );
-   public static final double field_52224 = 0.25;
 
-   public AbstractWindChargeEntity(EntityType<? extends AbstractWindChargeEntity> entityType, World world) {
-      super(entityType, world);
-      this.accelerationPower = 0.0;
-   }
+	public static final ExplosionBehavior EXPLOSION_BEHAVIOR = new AdvancedExplosionBehavior(
+			true,
+			false,
+			Optional.empty(),
+			Registries.BLOCK.getOptional(BlockTags.BLOCKS_WIND_CHARGE_EXPLOSIONS).map(Function.identity())
+	);
+	public static final double BLOCK_HIT_EXPLOSION_OFFSET = 0.25;
 
-   public AbstractWindChargeEntity(EntityType<? extends AbstractWindChargeEntity> type, World world, Entity owner, double x, double y, double z) {
-      super(type, x, y, z, world);
-      this.setOwner(owner);
-      this.accelerationPower = 0.0;
-   }
+	public AbstractWindChargeEntity(EntityType<? extends AbstractWindChargeEntity> entityType, World world) {
+		super(entityType, world);
+		this.accelerationPower = 0.0;
+	}
 
-   AbstractWindChargeEntity(EntityType<? extends AbstractWindChargeEntity> entityType, double d, double e, double f, Vec3d vec3d, World world) {
-      super(entityType, d, e, f, vec3d, world);
-      this.accelerationPower = 0.0;
-   }
+	public AbstractWindChargeEntity(
+			EntityType<? extends AbstractWindChargeEntity> type,
+			World world,
+			Entity owner,
+			double x,
+			double y,
+			double z
+	) {
+		super(type, x, y, z, world);
+		this.setOwner(owner);
+		this.accelerationPower = 0.0;
+	}
 
-   @Override
-   protected Box calculateDefaultBoundingBox(Vec3d pos) {
-      float f = this.getType().getDimensions().width() / 2.0F;
-      float g = this.getType().getDimensions().height();
-      float h = 0.15F;
-      return new Box(pos.x - f, pos.y - 0.15F, pos.z - f, pos.x + f, pos.y - 0.15F + g, pos.z + f);
-   }
+	AbstractWindChargeEntity(
+			EntityType<? extends AbstractWindChargeEntity> entityType,
+			double d,
+			double e,
+			double f,
+			Vec3d vec3d,
+			World world
+	) {
+		super(entityType, d, e, f, vec3d, world);
+		this.accelerationPower = 0.0;
+	}
 
-   @Override
-   public boolean collidesWith(Entity other) {
-      return other instanceof AbstractWindChargeEntity ? false : super.collidesWith(other);
-   }
+	@Override
+	protected Box calculateDefaultBoundingBox(Vec3d pos) {
+		float f = this.getType().getDimensions().width() / 2.0F;
+		float g = this.getType().getDimensions().height();
+		float h = 0.15F;
+		return new Box(pos.x - f, pos.y - 0.15F, pos.z - f, pos.x + f, pos.y - 0.15F + g, pos.z + f);
+	}
 
-   @Override
-   protected boolean canHit(Entity entity) {
-      if (entity instanceof AbstractWindChargeEntity) {
-         return false;
-      } else {
-         return entity.getType() == EntityType.END_CRYSTAL ? false : super.canHit(entity);
-      }
-   }
+	@Override
+	public boolean collidesWith(Entity other) {
+		return other instanceof AbstractWindChargeEntity ? false : super.collidesWith(other);
+	}
 
-   @Override
-   protected void onEntityHit(EntityHitResult entityHitResult) {
-      super.onEntityHit(entityHitResult);
-      if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         LivingEntity livingEntity2 = this.getOwner() instanceof LivingEntity livingEntity ? livingEntity : null;
-         Entity entity = entityHitResult.getEntity();
-         if (livingEntity2 != null) {
-            livingEntity2.onAttacking(entity);
-         }
+	@Override
+	protected boolean canHit(Entity entity) {
+		if (entity instanceof AbstractWindChargeEntity) {
+			return false;
+		}
+		else {
+			return entity.getType() == EntityType.END_CRYSTAL ? false : super.canHit(entity);
+		}
+	}
 
-         DamageSource damageSource = this.getDamageSources().windCharge(this, livingEntity2);
-         if (entity.damage(serverWorld, damageSource, 1.0F) && entity instanceof LivingEntity livingEntity3) {
-            EnchantmentHelper.onTargetDamaged(serverWorld, livingEntity3, damageSource);
-         }
+	@Override
+	protected void onEntityHit(EntityHitResult entityHitResult) {
+		super.onEntityHit(entityHitResult);
+		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			LivingEntity livingEntity2 = this.getOwner() instanceof LivingEntity livingEntity ? livingEntity : null;
+			Entity entity = entityHitResult.getEntity();
+			if (livingEntity2 != null) {
+				livingEntity2.onAttacking(entity);
+			}
 
-         this.createExplosion(this.getEntityPos());
-      }
-   }
+			DamageSource damageSource = this.getDamageSources().windCharge(this, livingEntity2);
+			if (entity.damage(serverWorld, damageSource, 1.0F) && entity instanceof LivingEntity livingEntity3) {
+				EnchantmentHelper.onTargetDamaged(serverWorld, livingEntity3, damageSource);
+			}
 
-   @Override
-   public void addVelocity(double deltaX, double deltaY, double deltaZ) {
-   }
+			this.createExplosion(this.getEntityPos());
+		}
+	}
 
-   protected abstract void createExplosion(Vec3d pos);
+	@Override
+	public void addVelocity(double deltaX, double deltaY, double deltaZ) {
+	}
 
-   @Override
-   protected void onBlockHit(BlockHitResult blockHitResult) {
-      super.onBlockHit(blockHitResult);
-      if (!this.getEntityWorld().isClient()) {
-         Vec3i vec3i = blockHitResult.getSide().getVector();
-         Vec3d vec3d = Vec3d.of(vec3i).multiply(0.25, 0.25, 0.25);
-         Vec3d vec3d2 = blockHitResult.getPos().add(vec3d);
-         this.createExplosion(vec3d2);
-         this.discard();
-      }
-   }
+	protected abstract void createExplosion(Vec3d pos);
 
-   @Override
-   protected void onCollision(HitResult hitResult) {
-      super.onCollision(hitResult);
-      if (!this.getEntityWorld().isClient()) {
-         this.discard();
-      }
-   }
+	@Override
+	protected void onBlockHit(BlockHitResult blockHitResult) {
+		super.onBlockHit(blockHitResult);
+		if (!this.getEntityWorld().isClient()) {
+			Vec3i vec3i = blockHitResult.getSide().getVector();
+			Vec3d vec3d = Vec3d.of(vec3i).multiply(BLOCK_HIT_EXPLOSION_OFFSET, BLOCK_HIT_EXPLOSION_OFFSET, BLOCK_HIT_EXPLOSION_OFFSET);
+			Vec3d vec3d2 = blockHitResult.getPos().add(vec3d);
+			this.createExplosion(vec3d2);
+			this.discard();
+		}
+	}
 
-   @Override
-   protected boolean isBurning() {
-      return false;
-   }
+	@Override
+	protected void onCollision(HitResult hitResult) {
+		super.onCollision(hitResult);
+		if (!this.getEntityWorld().isClient()) {
+			this.discard();
+		}
+	}
 
-   @Override
-   public ItemStack getStack() {
-      return ItemStack.EMPTY;
-   }
+	@Override
+	protected boolean isBurning() {
+		return false;
+	}
 
-   @Override
-   protected float getDrag() {
-      return 1.0F;
-   }
+	@Override
+	public ItemStack getStack() {
+		return ItemStack.EMPTY;
+	}
 
-   @Override
-   protected float getDragInWater() {
-      return this.getDrag();
-   }
+	@Override
+	protected float getDrag() {
+		return 1.0F;
+	}
 
-   @Override
-   protected @Nullable ParticleEffect getParticleType() {
-      return null;
-   }
+	@Override
+	protected float getDragInWater() {
+		return this.getDrag();
+	}
 
-   @Override
-   public void tick() {
-      if (!this.getEntityWorld().isClient() && this.getBlockY() > this.getEntityWorld().getTopYInclusive() + 30) {
-         this.createExplosion(this.getEntityPos());
-         this.discard();
-      } else {
-         super.tick();
-      }
-   }
+	@Override
+	protected @Nullable ParticleEffect getParticleType() {
+		return null;
+	}
+
+	@Override
+	public void tick() {
+		if (!this.getEntityWorld().isClient() && this.getBlockY() > this.getEntityWorld().getTopYInclusive() + 30) {
+			this.createExplosion(this.getEntityPos());
+			this.discard();
+		}
+		else {
+			super.tick();
+		}
+	}
 }

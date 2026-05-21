@@ -11,48 +11,56 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code RailBlock}.
+ */
 public class RailBlock extends AbstractRailBlock {
-   public static final MapCodec<RailBlock> CODEC = createCodec(RailBlock::new);
-   public static final EnumProperty<RailShape> SHAPE = Properties.RAIL_SHAPE;
 
-   @Override
-   public MapCodec<RailBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<RailBlock> CODEC = createCodec(RailBlock::new);
+	public static final EnumProperty<RailShape> SHAPE = Properties.RAIL_SHAPE;
 
-   public RailBlock(AbstractBlock.Settings settings) {
-      super(false, settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(SHAPE, RailShape.NORTH_SOUTH).with(WATERLOGGED, false));
-   }
+	@Override
+	public MapCodec<RailBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void updateBlockState(BlockState state, World world, BlockPos pos, Block neighbor) {
-      if (neighbor.getDefaultState().emitsRedstonePower() && new RailPlacementHelper(world, pos, state).getNeighborCount() == 3) {
-         this.updateBlockState(world, pos, state, false);
-      }
-   }
+	public RailBlock(AbstractBlock.Settings settings) {
+		super(false, settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(SHAPE, RailShape.NORTH_SOUTH)
+				.with(WATERLOGGED, false));
+	}
 
-   @Override
-   public Property<RailShape> getShapeProperty() {
-      return SHAPE;
-   }
+	@Override
+	protected void updateBlockState(BlockState state, World world, BlockPos pos, Block neighbor) {
+		if (neighbor.getDefaultState().emitsRedstonePower()
+				&& new RailPlacementHelper(world, pos, state).getNeighborCount() == 3) {
+			this.updateBlockState(world, pos, state, false);
+		}
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      RailShape railShape = state.get(SHAPE);
-      RailShape railShape2 = this.rotateShape(railShape, rotation);
-      return state.with(SHAPE, railShape2);
-   }
+	@Override
+	public Property<RailShape> getShapeProperty() {
+		return SHAPE;
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      RailShape railShape = state.get(SHAPE);
-      RailShape railShape2 = this.mirrorShape(railShape, mirror);
-      return state.with(SHAPE, railShape2);
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		RailShape railShape = state.get(SHAPE);
+		RailShape railShape2 = this.rotateShape(railShape, rotation);
+		return state.with(SHAPE, railShape2);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(SHAPE, WATERLOGGED);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		RailShape railShape = state.get(SHAPE);
+		RailShape railShape2 = this.mirrorShape(railShape, mirror);
+		return state.with(SHAPE, railShape2);
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(SHAPE, WATERLOGGED);
+	}
 }

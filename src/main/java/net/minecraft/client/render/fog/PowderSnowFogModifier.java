@@ -10,30 +10,41 @@ import net.minecraft.entity.Entity;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PowderSnowFogModifier}.
+ */
 public class PowderSnowFogModifier extends FogModifier {
-   private static final int FOG_COLOR = -6308916;
 
-   @Override
-   public int getFogColor(ClientWorld world, Camera camera, int viewDistance, float skyDarkness) {
-      return -6308916;
-   }
+	private static final int FOG_COLOR = -6308916;
 
-   @Override
-   public void applyStartEndModifier(FogData data, Camera camera, ClientWorld clientWorld, float f, RenderTickCounter renderTickCounter) {
-      if (camera.getFocusedEntity().isSpectator()) {
-         data.environmentalStart = -8.0F;
-         data.environmentalEnd = f * 0.5F;
-      } else {
-         data.environmentalStart = 0.0F;
-         data.environmentalEnd = 2.0F;
-      }
+	@Override
+	public int getFogColor(ClientWorld world, Camera camera, int viewDistance, float skyDarkness) {
+		return -6308916;
+	}
 
-      data.skyEnd = data.environmentalEnd;
-      data.cloudEnd = data.environmentalEnd;
-   }
+	@Override
+	public void applyStartEndModifier(
+			FogData data,
+			Camera camera,
+			ClientWorld clientWorld,
+			float f,
+			RenderTickCounter renderTickCounter
+	) {
+		if (camera.getFocusedEntity().isSpectator()) {
+			data.environmentalStart = -8.0F;
+			data.environmentalEnd = f * 0.5F;
+		}
+		else {
+			data.environmentalStart = 0.0F;
+			data.environmentalEnd = 2.0F;
+		}
 
-   @Override
-   public boolean shouldApply(@Nullable CameraSubmersionType submersionType, Entity cameraEntity) {
-      return submersionType == CameraSubmersionType.POWDER_SNOW;
-   }
+		data.skyEnd = data.environmentalEnd;
+		data.cloudEnd = data.environmentalEnd;
+	}
+
+	@Override
+	public boolean shouldApply(@Nullable CameraSubmersionType submersionType, Entity cameraEntity) {
+		return submersionType == CameraSubmersionType.POWDER_SNOW;
+	}
 }

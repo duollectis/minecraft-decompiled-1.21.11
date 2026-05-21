@@ -2,9 +2,6 @@ package net.minecraft.component.type;
 
 import com.mojang.serialization.Codec;
 import io.netty.buffer.ByteBuf;
-import java.util.List;
-import java.util.Locale;
-import java.util.function.Consumer;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.DyeItem;
@@ -20,72 +17,91 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.ColorHelper;
 
+import java.util.List;
+import java.util.Locale;
+import java.util.function.Consumer;
+
+/**
+ * {@code DyedColorComponent}.
+ */
 public record DyedColorComponent(int rgb) implements TooltipAppender {
-   public static final Codec<DyedColorComponent> CODEC = Codecs.RGB.xmap(DyedColorComponent::new, DyedColorComponent::rgb);
-   public static final PacketCodec<ByteBuf, DyedColorComponent> PACKET_CODEC = PacketCodec.tuple(
-      PacketCodecs.INTEGER, DyedColorComponent::rgb, DyedColorComponent::new
-   );
-   public static final int DEFAULT_COLOR = -6265536;
 
-   public static int getColor(ItemStack stack, int defaultColor) {
-      DyedColorComponent dyedColorComponent = stack.get(DataComponentTypes.DYED_COLOR);
-      return dyedColorComponent != null ? ColorHelper.fullAlpha(dyedColorComponent.rgb()) : defaultColor;
-   }
+	public static final Codec<DyedColorComponent>
+			CODEC =
+			Codecs.RGB.xmap(DyedColorComponent::new, DyedColorComponent::rgb);
+	public static final PacketCodec<ByteBuf, DyedColorComponent> PACKET_CODEC = PacketCodec.tuple(
+			PacketCodecs.INTEGER, DyedColorComponent::rgb, DyedColorComponent::new
+	);
+	public static final int DEFAULT_COLOR = -6265536;
 
-   public static ItemStack setColor(ItemStack stack, List<DyeItem> dyes) {
-      if (!stack.isIn(ItemTags.DYEABLE)) {
-         return ItemStack.EMPTY;
-      } else {
-         ItemStack itemStack = stack.copyWithCount(1);
-         int i = 0;
-         int j = 0;
-         int k = 0;
-         int l = 0;
-         int m = 0;
-         DyedColorComponent dyedColorComponent = itemStack.get(DataComponentTypes.DYED_COLOR);
-         if (dyedColorComponent != null) {
-            int n = ColorHelper.getRed(dyedColorComponent.rgb());
-            int o = ColorHelper.getGreen(dyedColorComponent.rgb());
-            int p = ColorHelper.getBlue(dyedColorComponent.rgb());
-            l += Math.max(n, Math.max(o, p));
-            i += n;
-            j += o;
-            k += p;
-            m++;
-         }
+	public static int getColor(ItemStack stack, int defaultColor) {
+		DyedColorComponent dyedColorComponent = stack.get(DataComponentTypes.DYED_COLOR);
+		return dyedColorComponent != null ? ColorHelper.fullAlpha(dyedColorComponent.rgb()) : defaultColor;
+	}
 
-         for (DyeItem dyeItem : dyes) {
-            int p = dyeItem.getColor().getEntityColor();
-            int q = ColorHelper.getRed(p);
-            int r = ColorHelper.getGreen(p);
-            int s = ColorHelper.getBlue(p);
-            l += Math.max(q, Math.max(r, s));
-            i += q;
-            j += r;
-            k += s;
-            m++;
-         }
+	public static ItemStack setColor(ItemStack stack, List<DyeItem> dyes) {
+		if (!stack.isIn(ItemTags.DYEABLE)) {
+			return ItemStack.EMPTY;
+		}
+		else {
+			ItemStack itemStack = stack.copyWithCount(1);
+			int i = 0;
+			int j = 0;
+			int k = 0;
+			int l = 0;
+			int m = 0;
+			DyedColorComponent dyedColorComponent = itemStack.get(DataComponentTypes.DYED_COLOR);
+			if (dyedColorComponent != null) {
+				int n = ColorHelper.getRed(dyedColorComponent.rgb());
+				int o = ColorHelper.getGreen(dyedColorComponent.rgb());
+				int p = ColorHelper.getBlue(dyedColorComponent.rgb());
+				l += Math.max(n, Math.max(o, p));
+				i += n;
+				j += o;
+				k += p;
+				m++;
+			}
 
-         int n = i / m;
-         int o = j / m;
-         int p = k / m;
-         float f = (float)l / m;
-         float g = Math.max(n, Math.max(o, p));
-         n = (int)(n * f / g);
-         o = (int)(o * f / g);
-         p = (int)(p * f / g);
-         int s = ColorHelper.getArgb(0, n, o, p);
-         itemStack.set(DataComponentTypes.DYED_COLOR, new DyedColorComponent(s));
-         return itemStack;
-      }
-   }
+			for (DyeItem dyeItem : dyes) {
+				int p = dyeItem.getColor().getEntityColor();
+				int q = ColorHelper.getRed(p);
+				int r = ColorHelper.getGreen(p);
+				int s = ColorHelper.getBlue(p);
+				l += Math.max(q, Math.max(r, s));
+				i += q;
+				j += r;
+				k += s;
+				m++;
+			}
 
-   @Override
-   public void appendTooltip(Item.TooltipContext context, Consumer<Text> textConsumer, TooltipType type, ComponentsAccess components) {
-      if (type.isAdvanced()) {
-         textConsumer.accept(Text.translatable("item.color", String.format(Locale.ROOT, "#%06X", this.rgb)).formatted(Formatting.GRAY));
-      } else {
-         textConsumer.accept(Text.translatable("item.dyed").formatted(Formatting.GRAY, Formatting.ITALIC));
-      }
-   }
+			int n = i / m;
+			int o = j / m;
+			int p = k / m;
+			float f = (float) l / m;
+			float g = Math.max(n, Math.max(o, p));
+			n = (int) (n * f / g);
+			o = (int) (o * f / g);
+			p = (int) (p * f / g);
+			int s = ColorHelper.getArgb(0, n, o, p);
+			itemStack.set(DataComponentTypes.DYED_COLOR, new DyedColorComponent(s));
+			return itemStack;
+		}
+	}
+
+	@Override
+	public void appendTooltip(
+			Item.TooltipContext context,
+			Consumer<Text> textConsumer,
+			TooltipType type,
+			ComponentsAccess components
+	) {
+		if (type.isAdvanced()) {
+			textConsumer.accept(Text
+					.translatable("item.color", String.format(Locale.ROOT, "#%06X", this.rgb))
+					.formatted(Formatting.GRAY));
+		}
+		else {
+			textConsumer.accept(Text.translatable("item.dyed").formatted(Formatting.GRAY, Formatting.ITALIC));
+		}
+	}
 }

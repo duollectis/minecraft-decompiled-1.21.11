@@ -1,12 +1,6 @@
 package net.minecraft.client.toast;
 
 import com.google.common.collect.Queues;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Deque;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -22,255 +16,277 @@ import net.minecraft.util.math.MathHelper;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.jspecify.annotations.Nullable;
 
+import java.util.*;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ToastManager}.
+ */
 public class ToastManager {
-   private static final int SPACES = 5;
-   private static final int field_52786 = -1;
-   final MinecraftClient client;
-   private final List<ToastManager.Entry<?>> visibleEntries = new ArrayList<>();
-   private final BitSet occupiedSpaces = new BitSet(5);
-   private final Deque<Toast> toastQueue = Queues.newArrayDeque();
-   private final Set<SoundEvent> queuedToastSounds = new HashSet<>();
-   private ToastManager.@Nullable Entry<NowPlayingToast> nowPlayingToast;
 
-   public ToastManager(MinecraftClient client, GameOptions gameOptions) {
-      this.client = client;
-      this.initMusicToast(gameOptions.getMusicToast().getValue());
-   }
+	private static final int SPACES = 5;
+	private static final int NO_TOAST = -1;
+	final MinecraftClient client;
+	private final List<ToastManager.Entry<?>> visibleEntries = new ArrayList<>();
+	private final BitSet occupiedSpaces = new BitSet(5);
+	private final Deque<Toast> toastQueue = Queues.newArrayDeque();
+	private final Set<SoundEvent> queuedToastSounds = new HashSet<>();
+	private ToastManager.@Nullable Entry<NowPlayingToast> nowPlayingToast;
 
-   public void update() {
-      MutableBoolean mutableBoolean = new MutableBoolean(false);
-      this.visibleEntries.removeIf(entry -> {
-         Toast.Visibility visibility = entry.visibility;
-         entry.update();
-         if (entry.visibility != visibility && mutableBoolean.isFalse()) {
-            mutableBoolean.setTrue();
-            entry.visibility.playSound(this.client.getSoundManager());
-         }
+	public ToastManager(MinecraftClient client, GameOptions gameOptions) {
+		this.client = client;
+		this.initMusicToast(gameOptions.getMusicToast().getValue());
+	}
 
-         if (entry.isFinishedRendering()) {
-            this.occupiedSpaces.clear(entry.topIndex, entry.topIndex + entry.requiredSpaceCount);
-            return true;
-         } else {
-            return false;
-         }
-      });
-      if (!this.toastQueue.isEmpty() && this.getEmptySpaceCount() > 0) {
-         this.toastQueue.removeIf(toast -> {
-            int i = toast.getRequiredSpaceCount();
-            int j = this.getTopIndex(i);
-            if (j == -1) {
-               return false;
-            } else {
-               this.visibleEntries.add(new ToastManager.Entry<>(toast, j, i));
-               this.occupiedSpaces.set(j, j + i);
-               SoundEvent soundEvent = toast.getSoundEvent();
-               if (soundEvent != null && this.queuedToastSounds.add(soundEvent)) {
-                  this.client.getSoundManager().play(PositionedSoundInstance.master(soundEvent, 1.0F, 1.0F));
-               }
+	public void update() {
+		MutableBoolean mutableBoolean = new MutableBoolean(false);
+		this.visibleEntries.removeIf(entry -> {
+			Toast.Visibility visibility = entry.visibility;
+			entry.update();
+			if (entry.visibility != visibility && mutableBoolean.isFalse()) {
+				mutableBoolean.setTrue();
+				entry.visibility.playSound(this.client.getSoundManager());
+			}
 
-               return true;
-            }
-         });
-      }
+			if (entry.isFinishedRendering()) {
+				this.occupiedSpaces.clear(entry.topIndex, entry.topIndex + entry.requiredSpaceCount);
+				return true;
+			}
+			else {
+				return false;
+			}
+		});
+		if (!this.toastQueue.isEmpty() && this.getEmptySpaceCount() > 0) {
+			this.toastQueue.removeIf(toast -> {
+				int i = toast.getRequiredSpaceCount();
+				int j = this.getTopIndex(i);
+				if (j == -1) {
+					return false;
+				}
+				else {
+					this.visibleEntries.add(new ToastManager.Entry<>(toast, j, i));
+					this.occupiedSpaces.set(j, j + i);
+					SoundEvent soundEvent = toast.getSoundEvent();
+					if (soundEvent != null && this.queuedToastSounds.add(soundEvent)) {
+						this.client.getSoundManager().play(PositionedSoundInstance.master(soundEvent, 1.0F, 1.0F));
+					}
 
-      this.queuedToastSounds.clear();
-      if (this.nowPlayingToast != null) {
-         this.nowPlayingToast.update();
-      }
-   }
+					return true;
+				}
+			});
+		}
 
-   public void draw(DrawContext context) {
-      if (!this.client.options.hudHidden) {
-         int i = context.getScaledWindowWidth();
-         if (!this.visibleEntries.isEmpty()) {
-            context.createNewRootLayer();
-         }
+		this.queuedToastSounds.clear();
+		if (this.nowPlayingToast != null) {
+			this.nowPlayingToast.update();
+		}
+	}
 
-         for (ToastManager.Entry<?> entry : this.visibleEntries) {
-            entry.draw(context, i);
-         }
+	public void draw(DrawContext context) {
+		if (!this.client.options.hudHidden) {
+			int i = context.getScaledWindowWidth();
+			if (!this.visibleEntries.isEmpty()) {
+				context.createNewRootLayer();
+			}
 
-         if (this.client.options.getMusicToast().getValue().canShowAsToast()
-            && this.nowPlayingToast != null
-            && (this.client.currentScreen == null || !(this.client.currentScreen instanceof GameMenuScreen))) {
-            this.nowPlayingToast.draw(context, i);
-         }
-      }
-   }
+			for (ToastManager.Entry<?> entry : this.visibleEntries) {
+				entry.draw(context, i);
+			}
 
-   private int getTopIndex(int requiredSpaces) {
-      if (this.getEmptySpaceCount() >= requiredSpaces) {
-         int i = 0;
+			if (this.client.options.getMusicToast().getValue().canShowAsToast()
+					&& this.nowPlayingToast != null
+					&& (this.client.currentScreen == null || !(this.client.currentScreen instanceof GameMenuScreen))) {
+				this.nowPlayingToast.draw(context, i);
+			}
+		}
+	}
 
-         for (int j = 0; j < 5; j++) {
-            if (this.occupiedSpaces.get(j)) {
-               i = 0;
-            } else if (++i == requiredSpaces) {
-               return j + 1 - i;
-            }
-         }
-      }
+	private int getTopIndex(int requiredSpaces) {
+		if (this.getEmptySpaceCount() >= requiredSpaces) {
+			int i = 0;
 
-      return -1;
-   }
+			for (int j = 0; j < 5; j++) {
+				if (this.occupiedSpaces.get(j)) {
+					i = 0;
+				}
+				else if (++i == requiredSpaces) {
+					return j + 1 - i;
+				}
+			}
+		}
 
-   private int getEmptySpaceCount() {
-      return 5 - this.occupiedSpaces.cardinality();
-   }
+		return -1;
+	}
 
-   public <T extends Toast> @Nullable T getToast(Class<? extends T> toastClass, Object type) {
-      for (ToastManager.Entry<?> entry : this.visibleEntries) {
-         if (toastClass.isAssignableFrom(entry.getInstance().getClass()) && entry.getInstance().getType().equals(type)) {
-            return (T)entry.getInstance();
-         }
-      }
+	private int getEmptySpaceCount() {
+		return 5 - this.occupiedSpaces.cardinality();
+	}
 
-      for (Toast toast : this.toastQueue) {
-         if (toastClass.isAssignableFrom(toast.getClass()) && toast.getType().equals(type)) {
-            return (T)toast;
-         }
-      }
+	public <T extends Toast> @Nullable T getToast(Class<? extends T> toastClass, Object type) {
+		for (ToastManager.Entry<?> entry : this.visibleEntries) {
+			if (toastClass.isAssignableFrom(entry.getInstance().getClass()) && entry
+					.getInstance()
+					.getType()
+					.equals(type)) {
+				return (T) entry.getInstance();
+			}
+		}
 
-      return null;
-   }
+		for (Toast toast : this.toastQueue) {
+			if (toastClass.isAssignableFrom(toast.getClass()) && toast.getType().equals(type)) {
+				return (T) toast;
+			}
+		}
 
-   public void clear() {
-      this.occupiedSpaces.clear();
-      this.visibleEntries.clear();
-      this.toastQueue.clear();
-   }
+		return null;
+	}
 
-   public void add(Toast toast) {
-      this.toastQueue.add(toast);
-   }
+	public void clear() {
+		this.occupiedSpaces.clear();
+		this.visibleEntries.clear();
+		this.toastQueue.clear();
+	}
 
-   public void onMusicTrackStart() {
-      if (this.nowPlayingToast != null) {
-         this.nowPlayingToast.init();
-         this.nowPlayingToast.getInstance().show(this.client.options);
-      }
-   }
+	public void add(Toast toast) {
+		this.toastQueue.add(toast);
+	}
 
-   public void onMusicTrackStop() {
-      if (this.nowPlayingToast != null) {
-         this.nowPlayingToast.getInstance().setVisibility(Toast.Visibility.HIDE);
-      }
-   }
+	public void onMusicTrackStart() {
+		if (this.nowPlayingToast != null) {
+			this.nowPlayingToast.init();
+			this.nowPlayingToast.getInstance().show(this.client.options);
+		}
+	}
 
-   public MinecraftClient getClient() {
-      return this.client;
-   }
+	public void onMusicTrackStop() {
+		if (this.nowPlayingToast != null) {
+			this.nowPlayingToast.getInstance().setVisibility(Toast.Visibility.HIDE);
+		}
+	}
 
-   public double getNotificationDisplayTimeMultiplier() {
-      return this.client.options.getNotificationDisplayTime().getValue();
-   }
+	public MinecraftClient getClient() {
+		return this.client;
+	}
 
-   private void initMusicToast(MusicToastMode toastMode) {
-      switch (toastMode) {
-         case PAUSE:
-         case PAUSE_AND_TOAST:
-            this.nowPlayingToast = new ToastManager.Entry<>(new NowPlayingToast(), 0, 0);
-      }
-   }
+	public double getNotificationDisplayTimeMultiplier() {
+		return this.client.options.getNotificationDisplayTime().getValue();
+	}
 
-   public void onMusicToastModeUpdated(MusicToastMode toastMode) {
-      switch (toastMode) {
-         case PAUSE:
-            this.nowPlayingToast = new ToastManager.Entry<>(new NowPlayingToast(), 0, 0);
-            break;
-         case PAUSE_AND_TOAST:
-            this.nowPlayingToast = new ToastManager.Entry<>(new NowPlayingToast(), 0, 0);
-            if (this.client.options.getSoundVolume(SoundCategory.MUSIC) > 0.0F) {
-               this.nowPlayingToast.getInstance().show(this.client.options);
-            }
-            break;
-         case NEVER:
-            this.nowPlayingToast = null;
-      }
-   }
+	private void initMusicToast(MusicToastMode toastMode) {
+		switch (toastMode) {
+			case PAUSE:
+			case PAUSE_AND_TOAST:
+				this.nowPlayingToast = new ToastManager.Entry<>(new NowPlayingToast(), 0, 0);
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   class Entry<T extends Toast> {
-      private static final long DISAPPEAR_TIME = 600L;
-      private final T instance;
-      final int topIndex;
-      final int requiredSpaceCount;
-      private long startTime;
-      private long fullyVisibleTime;
-      Toast.Visibility visibility;
-      private long showTime;
-      private float visibleWidthPortion;
-      protected boolean finishedRendering;
+	public void onMusicToastModeUpdated(MusicToastMode toastMode) {
+		switch (toastMode) {
+			case PAUSE:
+				this.nowPlayingToast = new ToastManager.Entry<>(new NowPlayingToast(), 0, 0);
+				break;
+			case PAUSE_AND_TOAST:
+				this.nowPlayingToast = new ToastManager.Entry<>(new NowPlayingToast(), 0, 0);
+				if (this.client.options.getSoundVolume(SoundCategory.MUSIC) > 0.0F) {
+					this.nowPlayingToast.getInstance().show(this.client.options);
+				}
+				break;
+			case NEVER:
+				this.nowPlayingToast = null;
+		}
+	}
 
-      Entry(final T instance, final int topIndex, final int requiredSpaceCount) {
-         this.instance = instance;
-         this.topIndex = topIndex;
-         this.requiredSpaceCount = requiredSpaceCount;
-         this.init();
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Entry}.
+	 */
+	class Entry<T extends Toast> {
 
-      public T getInstance() {
-         return this.instance;
-      }
+		private static final long DISAPPEAR_TIME = 600L;
+		private final T instance;
+		final int topIndex;
+		final int requiredSpaceCount;
+		private long startTime;
+		private long fullyVisibleTime;
+		Toast.Visibility visibility;
+		private long showTime;
+		private float visibleWidthPortion;
+		protected boolean finishedRendering;
 
-      public void init() {
-         this.startTime = -1L;
-         this.fullyVisibleTime = -1L;
-         this.visibility = Toast.Visibility.HIDE;
-         this.showTime = 0L;
-         this.visibleWidthPortion = 0.0F;
-         this.finishedRendering = false;
-      }
+		Entry(final T instance, final int topIndex, final int requiredSpaceCount) {
+			this.instance = instance;
+			this.topIndex = topIndex;
+			this.requiredSpaceCount = requiredSpaceCount;
+			this.init();
+		}
 
-      public boolean isFinishedRendering() {
-         return this.finishedRendering;
-      }
+		public T getInstance() {
+			return this.instance;
+		}
 
-      private void updateVisibleWidthPortion(long time) {
-         float f = MathHelper.clamp((float)(time - this.startTime) / 600.0F, 0.0F, 1.0F);
-         f *= f;
-         if (this.visibility == Toast.Visibility.HIDE) {
-            this.visibleWidthPortion = 1.0F - f;
-         } else {
-            this.visibleWidthPortion = f;
-         }
-      }
+		public void init() {
+			this.startTime = -1L;
+			this.fullyVisibleTime = -1L;
+			this.visibility = Toast.Visibility.HIDE;
+			this.showTime = 0L;
+			this.visibleWidthPortion = 0.0F;
+			this.finishedRendering = false;
+		}
 
-      public void update() {
-         long l = Util.getMeasuringTimeMs();
-         if (this.startTime == -1L) {
-            this.startTime = l;
-            this.visibility = Toast.Visibility.SHOW;
-         }
+		public boolean isFinishedRendering() {
+			return this.finishedRendering;
+		}
 
-         if (this.visibility == Toast.Visibility.SHOW && l - this.startTime <= 600L) {
-            this.fullyVisibleTime = l;
-         }
+		private void updateVisibleWidthPortion(long time) {
+			float f = MathHelper.clamp((float) (time - this.startTime) / 600.0F, 0.0F, 1.0F);
+			f *= f;
+			if (this.visibility == Toast.Visibility.HIDE) {
+				this.visibleWidthPortion = 1.0F - f;
+			}
+			else {
+				this.visibleWidthPortion = f;
+			}
+		}
 
-         this.showTime = l - this.fullyVisibleTime;
-         this.updateVisibleWidthPortion(l);
-         this.instance.update(ToastManager.this, this.showTime);
-         Toast.Visibility visibility = this.instance.getVisibility();
-         if (visibility != this.visibility) {
-            this.startTime = l - (int)((1.0F - this.visibleWidthPortion) * 600.0F);
-            this.visibility = visibility;
-         }
+		public void update() {
+			long l = Util.getMeasuringTimeMs();
+			if (this.startTime == -1L) {
+				this.startTime = l;
+				this.visibility = Toast.Visibility.SHOW;
+			}
 
-         boolean bl = this.finishedRendering;
-         this.finishedRendering = this.visibility == Toast.Visibility.HIDE && l - this.startTime > 600L;
-         if (this.finishedRendering && !bl) {
-            this.instance.onFinishedRendering();
-         }
-      }
+			if (this.visibility == Toast.Visibility.SHOW && l - this.startTime <= 600L) {
+				this.fullyVisibleTime = l;
+			}
 
-      public void draw(DrawContext context, int scaledWindowWidth) {
-         if (!this.finishedRendering) {
-            context.getMatrices().pushMatrix();
-            context.getMatrices().translate(this.instance.getXPos(scaledWindowWidth, this.visibleWidthPortion), this.instance.getYPos(this.topIndex));
-            this.instance.draw(context, ToastManager.this.client.textRenderer, this.showTime);
-            context.getMatrices().popMatrix();
-         }
-      }
-   }
+			this.showTime = l - this.fullyVisibleTime;
+			this.updateVisibleWidthPortion(l);
+			this.instance.update(ToastManager.this, this.showTime);
+			Toast.Visibility visibility = this.instance.getVisibility();
+			if (visibility != this.visibility) {
+				this.startTime = l - (int) ((1.0F - this.visibleWidthPortion) * 600.0F);
+				this.visibility = visibility;
+			}
+
+			boolean bl = this.finishedRendering;
+			this.finishedRendering = this.visibility == Toast.Visibility.HIDE && l - this.startTime > 600L;
+			if (this.finishedRendering && !bl) {
+				this.instance.onFinishedRendering();
+			}
+		}
+
+		public void draw(DrawContext context, int scaledWindowWidth) {
+			if (!this.finishedRendering) {
+				context.getMatrices().pushMatrix();
+				context
+						.getMatrices()
+						.translate(
+								this.instance.getXPos(scaledWindowWidth, this.visibleWidthPortion),
+								this.instance.getYPos(this.topIndex)
+						);
+				this.instance.draw(context, ToastManager.this.client.textRenderer, this.showTime);
+				context.getMatrices().popMatrix();
+			}
+		}
+	}
 }

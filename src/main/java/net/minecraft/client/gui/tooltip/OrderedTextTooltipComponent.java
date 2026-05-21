@@ -7,25 +7,29 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.OrderedText;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code OrderedTextTooltipComponent}.
+ */
 public class OrderedTextTooltipComponent implements TooltipComponent {
-   private final OrderedText text;
 
-   public OrderedTextTooltipComponent(OrderedText text) {
-      this.text = text;
-   }
+	private final OrderedText text;
 
-   @Override
-   public int getWidth(TextRenderer textRenderer) {
-      return textRenderer.getWidth(this.text);
-   }
+	public OrderedTextTooltipComponent(OrderedText text) {
+		this.text = text;
+	}
 
-   @Override
-   public int getHeight(TextRenderer textRenderer) {
-      return 10;
-   }
+	@Override
+	public int getWidth(TextRenderer textRenderer) {
+		return textRenderer.getWidth(this.text);
+	}
 
-   @Override
-   public void drawText(DrawContext context, TextRenderer textRenderer, int x, int y) {
-      context.drawText(textRenderer, this.text, x, y, -1, true);
-   }
+	@Override
+	public int getHeight(TextRenderer textRenderer) {
+		return 10;
+	}
+
+	@Override
+	public void drawText(DrawContext context, TextRenderer textRenderer, int x, int y) {
+		context.drawText(textRenderer, this.text, x, y, -1, true);
+	}
 }

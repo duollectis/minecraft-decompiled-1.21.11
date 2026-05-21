@@ -7,6 +7,12 @@ import net.minecraft.client.realms.RealmsSerializable;
 import net.minecraft.client.realms.ServiceQuality;
 
 @Environment(EnvType.CLIENT)
-public record RegionData(@SerializedName("regionName") RealmsRegion region, @SerializedName("serviceQuality") ServiceQuality serviceQuality)
-   implements RealmsSerializable {
+/**
+ * {@code RegionData}.
+ */
+public record RegionData(
+		@SerializedName("regionName") RealmsRegion region,
+		@SerializedName("serviceQuality") ServiceQuality serviceQuality
+)
+		implements RealmsSerializable {
 }

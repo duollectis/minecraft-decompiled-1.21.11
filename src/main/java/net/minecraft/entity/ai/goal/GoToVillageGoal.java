@@ -1,6 +1,5 @@
 package net.minecraft.entity.ai.goal;
 
-import java.util.EnumSet;
 import net.minecraft.entity.ai.FuzzyTargeting;
 import net.minecraft.entity.ai.pathing.EntityNavigation;
 import net.minecraft.entity.mob.PathAwareEntity;
@@ -12,68 +11,92 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.Heightmap;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+
+/**
+ * {@code GoToVillageGoal}.
+ */
 public class GoToVillageGoal extends Goal {
-   private static final int field_30228 = 10;
-   private final PathAwareEntity mob;
-   private final int searchRange;
-   private @Nullable BlockPos targetPosition;
 
-   public GoToVillageGoal(PathAwareEntity mob, int searchRange) {
-      this.mob = mob;
-      this.searchRange = toGoalTicks(searchRange);
-      this.setControls(EnumSet.of(Goal.Control.MOVE));
-   }
+	private static final int ARRIVAL_DISTANCE = 10;
+	private final PathAwareEntity mob;
+	private final int searchRange;
+	private @Nullable BlockPos targetPosition;
 
-   @Override
-   public boolean canStart() {
-      if (this.mob.hasControllingPassenger()) {
-         return false;
-      } else if (this.mob.getEntityWorld().isDay()) {
-         return false;
-      } else if (this.mob.getRandom().nextInt(this.searchRange) != 0) {
-         return false;
-      } else {
-         ServerWorld serverWorld = (ServerWorld)this.mob.getEntityWorld();
-         BlockPos blockPos = this.mob.getBlockPos();
-         if (!serverWorld.isNearOccupiedPointOfInterest(blockPos, 6)) {
-            return false;
-         } else {
-            Vec3d vec3d = FuzzyTargeting.find(this.mob, 15, 7, blockPosx -> -serverWorld.getOccupiedPointOfInterestDistance(ChunkSectionPos.from(blockPosx)));
-            this.targetPosition = vec3d == null ? null : BlockPos.ofFloored(vec3d);
-            return this.targetPosition != null;
-         }
-      }
-   }
+	public GoToVillageGoal(PathAwareEntity mob, int searchRange) {
+		this.mob = mob;
+		this.searchRange = toGoalTicks(searchRange);
+		this.setControls(EnumSet.of(Goal.Control.MOVE));
+	}
 
-   @Override
-   public boolean shouldContinue() {
-      return this.targetPosition != null && !this.mob.getNavigation().isIdle() && this.mob.getNavigation().getTargetPos().equals(this.targetPosition);
-   }
+	@Override
+	public boolean canStart() {
+		if (this.mob.hasControllingPassenger()) {
+			return false;
+		}
+		else if (this.mob.getEntityWorld().isDay()) {
+			return false;
+		}
+		else if (this.mob.getRandom().nextInt(this.searchRange) != 0) {
+			return false;
+		}
+		else {
+			ServerWorld serverWorld = (ServerWorld) this.mob.getEntityWorld();
+			BlockPos blockPos = this.mob.getBlockPos();
+			if (!serverWorld.isNearOccupiedPointOfInterest(blockPos, 6)) {
+				return false;
+			}
+			else {
+				Vec3d
+						vec3d =
+						FuzzyTargeting.find(
+								this.mob,
+								15,
+								7,
+								blockPosx -> -serverWorld.getOccupiedPointOfInterestDistance(ChunkSectionPos.from(
+										blockPosx))
+						);
+				this.targetPosition = vec3d == null ? null : BlockPos.ofFloored(vec3d);
+				return this.targetPosition != null;
+			}
+		}
+	}
 
-   @Override
-   public void tick() {
-      if (this.targetPosition != null) {
-         EntityNavigation entityNavigation = this.mob.getNavigation();
-         if (entityNavigation.isIdle() && !this.targetPosition.isWithinDistance(this.mob.getEntityPos(), 10.0)) {
-            Vec3d vec3d = Vec3d.ofBottomCenter(this.targetPosition);
-            Vec3d vec3d2 = this.mob.getEntityPos();
-            Vec3d vec3d3 = vec3d2.subtract(vec3d);
-            vec3d = vec3d3.multiply(0.4).add(vec3d);
-            Vec3d vec3d4 = vec3d.subtract(vec3d2).normalize().multiply(10.0).add(vec3d2);
-            BlockPos blockPos = BlockPos.ofFloored(vec3d4);
-            blockPos = this.mob.getEntityWorld().getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, blockPos);
-            if (!entityNavigation.startMovingTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 1.0)) {
-               this.findOtherWaypoint();
-            }
-         }
-      }
-   }
+	@Override
+	public boolean shouldContinue() {
+		return this.targetPosition != null && !this.mob.getNavigation().isIdle() && this.mob
+				.getNavigation()
+				.getTargetPos()
+				.equals(this.targetPosition);
+	}
 
-   private void findOtherWaypoint() {
-      Random random = this.mob.getRandom();
-      BlockPos blockPos = this.mob
-         .getEntityWorld()
-         .getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, this.mob.getBlockPos().add(-8 + random.nextInt(16), 0, -8 + random.nextInt(16)));
-      this.mob.getNavigation().startMovingTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 1.0);
-   }
+	@Override
+	public void tick() {
+		if (this.targetPosition != null) {
+			EntityNavigation entityNavigation = this.mob.getNavigation();
+			if (entityNavigation.isIdle() && !this.targetPosition.isWithinDistance(this.mob.getEntityPos(), ARRIVAL_DISTANCE)) {
+				Vec3d vec3d = Vec3d.ofBottomCenter(this.targetPosition);
+				Vec3d vec3d2 = this.mob.getEntityPos();
+				Vec3d vec3d3 = vec3d2.subtract(vec3d);
+				vec3d = vec3d3.multiply(0.4).add(vec3d);
+				Vec3d vec3d4 = vec3d.subtract(vec3d2).normalize().multiply(10.0).add(vec3d2);
+				BlockPos blockPos = BlockPos.ofFloored(vec3d4);
+				blockPos = this.mob.getEntityWorld().getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, blockPos);
+				if (!entityNavigation.startMovingTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 1.0)) {
+					this.findOtherWaypoint();
+				}
+			}
+		}
+	}
+
+	private void findOtherWaypoint() {
+		Random random = this.mob.getRandom();
+		BlockPos blockPos = this.mob
+				.getEntityWorld()
+				.getTopPosition(
+						Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+						this.mob.getBlockPos().add(-8 + random.nextInt(16), 0, -8 + random.nextInt(16))
+				);
+		this.mob.getNavigation().startMovingTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), 1.0);
+	}
 }

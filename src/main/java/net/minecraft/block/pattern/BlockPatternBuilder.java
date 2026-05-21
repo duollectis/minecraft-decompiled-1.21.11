@@ -4,88 +4,100 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import it.unimi.dsi.fastutil.chars.CharOpenHashSet;
 import it.unimi.dsi.fastutil.chars.CharSet;
-import java.lang.reflect.Array;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Predicate;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.reflect.Array;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
+
+/**
+ * {@code BlockPatternBuilder}.
+ */
 public class BlockPatternBuilder {
-   private final List<String[]> aisles = Lists.newArrayList();
-   private final Map<Character, Predicate<@Nullable CachedBlockPosition>> charMap = Maps.newHashMap();
-   private int height;
-   private int width;
-   private final CharSet keysMissingPredicates = new CharOpenHashSet();
 
-   private BlockPatternBuilder() {
-      this.charMap.put(' ', pos -> true);
-   }
+	private final List<String[]> aisles = Lists.newArrayList();
+	private final Map<Character, Predicate<@Nullable CachedBlockPosition>> charMap = Maps.newHashMap();
+	private int height;
+	private int width;
+	private final CharSet keysMissingPredicates = new CharOpenHashSet();
 
-   public BlockPatternBuilder aisle(String... pattern) {
-      if (!ArrayUtils.isEmpty(pattern) && !StringUtils.isEmpty(pattern[0])) {
-         if (this.aisles.isEmpty()) {
-            this.height = pattern.length;
-            this.width = pattern[0].length();
-         }
+	private BlockPatternBuilder() {
+		this.charMap.put(' ', pos -> true);
+	}
 
-         if (pattern.length != this.height) {
-            throw new IllegalArgumentException("Expected aisle with height of " + this.height + ", but was given one with a height of " + pattern.length + ")");
-         } else {
-            for (String string : pattern) {
-               if (string.length() != this.width) {
-                  throw new IllegalArgumentException(
-                     "Not all rows in the given aisle are the correct width (expected " + this.width + ", found one with " + string.length() + ")"
-                  );
-               }
+	public BlockPatternBuilder aisle(String... pattern) {
+		if (!ArrayUtils.isEmpty(pattern) && !StringUtils.isEmpty(pattern[0])) {
+			if (this.aisles.isEmpty()) {
+				this.height = pattern.length;
+				this.width = pattern[0].length();
+			}
 
-               for (char c : string.toCharArray()) {
-                  if (!this.charMap.containsKey(c)) {
-                     this.keysMissingPredicates.add(c);
-                  }
-               }
-            }
+			if (pattern.length != this.height) {
+				throw new IllegalArgumentException(
+						"Expected aisle with height of " + this.height + ", but was given one with a height of "
+								+ pattern.length + ")");
+			}
+			else {
+				for (String string : pattern) {
+					if (string.length() != this.width) {
+						throw new IllegalArgumentException(
+								"Not all rows in the given aisle are the correct width (expected " + this.width
+										+ ", found one with " + string.length() + ")"
+						);
+					}
 
-            this.aisles.add(pattern);
-            return this;
-         }
-      } else {
-         throw new IllegalArgumentException("Empty pattern for aisle");
-      }
-   }
+					for (char c : string.toCharArray()) {
+						if (!this.charMap.containsKey(c)) {
+							this.keysMissingPredicates.add(c);
+						}
+					}
+				}
 
-   public static BlockPatternBuilder start() {
-      return new BlockPatternBuilder();
-   }
+				this.aisles.add(pattern);
+				return this;
+			}
+		}
+		else {
+			throw new IllegalArgumentException("Empty pattern for aisle");
+		}
+	}
 
-   public BlockPatternBuilder where(char key, Predicate<@Nullable CachedBlockPosition> predicate) {
-      this.charMap.put(key, predicate);
-      this.keysMissingPredicates.remove(key);
-      return this;
-   }
+	public static BlockPatternBuilder start() {
+		return new BlockPatternBuilder();
+	}
 
-   public BlockPattern build() {
-      return new BlockPattern(this.bakePredicates());
-   }
+	public BlockPatternBuilder where(char key, Predicate<@Nullable CachedBlockPosition> predicate) {
+		this.charMap.put(key, predicate);
+		this.keysMissingPredicates.remove(key);
+		return this;
+	}
 
-   private Predicate<CachedBlockPosition>[][][] bakePredicates() {
-      if (!this.keysMissingPredicates.isEmpty()) {
-         throw new IllegalStateException("Predicates for character(s) " + this.keysMissingPredicates + " are missing");
-      } else {
-         Predicate<CachedBlockPosition>[][][] predicates = (Predicate<CachedBlockPosition>[][][])Array.newInstance(
-            Predicate.class, this.aisles.size(), this.height, this.width
-         );
+	public BlockPattern build() {
+		return new BlockPattern(this.bakePredicates());
+	}
 
-         for (int i = 0; i < this.aisles.size(); i++) {
-            for (int j = 0; j < this.height; j++) {
-               for (int k = 0; k < this.width; k++) {
-                  predicates[i][j][k] = this.charMap.get(this.aisles.get(i)[j].charAt(k));
-               }
-            }
-         }
+	private Predicate<CachedBlockPosition>[][][] bakePredicates() {
+		if (!this.keysMissingPredicates.isEmpty()) {
+			throw new IllegalStateException(
+					"Predicates for character(s) " + this.keysMissingPredicates + " are missing");
+		}
+		else {
+			Predicate<CachedBlockPosition>[][][] predicates = (Predicate<CachedBlockPosition>[][][]) Array.newInstance(
+					Predicate.class, this.aisles.size(), this.height, this.width
+			);
 
-         return predicates;
-      }
-   }
+			for (int i = 0; i < this.aisles.size(); i++) {
+				for (int j = 0; j < this.height; j++) {
+					for (int k = 0; k < this.width; k++) {
+						predicates[i][j][k] = this.charMap.get(this.aisles.get(i)[j].charAt(k));
+					}
+				}
+			}
+
+			return predicates;
+		}
+	}
 }

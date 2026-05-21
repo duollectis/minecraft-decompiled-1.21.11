@@ -9,26 +9,29 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.tick.TickManager;
 
 public record TickStepS2CPacket(int tickSteps) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, TickStepS2CPacket> CODEC = Packet.createCodec(TickStepS2CPacket::write, TickStepS2CPacket::new);
 
-   private TickStepS2CPacket(PacketByteBuf buf) {
-      this(buf.readVarInt());
-   }
+	public static final PacketCodec<PacketByteBuf, TickStepS2CPacket>
+			CODEC =
+			Packet.createCodec(TickStepS2CPacket::write, TickStepS2CPacket::new);
 
-   public static TickStepS2CPacket create(TickManager tickManager) {
-      return new TickStepS2CPacket(tickManager.getStepTicks());
-   }
+	private TickStepS2CPacket(PacketByteBuf buf) {
+		this(buf.readVarInt());
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.tickSteps);
-   }
+	public static TickStepS2CPacket create(TickManager tickManager) {
+		return new TickStepS2CPacket(tickManager.getStepTicks());
+	}
 
-   @Override
-   public PacketType<TickStepS2CPacket> getPacketType() {
-      return PlayPackets.TICKING_STEP;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.tickSteps);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onTickStep(this);
-   }
+	@Override
+	public PacketType<TickStepS2CPacket> getPacketType() {
+		return PlayPackets.TICKING_STEP;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onTickStep(this);
+	}
 }

@@ -1,6 +1,5 @@
 package net.minecraft.network.packet.s2c.play;
 
-import java.util.List;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -9,47 +8,50 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+import java.util.List;
+
 public class EntityPassengersSetS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, EntityPassengersSetS2CPacket> CODEC = Packet.createCodec(
-      EntityPassengersSetS2CPacket::write, EntityPassengersSetS2CPacket::new
-   );
-   private final int entityId;
-   private final int[] passengerIds;
 
-   public EntityPassengersSetS2CPacket(Entity entity) {
-      this.entityId = entity.getId();
-      List<Entity> list = entity.getPassengerList();
-      this.passengerIds = new int[list.size()];
+	public static final PacketCodec<PacketByteBuf, EntityPassengersSetS2CPacket> CODEC = Packet.createCodec(
+			EntityPassengersSetS2CPacket::write, EntityPassengersSetS2CPacket::new
+	);
+	private final int entityId;
+	private final int[] passengerIds;
 
-      for (int i = 0; i < list.size(); i++) {
-         this.passengerIds[i] = list.get(i).getId();
-      }
-   }
+	public EntityPassengersSetS2CPacket(Entity entity) {
+		this.entityId = entity.getId();
+		List<Entity> list = entity.getPassengerList();
+		this.passengerIds = new int[list.size()];
 
-   private EntityPassengersSetS2CPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      this.passengerIds = buf.readIntArray();
-   }
+		for (int i = 0; i < list.size(); i++) {
+			this.passengerIds[i] = list.get(i).getId();
+		}
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      buf.writeIntArray(this.passengerIds);
-   }
+	private EntityPassengersSetS2CPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		this.passengerIds = buf.readIntArray();
+	}
 
-   @Override
-   public PacketType<EntityPassengersSetS2CPacket> getPacketType() {
-      return PlayPackets.SET_PASSENGERS;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		buf.writeIntArray(this.passengerIds);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntityPassengersSet(this);
-   }
+	@Override
+	public PacketType<EntityPassengersSetS2CPacket> getPacketType() {
+		return PlayPackets.SET_PASSENGERS;
+	}
 
-   public int[] getPassengerIds() {
-      return this.passengerIds;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntityPassengersSet(this);
+	}
 
-   public int getEntityId() {
-      return this.entityId;
-   }
+	public int[] getPassengerIds() {
+		return this.passengerIds;
+	}
+
+	public int getEntityId() {
+		return this.entityId;
+	}
 }

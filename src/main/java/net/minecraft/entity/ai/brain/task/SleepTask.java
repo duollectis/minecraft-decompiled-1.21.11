@@ -1,9 +1,6 @@
 package net.minecraft.entity.ai.brain.task;
 
 import com.google.common.collect.ImmutableMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
 import net.minecraft.block.BedBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.LivingEntity;
@@ -16,79 +13,98 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.GlobalPos;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * {@code SleepTask}.
+ */
 public class SleepTask extends MultiTickTask<LivingEntity> {
-   public static final int RUN_TIME = 100;
-   private long startTime;
 
-   public SleepTask() {
-      super(ImmutableMap.of(MemoryModuleType.HOME, MemoryModuleState.VALUE_PRESENT, MemoryModuleType.LAST_WOKEN, MemoryModuleState.REGISTERED));
-   }
+	public static final int RUN_TIME = 100;
+	private long startTime;
 
-   @Override
-   protected boolean shouldRun(ServerWorld world, LivingEntity entity) {
-      if (entity.hasVehicle()) {
-         return false;
-      } else {
-         Brain<?> brain = entity.getBrain();
-         GlobalPos globalPos = brain.getOptionalRegisteredMemory(MemoryModuleType.HOME).get();
-         if (world.getRegistryKey() != globalPos.dimension()) {
-            return false;
-         } else {
-            Optional<Long> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.LAST_WOKEN);
-            if (optional.isPresent()) {
-               long l = world.getTime() - optional.get();
-               if (l > 0L && l < 100L) {
-                  return false;
-               }
-            }
+	public SleepTask() {
+		super(ImmutableMap.of(
+				MemoryModuleType.HOME,
+				MemoryModuleState.VALUE_PRESENT,
+				MemoryModuleType.LAST_WOKEN,
+				MemoryModuleState.REGISTERED
+		));
+	}
 
-            BlockState blockState = world.getBlockState(globalPos.pos());
-            return globalPos.pos().isWithinDistance(entity.getEntityPos(), 2.0) && blockState.isIn(BlockTags.BEDS) && !blockState.get(BedBlock.OCCUPIED);
-         }
-      }
-   }
+	@Override
+	protected boolean shouldRun(ServerWorld world, LivingEntity entity) {
+		if (entity.hasVehicle()) {
+			return false;
+		}
+		else {
+			Brain<?> brain = entity.getBrain();
+			GlobalPos globalPos = brain.getOptionalRegisteredMemory(MemoryModuleType.HOME).get();
+			if (world.getRegistryKey() != globalPos.dimension()) {
+				return false;
+			}
+			else {
+				Optional<Long> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.LAST_WOKEN);
+				if (optional.isPresent()) {
+					long l = world.getTime() - optional.get();
+					if (l > 0L && l < 100L) {
+						return false;
+					}
+				}
 
-   @Override
-   protected boolean shouldKeepRunning(ServerWorld world, LivingEntity entity, long time) {
-      Optional<GlobalPos> optional = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.HOME);
-      if (optional.isEmpty()) {
-         return false;
-      } else {
-         BlockPos blockPos = optional.get().pos();
-         return entity.getBrain().hasActivity(Activity.REST) && entity.getY() > blockPos.getY() + 0.4 && blockPos.isWithinDistance(entity.getEntityPos(), 1.14);
-      }
-   }
+				BlockState blockState = world.getBlockState(globalPos.pos());
+				return globalPos.pos().isWithinDistance(entity.getEntityPos(), 2.0) && blockState.isIn(BlockTags.BEDS)
+						&& !blockState.get(BedBlock.OCCUPIED);
+			}
+		}
+	}
 
-   @Override
-   protected void run(ServerWorld world, LivingEntity entity, long time) {
-      if (time > this.startTime) {
-         Brain<?> brain = entity.getBrain();
-         if (brain.hasMemoryModule(MemoryModuleType.DOORS_TO_CLOSE)) {
-            Set<GlobalPos> set = brain.getOptionalRegisteredMemory(MemoryModuleType.DOORS_TO_CLOSE).get();
-            Optional<List<LivingEntity>> optional;
-            if (brain.hasMemoryModule(MemoryModuleType.MOBS)) {
-               optional = brain.getOptionalRegisteredMemory(MemoryModuleType.MOBS);
-            } else {
-               optional = Optional.empty();
-            }
+	@Override
+	protected boolean shouldKeepRunning(ServerWorld world, LivingEntity entity, long time) {
+		Optional<GlobalPos> optional = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.HOME);
+		if (optional.isEmpty()) {
+			return false;
+		}
+		else {
+			BlockPos blockPos = optional.get().pos();
+			return entity.getBrain().hasActivity(Activity.REST) && entity.getY() > blockPos.getY() + 0.4
+					&& blockPos.isWithinDistance(entity.getEntityPos(), 1.14);
+		}
+	}
 
-            OpenDoorsTask.pathToDoor(world, entity, null, null, set, optional);
-         }
+	@Override
+	protected void run(ServerWorld world, LivingEntity entity, long time) {
+		if (time > this.startTime) {
+			Brain<?> brain = entity.getBrain();
+			if (brain.hasMemoryModule(MemoryModuleType.DOORS_TO_CLOSE)) {
+				Set<GlobalPos> set = brain.getOptionalRegisteredMemory(MemoryModuleType.DOORS_TO_CLOSE).get();
+				Optional<List<LivingEntity>> optional;
+				if (brain.hasMemoryModule(MemoryModuleType.MOBS)) {
+					optional = brain.getOptionalRegisteredMemory(MemoryModuleType.MOBS);
+				}
+				else {
+					optional = Optional.empty();
+				}
 
-         entity.sleep(entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.HOME).get().pos());
-      }
-   }
+				OpenDoorsTask.pathToDoor(world, entity, null, null, set, optional);
+			}
 
-   @Override
-   protected boolean isTimeLimitExceeded(long time) {
-      return false;
-   }
+			entity.sleep(entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.HOME).get().pos());
+		}
+	}
 
-   @Override
-   protected void finishRunning(ServerWorld world, LivingEntity entity, long time) {
-      if (entity.isSleeping()) {
-         entity.wakeUp();
-         this.startTime = time + 40L;
-      }
-   }
+	@Override
+	protected boolean isTimeLimitExceeded(long time) {
+		return false;
+	}
+
+	@Override
+	protected void finishRunning(ServerWorld world, LivingEntity entity, long time) {
+		if (entity.isSleeping()) {
+			entity.wakeUp();
+			this.startTime = time + 40L;
+		}
+	}
 }

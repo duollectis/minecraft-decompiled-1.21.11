@@ -1,27 +1,32 @@
 package net.minecraft.server.dedicated.gui;
 
-import java.util.Vector;
-import javax.swing.JList;
 import net.minecraft.server.MinecraftServer;
 
+import javax.swing.*;
+import java.util.Vector;
+
+/**
+ * {@code PlayerListGui}.
+ */
 public class PlayerListGui extends JList<String> {
-   private final MinecraftServer server;
-   private int tick;
 
-   public PlayerListGui(MinecraftServer server) {
-      this.server = server;
-      server.addServerGuiTickable(this::tick);
-   }
+	private final MinecraftServer server;
+	private int tick;
 
-   public void tick() {
-      if (this.tick++ % 20 == 0) {
-         Vector<String> vector = new Vector<>();
+	public PlayerListGui(MinecraftServer server) {
+		this.server = server;
+		server.addServerGuiTickable(this::tick);
+	}
 
-         for (int i = 0; i < this.server.getPlayerManager().getPlayerList().size(); i++) {
-            vector.add(this.server.getPlayerManager().getPlayerList().get(i).getGameProfile().name());
-         }
+	public void tick() {
+		if (this.tick++ % 20 == 0) {
+			Vector<String> vector = new Vector<>();
 
-         this.setListData(vector);
-      }
-   }
+			for (int i = 0; i < this.server.getPlayerManager().getPlayerList().size(); i++) {
+				vector.add(this.server.getPlayerManager().getPlayerList().get(i).getGameProfile().name());
+			}
+
+			this.setListData(vector);
+		}
+	}
 }

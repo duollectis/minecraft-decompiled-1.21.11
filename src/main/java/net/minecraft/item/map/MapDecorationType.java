@@ -9,14 +9,26 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Identifier;
 
-public record MapDecorationType(Identifier assetId, boolean showOnItemFrame, int mapColor, boolean explorationMapElement, boolean trackCount) {
-   public static final int NO_MAP_COLOR = -1;
-   public static final Codec<RegistryEntry<MapDecorationType>> CODEC = Registries.MAP_DECORATION_TYPE.getEntryCodec();
-   public static final PacketCodec<RegistryByteBuf, RegistryEntry<MapDecorationType>> PACKET_CODEC = PacketCodecs.registryEntry(
-      RegistryKeys.MAP_DECORATION_TYPE
-   );
+/**
+ * {@code MapDecorationType}.
+ */
+public record MapDecorationType(
+		Identifier assetId,
+		boolean showOnItemFrame,
+		int mapColor,
+		boolean explorationMapElement,
+		boolean trackCount
+) {
 
-   public boolean hasMapColor() {
-      return this.mapColor != -1;
-   }
+	public static final int NO_MAP_COLOR = -1;
+	public static final Codec<RegistryEntry<MapDecorationType>> CODEC = Registries.MAP_DECORATION_TYPE.getEntryCodec();
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<MapDecorationType>>
+			PACKET_CODEC =
+			PacketCodecs.registryEntry(
+					RegistryKeys.MAP_DECORATION_TYPE
+			);
+
+	public boolean hasMapColor() {
+		return this.mapColor != -1;
+	}
 }

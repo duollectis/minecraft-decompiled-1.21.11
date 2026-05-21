@@ -6,23 +6,35 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
+/**
+ * {@code MyceliumBlock}.
+ */
 public class MyceliumBlock extends SpreadableBlock {
-   public static final MapCodec<MyceliumBlock> CODEC = createCodec(MyceliumBlock::new);
 
-   @Override
-   public MapCodec<MyceliumBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<MyceliumBlock> CODEC = createCodec(MyceliumBlock::new);
 
-   public MyceliumBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<MyceliumBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      super.randomDisplayTick(state, world, pos, random);
-      if (random.nextInt(10) == 0) {
-         world.addParticleClient(ParticleTypes.MYCELIUM, pos.getX() + random.nextDouble(), pos.getY() + 1.1, pos.getZ() + random.nextDouble(), 0.0, 0.0, 0.0);
-      }
-   }
+	public MyceliumBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
+
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		super.randomDisplayTick(state, world, pos, random);
+		if (random.nextInt(10) == 0) {
+			world.addParticleClient(
+					ParticleTypes.MYCELIUM,
+					pos.getX() + random.nextDouble(),
+					pos.getY() + 1.1,
+					pos.getZ() + random.nextDouble(),
+					0.0,
+					0.0,
+					0.0
+			);
+		}
+	}
 }

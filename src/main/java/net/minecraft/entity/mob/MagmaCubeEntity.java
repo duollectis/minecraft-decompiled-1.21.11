@@ -19,96 +19,107 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 
+/**
+ * {@code MagmaCubeEntity}.
+ */
 public class MagmaCubeEntity extends SlimeEntity {
-   public MagmaCubeEntity(EntityType<? extends MagmaCubeEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   public static DefaultAttributeContainer.Builder createMagmaCubeAttributes() {
-      return HostileEntity.createHostileAttributes().add(EntityAttributes.MOVEMENT_SPEED, 0.2F);
-   }
+	public MagmaCubeEntity(EntityType<? extends MagmaCubeEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public static boolean canMagmaCubeSpawn(EntityType<MagmaCubeEntity> type, WorldAccess world, SpawnReason spawnReason, BlockPos pos, Random random) {
-      return world.getDifficulty() != Difficulty.PEACEFUL;
-   }
+	public static DefaultAttributeContainer.Builder createMagmaCubeAttributes() {
+		return HostileEntity.createHostileAttributes().add(EntityAttributes.MOVEMENT_SPEED, 0.2F);
+	}
 
-   @Override
-   public void setSize(int size, boolean heal) {
-      super.setSize(size, heal);
-      this.getAttributeInstance(EntityAttributes.ARMOR).setBaseValue(size * 3);
-   }
+	public static boolean canMagmaCubeSpawn(
+			EntityType<MagmaCubeEntity> type,
+			WorldAccess world,
+			SpawnReason spawnReason,
+			BlockPos pos,
+			Random random
+	) {
+		return world.getDifficulty() != Difficulty.PEACEFUL;
+	}
 
-   @Override
-   public float getBrightnessAtEyes() {
-      return 1.0F;
-   }
+	@Override
+	public void setSize(int size, boolean heal) {
+		super.setSize(size, heal);
+		this.getAttributeInstance(EntityAttributes.ARMOR).setBaseValue(size * 3);
+	}
 
-   @Override
-   protected ParticleEffect getParticles() {
-      return ParticleTypes.FLAME;
-   }
+	@Override
+	public float getBrightnessAtEyes() {
+		return 1.0F;
+	}
 
-   @Override
-   public boolean isOnFire() {
-      return false;
-   }
+	@Override
+	protected ParticleEffect getParticles() {
+		return ParticleTypes.FLAME;
+	}
 
-   @Override
-   protected int getTicksUntilNextJump() {
-      return super.getTicksUntilNextJump() * 4;
-   }
+	@Override
+	public boolean isOnFire() {
+		return false;
+	}
 
-   @Override
-   protected void updateStretch() {
-      this.targetStretch *= 0.9F;
-   }
+	@Override
+	protected int getTicksUntilNextJump() {
+		return super.getTicksUntilNextJump() * 4;
+	}
 
-   @Override
-   public void jump() {
-      Vec3d vec3d = this.getVelocity();
-      float f = this.getSize() * 0.1F;
-      this.setVelocity(vec3d.x, this.getJumpVelocity() + f, vec3d.z);
-      this.velocityDirty = true;
-   }
+	@Override
+	protected void updateStretch() {
+		this.targetStretch *= 0.9F;
+	}
 
-   @Override
-   protected void swimUpward(TagKey<Fluid> fluid) {
-      if (fluid == FluidTags.LAVA) {
-         Vec3d vec3d = this.getVelocity();
-         this.setVelocity(vec3d.x, 0.22F + this.getSize() * 0.05F, vec3d.z);
-         this.velocityDirty = true;
-      } else {
-         super.swimUpward(fluid);
-      }
-   }
+	@Override
+	public void jump() {
+		Vec3d vec3d = this.getVelocity();
+		float f = this.getSize() * 0.1F;
+		this.setVelocity(vec3d.x, this.getJumpVelocity() + f, vec3d.z);
+		this.velocityDirty = true;
+	}
 
-   @Override
-   protected boolean canAttack() {
-      return this.canActVoluntarily();
-   }
+	@Override
+	protected void swimUpward(TagKey<Fluid> fluid) {
+		if (fluid == FluidTags.LAVA) {
+			Vec3d vec3d = this.getVelocity();
+			this.setVelocity(vec3d.x, 0.22F + this.getSize() * 0.05F, vec3d.z);
+			this.velocityDirty = true;
+		}
+		else {
+			super.swimUpward(fluid);
+		}
+	}
 
-   @Override
-   protected float getDamageAmount() {
-      return super.getDamageAmount() + 2.0F;
-   }
+	@Override
+	protected boolean canAttack() {
+		return this.canActVoluntarily();
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return this.isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_HURT_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_HURT;
-   }
+	@Override
+	protected float getDamageAmount() {
+		return super.getDamageAmount() + 2.0F;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return this.isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_DEATH_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return this.isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_HURT_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_HURT;
+	}
 
-   @Override
-   protected SoundEvent getSquishSound() {
-      return this.isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_SQUISH_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_SQUISH;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return this.isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_DEATH_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_DEATH;
+	}
 
-   @Override
-   protected SoundEvent getJumpSound() {
-      return SoundEvents.ENTITY_MAGMA_CUBE_JUMP;
-   }
+	@Override
+	protected SoundEvent getSquishSound() {
+		return this.isSmall() ? SoundEvents.ENTITY_MAGMA_CUBE_SQUISH_SMALL : SoundEvents.ENTITY_MAGMA_CUBE_SQUISH;
+	}
+
+	@Override
+	protected SoundEvent getJumpSound() {
+		return SoundEvents.ENTITY_MAGMA_CUBE_JUMP;
+	}
 }

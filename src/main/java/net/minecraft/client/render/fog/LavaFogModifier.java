@@ -12,33 +12,46 @@ import net.minecraft.entity.effect.StatusEffects;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LavaFogModifier}.
+ */
 public class LavaFogModifier extends FogModifier {
-   private static final int COLOR = -6743808;
 
-   @Override
-   public int getFogColor(ClientWorld world, Camera camera, int viewDistance, float skyDarkness) {
-      return -6743808;
-   }
+	private static final int COLOR = -6743808;
 
-   @Override
-   public void applyStartEndModifier(FogData data, Camera camera, ClientWorld clientWorld, float f, RenderTickCounter renderTickCounter) {
-      if (camera.getFocusedEntity().isSpectator()) {
-         data.environmentalStart = -8.0F;
-         data.environmentalEnd = f * 0.5F;
-      } else if (camera.getFocusedEntity() instanceof LivingEntity livingEntity && livingEntity.hasStatusEffect(StatusEffects.FIRE_RESISTANCE)) {
-         data.environmentalStart = 0.0F;
-         data.environmentalEnd = 5.0F;
-      } else {
-         data.environmentalStart = 0.25F;
-         data.environmentalEnd = 1.0F;
-      }
+	@Override
+	public int getFogColor(ClientWorld world, Camera camera, int viewDistance, float skyDarkness) {
+		return -6743808;
+	}
 
-      data.skyEnd = data.environmentalEnd;
-      data.cloudEnd = data.environmentalEnd;
-   }
+	@Override
+	public void applyStartEndModifier(
+			FogData data,
+			Camera camera,
+			ClientWorld clientWorld,
+			float f,
+			RenderTickCounter renderTickCounter
+	) {
+		if (camera.getFocusedEntity().isSpectator()) {
+			data.environmentalStart = -8.0F;
+			data.environmentalEnd = f * 0.5F;
+		}
+		else if (camera.getFocusedEntity() instanceof LivingEntity livingEntity && livingEntity.hasStatusEffect(
+				StatusEffects.FIRE_RESISTANCE)) {
+			data.environmentalStart = 0.0F;
+			data.environmentalEnd = 5.0F;
+		}
+		else {
+			data.environmentalStart = 0.25F;
+			data.environmentalEnd = 1.0F;
+		}
 
-   @Override
-   public boolean shouldApply(@Nullable CameraSubmersionType submersionType, Entity cameraEntity) {
-      return submersionType == CameraSubmersionType.LAVA;
-   }
+		data.skyEnd = data.environmentalEnd;
+		data.cloudEnd = data.environmentalEnd;
+	}
+
+	@Override
+	public boolean shouldApply(@Nullable CameraSubmersionType submersionType, Entity cameraEntity) {
+		return submersionType == CameraSubmersionType.LAVA;
+	}
 }

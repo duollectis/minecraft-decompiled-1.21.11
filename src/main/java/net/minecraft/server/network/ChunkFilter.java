@@ -1,120 +1,137 @@
 package net.minecraft.server.network;
 
 import com.google.common.annotations.VisibleForTesting;
-import java.util.function.Consumer;
 import net.minecraft.util.math.ChunkPos;
 
+import java.util.function.Consumer;
+
+/**
+ * {@code ChunkFilter}.
+ */
 public interface ChunkFilter {
-   ChunkFilter IGNORE_ALL = new ChunkFilter() {
-      @Override
-      public boolean isWithinDistance(int x, int z, boolean includeEdge) {
-         return false;
-      }
 
-      @Override
-      public void forEach(Consumer<ChunkPos> consumer) {
-      }
-   };
+	ChunkFilter IGNORE_ALL = new ChunkFilter() {
+		@Override
+		public boolean isWithinDistance(int x, int z, boolean includeEdge) {
+			return false;
+		}
 
-   static ChunkFilter cylindrical(ChunkPos center, int viewDistance) {
-      return new ChunkFilter.Cylindrical(center, viewDistance);
-   }
+		@Override
+		public void forEach(Consumer<ChunkPos> consumer) {
+		}
+	};
 
-   static void forEachChangedChunk(ChunkFilter oldFilter, ChunkFilter newFilter, Consumer<ChunkPos> newlyIncluded, Consumer<ChunkPos> justRemoved) {
-      if (!oldFilter.equals(newFilter)) {
-         if (oldFilter instanceof ChunkFilter.Cylindrical cylindrical
-            && newFilter instanceof ChunkFilter.Cylindrical cylindrical2
-            && cylindrical.overlaps(cylindrical2)) {
-            int i = Math.min(cylindrical.getLeft(), cylindrical2.getLeft());
-            int j = Math.min(cylindrical.getBottom(), cylindrical2.getBottom());
-            int k = Math.max(cylindrical.getRight(), cylindrical2.getRight());
-            int l = Math.max(cylindrical.getTop(), cylindrical2.getTop());
+	static ChunkFilter cylindrical(ChunkPos center, int viewDistance) {
+		return new ChunkFilter.Cylindrical(center, viewDistance);
+	}
 
-            for (int m = i; m <= k; m++) {
-               for (int n = j; n <= l; n++) {
-                  boolean bl = cylindrical.isWithinDistance(m, n);
-                  boolean bl2 = cylindrical2.isWithinDistance(m, n);
-                  if (bl != bl2) {
-                     if (bl2) {
-                        newlyIncluded.accept(new ChunkPos(m, n));
-                     } else {
-                        justRemoved.accept(new ChunkPos(m, n));
-                     }
-                  }
-               }
-            }
-         } else {
-            oldFilter.forEach(justRemoved);
-            newFilter.forEach(newlyIncluded);
-         }
-      }
-   }
+	static void forEachChangedChunk(
+			ChunkFilter oldFilter,
+			ChunkFilter newFilter,
+			Consumer<ChunkPos> newlyIncluded,
+			Consumer<ChunkPos> justRemoved
+	) {
+		if (!oldFilter.equals(newFilter)) {
+			if (oldFilter instanceof ChunkFilter.Cylindrical cylindrical
+					&& newFilter instanceof ChunkFilter.Cylindrical cylindrical2
+					&& cylindrical.overlaps(cylindrical2)) {
+				int i = Math.min(cylindrical.getLeft(), cylindrical2.getLeft());
+				int j = Math.min(cylindrical.getBottom(), cylindrical2.getBottom());
+				int k = Math.max(cylindrical.getRight(), cylindrical2.getRight());
+				int l = Math.max(cylindrical.getTop(), cylindrical2.getTop());
 
-   default boolean isWithinDistance(ChunkPos pos) {
-      return this.isWithinDistance(pos.x, pos.z);
-   }
+				for (int m = i; m <= k; m++) {
+					for (int n = j; n <= l; n++) {
+						boolean bl = cylindrical.isWithinDistance(m, n);
+						boolean bl2 = cylindrical2.isWithinDistance(m, n);
+						if (bl != bl2) {
+							if (bl2) {
+								newlyIncluded.accept(new ChunkPos(m, n));
+							}
+							else {
+								justRemoved.accept(new ChunkPos(m, n));
+							}
+						}
+					}
+				}
+			}
+			else {
+				oldFilter.forEach(justRemoved);
+				newFilter.forEach(newlyIncluded);
+			}
+		}
+	}
 
-   default boolean isWithinDistance(int x, int z) {
-      return this.isWithinDistance(x, z, true);
-   }
+	default boolean isWithinDistance(ChunkPos pos) {
+		return this.isWithinDistance(pos.x, pos.z);
+	}
 
-   boolean isWithinDistance(int x, int z, boolean includeEdge);
+	default boolean isWithinDistance(int x, int z) {
+		return this.isWithinDistance(x, z, true);
+	}
 
-   void forEach(Consumer<ChunkPos> consumer);
+	boolean isWithinDistance(int x, int z, boolean includeEdge);
 
-   default boolean isWithinDistanceExcludingEdge(int x, int z) {
-      return this.isWithinDistance(x, z, false);
-   }
+	void forEach(Consumer<ChunkPos> consumer);
 
-   static boolean isWithinDistanceExcludingEdge(int centerX, int centerZ, int viewDistance, int x, int z) {
-      return isWithinDistance(centerX, centerZ, viewDistance, x, z, false);
-   }
+	default boolean isWithinDistanceExcludingEdge(int x, int z) {
+		return this.isWithinDistance(x, z, false);
+	}
 
-   static boolean isWithinDistance(int centerX, int centerZ, int viewDistance, int x, int z, boolean includeEdge) {
-      int i = includeEdge ? 2 : 1;
-      long l = Math.max(0, Math.abs(x - centerX) - i);
-      long m = Math.max(0, Math.abs(z - centerZ) - i);
-      long n = l * l + m * m;
-      int j = viewDistance * viewDistance;
-      return n < j;
-   }
+	static boolean isWithinDistanceExcludingEdge(int centerX, int centerZ, int viewDistance, int x, int z) {
+		return isWithinDistance(centerX, centerZ, viewDistance, x, z, false);
+	}
 
-   public record Cylindrical(ChunkPos center, int viewDistance) implements ChunkFilter {
-      int getLeft() {
-         return this.center.x - this.viewDistance - 1;
-      }
+	static boolean isWithinDistance(int centerX, int centerZ, int viewDistance, int x, int z, boolean includeEdge) {
+		int i = includeEdge ? 2 : 1;
+		long l = Math.max(0, Math.abs(x - centerX) - i);
+		long m = Math.max(0, Math.abs(z - centerZ) - i);
+		long n = l * l + m * m;
+		int j = viewDistance * viewDistance;
+		return n < j;
+	}
 
-      int getBottom() {
-         return this.center.z - this.viewDistance - 1;
-      }
+	/**
+	 * {@code Cylindrical}.
+	 */
+	public record Cylindrical(ChunkPos center, int viewDistance) implements ChunkFilter {
 
-      int getRight() {
-         return this.center.x + this.viewDistance + 1;
-      }
+		int getLeft() {
+			return this.center.x - this.viewDistance - 1;
+		}
 
-      int getTop() {
-         return this.center.z + this.viewDistance + 1;
-      }
+		int getBottom() {
+			return this.center.z - this.viewDistance - 1;
+		}
 
-      @VisibleForTesting
-      protected boolean overlaps(ChunkFilter.Cylindrical o) {
-         return this.getLeft() <= o.getRight() && this.getRight() >= o.getLeft() && this.getBottom() <= o.getTop() && this.getTop() >= o.getBottom();
-      }
+		int getRight() {
+			return this.center.x + this.viewDistance + 1;
+		}
 
-      @Override
-      public boolean isWithinDistance(int x, int z, boolean includeEdge) {
-         return ChunkFilter.isWithinDistance(this.center.x, this.center.z, this.viewDistance, x, z, includeEdge);
-      }
+		int getTop() {
+			return this.center.z + this.viewDistance + 1;
+		}
 
-      @Override
-      public void forEach(Consumer<ChunkPos> consumer) {
-         for (int i = this.getLeft(); i <= this.getRight(); i++) {
-            for (int j = this.getBottom(); j <= this.getTop(); j++) {
-               if (this.isWithinDistance(i, j)) {
-                  consumer.accept(new ChunkPos(i, j));
-               }
-            }
-         }
-      }
-   }
+		@VisibleForTesting
+		protected boolean overlaps(ChunkFilter.Cylindrical o) {
+			return this.getLeft() <= o.getRight() && this.getRight() >= o.getLeft() && this.getBottom() <= o.getTop()
+					&& this.getTop() >= o.getBottom();
+		}
+
+		@Override
+		public boolean isWithinDistance(int x, int z, boolean includeEdge) {
+			return ChunkFilter.isWithinDistance(this.center.x, this.center.z, this.viewDistance, x, z, includeEdge);
+		}
+
+		@Override
+		public void forEach(Consumer<ChunkPos> consumer) {
+			for (int i = this.getLeft(); i <= this.getRight(); i++) {
+				for (int j = this.getBottom(); j <= this.getTop(); j++) {
+					if (this.isWithinDistance(i, j)) {
+						consumer.accept(new ChunkPos(i, j));
+					}
+				}
+			}
+		}
+	}
 }

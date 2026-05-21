@@ -8,41 +8,74 @@ import net.minecraft.util.math.ColorHelper;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WhiteAshParticle}.
+ */
 public class WhiteAshParticle extends AscendingParticle {
-   private static final int COLOR = 12235202;
 
-   protected WhiteAshParticle(
-      ClientWorld world,
-      double x,
-      double y,
-      double z,
-      double velocityX,
-      double velocityY,
-      double velocityZ,
-      float scaleMultiplier,
-      SpriteProvider spriteProvider
-   ) {
-      super(world, x, y, z, 0.1F, -0.1F, 0.1F, velocityX, velocityY, velocityZ, scaleMultiplier, spriteProvider, 0.0F, 20, 0.0125F, false);
-      this.red = ColorHelper.getRed(12235202) / 255.0F;
-      this.green = ColorHelper.getGreen(12235202) / 255.0F;
-      this.blue = ColorHelper.getBlue(12235202) / 255.0F;
-   }
+	private static final int COLOR = 12235202;
 
-   @Environment(EnvType.CLIENT)
-   public static class Factory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+	protected WhiteAshParticle(
+			ClientWorld world,
+			double x,
+			double y,
+			double z,
+			double velocityX,
+			double velocityY,
+			double velocityZ,
+			float scaleMultiplier,
+			SpriteProvider spriteProvider
+	) {
+		super(
+				world,
+				x,
+				y,
+				z,
+				0.1F,
+				-0.1F,
+				0.1F,
+				velocityX,
+				velocityY,
+				velocityZ,
+				scaleMultiplier,
+				spriteProvider,
+				0.0F,
+				20,
+				0.0125F,
+				false
+		);
+		this.red = ColorHelper.getRed(12235202) / 255.0F;
+		this.green = ColorHelper.getGreen(12235202) / 255.0F;
+		this.blue = ColorHelper.getBlue(12235202) / 255.0F;
+	}
 
-      public Factory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Factory}.
+	 */
+	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         double j = random.nextFloat() * -1.9 * random.nextFloat() * 0.1;
-         double k = random.nextFloat() * -0.5 * random.nextFloat() * 0.1 * 5.0;
-         double l = random.nextFloat() * -1.9 * random.nextFloat() * 0.1;
-         return new WhiteAshParticle(clientWorld, d, e, f, j, k, l, 1.0F, this.spriteProvider);
-      }
-   }
+		private final SpriteProvider spriteProvider;
+
+		public Factory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
+
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			double j = random.nextFloat() * -1.9 * random.nextFloat() * 0.1;
+			double k = random.nextFloat() * -0.5 * random.nextFloat() * 0.1 * 5.0;
+			double l = random.nextFloat() * -1.9 * random.nextFloat() * 0.1;
+			return new WhiteAshParticle(clientWorld, d, e, f, j, k, l, 1.0F, this.spriteProvider);
+		}
+	}
 }

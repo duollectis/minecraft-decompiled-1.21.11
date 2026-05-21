@@ -10,46 +10,47 @@ import net.minecraft.network.packet.PlayPackets;
 import org.jspecify.annotations.Nullable;
 
 public class NbtQueryResponseS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, NbtQueryResponseS2CPacket> CODEC = Packet.createCodec(
-      NbtQueryResponseS2CPacket::write, NbtQueryResponseS2CPacket::new
-   );
-   private final int transactionId;
-   private final @Nullable NbtCompound nbt;
 
-   public NbtQueryResponseS2CPacket(int transactionId, @Nullable NbtCompound nbt) {
-      this.transactionId = transactionId;
-      this.nbt = nbt;
-   }
+	public static final PacketCodec<PacketByteBuf, NbtQueryResponseS2CPacket> CODEC = Packet.createCodec(
+			NbtQueryResponseS2CPacket::write, NbtQueryResponseS2CPacket::new
+	);
+	private final int transactionId;
+	private final @Nullable NbtCompound nbt;
 
-   private NbtQueryResponseS2CPacket(PacketByteBuf buf) {
-      this.transactionId = buf.readVarInt();
-      this.nbt = buf.readNbt();
-   }
+	public NbtQueryResponseS2CPacket(int transactionId, @Nullable NbtCompound nbt) {
+		this.transactionId = transactionId;
+		this.nbt = nbt;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.transactionId);
-      buf.writeNbt(this.nbt);
-   }
+	private NbtQueryResponseS2CPacket(PacketByteBuf buf) {
+		this.transactionId = buf.readVarInt();
+		this.nbt = buf.readNbt();
+	}
 
-   @Override
-   public PacketType<NbtQueryResponseS2CPacket> getPacketType() {
-      return PlayPackets.TAG_QUERY;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.transactionId);
+		buf.writeNbt(this.nbt);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onNbtQueryResponse(this);
-   }
+	@Override
+	public PacketType<NbtQueryResponseS2CPacket> getPacketType() {
+		return PlayPackets.TAG_QUERY;
+	}
 
-   public int getTransactionId() {
-      return this.transactionId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onNbtQueryResponse(this);
+	}
 
-   public @Nullable NbtCompound getNbt() {
-      return this.nbt;
-   }
+	public int getTransactionId() {
+		return this.transactionId;
+	}
 
-   @Override
-   public boolean isWritingErrorSkippable() {
-      return true;
-   }
+	public @Nullable NbtCompound getNbt() {
+		return this.nbt;
+	}
+
+	@Override
+	public boolean isWritingErrorSkippable() {
+		return true;
+	}
 }

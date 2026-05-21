@@ -4,20 +4,24 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code AlwaysTrueRuleTest}.
+ */
 public class AlwaysTrueRuleTest extends RuleTest {
-   public static final MapCodec<AlwaysTrueRuleTest> CODEC = MapCodec.unit(() -> AlwaysTrueRuleTest.INSTANCE);
-   public static final AlwaysTrueRuleTest INSTANCE = new AlwaysTrueRuleTest();
 
-   private AlwaysTrueRuleTest() {
-   }
+	public static final MapCodec<AlwaysTrueRuleTest> CODEC = MapCodec.unit(() -> AlwaysTrueRuleTest.INSTANCE);
+	public static final AlwaysTrueRuleTest INSTANCE = new AlwaysTrueRuleTest();
 
-   @Override
-   public boolean test(BlockState state, Random random) {
-      return true;
-   }
+	private AlwaysTrueRuleTest() {
+	}
 
-   @Override
-   protected RuleTestType<?> getType() {
-      return RuleTestType.ALWAYS_TRUE;
-   }
+	@Override
+	public boolean test(BlockState state, Random random) {
+		return true;
+	}
+
+	@Override
+	protected RuleTestType<?> getType() {
+		return RuleTestType.ALWAYS_TRUE;
+	}
 }

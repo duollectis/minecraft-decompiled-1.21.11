@@ -8,19 +8,23 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.ScreenHandlerListener;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CreativeInventoryListener}.
+ */
 public class CreativeInventoryListener implements ScreenHandlerListener {
-   private final MinecraftClient client;
 
-   public CreativeInventoryListener(MinecraftClient client) {
-      this.client = client;
-   }
+	private final MinecraftClient client;
 
-   @Override
-   public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
-      this.client.interactionManager.clickCreativeStack(stack, slotId);
-   }
+	public CreativeInventoryListener(MinecraftClient client) {
+		this.client = client;
+	}
 
-   @Override
-   public void onPropertyUpdate(ScreenHandler handler, int property, int value) {
-   }
+	@Override
+	public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
+		this.client.interactionManager.clickCreativeStack(stack, slotId);
+	}
+
+	@Override
+	public void onPropertyUpdate(ScreenHandler handler, int property, int value) {
+	}
 }

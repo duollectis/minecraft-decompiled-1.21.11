@@ -5,6 +5,7 @@
 /run/
 /output/
 /logs/
+/scripts/
 
 ### IntelliJ IDEA ###
 /.idea/

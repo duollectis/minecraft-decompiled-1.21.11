@@ -5,8 +5,12 @@ import net.fabricmc.api.Environment;
 import net.minecraft.entity.passive.Cracks;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code IronGolemEntityRenderState}.
+ */
 public class IronGolemEntityRenderState extends LivingEntityRenderState {
-   public float attackTicksLeft;
-   public int lookingAtVillagerTicks;
-   public Cracks.CrackLevel crackLevel = Cracks.CrackLevel.NONE;
+
+	public float attackTicksLeft;
+	public int lookingAtVillagerTicks;
+	public Cracks.CrackLevel crackLevel = Cracks.CrackLevel.NONE;
 }

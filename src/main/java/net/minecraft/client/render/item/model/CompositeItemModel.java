@@ -2,7 +2,6 @@ package net.minecraft.client.render.item.model;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.item.ItemModelManager;
@@ -14,54 +13,68 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CompositeItemModel}.
+ */
 public class CompositeItemModel implements ItemModel {
-   private final List<ItemModel> models;
 
-   public CompositeItemModel(List<ItemModel> models) {
-      this.models = models;
-   }
+	private final List<ItemModel> models;
 
-   @Override
-   public void update(
-      ItemRenderState state,
-      ItemStack stack,
-      ItemModelManager resolver,
-      ItemDisplayContext displayContext,
-      @Nullable ClientWorld world,
-      @Nullable HeldItemContext heldItemContext,
-      int seed
-   ) {
-      state.addModelKey(this);
-      state.addLayers(this.models.size());
+	public CompositeItemModel(List<ItemModel> models) {
+		this.models = models;
+	}
 
-      for (ItemModel itemModel : this.models) {
-         itemModel.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
-      }
-   }
+	@Override
+	public void update(
+			ItemRenderState state,
+			ItemStack stack,
+			ItemModelManager resolver,
+			ItemDisplayContext displayContext,
+			@Nullable ClientWorld world,
+			@Nullable HeldItemContext heldItemContext,
+			int seed
+	) {
+		state.addModelKey(this);
+		state.addLayers(this.models.size());
 
-   @Environment(EnvType.CLIENT)
-   public record Unbaked(List<ItemModel.Unbaked> models) implements ItemModel.Unbaked {
-      public static final MapCodec<CompositeItemModel.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(ItemModelTypes.CODEC.listOf().fieldOf("models").forGetter(CompositeItemModel.Unbaked::models))
-            .apply(instance, CompositeItemModel.Unbaked::new)
-      );
+		for (ItemModel itemModel : this.models) {
+			itemModel.update(state, stack, resolver, displayContext, world, heldItemContext, seed);
+		}
+	}
 
-      @Override
-      public MapCodec<CompositeItemModel.Unbaked> getCodec() {
-         return CODEC;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Unbaked}.
+	 */
+	public record Unbaked(List<ItemModel.Unbaked> models) implements ItemModel.Unbaked {
 
-      @Override
-      public void resolve(ResolvableModel.Resolver resolver) {
-         for (ItemModel.Unbaked unbaked : this.models) {
-            unbaked.resolve(resolver);
-         }
-      }
+		public static final MapCodec<CompositeItemModel.Unbaked> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance
+						.group(ItemModelTypes.CODEC
+								.listOf()
+								.fieldOf("models")
+								.forGetter(CompositeItemModel.Unbaked::models))
+						.apply(instance, CompositeItemModel.Unbaked::new)
+		);
 
-      @Override
-      public ItemModel bake(ItemModel.BakeContext context) {
-         return new CompositeItemModel(this.models.stream().map(model -> model.bake(context)).toList());
-      }
-   }
+		@Override
+		public MapCodec<CompositeItemModel.Unbaked> getCodec() {
+			return CODEC;
+		}
+
+		@Override
+		public void resolve(ResolvableModel.Resolver resolver) {
+			for (ItemModel.Unbaked unbaked : this.models) {
+				unbaked.resolve(resolver);
+			}
+		}
+
+		@Override
+		public ItemModel bake(ItemModel.BakeContext context) {
+			return new CompositeItemModel(this.models.stream().map(model -> model.bake(context)).toList());
+		}
+	}
 }

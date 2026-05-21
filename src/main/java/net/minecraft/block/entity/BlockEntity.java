@@ -2,17 +2,10 @@ package net.minecraft.block.entity;
 
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
-import java.util.HashSet;
-import java.util.Set;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentTarget;
 import net.fabricmc.fabric.api.blockview.v2.RenderDataBlockEntity;
 import net.minecraft.block.BlockState;
-import net.minecraft.component.ComponentChanges;
-import net.minecraft.component.ComponentMap;
-import net.minecraft.component.ComponentType;
-import net.minecraft.component.ComponentsAccess;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.MergedComponentMap;
+import net.minecraft.component.*;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
@@ -38,314 +31,345 @@ import net.minecraft.world.debug.DebugTrackable;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.HashSet;
+import java.util.Set;
+
+/**
+ * {@code BlockEntity}.
+ */
 public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEntity, AttachmentTarget {
-   private static final Codec<BlockEntityType<?>> TYPE_CODEC = Registries.BLOCK_ENTITY_TYPE.getCodec();
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private final BlockEntityType<?> type;
-   protected @Nullable World world;
-   protected final BlockPos pos;
-   protected boolean removed;
-   private BlockState cachedState;
-   private ComponentMap components = ComponentMap.EMPTY;
 
-   public BlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
-      this.type = type;
-      this.pos = pos.toImmutable();
-      this.validateSupports(state);
-      this.cachedState = state;
-   }
+	private static final Codec<BlockEntityType<?>> TYPE_CODEC = Registries.BLOCK_ENTITY_TYPE.getCodec();
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private final BlockEntityType<?> type;
+	protected @Nullable World world;
+	protected final BlockPos pos;
+	protected boolean removed;
+	private BlockState cachedState;
+	private ComponentMap components = ComponentMap.EMPTY;
 
-   private void validateSupports(BlockState state) {
-      if (!this.supports(state)) {
-         throw new IllegalStateException("Invalid block entity " + this.getNameForReport() + " state at " + this.pos + ", got " + state);
-      }
-   }
+	public BlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
+		this.type = type;
+		this.pos = pos.toImmutable();
+		this.validateSupports(state);
+		this.cachedState = state;
+	}
 
-   public boolean supports(BlockState state) {
-      return this.type.supports(state);
-   }
+	private void validateSupports(BlockState state) {
+		if (!this.supports(state)) {
+			throw new IllegalStateException(
+					"Invalid block entity " + this.getNameForReport() + " state at " + this.pos + ", got " + state);
+		}
+	}
 
-   public static BlockPos posFromNbt(ChunkPos chunkPos, NbtCompound nbt) {
-      int i = nbt.getInt("x", 0);
-      int j = nbt.getInt("y", 0);
-      int k = nbt.getInt("z", 0);
-      int l = ChunkSectionPos.getSectionCoord(i);
-      int m = ChunkSectionPos.getSectionCoord(k);
-      if (l != chunkPos.x || m != chunkPos.z) {
-         LOGGER.warn("Block entity {} found in a wrong chunk, expected position from chunk {}", nbt, chunkPos);
-         i = chunkPos.getOffsetX(ChunkSectionPos.getLocalCoord(i));
-         k = chunkPos.getOffsetZ(ChunkSectionPos.getLocalCoord(k));
-      }
+	public boolean supports(BlockState state) {
+		return this.type.supports(state);
+	}
 
-      return new BlockPos(i, j, k);
-   }
+	public static BlockPos posFromNbt(ChunkPos chunkPos, NbtCompound nbt) {
+		int i = nbt.getInt("x", 0);
+		int j = nbt.getInt("y", 0);
+		int k = nbt.getInt("z", 0);
+		int l = ChunkSectionPos.getSectionCoord(i);
+		int m = ChunkSectionPos.getSectionCoord(k);
+		if (l != chunkPos.x || m != chunkPos.z) {
+			LOGGER.warn("Block entity {} found in a wrong chunk, expected position from chunk {}", nbt, chunkPos);
+			i = chunkPos.getOffsetX(ChunkSectionPos.getLocalCoord(i));
+			k = chunkPos.getOffsetZ(ChunkSectionPos.getLocalCoord(k));
+		}
 
-   public @Nullable World getWorld() {
-      return this.world;
-   }
+		return new BlockPos(i, j, k);
+	}
 
-   public void setWorld(World world) {
-      this.world = world;
-   }
+	public @Nullable World getWorld() {
+		return this.world;
+	}
 
-   public boolean hasWorld() {
-      return this.world != null;
-   }
+	public void setWorld(World world) {
+		this.world = world;
+	}
 
-   protected void readData(ReadView view) {
-   }
+	public boolean hasWorld() {
+		return this.world != null;
+	}
 
-   public final void read(ReadView view) {
-      this.readData(view);
-      this.components = view.<ComponentMap>read("components", ComponentMap.CODEC).orElse(ComponentMap.EMPTY);
-   }
+	protected void readData(ReadView view) {
+	}
 
-   public final void readComponentlessData(ReadView view) {
-      this.readData(view);
-   }
+	public final void read(ReadView view) {
+		this.readData(view);
+		this.components = view.<ComponentMap>read("components", ComponentMap.CODEC).orElse(ComponentMap.EMPTY);
+	}
 
-   protected void writeData(WriteView view) {
-   }
+	public final void readComponentlessData(ReadView view) {
+		this.readData(view);
+	}
 
-   public final NbtCompound createNbtWithIdentifyingData(RegistryWrapper.WrapperLookup registries) {
-      NbtCompound var4;
-      try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
-         NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
-         this.writeFullData(nbtWriteView);
-         var4 = nbtWriteView.getNbt();
-      }
+	protected void writeData(WriteView view) {
+	}
 
-      return var4;
-   }
+	public final NbtCompound createNbtWithIdentifyingData(RegistryWrapper.WrapperLookup registries) {
+		NbtCompound var4;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
+			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
+			this.writeFullData(nbtWriteView);
+			var4 = nbtWriteView.getNbt();
+		}
 
-   public void writeFullData(WriteView view) {
-      this.writeDataWithoutId(view);
-      this.writeIdentifyingData(view);
-   }
+		return var4;
+	}
 
-   public void writeDataWithId(WriteView view) {
-      this.writeDataWithoutId(view);
-      this.writeId(view);
-   }
+	public void writeFullData(WriteView view) {
+		this.writeDataWithoutId(view);
+		this.writeIdentifyingData(view);
+	}
 
-   public final NbtCompound createNbt(RegistryWrapper.WrapperLookup registries) {
-      NbtCompound var4;
-      try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
-         NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
-         this.writeDataWithoutId(nbtWriteView);
-         var4 = nbtWriteView.getNbt();
-      }
+	public void writeDataWithId(WriteView view) {
+		this.writeDataWithoutId(view);
+		this.writeId(view);
+	}
 
-      return var4;
-   }
+	public final NbtCompound createNbt(RegistryWrapper.WrapperLookup registries) {
+		NbtCompound var4;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
+			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
+			this.writeDataWithoutId(nbtWriteView);
+			var4 = nbtWriteView.getNbt();
+		}
 
-   public void writeDataWithoutId(WriteView data) {
-      this.writeData(data);
-      data.put("components", ComponentMap.CODEC, this.components);
-   }
+		return var4;
+	}
 
-   public final NbtCompound createComponentlessNbt(RegistryWrapper.WrapperLookup registries) {
-      NbtCompound var4;
-      try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
-         NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
-         this.writeComponentlessData(nbtWriteView);
-         var4 = nbtWriteView.getNbt();
-      }
+	public void writeDataWithoutId(WriteView data) {
+		this.writeData(data);
+		data.put("components", ComponentMap.CODEC, this.components);
+	}
 
-      return var4;
-   }
+	public final NbtCompound createComponentlessNbt(RegistryWrapper.WrapperLookup registries) {
+		NbtCompound var4;
+		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
+			NbtWriteView nbtWriteView = NbtWriteView.create(logging, registries);
+			this.writeComponentlessData(nbtWriteView);
+			var4 = nbtWriteView.getNbt();
+		}
 
-   public void writeComponentlessData(WriteView view) {
-      this.writeData(view);
-   }
+		return var4;
+	}
 
-   private void writeId(WriteView view) {
-      writeId(view, this.getType());
-   }
+	public void writeComponentlessData(WriteView view) {
+		this.writeData(view);
+	}
 
-   public static void writeId(WriteView view, BlockEntityType<?> type) {
-      view.put("id", TYPE_CODEC, type);
-   }
+	private void writeId(WriteView view) {
+		writeId(view, this.getType());
+	}
 
-   private void writeIdentifyingData(WriteView view) {
-      this.writeId(view);
-      view.putInt("x", this.pos.getX());
-      view.putInt("y", this.pos.getY());
-      view.putInt("z", this.pos.getZ());
-   }
+	public static void writeId(WriteView view, BlockEntityType<?> type) {
+		view.put("id", TYPE_CODEC, type);
+	}
 
-   public static @Nullable BlockEntity createFromNbt(BlockPos pos, BlockState state, NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
-      BlockEntityType<?> blockEntityType = nbt.<BlockEntityType<?>>get("id", TYPE_CODEC).orElse(null);
-      if (blockEntityType == null) {
-         LOGGER.error("Skipping block entity with invalid type: {}", nbt.get("id"));
-         return null;
-      } else {
-         BlockEntity blockEntity;
-         try {
-            blockEntity = blockEntityType.instantiate(pos, state);
-         } catch (Throwable var12) {
-            LOGGER.error("Failed to create block entity {} for block {} at position {} ", new Object[]{blockEntityType, pos, state, var12});
-            return null;
-         }
+	private void writeIdentifyingData(WriteView view) {
+		this.writeId(view);
+		view.putInt("x", this.pos.getX());
+		view.putInt("y", this.pos.getY());
+		view.putInt("z", this.pos.getZ());
+	}
 
-         try {
-            BlockEntity var7;
-            try (ErrorReporter.Logging logging = new ErrorReporter.Logging(blockEntity.getReporterContext(), LOGGER)) {
-               blockEntity.read(NbtReadView.create(logging, registries, nbt));
-               var7 = blockEntity;
-            }
+	public static @Nullable BlockEntity createFromNbt(
+			BlockPos pos,
+			BlockState state,
+			NbtCompound nbt,
+			RegistryWrapper.WrapperLookup registries
+	) {
+		BlockEntityType<?> blockEntityType = nbt.<BlockEntityType<?>>get("id", TYPE_CODEC).orElse(null);
+		if (blockEntityType == null) {
+			LOGGER.error("Skipping block entity with invalid type: {}", nbt.get("id"));
+			return null;
+		}
+		else {
+			BlockEntity blockEntity;
+			try {
+				blockEntity = blockEntityType.instantiate(pos, state);
+			}
+			catch (Throwable var12) {
+				LOGGER.error(
+						"Failed to create block entity {} for block {} at position {} ",
+						new Object[]{blockEntityType, pos, state, var12}
+				);
+				return null;
+			}
 
-            return var7;
-         } catch (Throwable var11) {
-            LOGGER.error("Failed to load data for block entity {} for block {} at position {}", new Object[]{blockEntityType, pos, state, var11});
-            return null;
-         }
-      }
-   }
+			try {
+				BlockEntity var7;
+				try (ErrorReporter.Logging logging = new ErrorReporter.Logging(
+						blockEntity.getReporterContext(),
+						LOGGER
+				)
+				) {
+					blockEntity.read(NbtReadView.create(logging, registries, nbt));
+					var7 = blockEntity;
+				}
 
-   public void markDirty() {
-      if (this.world != null) {
-         markDirty(this.world, this.pos, this.cachedState);
-      }
-   }
+				return var7;
+			}
+			catch (Throwable var11) {
+				LOGGER.error(
+						"Failed to load data for block entity {} for block {} at position {}",
+						new Object[]{blockEntityType, pos, state, var11}
+				);
+				return null;
+			}
+		}
+	}
 
-   protected static void markDirty(World world, BlockPos pos, BlockState state) {
-      world.markDirty(pos);
-      if (!state.isAir()) {
-         world.updateComparators(pos, state.getBlock());
-      }
-   }
+	public void markDirty() {
+		if (this.world != null) {
+			markDirty(this.world, this.pos, this.cachedState);
+		}
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	protected static void markDirty(World world, BlockPos pos, BlockState state) {
+		world.markDirty(pos);
+		if (!state.isAir()) {
+			world.updateComparators(pos, state.getBlock());
+		}
+	}
 
-   public BlockState getCachedState() {
-      return this.cachedState;
-   }
+	public BlockPos getPos() {
+		return this.pos;
+	}
 
-   public @Nullable Packet<ClientPlayPacketListener> toUpdatePacket() {
-      return null;
-   }
+	public BlockState getCachedState() {
+		return this.cachedState;
+	}
 
-   public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-      return new NbtCompound();
-   }
+	public @Nullable Packet<ClientPlayPacketListener> toUpdatePacket() {
+		return null;
+	}
 
-   public boolean isRemoved() {
-      return this.removed;
-   }
+	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
+		return new NbtCompound();
+	}
 
-   public void markRemoved() {
-      this.removed = true;
-   }
+	public boolean isRemoved() {
+		return this.removed;
+	}
 
-   public void cancelRemoval() {
-      this.removed = false;
-   }
+	public void markRemoved() {
+		this.removed = true;
+	}
 
-   public void onBlockReplaced(BlockPos pos, BlockState oldState) {
-      if (this instanceof Inventory inventory && this.world != null) {
-         ItemScatterer.spawn(this.world, pos, inventory);
-      }
-   }
+	public void cancelRemoval() {
+		this.removed = false;
+	}
 
-   public boolean onSyncedBlockEvent(int type, int data) {
-      return false;
-   }
+	public void onBlockReplaced(BlockPos pos, BlockState oldState) {
+		if (this instanceof Inventory inventory && this.world != null) {
+			ItemScatterer.spawn(this.world, pos, inventory);
+		}
+	}
 
-   public void populateCrashReport(CrashReportSection crashReportSection) {
-      crashReportSection.add("Name", this::getNameForReport);
-      crashReportSection.add("Cached block", this.getCachedState()::toString);
-      if (this.world == null) {
-         crashReportSection.add("Block location", () -> this.pos + " (world missing)");
-      } else {
-         crashReportSection.add("Actual block", this.world.getBlockState(this.pos)::toString);
-         CrashReportSection.addBlockLocation(crashReportSection, this.world, this.pos);
-      }
-   }
+	public boolean onSyncedBlockEvent(int type, int data) {
+		return false;
+	}
 
-   public String getNameForReport() {
-      return Registries.BLOCK_ENTITY_TYPE.getId(this.getType()) + " // " + this.getClass().getCanonicalName();
-   }
+	public void populateCrashReport(CrashReportSection crashReportSection) {
+		crashReportSection.add("Name", this::getNameForReport);
+		crashReportSection.add("Cached block", this.getCachedState()::toString);
+		if (this.world == null) {
+			crashReportSection.add("Block location", () -> this.pos + " (world missing)");
+		}
+		else {
+			crashReportSection.add("Actual block", this.world.getBlockState(this.pos)::toString);
+			CrashReportSection.addBlockLocation(crashReportSection, this.world, this.pos);
+		}
+	}
 
-   public BlockEntityType<?> getType() {
-      return this.type;
-   }
+	public String getNameForReport() {
+		return Registries.BLOCK_ENTITY_TYPE.getId(this.getType()) + " // " + this.getClass().getCanonicalName();
+	}
 
-   @Deprecated
-   public void setCachedState(BlockState state) {
-      this.validateSupports(state);
-      this.cachedState = state;
-   }
+	public BlockEntityType<?> getType() {
+		return this.type;
+	}
 
-   protected void readComponents(ComponentsAccess components) {
-   }
+	@Deprecated
+	public void setCachedState(BlockState state) {
+		this.validateSupports(state);
+		this.cachedState = state;
+	}
 
-   public final void readComponents(ItemStack stack) {
-      this.readComponents(stack.getDefaultComponents(), stack.getComponentChanges());
-   }
+	protected void readComponents(ComponentsAccess components) {
+	}
 
-   public final void readComponents(ComponentMap defaultComponents, ComponentChanges components) {
-      final Set<ComponentType<?>> set = new HashSet<>();
-      set.add(DataComponentTypes.BLOCK_ENTITY_DATA);
-      set.add(DataComponentTypes.BLOCK_STATE);
-      final ComponentMap componentMap = MergedComponentMap.create(defaultComponents, components);
-      this.readComponents(new ComponentsAccess() {
-         @Override
-         public <T> @Nullable T get(ComponentType<? extends T> type) {
-            set.add(type);
-            return componentMap.get(type);
-         }
+	public final void readComponents(ItemStack stack) {
+		this.readComponents(stack.getDefaultComponents(), stack.getComponentChanges());
+	}
 
-         @Override
-         public <T> T getOrDefault(ComponentType<? extends T> type, T fallback) {
-            set.add(type);
-            return componentMap.getOrDefault(type, fallback);
-         }
-      });
-      ComponentChanges componentChanges = components.withRemovedIf(set::contains);
-      this.components = componentChanges.toAddedRemovedPair().added();
-   }
+	public final void readComponents(ComponentMap defaultComponents, ComponentChanges components) {
+		final Set<ComponentType<?>> set = new HashSet<>();
+		set.add(DataComponentTypes.BLOCK_ENTITY_DATA);
+		set.add(DataComponentTypes.BLOCK_STATE);
+		final ComponentMap componentMap = MergedComponentMap.create(defaultComponents, components);
+		this.readComponents(new ComponentsAccess() {
+			@Override
+			public <T> @Nullable T get(ComponentType<? extends T> type) {
+				set.add(type);
+				return componentMap.get(type);
+			}
 
-   protected void addComponents(ComponentMap.Builder builder) {
-   }
+			@Override
+			public <T> T getOrDefault(ComponentType<? extends T> type, T fallback) {
+				set.add(type);
+				return componentMap.getOrDefault(type, fallback);
+			}
+		});
+		ComponentChanges componentChanges = components.withRemovedIf(set::contains);
+		this.components = componentChanges.toAddedRemovedPair().added();
+	}
 
-   @Deprecated
-   public void removeFromCopiedStackData(WriteView view) {
-   }
+	protected void addComponents(ComponentMap.Builder builder) {
+	}
 
-   public final ComponentMap createComponentMap() {
-      ComponentMap.Builder builder = ComponentMap.builder();
-      builder.addAll(this.components);
-      this.addComponents(builder);
-      return builder.build();
-   }
+	@Deprecated
+	public void removeFromCopiedStackData(WriteView view) {
+	}
 
-   public ComponentMap getComponents() {
-      return this.components;
-   }
+	public final ComponentMap createComponentMap() {
+		ComponentMap.Builder builder = ComponentMap.builder();
+		builder.addAll(this.components);
+		this.addComponents(builder);
+		return builder.build();
+	}
 
-   public void setComponents(ComponentMap components) {
-      this.components = components;
-   }
+	public ComponentMap getComponents() {
+		return this.components;
+	}
 
-   public static @Nullable Text tryParseCustomName(ReadView view, String key) {
-      return view.<Text>read(key, TextCodecs.CODEC).orElse(null);
-   }
+	public void setComponents(ComponentMap components) {
+		this.components = components;
+	}
 
-   public ErrorReporter.Context getReporterContext() {
-      return new BlockEntity.ReporterContext(this);
-   }
+	public static @Nullable Text tryParseCustomName(ReadView view, String key) {
+		return view.<Text>read(key, TextCodecs.CODEC).orElse(null);
+	}
 
-   @Override
-   public void registerTracking(ServerWorld world, DebugTrackable.Tracker tracker) {
-   }
+	public ErrorReporter.Context getReporterContext() {
+		return new BlockEntity.ReporterContext(this);
+	}
 
-   record ReporterContext(BlockEntity blockEntity) implements ErrorReporter.Context {
-      @Override
-      public String getName() {
-         return this.blockEntity.getNameForReport() + "@" + this.blockEntity.getPos();
-      }
-   }
+	@Override
+	public void registerTracking(ServerWorld world, DebugTrackable.Tracker tracker) {
+	}
+
+	/**
+	 * {@code ReporterContext}.
+	 */
+	record ReporterContext(BlockEntity blockEntity) implements ErrorReporter.Context {
+
+		@Override
+		public String getName() {
+			return this.blockEntity.getNameForReport() + "@" + this.blockEntity.getPos();
+		}
+	}
 }

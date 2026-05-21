@@ -9,25 +9,31 @@ import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CompassProperty}.
+ */
 public class CompassProperty implements NumericProperty {
-   public static final MapCodec<CompassProperty> CODEC = CompassState.CODEC.xmap(CompassProperty::new, property -> property.state);
-   private final CompassState state;
 
-   public CompassProperty(boolean wobble, CompassState.Target target) {
-      this(new CompassState(wobble, target));
-   }
+	public static final MapCodec<CompassProperty>
+			CODEC =
+			CompassState.CODEC.xmap(CompassProperty::new, property -> property.state);
+	private final CompassState state;
 
-   private CompassProperty(CompassState state) {
-      this.state = state;
-   }
+	public CompassProperty(boolean wobble, CompassState.Target target) {
+		this(new CompassState(wobble, target));
+	}
 
-   @Override
-   public float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext context, int seed) {
-      return this.state.getValue(stack, world, context, seed);
-   }
+	private CompassProperty(CompassState state) {
+		this.state = state;
+	}
 
-   @Override
-   public MapCodec<CompassProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public float getValue(ItemStack stack, @Nullable ClientWorld world, @Nullable HeldItemContext context, int seed) {
+		return this.state.getValue(stack, world, context, seed);
+	}
+
+	@Override
+	public MapCodec<CompassProperty> getCodec() {
+		return CODEC;
+	}
 }

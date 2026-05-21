@@ -2,7 +2,6 @@ package net.minecraft.entity.ai.brain.task;
 
 import com.google.common.collect.ImmutableMap;
 import it.unimi.dsi.fastutil.ints.IntList;
-import java.util.List;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FireworkExplosionComponent;
 import net.minecraft.component.type.FireworksComponent;
@@ -19,57 +18,88 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.village.raid.Raid;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
+/**
+ * {@code CelebrateRaidWinTask}.
+ */
 public class CelebrateRaidWinTask extends MultiTickTask<VillagerEntity> {
-   private @Nullable Raid raid;
 
-   public CelebrateRaidWinTask(int minRunTime, int maxRunTime) {
-      super(ImmutableMap.of(), minRunTime, maxRunTime);
-   }
+	private @Nullable Raid raid;
 
-   protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-      BlockPos blockPos = villagerEntity.getBlockPos();
-      this.raid = serverWorld.getRaidAt(blockPos);
-      return this.raid != null && this.raid.hasWon() && SeekSkyTask.isSkyVisible(serverWorld, villagerEntity, blockPos);
-   }
+	public CelebrateRaidWinTask(int minRunTime, int maxRunTime) {
+		super(ImmutableMap.of(), minRunTime, maxRunTime);
+	}
 
-   protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-      return this.raid != null && !this.raid.hasStopped();
-   }
+	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
+		BlockPos blockPos = villagerEntity.getBlockPos();
+		this.raid = serverWorld.getRaidAt(blockPos);
+		return this.raid != null && this.raid.hasWon() && SeekSkyTask.isSkyVisible(
+				serverWorld,
+				villagerEntity,
+				blockPos
+		);
+	}
 
-   protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-      this.raid = null;
-      villagerEntity.getBrain().refreshActivities(serverWorld.getEnvironmentAttributes(), serverWorld.getTime(), villagerEntity.getEntityPos());
-   }
+	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
+		return this.raid != null && !this.raid.hasStopped();
+	}
 
-   protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-      Random random = villagerEntity.getRandom();
-      if (random.nextInt(100) == 0) {
-         villagerEntity.playCelebrateSound();
-      }
+	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
+		this.raid = null;
+		villagerEntity
+				.getBrain()
+				.refreshActivities(
+						serverWorld.getEnvironmentAttributes(),
+						serverWorld.getTime(),
+						villagerEntity.getEntityPos()
+				);
+	}
 
-      if (random.nextInt(200) == 0 && SeekSkyTask.isSkyVisible(serverWorld, villagerEntity, villagerEntity.getBlockPos())) {
-         DyeColor dyeColor = Util.getRandom(DyeColor.values(), random);
-         int i = random.nextInt(3);
-         ItemStack itemStack = this.createFirework(dyeColor, i);
-         ProjectileEntity.spawn(
-            new FireworkRocketEntity(
-               villagerEntity.getEntityWorld(), villagerEntity, villagerEntity.getX(), villagerEntity.getEyeY(), villagerEntity.getZ(), itemStack
-            ),
-            serverWorld,
-            itemStack
-         );
-      }
-   }
+	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
+		Random random = villagerEntity.getRandom();
+		if (random.nextInt(100) == 0) {
+			villagerEntity.playCelebrateSound();
+		}
 
-   private ItemStack createFirework(DyeColor color, int flight) {
-      ItemStack itemStack = new ItemStack(Items.FIREWORK_ROCKET);
-      itemStack.set(
-         DataComponentTypes.FIREWORKS,
-         new FireworksComponent(
-            (byte)flight,
-            List.of(new FireworkExplosionComponent(FireworkExplosionComponent.Type.BURST, IntList.of(color.getFireworkColor()), IntList.of(), false, false))
-         )
-      );
-      return itemStack;
-   }
+		if (random.nextInt(200) == 0 && SeekSkyTask.isSkyVisible(
+				serverWorld,
+				villagerEntity,
+				villagerEntity.getBlockPos()
+		)) {
+			DyeColor dyeColor = Util.getRandom(DyeColor.values(), random);
+			int i = random.nextInt(3);
+			ItemStack itemStack = this.createFirework(dyeColor, i);
+			ProjectileEntity.spawn(
+					new FireworkRocketEntity(
+							villagerEntity.getEntityWorld(),
+							villagerEntity,
+							villagerEntity.getX(),
+							villagerEntity.getEyeY(),
+							villagerEntity.getZ(),
+							itemStack
+					),
+					serverWorld,
+					itemStack
+			);
+		}
+	}
+
+	private ItemStack createFirework(DyeColor color, int flight) {
+		ItemStack itemStack = new ItemStack(Items.FIREWORK_ROCKET);
+		itemStack.set(
+				DataComponentTypes.FIREWORKS,
+				new FireworksComponent(
+						(byte) flight,
+						List.of(new FireworkExplosionComponent(
+								FireworkExplosionComponent.Type.BURST,
+								IntList.of(color.getFireworkColor()),
+								IntList.of(),
+								false,
+								false
+						))
+				)
+		);
+		return itemStack;
+	}
 }

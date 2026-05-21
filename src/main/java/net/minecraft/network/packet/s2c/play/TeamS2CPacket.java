@@ -1,8 +1,6 @@
 package net.minecraft.network.packet.s2c.play;
 
 import com.google.common.collect.ImmutableList;
-import java.util.Collection;
-import java.util.Optional;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -17,187 +15,209 @@ import net.minecraft.text.TextCodecs;
 import net.minecraft.util.Formatting;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collection;
+import java.util.Optional;
+
 public class TeamS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, TeamS2CPacket> CODEC = Packet.createCodec(TeamS2CPacket::write, TeamS2CPacket::new);
-   private static final int ADD = 0;
-   private static final int REMOVE = 1;
-   private static final int UPDATE = 2;
-   private static final int ADD_PLAYERS = 3;
-   private static final int REMOVE_PLAYERS = 4;
-   private static final int FIRST_MAX_VISIBILITY_OR_COLLISION_RULE_LENGTH = 40;
-   private static final int SECOND_MAX_VISIBILITY_OR_COLLISION_RULE_LENGTH = 40;
-   private final int packetType;
-   private final String teamName;
-   private final Collection<String> playerNames;
-   private final Optional<TeamS2CPacket.SerializableTeam> team;
 
-   private TeamS2CPacket(String teamName, int packetType, Optional<TeamS2CPacket.SerializableTeam> team, Collection<String> playerNames) {
-      this.teamName = teamName;
-      this.packetType = packetType;
-      this.team = team;
-      this.playerNames = ImmutableList.copyOf(playerNames);
-   }
+	public static final PacketCodec<RegistryByteBuf, TeamS2CPacket>
+			CODEC =
+			Packet.createCodec(TeamS2CPacket::write, TeamS2CPacket::new);
+	private static final int ADD = 0;
+	private static final int REMOVE = 1;
+	private static final int UPDATE = 2;
+	private static final int ADD_PLAYERS = 3;
+	private static final int REMOVE_PLAYERS = 4;
+	private static final int FIRST_MAX_VISIBILITY_OR_COLLISION_RULE_LENGTH = 40;
+	private static final int SECOND_MAX_VISIBILITY_OR_COLLISION_RULE_LENGTH = 40;
+	private final int packetType;
+	private final String teamName;
+	private final Collection<String> playerNames;
+	private final Optional<TeamS2CPacket.SerializableTeam> team;
 
-   public static TeamS2CPacket updateTeam(Team team, boolean updatePlayers) {
-      return new TeamS2CPacket(
-         team.getName(),
-         updatePlayers ? 0 : 2,
-         Optional.of(new TeamS2CPacket.SerializableTeam(team)),
-         (Collection<String>)(updatePlayers ? team.getPlayerList() : ImmutableList.of())
-      );
-   }
+	private TeamS2CPacket(
+			String teamName,
+			int packetType,
+			Optional<TeamS2CPacket.SerializableTeam> team,
+			Collection<String> playerNames
+	) {
+		this.teamName = teamName;
+		this.packetType = packetType;
+		this.team = team;
+		this.playerNames = ImmutableList.copyOf(playerNames);
+	}
 
-   public static TeamS2CPacket updateRemovedTeam(Team team) {
-      return new TeamS2CPacket(team.getName(), 1, Optional.empty(), ImmutableList.of());
-   }
+	public static TeamS2CPacket updateTeam(Team team, boolean updatePlayers) {
+		return new TeamS2CPacket(
+				team.getName(),
+				updatePlayers ? 0 : 2,
+				Optional.of(new TeamS2CPacket.SerializableTeam(team)),
+				(Collection<String>) (updatePlayers ? team.getPlayerList() : ImmutableList.of())
+		);
+	}
 
-   public static TeamS2CPacket changePlayerTeam(Team team, String playerName, TeamS2CPacket.Operation operation) {
-      return new TeamS2CPacket(team.getName(), operation == TeamS2CPacket.Operation.ADD ? 3 : 4, Optional.empty(), ImmutableList.of(playerName));
-   }
+	public static TeamS2CPacket updateRemovedTeam(Team team) {
+		return new TeamS2CPacket(team.getName(), 1, Optional.empty(), ImmutableList.of());
+	}
 
-   private TeamS2CPacket(RegistryByteBuf buf) {
-      this.teamName = buf.readString();
-      this.packetType = buf.readByte();
-      if (containsTeamInfo(this.packetType)) {
-         this.team = Optional.of(new TeamS2CPacket.SerializableTeam(buf));
-      } else {
-         this.team = Optional.empty();
-      }
+	public static TeamS2CPacket changePlayerTeam(Team team, String playerName, TeamS2CPacket.Operation operation) {
+		return new TeamS2CPacket(
+				team.getName(),
+				operation == TeamS2CPacket.Operation.ADD ? 3 : 4,
+				Optional.empty(),
+				ImmutableList.of(playerName)
+		);
+	}
 
-      if (containsPlayers(this.packetType)) {
-         this.playerNames = buf.readList(PacketByteBuf::readString);
-      } else {
-         this.playerNames = ImmutableList.of();
-      }
-   }
+	private TeamS2CPacket(RegistryByteBuf buf) {
+		this.teamName = buf.readString();
+		this.packetType = buf.readByte();
+		if (containsTeamInfo(this.packetType)) {
+			this.team = Optional.of(new TeamS2CPacket.SerializableTeam(buf));
+		}
+		else {
+			this.team = Optional.empty();
+		}
 
-   private void write(RegistryByteBuf buf) {
-      buf.writeString(this.teamName);
-      buf.writeByte(this.packetType);
-      if (containsTeamInfo(this.packetType)) {
-         this.team.orElseThrow(() -> new IllegalStateException("Parameters not present, but method is" + this.packetType)).write(buf);
-      }
+		if (containsPlayers(this.packetType)) {
+			this.playerNames = buf.readList(PacketByteBuf::readString);
+		}
+		else {
+			this.playerNames = ImmutableList.of();
+		}
+	}
 
-      if (containsPlayers(this.packetType)) {
-         buf.writeCollection(this.playerNames, PacketByteBuf::writeString);
-      }
-   }
+	private void write(RegistryByteBuf buf) {
+		buf.writeString(this.teamName);
+		buf.writeByte(this.packetType);
+		if (containsTeamInfo(this.packetType)) {
+			this.team
+					.orElseThrow(() -> new IllegalStateException(
+							"Parameters not present, but method is" + this.packetType))
+					.write(buf);
+		}
 
-   private static boolean containsPlayers(int packetType) {
-      return packetType == 0 || packetType == 3 || packetType == 4;
-   }
+		if (containsPlayers(this.packetType)) {
+			buf.writeCollection(this.playerNames, PacketByteBuf::writeString);
+		}
+	}
 
-   private static boolean containsTeamInfo(int packetType) {
-      return packetType == 0 || packetType == 2;
-   }
+	private static boolean containsPlayers(int packetType) {
+		return packetType == 0 || packetType == 3 || packetType == 4;
+	}
 
-   public TeamS2CPacket.@Nullable Operation getPlayerListOperation() {
-      return switch (this.packetType) {
-         case 0, 3 -> TeamS2CPacket.Operation.ADD;
-         default -> null;
-         case 4 -> TeamS2CPacket.Operation.REMOVE;
-      };
-   }
+	private static boolean containsTeamInfo(int packetType) {
+		return packetType == 0 || packetType == 2;
+	}
 
-   public TeamS2CPacket.@Nullable Operation getTeamOperation() {
-      return switch (this.packetType) {
-         case 0 -> TeamS2CPacket.Operation.ADD;
-         case 1 -> TeamS2CPacket.Operation.REMOVE;
-         default -> null;
-      };
-   }
+	public TeamS2CPacket.@Nullable Operation getPlayerListOperation() {
+		return switch (this.packetType) {
+			case 0, 3 -> TeamS2CPacket.Operation.ADD;
+			default -> null;
+			case 4 -> TeamS2CPacket.Operation.REMOVE;
+		};
+	}
 
-   @Override
-   public PacketType<TeamS2CPacket> getPacketType() {
-      return PlayPackets.SET_PLAYER_TEAM;
-   }
+	public TeamS2CPacket.@Nullable Operation getTeamOperation() {
+		return switch (this.packetType) {
+			case 0 -> TeamS2CPacket.Operation.ADD;
+			case 1 -> TeamS2CPacket.Operation.REMOVE;
+			default -> null;
+		};
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onTeam(this);
-   }
+	@Override
+	public PacketType<TeamS2CPacket> getPacketType() {
+		return PlayPackets.SET_PLAYER_TEAM;
+	}
 
-   public String getTeamName() {
-      return this.teamName;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onTeam(this);
+	}
 
-   public Collection<String> getPlayerNames() {
-      return this.playerNames;
-   }
+	public String getTeamName() {
+		return this.teamName;
+	}
 
-   public Optional<TeamS2CPacket.SerializableTeam> getTeam() {
-      return this.team;
-   }
+	public Collection<String> getPlayerNames() {
+		return this.playerNames;
+	}
 
-   public static enum Operation {
-      ADD,
-      REMOVE;
-   }
+	public Optional<TeamS2CPacket.SerializableTeam> getTeam() {
+		return this.team;
+	}
 
-   public static class SerializableTeam {
-      private final Text displayName;
-      private final Text prefix;
-      private final Text suffix;
-      private final AbstractTeam.VisibilityRule nameTagVisibilityRule;
-      private final AbstractTeam.CollisionRule collisionRule;
-      private final Formatting color;
-      private final int friendlyFlags;
+	public static enum Operation {
+		ADD,
+		REMOVE;
+	}
 
-      public SerializableTeam(Team team) {
-         this.displayName = team.getDisplayName();
-         this.friendlyFlags = team.getFriendlyFlagsBitwise();
-         this.nameTagVisibilityRule = team.getNameTagVisibilityRule();
-         this.collisionRule = team.getCollisionRule();
-         this.color = team.getColor();
-         this.prefix = team.getPrefix();
-         this.suffix = team.getSuffix();
-      }
+	public static class SerializableTeam {
 
-      public SerializableTeam(RegistryByteBuf buf) {
-         this.displayName = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
-         this.friendlyFlags = buf.readByte();
-         this.nameTagVisibilityRule = AbstractTeam.VisibilityRule.PACKET_CODEC.decode(buf);
-         this.collisionRule = AbstractTeam.CollisionRule.PACKET_CODEC.decode(buf);
-         this.color = buf.readEnumConstant(Formatting.class);
-         this.prefix = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
-         this.suffix = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
-      }
+		private final Text displayName;
+		private final Text prefix;
+		private final Text suffix;
+		private final AbstractTeam.VisibilityRule nameTagVisibilityRule;
+		private final AbstractTeam.CollisionRule collisionRule;
+		private final Formatting color;
+		private final int friendlyFlags;
 
-      public Text getDisplayName() {
-         return this.displayName;
-      }
+		public SerializableTeam(Team team) {
+			this.displayName = team.getDisplayName();
+			this.friendlyFlags = team.getFriendlyFlagsBitwise();
+			this.nameTagVisibilityRule = team.getNameTagVisibilityRule();
+			this.collisionRule = team.getCollisionRule();
+			this.color = team.getColor();
+			this.prefix = team.getPrefix();
+			this.suffix = team.getSuffix();
+		}
 
-      public int getFriendlyFlagsBitwise() {
-         return this.friendlyFlags;
-      }
+		public SerializableTeam(RegistryByteBuf buf) {
+			this.displayName = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+			this.friendlyFlags = buf.readByte();
+			this.nameTagVisibilityRule = AbstractTeam.VisibilityRule.PACKET_CODEC.decode(buf);
+			this.collisionRule = AbstractTeam.CollisionRule.PACKET_CODEC.decode(buf);
+			this.color = buf.readEnumConstant(Formatting.class);
+			this.prefix = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+			this.suffix = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+		}
 
-      public Formatting getColor() {
-         return this.color;
-      }
+		public Text getDisplayName() {
+			return this.displayName;
+		}
 
-      public AbstractTeam.VisibilityRule getNameTagVisibilityRule() {
-         return this.nameTagVisibilityRule;
-      }
+		public int getFriendlyFlagsBitwise() {
+			return this.friendlyFlags;
+		}
 
-      public AbstractTeam.CollisionRule getCollisionRule() {
-         return this.collisionRule;
-      }
+		public Formatting getColor() {
+			return this.color;
+		}
 
-      public Text getPrefix() {
-         return this.prefix;
-      }
+		public AbstractTeam.VisibilityRule getNameTagVisibilityRule() {
+			return this.nameTagVisibilityRule;
+		}
 
-      public Text getSuffix() {
-         return this.suffix;
-      }
+		public AbstractTeam.CollisionRule getCollisionRule() {
+			return this.collisionRule;
+		}
 
-      public void write(RegistryByteBuf buf) {
-         TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.displayName);
-         buf.writeByte(this.friendlyFlags);
-         AbstractTeam.VisibilityRule.PACKET_CODEC.encode(buf, this.nameTagVisibilityRule);
-         AbstractTeam.CollisionRule.PACKET_CODEC.encode(buf, this.collisionRule);
-         buf.writeEnumConstant(this.color);
-         TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.prefix);
-         TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.suffix);
-      }
-   }
+		public Text getPrefix() {
+			return this.prefix;
+		}
+
+		public Text getSuffix() {
+			return this.suffix;
+		}
+
+		public void write(RegistryByteBuf buf) {
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.displayName);
+			buf.writeByte(this.friendlyFlags);
+			AbstractTeam.VisibilityRule.PACKET_CODEC.encode(buf, this.nameTagVisibilityRule);
+			AbstractTeam.CollisionRule.PACKET_CODEC.encode(buf, this.collisionRule);
+			buf.writeEnumConstant(this.color);
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.prefix);
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.suffix);
+		}
+	}
 }

@@ -7,30 +7,39 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code VillagerGossipFix}.
+ */
 public class VillagerGossipFix extends ChoiceFix {
-   public VillagerGossipFix(Schema outputSchema, String choiceType) {
-      super(outputSchema, false, "Gossip for for " + choiceType, TypeReferences.ENTITY, choiceType);
-   }
 
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      return inputTyped.update(
-         DSL.remainderFinder(),
-         entityDynamic -> entityDynamic.update(
-            "Gossips",
-            gossipsDynamic -> (Dynamic<?>)DataFixUtils.orElse(
-               gossipsDynamic.asStreamOpt()
-                  .result()
-                  .map(
-                     gossips -> gossips.map(
-                        gossipDynamic -> (Dynamic<?>)AbstractUuidFix.updateRegularMostLeast((Dynamic<?>)gossipDynamic, "Target", "Target")
-                           .orElse((Dynamic<?>)gossipDynamic)
-                     )
-                  )
-                  .map(stream -> gossipsDynamic.createList(stream)),
-               gossipsDynamic
-            )
-         )
-      );
-   }
+	public VillagerGossipFix(Schema outputSchema, String choiceType) {
+		super(outputSchema, false, "Gossip for for " + choiceType, TypeReferences.ENTITY, choiceType);
+	}
+
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		return inputTyped.update(
+				DSL.remainderFinder(),
+				entityDynamic -> entityDynamic.update(
+						"Gossips",
+						gossipsDynamic -> (Dynamic<?>) DataFixUtils.orElse(
+								gossipsDynamic.asStreamOpt()
+								              .result()
+								              .map(
+										              gossips -> gossips.map(
+												              gossipDynamic -> (Dynamic<?>) AbstractUuidFix
+														              .updateRegularMostLeast(
+																              (Dynamic<?>) gossipDynamic,
+																              "Target",
+																              "Target"
+														              )
+														              .orElse((Dynamic<?>) gossipDynamic)
+										              )
+								              )
+								              .map(stream -> gossipsDynamic.createList(stream)),
+								gossipsDynamic
+						)
+				)
+		);
+	}
 }

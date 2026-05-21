@@ -7,6 +7,10 @@ import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
 @Target({ElementType.CONSTRUCTOR, ElementType.FIELD, ElementType.METHOD, ElementType.TYPE})
+/**
+ * {@code SuppressLinter}.
+ */
 public @interface SuppressLinter {
-   String reason();
+
+	String reason();
 }

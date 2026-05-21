@@ -1,23 +1,26 @@
 package net.minecraft.recipe.book;
 
+/**
+ * {@code RecipeCategory}.
+ */
 public enum RecipeCategory {
-   BUILDING_BLOCKS("building_blocks"),
-   DECORATIONS("decorations"),
-   REDSTONE("redstone"),
-   TRANSPORTATION("transportation"),
-   TOOLS("tools"),
-   COMBAT("combat"),
-   FOOD("food"),
-   BREWING("brewing"),
-   MISC("misc");
+	BUILDING_BLOCKS("building_blocks"),
+	DECORATIONS("decorations"),
+	REDSTONE("redstone"),
+	TRANSPORTATION("transportation"),
+	TOOLS("tools"),
+	COMBAT("combat"),
+	FOOD("food"),
+	BREWING("brewing"),
+	MISC("misc");
 
-   private final String name;
+	private final String name;
 
-   private RecipeCategory(final String name) {
-      this.name = name;
-   }
+	private RecipeCategory(final String name) {
+		this.name = name;
+	}
 
-   public String getName() {
-      return this.name;
-   }
+	public String getName() {
+		return this.name;
+	}
 }

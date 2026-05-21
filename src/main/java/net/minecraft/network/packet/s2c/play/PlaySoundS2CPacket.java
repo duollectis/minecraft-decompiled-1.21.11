@@ -11,88 +11,100 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 
 public class PlaySoundS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, PlaySoundS2CPacket> CODEC = Packet.createCodec(PlaySoundS2CPacket::write, PlaySoundS2CPacket::new);
-   public static final float COORDINATE_SCALE = 8.0F;
-   private final RegistryEntry<SoundEvent> sound;
-   private final SoundCategory category;
-   private final int fixedX;
-   private final int fixedY;
-   private final int fixedZ;
-   private final float volume;
-   private final float pitch;
-   private final long seed;
 
-   public PlaySoundS2CPacket(RegistryEntry<SoundEvent> sound, SoundCategory category, double x, double y, double z, float volume, float pitch, long seed) {
-      this.sound = sound;
-      this.category = category;
-      this.fixedX = (int)(x * 8.0);
-      this.fixedY = (int)(y * 8.0);
-      this.fixedZ = (int)(z * 8.0);
-      this.volume = volume;
-      this.pitch = pitch;
-      this.seed = seed;
-   }
+	public static final PacketCodec<RegistryByteBuf, PlaySoundS2CPacket>
+			CODEC =
+			Packet.createCodec(PlaySoundS2CPacket::write, PlaySoundS2CPacket::new);
+	public static final float COORDINATE_SCALE = 8.0F;
+	private final RegistryEntry<SoundEvent> sound;
+	private final SoundCategory category;
+	private final int fixedX;
+	private final int fixedY;
+	private final int fixedZ;
+	private final float volume;
+	private final float pitch;
+	private final long seed;
 
-   private PlaySoundS2CPacket(RegistryByteBuf buf) {
-      this.sound = SoundEvent.ENTRY_PACKET_CODEC.decode(buf);
-      this.category = buf.readEnumConstant(SoundCategory.class);
-      this.fixedX = buf.readInt();
-      this.fixedY = buf.readInt();
-      this.fixedZ = buf.readInt();
-      this.volume = buf.readFloat();
-      this.pitch = buf.readFloat();
-      this.seed = buf.readLong();
-   }
+	public PlaySoundS2CPacket(
+			RegistryEntry<SoundEvent> sound,
+			SoundCategory category,
+			double x,
+			double y,
+			double z,
+			float volume,
+			float pitch,
+			long seed
+	) {
+		this.sound = sound;
+		this.category = category;
+		this.fixedX = (int) (x * 8.0);
+		this.fixedY = (int) (y * 8.0);
+		this.fixedZ = (int) (z * 8.0);
+		this.volume = volume;
+		this.pitch = pitch;
+		this.seed = seed;
+	}
 
-   private void write(RegistryByteBuf buf) {
-      SoundEvent.ENTRY_PACKET_CODEC.encode(buf, this.sound);
-      buf.writeEnumConstant(this.category);
-      buf.writeInt(this.fixedX);
-      buf.writeInt(this.fixedY);
-      buf.writeInt(this.fixedZ);
-      buf.writeFloat(this.volume);
-      buf.writeFloat(this.pitch);
-      buf.writeLong(this.seed);
-   }
+	private PlaySoundS2CPacket(RegistryByteBuf buf) {
+		this.sound = SoundEvent.ENTRY_PACKET_CODEC.decode(buf);
+		this.category = buf.readEnumConstant(SoundCategory.class);
+		this.fixedX = buf.readInt();
+		this.fixedY = buf.readInt();
+		this.fixedZ = buf.readInt();
+		this.volume = buf.readFloat();
+		this.pitch = buf.readFloat();
+		this.seed = buf.readLong();
+	}
 
-   @Override
-   public PacketType<PlaySoundS2CPacket> getPacketType() {
-      return PlayPackets.SOUND;
-   }
+	private void write(RegistryByteBuf buf) {
+		SoundEvent.ENTRY_PACKET_CODEC.encode(buf, this.sound);
+		buf.writeEnumConstant(this.category);
+		buf.writeInt(this.fixedX);
+		buf.writeInt(this.fixedY);
+		buf.writeInt(this.fixedZ);
+		buf.writeFloat(this.volume);
+		buf.writeFloat(this.pitch);
+		buf.writeLong(this.seed);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onPlaySound(this);
-   }
+	@Override
+	public PacketType<PlaySoundS2CPacket> getPacketType() {
+		return PlayPackets.SOUND;
+	}
 
-   public RegistryEntry<SoundEvent> getSound() {
-      return this.sound;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onPlaySound(this);
+	}
 
-   public SoundCategory getCategory() {
-      return this.category;
-   }
+	public RegistryEntry<SoundEvent> getSound() {
+		return this.sound;
+	}
 
-   public double getX() {
-      return this.fixedX / 8.0F;
-   }
+	public SoundCategory getCategory() {
+		return this.category;
+	}
 
-   public double getY() {
-      return this.fixedY / 8.0F;
-   }
+	public double getX() {
+		return this.fixedX / 8.0F;
+	}
 
-   public double getZ() {
-      return this.fixedZ / 8.0F;
-   }
+	public double getY() {
+		return this.fixedY / 8.0F;
+	}
 
-   public float getVolume() {
-      return this.volume;
-   }
+	public double getZ() {
+		return this.fixedZ / 8.0F;
+	}
 
-   public float getPitch() {
-      return this.pitch;
-   }
+	public float getVolume() {
+		return this.volume;
+	}
 
-   public long getSeed() {
-      return this.seed;
-   }
+	public float getPitch() {
+		return this.pitch;
+	}
+
+	public long getSeed() {
+		return this.seed;
+	}
 }

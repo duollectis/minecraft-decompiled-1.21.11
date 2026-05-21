@@ -7,27 +7,32 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
-public record SlotChangedStateC2SPacket(int slotId, int screenHandlerId, boolean newState) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, SlotChangedStateC2SPacket> CODEC = Packet.createCodec(
-      SlotChangedStateC2SPacket::write, SlotChangedStateC2SPacket::new
-   );
+public record SlotChangedStateC2SPacket(
+		int slotId,
+		int screenHandlerId,
+		boolean newState
+) implements Packet<ServerPlayPacketListener> {
 
-   private SlotChangedStateC2SPacket(PacketByteBuf buf) {
-      this(buf.readVarInt(), buf.readSyncId(), buf.readBoolean());
-   }
+	public static final PacketCodec<PacketByteBuf, SlotChangedStateC2SPacket> CODEC = Packet.createCodec(
+			SlotChangedStateC2SPacket::write, SlotChangedStateC2SPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.slotId);
-      buf.writeSyncId(this.screenHandlerId);
-      buf.writeBoolean(this.newState);
-   }
+	private SlotChangedStateC2SPacket(PacketByteBuf buf) {
+		this(buf.readVarInt(), buf.readSyncId(), buf.readBoolean());
+	}
 
-   @Override
-   public PacketType<SlotChangedStateC2SPacket> getPacketType() {
-      return PlayPackets.CONTAINER_SLOT_STATE_CHANGED;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.slotId);
+		buf.writeSyncId(this.screenHandlerId);
+		buf.writeBoolean(this.newState);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onSlotChangedState(this);
-   }
+	@Override
+	public PacketType<SlotChangedStateC2SPacket> getPacketType() {
+		return PlayPackets.CONTAINER_SLOT_STATE_CHANGED;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onSlotChangedState(this);
+	}
 }

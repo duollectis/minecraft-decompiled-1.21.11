@@ -17,23 +17,31 @@ import net.minecraft.client.texture.SpriteHolder;
 
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BlockEntityRendererFactory}.
+ */
 public interface BlockEntityRendererFactory<T extends BlockEntity, S extends BlockEntityRenderState> {
-   BlockEntityRenderer<T, S> create(BlockEntityRendererFactory.Context ctx);
 
-   @Environment(EnvType.CLIENT)
-   public record Context(
-      BlockEntityRenderManager renderDispatcher,
-      BlockRenderManager renderManager,
-      ItemModelManager itemModelManager,
-      ItemRenderer itemRenderer,
-      EntityRenderManager entityRenderDispatcher,
-      LoadedEntityModels loadedEntityModels,
-      TextRenderer textRenderer,
-      SpriteHolder spriteHolder,
-      PlayerSkinCache playerSkinRenderCache
-   ) {
-      public ModelPart getLayerModelPart(EntityModelLayer modelLayer) {
-         return this.loadedEntityModels.getModelPart(modelLayer);
-      }
-   }
+	BlockEntityRenderer<T, S> create(BlockEntityRendererFactory.Context ctx);
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Context}.
+	 */
+	public record Context(
+			BlockEntityRenderManager renderDispatcher,
+			BlockRenderManager renderManager,
+			ItemModelManager itemModelManager,
+			ItemRenderer itemRenderer,
+			EntityRenderManager entityRenderDispatcher,
+			LoadedEntityModels loadedEntityModels,
+			TextRenderer textRenderer,
+			SpriteHolder spriteHolder,
+			PlayerSkinCache playerSkinRenderCache
+	) {
+
+		public ModelPart getLayerModelPart(EntityModelLayer modelLayer) {
+			return this.loadedEntityModels.getModelPart(modelLayer);
+		}
+	}
 }

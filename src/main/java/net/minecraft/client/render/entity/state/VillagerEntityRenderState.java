@@ -6,12 +6,16 @@ import net.minecraft.village.VillagerData;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code VillagerEntityRenderState}.
+ */
 public class VillagerEntityRenderState extends ItemHolderEntityRenderState implements VillagerDataRenderState {
-   public boolean headRolling;
-   public @Nullable VillagerData villagerData;
 
-   @Override
-   public @Nullable VillagerData getVillagerData() {
-      return this.villagerData;
-   }
+	public boolean headRolling;
+	public @Nullable VillagerData villagerData;
+
+	@Override
+	public @Nullable VillagerData getVillagerData() {
+		return this.villagerData;
+	}
 }

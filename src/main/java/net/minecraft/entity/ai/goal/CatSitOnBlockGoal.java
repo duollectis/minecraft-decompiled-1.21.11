@@ -11,50 +11,59 @@ import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code CatSitOnBlockGoal}.
+ */
 public class CatSitOnBlockGoal extends MoveToTargetPosGoal {
-   private final CatEntity cat;
 
-   public CatSitOnBlockGoal(CatEntity cat, double speed) {
-      super(cat, speed, 8);
-      this.cat = cat;
-   }
+	private final CatEntity cat;
 
-   @Override
-   public boolean canStart() {
-      return this.cat.isTamed() && !this.cat.isSitting() && super.canStart();
-   }
+	public CatSitOnBlockGoal(CatEntity cat, double speed) {
+		super(cat, speed, 8);
+		this.cat = cat;
+	}
 
-   @Override
-   public void start() {
-      super.start();
-      this.cat.setInSittingPose(false);
-   }
+	@Override
+	public boolean canStart() {
+		return this.cat.isTamed() && !this.cat.isSitting() && super.canStart();
+	}
 
-   @Override
-   public void stop() {
-      super.stop();
-      this.cat.setInSittingPose(false);
-   }
+	@Override
+	public void start() {
+		super.start();
+		this.cat.setInSittingPose(false);
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      this.cat.setInSittingPose(this.hasReached());
-   }
+	@Override
+	public void stop() {
+		super.stop();
+		this.cat.setInSittingPose(false);
+	}
 
-   @Override
-   protected boolean isTargetPos(WorldView world, BlockPos pos) {
-      if (!world.isAir(pos.up())) {
-         return false;
-      } else {
-         BlockState blockState = world.getBlockState(pos);
-         if (blockState.isOf(Blocks.CHEST)) {
-            return ChestBlockEntity.getPlayersLookingInChestCount(world, pos) < 1;
-         } else {
-            return blockState.isOf(Blocks.FURNACE) && blockState.get(FurnaceBlock.LIT)
-               ? true
-               : blockState.isIn(BlockTags.BEDS, state -> state.getOrEmpty(BedBlock.PART).map(part -> part != BedPart.HEAD).orElse(true));
-         }
-      }
-   }
+	@Override
+	public void tick() {
+		super.tick();
+		this.cat.setInSittingPose(this.hasReached());
+	}
+
+	@Override
+	protected boolean isTargetPos(WorldView world, BlockPos pos) {
+		if (!world.isAir(pos.up())) {
+			return false;
+		}
+		else {
+			BlockState blockState = world.getBlockState(pos);
+			if (blockState.isOf(Blocks.CHEST)) {
+				return ChestBlockEntity.getPlayersLookingInChestCount(world, pos) < 1;
+			}
+			else {
+				return blockState.isOf(Blocks.FURNACE) && blockState.get(FurnaceBlock.LIT)
+				       ? true
+				       : blockState.isIn(
+						       BlockTags.BEDS,
+						       state -> state.getOrEmpty(BedBlock.PART).map(part -> part != BedPart.HEAD).orElse(true)
+				       );
+			}
+		}
+	}
 }

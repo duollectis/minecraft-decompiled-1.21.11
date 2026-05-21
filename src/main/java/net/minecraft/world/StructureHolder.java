@@ -1,21 +1,26 @@
 package net.minecraft.world;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
-import java.util.Map;
 import net.minecraft.structure.StructureStart;
 import net.minecraft.world.gen.structure.Structure;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Map;
+
+/**
+ * {@code StructureHolder}.
+ */
 public interface StructureHolder {
-   @Nullable StructureStart getStructureStart(Structure structure);
 
-   void setStructureStart(Structure structure, StructureStart start);
+	@Nullable StructureStart getStructureStart(Structure structure);
 
-   LongSet getStructureReferences(Structure structure);
+	void setStructureStart(Structure structure, StructureStart start);
 
-   void addStructureReference(Structure structure, long reference);
+	LongSet getStructureReferences(Structure structure);
 
-   Map<Structure, LongSet> getStructureReferences();
+	void addStructureReference(Structure structure, long reference);
 
-   void setStructureReferences(Map<Structure, LongSet> structureReferences);
+	Map<Structure, LongSet> getStructureReferences();
+
+	void setStructureReferences(Map<Structure, LongSet> structureReferences);
 }

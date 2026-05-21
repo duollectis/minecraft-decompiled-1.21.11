@@ -7,25 +7,31 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+/**
+ * {@code RandomFeature}.
+ */
 public class RandomFeature extends Feature<RandomFeatureConfig> {
-   public RandomFeature(Codec<RandomFeatureConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<RandomFeatureConfig> context) {
-      RandomFeatureConfig randomFeatureConfig = context.getConfig();
-      Random random = context.getRandom();
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      ChunkGenerator chunkGenerator = context.getGenerator();
-      BlockPos blockPos = context.getOrigin();
+	public RandomFeature(Codec<RandomFeatureConfig> codec) {
+		super(codec);
+	}
 
-      for (RandomFeatureEntry randomFeatureEntry : randomFeatureConfig.features) {
-         if (random.nextFloat() < randomFeatureEntry.chance) {
-            return randomFeatureEntry.generate(structureWorldAccess, chunkGenerator, random, blockPos);
-         }
-      }
+	@Override
+	public boolean generate(FeatureContext<RandomFeatureConfig> context) {
+		RandomFeatureConfig randomFeatureConfig = context.getConfig();
+		Random random = context.getRandom();
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		ChunkGenerator chunkGenerator = context.getGenerator();
+		BlockPos blockPos = context.getOrigin();
 
-      return randomFeatureConfig.defaultFeature.value().generateUnregistered(structureWorldAccess, chunkGenerator, random, blockPos);
-   }
+		for (RandomFeatureEntry randomFeatureEntry : randomFeatureConfig.features) {
+			if (random.nextFloat() < randomFeatureEntry.chance) {
+				return randomFeatureEntry.generate(structureWorldAccess, chunkGenerator, random, blockPos);
+			}
+		}
+
+		return randomFeatureConfig.defaultFeature
+				.value()
+				.generateUnregistered(structureWorldAccess, chunkGenerator, random, blockPos);
+	}
 }

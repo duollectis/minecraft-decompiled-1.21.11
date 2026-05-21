@@ -7,20 +7,30 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code WallWitherSkullBlock}.
+ */
 public class WallWitherSkullBlock extends WallSkullBlock {
-   public static final MapCodec<WallWitherSkullBlock> CODEC = createCodec(WallWitherSkullBlock::new);
 
-   @Override
-   public MapCodec<WallWitherSkullBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<WallWitherSkullBlock> CODEC = createCodec(WallWitherSkullBlock::new);
 
-   public WallWitherSkullBlock(AbstractBlock.Settings settings) {
-      super(SkullBlock.Type.WITHER_SKELETON, settings);
-   }
+	@Override
+	public MapCodec<WallWitherSkullBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
-      WitherSkullBlock.onPlaced(world, pos);
-   }
+	public WallWitherSkullBlock(AbstractBlock.Settings settings) {
+		super(SkullBlock.Type.WITHER_SKELETON, settings);
+	}
+
+	@Override
+	public void onPlaced(
+			World world,
+			BlockPos pos,
+			BlockState state,
+			@Nullable LivingEntity placer,
+			ItemStack itemStack
+	) {
+		WitherSkullBlock.onPlaced(world, pos);
+	}
 }

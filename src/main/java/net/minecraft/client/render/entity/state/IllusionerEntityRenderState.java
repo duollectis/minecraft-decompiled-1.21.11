@@ -5,7 +5,11 @@ import net.fabricmc.api.Environment;
 import net.minecraft.util.math.Vec3d;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code IllusionerEntityRenderState}.
+ */
 public class IllusionerEntityRenderState extends IllagerEntityRenderState {
-   public Vec3d[] mirrorCopyOffsets = new Vec3d[0];
-   public boolean spellcasting;
+
+	public Vec3d[] mirrorCopyOffsets = new Vec3d[0];
+	public boolean spellcasting;
 }

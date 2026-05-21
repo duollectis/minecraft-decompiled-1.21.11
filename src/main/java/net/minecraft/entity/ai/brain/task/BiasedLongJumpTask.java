@@ -1,10 +1,5 @@
 package net.minecraft.entity.ai.brain.task;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 import net.minecraft.block.Block;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.registry.tag.TagKey;
@@ -14,54 +9,65 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.intprovider.UniformIntProvider;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
+
+/**
+ * {@code BiasedLongJumpTask}.
+ */
 public class BiasedLongJumpTask<E extends MobEntity> extends LongJumpTask<E> {
-   private final TagKey<Block> favoredBlocks;
-   private final float biasChance;
-   private final List<LongJumpTask.Target> unfavoredTargets = new ArrayList<>();
-   private boolean useBias;
 
-   public BiasedLongJumpTask(
-      UniformIntProvider cooldownRange,
-      int verticalRange,
-      int horizontalRange,
-      float maxRange,
-      Function<E, SoundEvent> entityToSound,
-      TagKey<Block> favoredBlocks,
-      float biasChance,
-      BiPredicate<E, BlockPos> jumpToPredicate
-   ) {
-      super(cooldownRange, verticalRange, horizontalRange, maxRange, entityToSound, jumpToPredicate);
-      this.favoredBlocks = favoredBlocks;
-      this.biasChance = biasChance;
-   }
+	private final TagKey<Block> favoredBlocks;
+	private final float biasChance;
+	private final List<LongJumpTask.Target> unfavoredTargets = new ArrayList<>();
+	private boolean useBias;
 
-   @Override
-   protected void run(ServerWorld serverWorld, E mobEntity, long l) {
-      super.run(serverWorld, mobEntity, l);
-      this.unfavoredTargets.clear();
-      this.useBias = mobEntity.getRandom().nextFloat() < this.biasChance;
-   }
+	public BiasedLongJumpTask(
+			UniformIntProvider cooldownRange,
+			int verticalRange,
+			int horizontalRange,
+			float maxRange,
+			Function<E, SoundEvent> entityToSound,
+			TagKey<Block> favoredBlocks,
+			float biasChance,
+			BiPredicate<E, BlockPos> jumpToPredicate
+	) {
+		super(cooldownRange, verticalRange, horizontalRange, maxRange, entityToSound, jumpToPredicate);
+		this.favoredBlocks = favoredBlocks;
+		this.biasChance = biasChance;
+	}
 
-   @Override
-   protected Optional<LongJumpTask.Target> removeRandomTarget(ServerWorld world) {
-      if (!this.useBias) {
-         return super.removeRandomTarget(world);
-      } else {
-         BlockPos.Mutable mutable = new BlockPos.Mutable();
+	@Override
+	protected void run(ServerWorld serverWorld, E mobEntity, long l) {
+		super.run(serverWorld, mobEntity, l);
+		this.unfavoredTargets.clear();
+		this.useBias = mobEntity.getRandom().nextFloat() < this.biasChance;
+	}
 
-         while (!this.potentialTargets.isEmpty()) {
-            Optional<LongJumpTask.Target> optional = super.removeRandomTarget(world);
-            if (optional.isPresent()) {
-               LongJumpTask.Target target = optional.get();
-               if (world.getBlockState(mutable.set(target.pos(), Direction.DOWN)).isIn(this.favoredBlocks)) {
-                  return optional;
-               }
+	@Override
+	protected Optional<LongJumpTask.Target> removeRandomTarget(ServerWorld world) {
+		if (!this.useBias) {
+			return super.removeRandomTarget(world);
+		}
+		else {
+			BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-               this.unfavoredTargets.add(target);
-            }
-         }
+			while (!this.potentialTargets.isEmpty()) {
+				Optional<LongJumpTask.Target> optional = super.removeRandomTarget(world);
+				if (optional.isPresent()) {
+					LongJumpTask.Target target = optional.get();
+					if (world.getBlockState(mutable.set(target.pos(), Direction.DOWN)).isIn(this.favoredBlocks)) {
+						return optional;
+					}
 
-         return !this.unfavoredTargets.isEmpty() ? Optional.of(this.unfavoredTargets.remove(0)) : Optional.empty();
-      }
-   }
+					this.unfavoredTargets.add(target);
+				}
+			}
+
+			return !this.unfavoredTargets.isEmpty() ? Optional.of(this.unfavoredTargets.remove(0)) : Optional.empty();
+		}
+	}
 }

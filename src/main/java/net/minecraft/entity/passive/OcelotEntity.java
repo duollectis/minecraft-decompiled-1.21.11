@@ -1,22 +1,9 @@
 package net.minecraft.entity.passive;
 
-import java.util.function.Predicate;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.ai.goal.ActiveTargetGoal;
-import net.minecraft.entity.ai.goal.AnimalMateGoal;
-import net.minecraft.entity.ai.goal.AttackGoal;
-import net.minecraft.entity.ai.goal.FleeEntityGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.PounceAtTargetGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.ai.goal.TemptGoal;
-import net.minecraft.entity.ai.goal.WanderAroundFarGoal;
+import net.minecraft.entity.*;
+import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
@@ -40,259 +27,320 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
-import net.minecraft.world.LocalDifficulty;
-import net.minecraft.world.ServerWorldAccess;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldAccess;
-import net.minecraft.world.WorldView;
+import net.minecraft.world.*;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.Predicate;
+
+/**
+ * {@code OcelotEntity}.
+ */
 public class OcelotEntity extends AnimalEntity {
-   public static final double CROUCHING_SPEED = 0.6;
-   public static final double NORMAL_SPEED = 0.8;
-   public static final double SPRINTING_SPEED = 1.33;
-   private static final TrackedData<Boolean> TRUSTING = DataTracker.registerData(OcelotEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final boolean DEFAULT_TRUSTING = false;
-   private OcelotEntity.@Nullable FleeGoal<PlayerEntity> fleeGoal;
-   private OcelotEntity.@Nullable OcelotTemptGoal temptGoal;
 
-   public OcelotEntity(EntityType<? extends OcelotEntity> entityType, World world) {
-      super(entityType, world);
-      this.updateFleeing();
-   }
+	public static final double CROUCHING_SPEED = 0.6;
+	public static final double NORMAL_SPEED = 0.8;
+	public static final double SPRINTING_SPEED = 1.33;
+	private static final TrackedData<Boolean>
+			TRUSTING =
+			DataTracker.registerData(OcelotEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final boolean DEFAULT_TRUSTING = false;
+	private OcelotEntity.@Nullable FleeGoal<PlayerEntity> fleeGoal;
+	private OcelotEntity.@Nullable OcelotTemptGoal temptGoal;
 
-   boolean isTrusting() {
-      return this.dataTracker.get(TRUSTING);
-   }
+	public OcelotEntity(EntityType<? extends OcelotEntity> entityType, World world) {
+		super(entityType, world);
+		this.updateFleeing();
+	}
 
-   private void setTrusting(boolean trusting) {
-      this.dataTracker.set(TRUSTING, trusting);
-      this.updateFleeing();
-   }
+	boolean isTrusting() {
+		return this.dataTracker.get(TRUSTING);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putBoolean("Trusting", this.isTrusting());
-   }
+	private void setTrusting(boolean trusting) {
+		this.dataTracker.set(TRUSTING, trusting);
+		this.updateFleeing();
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.setTrusting(view.getBoolean("Trusting", false));
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putBoolean("Trusting", this.isTrusting());
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(TRUSTING, false);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.setTrusting(view.getBoolean("Trusting", false));
+	}
 
-   @Override
-   protected void initGoals() {
-      this.temptGoal = new OcelotEntity.OcelotTemptGoal(this, 0.6, stack -> stack.isIn(ItemTags.OCELOT_FOOD), true);
-      this.goalSelector.add(1, new SwimGoal(this));
-      this.goalSelector.add(3, this.temptGoal);
-      this.goalSelector.add(7, new PounceAtTargetGoal(this, 0.3F));
-      this.goalSelector.add(8, new AttackGoal(this));
-      this.goalSelector.add(9, new AnimalMateGoal(this, 0.8));
-      this.goalSelector.add(10, new WanderAroundFarGoal(this, 0.8, 1.0000001E-5F));
-      this.goalSelector.add(11, new LookAtEntityGoal(this, PlayerEntity.class, 10.0F));
-      this.targetSelector.add(1, new ActiveTargetGoal<>(this, ChickenEntity.class, false));
-      this.targetSelector.add(1, new ActiveTargetGoal<>(this, TurtleEntity.class, 10, false, false, TurtleEntity.BABY_TURTLE_ON_LAND_FILTER));
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(TRUSTING, false);
+	}
 
-   @Override
-   public void mobTick(ServerWorld world) {
-      if (this.getMoveControl().isMoving()) {
-         double d = this.getMoveControl().getSpeed();
-         if (d == 0.6) {
-            this.setPose(EntityPose.CROUCHING);
-            this.setSprinting(false);
-         } else if (d == 1.33) {
-            this.setPose(EntityPose.STANDING);
-            this.setSprinting(true);
-         } else {
-            this.setPose(EntityPose.STANDING);
-            this.setSprinting(false);
-         }
-      } else {
-         this.setPose(EntityPose.STANDING);
-         this.setSprinting(false);
-      }
-   }
+	@Override
+	protected void initGoals() {
+		this.temptGoal = new OcelotEntity.OcelotTemptGoal(this, 0.6, stack -> stack.isIn(ItemTags.OCELOT_FOOD), true);
+		this.goalSelector.add(1, new SwimGoal(this));
+		this.goalSelector.add(3, this.temptGoal);
+		this.goalSelector.add(7, new PounceAtTargetGoal(this, 0.3F));
+		this.goalSelector.add(8, new AttackGoal(this));
+		this.goalSelector.add(9, new AnimalMateGoal(this, 0.8));
+		this.goalSelector.add(10, new WanderAroundFarGoal(this, 0.8, 1.0000001E-5F));
+		this.goalSelector.add(11, new LookAtEntityGoal(this, PlayerEntity.class, 10.0F));
+		this.targetSelector.add(1, new ActiveTargetGoal<>(this, ChickenEntity.class, false));
+		this.targetSelector.add(
+				1,
+				new ActiveTargetGoal<>(
+						this,
+						TurtleEntity.class,
+						10,
+						false,
+						false,
+						TurtleEntity.BABY_TURTLE_ON_LAND_FILTER
+				)
+		);
+	}
 
-   @Override
-   public boolean canImmediatelyDespawn(double distanceSquared) {
-      return !this.isTrusting() && this.age > 2400;
-   }
+	@Override
+	public void mobTick(ServerWorld world) {
+		if (this.getMoveControl().isMoving()) {
+			double d = this.getMoveControl().getSpeed();
+			if (d == 0.6) {
+				this.setPose(EntityPose.CROUCHING);
+				this.setSprinting(false);
+			}
+			else if (d == 1.33) {
+				this.setPose(EntityPose.STANDING);
+				this.setSprinting(true);
+			}
+			else {
+				this.setPose(EntityPose.STANDING);
+				this.setSprinting(false);
+			}
+		}
+		else {
+			this.setPose(EntityPose.STANDING);
+			this.setSprinting(false);
+		}
+	}
 
-   public static DefaultAttributeContainer.Builder createOcelotAttributes() {
-      return AnimalEntity.createAnimalAttributes()
-         .add(EntityAttributes.MAX_HEALTH, 10.0)
-         .add(EntityAttributes.MOVEMENT_SPEED, 0.3F)
-         .add(EntityAttributes.ATTACK_DAMAGE, 3.0);
-   }
+	@Override
+	public boolean canImmediatelyDespawn(double distanceSquared) {
+		return !this.isTrusting() && this.age > 2400;
+	}
 
-   @Override
-   protected @Nullable SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_OCELOT_AMBIENT;
-   }
+	public static DefaultAttributeContainer.Builder createOcelotAttributes() {
+		return AnimalEntity.createAnimalAttributes()
+		                   .add(EntityAttributes.MAX_HEALTH, 10.0)
+		                   .add(EntityAttributes.MOVEMENT_SPEED, 0.3F)
+		                   .add(EntityAttributes.ATTACK_DAMAGE, 3.0);
+	}
 
-   @Override
-   public int getMinAmbientSoundDelay() {
-      return 900;
-   }
+	@Override
+	protected @Nullable SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_OCELOT_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_OCELOT_HURT;
-   }
+	@Override
+	public int getMinAmbientSoundDelay() {
+		return 900;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_OCELOT_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_OCELOT_HURT;
+	}
 
-   @Override
-   public ActionResult interactMob(PlayerEntity player, Hand hand) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if ((this.temptGoal == null || this.temptGoal.isActive()) && !this.isTrusting() && this.isBreedingItem(itemStack) && player.squaredDistanceTo(this) < 9.0
-         )
-       {
-         this.eat(player, hand, itemStack);
-         if (!this.getEntityWorld().isClient()) {
-            if (this.random.nextInt(3) == 0) {
-               this.setTrusting(true);
-               this.showEmoteParticle(true);
-               this.getEntityWorld().sendEntityStatus(this, (byte)41);
-            } else {
-               this.showEmoteParticle(false);
-               this.getEntityWorld().sendEntityStatus(this, (byte)40);
-            }
-         }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_OCELOT_DEATH;
+	}
 
-         return ActionResult.SUCCESS;
-      } else {
-         return super.interactMob(player, hand);
-      }
-   }
+	@Override
+	public ActionResult interactMob(PlayerEntity player, Hand hand) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if ((this.temptGoal == null || this.temptGoal.isActive()) && !this.isTrusting()
+				&& this.isBreedingItem(itemStack) && player.squaredDistanceTo(this) < 9.0
+		) {
+			this.eat(player, hand, itemStack);
+			if (!this.getEntityWorld().isClient()) {
+				if (this.random.nextInt(3) == 0) {
+					this.setTrusting(true);
+					this.showEmoteParticle(true);
+					this.getEntityWorld().sendEntityStatus(this, (byte) 41);
+				}
+				else {
+					this.showEmoteParticle(false);
+					this.getEntityWorld().sendEntityStatus(this, (byte) 40);
+				}
+			}
 
-   @Override
-   public void handleStatus(byte status) {
-      if (status == 41) {
-         this.showEmoteParticle(true);
-      } else if (status == 40) {
-         this.showEmoteParticle(false);
-      } else {
-         super.handleStatus(status);
-      }
-   }
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return super.interactMob(player, hand);
+		}
+	}
 
-   private void showEmoteParticle(boolean positive) {
-      ParticleEffect particleEffect = ParticleTypes.HEART;
-      if (!positive) {
-         particleEffect = ParticleTypes.SMOKE;
-      }
+	@Override
+	public void handleStatus(byte status) {
+		if (status == 41) {
+			this.showEmoteParticle(true);
+		}
+		else if (status == 40) {
+			this.showEmoteParticle(false);
+		}
+		else {
+			super.handleStatus(status);
+		}
+	}
 
-      for (int i = 0; i < 7; i++) {
-         double d = this.random.nextGaussian() * 0.02;
-         double e = this.random.nextGaussian() * 0.02;
-         double f = this.random.nextGaussian() * 0.02;
-         this.getEntityWorld().addParticleClient(particleEffect, this.getParticleX(1.0), this.getRandomBodyY() + 0.5, this.getParticleZ(1.0), d, e, f);
-      }
-   }
+	private void showEmoteParticle(boolean positive) {
+		ParticleEffect particleEffect = ParticleTypes.HEART;
+		if (!positive) {
+			particleEffect = ParticleTypes.SMOKE;
+		}
 
-   protected void updateFleeing() {
-      if (this.fleeGoal == null) {
-         this.fleeGoal = new OcelotEntity.FleeGoal<>(this, PlayerEntity.class, 16.0F, 0.8, 1.33);
-      }
+		for (int i = 0; i < 7; i++) {
+			double d = this.random.nextGaussian() * 0.02;
+			double e = this.random.nextGaussian() * 0.02;
+			double f = this.random.nextGaussian() * 0.02;
+			this
+					.getEntityWorld()
+					.addParticleClient(
+							particleEffect,
+							this.getParticleX(1.0),
+							this.getRandomBodyY() + 0.5,
+							this.getParticleZ(1.0),
+							d,
+							e,
+							f
+					);
+		}
+	}
 
-      this.goalSelector.remove(this.fleeGoal);
-      if (!this.isTrusting()) {
-         this.goalSelector.add(4, this.fleeGoal);
-      }
-   }
+	protected void updateFleeing() {
+		if (this.fleeGoal == null) {
+			this.fleeGoal = new OcelotEntity.FleeGoal<>(this, PlayerEntity.class, 16.0F, 0.8, 1.33);
+		}
 
-   public @Nullable OcelotEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-      return EntityType.OCELOT.create(serverWorld, SpawnReason.BREEDING);
-   }
+		this.goalSelector.remove(this.fleeGoal);
+		if (!this.isTrusting()) {
+			this.goalSelector.add(4, this.fleeGoal);
+		}
+	}
 
-   @Override
-   public boolean isBreedingItem(ItemStack stack) {
-      return stack.isIn(ItemTags.OCELOT_FOOD);
-   }
+	public @Nullable OcelotEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
+		return EntityType.OCELOT.create(serverWorld, SpawnReason.BREEDING);
+	}
 
-   public static boolean canSpawn(EntityType<OcelotEntity> type, WorldAccess world, SpawnReason spawnReason, BlockPos pos, Random random) {
-      return random.nextInt(3) != 0;
-   }
+	@Override
+	public boolean isBreedingItem(ItemStack stack) {
+		return stack.isIn(ItemTags.OCELOT_FOOD);
+	}
 
-   @Override
-   public boolean canSpawn(WorldView world) {
-      if (world.doesNotIntersectEntities(this) && !world.containsFluid(this.getBoundingBox())) {
-         BlockPos blockPos = this.getBlockPos();
-         if (blockPos.getY() < world.getSeaLevel()) {
-            return false;
-         }
+	public static boolean canSpawn(
+			EntityType<OcelotEntity> type,
+			WorldAccess world,
+			SpawnReason spawnReason,
+			BlockPos pos,
+			Random random
+	) {
+		return random.nextInt(3) != 0;
+	}
 
-         BlockState blockState = world.getBlockState(blockPos.down());
-         if (blockState.isOf(Blocks.GRASS_BLOCK) || blockState.isIn(BlockTags.LEAVES)) {
-            return true;
-         }
-      }
+	@Override
+	public boolean canSpawn(WorldView world) {
+		if (world.doesNotIntersectEntities(this) && !world.containsFluid(this.getBoundingBox())) {
+			BlockPos blockPos = this.getBlockPos();
+			if (blockPos.getY() < world.getSeaLevel()) {
+				return false;
+			}
 
-      return false;
-   }
+			BlockState blockState = world.getBlockState(blockPos.down());
+			if (blockState.isOf(Blocks.GRASS_BLOCK) || blockState.isIn(BlockTags.LEAVES)) {
+				return true;
+			}
+		}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      if (entityData == null) {
-         entityData = new PassiveEntity.PassiveData(1.0F);
-      }
+		return false;
+	}
 
-      return super.initialize(world, difficulty, spawnReason, entityData);
-   }
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		if (entityData == null) {
+			entityData = new PassiveEntity.PassiveData(1.0F);
+		}
 
-   @Override
-   public Vec3d getLeashOffset() {
-      return new Vec3d(0.0, 0.5F * this.getStandingEyeHeight(), this.getWidth() * 0.4F);
-   }
+		return super.initialize(world, difficulty, spawnReason, entityData);
+	}
 
-   @Override
-   public boolean bypassesSteppingEffects() {
-      return this.isInSneakingPose() || super.bypassesSteppingEffects();
-   }
+	@Override
+	public Vec3d getLeashOffset() {
+		return new Vec3d(0.0, 0.5F * this.getStandingEyeHeight(), this.getWidth() * 0.4F);
+	}
 
-   static class FleeGoal<T extends LivingEntity> extends FleeEntityGoal<T> {
-      private final OcelotEntity ocelot;
+	@Override
+	public boolean bypassesSteppingEffects() {
+		return this.isInSneakingPose() || super.bypassesSteppingEffects();
+	}
 
-      public FleeGoal(OcelotEntity ocelot, Class<T> fleeFromType, float distance, double slowSpeed, double fastSpeed) {
-         super(ocelot, fleeFromType, distance, slowSpeed, fastSpeed, EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR);
-         this.ocelot = ocelot;
-      }
+	/**
+	 * {@code FleeGoal}.
+	 */
+	static class FleeGoal<T extends LivingEntity> extends FleeEntityGoal<T> {
 
-      @Override
-      public boolean canStart() {
-         return !this.ocelot.isTrusting() && super.canStart();
-      }
+		private final OcelotEntity ocelot;
 
-      @Override
-      public boolean shouldContinue() {
-         return !this.ocelot.isTrusting() && super.shouldContinue();
-      }
-   }
+		public FleeGoal(
+				OcelotEntity ocelot,
+				Class<T> fleeFromType,
+				float distance,
+				double slowSpeed,
+				double fastSpeed
+		) {
+			super(ocelot, fleeFromType, distance, slowSpeed, fastSpeed, EntityPredicates.EXCEPT_CREATIVE_OR_SPECTATOR);
+			this.ocelot = ocelot;
+		}
 
-   static class OcelotTemptGoal extends TemptGoal {
-      private final OcelotEntity ocelot;
+		@Override
+		public boolean canStart() {
+			return !this.ocelot.isTrusting() && super.canStart();
+		}
 
-      public OcelotTemptGoal(OcelotEntity ocelot, double speed, Predicate<ItemStack> foodPredicate, boolean canBeScared) {
-         super(ocelot, speed, foodPredicate, canBeScared);
-         this.ocelot = ocelot;
-      }
+		@Override
+		public boolean shouldContinue() {
+			return !this.ocelot.isTrusting() && super.shouldContinue();
+		}
+	}
 
-      @Override
-      protected boolean canBeScared() {
-         return super.canBeScared() && !this.ocelot.isTrusting();
-      }
-   }
+	/**
+	 * {@code OcelotTemptGoal}.
+	 */
+	static class OcelotTemptGoal extends TemptGoal {
+
+		private final OcelotEntity ocelot;
+
+		public OcelotTemptGoal(
+				OcelotEntity ocelot,
+				double speed,
+				Predicate<ItemStack> foodPredicate,
+				boolean canBeScared
+		) {
+			super(ocelot, speed, foodPredicate, canBeScared);
+			this.ocelot = ocelot;
+		}
+
+		@Override
+		protected boolean canBeScared() {
+			return super.canBeScared() && !this.ocelot.isTrusting();
+		}
+	}
 }

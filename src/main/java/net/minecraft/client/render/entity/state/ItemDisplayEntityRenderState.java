@@ -5,11 +5,15 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.render.item.ItemRenderState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ItemDisplayEntityRenderState}.
+ */
 public class ItemDisplayEntityRenderState extends DisplayEntityRenderState {
-   public final ItemRenderState itemRenderState = new ItemRenderState();
 
-   @Override
-   public boolean canRender() {
-      return !this.itemRenderState.isEmpty();
-   }
+	public final ItemRenderState itemRenderState = new ItemRenderState();
+
+	@Override
+	public boolean canRender() {
+		return !this.itemRenderState.isEmpty();
+	}
 }

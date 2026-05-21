@@ -2,46 +2,58 @@ package net.minecraft.world.chunk;
 
 import java.util.List;
 
+/**
+ * {@code PaletteType}.
+ */
 public interface PaletteType {
-   boolean shouldRepack();
 
-   int bitsInMemory();
+	boolean shouldRepack();
 
-   int bitsInStorage();
+	int bitsInMemory();
 
-   <T> Palette<T> createPalette(PaletteProvider<T> provider, List<T> values);
+	int bitsInStorage();
 
-   public record Dynamic(int bitsInMemory, int bitsInStorage) implements PaletteType {
-      @Override
-      public boolean shouldRepack() {
-         return true;
-      }
+	<T> Palette<T> createPalette(PaletteProvider<T> provider, List<T> values);
 
-      @Override
-      public <T> Palette<T> createPalette(PaletteProvider<T> provider, List<T> values) {
-         return provider.getPalette();
-      }
-   }
+	/**
+	 * {@code Dynamic}.
+	 */
+	public record Dynamic(int bitsInMemory, int bitsInStorage) implements PaletteType {
 
-   public record Static(Palette.Factory factory, int bits) implements PaletteType {
-      @Override
-      public boolean shouldRepack() {
-         return false;
-      }
+		@Override
+		public boolean shouldRepack() {
+			return true;
+		}
 
-      @Override
-      public <T> Palette<T> createPalette(PaletteProvider<T> provider, List<T> values) {
-         return this.factory.create(this.bits, values);
-      }
+		@Override
+		public <T> Palette<T> createPalette(PaletteProvider<T> provider, List<T> values) {
+			return provider.getPalette();
+		}
+	}
 
-      @Override
-      public int bitsInMemory() {
-         return this.bits;
-      }
+	/**
+	 * {@code Static}.
+	 */
+	public record Static(Palette.Factory factory, int bits) implements PaletteType {
 
-      @Override
-      public int bitsInStorage() {
-         return this.bits;
-      }
-   }
+		@Override
+		public boolean shouldRepack() {
+			return false;
+		}
+
+		@Override
+		public <T> Palette<T> createPalette(PaletteProvider<T> provider, List<T> values) {
+			return this.factory.create(this.bits, values);
+		}
+
+		@Override
+		public int bitsInMemory() {
+			return this.bits;
+		}
+
+		@Override
+		public int bitsInStorage() {
+			return this.bits;
+		}
+	}
 }

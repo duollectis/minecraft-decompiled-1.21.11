@@ -11,16 +11,27 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CarriedProperty}.
+ */
 public record CarriedProperty() implements BooleanProperty {
-   public static final MapCodec<CarriedProperty> CODEC = MapCodec.unit(new CarriedProperty());
 
-   @Override
-   public boolean test(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity entity, int seed, ItemDisplayContext displayContext) {
-      return entity instanceof ClientPlayerEntity clientPlayerEntity && clientPlayerEntity.currentScreenHandler.getCursorStack() == stack;
-   }
+	public static final MapCodec<CarriedProperty> CODEC = MapCodec.unit(new CarriedProperty());
 
-   @Override
-   public MapCodec<CarriedProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public boolean test(
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity entity,
+			int seed,
+			ItemDisplayContext displayContext
+	) {
+		return entity instanceof ClientPlayerEntity clientPlayerEntity
+				&& clientPlayerEntity.currentScreenHandler.getCursorStack() == stack;
+	}
+
+	@Override
+	public MapCodec<CarriedProperty> getCodec() {
+		return CODEC;
+	}
 }

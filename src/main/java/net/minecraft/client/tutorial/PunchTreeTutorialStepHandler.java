@@ -15,78 +15,94 @@ import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PunchTreeTutorialStepHandler}.
+ */
 public class PunchTreeTutorialStepHandler implements TutorialStepHandler {
-   private static final int DELAY = 600;
-   private static final Text TITLE = Text.translatable("tutorial.punch_tree.title");
-   private static final Text DESCRIPTION = Text.translatable("tutorial.punch_tree.description", TutorialManager.keyToText("attack"));
-   private final TutorialManager manager;
-   private @Nullable TutorialToast toast;
-   private int ticks;
-   private int punches;
 
-   public PunchTreeTutorialStepHandler(TutorialManager manager) {
-      this.manager = manager;
-   }
+	private static final int DELAY = 600;
+	private static final Text TITLE = Text.translatable("tutorial.punch_tree.title");
+	private static final Text
+			DESCRIPTION =
+			Text.translatable("tutorial.punch_tree.description", TutorialManager.keyToText("attack"));
+	private final TutorialManager manager;
+	private @Nullable TutorialToast toast;
+	private int ticks;
+	private int punches;
 
-   @Override
-   public void tick() {
-      this.ticks++;
-      if (!this.manager.isInSurvival()) {
-         this.manager.setStep(TutorialStep.NONE);
-      } else {
-         MinecraftClient minecraftClient = this.manager.getClient();
-         if (this.ticks == 1) {
-            ClientPlayerEntity clientPlayerEntity = minecraftClient.player;
-            if (clientPlayerEntity != null) {
-               if (clientPlayerEntity.getInventory().contains(ItemTags.LOGS)) {
-                  this.manager.setStep(TutorialStep.CRAFT_PLANKS);
-                  return;
-               }
+	public PunchTreeTutorialStepHandler(TutorialManager manager) {
+		this.manager = manager;
+	}
 
-               if (FindTreeTutorialStepHandler.hasBrokenTreeBlocks(clientPlayerEntity)) {
-                  this.manager.setStep(TutorialStep.CRAFT_PLANKS);
-                  return;
-               }
-            }
-         }
+	@Override
+	public void tick() {
+		this.ticks++;
+		if (!this.manager.isInSurvival()) {
+			this.manager.setStep(TutorialStep.NONE);
+		}
+		else {
+			MinecraftClient minecraftClient = this.manager.getClient();
+			if (this.ticks == 1) {
+				ClientPlayerEntity clientPlayerEntity = minecraftClient.player;
+				if (clientPlayerEntity != null) {
+					if (clientPlayerEntity.getInventory().contains(ItemTags.LOGS)) {
+						this.manager.setStep(TutorialStep.CRAFT_PLANKS);
+						return;
+					}
 
-         if ((this.ticks >= 600 || this.punches > 3) && this.toast == null) {
-            this.toast = new TutorialToast(minecraftClient.textRenderer, TutorialToast.Type.TREE, TITLE, DESCRIPTION, true);
-            minecraftClient.getToastManager().add(this.toast);
-         }
-      }
-   }
+					if (FindTreeTutorialStepHandler.hasBrokenTreeBlocks(clientPlayerEntity)) {
+						this.manager.setStep(TutorialStep.CRAFT_PLANKS);
+						return;
+					}
+				}
+			}
 
-   @Override
-   public void destroy() {
-      if (this.toast != null) {
-         this.toast.hide();
-         this.toast = null;
-      }
-   }
+			if ((this.ticks >= 600 || this.punches > 3) && this.toast == null) {
+				this.toast =
+						new TutorialToast(
+								minecraftClient.textRenderer,
+								TutorialToast.Type.TREE,
+								TITLE,
+								DESCRIPTION,
+								true
+						);
+				minecraftClient.getToastManager().add(this.toast);
+			}
+		}
+	}
 
-   @Override
-   public void onBlockBreaking(ClientWorld client, BlockPos pos, BlockState state, float progress) {
-      boolean bl = state.isIn(BlockTags.LOGS);
-      if (bl && progress > 0.0F) {
-         if (this.toast != null) {
-            this.toast.setProgress(progress);
-         }
+	@Override
+	public void destroy() {
+		if (this.toast != null) {
+			this.toast.hide();
+			this.toast = null;
+		}
+	}
 
-         if (progress >= 1.0F) {
-            this.manager.setStep(TutorialStep.OPEN_INVENTORY);
-         }
-      } else if (this.toast != null) {
-         this.toast.setProgress(0.0F);
-      } else if (bl) {
-         this.punches++;
-      }
-   }
+	@Override
+	public void onBlockBreaking(ClientWorld client, BlockPos pos, BlockState state, float progress) {
+		boolean bl = state.isIn(BlockTags.LOGS);
+		if (bl && progress > 0.0F) {
+			if (this.toast != null) {
+				this.toast.setProgress(progress);
+			}
 
-   @Override
-   public void onSlotUpdate(ItemStack stack) {
-      if (stack.isIn(ItemTags.LOGS)) {
-         this.manager.setStep(TutorialStep.CRAFT_PLANKS);
-      }
-   }
+			if (progress >= 1.0F) {
+				this.manager.setStep(TutorialStep.OPEN_INVENTORY);
+			}
+		}
+		else if (this.toast != null) {
+			this.toast.setProgress(0.0F);
+		}
+		else if (bl) {
+			this.punches++;
+		}
+	}
+
+	@Override
+	public void onSlotUpdate(ItemStack stack) {
+		if (stack.isIn(ItemTags.LOGS)) {
+			this.manager.setStep(TutorialStep.CRAFT_PLANKS);
+		}
+	}
 }

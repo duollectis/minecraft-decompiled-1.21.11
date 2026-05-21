@@ -11,45 +11,54 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.gen.feature.ConfiguredFeature;
 
+/**
+ * {@code MossBlock}.
+ */
 public class MossBlock extends Block implements Fertilizable {
-   public static final MapCodec<MossBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            RegistryKey.createCodec(RegistryKeys.CONFIGURED_FEATURE).fieldOf("feature").forGetter(block -> block.feature), createSettingsCodec()
-         )
-         .apply(instance, MossBlock::new)
-   );
-   private final RegistryKey<ConfiguredFeature<?, ?>> feature;
 
-   @Override
-   public MapCodec<MossBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<MossBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    RegistryKey
+							                    .createCodec(RegistryKeys.CONFIGURED_FEATURE)
+							                    .fieldOf("feature")
+							                    .forGetter(block -> block.feature), createSettingsCodec()
+			                    )
+			                    .apply(instance, MossBlock::new)
+	);
+	private final RegistryKey<ConfiguredFeature<?, ?>> feature;
 
-   public MossBlock(RegistryKey<ConfiguredFeature<?, ?>> feature, AbstractBlock.Settings settings) {
-      super(settings);
-      this.feature = feature;
-   }
+	@Override
+	public MapCodec<MossBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return world.getBlockState(pos.up()).isAir();
-   }
+	public MossBlock(RegistryKey<ConfiguredFeature<?, ?>> feature, AbstractBlock.Settings settings) {
+		super(settings);
+		this.feature = feature;
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return world.getBlockState(pos.up()).isAir();
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      world.getRegistryManager()
-         .getOptional(RegistryKeys.CONFIGURED_FEATURE)
-         .flatMap(registry -> registry.getOptional(this.feature))
-         .ifPresent(entry -> entry.value().generate(world, world.getChunkManager().getChunkGenerator(), random, pos.up()));
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
 
-   @Override
-   public Fertilizable.FertilizableType getFertilizableType() {
-      return Fertilizable.FertilizableType.NEIGHBOR_SPREADER;
-   }
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		world.getRegistryManager()
+		     .getOptional(RegistryKeys.CONFIGURED_FEATURE)
+		     .flatMap(registry -> registry.getOptional(this.feature))
+		     .ifPresent(entry -> entry
+				     .value()
+				     .generate(world, world.getChunkManager().getChunkGenerator(), random, pos.up()));
+	}
+
+	@Override
+	public Fertilizable.FertilizableType getFertilizableType() {
+		return Fertilizable.FertilizableType.NEIGHBOR_SPREADER;
+	}
 }

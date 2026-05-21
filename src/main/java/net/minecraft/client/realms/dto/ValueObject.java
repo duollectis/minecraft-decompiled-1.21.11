@@ -1,37 +1,43 @@
 package net.minecraft.client.realms.dto;
 
 import com.google.gson.annotations.SerializedName;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ValueObject}.
+ */
 public abstract class ValueObject {
-   @Override
-   public String toString() {
-      StringBuilder stringBuilder = new StringBuilder("{");
 
-      for (Field field : this.getClass().getFields()) {
-         if (!isStatic(field)) {
-            try {
-               stringBuilder.append(getName(field)).append("=").append(field.get(this)).append(" ");
-            } catch (IllegalAccessException var7) {
-            }
-         }
-      }
+	@Override
+	public String toString() {
+		StringBuilder stringBuilder = new StringBuilder("{");
 
-      stringBuilder.deleteCharAt(stringBuilder.length() - 1);
-      stringBuilder.append('}');
-      return stringBuilder.toString();
-   }
+		for (Field field : this.getClass().getFields()) {
+			if (!isStatic(field)) {
+				try {
+					stringBuilder.append(getName(field)).append("=").append(field.get(this)).append(" ");
+				}
+				catch (IllegalAccessException var7) {
+				}
+			}
+		}
 
-   private static String getName(Field f) {
-      SerializedName serializedName = f.getAnnotation(SerializedName.class);
-      return serializedName != null ? serializedName.value() : f.getName();
-   }
+		stringBuilder.deleteCharAt(stringBuilder.length() - 1);
+		stringBuilder.append('}');
+		return stringBuilder.toString();
+	}
 
-   private static boolean isStatic(Field f) {
-      return Modifier.isStatic(f.getModifiers());
-   }
+	private static String getName(Field f) {
+		SerializedName serializedName = f.getAnnotation(SerializedName.class);
+		return serializedName != null ? serializedName.value() : f.getName();
+	}
+
+	private static boolean isStatic(Field f) {
+		return Modifier.isStatic(f.getModifiers());
+	}
 }

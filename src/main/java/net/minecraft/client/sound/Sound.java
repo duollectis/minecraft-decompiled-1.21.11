@@ -9,109 +9,116 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Sound}.
+ */
 public class Sound implements SoundContainer<Sound> {
-   public static final ResourceFinder FINDER = new ResourceFinder("sounds", ".ogg");
-   private final Identifier id;
-   private final FloatSupplier volume;
-   private final FloatSupplier pitch;
-   private final int weight;
-   private final Sound.RegistrationType registrationType;
-   private final boolean stream;
-   private final boolean preload;
-   private final int attenuation;
 
-   public Sound(
-      Identifier id,
-      FloatSupplier volume,
-      FloatSupplier pitch,
-      int weight,
-      Sound.RegistrationType registrationType,
-      boolean stream,
-      boolean preload,
-      int attenuation
-   ) {
-      this.id = id;
-      this.volume = volume;
-      this.pitch = pitch;
-      this.weight = weight;
-      this.registrationType = registrationType;
-      this.stream = stream;
-      this.preload = preload;
-      this.attenuation = attenuation;
-   }
+	public static final ResourceFinder FINDER = new ResourceFinder("sounds", ".ogg");
+	private final Identifier id;
+	private final FloatSupplier volume;
+	private final FloatSupplier pitch;
+	private final int weight;
+	private final Sound.RegistrationType registrationType;
+	private final boolean stream;
+	private final boolean preload;
+	private final int attenuation;
 
-   public Identifier getIdentifier() {
-      return this.id;
-   }
+	public Sound(
+			Identifier id,
+			FloatSupplier volume,
+			FloatSupplier pitch,
+			int weight,
+			Sound.RegistrationType registrationType,
+			boolean stream,
+			boolean preload,
+			int attenuation
+	) {
+		this.id = id;
+		this.volume = volume;
+		this.pitch = pitch;
+		this.weight = weight;
+		this.registrationType = registrationType;
+		this.stream = stream;
+		this.preload = preload;
+		this.attenuation = attenuation;
+	}
 
-   public Identifier getLocation() {
-      return FINDER.toResourcePath(this.id);
-   }
+	public Identifier getIdentifier() {
+		return this.id;
+	}
 
-   public FloatSupplier getVolume() {
-      return this.volume;
-   }
+	public Identifier getLocation() {
+		return FINDER.toResourcePath(this.id);
+	}
 
-   public FloatSupplier getPitch() {
-      return this.pitch;
-   }
+	public FloatSupplier getVolume() {
+		return this.volume;
+	}
 
-   @Override
-   public int getWeight() {
-      return this.weight;
-   }
+	public FloatSupplier getPitch() {
+		return this.pitch;
+	}
 
-   public Sound getSound(Random random) {
-      return this;
-   }
+	@Override
+	public int getWeight() {
+		return this.weight;
+	}
 
-   @Override
-   public void preload(SoundSystem soundSystem) {
-      if (this.preload) {
-         soundSystem.addPreloadedSound(this);
-      }
-   }
+	public Sound getSound(Random random) {
+		return this;
+	}
 
-   public Sound.RegistrationType getRegistrationType() {
-      return this.registrationType;
-   }
+	@Override
+	public void preload(SoundSystem soundSystem) {
+		if (this.preload) {
+			soundSystem.addPreloadedSound(this);
+		}
+	}
 
-   public boolean isStreamed() {
-      return this.stream;
-   }
+	public Sound.RegistrationType getRegistrationType() {
+		return this.registrationType;
+	}
 
-   public boolean isPreloaded() {
-      return this.preload;
-   }
+	public boolean isStreamed() {
+		return this.stream;
+	}
 
-   public int getAttenuation() {
-      return this.attenuation;
-   }
+	public boolean isPreloaded() {
+		return this.preload;
+	}
 
-   @Override
-   public String toString() {
-      return "Sound[" + this.id + "]";
-   }
+	public int getAttenuation() {
+		return this.attenuation;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum RegistrationType {
-      FILE("file"),
-      SOUND_EVENT("event");
+	@Override
+	public String toString() {
+		return "Sound[" + this.id + "]";
+	}
 
-      private final String name;
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code RegistrationType}.
+	 */
+	public static enum RegistrationType {
+		FILE("file"),
+		SOUND_EVENT("event");
 
-      private RegistrationType(final String name) {
-         this.name = name;
-      }
+		private final String name;
 
-      public static Sound.@Nullable RegistrationType getByName(String name) {
-         for (Sound.RegistrationType registrationType : values()) {
-            if (registrationType.name.equals(name)) {
-               return registrationType;
-            }
-         }
+		private RegistrationType(final String name) {
+			this.name = name;
+		}
 
-         return null;
-      }
-   }
+		public static Sound.@Nullable RegistrationType getByName(String name) {
+			for (Sound.RegistrationType registrationType : values()) {
+				if (registrationType.name.equals(name)) {
+					return registrationType;
+				}
+			}
+
+			return null;
+		}
+	}
 }

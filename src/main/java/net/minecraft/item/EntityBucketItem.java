@@ -17,40 +17,58 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code EntityBucketItem}.
+ */
 public class EntityBucketItem extends BucketItem {
-   private final EntityType<? extends MobEntity> entityType;
-   private final SoundEvent emptyingSound;
 
-   public EntityBucketItem(EntityType<? extends MobEntity> type, Fluid fluid, SoundEvent emptyingSound, Item.Settings settings) {
-      super(fluid, settings);
-      this.entityType = type;
-      this.emptyingSound = emptyingSound;
-   }
+	private final EntityType<? extends MobEntity> entityType;
+	private final SoundEvent emptyingSound;
 
-   @Override
-   public void onEmptied(@Nullable LivingEntity user, World world, ItemStack stack, BlockPos pos) {
-      if (world instanceof ServerWorld) {
-         this.spawnEntity((ServerWorld)world, stack, pos);
-         world.emitGameEvent(user, GameEvent.ENTITY_PLACE, pos);
-      }
-   }
+	public EntityBucketItem(
+			EntityType<? extends MobEntity> type,
+			Fluid fluid,
+			SoundEvent emptyingSound,
+			Item.Settings settings
+	) {
+		super(fluid, settings);
+		this.entityType = type;
+		this.emptyingSound = emptyingSound;
+	}
 
-   @Override
-   protected void playEmptyingSound(@Nullable LivingEntity user, WorldAccess world, BlockPos pos) {
-      world.playSound(user, pos, this.emptyingSound, SoundCategory.NEUTRAL, 1.0F, 1.0F);
-   }
+	@Override
+	public void onEmptied(@Nullable LivingEntity user, World world, ItemStack stack, BlockPos pos) {
+		if (world instanceof ServerWorld) {
+			this.spawnEntity((ServerWorld) world, stack, pos);
+			world.emitGameEvent(user, GameEvent.ENTITY_PLACE, pos);
+		}
+	}
 
-   private void spawnEntity(ServerWorld world, ItemStack stack, BlockPos pos) {
-      MobEntity mobEntity = this.entityType.create(world, EntityType.copier(world, stack, null), pos, SpawnReason.BUCKET, true, false);
-      if (mobEntity instanceof Bucketable bucketable) {
-         NbtComponent nbtComponent = stack.getOrDefault(DataComponentTypes.BUCKET_ENTITY_DATA, NbtComponent.DEFAULT);
-         bucketable.copyDataFromNbt(nbtComponent.copyNbt());
-         bucketable.setFromBucket(true);
-      }
+	@Override
+	protected void playEmptyingSound(@Nullable LivingEntity user, WorldAccess world, BlockPos pos) {
+		world.playSound(user, pos, this.emptyingSound, SoundCategory.NEUTRAL, 1.0F, 1.0F);
+	}
 
-      if (mobEntity != null) {
-         world.spawnEntityAndPassengers(mobEntity);
-         mobEntity.playAmbientSound();
-      }
-   }
+	private void spawnEntity(ServerWorld world, ItemStack stack, BlockPos pos) {
+		MobEntity
+				mobEntity =
+				this.entityType.create(
+						world,
+						EntityType.copier(world, stack, null),
+						pos,
+						SpawnReason.BUCKET,
+						true,
+						false
+				);
+		if (mobEntity instanceof Bucketable bucketable) {
+			NbtComponent nbtComponent = stack.getOrDefault(DataComponentTypes.BUCKET_ENTITY_DATA, NbtComponent.DEFAULT);
+			bucketable.copyDataFromNbt(nbtComponent.copyNbt());
+			bucketable.setFromBucket(true);
+		}
+
+		if (mobEntity != null) {
+			world.spawnEntityAndPassengers(mobEntity);
+			mobEntity.playAmbientSound();
+		}
+	}
 }

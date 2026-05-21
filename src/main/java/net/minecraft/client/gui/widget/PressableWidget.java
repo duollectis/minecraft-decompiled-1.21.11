@@ -1,6 +1,5 @@
 package net.minecraft.client.gui.widget;
 
-import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -16,63 +15,73 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.Supplier;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PressableWidget}.
+ */
 public abstract class PressableWidget extends ClickableWidget.InactivityIndicatingWidget {
-   protected static final int field_43050 = 2;
-   private static final ButtonTextures TEXTURES = new ButtonTextures(
-      Identifier.ofVanilla("widget/button"), Identifier.ofVanilla("widget/button_disabled"), Identifier.ofVanilla("widget/button_highlighted")
-   );
-   private @Nullable Supplier<Boolean> focusOverride;
 
-   public PressableWidget(int i, int j, int k, int l, Text text) {
-      super(i, j, k, l, text);
-   }
+	protected static final int TEXT_MARGIN = 2;
+	private static final ButtonTextures TEXTURES = new ButtonTextures(
+			Identifier.ofVanilla("widget/button"),
+			Identifier.ofVanilla("widget/button_disabled"),
+			Identifier.ofVanilla("widget/button_highlighted")
+	);
+	private @Nullable Supplier<Boolean> focusOverride;
 
-   public abstract void onPress(AbstractInput input);
+	public PressableWidget(int i, int j, int k, int l, Text text) {
+		super(i, j, k, l, text);
+	}
 
-   @Override
-   protected final void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      this.drawIcon(context, mouseX, mouseY, deltaTicks);
-      this.setCursor(context);
-   }
+	public abstract void onPress(AbstractInput input);
 
-   protected abstract void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks);
+	@Override
+	protected final void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		this.drawIcon(context, mouseX, mouseY, deltaTicks);
+		this.setCursor(context);
+	}
 
-   protected void drawLabel(DrawnTextConsumer drawer) {
-      this.drawTextWithMargin(drawer, this.getMessage(), 2);
-   }
+	protected abstract void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks);
 
-   protected final void drawButton(DrawContext context) {
-      context.drawGuiTexture(
-         RenderPipelines.GUI_TEXTURED,
-         TEXTURES.get(this.active, this.focusOverride != null ? this.focusOverride.get() : this.isSelected()),
-         this.getX(),
-         this.getY(),
-         this.getWidth(),
-         this.getHeight(),
-         ColorHelper.getWhite(this.alpha)
-      );
-   }
+	protected void drawLabel(DrawnTextConsumer drawer) {
+		this.drawTextWithMargin(drawer, this.getMessage(), 2);
+	}
 
-   @Override
-   public void onClick(Click click, boolean doubled) {
-      this.onPress(click);
-   }
+	protected final void drawButton(DrawContext context) {
+		context.drawGuiTexture(
+				RenderPipelines.GUI_TEXTURED,
+				TEXTURES.get(this.active, this.focusOverride != null ? this.focusOverride.get() : this.isSelected()),
+				this.getX(),
+				this.getY(),
+				this.getWidth(),
+				this.getHeight(),
+				ColorHelper.getWhite(this.alpha)
+		);
+	}
 
-   @Override
-   public boolean keyPressed(KeyInput input) {
-      if (!this.isInteractable()) {
-         return false;
-      } else if (input.isEnterOrSpace()) {
-         this.playDownSound(MinecraftClient.getInstance().getSoundManager());
-         this.onPress(input);
-         return true;
-      } else {
-         return false;
-      }
-   }
+	@Override
+	public void onClick(Click click, boolean doubled) {
+		this.onPress(click);
+	}
 
-   public void setFocusOverride(Supplier<Boolean> focusOverride) {
-      this.focusOverride = focusOverride;
-   }
+	@Override
+	public boolean keyPressed(KeyInput input) {
+		if (!this.isInteractable()) {
+			return false;
+		}
+		else if (input.isEnterOrSpace()) {
+			this.playDownSound(MinecraftClient.getInstance().getSoundManager());
+			this.onPress(input);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+
+	public void setFocusOverride(Supplier<Boolean> focusOverride) {
+		this.focusOverride = focusOverride;
+	}
 }

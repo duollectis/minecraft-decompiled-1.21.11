@@ -5,13 +5,17 @@ import net.fabricmc.api.Environment;
 import net.minecraft.entity.passive.FoxEntity;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FoxEntityRenderState}.
+ */
 public class FoxEntityRenderState extends ItemHolderEntityRenderState {
-   public float headRoll;
-   public float bodyRotationHeightOffset;
-   public boolean inSneakingPose;
-   public boolean sleeping;
-   public boolean sitting;
-   public boolean walking;
-   public boolean chasing;
-   public FoxEntity.Variant type = FoxEntity.Variant.DEFAULT;
+
+	public float headRoll;
+	public float bodyRotationHeightOffset;
+	public boolean inSneakingPose;
+	public boolean sleeping;
+	public boolean sitting;
+	public boolean walking;
+	public boolean chasing;
+	public FoxEntity.Variant type = FoxEntity.Variant.DEFAULT;
 }

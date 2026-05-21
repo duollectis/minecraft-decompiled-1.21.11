@@ -9,26 +9,33 @@ import net.minecraft.entity.passive.OcelotEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code OcelotEntityRenderer}.
+ */
 public class OcelotEntityRenderer extends AgeableMobEntityRenderer<OcelotEntity, FelineEntityRenderState, OcelotEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/cat/ocelot.png");
 
-   public OcelotEntityRenderer(EntityRendererFactory.Context context) {
-      super(
-         context, new OcelotEntityModel(context.getPart(EntityModelLayers.OCELOT)), new OcelotEntityModel(context.getPart(EntityModelLayers.OCELOT_BABY)), 0.4F
-      );
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/cat/ocelot.png");
 
-   public Identifier getTexture(FelineEntityRenderState felineEntityRenderState) {
-      return TEXTURE;
-   }
+	public OcelotEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new OcelotEntityModel(context.getPart(EntityModelLayers.OCELOT)),
+				new OcelotEntityModel(context.getPart(EntityModelLayers.OCELOT_BABY)),
+				0.4F
+		);
+	}
 
-   public FelineEntityRenderState createRenderState() {
-      return new FelineEntityRenderState();
-   }
+	public Identifier getTexture(FelineEntityRenderState felineEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(OcelotEntity ocelotEntity, FelineEntityRenderState felineEntityRenderState, float f) {
-      super.updateRenderState(ocelotEntity, felineEntityRenderState, f);
-      felineEntityRenderState.inSneakingPose = ocelotEntity.isInSneakingPose();
-      felineEntityRenderState.sprinting = ocelotEntity.isSprinting();
-   }
+	public FelineEntityRenderState createRenderState() {
+		return new FelineEntityRenderState();
+	}
+
+	public void updateRenderState(OcelotEntity ocelotEntity, FelineEntityRenderState felineEntityRenderState, float f) {
+		super.updateRenderState(ocelotEntity, felineEntityRenderState, f);
+		felineEntityRenderState.inSneakingPose = ocelotEntity.isInSneakingPose();
+		felineEntityRenderState.sprinting = ocelotEntity.isSprinting();
+	}
 }

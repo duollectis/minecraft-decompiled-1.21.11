@@ -1,9 +1,14 @@
 package net.minecraft.test;
 
-import java.util.stream.Stream;
 import net.minecraft.registry.entry.RegistryEntry;
 
+import java.util.stream.Stream;
+
 @FunctionalInterface
+/**
+ * {@code TestInstanceFinder}.
+ */
 public interface TestInstanceFinder {
-   Stream<RegistryEntry.Reference<TestInstance>> findTests();
+
+	Stream<RegistryEntry.Reference<TestInstance>> findTests();
 }

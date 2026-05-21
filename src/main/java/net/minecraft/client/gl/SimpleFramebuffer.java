@@ -6,10 +6,14 @@ import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SimpleFramebuffer}.
+ */
 public class SimpleFramebuffer extends Framebuffer {
-   public SimpleFramebuffer(@Nullable String name, int width, int height, boolean useDepthAttachment) {
-      super(name, useDepthAttachment);
-      RenderSystem.assertOnRenderThread();
-      this.resize(width, height);
-   }
+
+	public SimpleFramebuffer(@Nullable String name, int width, int height, boolean useDepthAttachment) {
+		super(name, useDepthAttachment);
+		RenderSystem.assertOnRenderThread();
+		this.resize(width, height);
+	}
 }

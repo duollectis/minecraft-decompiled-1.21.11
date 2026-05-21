@@ -25,87 +25,116 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code JukeboxBlock}.
+ */
 public class JukeboxBlock extends BlockWithEntity {
-   public static final MapCodec<JukeboxBlock> CODEC = createCodec(JukeboxBlock::new);
-   public static final BooleanProperty HAS_RECORD = Properties.HAS_RECORD;
 
-   @Override
-   public MapCodec<JukeboxBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<JukeboxBlock> CODEC = createCodec(JukeboxBlock::new);
+	public static final BooleanProperty HAS_RECORD = Properties.HAS_RECORD;
 
-   public JukeboxBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(HAS_RECORD, false));
-   }
+	@Override
+	public MapCodec<JukeboxBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void onPlaced(World world, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack itemStack) {
-      super.onPlaced(world, pos, state, placer, itemStack);
-      TypedEntityData<BlockEntityType<?>> typedEntityData = itemStack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
-      if (typedEntityData != null && typedEntityData.contains("RecordItem")) {
-         world.setBlockState(pos, state.with(HAS_RECORD, true), 2);
-      }
-   }
+	public JukeboxBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(HAS_RECORD, false));
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (state.get(HAS_RECORD) && world.getBlockEntity(pos) instanceof JukeboxBlockEntity jukeboxBlockEntity) {
-         jukeboxBlockEntity.dropRecord();
-         return ActionResult.SUCCESS;
-      } else {
-         return ActionResult.PASS;
-      }
-   }
+	@Override
+	public void onPlaced(
+			World world,
+			BlockPos pos,
+			BlockState state,
+			@Nullable LivingEntity placer,
+			ItemStack itemStack
+	) {
+		super.onPlaced(world, pos, state, placer, itemStack);
+		TypedEntityData<BlockEntityType<?>> typedEntityData = itemStack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
+		if (typedEntityData != null && typedEntityData.contains("RecordItem")) {
+			world.setBlockState(pos, state.with(HAS_RECORD, true), 2);
+		}
+	}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      if (state.get(HAS_RECORD)) {
-         return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-      } else {
-         ItemStack itemStack = player.getStackInHand(hand);
-         ActionResult actionResult = JukeboxPlayableComponent.tryPlayStack(world, pos, itemStack, player);
-         return (ActionResult)(!actionResult.isAccepted() ? ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION : actionResult);
-      }
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (state.get(HAS_RECORD) && world.getBlockEntity(pos) instanceof JukeboxBlockEntity jukeboxBlockEntity) {
+			jukeboxBlockEntity.dropRecord();
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return ActionResult.PASS;
+		}
+	}
 
-   @Override
-   protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-      ItemScatterer.onStateReplaced(state, world, pos);
-   }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		if (state.get(HAS_RECORD)) {
+			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+		}
+		else {
+			ItemStack itemStack = player.getStackInHand(hand);
+			ActionResult actionResult = JukeboxPlayableComponent.tryPlayStack(world, pos, itemStack, player);
+			return (ActionResult) (!actionResult.isAccepted() ? ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
+			                                                  : actionResult
+			);
+		}
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new JukeboxBlockEntity(pos, state);
-   }
+	@Override
+	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+		ItemScatterer.onStateReplaced(state, world, pos);
+	}
 
-   @Override
-   public boolean emitsRedstonePower(BlockState state) {
-      return true;
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new JukeboxBlockEntity(pos, state);
+	}
 
-   @Override
-   public int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-      return world.getBlockEntity(pos) instanceof JukeboxBlockEntity jukeboxBlockEntity && jukeboxBlockEntity.getManager().isPlaying() ? 15 : 0;
-   }
+	@Override
+	public boolean emitsRedstonePower(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected boolean hasComparatorOutput(BlockState state) {
-      return true;
-   }
+	@Override
+	public int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
+		return world.getBlockEntity(pos) instanceof JukeboxBlockEntity jukeboxBlockEntity && jukeboxBlockEntity
+				.getManager()
+				.isPlaying() ? 15 : 0;
+	}
 
-   @Override
-   protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-      return world.getBlockEntity(pos) instanceof JukeboxBlockEntity jukeboxBlockEntity ? jukeboxBlockEntity.getComparatorOutput() : 0;
-   }
+	@Override
+	protected boolean hasComparatorOutput(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(HAS_RECORD);
-   }
+	@Override
+	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
+		return world.getBlockEntity(pos) instanceof JukeboxBlockEntity jukeboxBlockEntity
+		       ? jukeboxBlockEntity.getComparatorOutput() : 0;
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return state.get(HAS_RECORD) ? validateTicker(type, BlockEntityType.JUKEBOX, JukeboxBlockEntity::tick) : null;
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(HAS_RECORD);
+	}
+
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return state.get(HAS_RECORD) ? validateTicker(type, BlockEntityType.JUKEBOX, JukeboxBlockEntity::tick) : null;
+	}
 }

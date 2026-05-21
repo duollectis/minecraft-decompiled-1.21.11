@@ -5,6 +5,10 @@ import net.fabricmc.api.Environment;
 
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SimpleModel}.
+ */
 public interface SimpleModel {
-   String name();
+
+	String name();
 }

@@ -5,10 +5,14 @@ import net.fabricmc.api.Environment;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SoundContainer}.
+ */
 public interface SoundContainer<T> {
-   int getWeight();
 
-   T getSound(Random random);
+	int getWeight();
 
-   void preload(SoundSystem soundSystem);
+	T getSound(Random random);
+
+	void preload(SoundSystem soundSystem);
 }

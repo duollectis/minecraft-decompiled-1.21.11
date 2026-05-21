@@ -1,30 +1,12 @@
 package net.minecraft.entity.passive;
 
-import java.util.EnumSet;
 import net.minecraft.component.type.ConsumableComponent;
 import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ExperienceOrbEntity;
-import net.minecraft.entity.ai.goal.EscapeDangerGoal;
-import net.minecraft.entity.ai.goal.FleeEntityGoal;
-import net.minecraft.entity.ai.goal.GoToWalkTargetGoal;
-import net.minecraft.entity.ai.goal.Goal;
-import net.minecraft.entity.ai.goal.HoldInHandsGoal;
-import net.minecraft.entity.ai.goal.LookAtCustomerGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.StopAndLookAtEntityGoal;
-import net.minecraft.entity.ai.goal.StopFollowingCustomerGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.ai.goal.WanderAroundFarGoal;
+import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.mob.EvokerEntity;
-import net.minecraft.entity.mob.IllusionerEntity;
-import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.entity.mob.PillagerEntity;
-import net.minecraft.entity.mob.VexEntity;
-import net.minecraft.entity.mob.VindicatorEntity;
-import net.minecraft.entity.mob.ZoglinEntity;
-import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.entity.mob.*;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -46,227 +28,260 @@ import net.minecraft.world.World;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+
+/**
+ * {@code WanderingTraderEntity}.
+ */
 public class WanderingTraderEntity extends MerchantEntity implements ConsumableComponent.ConsumableSoundProvider {
-   private static final int DEFAULT_DESPAWN_DELAY = 0;
-   private @Nullable BlockPos wanderTarget;
-   private int despawnDelay = 0;
 
-   public WanderingTraderEntity(EntityType<? extends WanderingTraderEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final int DEFAULT_DESPAWN_DELAY = 0;
+	private @Nullable BlockPos wanderTarget;
+	private int despawnDelay = 0;
 
-   @Override
-   protected void initGoals() {
-      this.goalSelector.add(0, new SwimGoal(this));
-      this.goalSelector
-         .add(
-            0,
-            new HoldInHandsGoal<>(
-               this,
-               PotionContentsComponent.createStack(Items.POTION, Potions.INVISIBILITY),
-               SoundEvents.ENTITY_WANDERING_TRADER_DISAPPEARED,
-               wanderingTrader -> this.getEntityWorld().isNight() && !wanderingTrader.isInvisible()
-            )
-         );
-      this.goalSelector
-         .add(
-            0,
-            new HoldInHandsGoal<>(
-               this,
-               new ItemStack(Items.MILK_BUCKET),
-               SoundEvents.ENTITY_WANDERING_TRADER_REAPPEARED,
-               wanderingTrader -> this.getEntityWorld().isDay() && wanderingTrader.isInvisible()
-            )
-         );
-      this.goalSelector.add(1, new StopFollowingCustomerGoal(this));
-      this.goalSelector.add(1, new FleeEntityGoal<>(this, ZombieEntity.class, 8.0F, 0.5, 0.5));
-      this.goalSelector.add(1, new FleeEntityGoal<>(this, EvokerEntity.class, 12.0F, 0.5, 0.5));
-      this.goalSelector.add(1, new FleeEntityGoal<>(this, VindicatorEntity.class, 8.0F, 0.5, 0.5));
-      this.goalSelector.add(1, new FleeEntityGoal<>(this, VexEntity.class, 8.0F, 0.5, 0.5));
-      this.goalSelector.add(1, new FleeEntityGoal<>(this, PillagerEntity.class, 15.0F, 0.5, 0.5));
-      this.goalSelector.add(1, new FleeEntityGoal<>(this, IllusionerEntity.class, 12.0F, 0.5, 0.5));
-      this.goalSelector.add(1, new FleeEntityGoal<>(this, ZoglinEntity.class, 10.0F, 0.5, 0.5));
-      this.goalSelector.add(1, new EscapeDangerGoal(this, 0.5));
-      this.goalSelector.add(1, new LookAtCustomerGoal(this));
-      this.goalSelector.add(2, new WanderingTraderEntity.WanderToTargetGoal(this, 2.0, 0.35));
-      this.goalSelector.add(4, new GoToWalkTargetGoal(this, 0.35));
-      this.goalSelector.add(8, new WanderAroundFarGoal(this, 0.35));
-      this.goalSelector.add(9, new StopAndLookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
-      this.goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
-   }
+	public WanderingTraderEntity(EntityType<? extends WanderingTraderEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
-      return null;
-   }
+	@Override
+	protected void initGoals() {
+		this.goalSelector.add(0, new SwimGoal(this));
+		this.goalSelector
+				.add(
+						0,
+						new HoldInHandsGoal<>(
+								this,
+								PotionContentsComponent.createStack(Items.POTION, Potions.INVISIBILITY),
+								SoundEvents.ENTITY_WANDERING_TRADER_DISAPPEARED,
+								wanderingTrader -> this.getEntityWorld().isNight() && !wanderingTrader.isInvisible()
+						)
+				);
+		this.goalSelector
+				.add(
+						0,
+						new HoldInHandsGoal<>(
+								this,
+								new ItemStack(Items.MILK_BUCKET),
+								SoundEvents.ENTITY_WANDERING_TRADER_REAPPEARED,
+								wanderingTrader -> this.getEntityWorld().isDay() && wanderingTrader.isInvisible()
+						)
+				);
+		this.goalSelector.add(1, new StopFollowingCustomerGoal(this));
+		this.goalSelector.add(1, new FleeEntityGoal<>(this, ZombieEntity.class, 8.0F, 0.5, 0.5));
+		this.goalSelector.add(1, new FleeEntityGoal<>(this, EvokerEntity.class, 12.0F, 0.5, 0.5));
+		this.goalSelector.add(1, new FleeEntityGoal<>(this, VindicatorEntity.class, 8.0F, 0.5, 0.5));
+		this.goalSelector.add(1, new FleeEntityGoal<>(this, VexEntity.class, 8.0F, 0.5, 0.5));
+		this.goalSelector.add(1, new FleeEntityGoal<>(this, PillagerEntity.class, 15.0F, 0.5, 0.5));
+		this.goalSelector.add(1, new FleeEntityGoal<>(this, IllusionerEntity.class, 12.0F, 0.5, 0.5));
+		this.goalSelector.add(1, new FleeEntityGoal<>(this, ZoglinEntity.class, 10.0F, 0.5, 0.5));
+		this.goalSelector.add(1, new EscapeDangerGoal(this, 0.5));
+		this.goalSelector.add(1, new LookAtCustomerGoal(this));
+		this.goalSelector.add(2, new WanderingTraderEntity.WanderToTargetGoal(this, 2.0, 0.35));
+		this.goalSelector.add(4, new GoToWalkTargetGoal(this, 0.35));
+		this.goalSelector.add(8, new WanderAroundFarGoal(this, 0.35));
+		this.goalSelector.add(9, new StopAndLookAtEntityGoal(this, PlayerEntity.class, 3.0F, 1.0F));
+		this.goalSelector.add(10, new LookAtEntityGoal(this, MobEntity.class, 8.0F));
+	}
 
-   @Override
-   public boolean isLeveledMerchant() {
-      return false;
-   }
+	@Override
+	public @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity) {
+		return null;
+	}
 
-   @Override
-   public ActionResult interactMob(PlayerEntity player, Hand hand) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if (!itemStack.isOf(Items.VILLAGER_SPAWN_EGG) && this.isAlive() && !this.hasCustomer() && !this.isBaby()) {
-         if (hand == Hand.MAIN_HAND) {
-            player.incrementStat(Stats.TALKED_TO_VILLAGER);
-         }
+	@Override
+	public boolean isLeveledMerchant() {
+		return false;
+	}
 
-         if (!this.getEntityWorld().isClient()) {
-            if (this.getOffers().isEmpty()) {
-               return ActionResult.CONSUME;
-            }
+	@Override
+	public ActionResult interactMob(PlayerEntity player, Hand hand) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if (!itemStack.isOf(Items.VILLAGER_SPAWN_EGG) && this.isAlive() && !this.hasCustomer() && !this.isBaby()) {
+			if (hand == Hand.MAIN_HAND) {
+				player.incrementStat(Stats.TALKED_TO_VILLAGER);
+			}
 
-            this.setCustomer(player);
-            this.sendOffers(player, this.getDisplayName(), 1);
-         }
+			if (!this.getEntityWorld().isClient()) {
+				if (this.getOffers().isEmpty()) {
+					return ActionResult.CONSUME;
+				}
 
-         return ActionResult.SUCCESS;
-      } else {
-         return super.interactMob(player, hand);
-      }
-   }
+				this.setCustomer(player);
+				this.sendOffers(player, this.getDisplayName(), 1);
+			}
 
-   @Override
-   protected void fillRecipes(ServerWorld world) {
-      TradeOfferList tradeOfferList = this.getOffers();
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return super.interactMob(player, hand);
+		}
+	}
 
-      for (Pair<TradeOffers.Factory[], Integer> pair : TradeOffers.WANDERING_TRADER_TRADES) {
-         TradeOffers.Factory[] factorys = (TradeOffers.Factory[])pair.getLeft();
-         this.fillRecipesFromPool(world, tradeOfferList, factorys, (Integer)pair.getRight());
-      }
-   }
+	@Override
+	protected void fillRecipes(ServerWorld world) {
+		TradeOfferList tradeOfferList = this.getOffers();
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putInt("DespawnDelay", this.despawnDelay);
-      view.putNullable("wander_target", BlockPos.CODEC, this.wanderTarget);
-   }
+		for (Pair<TradeOffers.Factory[], Integer> pair : TradeOffers.WANDERING_TRADER_TRADES) {
+			TradeOffers.Factory[] factorys = (TradeOffers.Factory[]) pair.getLeft();
+			this.fillRecipesFromPool(world, tradeOfferList, factorys, (Integer) pair.getRight());
+		}
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.despawnDelay = view.getInt("DespawnDelay", 0);
-      this.wanderTarget = view.<BlockPos>read("wander_target", BlockPos.CODEC).orElse(null);
-      this.setBreedingAge(Math.max(0, this.getBreedingAge()));
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putInt("DespawnDelay", this.despawnDelay);
+		view.putNullable("wander_target", BlockPos.CODEC, this.wanderTarget);
+	}
 
-   @Override
-   public boolean canImmediatelyDespawn(double distanceSquared) {
-      return false;
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.despawnDelay = view.getInt("DespawnDelay", 0);
+		this.wanderTarget = view.<BlockPos>read("wander_target", BlockPos.CODEC).orElse(null);
+		this.setBreedingAge(Math.max(0, this.getBreedingAge()));
+	}
 
-   @Override
-   protected void afterUsing(TradeOffer offer) {
-      if (offer.shouldRewardPlayerExperience()) {
-         int i = 3 + this.random.nextInt(4);
-         this.getEntityWorld().spawnEntity(new ExperienceOrbEntity(this.getEntityWorld(), this.getX(), this.getY() + 0.5, this.getZ(), i));
-      }
-   }
+	@Override
+	public boolean canImmediatelyDespawn(double distanceSquared) {
+		return false;
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return this.hasCustomer() ? SoundEvents.ENTITY_WANDERING_TRADER_TRADE : SoundEvents.ENTITY_WANDERING_TRADER_AMBIENT;
-   }
+	@Override
+	protected void afterUsing(TradeOffer offer) {
+		if (offer.shouldRewardPlayerExperience()) {
+			int i = 3 + this.random.nextInt(4);
+			this
+					.getEntityWorld()
+					.spawnEntity(new ExperienceOrbEntity(
+							this.getEntityWorld(),
+							this.getX(),
+							this.getY() + 0.5,
+							this.getZ(),
+							i
+					));
+		}
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_WANDERING_TRADER_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return this.hasCustomer() ? SoundEvents.ENTITY_WANDERING_TRADER_TRADE
+		                          : SoundEvents.ENTITY_WANDERING_TRADER_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_WANDERING_TRADER_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_WANDERING_TRADER_HURT;
+	}
 
-   @Override
-   public SoundEvent getConsumeSound(ItemStack stack) {
-      return stack.isOf(Items.MILK_BUCKET) ? SoundEvents.ENTITY_WANDERING_TRADER_DRINK_MILK : SoundEvents.ENTITY_WANDERING_TRADER_DRINK_POTION;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_WANDERING_TRADER_DEATH;
+	}
 
-   @Override
-   protected SoundEvent getTradingSound(boolean sold) {
-      return sold ? SoundEvents.ENTITY_WANDERING_TRADER_YES : SoundEvents.ENTITY_WANDERING_TRADER_NO;
-   }
+	@Override
+	public SoundEvent getConsumeSound(ItemStack stack) {
+		return stack.isOf(Items.MILK_BUCKET) ? SoundEvents.ENTITY_WANDERING_TRADER_DRINK_MILK
+		                                     : SoundEvents.ENTITY_WANDERING_TRADER_DRINK_POTION;
+	}
 
-   @Override
-   public SoundEvent getYesSound() {
-      return SoundEvents.ENTITY_WANDERING_TRADER_YES;
-   }
+	@Override
+	protected SoundEvent getTradingSound(boolean sold) {
+		return sold ? SoundEvents.ENTITY_WANDERING_TRADER_YES : SoundEvents.ENTITY_WANDERING_TRADER_NO;
+	}
 
-   public void setDespawnDelay(int despawnDelay) {
-      this.despawnDelay = despawnDelay;
-   }
+	@Override
+	public SoundEvent getYesSound() {
+		return SoundEvents.ENTITY_WANDERING_TRADER_YES;
+	}
 
-   public int getDespawnDelay() {
-      return this.despawnDelay;
-   }
+	public void setDespawnDelay(int despawnDelay) {
+		this.despawnDelay = despawnDelay;
+	}
 
-   @Override
-   public void tickMovement() {
-      super.tickMovement();
-      if (!this.getEntityWorld().isClient()) {
-         this.tickDespawnDelay();
-      }
-   }
+	public int getDespawnDelay() {
+		return this.despawnDelay;
+	}
 
-   private void tickDespawnDelay() {
-      if (this.despawnDelay > 0 && !this.hasCustomer() && --this.despawnDelay == 0) {
-         this.discard();
-      }
-   }
+	@Override
+	public void tickMovement() {
+		super.tickMovement();
+		if (!this.getEntityWorld().isClient()) {
+			this.tickDespawnDelay();
+		}
+	}
 
-   public void setWanderTarget(@Nullable BlockPos wanderTarget) {
-      this.wanderTarget = wanderTarget;
-   }
+	private void tickDespawnDelay() {
+		if (this.despawnDelay > 0 && !this.hasCustomer() && --this.despawnDelay == 0) {
+			this.discard();
+		}
+	}
 
-   @Nullable BlockPos getWanderTarget() {
-      return this.wanderTarget;
-   }
+	public void setWanderTarget(@Nullable BlockPos wanderTarget) {
+		this.wanderTarget = wanderTarget;
+	}
 
-   class WanderToTargetGoal extends Goal {
-      final WanderingTraderEntity trader;
-      final double proximityDistance;
-      final double speed;
+	@Nullable BlockPos getWanderTarget() {
+		return this.wanderTarget;
+	}
 
-      WanderToTargetGoal(final WanderingTraderEntity trader, final double proximityDistance, final double speed) {
-         this.trader = trader;
-         this.proximityDistance = proximityDistance;
-         this.speed = speed;
-         this.setControls(EnumSet.of(Goal.Control.MOVE));
-      }
+	/**
+	 * {@code WanderToTargetGoal}.
+	 */
+	class WanderToTargetGoal extends Goal {
 
-      @Override
-      public void stop() {
-         this.trader.setWanderTarget(null);
-         WanderingTraderEntity.this.navigation.stop();
-      }
+		final WanderingTraderEntity trader;
+		final double proximityDistance;
+		final double speed;
 
-      @Override
-      public boolean canStart() {
-         BlockPos blockPos = this.trader.getWanderTarget();
-         return blockPos != null && this.isTooFarFrom(blockPos, this.proximityDistance);
-      }
+		WanderToTargetGoal(final WanderingTraderEntity trader, final double proximityDistance, final double speed) {
+			this.trader = trader;
+			this.proximityDistance = proximityDistance;
+			this.speed = speed;
+			this.setControls(EnumSet.of(Goal.Control.MOVE));
+		}
 
-      @Override
-      public void tick() {
-         BlockPos blockPos = this.trader.getWanderTarget();
-         if (blockPos != null && WanderingTraderEntity.this.navigation.isIdle()) {
-            if (this.isTooFarFrom(blockPos, 10.0)) {
-               Vec3d vec3d = new Vec3d(blockPos.getX() - this.trader.getX(), blockPos.getY() - this.trader.getY(), blockPos.getZ() - this.trader.getZ())
-                  .normalize();
-               Vec3d vec3d2 = vec3d.multiply(10.0).add(this.trader.getX(), this.trader.getY(), this.trader.getZ());
-               WanderingTraderEntity.this.navigation.startMovingTo(vec3d2.x, vec3d2.y, vec3d2.z, this.speed);
-            } else {
-               WanderingTraderEntity.this.navigation.startMovingTo(blockPos.getX(), blockPos.getY(), blockPos.getZ(), this.speed);
-            }
-         }
-      }
+		@Override
+		public void stop() {
+			this.trader.setWanderTarget(null);
+			WanderingTraderEntity.this.navigation.stop();
+		}
 
-      private boolean isTooFarFrom(BlockPos pos, double proximityDistance) {
-         return !pos.isWithinDistance(this.trader.getEntityPos(), proximityDistance);
-      }
-   }
+		@Override
+		public boolean canStart() {
+			BlockPos blockPos = this.trader.getWanderTarget();
+			return blockPos != null && this.isTooFarFrom(blockPos, this.proximityDistance);
+		}
+
+		@Override
+		public void tick() {
+			BlockPos blockPos = this.trader.getWanderTarget();
+			if (blockPos != null && WanderingTraderEntity.this.navigation.isIdle()) {
+				if (this.isTooFarFrom(blockPos, 10.0)) {
+					Vec3d
+							vec3d =
+							new Vec3d(
+									blockPos.getX() - this.trader.getX(),
+									blockPos.getY() - this.trader.getY(),
+									blockPos.getZ() - this.trader.getZ()
+							)
+									.normalize();
+					Vec3d vec3d2 = vec3d.multiply(10.0).add(this.trader.getX(), this.trader.getY(), this.trader.getZ());
+					WanderingTraderEntity.this.navigation.startMovingTo(vec3d2.x, vec3d2.y, vec3d2.z, this.speed);
+				}
+				else {
+					WanderingTraderEntity.this.navigation.startMovingTo(
+							blockPos.getX(),
+							blockPos.getY(),
+							blockPos.getZ(),
+							this.speed
+					);
+				}
+			}
+		}
+
+		private boolean isTooFarFrom(BlockPos pos, double proximityDistance) {
+			return !pos.isWithinDistance(this.trader.getEntityPos(), proximityDistance);
+		}
+	}
 }

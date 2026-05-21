@@ -2,9 +2,6 @@ package net.minecraft.entity.decoration;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.Set;
 import net.minecraft.component.ComponentType;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.component.DataComponentTypes;
@@ -24,150 +21,185 @@ import net.minecraft.util.Arm;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * {@code MannequinEntity}.
+ */
 public class MannequinEntity extends PlayerLikeEntity {
-   protected static final TrackedData<ProfileComponent> PROFILE = DataTracker.registerData(MannequinEntity.class, TrackedDataHandlerRegistry.PROFILE);
-   private static final TrackedData<Boolean> IMMOVABLE = DataTracker.registerData(MannequinEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final TrackedData<Optional<Text>> DESCRIPTION = DataTracker.registerData(
-      MannequinEntity.class, TrackedDataHandlerRegistry.OPTIONAL_TEXT_COMPONENT
-   );
-   private static final byte ALL_MODEL_PARTS = (byte)Arrays.stream(PlayerModelPart.values())
-      .mapToInt(PlayerModelPart::getBitFlag)
-      .reduce(0, (flagL, flagR) -> flagL | flagR);
-   private static final Set<EntityPose> POSES = Set.of(EntityPose.STANDING, EntityPose.CROUCHING, EntityPose.SWIMMING, EntityPose.GLIDING, EntityPose.SLEEPING);
-   public static final Codec<EntityPose> POSE_CODEC = EntityPose.CODEC
-      .validate(pose -> POSES.contains(pose) ? DataResult.success(pose) : DataResult.error(() -> "Invalid pose: " + pose.asString()));
-   private static final Codec<Byte> MODEL_PARTS_CODEC = PlayerModelPart.CODEC
-      .listOf()
-      .xmap(
-         parts -> (byte)parts.stream().mapToInt(PlayerModelPart::getBitFlag).reduce(ALL_MODEL_PARTS, (flagL, flagR) -> flagL & ~flagR),
-         bitFlag -> Arrays.stream(PlayerModelPart.values()).filter(part -> (bitFlag & part.getBitFlag()) == 0).toList()
-      );
-   public static final ProfileComponent DEFAULT_INFO = ProfileComponent.Static.EMPTY;
-   private static final Text DEFAULT_DESCRIPTION = Text.translatable("entity.minecraft.mannequin.label");
-   protected static EntityType.EntityFactory<MannequinEntity> factory = MannequinEntity::new;
-   private static final String PROFILE_KEY = "profile";
-   private static final String HIDDEN_LAYERS_KEY = "hidden_layers";
-   private static final String MAIN_HAND_KEY = "main_hand";
-   private static final String POSE_KEY = "pose";
-   private static final String IMMOVABLE_KEY = "immovable";
-   private static final String DESCRIPTION_KEY = "description";
-   private static final String HIDE_DESCRIPTION_KEY = "hide_description";
-   private Text description = DEFAULT_DESCRIPTION;
-   private boolean hideDescription = false;
 
-   public MannequinEntity(EntityType<MannequinEntity> entityType, World world) {
-      super(entityType, world);
-      this.dataTracker.set(PLAYER_MODE_CUSTOMIZATION_ID, ALL_MODEL_PARTS);
-   }
+	protected static final TrackedData<ProfileComponent>
+			PROFILE =
+			DataTracker.registerData(MannequinEntity.class, TrackedDataHandlerRegistry.PROFILE);
+	private static final TrackedData<Boolean>
+			IMMOVABLE =
+			DataTracker.registerData(MannequinEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final TrackedData<Optional<Text>> DESCRIPTION = DataTracker.registerData(
+			MannequinEntity.class, TrackedDataHandlerRegistry.OPTIONAL_TEXT_COMPONENT
+	);
+	private static final byte ALL_MODEL_PARTS = (byte) Arrays.stream(PlayerModelPart.values())
+	                                                         .mapToInt(PlayerModelPart::getBitFlag)
+	                                                         .reduce(0, (flagL, flagR) -> flagL | flagR);
+	private static final Set<EntityPose>
+			POSES =
+			Set.of(
+					EntityPose.STANDING,
+					EntityPose.CROUCHING,
+					EntityPose.SWIMMING,
+					EntityPose.GLIDING,
+					EntityPose.SLEEPING
+			);
+	public static final Codec<EntityPose> POSE_CODEC = EntityPose.CODEC
+			.validate(pose -> POSES.contains(pose) ? DataResult.success(pose)
+			                                       : DataResult.error(() -> "Invalid pose: " + pose.asString()));
+	private static final Codec<Byte> MODEL_PARTS_CODEC = PlayerModelPart.CODEC
+			.listOf()
+			.xmap(
+					parts -> (byte) parts
+							.stream()
+							.mapToInt(PlayerModelPart::getBitFlag)
+							.reduce(ALL_MODEL_PARTS, (flagL, flagR) -> flagL & ~flagR),
+					bitFlag -> Arrays
+							.stream(PlayerModelPart.values())
+							.filter(part -> (bitFlag & part.getBitFlag()) == 0)
+							.toList()
+			);
+	public static final ProfileComponent DEFAULT_INFO = ProfileComponent.Static.EMPTY;
+	private static final Text DEFAULT_DESCRIPTION = Text.translatable("entity.minecraft.mannequin.label");
+	protected static EntityType.EntityFactory<MannequinEntity> factory = MannequinEntity::new;
+	private static final String PROFILE_KEY = "profile";
+	private static final String HIDDEN_LAYERS_KEY = "hidden_layers";
+	private static final String MAIN_HAND_KEY = "main_hand";
+	private static final String POSE_KEY = "pose";
+	private static final String IMMOVABLE_KEY = "immovable";
+	private static final String DESCRIPTION_KEY = "description";
+	private static final String HIDE_DESCRIPTION_KEY = "hide_description";
+	private Text description = DEFAULT_DESCRIPTION;
+	private boolean hideDescription = false;
 
-   protected MannequinEntity(World world) {
-      this(EntityType.MANNEQUIN, world);
-   }
+	public MannequinEntity(EntityType<MannequinEntity> entityType, World world) {
+		super(entityType, world);
+		this.dataTracker.set(PLAYER_MODE_CUSTOMIZATION_ID, ALL_MODEL_PARTS);
+	}
 
-   public static @Nullable MannequinEntity create(EntityType<MannequinEntity> type, World world) {
-      return factory.create(type, world);
-   }
+	protected MannequinEntity(World world) {
+		this(EntityType.MANNEQUIN, world);
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(PROFILE, DEFAULT_INFO);
-      builder.add(IMMOVABLE, false);
-      builder.add(DESCRIPTION, Optional.of(DEFAULT_DESCRIPTION));
-   }
+	public static @Nullable MannequinEntity create(EntityType<MannequinEntity> type, World world) {
+		return factory.create(type, world);
+	}
 
-   protected ProfileComponent getMannequinProfile() {
-      return this.dataTracker.get(PROFILE);
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(PROFILE, DEFAULT_INFO);
+		builder.add(IMMOVABLE, false);
+		builder.add(DESCRIPTION, Optional.of(DEFAULT_DESCRIPTION));
+	}
 
-   private void setMannequinProfile(ProfileComponent profile) {
-      this.dataTracker.set(PROFILE, profile);
-   }
+	protected ProfileComponent getMannequinProfile() {
+		return this.dataTracker.get(PROFILE);
+	}
 
-   private boolean isImmovable() {
-      return this.dataTracker.get(IMMOVABLE);
-   }
+	private void setMannequinProfile(ProfileComponent profile) {
+		this.dataTracker.set(PROFILE, profile);
+	}
 
-   private void setImmovable(boolean immovable) {
-      this.dataTracker.set(IMMOVABLE, immovable);
-   }
+	private boolean isImmovable() {
+		return this.dataTracker.get(IMMOVABLE);
+	}
 
-   protected @Nullable Text getDescription() {
-      return this.dataTracker.get(DESCRIPTION).orElse(null);
-   }
+	private void setImmovable(boolean immovable) {
+		this.dataTracker.set(IMMOVABLE, immovable);
+	}
 
-   private void setDescription(Text description) {
-      this.description = description;
-      this.updateTrackedDescription();
-   }
+	protected @Nullable Text getDescription() {
+		return this.dataTracker.get(DESCRIPTION).orElse(null);
+	}
 
-   private void setHideDescription(boolean hideDescription) {
-      this.hideDescription = hideDescription;
-      this.updateTrackedDescription();
-   }
+	private void setDescription(Text description) {
+		this.description = description;
+		this.updateTrackedDescription();
+	}
 
-   private void updateTrackedDescription() {
-      this.dataTracker.set(DESCRIPTION, this.hideDescription ? Optional.empty() : Optional.of(this.description));
-   }
+	private void setHideDescription(boolean hideDescription) {
+		this.hideDescription = hideDescription;
+		this.updateTrackedDescription();
+	}
 
-   @Override
-   protected boolean isImmobile() {
-      return this.isImmovable() || super.isImmobile();
-   }
+	private void updateTrackedDescription() {
+		this.dataTracker.set(DESCRIPTION, this.hideDescription ? Optional.empty() : Optional.of(this.description));
+	}
 
-   @Override
-   public boolean canActVoluntarily() {
-      return !this.isImmovable() && super.canActVoluntarily();
-   }
+	@Override
+	protected boolean isImmobile() {
+		return this.isImmovable() || super.isImmobile();
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.put("profile", ProfileComponent.CODEC, this.getMannequinProfile());
-      view.put("hidden_layers", MODEL_PARTS_CODEC, this.dataTracker.get(PLAYER_MODE_CUSTOMIZATION_ID));
-      view.put("main_hand", Arm.CODEC, this.getMainArm());
-      view.put("pose", POSE_CODEC, this.getPose());
-      view.putBoolean("immovable", this.isImmovable());
-      Text text = this.getDescription();
-      if (text != null) {
-         if (!text.equals(DEFAULT_DESCRIPTION)) {
-            view.put("description", TextCodecs.CODEC, text);
-         }
-      } else {
-         view.putBoolean("hide_description", true);
-      }
-   }
+	@Override
+	public boolean canActVoluntarily() {
+		return !this.isImmovable() && super.canActVoluntarily();
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      view.<ProfileComponent>read("profile", ProfileComponent.CODEC).ifPresent(this::setMannequinProfile);
-      this.dataTracker.set(PLAYER_MODE_CUSTOMIZATION_ID, view.<Byte>read("hidden_layers", MODEL_PARTS_CODEC).orElse(ALL_MODEL_PARTS));
-      this.setMainArm(view.<Arm>read("main_hand", Arm.CODEC).orElse(MAIN_ARM));
-      this.setPose(view.<EntityPose>read("pose", POSE_CODEC).orElse(EntityPose.STANDING));
-      this.setImmovable(view.getBoolean("immovable", false));
-      this.setHideDescription(view.getBoolean("hide_description", false));
-      this.setDescription(view.<Text>read("description", TextCodecs.CODEC).orElse(DEFAULT_DESCRIPTION));
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.put("profile", ProfileComponent.CODEC, this.getMannequinProfile());
+		view.put("hidden_layers", MODEL_PARTS_CODEC, this.dataTracker.get(PLAYER_MODE_CUSTOMIZATION_ID));
+		view.put("main_hand", Arm.CODEC, this.getMainArm());
+		view.put("pose", POSE_CODEC, this.getPose());
+		view.putBoolean("immovable", this.isImmovable());
+		Text text = this.getDescription();
+		if (text != null) {
+			if (!text.equals(DEFAULT_DESCRIPTION)) {
+				view.put("description", TextCodecs.CODEC, text);
+			}
+		}
+		else {
+			view.putBoolean("hide_description", true);
+		}
+	}
 
-   @Override
-   public <T> @Nullable T get(ComponentType<? extends T> type) {
-      return type == DataComponentTypes.PROFILE ? castComponentValue((ComponentType<T>)type, this.getMannequinProfile()) : super.get(type);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		view.<ProfileComponent>read("profile", ProfileComponent.CODEC).ifPresent(this::setMannequinProfile);
+		this.dataTracker.set(
+				PLAYER_MODE_CUSTOMIZATION_ID,
+				view.<Byte>read("hidden_layers", MODEL_PARTS_CODEC).orElse(ALL_MODEL_PARTS)
+		);
+		this.setMainArm(view.<Arm>read("main_hand", Arm.CODEC).orElse(MAIN_ARM));
+		this.setPose(view.<EntityPose>read("pose", POSE_CODEC).orElse(EntityPose.STANDING));
+		this.setImmovable(view.getBoolean("immovable", false));
+		this.setHideDescription(view.getBoolean("hide_description", false));
+		this.setDescription(view.<Text>read("description", TextCodecs.CODEC).orElse(DEFAULT_DESCRIPTION));
+	}
 
-   @Override
-   protected void copyComponentsFrom(ComponentsAccess from) {
-      this.copyComponentFrom(from, DataComponentTypes.PROFILE);
-      super.copyComponentsFrom(from);
-   }
+	@Override
+	public <T> @Nullable T get(ComponentType<? extends T> type) {
+		return type == DataComponentTypes.PROFILE ? castComponentValue(
+				(ComponentType<T>) type,
+				this.getMannequinProfile()
+		) : super.get(type);
+	}
 
-   @Override
-   protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
-      if (type == DataComponentTypes.PROFILE) {
-         this.setMannequinProfile(castComponentValue(DataComponentTypes.PROFILE, value));
-         return true;
-      } else {
-         return super.setApplicableComponent(type, value);
-      }
-   }
+	@Override
+	protected void copyComponentsFrom(ComponentsAccess from) {
+		this.copyComponentFrom(from, DataComponentTypes.PROFILE);
+		super.copyComponentsFrom(from);
+	}
+
+	@Override
+	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
+		if (type == DataComponentTypes.PROFILE) {
+			this.setMannequinProfile(castComponentValue(DataComponentTypes.PROFILE, value));
+			return true;
+		}
+		else {
+			return super.setApplicableComponent(type, value);
+		}
+	}
 }

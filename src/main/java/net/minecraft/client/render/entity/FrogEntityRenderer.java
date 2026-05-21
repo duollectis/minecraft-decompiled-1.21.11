@@ -9,26 +9,30 @@ import net.minecraft.entity.passive.FrogEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FrogEntityRenderer}.
+ */
 public class FrogEntityRenderer extends MobEntityRenderer<FrogEntity, FrogEntityRenderState, FrogEntityModel> {
-   public FrogEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new FrogEntityModel(context.getPart(EntityModelLayers.FROG)), 0.3F);
-   }
 
-   public Identifier getTexture(FrogEntityRenderState frogEntityRenderState) {
-      return frogEntityRenderState.texture;
-   }
+	public FrogEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new FrogEntityModel(context.getPart(EntityModelLayers.FROG)), 0.3F);
+	}
 
-   public FrogEntityRenderState createRenderState() {
-      return new FrogEntityRenderState();
-   }
+	public Identifier getTexture(FrogEntityRenderState frogEntityRenderState) {
+		return frogEntityRenderState.texture;
+	}
 
-   public void updateRenderState(FrogEntity frogEntity, FrogEntityRenderState frogEntityRenderState, float f) {
-      super.updateRenderState(frogEntity, frogEntityRenderState, f);
-      frogEntityRenderState.insideWaterOrBubbleColumn = frogEntity.isTouchingWater();
-      frogEntityRenderState.longJumpingAnimationState.copyFrom(frogEntity.longJumpingAnimationState);
-      frogEntityRenderState.croakingAnimationState.copyFrom(frogEntity.croakingAnimationState);
-      frogEntityRenderState.usingTongueAnimationState.copyFrom(frogEntity.usingTongueAnimationState);
-      frogEntityRenderState.idlingInWaterAnimationState.copyFrom(frogEntity.idlingInWaterAnimationState);
-      frogEntityRenderState.texture = frogEntity.getVariant().value().assetInfo().texturePath();
-   }
+	public FrogEntityRenderState createRenderState() {
+		return new FrogEntityRenderState();
+	}
+
+	public void updateRenderState(FrogEntity frogEntity, FrogEntityRenderState frogEntityRenderState, float f) {
+		super.updateRenderState(frogEntity, frogEntityRenderState, f);
+		frogEntityRenderState.insideWaterOrBubbleColumn = frogEntity.isTouchingWater();
+		frogEntityRenderState.longJumpingAnimationState.copyFrom(frogEntity.longJumpingAnimationState);
+		frogEntityRenderState.croakingAnimationState.copyFrom(frogEntity.croakingAnimationState);
+		frogEntityRenderState.usingTongueAnimationState.copyFrom(frogEntity.usingTongueAnimationState);
+		frogEntityRenderState.idlingInWaterAnimationState.copyFrom(frogEntity.idlingInWaterAnimationState);
+		frogEntityRenderState.texture = frogEntity.getVariant().value().assetInfo().texturePath();
+	}
 }

@@ -1,17 +1,22 @@
 package net.minecraft.util;
 
-import java.util.Optional;
-import java.util.UUID;
 import net.minecraft.server.PlayerConfigEntry;
 
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * {@code NameToIdCache}.
+ */
 public interface NameToIdCache {
-   void add(PlayerConfigEntry player);
 
-   Optional<PlayerConfigEntry> findByName(String name);
+	void add(PlayerConfigEntry player);
 
-   Optional<PlayerConfigEntry> getByUuid(UUID uuid);
+	Optional<PlayerConfigEntry> findByName(String name);
 
-   void setOfflineMode(boolean offlineMode);
+	Optional<PlayerConfigEntry> getByUuid(UUID uuid);
 
-   void save();
+	void setOfflineMode(boolean offlineMode);
+
+	void save();
 }

@@ -2,24 +2,27 @@ package net.minecraft.block.enums;
 
 import net.minecraft.util.StringIdentifiable;
 
+/**
+ * {@code SlabType}.
+ */
 public enum SlabType implements StringIdentifiable {
-   TOP("top"),
-   BOTTOM("bottom"),
-   DOUBLE("double");
+	TOP("top"),
+	BOTTOM("bottom"),
+	DOUBLE("double");
 
-   private final String name;
+	private final String name;
 
-   private SlabType(final String name) {
-      this.name = name;
-   }
+	private SlabType(final String name) {
+		this.name = name;
+	}
 
-   @Override
-   public String toString() {
-      return this.name;
-   }
+	@Override
+	public String toString() {
+		return this.name;
+	}
 
-   @Override
-   public String asString() {
-      return this.name;
-   }
+	@Override
+	public String asString() {
+		return this.name;
+	}
 }

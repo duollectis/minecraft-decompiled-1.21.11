@@ -14,84 +14,119 @@ import net.minecraft.util.Unit;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * {@code SonicBoomTask}.
+ */
 public class SonicBoomTask extends MultiTickTask<WardenEntity> {
-   private static final int HORIZONTAL_RANGE = 15;
-   private static final int VERTICAL_RANGE = 20;
-   private static final double field_38852 = 0.5;
-   private static final double field_38853 = 2.5;
-   public static final int COOLDOWN = 40;
-   private static final int SOUND_DELAY = MathHelper.ceil(34.0);
-   private static final int RUN_TIME = MathHelper.ceil(60.0F);
 
-   public SonicBoomTask() {
-      super(
-         ImmutableMap.of(
-            MemoryModuleType.ATTACK_TARGET,
-            MemoryModuleState.VALUE_PRESENT,
-            MemoryModuleType.SONIC_BOOM_COOLDOWN,
-            MemoryModuleState.VALUE_ABSENT,
-            MemoryModuleType.SONIC_BOOM_SOUND_COOLDOWN,
-            MemoryModuleState.REGISTERED,
-            MemoryModuleType.SONIC_BOOM_SOUND_DELAY,
-            MemoryModuleState.REGISTERED
-         ),
-         RUN_TIME
-      );
-   }
+	private static final int HORIZONTAL_RANGE = 15;
+	private static final int VERTICAL_RANGE = 20;
+	private static final double VERTICAL_KNOCKBACK_MULTIPLIER = 0.5;
+	private static final double HORIZONTAL_KNOCKBACK_MULTIPLIER = 2.5;
+	public static final int COOLDOWN = 40;
+	private static final int SOUND_DELAY = MathHelper.ceil(34.0);
+	private static final int RUN_TIME = MathHelper.ceil(60.0F);
 
-   protected boolean shouldRun(ServerWorld serverWorld, WardenEntity wardenEntity) {
-      return wardenEntity.isInRange(wardenEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).get(), 15.0, 20.0);
-   }
+	public SonicBoomTask() {
+		super(
+				ImmutableMap.of(
+						MemoryModuleType.ATTACK_TARGET,
+						MemoryModuleState.VALUE_PRESENT,
+						MemoryModuleType.SONIC_BOOM_COOLDOWN,
+						MemoryModuleState.VALUE_ABSENT,
+						MemoryModuleType.SONIC_BOOM_SOUND_COOLDOWN,
+						MemoryModuleState.REGISTERED,
+						MemoryModuleType.SONIC_BOOM_SOUND_DELAY,
+						MemoryModuleState.REGISTERED
+				),
+				RUN_TIME
+		);
+	}
 
-   protected boolean shouldKeepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
-      return true;
-   }
+	protected boolean shouldRun(ServerWorld serverWorld, WardenEntity wardenEntity) {
+		return wardenEntity.isInRange(
+				wardenEntity
+						.getBrain()
+						.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET)
+						.get(), 15.0, 20.0
+		);
+	}
 
-   protected void run(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
-      wardenEntity.getBrain().remember(MemoryModuleType.ATTACK_COOLING_DOWN, true, RUN_TIME);
-      wardenEntity.getBrain().remember(MemoryModuleType.SONIC_BOOM_SOUND_DELAY, Unit.INSTANCE, SOUND_DELAY);
-      serverWorld.sendEntityStatus(wardenEntity, (byte)62);
-      wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_SONIC_CHARGE, 3.0F, 1.0F);
-   }
+	protected boolean shouldKeepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
+		return true;
+	}
 
-   protected void keepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
-      wardenEntity.getBrain()
-         .getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET)
-         .ifPresent(target -> wardenEntity.getLookControl().lookAt(target.getEntityPos()));
-      if (!wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.SONIC_BOOM_SOUND_DELAY)
-         && !wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.SONIC_BOOM_SOUND_COOLDOWN)) {
-         wardenEntity.getBrain().remember(MemoryModuleType.SONIC_BOOM_SOUND_COOLDOWN, Unit.INSTANCE, RUN_TIME - SOUND_DELAY);
-         wardenEntity.getBrain()
-            .getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET)
-            .filter(wardenEntity::isValidTarget)
-            .filter(target -> wardenEntity.isInRange(target, 15.0, 20.0))
-            .ifPresent(target -> {
-               Vec3d vec3d = wardenEntity.getEntityPos()
-                  .add(wardenEntity.getAttachments().getPoint(EntityAttachmentType.WARDEN_CHEST, 0, wardenEntity.getYaw()));
-               Vec3d vec3d2 = target.getEyePos().subtract(vec3d);
-               Vec3d vec3d3 = vec3d2.normalize();
-               int i = MathHelper.floor(vec3d2.length()) + 7;
+	protected void run(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
+		wardenEntity.getBrain().remember(MemoryModuleType.ATTACK_COOLING_DOWN, true, RUN_TIME);
+		wardenEntity.getBrain().remember(MemoryModuleType.SONIC_BOOM_SOUND_DELAY, Unit.INSTANCE, SOUND_DELAY);
+		serverWorld.sendEntityStatus(wardenEntity, (byte) 62);
+		wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_SONIC_CHARGE, 3.0F, 1.0F);
+	}
 
-               for (int j = 1; j < i; j++) {
-                  Vec3d vec3d4 = vec3d.add(vec3d3.multiply(j));
-                  serverWorld.spawnParticles(ParticleTypes.SONIC_BOOM, vec3d4.x, vec3d4.y, vec3d4.z, 1, 0.0, 0.0, 0.0, 0.0);
-               }
+	protected void keepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
+		wardenEntity.getBrain()
+		            .getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET)
+		            .ifPresent(target -> wardenEntity.getLookControl().lookAt(target.getEntityPos()));
+		if (!wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.SONIC_BOOM_SOUND_DELAY)
+				&& !wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.SONIC_BOOM_SOUND_COOLDOWN)) {
+			wardenEntity
+					.getBrain()
+					.remember(MemoryModuleType.SONIC_BOOM_SOUND_COOLDOWN, Unit.INSTANCE, RUN_TIME - SOUND_DELAY);
+			wardenEntity.getBrain()
+			            .getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET)
+			            .filter(wardenEntity::isValidTarget)
+			            .filter(target -> wardenEntity.isInRange(target, 15.0, 20.0))
+			            .ifPresent(target -> {
+				            Vec3d vec3d = wardenEntity.getEntityPos()
+				                                      .add(wardenEntity
+						                                      .getAttachments()
+						                                      .getPoint(
+								                                      EntityAttachmentType.WARDEN_CHEST,
+								                                      0,
+								                                      wardenEntity.getYaw()
+						                                      ));
+				            Vec3d vec3d2 = target.getEyePos().subtract(vec3d);
+				            Vec3d vec3d3 = vec3d2.normalize();
+				            int i = MathHelper.floor(vec3d2.length()) + 7;
 
-               wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_SONIC_BOOM, 3.0F, 1.0F);
-               if (target.damage(serverWorld, serverWorld.getDamageSources().sonicBoom(wardenEntity), 10.0F)) {
-                  double d = 0.5 * (1.0 - target.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE));
-                  double e = 2.5 * (1.0 - target.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE));
-                  target.addVelocity(vec3d3.getX() * e, vec3d3.getY() * d, vec3d3.getZ() * e);
-               }
-            });
-      }
-   }
+				            for (int j = 1; j < i; j++) {
+					            Vec3d vec3d4 = vec3d.add(vec3d3.multiply(j));
+					            serverWorld.spawnParticles(
+							            ParticleTypes.SONIC_BOOM,
+							            vec3d4.x,
+							            vec3d4.y,
+							            vec3d4.z,
+							            1,
+							            0.0,
+							            0.0,
+							            0.0,
+							            0.0
+					            );
+				            }
 
-   protected void finishRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
-      cooldown(wardenEntity, 40);
-   }
+				            wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_SONIC_BOOM, 3.0F, 1.0F);
+				            if (target.damage(
+						            serverWorld,
+						            serverWorld.getDamageSources().sonicBoom(wardenEntity),
+						            10.0F
+				            )) {
+					            double
+							            d =
+							            0.5 * (1.0 - target.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE));
+					            double
+							            e =
+							            2.5 * (1.0 - target.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE));
+					            target.addVelocity(vec3d3.getX() * e, vec3d3.getY() * d, vec3d3.getZ() * e);
+				            }
+			            });
+		}
+	}
 
-   public static void cooldown(LivingEntity warden, int cooldown) {
-      warden.getBrain().remember(MemoryModuleType.SONIC_BOOM_COOLDOWN, Unit.INSTANCE, cooldown);
-   }
+	protected void finishRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
+		cooldown(wardenEntity, 40);
+	}
+
+	public static void cooldown(LivingEntity warden, int cooldown) {
+		warden.getBrain().remember(MemoryModuleType.SONIC_BOOM_COOLDOWN, Unit.INSTANCE, cooldown);
+	}
 }

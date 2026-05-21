@@ -9,60 +9,71 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code WolfSoundVariants}.
+ */
 public class WolfSoundVariants {
-   public static final RegistryKey<WolfSoundVariant> CLASSIC = of(WolfSoundVariants.Type.CLASSIC);
-   public static final RegistryKey<WolfSoundVariant> PUGLIN = of(WolfSoundVariants.Type.PUGLIN);
-   public static final RegistryKey<WolfSoundVariant> SAD = of(WolfSoundVariants.Type.SAD);
-   public static final RegistryKey<WolfSoundVariant> ANGRY = of(WolfSoundVariants.Type.ANGRY);
-   public static final RegistryKey<WolfSoundVariant> GRUMPY = of(WolfSoundVariants.Type.GRUMPY);
-   public static final RegistryKey<WolfSoundVariant> BIG = of(WolfSoundVariants.Type.BIG);
-   public static final RegistryKey<WolfSoundVariant> CUTE = of(WolfSoundVariants.Type.CUTE);
 
-   private static RegistryKey<WolfSoundVariant> of(WolfSoundVariants.Type type) {
-      return RegistryKey.of(RegistryKeys.WOLF_SOUND_VARIANT, Identifier.ofVanilla(type.getId()));
-   }
+	public static final RegistryKey<WolfSoundVariant> CLASSIC = of(WolfSoundVariants.Type.CLASSIC);
+	public static final RegistryKey<WolfSoundVariant> PUGLIN = of(WolfSoundVariants.Type.PUGLIN);
+	public static final RegistryKey<WolfSoundVariant> SAD = of(WolfSoundVariants.Type.SAD);
+	public static final RegistryKey<WolfSoundVariant> ANGRY = of(WolfSoundVariants.Type.ANGRY);
+	public static final RegistryKey<WolfSoundVariant> GRUMPY = of(WolfSoundVariants.Type.GRUMPY);
+	public static final RegistryKey<WolfSoundVariant> BIG = of(WolfSoundVariants.Type.BIG);
+	public static final RegistryKey<WolfSoundVariant> CUTE = of(WolfSoundVariants.Type.CUTE);
 
-   public static void bootstrap(Registerable<WolfSoundVariant> registry) {
-      register(registry, CLASSIC, WolfSoundVariants.Type.CLASSIC);
-      register(registry, PUGLIN, WolfSoundVariants.Type.PUGLIN);
-      register(registry, SAD, WolfSoundVariants.Type.SAD);
-      register(registry, ANGRY, WolfSoundVariants.Type.ANGRY);
-      register(registry, GRUMPY, WolfSoundVariants.Type.GRUMPY);
-      register(registry, BIG, WolfSoundVariants.Type.BIG);
-      register(registry, CUTE, WolfSoundVariants.Type.CUTE);
-   }
+	private static RegistryKey<WolfSoundVariant> of(WolfSoundVariants.Type type) {
+		return RegistryKey.of(RegistryKeys.WOLF_SOUND_VARIANT, Identifier.ofVanilla(type.getId()));
+	}
 
-   private static void register(Registerable<WolfSoundVariant> registry, RegistryKey<WolfSoundVariant> key, WolfSoundVariants.Type type) {
-      registry.register(key, SoundEvents.WOLF_SOUNDS.get(type));
-   }
+	public static void bootstrap(Registerable<WolfSoundVariant> registry) {
+		register(registry, CLASSIC, WolfSoundVariants.Type.CLASSIC);
+		register(registry, PUGLIN, WolfSoundVariants.Type.PUGLIN);
+		register(registry, SAD, WolfSoundVariants.Type.SAD);
+		register(registry, ANGRY, WolfSoundVariants.Type.ANGRY);
+		register(registry, GRUMPY, WolfSoundVariants.Type.GRUMPY);
+		register(registry, BIG, WolfSoundVariants.Type.BIG);
+		register(registry, CUTE, WolfSoundVariants.Type.CUTE);
+	}
 
-   public static RegistryEntry<WolfSoundVariant> select(DynamicRegistryManager registries, Random random) {
-      return registries.getOrThrow(RegistryKeys.WOLF_SOUND_VARIANT).getRandom(random).orElseThrow();
-   }
+	private static void register(
+			Registerable<WolfSoundVariant> registry,
+			RegistryKey<WolfSoundVariant> key,
+			WolfSoundVariants.Type type
+	) {
+		registry.register(key, SoundEvents.WOLF_SOUNDS.get(type));
+	}
 
-   public static enum Type {
-      CLASSIC("classic", ""),
-      PUGLIN("puglin", "_puglin"),
-      SAD("sad", "_sad"),
-      ANGRY("angry", "_angry"),
-      GRUMPY("grumpy", "_grumpy"),
-      BIG("big", "_big"),
-      CUTE("cute", "_cute");
+	public static RegistryEntry<WolfSoundVariant> select(DynamicRegistryManager registries, Random random) {
+		return registries.getOrThrow(RegistryKeys.WOLF_SOUND_VARIANT).getRandom(random).orElseThrow();
+	}
 
-      private final String id;
-      private final String suffix;
+	/**
+	 * {@code Type}.
+	 */
+	public static enum Type {
+		CLASSIC("classic", ""),
+		PUGLIN("puglin", "_puglin"),
+		SAD("sad", "_sad"),
+		ANGRY("angry", "_angry"),
+		GRUMPY("grumpy", "_grumpy"),
+		BIG("big", "_big"),
+		CUTE("cute", "_cute");
 
-      private Type(final String id, final String suffix) {
-         this.id = id;
-         this.suffix = suffix;
-      }
+		private final String id;
+		private final String suffix;
 
-      public String getId() {
-         return this.id;
-      }
+		private Type(final String id, final String suffix) {
+			this.id = id;
+			this.suffix = suffix;
+		}
 
-      public String getSoundEventSuffix() {
-         return this.suffix;
-      }
-   }
+		public String getId() {
+			return this.id;
+		}
+
+		public String getSoundEventSuffix() {
+			return this.suffix;
+		}
+	}
 }

@@ -1,22 +1,13 @@
 package net.minecraft.client.realms.gui.screen;
 
 import com.mojang.logging.LogUtils;
-import java.util.ArrayList;
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.ClickableWidget;
-import net.minecraft.client.gui.widget.DirectionalLayoutWidget;
-import net.minecraft.client.gui.widget.EmptyWidget;
-import net.minecraft.client.gui.widget.GridWidget;
-import net.minecraft.client.gui.widget.Positioner;
-import net.minecraft.client.gui.widget.TextWidget;
-import net.minecraft.client.gui.widget.ThreePartsLayoutWidget;
+import net.minecraft.client.gui.widget.*;
 import net.minecraft.client.realms.RealmsClient;
 import net.minecraft.client.realms.dto.RealmsServer;
 import net.minecraft.client.realms.dto.WorldTemplate;
@@ -33,241 +24,370 @@ import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsCreateWorldScreen}.
+ */
 public class RealmsCreateWorldScreen extends RealmsScreen {
-   static final Logger LOGGER = LogUtils.getLogger();
-   private static final Text CREATE_REALM_TITLE = Text.translatable("mco.selectServer.create");
-   private static final Text CREATE_REALM_SUBTITLE = Text.translatable("mco.selectServer.create.subtitle").withColor(-6250336);
-   private static final Text CREATE_WORLD_TITLE = Text.translatable("mco.configure.world.switch.slot");
-   private static final Text CREATE_WORLD_SUBTITLE = Text.translatable("mco.configure.world.switch.slot.subtitle").withColor(-6250336);
-   private static final Text NEW_WORLD_BUTTON_TEXT = Text.translatable("mco.reset.world.generate");
-   private static final Text RESET_WORLD_TITLE = Text.translatable("mco.reset.world.title");
-   private static final Text RESET_WORLD_SUBTITLE = Text.translatable("mco.reset.world.warning").withColor(-65536);
-   public static final Text CREATING_TEXT = Text.translatable("mco.create.world.reset.title");
-   private static final Text RESETTING_TEXT = Text.translatable("mco.reset.world.resetting.screen.title");
-   private static final Text TEMPLATE_TEXT = Text.translatable("mco.reset.world.template");
-   private static final Text ADVENTURE_TEXT = Text.translatable("mco.reset.world.adventure");
-   private static final Text EXPERIENCE_TEXT = Text.translatable("mco.reset.world.experience");
-   private static final Text INSPIRATION_TEXT = Text.translatable("mco.reset.world.inspiration");
-   private final Screen parent;
-   private final RealmsServer serverData;
-   private final Text subtitle;
-   private final Text taskTitle;
-   private static final Identifier UPLOAD_TEXTURE = Identifier.ofVanilla("textures/gui/realms/upload.png");
-   private static final Identifier ADVENTURE_TEXTURE = Identifier.ofVanilla("textures/gui/realms/adventure.png");
-   private static final Identifier SURVIVAL_SPAWN_TEXTURE = Identifier.ofVanilla("textures/gui/realms/survival_spawn.png");
-   private static final Identifier NEW_WORLD_TEXTURE = Identifier.ofVanilla("textures/gui/realms/new_world.png");
-   private static final Identifier EXPERIENCE_TEXTURE = Identifier.ofVanilla("textures/gui/realms/experience.png");
-   private static final Identifier INSPIRATION_TEXTURE = Identifier.ofVanilla("textures/gui/realms/inspiration.png");
-   WorldTemplatePaginatedList normalWorldTemplates;
-   WorldTemplatePaginatedList adventureWorldTemplates;
-   WorldTemplatePaginatedList experienceWorldTemplates;
-   WorldTemplatePaginatedList inspirationWorldTemplates;
-   public final int slot;
-   private final @Nullable WorldCreationTask creationTask;
-   private final Runnable callback;
-   private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this);
 
-   private RealmsCreateWorldScreen(Screen parent, RealmsServer serverData, int slot, Text title, Text subtitle, Text text, Runnable runnable) {
-      this(parent, serverData, slot, title, subtitle, text, null, runnable);
-   }
+	static final Logger LOGGER = LogUtils.getLogger();
+	private static final Text CREATE_REALM_TITLE = Text.translatable("mco.selectServer.create");
+	private static final Text
+			CREATE_REALM_SUBTITLE =
+			Text.translatable("mco.selectServer.create.subtitle").withColor(-6250336);
+	private static final Text CREATE_WORLD_TITLE = Text.translatable("mco.configure.world.switch.slot");
+	private static final Text
+			CREATE_WORLD_SUBTITLE =
+			Text.translatable("mco.configure.world.switch.slot.subtitle").withColor(-6250336);
+	private static final Text NEW_WORLD_BUTTON_TEXT = Text.translatable("mco.reset.world.generate");
+	private static final Text RESET_WORLD_TITLE = Text.translatable("mco.reset.world.title");
+	private static final Text RESET_WORLD_SUBTITLE = Text.translatable("mco.reset.world.warning").withColor(-65536);
+	public static final Text CREATING_TEXT = Text.translatable("mco.create.world.reset.title");
+	private static final Text RESETTING_TEXT = Text.translatable("mco.reset.world.resetting.screen.title");
+	private static final Text TEMPLATE_TEXT = Text.translatable("mco.reset.world.template");
+	private static final Text ADVENTURE_TEXT = Text.translatable("mco.reset.world.adventure");
+	private static final Text EXPERIENCE_TEXT = Text.translatable("mco.reset.world.experience");
+	private static final Text INSPIRATION_TEXT = Text.translatable("mco.reset.world.inspiration");
+	private final Screen parent;
+	private final RealmsServer serverData;
+	private final Text subtitle;
+	private final Text taskTitle;
+	private static final Identifier UPLOAD_TEXTURE = Identifier.ofVanilla("textures/gui/realms/upload.png");
+	private static final Identifier ADVENTURE_TEXTURE = Identifier.ofVanilla("textures/gui/realms/adventure.png");
+	private static final Identifier
+			SURVIVAL_SPAWN_TEXTURE =
+			Identifier.ofVanilla("textures/gui/realms/survival_spawn.png");
+	private static final Identifier NEW_WORLD_TEXTURE = Identifier.ofVanilla("textures/gui/realms/new_world.png");
+	private static final Identifier EXPERIENCE_TEXTURE = Identifier.ofVanilla("textures/gui/realms/experience.png");
+	private static final Identifier INSPIRATION_TEXTURE = Identifier.ofVanilla("textures/gui/realms/inspiration.png");
+	WorldTemplatePaginatedList normalWorldTemplates;
+	WorldTemplatePaginatedList adventureWorldTemplates;
+	WorldTemplatePaginatedList experienceWorldTemplates;
+	WorldTemplatePaginatedList inspirationWorldTemplates;
+	public final int slot;
+	private final @Nullable WorldCreationTask creationTask;
+	private final Runnable callback;
+	private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this);
 
-   public RealmsCreateWorldScreen(
-      Screen parent, RealmsServer serverData, int slot, Text title, Text subtitle, Text text, @Nullable WorldCreationTask worldCreationTask, Runnable runnable
-   ) {
-      super(title);
-      this.parent = parent;
-      this.serverData = serverData;
-      this.slot = slot;
-      this.subtitle = subtitle;
-      this.taskTitle = text;
-      this.creationTask = worldCreationTask;
-      this.callback = runnable;
-   }
+	private RealmsCreateWorldScreen(
+			Screen parent,
+			RealmsServer serverData,
+			int slot,
+			Text title,
+			Text subtitle,
+			Text text,
+			Runnable runnable
+	) {
+		this(parent, serverData, slot, title, subtitle, text, null, runnable);
+	}
 
-   public static RealmsCreateWorldScreen newRealm(Screen parent, RealmsServer serverData, WorldCreationTask creationTask, Runnable callback) {
-      return new RealmsCreateWorldScreen(
-         parent, serverData, serverData.activeSlot, CREATE_REALM_TITLE, CREATE_REALM_SUBTITLE, CREATING_TEXT, creationTask, callback
-      );
-   }
+	public RealmsCreateWorldScreen(
+			Screen parent,
+			RealmsServer serverData,
+			int slot,
+			Text title,
+			Text subtitle,
+			Text text,
+			@Nullable WorldCreationTask worldCreationTask,
+			Runnable runnable
+	) {
+		super(title);
+		this.parent = parent;
+		this.serverData = serverData;
+		this.slot = slot;
+		this.subtitle = subtitle;
+		this.taskTitle = text;
+		this.creationTask = worldCreationTask;
+		this.callback = runnable;
+	}
 
-   public static RealmsCreateWorldScreen newWorld(Screen parent, int slot, RealmsServer serverData, Runnable callback) {
-      return new RealmsCreateWorldScreen(parent, serverData, slot, CREATE_WORLD_TITLE, CREATE_WORLD_SUBTITLE, CREATING_TEXT, callback);
-   }
+	public static RealmsCreateWorldScreen newRealm(
+			Screen parent,
+			RealmsServer serverData,
+			WorldCreationTask creationTask,
+			Runnable callback
+	) {
+		return new RealmsCreateWorldScreen(
+				parent,
+				serverData,
+				serverData.activeSlot,
+				CREATE_REALM_TITLE,
+				CREATE_REALM_SUBTITLE,
+				CREATING_TEXT,
+				creationTask,
+				callback
+		);
+	}
 
-   public static RealmsCreateWorldScreen resetWorld(Screen parent, RealmsServer serverData, Runnable callback) {
-      return new RealmsCreateWorldScreen(parent, serverData, serverData.activeSlot, RESET_WORLD_TITLE, RESET_WORLD_SUBTITLE, RESETTING_TEXT, callback);
-   }
+	public static RealmsCreateWorldScreen newWorld(
+			Screen parent,
+			int slot,
+			RealmsServer serverData,
+			Runnable callback
+	) {
+		return new RealmsCreateWorldScreen(
+				parent,
+				serverData,
+				slot,
+				CREATE_WORLD_TITLE,
+				CREATE_WORLD_SUBTITLE,
+				CREATING_TEXT,
+				callback
+		);
+	}
 
-   @Override
-   public void init() {
-      DirectionalLayoutWidget directionalLayoutWidget = this.layout.addHeader(DirectionalLayoutWidget.vertical());
-      directionalLayoutWidget.getMainPositioner().margin(9 / 3);
-      directionalLayoutWidget.add(new TextWidget(this.title, this.textRenderer), Positioner::alignHorizontalCenter);
-      directionalLayoutWidget.add(new TextWidget(this.subtitle, this.textRenderer), Positioner::alignHorizontalCenter);
-      (new Thread("Realms-reset-world-fetcher") {
-         @Override
-         public void run() {
-            RealmsClient realmsClient = RealmsClient.create();
+	public static RealmsCreateWorldScreen resetWorld(Screen parent, RealmsServer serverData, Runnable callback) {
+		return new RealmsCreateWorldScreen(
+				parent,
+				serverData,
+				serverData.activeSlot,
+				RESET_WORLD_TITLE,
+				RESET_WORLD_SUBTITLE,
+				RESETTING_TEXT,
+				callback
+		);
+	}
 
-            try {
-               WorldTemplatePaginatedList worldTemplatePaginatedList = realmsClient.fetchWorldTemplates(1, 10, RealmsServer.WorldType.NORMAL);
-               WorldTemplatePaginatedList worldTemplatePaginatedList2 = realmsClient.fetchWorldTemplates(1, 10, RealmsServer.WorldType.ADVENTUREMAP);
-               WorldTemplatePaginatedList worldTemplatePaginatedList3 = realmsClient.fetchWorldTemplates(1, 10, RealmsServer.WorldType.EXPERIENCE);
-               WorldTemplatePaginatedList worldTemplatePaginatedList4 = realmsClient.fetchWorldTemplates(1, 10, RealmsServer.WorldType.INSPIRATION);
-               RealmsCreateWorldScreen.this.client.execute(() -> {
-                  RealmsCreateWorldScreen.this.normalWorldTemplates = worldTemplatePaginatedList;
-                  RealmsCreateWorldScreen.this.adventureWorldTemplates = worldTemplatePaginatedList2;
-                  RealmsCreateWorldScreen.this.experienceWorldTemplates = worldTemplatePaginatedList3;
-                  RealmsCreateWorldScreen.this.inspirationWorldTemplates = worldTemplatePaginatedList4;
-               });
-            } catch (RealmsServiceException var6) {
-               RealmsCreateWorldScreen.LOGGER.error("Couldn't fetch templates in reset world", var6);
-            }
-         }
-      }).start();
-      GridWidget gridWidget = this.layout.addBody(new GridWidget());
-      GridWidget.Adder adder = gridWidget.createAdder(3);
-      adder.getMainPositioner().marginX(16);
-      adder.add(
-         new RealmsCreateWorldScreen.FrameButton(
-            this.client.textRenderer,
-            NEW_WORLD_BUTTON_TEXT,
-            NEW_WORLD_TEXTURE,
-            button -> RealmsWorldCreating.showCreateWorldScreen(this.client, this.parent, this, this.slot, this.serverData, this.creationTask)
-         )
-      );
-      adder.add(
-         new RealmsCreateWorldScreen.FrameButton(
-            this.client.textRenderer,
-            RealmsSelectFileToUploadScreen.TITLE,
-            UPLOAD_TEXTURE,
-            button -> this.client.setScreen(new RealmsSelectFileToUploadScreen(this.creationTask, this.serverData.id, this.slot, this))
-         )
-      );
-      adder.add(
-         new RealmsCreateWorldScreen.FrameButton(
-            this.client.textRenderer,
-            TEMPLATE_TEXT,
-            SURVIVAL_SPAWN_TEXTURE,
-            button -> this.client
-               .setScreen(
-                  new RealmsSelectWorldTemplateScreen(TEMPLATE_TEXT, this::onSelectWorldTemplate, RealmsServer.WorldType.NORMAL, this.normalWorldTemplates)
-               )
-         )
-      );
-      adder.add(EmptyWidget.ofHeight(16), 3);
-      adder.add(
-         new RealmsCreateWorldScreen.FrameButton(
-            this.client.textRenderer,
-            ADVENTURE_TEXT,
-            ADVENTURE_TEXTURE,
-            button -> this.client
-               .setScreen(
-                  new RealmsSelectWorldTemplateScreen(
-                     ADVENTURE_TEXT, this::onSelectWorldTemplate, RealmsServer.WorldType.ADVENTUREMAP, this.adventureWorldTemplates
-                  )
-               )
-         )
-      );
-      adder.add(
-         new RealmsCreateWorldScreen.FrameButton(
-            this.client.textRenderer,
-            EXPERIENCE_TEXT,
-            EXPERIENCE_TEXTURE,
-            button -> this.client
-               .setScreen(
-                  new RealmsSelectWorldTemplateScreen(
-                     EXPERIENCE_TEXT, this::onSelectWorldTemplate, RealmsServer.WorldType.EXPERIENCE, this.experienceWorldTemplates
-                  )
-               )
-         )
-      );
-      adder.add(
-         new RealmsCreateWorldScreen.FrameButton(
-            this.client.textRenderer,
-            INSPIRATION_TEXT,
-            INSPIRATION_TEXTURE,
-            button -> this.client
-               .setScreen(
-                  new RealmsSelectWorldTemplateScreen(
-                     INSPIRATION_TEXT, this::onSelectWorldTemplate, RealmsServer.WorldType.INSPIRATION, this.inspirationWorldTemplates
-                  )
-               )
-         )
-      );
-      this.layout.addFooter(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).build());
-      this.layout.forEachChild(child -> {
-         ClickableWidget var10000 = this.addDrawableChild(child);
-      });
-      this.refreshWidgetPositions();
-   }
+	@Override
+	public void init() {
+		DirectionalLayoutWidget directionalLayoutWidget = this.layout.addHeader(DirectionalLayoutWidget.vertical());
+		directionalLayoutWidget.getMainPositioner().margin(9 / 3);
+		directionalLayoutWidget.add(new TextWidget(this.title, this.textRenderer), Positioner::alignHorizontalCenter);
+		directionalLayoutWidget.add(
+				new TextWidget(this.subtitle, this.textRenderer),
+				Positioner::alignHorizontalCenter
+		);
+		(new Thread("Realms-reset-world-fetcher") {
+			@Override
+			public void run() {
+				RealmsClient realmsClient = RealmsClient.create();
 
-   @Override
-   protected void refreshWidgetPositions() {
-      this.layout.refreshPositions();
-   }
+				try {
+					WorldTemplatePaginatedList
+							worldTemplatePaginatedList =
+							realmsClient.fetchWorldTemplates(1, 10, RealmsServer.WorldType.NORMAL);
+					WorldTemplatePaginatedList
+							worldTemplatePaginatedList2 =
+							realmsClient.fetchWorldTemplates(1, 10, RealmsServer.WorldType.ADVENTUREMAP);
+					WorldTemplatePaginatedList
+							worldTemplatePaginatedList3 =
+							realmsClient.fetchWorldTemplates(1, 10, RealmsServer.WorldType.EXPERIENCE);
+					WorldTemplatePaginatedList
+							worldTemplatePaginatedList4 =
+							realmsClient.fetchWorldTemplates(1, 10, RealmsServer.WorldType.INSPIRATION);
+					RealmsCreateWorldScreen.this.client.execute(() -> {
+						RealmsCreateWorldScreen.this.normalWorldTemplates = worldTemplatePaginatedList;
+						RealmsCreateWorldScreen.this.adventureWorldTemplates = worldTemplatePaginatedList2;
+						RealmsCreateWorldScreen.this.experienceWorldTemplates = worldTemplatePaginatedList3;
+						RealmsCreateWorldScreen.this.inspirationWorldTemplates = worldTemplatePaginatedList4;
+					});
+				}
+				catch (RealmsServiceException var6) {
+					RealmsCreateWorldScreen.LOGGER.error("Couldn't fetch templates in reset world", var6);
+				}
+			}
+		}
+		).start();
+		GridWidget gridWidget = this.layout.addBody(new GridWidget());
+		GridWidget.Adder adder = gridWidget.createAdder(3);
+		adder.getMainPositioner().marginX(16);
+		adder.add(
+				new RealmsCreateWorldScreen.FrameButton(
+						this.client.textRenderer,
+						NEW_WORLD_BUTTON_TEXT,
+						NEW_WORLD_TEXTURE,
+						button -> RealmsWorldCreating.showCreateWorldScreen(
+								this.client,
+								this.parent,
+								this,
+								this.slot,
+								this.serverData,
+								this.creationTask
+						)
+				)
+		);
+		adder.add(
+				new RealmsCreateWorldScreen.FrameButton(
+						this.client.textRenderer,
+						RealmsSelectFileToUploadScreen.TITLE,
+						UPLOAD_TEXTURE,
+						button -> this.client.setScreen(new RealmsSelectFileToUploadScreen(
+								this.creationTask,
+								this.serverData.id,
+								this.slot,
+								this
+						))
+				)
+		);
+		adder.add(
+				new RealmsCreateWorldScreen.FrameButton(
+						this.client.textRenderer,
+						TEMPLATE_TEXT,
+						SURVIVAL_SPAWN_TEXTURE,
+						button -> this.client
+								.setScreen(
+										new RealmsSelectWorldTemplateScreen(
+												TEMPLATE_TEXT,
+												this::onSelectWorldTemplate,
+												RealmsServer.WorldType.NORMAL,
+												this.normalWorldTemplates
+										)
+								)
+				)
+		);
+		adder.add(EmptyWidget.ofHeight(16), 3);
+		adder.add(
+				new RealmsCreateWorldScreen.FrameButton(
+						this.client.textRenderer,
+						ADVENTURE_TEXT,
+						ADVENTURE_TEXTURE,
+						button -> this.client
+								.setScreen(
+										new RealmsSelectWorldTemplateScreen(
+												ADVENTURE_TEXT,
+												this::onSelectWorldTemplate,
+												RealmsServer.WorldType.ADVENTUREMAP,
+												this.adventureWorldTemplates
+										)
+								)
+				)
+		);
+		adder.add(
+				new RealmsCreateWorldScreen.FrameButton(
+						this.client.textRenderer,
+						EXPERIENCE_TEXT,
+						EXPERIENCE_TEXTURE,
+						button -> this.client
+								.setScreen(
+										new RealmsSelectWorldTemplateScreen(
+												EXPERIENCE_TEXT,
+												this::onSelectWorldTemplate,
+												RealmsServer.WorldType.EXPERIENCE,
+												this.experienceWorldTemplates
+										)
+								)
+				)
+		);
+		adder.add(
+				new RealmsCreateWorldScreen.FrameButton(
+						this.client.textRenderer,
+						INSPIRATION_TEXT,
+						INSPIRATION_TEXTURE,
+						button -> this.client
+								.setScreen(
+										new RealmsSelectWorldTemplateScreen(
+												INSPIRATION_TEXT,
+												this::onSelectWorldTemplate,
+												RealmsServer.WorldType.INSPIRATION,
+												this.inspirationWorldTemplates
+										)
+								)
+				)
+		);
+		this.layout.addFooter(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).build());
+		this.layout.forEachChild(child -> {
+			ClickableWidget var10000 = this.addDrawableChild(child);
+		});
+		this.refreshWidgetPositions();
+	}
 
-   @Override
-   public Text getNarratedTitle() {
-      return ScreenTexts.joinSentences(this.getTitle(), this.subtitle);
-   }
+	@Override
+	protected void refreshWidgetPositions() {
+		this.layout.refreshPositions();
+	}
 
-   @Override
-   public void close() {
-      this.client.setScreen(this.parent);
-   }
+	@Override
+	public Text getNarratedTitle() {
+		return ScreenTexts.joinSentences(this.getTitle(), this.subtitle);
+	}
 
-   private void onSelectWorldTemplate(@Nullable WorldTemplate template) {
-      this.client.setScreen(this);
-      if (template != null) {
-         this.runTasks(new ResettingWorldTemplateTask(template, this.serverData.id, this.taskTitle, this.callback));
-      }
+	@Override
+	public void close() {
+		this.client.setScreen(this.parent);
+	}
 
-      RealmsMainScreen.resetServerList();
-   }
+	private void onSelectWorldTemplate(@Nullable WorldTemplate template) {
+		this.client.setScreen(this);
+		if (template != null) {
+			this.runTasks(new ResettingWorldTemplateTask(template, this.serverData.id, this.taskTitle, this.callback));
+		}
 
-   private void runTasks(LongRunningTask task) {
-      List<LongRunningTask> list = new ArrayList<>();
-      if (this.creationTask != null) {
-         list.add(this.creationTask);
-      }
+		RealmsMainScreen.resetServerList();
+	}
 
-      if (this.slot != this.serverData.activeSlot) {
-         list.add(new SwitchSlotTask(this.serverData.id, this.slot, () -> {}));
-      }
+	private void runTasks(LongRunningTask task) {
+		List<LongRunningTask> list = new ArrayList<>();
+		if (this.creationTask != null) {
+			list.add(this.creationTask);
+		}
 
-      list.add(task);
-      this.client.setScreen(new RealmsLongRunningMcoTaskScreen(this.parent, list.toArray(new LongRunningTask[0])));
-   }
+		if (this.slot != this.serverData.activeSlot) {
+			list.add(new SwitchSlotTask(this.serverData.id, this.slot, () -> {}));
+		}
 
-   @Environment(EnvType.CLIENT)
-   class FrameButton extends ButtonWidget {
-      private static final Identifier TEXTURE = Identifier.ofVanilla("widget/slot_frame");
-      private static final int SIZE = 60;
-      private static final int TEXTURE_MARGIN = 2;
-      private static final int TEXTURE_SIZE = 56;
-      private final Identifier image;
+		list.add(task);
+		this.client.setScreen(new RealmsLongRunningMcoTaskScreen(this.parent, list.toArray(new LongRunningTask[0])));
+	}
 
-      FrameButton(final TextRenderer textRenderer, final net.minecraft.text.Text message, final Identifier image, final ButtonWidget.PressAction onPress) {
-         super(0, 0, 60, 60 + 9, message, onPress, DEFAULT_NARRATION_SUPPLIER);
-         this.image = image;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code FrameButton}.
+	 */
+	class FrameButton extends ButtonWidget {
 
-      @Override
-      public void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-         boolean bl = this.isSelected();
-         int i = -1;
-         if (bl) {
-            i = ColorHelper.fromFloats(1.0F, 0.56F, 0.56F, 0.56F);
-         }
+		private static final Identifier TEXTURE = Identifier.ofVanilla("widget/slot_frame");
+		private static final int SIZE = 60;
+		private static final int TEXTURE_MARGIN = 2;
+		private static final int TEXTURE_SIZE = 56;
+		private final Identifier image;
 
-         int j = this.getX();
-         int k = this.getY();
-         context.drawTexture(RenderPipelines.GUI_TEXTURED, this.image, j + 2, k + 2, 0.0F, 0.0F, 56, 56, 56, 56, 56, 56, i);
-         context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, j, k, 60, 60, i);
-         int l = bl ? -6250336 : -1;
-         context.drawCenteredTextWithShadow(RealmsCreateWorldScreen.this.textRenderer, this.getMessage(), j + 28, k - 14, l);
-      }
-   }
+		FrameButton(
+				final TextRenderer textRenderer,
+				final net.minecraft.text.Text message,
+				final Identifier image,
+				final ButtonWidget.PressAction onPress
+		) {
+			super(0, 0, 60, 60 + 9, message, onPress, DEFAULT_NARRATION_SUPPLIER);
+			this.image = image;
+		}
+
+		@Override
+		public void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+			boolean bl = this.isSelected();
+			int i = -1;
+			if (bl) {
+				i = ColorHelper.fromFloats(1.0F, 0.56F, 0.56F, 0.56F);
+			}
+
+			int j = this.getX();
+			int k = this.getY();
+			context.drawTexture(
+					RenderPipelines.GUI_TEXTURED,
+					this.image,
+					j + 2,
+					k + 2,
+					0.0F,
+					0.0F,
+					56,
+					56,
+					56,
+					56,
+					56,
+					56,
+					i
+			);
+			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, TEXTURE, j, k, 60, 60, i);
+			int l = bl ? -6250336 : -1;
+			context.drawCenteredTextWithShadow(
+					RealmsCreateWorldScreen.this.textRenderer,
+					this.getMessage(),
+					j + 28,
+					k - 14,
+					l
+			);
+		}
+	}
 }

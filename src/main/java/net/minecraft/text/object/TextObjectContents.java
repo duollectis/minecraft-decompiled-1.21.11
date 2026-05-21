@@ -3,10 +3,14 @@ package net.minecraft.text.object;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.text.StyleSpriteSource;
 
+/**
+ * {@code TextObjectContents}.
+ */
 public interface TextObjectContents {
-   StyleSpriteSource spriteSource();
 
-   String asText();
+	StyleSpriteSource spriteSource();
 
-   MapCodec<? extends TextObjectContents> getCodec();
+	String asText();
+
+	MapCodec<? extends TextObjectContents> getCodec();
 }

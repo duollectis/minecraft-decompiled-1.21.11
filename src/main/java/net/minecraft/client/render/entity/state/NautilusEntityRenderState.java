@@ -7,8 +7,12 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code NautilusEntityRenderState}.
+ */
 public class NautilusEntityRenderState extends LivingEntityRenderState {
-   public ItemStack saddleStack = ItemStack.EMPTY;
-   public ItemStack armorStack = ItemStack.EMPTY;
-   public @Nullable ZombieNautilusVariant variant;
+
+	public ItemStack saddleStack = ItemStack.EMPTY;
+	public ItemStack armorStack = ItemStack.EMPTY;
+	public @Nullable ZombieNautilusVariant variant;
 }

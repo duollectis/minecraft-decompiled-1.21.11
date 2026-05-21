@@ -13,43 +13,61 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WitherEntityRenderer}.
+ */
 public class WitherEntityRenderer extends MobEntityRenderer<WitherEntity, WitherEntityRenderState, WitherEntityModel> {
-   private static final Identifier INVULNERABLE_TEXTURE = Identifier.ofVanilla("textures/entity/wither/wither_invulnerable.png");
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/wither/wither.png");
 
-   public WitherEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new WitherEntityModel(context.getPart(EntityModelLayers.WITHER)), 1.0F);
-      this.addFeature(new WitherArmorFeatureRenderer(this, context.getEntityModels()));
-   }
+	private static final Identifier
+			INVULNERABLE_TEXTURE =
+			Identifier.ofVanilla("textures/entity/wither/wither_invulnerable.png");
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/wither/wither.png");
 
-   protected int getBlockLight(WitherEntity witherEntity, BlockPos blockPos) {
-      return 15;
-   }
+	public WitherEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new WitherEntityModel(context.getPart(EntityModelLayers.WITHER)), 1.0F);
+		this.addFeature(new WitherArmorFeatureRenderer(this, context.getEntityModels()));
+	}
 
-   public Identifier getTexture(WitherEntityRenderState witherEntityRenderState) {
-      int i = MathHelper.floor(witherEntityRenderState.invulnerableTimer);
-      return i > 0 && (i > 80 || i / 5 % 2 != 1) ? INVULNERABLE_TEXTURE : TEXTURE;
-   }
+	protected int getBlockLight(WitherEntity witherEntity, BlockPos blockPos) {
+		return 15;
+	}
 
-   public WitherEntityRenderState createRenderState() {
-      return new WitherEntityRenderState();
-   }
+	public Identifier getTexture(WitherEntityRenderState witherEntityRenderState) {
+		int i = MathHelper.floor(witherEntityRenderState.invulnerableTimer);
+		return i > 0 && (i > 80 || i / 5 % 2 != 1) ? INVULNERABLE_TEXTURE : TEXTURE;
+	}
 
-   protected void scale(WitherEntityRenderState witherEntityRenderState, MatrixStack matrixStack) {
-      float f = 2.0F;
-      if (witherEntityRenderState.invulnerableTimer > 0.0F) {
-         f -= witherEntityRenderState.invulnerableTimer / 220.0F * 0.5F;
-      }
+	public WitherEntityRenderState createRenderState() {
+		return new WitherEntityRenderState();
+	}
 
-      matrixStack.scale(f, f, f);
-   }
+	protected void scale(WitherEntityRenderState witherEntityRenderState, MatrixStack matrixStack) {
+		float f = 2.0F;
+		if (witherEntityRenderState.invulnerableTimer > 0.0F) {
+			f -= witherEntityRenderState.invulnerableTimer / 220.0F * 0.5F;
+		}
 
-   public void updateRenderState(WitherEntity witherEntity, WitherEntityRenderState witherEntityRenderState, float f) {
-      super.updateRenderState(witherEntity, witherEntityRenderState, f);
-      int i = witherEntity.getInvulnerableTimer();
-      witherEntityRenderState.invulnerableTimer = i > 0 ? i - f : 0.0F;
-      System.arraycopy(witherEntity.getSideHeadPitches(), 0, witherEntityRenderState.sideHeadPitches, 0, witherEntityRenderState.sideHeadPitches.length);
-      System.arraycopy(witherEntity.getSideHeadYaws(), 0, witherEntityRenderState.sideHeadYaws, 0, witherEntityRenderState.sideHeadYaws.length);
-      witherEntityRenderState.armored = witherEntity.isArmored();
-   }
+		matrixStack.scale(f, f, f);
+	}
+
+	public void updateRenderState(WitherEntity witherEntity, WitherEntityRenderState witherEntityRenderState, float f) {
+		super.updateRenderState(witherEntity, witherEntityRenderState, f);
+		int i = witherEntity.getInvulnerableTimer();
+		witherEntityRenderState.invulnerableTimer = i > 0 ? i - f : 0.0F;
+		System.arraycopy(
+				witherEntity.getSideHeadPitches(),
+				0,
+				witherEntityRenderState.sideHeadPitches,
+				0,
+				witherEntityRenderState.sideHeadPitches.length
+		);
+		System.arraycopy(
+				witherEntity.getSideHeadYaws(),
+				0,
+				witherEntityRenderState.sideHeadYaws,
+				0,
+				witherEntityRenderState.sideHeadYaws.length
+		);
+		witherEntityRenderState.armored = witherEntity.isArmored();
+	}
 }

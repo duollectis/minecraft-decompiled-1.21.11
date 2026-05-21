@@ -3,22 +3,32 @@ package net.minecraft.datafixer.schema;
 import com.mojang.datafixers.DSL;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.templates.TypeTemplate;
-import java.util.Map;
-import java.util.function.Supplier;
 import net.minecraft.datafixer.TypeReferences;
 
-public class Schema1488 extends IdentifierNormalizingSchema {
-   public Schema1488(int i, Schema schema) {
-      super(i, schema);
-   }
+import java.util.Map;
+import java.util.function.Supplier;
 
-   public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
-      Map<String, Supplier<TypeTemplate>> map = super.registerBlockEntities(schema);
-      schema.register(
-         map,
-         "minecraft:command_block",
-         () -> DSL.optionalFields("CustomName", TypeReferences.TEXT_COMPONENT.in(schema), "LastOutput", TypeReferences.TEXT_COMPONENT.in(schema))
-      );
-      return map;
-   }
+/**
+ * {@code Schema1488}.
+ */
+public class Schema1488 extends IdentifierNormalizingSchema {
+
+	public Schema1488(int i, Schema schema) {
+		super(i, schema);
+	}
+
+	public Map<String, Supplier<TypeTemplate>> registerBlockEntities(Schema schema) {
+		Map<String, Supplier<TypeTemplate>> map = super.registerBlockEntities(schema);
+		schema.register(
+				map,
+				"minecraft:command_block",
+				() -> DSL.optionalFields(
+						"CustomName",
+						TypeReferences.TEXT_COMPONENT.in(schema),
+						"LastOutput",
+						TypeReferences.TEXT_COMPONENT.in(schema)
+				)
+		);
+		return map;
+	}
 }

@@ -4,64 +4,95 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * {@code BlockHitResult}.
+ */
 public class BlockHitResult extends HitResult {
-   private final Direction side;
-   private final BlockPos blockPos;
-   private final boolean missed;
-   private final boolean insideBlock;
-   private final boolean againstWorldBorder;
 
-   public static BlockHitResult createMissed(Vec3d pos, Direction side, BlockPos blockPos) {
-      return new BlockHitResult(true, pos, side, blockPos, false, false);
-   }
+	private final Direction side;
+	private final BlockPos blockPos;
+	private final boolean missed;
+	private final boolean insideBlock;
+	private final boolean againstWorldBorder;
 
-   public BlockHitResult(Vec3d pos, Direction side, BlockPos blockPos, boolean insideBlock) {
-      this(false, pos, side, blockPos, insideBlock, false);
-   }
+	public static BlockHitResult createMissed(Vec3d pos, Direction side, BlockPos blockPos) {
+		return new BlockHitResult(true, pos, side, blockPos, false, false);
+	}
 
-   public BlockHitResult(Vec3d pos, Direction side, BlockPos blockPos, boolean insideBlock, boolean againstWorldBorder) {
-      this(false, pos, side, blockPos, insideBlock, againstWorldBorder);
-   }
+	public BlockHitResult(Vec3d pos, Direction side, BlockPos blockPos, boolean insideBlock) {
+		this(false, pos, side, blockPos, insideBlock, false);
+	}
 
-   private BlockHitResult(boolean missed, Vec3d pos, Direction side, BlockPos blockPos, boolean insideBlock, boolean againstWorldBorder) {
-      super(pos);
-      this.missed = missed;
-      this.side = side;
-      this.blockPos = blockPos;
-      this.insideBlock = insideBlock;
-      this.againstWorldBorder = againstWorldBorder;
-   }
+	public BlockHitResult(
+			Vec3d pos,
+			Direction side,
+			BlockPos blockPos,
+			boolean insideBlock,
+			boolean againstWorldBorder
+	) {
+		this(false, pos, side, blockPos, insideBlock, againstWorldBorder);
+	}
 
-   public BlockHitResult withSide(Direction side) {
-      return new BlockHitResult(this.missed, this.pos, side, this.blockPos, this.insideBlock, this.againstWorldBorder);
-   }
+	private BlockHitResult(
+			boolean missed,
+			Vec3d pos,
+			Direction side,
+			BlockPos blockPos,
+			boolean insideBlock,
+			boolean againstWorldBorder
+	) {
+		super(pos);
+		this.missed = missed;
+		this.side = side;
+		this.blockPos = blockPos;
+		this.insideBlock = insideBlock;
+		this.againstWorldBorder = againstWorldBorder;
+	}
 
-   public BlockHitResult withBlockPos(BlockPos blockPos) {
-      return new BlockHitResult(this.missed, this.pos, this.side, blockPos, this.insideBlock, this.againstWorldBorder);
-   }
+	public BlockHitResult withSide(Direction side) {
+		return new BlockHitResult(
+				this.missed,
+				this.pos,
+				side,
+				this.blockPos,
+				this.insideBlock,
+				this.againstWorldBorder
+		);
+	}
 
-   public BlockHitResult againstWorldBorder() {
-      return new BlockHitResult(this.missed, this.pos, this.side, this.blockPos, this.insideBlock, true);
-   }
+	public BlockHitResult withBlockPos(BlockPos blockPos) {
+		return new BlockHitResult(
+				this.missed,
+				this.pos,
+				this.side,
+				blockPos,
+				this.insideBlock,
+				this.againstWorldBorder
+		);
+	}
 
-   public BlockPos getBlockPos() {
-      return this.blockPos;
-   }
+	public BlockHitResult againstWorldBorder() {
+		return new BlockHitResult(this.missed, this.pos, this.side, this.blockPos, this.insideBlock, true);
+	}
 
-   public Direction getSide() {
-      return this.side;
-   }
+	public BlockPos getBlockPos() {
+		return this.blockPos;
+	}
 
-   @Override
-   public HitResult.Type getType() {
-      return this.missed ? HitResult.Type.MISS : HitResult.Type.BLOCK;
-   }
+	public Direction getSide() {
+		return this.side;
+	}
 
-   public boolean isInsideBlock() {
-      return this.insideBlock;
-   }
+	@Override
+	public HitResult.Type getType() {
+		return this.missed ? HitResult.Type.MISS : HitResult.Type.BLOCK;
+	}
 
-   public boolean isAgainstWorldBorder() {
-      return this.againstWorldBorder;
-   }
+	public boolean isInsideBlock() {
+		return this.insideBlock;
+	}
+
+	public boolean isAgainstWorldBorder() {
+		return this.againstWorldBorder;
+	}
 }

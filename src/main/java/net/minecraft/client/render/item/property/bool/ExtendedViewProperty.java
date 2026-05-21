@@ -11,16 +11,26 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ExtendedViewProperty}.
+ */
 public record ExtendedViewProperty() implements BooleanProperty {
-   public static final MapCodec<ExtendedViewProperty> CODEC = MapCodec.unit(new ExtendedViewProperty());
 
-   @Override
-   public boolean test(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity entity, int seed, ItemDisplayContext displayContext) {
-      return displayContext == ItemDisplayContext.GUI && MinecraftClient.getInstance().isShiftPressed();
-   }
+	public static final MapCodec<ExtendedViewProperty> CODEC = MapCodec.unit(new ExtendedViewProperty());
 
-   @Override
-   public MapCodec<ExtendedViewProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public boolean test(
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity entity,
+			int seed,
+			ItemDisplayContext displayContext
+	) {
+		return displayContext == ItemDisplayContext.GUI && MinecraftClient.getInstance().isShiftPressed();
+	}
+
+	@Override
+	public MapCodec<ExtendedViewProperty> getCodec() {
+		return CODEC;
+	}
 }

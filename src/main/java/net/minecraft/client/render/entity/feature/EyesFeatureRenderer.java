@@ -10,16 +10,38 @@ import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EyesFeatureRenderer}.
+ */
 public abstract class EyesFeatureRenderer<S extends EntityRenderState, M extends EntityModel<S>> extends FeatureRenderer<S, M> {
-   public EyesFeatureRenderer(FeatureRendererContext<S, M> featureRendererContext) {
-      super(featureRendererContext);
-   }
 
-   @Override
-   public void render(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, S state, float limbAngle, float limbDistance) {
-      queue.getBatchingQueue(1)
-         .submitModel(this.getContextModel(), state, matrices, this.getEyesTexture(), light, OverlayTexture.DEFAULT_UV, -1, null, state.outlineColor, null);
-   }
+	public EyesFeatureRenderer(FeatureRendererContext<S, M> featureRendererContext) {
+		super(featureRendererContext);
+	}
 
-   public abstract RenderLayer getEyesTexture();
+	@Override
+	public void render(
+			MatrixStack matrices,
+			OrderedRenderCommandQueue queue,
+			int light,
+			S state,
+			float limbAngle,
+			float limbDistance
+	) {
+		queue.getBatchingQueue(1)
+		     .submitModel(
+				     this.getContextModel(),
+				     state,
+				     matrices,
+				     this.getEyesTexture(),
+				     light,
+				     OverlayTexture.DEFAULT_UV,
+				     -1,
+				     null,
+				     state.outlineColor,
+				     null
+		     );
+	}
+
+	public abstract RenderLayer getEyesTexture();
 }

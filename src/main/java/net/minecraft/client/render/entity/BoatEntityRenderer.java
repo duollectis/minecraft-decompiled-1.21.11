@@ -17,41 +17,51 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Unit;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BoatEntityRenderer}.
+ */
 public class BoatEntityRenderer extends AbstractBoatEntityRenderer {
-   private final Model.SinglePartModel waterMaskModel;
-   private final Identifier texture;
-   private final EntityModel<BoatEntityRenderState> model;
 
-   public BoatEntityRenderer(EntityRendererFactory.Context ctx, EntityModelLayer layer) {
-      super(ctx);
-      this.texture = layer.id().withPath(path -> "textures/entity/" + path + ".png");
-      this.waterMaskModel = new Model.SinglePartModel(ctx.getPart(EntityModelLayers.BOAT), id -> RenderLayers.waterMask());
-      this.model = new BoatEntityModel(ctx.getPart(layer));
-   }
+	private final Model.SinglePartModel waterMaskModel;
+	private final Identifier texture;
+	private final EntityModel<BoatEntityRenderState> model;
 
-   @Override
-   protected EntityModel<BoatEntityRenderState> getModel() {
-      return this.model;
-   }
+	public BoatEntityRenderer(EntityRendererFactory.Context ctx, EntityModelLayer layer) {
+		super(ctx);
+		this.texture = layer.id().withPath(path -> "textures/entity/" + path + ".png");
+		this.waterMaskModel =
+				new Model.SinglePartModel(ctx.getPart(EntityModelLayers.BOAT), id -> RenderLayers.waterMask());
+		this.model = new BoatEntityModel(ctx.getPart(layer));
+	}
 
-   @Override
-   protected RenderLayer getRenderLayer() {
-      return this.model.getLayer(this.texture);
-   }
+	@Override
+	protected EntityModel<BoatEntityRenderState> getModel() {
+		return this.model;
+	}
 
-   @Override
-   protected void renderWaterMask(BoatEntityRenderState state, MatrixStack matrices, OrderedRenderCommandQueue orderedRenderCommandQueue, int light) {
-      if (!state.submergedInWater) {
-         orderedRenderCommandQueue.submitModel(
-            this.waterMaskModel,
-            Unit.INSTANCE,
-            matrices,
-            this.waterMaskModel.getLayer(this.texture),
-            light,
-            OverlayTexture.DEFAULT_UV,
-            state.outlineColor,
-            null
-         );
-      }
-   }
+	@Override
+	protected RenderLayer getRenderLayer() {
+		return this.model.getLayer(this.texture);
+	}
+
+	@Override
+	protected void renderWaterMask(
+			BoatEntityRenderState state,
+			MatrixStack matrices,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int light
+	) {
+		if (!state.submergedInWater) {
+			orderedRenderCommandQueue.submitModel(
+					this.waterMaskModel,
+					Unit.INSTANCE,
+					matrices,
+					this.waterMaskModel.getLayer(this.texture),
+					light,
+					OverlayTexture.DEFAULT_UV,
+					state.outlineColor,
+					null
+			);
+		}
+	}
 }

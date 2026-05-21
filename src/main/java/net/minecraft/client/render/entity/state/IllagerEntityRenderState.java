@@ -6,12 +6,16 @@ import net.minecraft.entity.mob.IllagerEntity;
 import net.minecraft.util.Arm;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code IllagerEntityRenderState}.
+ */
 public class IllagerEntityRenderState extends LancerEntityRenderState {
-   public boolean hasVehicle;
-   public boolean attacking;
-   public Arm illagerMainArm = Arm.RIGHT;
-   public IllagerEntity.State illagerState = IllagerEntity.State.NEUTRAL;
-   public int crossbowPullTime;
-   public float itemUseTime;
-   public float handSwingProgress;
+
+	public boolean hasVehicle;
+	public boolean attacking;
+	public Arm illagerMainArm = Arm.RIGHT;
+	public IllagerEntity.State illagerState = IllagerEntity.State.NEUTRAL;
+	public int crossbowPullTime;
+	public float itemUseTime;
+	public float handSwingProgress;
 }

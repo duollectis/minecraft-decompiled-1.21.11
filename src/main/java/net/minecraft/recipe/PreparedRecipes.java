@@ -2,52 +2,67 @@ package net.minecraft.recipe;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
-import com.google.common.collect.Multimap;
 import com.google.common.collect.ImmutableMultimap.Builder;
-import java.util.Collection;
-import java.util.Map;
-import java.util.stream.Stream;
+import com.google.common.collect.Multimap;
 import net.minecraft.recipe.input.RecipeInput;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collection;
+import java.util.Map;
+import java.util.stream.Stream;
+
+/**
+ * {@code PreparedRecipes}.
+ */
 public class PreparedRecipes {
-   public static final PreparedRecipes EMPTY = new PreparedRecipes(ImmutableMultimap.of(), Map.of());
-   private final Multimap<RecipeType<?>, RecipeEntry<?>> byType;
-   private final Map<RegistryKey<Recipe<?>>, RecipeEntry<?>> byKey;
 
-   private PreparedRecipes(Multimap<RecipeType<?>, RecipeEntry<?>> byType, Map<RegistryKey<Recipe<?>>, RecipeEntry<?>> byKey) {
-      this.byType = byType;
-      this.byKey = byKey;
-   }
+	public static final PreparedRecipes EMPTY = new PreparedRecipes(ImmutableMultimap.of(), Map.of());
+	private final Multimap<RecipeType<?>, RecipeEntry<?>> byType;
+	private final Map<RegistryKey<Recipe<?>>, RecipeEntry<?>> byKey;
 
-   public static PreparedRecipes of(Iterable<RecipeEntry<?>> recipes) {
-      Builder<RecipeType<?>, RecipeEntry<?>> builder = ImmutableMultimap.builder();
-      com.google.common.collect.ImmutableMap.Builder<RegistryKey<Recipe<?>>, RecipeEntry<?>> builder2 = ImmutableMap.builder();
+	private PreparedRecipes(
+			Multimap<RecipeType<?>, RecipeEntry<?>> byType,
+			Map<RegistryKey<Recipe<?>>, RecipeEntry<?>> byKey
+	) {
+		this.byType = byType;
+		this.byKey = byKey;
+	}
 
-      for (RecipeEntry<?> recipeEntry : recipes) {
-         builder.put(recipeEntry.value().getType(), recipeEntry);
-         builder2.put(recipeEntry.id(), recipeEntry);
-      }
+	public static PreparedRecipes of(Iterable<RecipeEntry<?>> recipes) {
+		Builder<RecipeType<?>, RecipeEntry<?>> builder = ImmutableMultimap.builder();
+		com.google.common.collect.ImmutableMap.Builder<RegistryKey<Recipe<?>>, RecipeEntry<?>>
+				builder2 =
+				ImmutableMap.builder();
 
-      return new PreparedRecipes(builder.build(), builder2.build());
-   }
+		for (RecipeEntry<?> recipeEntry : recipes) {
+			builder.put(recipeEntry.value().getType(), recipeEntry);
+			builder2.put(recipeEntry.id(), recipeEntry);
+		}
 
-   @SuppressWarnings("unchecked")
-   public <I extends RecipeInput, T extends Recipe<I>> Collection<RecipeEntry<T>> getAll(RecipeType<T> type) {
-      return (Collection<RecipeEntry<T>>)(Collection<?>)this.byType.get(type);
-   }
+		return new PreparedRecipes(builder.build(), builder2.build());
+	}
 
-   public Collection<RecipeEntry<?>> recipes() {
-      return this.byKey.values();
-   }
+	@SuppressWarnings("unchecked")
+	public <I extends RecipeInput, T extends Recipe<I>> Collection<RecipeEntry<T>> getAll(RecipeType<T> type) {
+		return (Collection<RecipeEntry<T>>) (Collection<?>) this.byType.get(type);
+	}
 
-   public @Nullable RecipeEntry<?> get(RegistryKey<Recipe<?>> key) {
-      return this.byKey.get(key);
-   }
+	public Collection<RecipeEntry<?>> recipes() {
+		return this.byKey.values();
+	}
 
-   public <I extends RecipeInput, T extends Recipe<I>> Stream<RecipeEntry<T>> find(RecipeType<T> type, I input, World world) {
-      return input.isEmpty() ? Stream.empty() : this.getAll(type).stream().filter(entry -> entry.value().matches(input, world));
-   }
+	public @Nullable RecipeEntry<?> get(RegistryKey<Recipe<?>> key) {
+		return this.byKey.get(key);
+	}
+
+	public <I extends RecipeInput, T extends Recipe<I>> Stream<RecipeEntry<T>> find(
+			RecipeType<T> type,
+			I input,
+			World world
+	) {
+		return input.isEmpty() ? Stream.empty()
+		                       : this.getAll(type).stream().filter(entry -> entry.value().matches(input, world));
+	}
 }

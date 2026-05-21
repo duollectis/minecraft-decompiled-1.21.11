@@ -6,23 +6,27 @@ import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.util.DyeColor;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code BedBlockEntity}.
+ */
 public class BedBlockEntity extends BlockEntity {
-   private final DyeColor color;
 
-   public BedBlockEntity(BlockPos pos, BlockState state) {
-      this(pos, state, ((BedBlock)state.getBlock()).getColor());
-   }
+	private final DyeColor color;
 
-   public BedBlockEntity(BlockPos pos, BlockState state, DyeColor color) {
-      super(BlockEntityType.BED, pos, state);
-      this.color = color;
-   }
+	public BedBlockEntity(BlockPos pos, BlockState state) {
+		this(pos, state, ((BedBlock) state.getBlock()).getColor());
+	}
 
-   public BlockEntityUpdateS2CPacket toUpdatePacket() {
-      return BlockEntityUpdateS2CPacket.create(this);
-   }
+	public BedBlockEntity(BlockPos pos, BlockState state, DyeColor color) {
+		super(BlockEntityType.BED, pos, state);
+		this.color = color;
+	}
 
-   public DyeColor getColor() {
-      return this.color;
-   }
+	public BlockEntityUpdateS2CPacket toUpdatePacket() {
+		return BlockEntityUpdateS2CPacket.create(this);
+	}
+
+	public DyeColor getColor() {
+		return this.color;
+	}
 }

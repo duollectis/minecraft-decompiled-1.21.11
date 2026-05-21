@@ -18,59 +18,71 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code PotionItem}.
+ */
 public class PotionItem extends Item {
-   public PotionItem(Item.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   public ItemStack getDefaultStack() {
-      ItemStack itemStack = super.getDefaultStack();
-      itemStack.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(Potions.WATER));
-      return itemStack;
-   }
+	public PotionItem(Item.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public ActionResult useOnBlock(ItemUsageContext context) {
-      World world = context.getWorld();
-      BlockPos blockPos = context.getBlockPos();
-      PlayerEntity playerEntity = context.getPlayer();
-      ItemStack itemStack = context.getStack();
-      PotionContentsComponent potionContentsComponent = itemStack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
-      BlockState blockState = world.getBlockState(blockPos);
-      if (context.getSide() != Direction.DOWN && blockState.isIn(BlockTags.CONVERTABLE_TO_MUD) && potionContentsComponent.matches(Potions.WATER)) {
-         world.playSound(null, blockPos, SoundEvents.ENTITY_GENERIC_SPLASH, SoundCategory.BLOCKS, 1.0F, 1.0F);
-         playerEntity.setStackInHand(context.getHand(), ItemUsage.exchangeStack(itemStack, playerEntity, new ItemStack(Items.GLASS_BOTTLE)));
-         if (!world.isClient()) {
-            ServerWorld serverWorld = (ServerWorld)world;
+	@Override
+	public ItemStack getDefaultStack() {
+		ItemStack itemStack = super.getDefaultStack();
+		itemStack.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(Potions.WATER));
+		return itemStack;
+	}
 
-            for (int i = 0; i < 5; i++) {
-               serverWorld.spawnParticles(
-                  ParticleTypes.SPLASH,
-                  blockPos.getX() + world.random.nextDouble(),
-                  blockPos.getY() + 1,
-                  blockPos.getZ() + world.random.nextDouble(),
-                  1,
-                  0.0,
-                  0.0,
-                  0.0,
-                  1.0
-               );
-            }
-         }
+	@Override
+	public ActionResult useOnBlock(ItemUsageContext context) {
+		World world = context.getWorld();
+		BlockPos blockPos = context.getBlockPos();
+		PlayerEntity playerEntity = context.getPlayer();
+		ItemStack itemStack = context.getStack();
+		PotionContentsComponent
+				potionContentsComponent =
+				itemStack.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT);
+		BlockState blockState = world.getBlockState(blockPos);
+		if (context.getSide() != Direction.DOWN && blockState.isIn(BlockTags.CONVERTABLE_TO_MUD)
+				&& potionContentsComponent.matches(Potions.WATER)) {
+			world.playSound(null, blockPos, SoundEvents.ENTITY_GENERIC_SPLASH, SoundCategory.BLOCKS, 1.0F, 1.0F);
+			playerEntity.setStackInHand(
+					context.getHand(),
+					ItemUsage.exchangeStack(itemStack, playerEntity, new ItemStack(Items.GLASS_BOTTLE))
+			);
+			if (!world.isClient()) {
+				ServerWorld serverWorld = (ServerWorld) world;
 
-         world.playSound(null, blockPos, SoundEvents.ITEM_BOTTLE_EMPTY, SoundCategory.BLOCKS, 1.0F, 1.0F);
-         world.emitGameEvent(null, GameEvent.FLUID_PLACE, blockPos);
-         world.setBlockState(blockPos, Blocks.MUD.getDefaultState());
-         return ActionResult.SUCCESS;
-      } else {
-         return ActionResult.PASS;
-      }
-   }
+				for (int i = 0; i < 5; i++) {
+					serverWorld.spawnParticles(
+							ParticleTypes.SPLASH,
+							blockPos.getX() + world.random.nextDouble(),
+							blockPos.getY() + 1,
+							blockPos.getZ() + world.random.nextDouble(),
+							1,
+							0.0,
+							0.0,
+							0.0,
+							1.0
+					);
+				}
+			}
 
-   @Override
-   public Text getName(ItemStack stack) {
-      PotionContentsComponent potionContentsComponent = stack.get(DataComponentTypes.POTION_CONTENTS);
-      return potionContentsComponent != null ? potionContentsComponent.getName(this.translationKey + ".effect.") : super.getName(stack);
-   }
+			world.playSound(null, blockPos, SoundEvents.ITEM_BOTTLE_EMPTY, SoundCategory.BLOCKS, 1.0F, 1.0F);
+			world.emitGameEvent(null, GameEvent.FLUID_PLACE, blockPos);
+			world.setBlockState(blockPos, Blocks.MUD.getDefaultState());
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return ActionResult.PASS;
+		}
+	}
+
+	@Override
+	public Text getName(ItemStack stack) {
+		PotionContentsComponent potionContentsComponent = stack.get(DataComponentTypes.POTION_CONTENTS);
+		return potionContentsComponent != null ? potionContentsComponent.getName(this.translationKey + ".effect.")
+		                                       : super.getName(stack);
+	}
 }

@@ -9,16 +9,21 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record PickItemFromEntityC2SPacket(int id, boolean includeData) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<ByteBuf, PickItemFromEntityC2SPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.VAR_INT, PickItemFromEntityC2SPacket::id, PacketCodecs.BOOLEAN, PickItemFromEntityC2SPacket::includeData, PickItemFromEntityC2SPacket::new
-   );
 
-   @Override
-   public PacketType<PickItemFromEntityC2SPacket> getPacketType() {
-      return PlayPackets.PICK_ITEM_FROM_ENTITY;
-   }
+	public static final PacketCodec<ByteBuf, PickItemFromEntityC2SPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.VAR_INT,
+			PickItemFromEntityC2SPacket::id,
+			PacketCodecs.BOOLEAN,
+			PickItemFromEntityC2SPacket::includeData,
+			PickItemFromEntityC2SPacket::new
+	);
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onPickItemFromEntity(this);
-   }
+	@Override
+	public PacketType<PickItemFromEntityC2SPacket> getPacketType() {
+		return PlayPackets.PICK_ITEM_FROM_ENTITY;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onPickItemFromEntity(this);
+	}
 }

@@ -11,11 +11,20 @@ import net.minecraft.world.storage.StorageKey;
 @Name("minecraft.ChunkRegionWrite")
 @Label("Region File Write")
 @DontObfuscate
+/**
+ * {@code ChunkRegionWriteEvent}.
+ */
 public class ChunkRegionWriteEvent extends ChunkRegionEvent {
-   public static final String EVENT_NAME = "minecraft.ChunkRegionWrite";
-   public static final EventType TYPE = EventType.getEventType(ChunkRegionWriteEvent.class);
 
-   public ChunkRegionWriteEvent(StorageKey storageKey, ChunkPos chunkPos, ChunkCompressionFormat chunkCompressionFormat, int i) {
-      super(storageKey, chunkPos, chunkCompressionFormat, i);
-   }
+	public static final String EVENT_NAME = "minecraft.ChunkRegionWrite";
+	public static final EventType TYPE = EventType.getEventType(ChunkRegionWriteEvent.class);
+
+	public ChunkRegionWriteEvent(
+			StorageKey storageKey,
+			ChunkPos chunkPos,
+			ChunkCompressionFormat chunkCompressionFormat,
+			int i
+	) {
+		super(storageKey, chunkPos, chunkCompressionFormat, i);
+	}
 }

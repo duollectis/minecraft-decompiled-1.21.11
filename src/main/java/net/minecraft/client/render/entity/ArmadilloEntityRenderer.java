@@ -9,31 +9,39 @@ import net.minecraft.entity.passive.ArmadilloEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ArmadilloEntityRenderer}.
+ */
 public class ArmadilloEntityRenderer extends AgeableMobEntityRenderer<ArmadilloEntity, ArmadilloEntityRenderState, ArmadilloEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/armadillo.png");
 
-   public ArmadilloEntityRenderer(EntityRendererFactory.Context context) {
-      super(
-         context,
-         new ArmadilloEntityModel(context.getPart(EntityModelLayers.ARMADILLO)),
-         new ArmadilloEntityModel(context.getPart(EntityModelLayers.ARMADILLO_BABY)),
-         0.4F
-      );
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/armadillo.png");
 
-   public Identifier getTexture(ArmadilloEntityRenderState armadilloEntityRenderState) {
-      return TEXTURE;
-   }
+	public ArmadilloEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new ArmadilloEntityModel(context.getPart(EntityModelLayers.ARMADILLO)),
+				new ArmadilloEntityModel(context.getPart(EntityModelLayers.ARMADILLO_BABY)),
+				0.4F
+		);
+	}
 
-   public ArmadilloEntityRenderState createRenderState() {
-      return new ArmadilloEntityRenderState();
-   }
+	public Identifier getTexture(ArmadilloEntityRenderState armadilloEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(ArmadilloEntity armadilloEntity, ArmadilloEntityRenderState armadilloEntityRenderState, float f) {
-      super.updateRenderState(armadilloEntity, armadilloEntityRenderState, f);
-      armadilloEntityRenderState.rolledUp = armadilloEntity.isRolledUp();
-      armadilloEntityRenderState.scaredAnimationState.copyFrom(armadilloEntity.scaredAnimationState);
-      armadilloEntityRenderState.unrollingAnimationState.copyFrom(armadilloEntity.unrollingAnimationState);
-      armadilloEntityRenderState.rollingAnimationState.copyFrom(armadilloEntity.rollingAnimationState);
-   }
+	public ArmadilloEntityRenderState createRenderState() {
+		return new ArmadilloEntityRenderState();
+	}
+
+	public void updateRenderState(
+			ArmadilloEntity armadilloEntity,
+			ArmadilloEntityRenderState armadilloEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(armadilloEntity, armadilloEntityRenderState, f);
+		armadilloEntityRenderState.rolledUp = armadilloEntity.isRolledUp();
+		armadilloEntityRenderState.scaredAnimationState.copyFrom(armadilloEntity.scaredAnimationState);
+		armadilloEntityRenderState.unrollingAnimationState.copyFrom(armadilloEntity.unrollingAnimationState);
+		armadilloEntityRenderState.rollingAnimationState.copyFrom(armadilloEntity.rollingAnimationState);
+	}
 }

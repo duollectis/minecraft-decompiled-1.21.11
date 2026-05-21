@@ -7,56 +7,63 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code UnbakedModel}.
+ */
 public interface UnbakedModel {
-   String PARTICLE_TEXTURE = "particle";
 
-   default @Nullable Boolean ambientOcclusion() {
-      return null;
-   }
+	String PARTICLE_TEXTURE = "particle";
 
-   default UnbakedModel.@Nullable GuiLight guiLight() {
-      return null;
-   }
+	default @Nullable Boolean ambientOcclusion() {
+		return null;
+	}
 
-   default @Nullable ModelTransformation transformations() {
-      return null;
-   }
+	default UnbakedModel.@Nullable GuiLight guiLight() {
+		return null;
+	}
 
-   default ModelTextures.Textures textures() {
-      return ModelTextures.Textures.EMPTY;
-   }
+	default @Nullable ModelTransformation transformations() {
+		return null;
+	}
 
-   default @Nullable Geometry geometry() {
-      return null;
-   }
+	default ModelTextures.Textures textures() {
+		return ModelTextures.Textures.EMPTY;
+	}
 
-   default @Nullable Identifier parent() {
-      return null;
-   }
+	default @Nullable Geometry geometry() {
+		return null;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum GuiLight {
-      ITEM("front"),
-      BLOCK("side");
+	default @Nullable Identifier parent() {
+		return null;
+	}
 
-      private final String name;
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code GuiLight}.
+	 */
+	public static enum GuiLight {
+		ITEM("front"),
+		BLOCK("side");
 
-      private GuiLight(final String name) {
-         this.name = name;
-      }
+		private final String name;
 
-      public static UnbakedModel.GuiLight byName(String value) {
-         for (UnbakedModel.GuiLight guiLight : values()) {
-            if (guiLight.name.equals(value)) {
-               return guiLight;
-            }
-         }
+		private GuiLight(final String name) {
+			this.name = name;
+		}
 
-         throw new IllegalArgumentException("Invalid gui light: " + value);
-      }
+		public static UnbakedModel.GuiLight byName(String value) {
+			for (UnbakedModel.GuiLight guiLight : values()) {
+				if (guiLight.name.equals(value)) {
+					return guiLight;
+				}
+			}
 
-      public boolean isSide() {
-         return this == BLOCK;
-      }
-   }
+			throw new IllegalArgumentException("Invalid gui light: " + value);
+		}
+
+		public boolean isSide() {
+			return this == BLOCK;
+		}
+	}
 }

@@ -15,113 +15,118 @@ import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+/**
+ * {@code TestBlockEntity}.
+ */
 public class TestBlockEntity extends BlockEntity {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final String DEFAULT_MESSAGE = "";
-   private static final boolean DEFAULT_POWERED = false;
-   private TestBlockMode mode;
-   private String message = "";
-   private boolean powered = false;
-   private boolean triggered;
 
-   public TestBlockEntity(BlockPos pos, BlockState state) {
-      super(BlockEntityType.TEST_BLOCK, pos, state);
-      this.mode = state.get(TestBlock.MODE);
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final String DEFAULT_MESSAGE = "";
+	private static final boolean DEFAULT_POWERED = false;
+	private TestBlockMode mode;
+	private String message = "";
+	private boolean powered = false;
+	private boolean triggered;
 
-   @Override
-   protected void writeData(WriteView view) {
-      view.put("mode", TestBlockMode.CODEC, this.mode);
-      view.putString("message", this.message);
-      view.putBoolean("powered", this.powered);
-   }
+	public TestBlockEntity(BlockPos pos, BlockState state) {
+		super(BlockEntityType.TEST_BLOCK, pos, state);
+		this.mode = state.get(TestBlock.MODE);
+	}
 
-   @Override
-   protected void readData(ReadView view) {
-      this.mode = view.<TestBlockMode>read("mode", TestBlockMode.CODEC).orElse(TestBlockMode.FAIL);
-      this.message = view.getString("message", "");
-      this.powered = view.getBoolean("powered", false);
-   }
+	@Override
+	protected void writeData(WriteView view) {
+		view.put("mode", TestBlockMode.CODEC, this.mode);
+		view.putString("message", this.message);
+		view.putBoolean("powered", this.powered);
+	}
 
-   private void update() {
-      if (this.world != null) {
-         BlockPos blockPos = this.getPos();
-         BlockState blockState = this.world.getBlockState(blockPos);
-         if (blockState.isOf(Blocks.TEST_BLOCK)) {
-            this.world.setBlockState(blockPos, blockState.with(TestBlock.MODE, this.mode), 2);
-         }
-      }
-   }
+	@Override
+	protected void readData(ReadView view) {
+		this.mode = view.<TestBlockMode>read("mode", TestBlockMode.CODEC).orElse(TestBlockMode.FAIL);
+		this.message = view.getString("message", "");
+		this.powered = view.getBoolean("powered", false);
+	}
 
-   public @Nullable BlockEntityUpdateS2CPacket toUpdatePacket() {
-      return BlockEntityUpdateS2CPacket.create(this);
-   }
+	private void update() {
+		if (this.world != null) {
+			BlockPos blockPos = this.getPos();
+			BlockState blockState = this.world.getBlockState(blockPos);
+			if (blockState.isOf(Blocks.TEST_BLOCK)) {
+				this.world.setBlockState(blockPos, blockState.with(TestBlock.MODE, this.mode), 2);
+			}
+		}
+	}
 
-   @Override
-   public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-      return this.createComponentlessNbt(registries);
-   }
+	public @Nullable BlockEntityUpdateS2CPacket toUpdatePacket() {
+		return BlockEntityUpdateS2CPacket.create(this);
+	}
 
-   public boolean isPowered() {
-      return this.powered;
-   }
+	@Override
+	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
+		return this.createComponentlessNbt(registries);
+	}
 
-   public void setPowered(boolean powered) {
-      this.powered = powered;
-   }
+	public boolean isPowered() {
+		return this.powered;
+	}
 
-   public TestBlockMode getMode() {
-      return this.mode;
-   }
+	public void setPowered(boolean powered) {
+		this.powered = powered;
+	}
 
-   public void setMode(TestBlockMode mode) {
-      this.mode = mode;
-      this.update();
-   }
+	public TestBlockMode getMode() {
+		return this.mode;
+	}
 
-   private Block getBlock() {
-      return this.getCachedState().getBlock();
-   }
+	public void setMode(TestBlockMode mode) {
+		this.mode = mode;
+		this.update();
+	}
 
-   public void reset() {
-      this.triggered = false;
-      if (this.mode == TestBlockMode.START && this.world != null) {
-         this.setPowered(false);
-         this.world.updateNeighbors(this.getPos(), this.getBlock());
-      }
-   }
+	private Block getBlock() {
+		return this.getCachedState().getBlock();
+	}
 
-   public void trigger() {
-      if (this.mode == TestBlockMode.START && this.world != null) {
-         this.setPowered(true);
-         BlockPos blockPos = this.getPos();
-         this.world.updateNeighbors(blockPos, this.getBlock());
-         this.world.getBlockTickScheduler().isTicking(blockPos, this.getBlock());
-         this.logMessage();
-      } else {
-         if (this.mode == TestBlockMode.LOG) {
-            this.logMessage();
-         }
+	public void reset() {
+		this.triggered = false;
+		if (this.mode == TestBlockMode.START && this.world != null) {
+			this.setPowered(false);
+			this.world.updateNeighbors(this.getPos(), this.getBlock());
+		}
+	}
 
-         this.triggered = true;
-      }
-   }
+	public void trigger() {
+		if (this.mode == TestBlockMode.START && this.world != null) {
+			this.setPowered(true);
+			BlockPos blockPos = this.getPos();
+			this.world.updateNeighbors(blockPos, this.getBlock());
+			this.world.getBlockTickScheduler().isTicking(blockPos, this.getBlock());
+			this.logMessage();
+		}
+		else {
+			if (this.mode == TestBlockMode.LOG) {
+				this.logMessage();
+			}
 
-   public void logMessage() {
-      if (!this.message.isBlank()) {
-         LOGGER.info("Test {} (at {}): {}", new Object[]{this.mode.asString(), this.getPos(), this.message});
-      }
-   }
+			this.triggered = true;
+		}
+	}
 
-   public boolean hasTriggered() {
-      return this.triggered;
-   }
+	public void logMessage() {
+		if (!this.message.isBlank()) {
+			LOGGER.info("Test {} (at {}): {}", new Object[]{this.mode.asString(), this.getPos(), this.message});
+		}
+	}
 
-   public String getMessage() {
-      return this.message;
-   }
+	public boolean hasTriggered() {
+		return this.triggered;
+	}
 
-   public void setMessage(String message) {
-      this.message = message;
-   }
+	public String getMessage() {
+		return this.message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
 }

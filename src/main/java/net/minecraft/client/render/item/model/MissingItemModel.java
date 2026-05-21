@@ -1,8 +1,6 @@
 package net.minecraft.client.render.item.model;
 
 import com.google.common.base.Suppliers;
-import java.util.List;
-import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.item.ItemModelManager;
@@ -17,33 +15,40 @@ import net.minecraft.util.HeldItemContext;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.function.Supplier;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MissingItemModel}.
+ */
 public class MissingItemModel implements ItemModel {
-   private final List<BakedQuad> quads;
-   private final Supplier<Vector3fc[]> vector;
-   private final ModelSettings settings;
 
-   public MissingItemModel(List<BakedQuad> quads, ModelSettings settings) {
-      this.quads = quads;
-      this.settings = settings;
-      this.vector = Suppliers.memoize(() -> BasicItemModel.bakeQuads(this.quads));
-   }
+	private final List<BakedQuad> quads;
+	private final Supplier<Vector3fc[]> vector;
+	private final ModelSettings settings;
 
-   @Override
-   public void update(
-      ItemRenderState state,
-      ItemStack stack,
-      ItemModelManager resolver,
-      ItemDisplayContext displayContext,
-      @Nullable ClientWorld world,
-      @Nullable HeldItemContext heldItemContext,
-      int seed
-   ) {
-      state.addModelKey(this);
-      ItemRenderState.LayerRenderState layerRenderState = state.newLayer();
-      layerRenderState.setRenderLayer(TexturedRenderLayers.getEntityCutout());
-      this.settings.addSettings(layerRenderState, displayContext);
-      layerRenderState.setVertices(this.vector);
-      layerRenderState.getQuads().addAll(this.quads);
-   }
+	public MissingItemModel(List<BakedQuad> quads, ModelSettings settings) {
+		this.quads = quads;
+		this.settings = settings;
+		this.vector = Suppliers.memoize(() -> BasicItemModel.bakeQuads(this.quads));
+	}
+
+	@Override
+	public void update(
+			ItemRenderState state,
+			ItemStack stack,
+			ItemModelManager resolver,
+			ItemDisplayContext displayContext,
+			@Nullable ClientWorld world,
+			@Nullable HeldItemContext heldItemContext,
+			int seed
+	) {
+		state.addModelKey(this);
+		ItemRenderState.LayerRenderState layerRenderState = state.newLayer();
+		layerRenderState.setRenderLayer(TexturedRenderLayers.getEntityCutout());
+		this.settings.addSettings(layerRenderState, displayContext);
+		layerRenderState.setVertices(this.vector);
+		layerRenderState.getQuads().addAll(this.quads);
+	}
 }

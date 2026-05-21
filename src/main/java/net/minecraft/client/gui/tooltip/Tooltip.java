@@ -1,6 +1,5 @@
 package net.minecraft.client.gui.tooltip;
 
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -12,45 +11,51 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Language;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Tooltip}.
+ */
 public class Tooltip implements Narratable {
-   private static final int ROW_LENGTH = 170;
-   private final Text content;
-   private @Nullable List<OrderedText> lines;
-   private @Nullable Language language;
-   private final @Nullable Text narration;
 
-   private Tooltip(Text content, @Nullable Text narration) {
-      this.content = content;
-      this.narration = narration;
-   }
+	private static final int ROW_LENGTH = 170;
+	private final Text content;
+	private @Nullable List<OrderedText> lines;
+	private @Nullable Language language;
+	private final @Nullable Text narration;
 
-   public static Tooltip of(Text content, @Nullable Text narration) {
-      return new Tooltip(content, narration);
-   }
+	private Tooltip(Text content, @Nullable Text narration) {
+		this.content = content;
+		this.narration = narration;
+	}
 
-   public static Tooltip of(Text content) {
-      return new Tooltip(content, content);
-   }
+	public static Tooltip of(Text content, @Nullable Text narration) {
+		return new Tooltip(content, narration);
+	}
 
-   @Override
-   public void appendNarrations(NarrationMessageBuilder builder) {
-      if (this.narration != null) {
-         builder.put(NarrationPart.HINT, this.narration);
-      }
-   }
+	public static Tooltip of(Text content) {
+		return new Tooltip(content, content);
+	}
 
-   public List<OrderedText> getLines(MinecraftClient client) {
-      Language language = Language.getInstance();
-      if (this.lines == null || language != this.language) {
-         this.lines = wrapLines(client, this.content);
-         this.language = language;
-      }
+	@Override
+	public void appendNarrations(NarrationMessageBuilder builder) {
+		if (this.narration != null) {
+			builder.put(NarrationPart.HINT, this.narration);
+		}
+	}
 
-      return this.lines;
-   }
+	public List<OrderedText> getLines(MinecraftClient client) {
+		Language language = Language.getInstance();
+		if (this.lines == null || language != this.language) {
+			this.lines = wrapLines(client, this.content);
+			this.language = language;
+		}
 
-   public static List<OrderedText> wrapLines(MinecraftClient client, Text text) {
-      return client.textRenderer.wrapLines(text, 170);
-   }
+		return this.lines;
+	}
+
+	public static List<OrderedText> wrapLines(MinecraftClient client, Text text) {
+		return client.textRenderer.wrapLines(text, 170);
+	}
 }

@@ -4,6 +4,10 @@ import net.minecraft.server.world.ChunkLevelType;
 import net.minecraft.util.math.ChunkPos;
 
 @FunctionalInterface
+/**
+ * {@code ChunkStatusChangeListener}.
+ */
 public interface ChunkStatusChangeListener {
-   void onChunkStatusChange(ChunkPos pos, ChunkLevelType levelType);
+
+	void onChunkStatusChange(ChunkPos pos, ChunkLevelType levelType);
 }

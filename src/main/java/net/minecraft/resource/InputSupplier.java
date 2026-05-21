@@ -8,14 +8,18 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 @FunctionalInterface
+/**
+ * {@code InputSupplier}.
+ */
 public interface InputSupplier<T> {
-   static InputSupplier<InputStream> create(Path path) {
-      return () -> Files.newInputStream(path);
-   }
 
-   static InputSupplier<InputStream> create(ZipFile zipFile, ZipEntry zipEntry) {
-      return () -> zipFile.getInputStream(zipEntry);
-   }
+	static InputSupplier<InputStream> create(Path path) {
+		return () -> Files.newInputStream(path);
+	}
 
-   T get() throws IOException;
+	static InputSupplier<InputStream> create(ZipFile zipFile, ZipEntry zipEntry) {
+		return () -> zipFile.getInputStream(zipEntry);
+	}
+
+	T get() throws IOException;
 }

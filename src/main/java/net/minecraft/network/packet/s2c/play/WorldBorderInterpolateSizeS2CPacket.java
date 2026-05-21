@@ -9,49 +9,50 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.border.WorldBorder;
 
 public class WorldBorderInterpolateSizeS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, WorldBorderInterpolateSizeS2CPacket> CODEC = Packet.createCodec(
-      WorldBorderInterpolateSizeS2CPacket::write, WorldBorderInterpolateSizeS2CPacket::new
-   );
-   private final double size;
-   private final double sizeLerpTarget;
-   private final long sizeLerpTime;
 
-   public WorldBorderInterpolateSizeS2CPacket(WorldBorder worldBorder) {
-      this.size = worldBorder.getSize();
-      this.sizeLerpTarget = worldBorder.getSizeLerpTarget();
-      this.sizeLerpTime = worldBorder.getSizeLerpTime();
-   }
+	public static final PacketCodec<PacketByteBuf, WorldBorderInterpolateSizeS2CPacket> CODEC = Packet.createCodec(
+			WorldBorderInterpolateSizeS2CPacket::write, WorldBorderInterpolateSizeS2CPacket::new
+	);
+	private final double size;
+	private final double sizeLerpTarget;
+	private final long sizeLerpTime;
 
-   private WorldBorderInterpolateSizeS2CPacket(PacketByteBuf buf) {
-      this.size = buf.readDouble();
-      this.sizeLerpTarget = buf.readDouble();
-      this.sizeLerpTime = buf.readVarLong();
-   }
+	public WorldBorderInterpolateSizeS2CPacket(WorldBorder worldBorder) {
+		this.size = worldBorder.getSize();
+		this.sizeLerpTarget = worldBorder.getSizeLerpTarget();
+		this.sizeLerpTime = worldBorder.getSizeLerpTime();
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeDouble(this.size);
-      buf.writeDouble(this.sizeLerpTarget);
-      buf.writeVarLong(this.sizeLerpTime);
-   }
+	private WorldBorderInterpolateSizeS2CPacket(PacketByteBuf buf) {
+		this.size = buf.readDouble();
+		this.sizeLerpTarget = buf.readDouble();
+		this.sizeLerpTime = buf.readVarLong();
+	}
 
-   @Override
-   public PacketType<WorldBorderInterpolateSizeS2CPacket> getPacketType() {
-      return PlayPackets.SET_BORDER_LERP_SIZE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeDouble(this.size);
+		buf.writeDouble(this.sizeLerpTarget);
+		buf.writeVarLong(this.sizeLerpTime);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onWorldBorderInterpolateSize(this);
-   }
+	@Override
+	public PacketType<WorldBorderInterpolateSizeS2CPacket> getPacketType() {
+		return PlayPackets.SET_BORDER_LERP_SIZE;
+	}
 
-   public double getSize() {
-      return this.size;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onWorldBorderInterpolateSize(this);
+	}
 
-   public double getSizeLerpTarget() {
-      return this.sizeLerpTarget;
-   }
+	public double getSize() {
+		return this.size;
+	}
 
-   public long getSizeLerpTime() {
-      return this.sizeLerpTime;
-   }
+	public double getSizeLerpTarget() {
+		return this.sizeLerpTarget;
+	}
+
+	public long getSizeLerpTime() {
+		return this.sizeLerpTime;
+	}
 }

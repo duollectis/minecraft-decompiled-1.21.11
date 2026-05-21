@@ -1,11 +1,10 @@
 package net.minecraft.util.logging;
 
 import com.mojang.logging.LogUtils;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.Reader;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -17,235 +16,272 @@ import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
+/**
+ * {@code LogFileCompressor}.
+ */
 public class LogFileCompressor {
-   static final Logger LOGGER = LogUtils.getLogger();
-   private static final int COMPRESSION_BUFFER_SIZE = 4096;
-   private static final String GZ_EXTENSION = ".gz";
-   private final Path directory;
-   private final String extension;
 
-   private LogFileCompressor(Path directory, String extension) {
-      this.directory = directory;
-      this.extension = extension;
-   }
+	static final Logger LOGGER = LogUtils.getLogger();
+	private static final int COMPRESSION_BUFFER_SIZE = 4096;
+	private static final String GZ_EXTENSION = ".gz";
+	private final Path directory;
+	private final String extension;
 
-   public static LogFileCompressor create(Path directory, String extension) throws IOException {
-      Files.createDirectories(directory);
-      return new LogFileCompressor(directory, extension);
-   }
+	private LogFileCompressor(Path directory, String extension) {
+		this.directory = directory;
+		this.extension = extension;
+	}
 
-   public LogFileCompressor.LogFileIterable getAll() throws IOException {
-      LogFileCompressor.LogFileIterable var2;
-      try (Stream<Path> stream = Files.list(this.directory)) {
-         var2 = new LogFileCompressor.LogFileIterable(stream.filter(path -> Files.isRegularFile(path)).map(this::get).filter(Objects::nonNull).toList());
-      }
+	public static LogFileCompressor create(Path directory, String extension) throws IOException {
+		Files.createDirectories(directory);
+		return new LogFileCompressor(directory, extension);
+	}
 
-      return var2;
-   }
+	public LogFileCompressor.LogFileIterable getAll() throws IOException {
+		LogFileCompressor.LogFileIterable var2;
+		try (Stream<Path> stream = Files.list(this.directory)) {
+			var2 =
+					new LogFileCompressor.LogFileIterable(stream
+							.filter(path -> Files.isRegularFile(path))
+							.map(this::get)
+							.filter(Objects::nonNull)
+							.toList());
+		}
 
-   private LogFileCompressor.@Nullable LogFile get(Path path) {
-      String string = path.getFileName().toString();
-      int i = string.indexOf(46);
-      if (i == -1) {
-         return null;
-      } else {
-         LogFileCompressor.LogId logId = LogFileCompressor.LogId.fromFileName(string.substring(0, i));
-         if (logId != null) {
-            String string2 = string.substring(i);
-            if (string2.equals(this.extension)) {
-               return new LogFileCompressor.Uncompressed(path, logId);
-            }
+		return var2;
+	}
 
-            if (string2.equals(this.extension + ".gz")) {
-               return new LogFileCompressor.Compressed(path, logId);
-            }
-         }
+	private LogFileCompressor.@Nullable LogFile get(Path path) {
+		String string = path.getFileName().toString();
+		int i = string.indexOf(46);
+		if (i == -1) {
+			return null;
+		}
+		else {
+			LogFileCompressor.LogId logId = LogFileCompressor.LogId.fromFileName(string.substring(0, i));
+			if (logId != null) {
+				String string2 = string.substring(i);
+				if (string2.equals(this.extension)) {
+					return new LogFileCompressor.Uncompressed(path, logId);
+				}
 
-         return null;
-      }
-   }
+				if (string2.equals(this.extension + ".gz")) {
+					return new LogFileCompressor.Compressed(path, logId);
+				}
+			}
 
-   static void compress(Path from, Path to) throws IOException {
-      if (Files.exists(to)) {
-         throw new IOException("Compressed target file already exists: " + to);
-      } else {
-         try (FileChannel fileChannel = FileChannel.open(from, StandardOpenOption.WRITE, StandardOpenOption.READ)) {
-            FileLock fileLock = fileChannel.tryLock();
-            if (fileLock == null) {
-               throw new IOException("Raw log file is already locked, cannot compress: " + from);
-            }
+			return null;
+		}
+	}
 
-            compress(fileChannel, to);
-            fileChannel.truncate(0L);
-         }
+	static void compress(Path from, Path to) throws IOException {
+		if (Files.exists(to)) {
+			throw new IOException("Compressed target file already exists: " + to);
+		}
+		else {
+			try (FileChannel fileChannel = FileChannel.open(from, StandardOpenOption.WRITE, StandardOpenOption.READ)) {
+				FileLock fileLock = fileChannel.tryLock();
+				if (fileLock == null) {
+					throw new IOException("Raw log file is already locked, cannot compress: " + from);
+				}
 
-         Files.delete(from);
-      }
-   }
+				compress(fileChannel, to);
+				fileChannel.truncate(0L);
+			}
 
-   private static void compress(ReadableByteChannel source, Path outputPath) throws IOException {
-      try (OutputStream outputStream = new GZIPOutputStream(Files.newOutputStream(outputPath))) {
-         byte[] bs = new byte[4096];
-         ByteBuffer byteBuffer = ByteBuffer.wrap(bs);
+			Files.delete(from);
+		}
+	}
 
-         while (source.read(byteBuffer) >= 0) {
-            byteBuffer.flip();
-            outputStream.write(bs, 0, byteBuffer.limit());
-            byteBuffer.clear();
-         }
-      }
-   }
+	private static void compress(ReadableByteChannel source, Path outputPath) throws IOException {
+		try (OutputStream outputStream = new GZIPOutputStream(Files.newOutputStream(outputPath))) {
+			byte[] bs = new byte[4096];
+			ByteBuffer byteBuffer = ByteBuffer.wrap(bs);
 
-   public LogFileCompressor.Uncompressed createLogFile(LocalDate date) throws IOException {
-      int i = 1;
-      Set<LogFileCompressor.LogId> set = this.getAll().toIdSet();
+			while (source.read(byteBuffer) >= 0) {
+				byteBuffer.flip();
+				outputStream.write(bs, 0, byteBuffer.limit());
+				byteBuffer.clear();
+			}
+		}
+	}
 
-      LogFileCompressor.LogId logId;
-      do {
-         logId = new LogFileCompressor.LogId(date, i++);
-      } while (set.contains(logId));
+	public LogFileCompressor.Uncompressed createLogFile(LocalDate date) throws IOException {
+		int i = 1;
+		Set<LogFileCompressor.LogId> set = this.getAll().toIdSet();
 
-      LogFileCompressor.Uncompressed uncompressed = new LogFileCompressor.Uncompressed(this.directory.resolve(logId.getFileName(this.extension)), logId);
-      Files.createFile(uncompressed.path());
-      return uncompressed;
-   }
+		LogFileCompressor.LogId logId;
+		do {
+			logId = new LogFileCompressor.LogId(date, i++);
+		}
+		while (set.contains(logId));
 
-   public record Compressed(Path path, LogFileCompressor.LogId id) implements LogFileCompressor.LogFile {
-      @Override
-      public @Nullable Reader getReader() throws IOException {
-         return !Files.exists(this.path)
-            ? null
-            : new BufferedReader(new InputStreamReader(new GZIPInputStream(Files.newInputStream(this.path)), StandardCharsets.UTF_8));
-      }
+		LogFileCompressor.Uncompressed
+				uncompressed =
+				new LogFileCompressor.Uncompressed(this.directory.resolve(logId.getFileName(this.extension)), logId);
+		Files.createFile(uncompressed.path());
+		return uncompressed;
+	}
 
-      @Override
-      public LogFileCompressor.Compressed compress() {
-         return this;
-      }
-   }
+	/**
+	 * {@code Compressed}.
+	 */
+	public record Compressed(Path path, LogFileCompressor.LogId id) implements LogFileCompressor.LogFile {
 
-   public interface LogFile {
-      Path path();
+		@Override
+		public @Nullable Reader getReader() throws IOException {
+			return !Files.exists(this.path)
+			       ? null
+			       : new BufferedReader(new InputStreamReader(
+					       new GZIPInputStream(Files.newInputStream(this.path)),
+					       StandardCharsets.UTF_8
+			       ));
+		}
 
-      LogFileCompressor.LogId id();
+		@Override
+		public LogFileCompressor.Compressed compress() {
+			return this;
+		}
+	}
 
-      @Nullable Reader getReader() throws IOException;
+	/**
+	 * {@code LogFile}.
+	 */
+	public interface LogFile {
 
-      LogFileCompressor.Compressed compress() throws IOException;
-   }
+		Path path();
 
-   public static class LogFileIterable implements Iterable<LogFileCompressor.LogFile> {
-      private final List<LogFileCompressor.LogFile> logs;
+		LogFileCompressor.LogId id();
 
-      LogFileIterable(List<LogFileCompressor.LogFile> logs) {
-         this.logs = new ArrayList<>(logs);
-      }
+		@Nullable Reader getReader() throws IOException;
 
-      public LogFileCompressor.LogFileIterable removeExpired(LocalDate currentDate, int retentionDays) {
-         this.logs.removeIf(log -> {
-            LogFileCompressor.LogId logId = log.id();
-            LocalDate localDate2 = logId.date().plusDays(retentionDays);
-            if (!currentDate.isBefore(localDate2)) {
-               try {
-                  Files.delete(log.path());
-                  return true;
-               } catch (IOException var6) {
-                  LogFileCompressor.LOGGER.warn("Failed to delete expired event log file: {}", log.path(), var6);
-               }
-            }
+		LogFileCompressor.Compressed compress() throws IOException;
+	}
 
-            return false;
-         });
-         return this;
-      }
+	/**
+	 * {@code LogFileIterable}.
+	 */
+	public static class LogFileIterable implements Iterable<LogFileCompressor.LogFile> {
 
-      public LogFileCompressor.LogFileIterable compressAll() {
-         ListIterator<LogFileCompressor.LogFile> listIterator = this.logs.listIterator();
+		private final List<LogFileCompressor.LogFile> logs;
 
-         while (listIterator.hasNext()) {
-            LogFileCompressor.LogFile logFile = listIterator.next();
+		LogFileIterable(List<LogFileCompressor.LogFile> logs) {
+			this.logs = new ArrayList<>(logs);
+		}
 
-            try {
-               listIterator.set(logFile.compress());
-            } catch (IOException var4) {
-               LogFileCompressor.LOGGER.warn("Failed to compress event log file: {}", logFile.path(), var4);
-            }
-         }
+		public LogFileCompressor.LogFileIterable removeExpired(LocalDate currentDate, int retentionDays) {
+			this.logs.removeIf(log -> {
+				LogFileCompressor.LogId logId = log.id();
+				LocalDate localDate2 = logId.date().plusDays(retentionDays);
+				if (!currentDate.isBefore(localDate2)) {
+					try {
+						Files.delete(log.path());
+						return true;
+					}
+					catch (IOException var6) {
+						LogFileCompressor.LOGGER.warn("Failed to delete expired event log file: {}", log.path(), var6);
+					}
+				}
 
-         return this;
-      }
+				return false;
+			});
+			return this;
+		}
 
-      @Override
-      public Iterator<LogFileCompressor.LogFile> iterator() {
-         return this.logs.iterator();
-      }
+		public LogFileCompressor.LogFileIterable compressAll() {
+			ListIterator<LogFileCompressor.LogFile> listIterator = this.logs.listIterator();
 
-      public Stream<LogFileCompressor.LogFile> stream() {
-         return this.logs.stream();
-      }
+			while (listIterator.hasNext()) {
+				LogFileCompressor.LogFile logFile = listIterator.next();
 
-      public Set<LogFileCompressor.LogId> toIdSet() {
-         return this.logs.stream().map(LogFileCompressor.LogFile::id).collect(Collectors.toSet());
-      }
-   }
+				try {
+					listIterator.set(logFile.compress());
+				}
+				catch (IOException var4) {
+					LogFileCompressor.LOGGER.warn("Failed to compress event log file: {}", logFile.path(), var4);
+				}
+			}
 
-   public record LogId(LocalDate date, int index) {
-      private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
+			return this;
+		}
 
-      public static LogFileCompressor.@Nullable LogId fromFileName(String fileName) {
-         int i = fileName.indexOf("-");
-         if (i == -1) {
-            return null;
-         } else {
-            String string = fileName.substring(0, i);
-            String string2 = fileName.substring(i + 1);
+		@Override
+		public Iterator<LogFileCompressor.LogFile> iterator() {
+			return this.logs.iterator();
+		}
 
-            try {
-               return new LogFileCompressor.LogId(LocalDate.parse(string, DATE_TIME_FORMATTER), Integer.parseInt(string2));
-            } catch (DateTimeParseException | NumberFormatException var5) {
-               return null;
-            }
-         }
-      }
+		public Stream<LogFileCompressor.LogFile> stream() {
+			return this.logs.stream();
+		}
 
-      @Override
-      public String toString() {
-         return DATE_TIME_FORMATTER.format(this.date) + "-" + this.index;
-      }
+		public Set<LogFileCompressor.LogId> toIdSet() {
+			return this.logs.stream().map(LogFileCompressor.LogFile::id).collect(Collectors.toSet());
+		}
+	}
 
-      public String getFileName(String extension) {
-         return this + extension;
-      }
-   }
+	/**
+	 * {@code LogId}.
+	 */
+	public record LogId(LocalDate date, int index) {
 
-   public record Uncompressed(Path path, LogFileCompressor.LogId id) implements LogFileCompressor.LogFile {
-      public FileChannel open() throws IOException {
-         return FileChannel.open(this.path, StandardOpenOption.WRITE, StandardOpenOption.READ);
-      }
+		private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
 
-      @Override
-      public @Nullable Reader getReader() throws IOException {
-         return Files.exists(this.path) ? Files.newBufferedReader(this.path) : null;
-      }
+		public static LogFileCompressor.@Nullable LogId fromFileName(String fileName) {
+			int i = fileName.indexOf("-");
+			if (i == -1) {
+				return null;
+			}
+			else {
+				String string = fileName.substring(0, i);
+				String string2 = fileName.substring(i + 1);
 
-      @Override
-      public LogFileCompressor.Compressed compress() throws IOException {
-         Path path = this.path.resolveSibling(this.path.getFileName().toString() + ".gz");
-         LogFileCompressor.compress(this.path, path);
-         return new LogFileCompressor.Compressed(path, this.id);
-      }
-   }
+				try {
+					return new LogFileCompressor.LogId(
+							LocalDate.parse(string, DATE_TIME_FORMATTER),
+							Integer.parseInt(string2)
+					);
+				}
+				catch (DateTimeParseException | NumberFormatException var5) {
+					return null;
+				}
+			}
+		}
+
+		@Override
+		public String toString() {
+			return DATE_TIME_FORMATTER.format(this.date) + "-" + this.index;
+		}
+
+		public String getFileName(String extension) {
+			return this + extension;
+		}
+	}
+
+	/**
+	 * {@code Uncompressed}.
+	 */
+	public record Uncompressed(Path path, LogFileCompressor.LogId id) implements LogFileCompressor.LogFile {
+
+		public FileChannel open() throws IOException {
+			return FileChannel.open(this.path, StandardOpenOption.WRITE, StandardOpenOption.READ);
+		}
+
+		@Override
+		public @Nullable Reader getReader() throws IOException {
+			return Files.exists(this.path) ? Files.newBufferedReader(this.path) : null;
+		}
+
+		@Override
+		public LogFileCompressor.Compressed compress() throws IOException {
+			Path path = this.path.resolveSibling(this.path.getFileName().toString() + ".gz");
+			LogFileCompressor.compress(this.path, path);
+			return new LogFileCompressor.Compressed(path, this.id);
+		}
+	}
 }

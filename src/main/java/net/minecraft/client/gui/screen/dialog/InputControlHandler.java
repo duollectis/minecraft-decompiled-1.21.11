@@ -9,12 +9,20 @@ import net.minecraft.dialog.input.InputControl;
 
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
+/**
+ * {@code InputControlHandler}.
+ */
 public interface InputControlHandler<T extends InputControl> {
-   void addControl(T inputControl, Screen screen, InputControlHandler.Output output);
 
-   @FunctionalInterface
-   @Environment(EnvType.CLIENT)
-   public interface Output {
-      void accept(Widget widget, DialogAction.ValueGetter valueGetter);
-   }
+	void addControl(T inputControl, Screen screen, InputControlHandler.Output output);
+
+	@FunctionalInterface
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Output}.
+	 */
+	public interface Output {
+
+		void accept(Widget widget, DialogAction.ValueGetter valueGetter);
+	}
 }

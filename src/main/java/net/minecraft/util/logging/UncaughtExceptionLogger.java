@@ -2,15 +2,19 @@ package net.minecraft.util.logging;
 
 import org.slf4j.Logger;
 
+/**
+ * {@code UncaughtExceptionLogger}.
+ */
 public class UncaughtExceptionLogger implements java.lang.Thread.UncaughtExceptionHandler {
-   private final Logger logger;
 
-   public UncaughtExceptionLogger(Logger logger) {
-      this.logger = logger;
-   }
+	private final Logger logger;
 
-   @Override
-   public void uncaughtException(Thread thread, Throwable throwable) {
-      this.logger.error("Caught previously unhandled exception :", throwable);
-   }
+	public UncaughtExceptionLogger(Logger logger) {
+		this.logger = logger;
+	}
+
+	@Override
+	public void uncaughtException(Thread thread, Throwable throwable) {
+		this.logger.error("Caught previously unhandled exception :", throwable);
+	}
 }

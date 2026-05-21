@@ -9,43 +9,51 @@ import net.minecraft.client.render.VertexConsumer;
 import org.joml.Matrix4f;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TextDrawable}.
+ */
 public interface TextDrawable {
-   void render(Matrix4f matrix4f, VertexConsumer consumer, int light, boolean noDepth);
 
-   RenderLayer getRenderLayer(TextRenderer.TextLayerType type);
+	void render(Matrix4f matrix4f, VertexConsumer consumer, int light, boolean noDepth);
 
-   GpuTextureView textureView();
+	RenderLayer getRenderLayer(TextRenderer.TextLayerType type);
 
-   RenderPipeline getPipeline();
+	GpuTextureView textureView();
 
-   float getEffectiveMinX();
+	RenderPipeline getPipeline();
 
-   float getEffectiveMinY();
+	float getEffectiveMinX();
 
-   float getEffectiveMaxX();
+	float getEffectiveMinY();
 
-   float getEffectiveMaxY();
+	float getEffectiveMaxX();
 
-   @Environment(EnvType.CLIENT)
-   public interface DrawnGlyphRect extends GlyphRect, TextDrawable {
-      @Override
-      default float getLeft() {
-         return this.getEffectiveMinX();
-      }
+	float getEffectiveMaxY();
 
-      @Override
-      default float getTop() {
-         return this.getEffectiveMinY();
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code DrawnGlyphRect}.
+	 */
+	public interface DrawnGlyphRect extends GlyphRect, TextDrawable {
 
-      @Override
-      default float getRight() {
-         return this.getEffectiveMaxX();
-      }
+		@Override
+		default float getLeft() {
+			return this.getEffectiveMinX();
+		}
 
-      @Override
-      default float getBottom() {
-         return this.getEffectiveMaxY();
-      }
-   }
+		@Override
+		default float getTop() {
+			return this.getEffectiveMinY();
+		}
+
+		@Override
+		default float getRight() {
+			return this.getEffectiveMaxX();
+		}
+
+		@Override
+		default float getBottom() {
+			return this.getEffectiveMaxY();
+		}
+	}
 }

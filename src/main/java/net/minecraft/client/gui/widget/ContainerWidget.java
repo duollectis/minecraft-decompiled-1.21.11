@@ -11,72 +11,76 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ContainerWidget}.
+ */
 public abstract class ContainerWidget extends ScrollableWidget implements ParentElement {
-   private @Nullable Element focusedElement;
-   private boolean dragging;
 
-   public ContainerWidget(int i, int j, int k, int l, Text text) {
-      super(i, j, k, l, text);
-   }
+	private @Nullable Element focusedElement;
+	private boolean dragging;
 
-   @Override
-   public final boolean isDragging() {
-      return this.dragging;
-   }
+	public ContainerWidget(int i, int j, int k, int l, Text text) {
+		super(i, j, k, l, text);
+	}
 
-   @Override
-   public final void setDragging(boolean dragging) {
-      this.dragging = dragging;
-   }
+	@Override
+	public final boolean isDragging() {
+		return this.dragging;
+	}
 
-   @Override
-   public @Nullable Element getFocused() {
-      return this.focusedElement;
-   }
+	@Override
+	public final void setDragging(boolean dragging) {
+		this.dragging = dragging;
+	}
 
-   @Override
-   public void setFocused(@Nullable Element focused) {
-      if (this.focusedElement != null) {
-         this.focusedElement.setFocused(false);
-      }
+	@Override
+	public @Nullable Element getFocused() {
+		return this.focusedElement;
+	}
 
-      if (focused != null) {
-         focused.setFocused(true);
-      }
+	@Override
+	public void setFocused(@Nullable Element focused) {
+		if (this.focusedElement != null) {
+			this.focusedElement.setFocused(false);
+		}
 
-      this.focusedElement = focused;
-   }
+		if (focused != null) {
+			focused.setFocused(true);
+		}
 
-   @Override
-   public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-      return ParentElement.super.getNavigationPath(navigation);
-   }
+		this.focusedElement = focused;
+	}
 
-   @Override
-   public boolean mouseClicked(Click click, boolean doubled) {
-      boolean bl = this.checkScrollbarDragged(click);
-      return ParentElement.super.mouseClicked(click, doubled) || bl;
-   }
+	@Override
+	public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+		return ParentElement.super.getNavigationPath(navigation);
+	}
 
-   @Override
-   public boolean mouseReleased(Click click) {
-      super.mouseReleased(click);
-      return ParentElement.super.mouseReleased(click);
-   }
+	@Override
+	public boolean mouseClicked(Click click, boolean doubled) {
+		boolean bl = this.checkScrollbarDragged(click);
+		return ParentElement.super.mouseClicked(click, doubled) || bl;
+	}
 
-   @Override
-   public boolean mouseDragged(Click click, double offsetX, double offsetY) {
-      super.mouseDragged(click, offsetX, offsetY);
-      return ParentElement.super.mouseDragged(click, offsetX, offsetY);
-   }
+	@Override
+	public boolean mouseReleased(Click click) {
+		super.mouseReleased(click);
+		return ParentElement.super.mouseReleased(click);
+	}
 
-   @Override
-   public boolean isFocused() {
-      return ParentElement.super.isFocused();
-   }
+	@Override
+	public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+		super.mouseDragged(click, offsetX, offsetY);
+		return ParentElement.super.mouseDragged(click, offsetX, offsetY);
+	}
 
-   @Override
-   public void setFocused(boolean focused) {
-      ParentElement.super.setFocused(focused);
-   }
+	@Override
+	public boolean isFocused() {
+		return ParentElement.super.isFocused();
+	}
+
+	@Override
+	public void setFocused(boolean focused) {
+		ParentElement.super.setFocused(focused);
+	}
 }

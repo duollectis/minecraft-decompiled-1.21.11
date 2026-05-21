@@ -1,101 +1,107 @@
 package net.minecraft.entity.ai.goal;
 
-import java.util.EnumSet;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+
+/**
+ * {@code PrioritizedGoal}.
+ */
 public class PrioritizedGoal extends Goal {
-   private final Goal goal;
-   private final int priority;
-   private boolean running;
 
-   public PrioritizedGoal(int priority, Goal goal) {
-      this.priority = priority;
-      this.goal = goal;
-   }
+	private final Goal goal;
+	private final int priority;
+	private boolean running;
 
-   public boolean canBeReplacedBy(PrioritizedGoal goal) {
-      return this.canStop() && goal.getPriority() < this.getPriority();
-   }
+	public PrioritizedGoal(int priority, Goal goal) {
+		this.priority = priority;
+		this.goal = goal;
+	}
 
-   @Override
-   public boolean canStart() {
-      return this.goal.canStart();
-   }
+	public boolean canBeReplacedBy(PrioritizedGoal goal) {
+		return this.canStop() && goal.getPriority() < this.getPriority();
+	}
 
-   @Override
-   public boolean shouldContinue() {
-      return this.goal.shouldContinue();
-   }
+	@Override
+	public boolean canStart() {
+		return this.goal.canStart();
+	}
 
-   @Override
-   public boolean canStop() {
-      return this.goal.canStop();
-   }
+	@Override
+	public boolean shouldContinue() {
+		return this.goal.shouldContinue();
+	}
 
-   @Override
-   public void start() {
-      if (!this.running) {
-         this.running = true;
-         this.goal.start();
-      }
-   }
+	@Override
+	public boolean canStop() {
+		return this.goal.canStop();
+	}
 
-   @Override
-   public void stop() {
-      if (this.running) {
-         this.running = false;
-         this.goal.stop();
-      }
-   }
+	@Override
+	public void start() {
+		if (!this.running) {
+			this.running = true;
+			this.goal.start();
+		}
+	}
 
-   @Override
-   public boolean shouldRunEveryTick() {
-      return this.goal.shouldRunEveryTick();
-   }
+	@Override
+	public void stop() {
+		if (this.running) {
+			this.running = false;
+			this.goal.stop();
+		}
+	}
 
-   @Override
-   protected int getTickCount(int ticks) {
-      return this.goal.getTickCount(ticks);
-   }
+	@Override
+	public boolean shouldRunEveryTick() {
+		return this.goal.shouldRunEveryTick();
+	}
 
-   @Override
-   public void tick() {
-      this.goal.tick();
-   }
+	@Override
+	protected int getTickCount(int ticks) {
+		return this.goal.getTickCount(ticks);
+	}
 
-   @Override
-   public void setControls(EnumSet<Goal.Control> controls) {
-      this.goal.setControls(controls);
-   }
+	@Override
+	public void tick() {
+		this.goal.tick();
+	}
 
-   @Override
-   public EnumSet<Goal.Control> getControls() {
-      return this.goal.getControls();
-   }
+	@Override
+	public void setControls(EnumSet<Goal.Control> controls) {
+		this.goal.setControls(controls);
+	}
 
-   public boolean isRunning() {
-      return this.running;
-   }
+	@Override
+	public EnumSet<Goal.Control> getControls() {
+		return this.goal.getControls();
+	}
 
-   public int getPriority() {
-      return this.priority;
-   }
+	public boolean isRunning() {
+		return this.running;
+	}
 
-   public Goal getGoal() {
-      return this.goal;
-   }
+	public int getPriority() {
+		return this.priority;
+	}
 
-   @Override
-   public boolean equals(@Nullable Object o) {
-      if (this == o) {
-         return true;
-      } else {
-         return o != null && this.getClass() == o.getClass() ? this.goal.equals(((PrioritizedGoal)o).goal) : false;
-      }
-   }
+	public Goal getGoal() {
+		return this.goal;
+	}
 
-   @Override
-   public int hashCode() {
-      return this.goal.hashCode();
-   }
+	@Override
+	public boolean equals(@Nullable Object o) {
+		if (this == o) {
+			return true;
+		}
+		else {
+			return o != null && this.getClass() == o.getClass() ? this.goal.equals(((PrioritizedGoal) o).goal) : false;
+		}
+	}
+
+	@Override
+	public int hashCode() {
+		return this.goal.hashCode();
+	}
 }

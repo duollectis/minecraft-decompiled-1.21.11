@@ -4,8 +4,6 @@ import com.mojang.datafixers.Products.P3;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder.Instance;
 import com.mojang.serialization.codecs.RecordCodecBuilder.Mu;
-import java.util.Optional;
-import java.util.function.BiConsumer;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.BlockState;
 import net.minecraft.registry.Registries;
@@ -19,59 +17,98 @@ import net.minecraft.world.gen.feature.TreeFeature;
 import net.minecraft.world.gen.feature.TreeFeatureConfig;
 import net.minecraft.world.gen.stateprovider.BlockStateProvider;
 
+import java.util.Optional;
+import java.util.function.BiConsumer;
+
+/**
+ * {@code RootPlacer}.
+ */
 public abstract class RootPlacer {
-   public static final Codec<RootPlacer> TYPE_CODEC = Registries.ROOT_PLACER_TYPE.getCodec().dispatch(RootPlacer::getType, RootPlacerType::getCodec);
-   protected final IntProvider trunkOffsetY;
-   protected final BlockStateProvider rootProvider;
-   protected final Optional<AboveRootPlacement> aboveRootPlacement;
 
-   protected static <P extends RootPlacer> P3<Mu<P>, IntProvider, BlockStateProvider, Optional<AboveRootPlacement>> createCodecParts(Instance<P> instance) {
-      return instance.group(
-         IntProvider.VALUE_CODEC.fieldOf("trunk_offset_y").forGetter(rootPlacer -> rootPlacer.trunkOffsetY),
-         BlockStateProvider.TYPE_CODEC.fieldOf("root_provider").forGetter(rootPlacer -> rootPlacer.rootProvider),
-         AboveRootPlacement.CODEC.optionalFieldOf("above_root_placement").forGetter(rootPlacer -> rootPlacer.aboveRootPlacement)
-      );
-   }
+	public static final Codec<RootPlacer>
+			TYPE_CODEC =
+			Registries.ROOT_PLACER_TYPE.getCodec().dispatch(RootPlacer::getType, RootPlacerType::getCodec);
+	protected final IntProvider trunkOffsetY;
+	protected final BlockStateProvider rootProvider;
+	protected final Optional<AboveRootPlacement> aboveRootPlacement;
 
-   public RootPlacer(IntProvider trunkOffsetY, BlockStateProvider rootProvider, Optional<AboveRootPlacement> aboveRootPlacement) {
-      this.trunkOffsetY = trunkOffsetY;
-      this.rootProvider = rootProvider;
-      this.aboveRootPlacement = aboveRootPlacement;
-   }
+	protected static <P extends RootPlacer> P3<Mu<P>, IntProvider, BlockStateProvider, Optional<AboveRootPlacement>> createCodecParts(
+			Instance<P> instance
+	) {
+		return instance.group(
+				IntProvider.VALUE_CODEC.fieldOf("trunk_offset_y").forGetter(rootPlacer -> rootPlacer.trunkOffsetY),
+				BlockStateProvider.TYPE_CODEC.fieldOf("root_provider").forGetter(rootPlacer -> rootPlacer.rootProvider),
+				AboveRootPlacement.CODEC
+						.optionalFieldOf("above_root_placement")
+						.forGetter(rootPlacer -> rootPlacer.aboveRootPlacement)
+		);
+	}
 
-   protected abstract RootPlacerType<?> getType();
+	public RootPlacer(
+			IntProvider trunkOffsetY,
+			BlockStateProvider rootProvider,
+			Optional<AboveRootPlacement> aboveRootPlacement
+	) {
+		this.trunkOffsetY = trunkOffsetY;
+		this.rootProvider = rootProvider;
+		this.aboveRootPlacement = aboveRootPlacement;
+	}
 
-   public abstract boolean generate(
-      TestableWorld world, BiConsumer<BlockPos, BlockState> replacer, Random random, BlockPos pos, BlockPos trunkPos, TreeFeatureConfig config
-   );
+	protected abstract RootPlacerType<?> getType();
 
-   protected boolean canGrowThrough(TestableWorld world, BlockPos pos) {
-      return TreeFeature.canReplace(world, pos);
-   }
+	public abstract boolean generate(
+			TestableWorld world,
+			BiConsumer<BlockPos, BlockState> replacer,
+			Random random,
+			BlockPos pos,
+			BlockPos trunkPos,
+			TreeFeatureConfig config
+	);
 
-   protected void placeRoots(TestableWorld world, BiConsumer<BlockPos, BlockState> replacer, Random random, BlockPos pos, TreeFeatureConfig config) {
-      if (this.canGrowThrough(world, pos)) {
-         replacer.accept(pos, this.applyWaterlogging(world, pos, this.rootProvider.get(random, pos)));
-         if (this.aboveRootPlacement.isPresent()) {
-            AboveRootPlacement aboveRootPlacement = this.aboveRootPlacement.get();
-            BlockPos blockPos = pos.up();
-            if (random.nextFloat() < aboveRootPlacement.aboveRootPlacementChance() && world.testBlockState(blockPos, AbstractBlock.AbstractBlockState::isAir)) {
-               replacer.accept(blockPos, this.applyWaterlogging(world, blockPos, aboveRootPlacement.aboveRootProvider().get(random, blockPos)));
-            }
-         }
-      }
-   }
+	protected boolean canGrowThrough(TestableWorld world, BlockPos pos) {
+		return TreeFeature.canReplace(world, pos);
+	}
 
-   protected BlockState applyWaterlogging(TestableWorld world, BlockPos pos, BlockState state) {
-      if (state.contains(Properties.WATERLOGGED)) {
-         boolean bl = world.testFluidState(pos, fluidState -> fluidState.isIn(FluidTags.WATER));
-         return state.with(Properties.WATERLOGGED, bl);
-      } else {
-         return state;
-      }
-   }
+	protected void placeRoots(
+			TestableWorld world,
+			BiConsumer<BlockPos, BlockState> replacer,
+			Random random,
+			BlockPos pos,
+			TreeFeatureConfig config
+	) {
+		if (this.canGrowThrough(world, pos)) {
+			replacer.accept(pos, this.applyWaterlogging(world, pos, this.rootProvider.get(random, pos)));
+			if (this.aboveRootPlacement.isPresent()) {
+				AboveRootPlacement aboveRootPlacement = this.aboveRootPlacement.get();
+				BlockPos blockPos = pos.up();
+				if (random.nextFloat() < aboveRootPlacement.aboveRootPlacementChance() && world.testBlockState(
+						blockPos,
+						AbstractBlock.AbstractBlockState::isAir
+				)) {
+					replacer.accept(
+							blockPos,
+							this.applyWaterlogging(
+									world,
+									blockPos,
+									aboveRootPlacement.aboveRootProvider().get(random, blockPos)
+							)
+					);
+				}
+			}
+		}
+	}
 
-   public BlockPos trunkOffset(BlockPos pos, Random random) {
-      return pos.up(this.trunkOffsetY.get(random));
-   }
+	protected BlockState applyWaterlogging(TestableWorld world, BlockPos pos, BlockState state) {
+		if (state.contains(Properties.WATERLOGGED)) {
+			boolean bl = world.testFluidState(pos, fluidState -> fluidState.isIn(FluidTags.WATER));
+			return state.with(Properties.WATERLOGGED, bl);
+		}
+		else {
+			return state;
+		}
+	}
+
+	public BlockPos trunkOffset(BlockPos pos, Random random) {
+		return pos.up(this.trunkOffsetY.get(random));
+	}
 }

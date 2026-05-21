@@ -1,18 +1,7 @@
 package net.minecraft.registry;
 
 import com.mojang.datafixers.DataFixUtils;
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.DynamicOps;
-import com.mojang.serialization.Keyable;
-import com.mojang.serialization.Lifecycle;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.Map.Entry;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import com.mojang.serialization.*;
 import net.fabricmc.fabric.api.event.registry.FabricRegistry;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryInfo;
@@ -25,155 +14,188 @@ import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+/**
+ * {@code Registry}.
+ */
 public interface Registry<T> extends Keyable, RegistryWrapper.Impl<T>, IndexedIterable<T>, FabricRegistry {
-   @Override
-   RegistryKey<? extends Registry<T>> getKey();
 
-   default Codec<T> getCodec() {
-      return this.getReferenceEntryCodec().flatComapMap(RegistryEntry.Reference::value, value -> this.validateReference(this.getEntry((T)value)));
-   }
+	@Override
+	RegistryKey<? extends Registry<T>> getKey();
 
-   default Codec<RegistryEntry<T>> getEntryCodec() {
-      return this.getReferenceEntryCodec().flatComapMap(entry -> entry, this::validateReference);
-   }
+	default Codec<T> getCodec() {
+		return this
+				.getReferenceEntryCodec()
+				.flatComapMap(
+						RegistryEntry.Reference::value,
+						value -> this.validateReference(this.getEntry((T) value))
+				);
+	}
 
-   private Codec<RegistryEntry.Reference<T>> getReferenceEntryCodec() {
-      Codec<RegistryEntry.Reference<T>> codec = Identifier.CODEC
-         .comapFlatMap(
-            id -> this.getEntry(id)
-               .map(DataResult::success)
-               .orElseGet(() -> DataResult.error(() -> "Unknown registry key in " + this.getKey() + ": " + id)),
-            entry -> entry.getKey().orElseThrow().getValue()
-         );
-      return Codecs.withLifecycle(codec, entry -> this.getEntryInfo(entry.getKey().orElseThrow()).map(RegistryEntryInfo::lifecycle).orElse(Lifecycle.experimental()));
-   }
+	default Codec<RegistryEntry<T>> getEntryCodec() {
+		return this.getReferenceEntryCodec().flatComapMap(entry -> entry, this::validateReference);
+	}
 
-   private DataResult<RegistryEntry.Reference<T>> validateReference(RegistryEntry<T> entry) {
-      return entry instanceof RegistryEntry.Reference<T> reference
-         ? DataResult.success(reference)
-         : DataResult.error(() -> "Unregistered holder in " + this.getKey() + ": " + entry);
-   }
+	private Codec<RegistryEntry.Reference<T>> getReferenceEntryCodec() {
+		Codec<RegistryEntry.Reference<T>> codec = Identifier.CODEC
+				.comapFlatMap(
+						id -> this.getEntry(id)
+						          .map(DataResult::success)
+						          .orElseGet(() -> DataResult.error(() -> "Unknown registry key in " + this.getKey()
+								          + ": " + id)),
+						entry -> entry.getKey().orElseThrow().getValue()
+				);
+		return Codecs.withLifecycle(
+				codec,
+				entry -> this
+						.getEntryInfo(entry.getKey().orElseThrow())
+						.map(RegistryEntryInfo::lifecycle)
+						.orElse(Lifecycle.experimental())
+		);
+	}
 
-   default <U> Stream<U> keys(DynamicOps<U> ops) {
-      return this.getIds().stream().map(id -> (U)ops.createString(id.toString()));
-   }
+	private DataResult<RegistryEntry.Reference<T>> validateReference(RegistryEntry<T> entry) {
+		return entry instanceof RegistryEntry.Reference<T> reference
+		       ? DataResult.success(reference)
+		       : DataResult.error(() -> "Unregistered holder in " + this.getKey() + ": " + entry);
+	}
 
-   @Nullable Identifier getId(T value);
+	default <U> Stream<U> keys(DynamicOps<U> ops) {
+		return this.getIds().stream().map(id -> (U) ops.createString(id.toString()));
+	}
 
-   Optional<RegistryKey<T>> getKey(T entry);
+	@Nullable Identifier getId(T value);
 
-   @Override
-   int getRawId(@Nullable T value);
+	Optional<RegistryKey<T>> getKey(T entry);
 
-   @Nullable T get(@Nullable RegistryKey<T> key);
+	@Override
+	int getRawId(@Nullable T value);
 
-   @Nullable T get(@Nullable Identifier id);
+	@Nullable T get(@Nullable RegistryKey<T> key);
 
-   Optional<RegistryEntryInfo> getEntryInfo(RegistryKey<T> key);
+	@Nullable T get(@Nullable Identifier id);
 
-   default Optional<T> getOptionalValue(@Nullable Identifier id) {
-      return Optional.ofNullable(this.get(id));
-   }
+	Optional<RegistryEntryInfo> getEntryInfo(RegistryKey<T> key);
 
-   default Optional<T> getOptionalValue(@Nullable RegistryKey<T> key) {
-      return Optional.ofNullable(this.get(key));
-   }
+	default Optional<T> getOptionalValue(@Nullable Identifier id) {
+		return Optional.ofNullable(this.get(id));
+	}
 
-   Optional<RegistryEntry.Reference<T>> getDefaultEntry();
+	default Optional<T> getOptionalValue(@Nullable RegistryKey<T> key) {
+		return Optional.ofNullable(this.get(key));
+	}
 
-   default T getValueOrThrow(RegistryKey<T> key) {
-      T object = this.get(key);
-      if (object == null) {
-         throw new IllegalStateException("Missing key in " + this.getKey() + ": " + key);
-      } else {
-         return object;
-      }
-   }
+	Optional<RegistryEntry.Reference<T>> getDefaultEntry();
 
-   Set<Identifier> getIds();
+	default T getValueOrThrow(RegistryKey<T> key) {
+		T object = this.get(key);
+		if (object == null) {
+			throw new IllegalStateException("Missing key in " + this.getKey() + ": " + key);
+		}
+		else {
+			return object;
+		}
+	}
 
-   Set<Entry<RegistryKey<T>, T>> getEntrySet();
+	Set<Identifier> getIds();
 
-   Set<RegistryKey<T>> getKeys();
+	Set<Entry<RegistryKey<T>, T>> getEntrySet();
 
-   Optional<RegistryEntry.Reference<T>> getRandom(Random random);
+	Set<RegistryKey<T>> getKeys();
 
-   default Stream<T> stream() {
-      return StreamSupport.stream(this.spliterator(), false);
-   }
+	Optional<RegistryEntry.Reference<T>> getRandom(Random random);
 
-   boolean containsId(Identifier id);
+	default Stream<T> stream() {
+		return StreamSupport.stream(this.spliterator(), false);
+	}
 
-   boolean contains(RegistryKey<T> key);
+	boolean containsId(Identifier id);
 
-   static <T> T register(Registry<? super T> registry, String id, T entry) {
-      return register(registry, Identifier.of(id), entry);
-   }
+	boolean contains(RegistryKey<T> key);
 
-   static <V, T extends V> T register(Registry<V> registry, Identifier id, T entry) {
-      return register(registry, RegistryKey.of(registry.getKey(), id), entry);
-   }
+	static <T> T register(Registry<? super T> registry, String id, T entry) {
+		return register(registry, Identifier.of(id), entry);
+	}
 
-   static <V, T extends V> T register(Registry<V> registry, RegistryKey<V> key, T entry) {
-      ((MutableRegistry)registry).add(key, (V)entry, RegistryEntryInfo.DEFAULT);
-      return entry;
-   }
+	static <V, T extends V> T register(Registry<V> registry, Identifier id, T entry) {
+		return register(registry, RegistryKey.of(registry.getKey(), id), entry);
+	}
 
-   static <R, T extends R> RegistryEntry.Reference<T> registerReference(Registry<R> registry, RegistryKey<R> key, T entry) {
-      return ((MutableRegistry)registry).add(key, (R)entry, RegistryEntryInfo.DEFAULT);
-   }
+	static <V, T extends V> T register(Registry<V> registry, RegistryKey<V> key, T entry) {
+		((MutableRegistry) registry).add(key, (V) entry, RegistryEntryInfo.DEFAULT);
+		return entry;
+	}
 
-   static <R, T extends R> RegistryEntry.Reference<T> registerReference(Registry<R> registry, Identifier id, T entry) {
-      return registerReference(registry, RegistryKey.of(registry.getKey(), id), entry);
-   }
+	static <R, T extends R> RegistryEntry.Reference<T> registerReference(
+			Registry<R> registry,
+			RegistryKey<R> key,
+			T entry
+	) {
+		return ((MutableRegistry) registry).add(key, (R) entry, RegistryEntryInfo.DEFAULT);
+	}
 
-   Registry<T> freeze();
+	static <R, T extends R> RegistryEntry.Reference<T> registerReference(Registry<R> registry, Identifier id, T entry) {
+		return registerReference(registry, RegistryKey.of(registry.getKey(), id), entry);
+	}
 
-   RegistryEntry.Reference<T> createEntry(T value);
+	Registry<T> freeze();
 
-   Optional<RegistryEntry.Reference<T>> getEntry(int rawId);
+	RegistryEntry.Reference<T> createEntry(T value);
 
-   Optional<RegistryEntry.Reference<T>> getEntry(Identifier id);
+	Optional<RegistryEntry.Reference<T>> getEntry(int rawId);
 
-   RegistryEntry<T> getEntry(T value);
+	Optional<RegistryEntry.Reference<T>> getEntry(Identifier id);
 
-   default Iterable<RegistryEntry<T>> iterateEntries(TagKey<T> tag) {
-      return (Iterable<RegistryEntry<T>>)DataFixUtils.orElse(this.getOptional(tag), List.of());
-   }
+	RegistryEntry<T> getEntry(T value);
 
-   Stream<RegistryEntryList.Named<T>> streamTags();
+	default Iterable<RegistryEntry<T>> iterateEntries(TagKey<T> tag) {
+		return (Iterable<RegistryEntry<T>>) DataFixUtils.orElse(this.getOptional(tag), List.of());
+	}
 
-   default IndexedIterable<RegistryEntry<T>> getIndexedEntries() {
-      return new IndexedIterable<RegistryEntry<T>>() {
-         public int getRawId(RegistryEntry<T> registryEntry) {
-            return Registry.this.getRawId(registryEntry.value());
-         }
+	Stream<RegistryEntryList.Named<T>> streamTags();
 
-         public @Nullable RegistryEntry<T> get(int i) {
-            return (RegistryEntry<T>)Registry.this.getEntry(i).orElse(null);
-         }
+	default IndexedIterable<RegistryEntry<T>> getIndexedEntries() {
+		return new IndexedIterable<RegistryEntry<T>>() {
+			public int getRawId(RegistryEntry<T> registryEntry) {
+				return Registry.this.getRawId(registryEntry.value());
+			}
 
-         @Override
-         public int size() {
-            return Registry.this.size();
-         }
+			public @Nullable RegistryEntry<T> get(int i) {
+				return (RegistryEntry<T>) Registry.this.getEntry(i).orElse(null);
+			}
 
-         @Override
-         public Iterator<RegistryEntry<T>> iterator() {
-            return Registry.this.streamEntries().map(entry -> (RegistryEntry<T>)entry).iterator();
-         }
-      };
-   }
+			@Override
+			public int size() {
+				return Registry.this.size();
+			}
 
-   Registry.PendingTagLoad<T> startTagReload(TagGroupLoader.RegistryTags<T> tags);
+			@Override
+			public Iterator<RegistryEntry<T>> iterator() {
+				return Registry.this.streamEntries().map(entry -> (RegistryEntry<T>) entry).iterator();
+			}
+		};
+	}
 
-   public interface PendingTagLoad<T> {
-      RegistryKey<? extends Registry<? extends T>> getKey();
+	Registry.PendingTagLoad<T> startTagReload(TagGroupLoader.RegistryTags<T> tags);
 
-      RegistryWrapper.Impl<T> getLookup();
+	/**
+	 * {@code PendingTagLoad}.
+	 */
+	public interface PendingTagLoad<T> {
 
-      void apply();
+		RegistryKey<? extends Registry<? extends T>> getKey();
 
-      int size();
-   }
+		RegistryWrapper.Impl<T> getLookup();
+
+		void apply();
+
+		int size();
+	}
 }

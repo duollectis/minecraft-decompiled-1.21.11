@@ -13,126 +13,140 @@ import net.minecraft.util.profiler.Profilers;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code NautilusEntity}.
+ */
 public class NautilusEntity extends AbstractNautilusEntity {
-   private static final int MAX_AIR = 300;
 
-   public NautilusEntity(EntityType<? extends NautilusEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final int MAX_AIR = 300;
 
-   @Override
-   protected Brain.Profile<NautilusEntity> createBrainProfile() {
-      return NautilusBrain.createProfile();
-   }
+	public NautilusEntity(EntityType<? extends NautilusEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
-      return NautilusBrain.create(this.createBrainProfile().deserialize(dynamic));
-   }
+	@Override
+	protected Brain.Profile<NautilusEntity> createBrainProfile() {
+		return NautilusBrain.createProfile();
+	}
 
-   @Override
-   public Brain<NautilusEntity> getBrain() {
-      return (Brain<NautilusEntity>)super.getBrain();
-   }
+	@Override
+	protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
+		return NautilusBrain.create(this.createBrainProfile().deserialize(dynamic));
+	}
 
-   public @Nullable NautilusEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-      NautilusEntity nautilusEntity = EntityType.NAUTILUS.create(serverWorld, SpawnReason.BREEDING);
-      if (nautilusEntity != null && this.isTamed()) {
-         nautilusEntity.setOwner(this.getOwnerReference());
-         nautilusEntity.setTamed(true, true);
-      }
+	@Override
+	public Brain<NautilusEntity> getBrain() {
+		return (Brain<NautilusEntity>) super.getBrain();
+	}
 
-      return nautilusEntity;
-   }
+	public @Nullable NautilusEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
+		NautilusEntity nautilusEntity = EntityType.NAUTILUS.create(serverWorld, SpawnReason.BREEDING);
+		if (nautilusEntity != null && this.isTamed()) {
+			nautilusEntity.setOwner(this.getOwnerReference());
+			nautilusEntity.setTamed(true, true);
+		}
 
-   @Override
-   protected void mobTick(ServerWorld world) {
-      Profiler profiler = Profilers.get();
-      profiler.push("nautilusBrain");
-      this.getBrain().tick(world, this);
-      profiler.pop();
-      profiler.push("nautilusActivityUpdate");
-      NautilusBrain.updateActivities(this);
-      profiler.pop();
-      super.mobTick(world);
-   }
+		return nautilusEntity;
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      if (this.isBaby()) {
-         return this.isSubmergedInWater() ? SoundEvents.ENTITY_BABY_NAUTILUS_AMBIENT : SoundEvents.ENTITY_BABY_NAUTILUS_AMBIENT_LAND;
-      } else {
-         return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_AMBIENT : SoundEvents.ENTITY_NAUTILUS_AMBIENT_LAND;
-      }
-   }
+	@Override
+	protected void mobTick(ServerWorld world) {
+		Profiler profiler = Profilers.get();
+		profiler.push("nautilusBrain");
+		this.getBrain().tick(world, this);
+		profiler.pop();
+		profiler.push("nautilusActivityUpdate");
+		NautilusBrain.updateActivities(this);
+		profiler.pop();
+		super.mobTick(world);
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      if (this.isBaby()) {
-         return this.isSubmergedInWater() ? SoundEvents.ENTITY_BABY_NAUTILUS_HURT : SoundEvents.ENTITY_BABY_NAUTILUS_HURT_LAND;
-      } else {
-         return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_HURT : SoundEvents.ENTITY_NAUTILUS_HURT_LAND;
-      }
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		if (this.isBaby()) {
+			return this.isSubmergedInWater() ? SoundEvents.ENTITY_BABY_NAUTILUS_AMBIENT
+			                                 : SoundEvents.ENTITY_BABY_NAUTILUS_AMBIENT_LAND;
+		}
+		else {
+			return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_AMBIENT
+			                                 : SoundEvents.ENTITY_NAUTILUS_AMBIENT_LAND;
+		}
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      if (this.isBaby()) {
-         return this.isSubmergedInWater() ? SoundEvents.ENTITY_BABY_NAUTILUS_DEATH : SoundEvents.ENTITY_BABY_NAUTILUS_DEATH_LAND;
-      } else {
-         return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_DEATH : SoundEvents.ENTITY_NAUTILUS_DEATH_LAND;
-      }
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		if (this.isBaby()) {
+			return this.isSubmergedInWater() ? SoundEvents.ENTITY_BABY_NAUTILUS_HURT
+			                                 : SoundEvents.ENTITY_BABY_NAUTILUS_HURT_LAND;
+		}
+		else {
+			return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_HURT : SoundEvents.ENTITY_NAUTILUS_HURT_LAND;
+		}
+	}
 
-   @Override
-   protected SoundEvent getDashSound() {
-      return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_DASH : SoundEvents.ENTITY_NAUTILUS_DASH_LAND;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		if (this.isBaby()) {
+			return this.isSubmergedInWater() ? SoundEvents.ENTITY_BABY_NAUTILUS_DEATH
+			                                 : SoundEvents.ENTITY_BABY_NAUTILUS_DEATH_LAND;
+		}
+		else {
+			return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_DEATH
+			                                 : SoundEvents.ENTITY_NAUTILUS_DEATH_LAND;
+		}
+	}
 
-   @Override
-   protected SoundEvent getDashReadySound() {
-      return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_DASH_READY : SoundEvents.ENTITY_NAUTILUS_DASH_READY_LAND;
-   }
+	@Override
+	protected SoundEvent getDashSound() {
+		return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_DASH : SoundEvents.ENTITY_NAUTILUS_DASH_LAND;
+	}
 
-   @Override
-   protected void playEatSound() {
-      SoundEvent soundEvent = this.isBaby() ? SoundEvents.ENTITY_BABY_NAUTILUS_EAT : SoundEvents.ENTITY_NAUTILUS_EAT;
-      this.playSound(soundEvent);
-   }
+	@Override
+	protected SoundEvent getDashReadySound() {
+		return this.isSubmergedInWater() ? SoundEvents.ENTITY_NAUTILUS_DASH_READY
+		                                 : SoundEvents.ENTITY_NAUTILUS_DASH_READY_LAND;
+	}
 
-   @Override
-   protected SoundEvent getSwimSound() {
-      return this.isBaby() ? SoundEvents.ENTITY_BABY_NAUTILUS_SWIM : SoundEvents.ENTITY_NAUTILUS_SWIM;
-   }
+	@Override
+	protected void playEatSound() {
+		SoundEvent soundEvent = this.isBaby() ? SoundEvents.ENTITY_BABY_NAUTILUS_EAT : SoundEvents.ENTITY_NAUTILUS_EAT;
+		this.playSound(soundEvent);
+	}
 
-   @Override
-   public int getMaxAir() {
-      return 300;
-   }
+	@Override
+	protected SoundEvent getSwimSound() {
+		return this.isBaby() ? SoundEvents.ENTITY_BABY_NAUTILUS_SWIM : SoundEvents.ENTITY_NAUTILUS_SWIM;
+	}
 
-   protected void tickAir(ServerWorld world, int lastAir) {
-      if (this.isAlive() && !this.isTouchingWater()) {
-         this.setAir(lastAir - 1);
-         if (this.getAir() <= -20) {
-            this.setAir(0);
-            this.damage(world, this.getDamageSources().dryOut(), 2.0F);
-         }
-      } else {
-         this.setAir(300);
-      }
-   }
+	@Override
+	public int getMaxAir() {
+		return 300;
+	}
 
-   @Override
-   public void baseTick() {
-      int i = this.getAir();
-      super.baseTick();
-      if (!this.isAiDisabled() && this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         this.tickAir(serverWorld, i);
-      }
-   }
+	protected void tickAir(ServerWorld world, int lastAir) {
+		if (this.isAlive() && !this.isTouchingWater()) {
+			this.setAir(lastAir - 1);
+			if (this.getAir() <= -20) {
+				this.setAir(0);
+				this.damage(world, this.getDamageSources().dryOut(), 2.0F);
+			}
+		}
+		else {
+			this.setAir(300);
+		}
+	}
 
-   @Override
-   public boolean canBeLeashed() {
-      return !this.hasAttackTarget();
-   }
+	@Override
+	public void baseTick() {
+		int i = this.getAir();
+		super.baseTick();
+		if (!this.isAiDisabled() && this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			this.tickAir(serverWorld, i);
+		}
+	}
+
+	@Override
+	public boolean canBeLeashed() {
+		return !this.hasAttackTarget();
+	}
 }

@@ -13,25 +13,29 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
-public record RemoveEntityStatusEffectS2CPacket(int entityId, RegistryEntry<StatusEffect> effect) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, RemoveEntityStatusEffectS2CPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.VAR_INT,
-      RemoveEntityStatusEffectS2CPacket::entityId,
-      StatusEffect.ENTRY_PACKET_CODEC,
-      RemoveEntityStatusEffectS2CPacket::effect,
-      RemoveEntityStatusEffectS2CPacket::new
-   );
+public record RemoveEntityStatusEffectS2CPacket(
+		int entityId,
+		RegistryEntry<StatusEffect> effect
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<RemoveEntityStatusEffectS2CPacket> getPacketType() {
-      return PlayPackets.REMOVE_MOB_EFFECT;
-   }
+	public static final PacketCodec<RegistryByteBuf, RemoveEntityStatusEffectS2CPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.VAR_INT,
+			RemoveEntityStatusEffectS2CPacket::entityId,
+			StatusEffect.ENTRY_PACKET_CODEC,
+			RemoveEntityStatusEffectS2CPacket::effect,
+			RemoveEntityStatusEffectS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onRemoveEntityStatusEffect(this);
-   }
+	@Override
+	public PacketType<RemoveEntityStatusEffectS2CPacket> getPacketType() {
+		return PlayPackets.REMOVE_MOB_EFFECT;
+	}
 
-   public @Nullable Entity getEntity(World world) {
-      return world.getEntityById(this.entityId);
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onRemoveEntityStatusEffect(this);
+	}
+
+	public @Nullable Entity getEntity(World world) {
+		return world.getEntityById(this.entityId);
+	}
 }

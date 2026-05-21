@@ -2,50 +2,67 @@ package net.minecraft.util.packrat;
 
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ParsingRule}.
+ */
 public interface ParsingRule<S, T> {
-   @Nullable T parse(ParsingState<S> state);
 
-   static <S, T> ParsingRule<S, T> of(Term<S> term, ParsingRule.RuleAction<S, T> action) {
-      return new ParsingRule.SimpleRule<>(action, term);
-   }
+	@Nullable T parse(ParsingState<S> state);
 
-   static <S, T> ParsingRule<S, T> of(Term<S> term, ParsingRule.StatelessAction<S, T> action) {
-      return new ParsingRule.SimpleRule<>(action, term);
-   }
+	static <S, T> ParsingRule<S, T> of(Term<S> term, ParsingRule.RuleAction<S, T> action) {
+		return new ParsingRule.SimpleRule<>(action, term);
+	}
 
-   @FunctionalInterface
-   public interface RuleAction<S, T> {
-      @Nullable T run(ParsingState<S> parsingState);
-   }
+	static <S, T> ParsingRule<S, T> of(Term<S> term, ParsingRule.StatelessAction<S, T> action) {
+		return new ParsingRule.SimpleRule<>(action, term);
+	}
 
-   public record SimpleRule<S, T>(ParsingRule.RuleAction<S, T> action, Term<S> child) implements ParsingRule<S, T> {
-      @Override
-      public @Nullable T parse(ParsingState<S> state) {
-         ParseResults parseResults = state.getResults();
-         parseResults.pushFrame();
+	@FunctionalInterface
+	/**
+	 * {@code RuleAction}.
+	 */
+	public interface RuleAction<S, T> {
 
-         Object var3;
-         try {
-            if (!this.child.matches(state, parseResults, Cut.NOOP)) {
-               return null;
-            }
+		@Nullable T run(ParsingState<S> parsingState);
+	}
 
-            var3 = this.action.run(state);
-         } finally {
-            parseResults.popFrame();
-         }
+	/**
+	 * {@code SimpleRule}.
+	 */
+	public record SimpleRule<S, T>(ParsingRule.RuleAction<S, T> action, Term<S> child) implements ParsingRule<S, T> {
 
-         return (T)var3;
-      }
-   }
+		@Override
+		public @Nullable T parse(ParsingState<S> state) {
+			ParseResults parseResults = state.getResults();
+			parseResults.pushFrame();
 
-   @FunctionalInterface
-   public interface StatelessAction<S, T> extends ParsingRule.RuleAction<S, T> {
-      T run(ParseResults parseResults);
+			Object var3;
+			try {
+				if (!this.child.matches(state, parseResults, Cut.NOOP)) {
+					return null;
+				}
 
-      @Override
-      default T run(ParsingState<S> parsingState) {
-         return this.run(parsingState.getResults());
-      }
-   }
+				var3 = this.action.run(state);
+			}
+			finally {
+				parseResults.popFrame();
+			}
+
+			return (T) var3;
+		}
+	}
+
+	@FunctionalInterface
+	/**
+	 * {@code StatelessAction}.
+	 */
+	public interface StatelessAction<S, T> extends ParsingRule.RuleAction<S, T> {
+
+		T run(ParseResults parseResults);
+
+		@Override
+		default T run(ParsingState<S> parsingState) {
+			return this.run(parsingState.getResults());
+		}
+	}
 }

@@ -9,36 +9,42 @@ import net.minecraft.text.Text;
 import org.slf4j.Logger;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WorldCreationTask}.
+ */
 public class WorldCreationTask extends LongRunningTask {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final Text TITLE = Text.translatable("mco.create.world.wait");
-   private final String name;
-   private final String motd;
-   private final long worldId;
 
-   public WorldCreationTask(long worldId, String name, String motd) {
-      this.worldId = worldId;
-      this.name = name;
-      this.motd = motd;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final Text TITLE = Text.translatable("mco.create.world.wait");
+	private final String name;
+	private final String motd;
+	private final long worldId;
 
-   @Override
-   public void run() {
-      RealmsClient realmsClient = RealmsClient.create();
+	public WorldCreationTask(long worldId, String name, String motd) {
+		this.worldId = worldId;
+		this.name = name;
+		this.motd = motd;
+	}
 
-      try {
-         realmsClient.initializeWorld(this.worldId, this.name, this.motd);
-      } catch (RealmsServiceException var3) {
-         LOGGER.error("Couldn't create world", var3);
-         this.error(var3);
-      } catch (Exception var4) {
-         LOGGER.error("Could not create world", var4);
-         this.error(var4);
-      }
-   }
+	@Override
+	public void run() {
+		RealmsClient realmsClient = RealmsClient.create();
 
-   @Override
-   public Text getTitle() {
-      return TITLE;
-   }
+		try {
+			realmsClient.initializeWorld(this.worldId, this.name, this.motd);
+		}
+		catch (RealmsServiceException var3) {
+			LOGGER.error("Couldn't create world", var3);
+			this.error(var3);
+		}
+		catch (Exception var4) {
+			LOGGER.error("Could not create world", var4);
+			this.error(var4);
+		}
+	}
+
+	@Override
+	public Text getTitle() {
+		return TITLE;
+	}
 }

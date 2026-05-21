@@ -12,67 +12,85 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code DirtPathBlock}.
+ */
 public class DirtPathBlock extends Block {
-   public static final MapCodec<DirtPathBlock> CODEC = createCodec(DirtPathBlock::new);
-   private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 15.0);
 
-   @Override
-   public MapCodec<DirtPathBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<DirtPathBlock> CODEC = createCodec(DirtPathBlock::new);
+	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 15.0);
 
-   public DirtPathBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<DirtPathBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected boolean hasSidedTransparency(BlockState state) {
-      return true;
-   }
+	public DirtPathBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return !this.getDefaultState().canPlaceAt(ctx.getWorld(), ctx.getBlockPos())
-         ? Block.pushEntitiesUpBeforeBlockChange(this.getDefaultState(), Blocks.DIRT.getDefaultState(), ctx.getWorld(), ctx.getBlockPos())
-         : super.getPlacementState(ctx);
-   }
+	@Override
+	protected boolean hasSidedTransparency(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (direction == Direction.UP && !state.canPlaceAt(world, pos)) {
-         tickView.scheduleBlockTick(pos, this, 1);
-      }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return !this.getDefaultState().canPlaceAt(ctx.getWorld(), ctx.getBlockPos())
+		       ? Block.pushEntitiesUpBeforeBlockChange(
+				this.getDefaultState(),
+				Blocks.DIRT.getDefaultState(),
+				ctx.getWorld(),
+				ctx.getBlockPos()
+		)
+		       : super.getPlacementState(ctx);
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (direction == Direction.UP && !state.canPlaceAt(world, pos)) {
+			tickView.scheduleBlockTick(pos, this, 1);
+		}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      FarmlandBlock.setToDirt(null, state, world, pos);
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      BlockState blockState = world.getBlockState(pos.up());
-      return !blockState.isSolid() || blockState.getBlock() instanceof FenceGateBlock;
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		FarmlandBlock.setToDirt(null, state, world, pos);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		BlockState blockState = world.getBlockState(pos.up());
+		return !blockState.isSolid() || blockState.getBlock() instanceof FenceGateBlock;
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
+
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 }

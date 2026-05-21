@@ -15,42 +15,50 @@ import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FireworkTintSource}.
+ */
 public record FireworkTintSource(int defaultColor) implements TintSource {
-   public static final MapCodec<FireworkTintSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codecs.RGB.fieldOf("default").forGetter(FireworkTintSource::defaultColor)).apply(instance, FireworkTintSource::new)
-   );
 
-   public FireworkTintSource() {
-      this(-7697782);
-   }
+	public static final MapCodec<FireworkTintSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codecs.RGB.fieldOf("default").forGetter(FireworkTintSource::defaultColor))
+					.apply(instance, FireworkTintSource::new)
+	);
 
-   @Override
-   public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
-      FireworkExplosionComponent fireworkExplosionComponent = stack.get(DataComponentTypes.FIREWORK_EXPLOSION);
-      IntList intList = fireworkExplosionComponent != null ? fireworkExplosionComponent.colors() : IntList.of();
-      int i = intList.size();
-      if (i == 0) {
-         return this.defaultColor;
-      } else if (i == 1) {
-         return ColorHelper.fullAlpha(intList.getInt(0));
-      } else {
-         int j = 0;
-         int k = 0;
-         int l = 0;
+	public FireworkTintSource() {
+		this(-7697782);
+	}
 
-         for (int m = 0; m < i; m++) {
-            int n = intList.getInt(m);
-            j += ColorHelper.getRed(n);
-            k += ColorHelper.getGreen(n);
-            l += ColorHelper.getBlue(n);
-         }
+	@Override
+	public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
+		FireworkExplosionComponent fireworkExplosionComponent = stack.get(DataComponentTypes.FIREWORK_EXPLOSION);
+		IntList intList = fireworkExplosionComponent != null ? fireworkExplosionComponent.colors() : IntList.of();
+		int i = intList.size();
+		if (i == 0) {
+			return this.defaultColor;
+		}
+		else if (i == 1) {
+			return ColorHelper.fullAlpha(intList.getInt(0));
+		}
+		else {
+			int j = 0;
+			int k = 0;
+			int l = 0;
 
-         return ColorHelper.getArgb(j / i, k / i, l / i);
-      }
-   }
+			for (int m = 0; m < i; m++) {
+				int n = intList.getInt(m);
+				j += ColorHelper.getRed(n);
+				k += ColorHelper.getGreen(n);
+				l += ColorHelper.getBlue(n);
+			}
 
-   @Override
-   public MapCodec<FireworkTintSource> getCodec() {
-      return CODEC;
-   }
+			return ColorHelper.getArgb(j / i, k / i, l / i);
+		}
+	}
+
+	@Override
+	public MapCodec<FireworkTintSource> getCodec() {
+		return CODEC;
+	}
 }

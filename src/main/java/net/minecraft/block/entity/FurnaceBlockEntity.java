@@ -8,20 +8,24 @@ import net.minecraft.screen.ScreenHandler;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code FurnaceBlockEntity}.
+ */
 public class FurnaceBlockEntity extends AbstractFurnaceBlockEntity {
-   private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.furnace");
 
-   public FurnaceBlockEntity(BlockPos pos, BlockState state) {
-      super(BlockEntityType.FURNACE, pos, state, RecipeType.SMELTING);
-   }
+	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.furnace");
 
-   @Override
-   protected Text getContainerName() {
-      return CONTAINER_NAME_TEXT;
-   }
+	public FurnaceBlockEntity(BlockPos pos, BlockState state) {
+		super(BlockEntityType.FURNACE, pos, state, RecipeType.SMELTING);
+	}
 
-   @Override
-   protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
-      return new FurnaceScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
-   }
+	@Override
+	protected Text getContainerName() {
+		return CONTAINER_NAME_TEXT;
+	}
+
+	@Override
+	protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
+		return new FurnaceScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+	}
 }

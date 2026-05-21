@@ -1,11 +1,6 @@
 package net.minecraft.entity.mob;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -21,106 +16,136 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code HuskEntity}.
+ */
 public class HuskEntity extends ZombieEntity {
-   public HuskEntity(EntityType<? extends HuskEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   @Override
-   protected boolean burnsInDaylight() {
-      return false;
-   }
+	public HuskEntity(EntityType<? extends HuskEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_HUSK_AMBIENT;
-   }
+	@Override
+	protected boolean burnsInDaylight() {
+		return false;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_HUSK_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_HUSK_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_HUSK_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_HUSK_HURT;
+	}
 
-   @Override
-   protected SoundEvent getStepSound() {
-      return SoundEvents.ENTITY_HUSK_STEP;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_HUSK_DEATH;
+	}
 
-   @Override
-   public boolean tryAttack(ServerWorld world, Entity target) {
-      boolean bl = super.tryAttack(world, target);
-      if (bl && this.getMainHandStack().isEmpty() && target instanceof LivingEntity) {
-         float f = world.getLocalDifficulty(this.getBlockPos()).getLocalDifficulty();
-         ((LivingEntity)target).addStatusEffect(new StatusEffectInstance(StatusEffects.HUNGER, 140 * (int)f), this);
-      }
+	@Override
+	protected SoundEvent getStepSound() {
+		return SoundEvents.ENTITY_HUSK_STEP;
+	}
 
-      return bl;
-   }
+	@Override
+	public boolean tryAttack(ServerWorld world, Entity target) {
+		boolean bl = super.tryAttack(world, target);
+		if (bl && this.getMainHandStack().isEmpty() && target instanceof LivingEntity) {
+			float f = world.getLocalDifficulty(this.getBlockPos()).getLocalDifficulty();
+			((LivingEntity) target).addStatusEffect(
+					new StatusEffectInstance(StatusEffects.HUNGER, 140 * (int) f),
+					this
+			);
+		}
 
-   @Override
-   protected boolean canConvertInWater() {
-      return true;
-   }
+		return bl;
+	}
 
-   @Override
-   protected void convertInWater(ServerWorld world) {
-      this.convertTo(world, EntityType.ZOMBIE);
-      if (!this.isSilent()) {
-         world.syncWorldEvent(null, 1041, this.getBlockPos(), 0);
-      }
-   }
+	@Override
+	protected boolean canConvertInWater() {
+		return true;
+	}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      Random random = world.getRandom();
-      entityData = super.initialize(world, difficulty, spawnReason, entityData);
-      float f = difficulty.getClampedLocalDifficulty();
-      if (spawnReason != SpawnReason.CONVERSION) {
-         this.setCanPickUpLoot(random.nextFloat() < 0.55F * f);
-      }
+	@Override
+	protected void convertInWater(ServerWorld world) {
+		this.convertTo(world, EntityType.ZOMBIE);
+		if (!this.isSilent()) {
+			world.syncWorldEvent(null, 1041, this.getBlockPos(), 0);
+		}
+	}
 
-      if (entityData != null) {
-         entityData = new HuskEntity.HuskData((ZombieEntity.ZombieData)entityData);
-         ((HuskEntity.HuskData)entityData).unnatural = spawnReason != SpawnReason.NATURAL;
-      }
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		Random random = world.getRandom();
+		entityData = super.initialize(world, difficulty, spawnReason, entityData);
+		float f = difficulty.getClampedLocalDifficulty();
+		if (spawnReason != SpawnReason.CONVERSION) {
+			this.setCanPickUpLoot(random.nextFloat() < 0.55F * f);
+		}
 
-      if (entityData instanceof HuskEntity.HuskData huskData && !huskData.unnatural) {
-         BlockPos blockPos = this.getBlockPos();
-         if (world.isSpaceEmpty(EntityType.CAMEL_HUSK.getSpawnBox(blockPos.getX() + 0.5, blockPos.getY(), blockPos.getZ() + 0.5))) {
-            huskData.unnatural = true;
-            if (random.nextFloat() < 0.1F) {
-               this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SPEAR));
-               CamelHuskEntity camelHuskEntity = EntityType.CAMEL_HUSK.create(this.getEntityWorld(), SpawnReason.NATURAL);
-               if (camelHuskEntity != null) {
-                  camelHuskEntity.setPosition(this.getX(), this.getY(), this.getZ());
-                  camelHuskEntity.initialize(world, difficulty, spawnReason, null);
-                  this.startRiding(camelHuskEntity, true, true);
-                  world.spawnEntity(camelHuskEntity);
-                  ParchedEntity parchedEntity = EntityType.PARCHED.create(this.getEntityWorld(), SpawnReason.NATURAL);
-                  if (parchedEntity != null) {
-                     parchedEntity.refreshPositionAndAngles(this.getX(), this.getY(), this.getZ(), this.getYaw(), 0.0F);
-                     parchedEntity.initialize(world, difficulty, spawnReason, null);
-                     parchedEntity.startRiding(camelHuskEntity, false, false);
-                     world.spawnEntityAndPassengers(parchedEntity);
-                  }
-               }
-            }
-         }
-      }
+		if (entityData != null) {
+			entityData = new HuskEntity.HuskData((ZombieEntity.ZombieData) entityData);
+			((HuskEntity.HuskData) entityData).unnatural = spawnReason != SpawnReason.NATURAL;
+		}
 
-      return entityData;
-   }
+		if (entityData instanceof HuskEntity.HuskData huskData && !huskData.unnatural) {
+			BlockPos blockPos = this.getBlockPos();
+			if (world.isSpaceEmpty(EntityType.CAMEL_HUSK.getSpawnBox(
+					blockPos.getX() + 0.5,
+					blockPos.getY(),
+					blockPos.getZ() + 0.5
+			))) {
+				huskData.unnatural = true;
+				if (random.nextFloat() < 0.1F) {
+					this.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SPEAR));
+					CamelHuskEntity
+							camelHuskEntity =
+							EntityType.CAMEL_HUSK.create(this.getEntityWorld(), SpawnReason.NATURAL);
+					if (camelHuskEntity != null) {
+						camelHuskEntity.setPosition(this.getX(), this.getY(), this.getZ());
+						camelHuskEntity.initialize(world, difficulty, spawnReason, null);
+						this.startRiding(camelHuskEntity, true, true);
+						world.spawnEntity(camelHuskEntity);
+						ParchedEntity
+								parchedEntity =
+								EntityType.PARCHED.create(this.getEntityWorld(), SpawnReason.NATURAL);
+						if (parchedEntity != null) {
+							parchedEntity.refreshPositionAndAngles(
+									this.getX(),
+									this.getY(),
+									this.getZ(),
+									this.getYaw(),
+									0.0F
+							);
+							parchedEntity.initialize(world, difficulty, spawnReason, null);
+							parchedEntity.startRiding(camelHuskEntity, false, false);
+							world.spawnEntityAndPassengers(parchedEntity);
+						}
+					}
+				}
+			}
+		}
 
-   public static class HuskData extends ZombieEntity.ZombieData {
-      public boolean unnatural = false;
+		return entityData;
+	}
 
-      public HuskData(ZombieEntity.ZombieData data) {
-         super(data.baby, data.tryChickenJockey);
-      }
-   }
+	/**
+	 * {@code HuskData}.
+	 */
+	public static class HuskData extends ZombieEntity.ZombieData {
+
+		public boolean unnatural = false;
+
+		public HuskData(ZombieEntity.ZombieData data) {
+			super(data.baby, data.tryChickenJockey);
+		}
+	}
 }

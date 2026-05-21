@@ -4,8 +4,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TextureAllocationException}.
+ */
 public class TextureAllocationException extends RuntimeException {
-   public TextureAllocationException(String message) {
-      super(message);
-   }
+
+	public TextureAllocationException(String message) {
+		super(message);
+	}
 }

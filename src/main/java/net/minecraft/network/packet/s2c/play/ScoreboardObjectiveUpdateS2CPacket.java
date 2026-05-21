@@ -1,6 +1,5 @@
 package net.minecraft.network.packet.s2c.play;
 
-import java.util.Optional;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.listener.ClientPlayPacketListener;
@@ -15,77 +14,81 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
+import java.util.Optional;
+
 public class ScoreboardObjectiveUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, ScoreboardObjectiveUpdateS2CPacket> CODEC = Packet.createCodec(
-      ScoreboardObjectiveUpdateS2CPacket::write, ScoreboardObjectiveUpdateS2CPacket::new
-   );
-   public static final int ADD_MODE = 0;
-   public static final int REMOVE_MODE = 1;
-   public static final int UPDATE_MODE = 2;
-   private final String name;
-   private final Text displayName;
-   private final ScoreboardCriterion.RenderType type;
-   private final Optional<NumberFormat> numberFormat;
-   private final int mode;
 
-   public ScoreboardObjectiveUpdateS2CPacket(ScoreboardObjective objective, int mode) {
-      this.name = objective.getName();
-      this.displayName = objective.getDisplayName();
-      this.type = objective.getRenderType();
-      this.numberFormat = Optional.ofNullable(objective.getNumberFormat());
-      this.mode = mode;
-   }
+	public static final PacketCodec<RegistryByteBuf, ScoreboardObjectiveUpdateS2CPacket> CODEC = Packet.createCodec(
+			ScoreboardObjectiveUpdateS2CPacket::write, ScoreboardObjectiveUpdateS2CPacket::new
+	);
+	public static final int ADD_MODE = 0;
+	public static final int REMOVE_MODE = 1;
+	public static final int UPDATE_MODE = 2;
+	private final String name;
+	private final Text displayName;
+	private final ScoreboardCriterion.RenderType type;
+	private final Optional<NumberFormat> numberFormat;
+	private final int mode;
 
-   private ScoreboardObjectiveUpdateS2CPacket(RegistryByteBuf buf) {
-      this.name = buf.readString();
-      this.mode = buf.readByte();
-      if (this.mode != 0 && this.mode != 2) {
-         this.displayName = ScreenTexts.EMPTY;
-         this.type = ScoreboardCriterion.RenderType.INTEGER;
-         this.numberFormat = Optional.empty();
-      } else {
-         this.displayName = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
-         this.type = buf.readEnumConstant(ScoreboardCriterion.RenderType.class);
-         this.numberFormat = NumberFormatTypes.OPTIONAL_PACKET_CODEC.decode(buf);
-      }
-   }
+	public ScoreboardObjectiveUpdateS2CPacket(ScoreboardObjective objective, int mode) {
+		this.name = objective.getName();
+		this.displayName = objective.getDisplayName();
+		this.type = objective.getRenderType();
+		this.numberFormat = Optional.ofNullable(objective.getNumberFormat());
+		this.mode = mode;
+	}
 
-   private void write(RegistryByteBuf buf) {
-      buf.writeString(this.name);
-      buf.writeByte(this.mode);
-      if (this.mode == 0 || this.mode == 2) {
-         TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.displayName);
-         buf.writeEnumConstant(this.type);
-         NumberFormatTypes.OPTIONAL_PACKET_CODEC.encode(buf, this.numberFormat);
-      }
-   }
+	private ScoreboardObjectiveUpdateS2CPacket(RegistryByteBuf buf) {
+		this.name = buf.readString();
+		this.mode = buf.readByte();
+		if (this.mode != 0 && this.mode != 2) {
+			this.displayName = ScreenTexts.EMPTY;
+			this.type = ScoreboardCriterion.RenderType.INTEGER;
+			this.numberFormat = Optional.empty();
+		}
+		else {
+			this.displayName = TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.decode(buf);
+			this.type = buf.readEnumConstant(ScoreboardCriterion.RenderType.class);
+			this.numberFormat = NumberFormatTypes.OPTIONAL_PACKET_CODEC.decode(buf);
+		}
+	}
 
-   @Override
-   public PacketType<ScoreboardObjectiveUpdateS2CPacket> getPacketType() {
-      return PlayPackets.SET_OBJECTIVE;
-   }
+	private void write(RegistryByteBuf buf) {
+		buf.writeString(this.name);
+		buf.writeByte(this.mode);
+		if (this.mode == 0 || this.mode == 2) {
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.displayName);
+			buf.writeEnumConstant(this.type);
+			NumberFormatTypes.OPTIONAL_PACKET_CODEC.encode(buf, this.numberFormat);
+		}
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onScoreboardObjectiveUpdate(this);
-   }
+	@Override
+	public PacketType<ScoreboardObjectiveUpdateS2CPacket> getPacketType() {
+		return PlayPackets.SET_OBJECTIVE;
+	}
 
-   public String getName() {
-      return this.name;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onScoreboardObjectiveUpdate(this);
+	}
 
-   public Text getDisplayName() {
-      return this.displayName;
-   }
+	public String getName() {
+		return this.name;
+	}
 
-   public int getMode() {
-      return this.mode;
-   }
+	public Text getDisplayName() {
+		return this.displayName;
+	}
 
-   public ScoreboardCriterion.RenderType getType() {
-      return this.type;
-   }
+	public int getMode() {
+		return this.mode;
+	}
 
-   public Optional<NumberFormat> getNumberFormat() {
-      return this.numberFormat;
-   }
+	public ScoreboardCriterion.RenderType getType() {
+		return this.type;
+	}
+
+	public Optional<NumberFormat> getNumberFormat() {
+		return this.numberFormat;
+	}
 }

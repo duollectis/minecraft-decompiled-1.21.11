@@ -8,18 +8,19 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public class ResetChatS2CPacket implements Packet<ClientConfigurationPacketListener> {
-   public static final ResetChatS2CPacket INSTANCE = new ResetChatS2CPacket();
-   public static final PacketCodec<ByteBuf, ResetChatS2CPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   private ResetChatS2CPacket() {
-   }
+	public static final ResetChatS2CPacket INSTANCE = new ResetChatS2CPacket();
+	public static final PacketCodec<ByteBuf, ResetChatS2CPacket> CODEC = PacketCodec.unit(INSTANCE);
 
-   @Override
-   public PacketType<ResetChatS2CPacket> getPacketType() {
-      return ConfigPackets.RESET_CHAT;
-   }
+	private ResetChatS2CPacket() {
+	}
 
-   public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
-      clientConfigurationPacketListener.onResetChat(this);
-   }
+	@Override
+	public PacketType<ResetChatS2CPacket> getPacketType() {
+		return ConfigPackets.RESET_CHAT;
+	}
+
+	public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
+		clientConfigurationPacketListener.onResetChat(this);
+	}
 }

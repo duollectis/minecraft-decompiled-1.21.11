@@ -9,60 +9,69 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Formatting;
 
+/**
+ * {@code EntityAttribute}.
+ */
 public class EntityAttribute {
-   public static final Codec<RegistryEntry<EntityAttribute>> CODEC = Registries.ATTRIBUTE.getEntryCodec();
-   public static final PacketCodec<RegistryByteBuf, RegistryEntry<EntityAttribute>> PACKET_CODEC = PacketCodecs.registryEntry(RegistryKeys.ATTRIBUTE);
-   private final double fallback;
-   private boolean tracked;
-   private final String translationKey;
-   private EntityAttribute.Category category = EntityAttribute.Category.POSITIVE;
 
-   protected EntityAttribute(String translationKey, double fallback) {
-      this.fallback = fallback;
-      this.translationKey = translationKey;
-   }
+	public static final Codec<RegistryEntry<EntityAttribute>> CODEC = Registries.ATTRIBUTE.getEntryCodec();
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<EntityAttribute>>
+			PACKET_CODEC =
+			PacketCodecs.registryEntry(RegistryKeys.ATTRIBUTE);
+	private final double fallback;
+	private boolean tracked;
+	private final String translationKey;
+	private EntityAttribute.Category category = EntityAttribute.Category.POSITIVE;
 
-   public double getDefaultValue() {
-      return this.fallback;
-   }
+	protected EntityAttribute(String translationKey, double fallback) {
+		this.fallback = fallback;
+		this.translationKey = translationKey;
+	}
 
-   public boolean isTracked() {
-      return this.tracked;
-   }
+	public double getDefaultValue() {
+		return this.fallback;
+	}
 
-   public EntityAttribute setTracked(boolean tracked) {
-      this.tracked = tracked;
-      return this;
-   }
+	public boolean isTracked() {
+		return this.tracked;
+	}
 
-   public EntityAttribute setCategory(EntityAttribute.Category category) {
-      this.category = category;
-      return this;
-   }
+	public EntityAttribute setTracked(boolean tracked) {
+		this.tracked = tracked;
+		return this;
+	}
 
-   public double clamp(double value) {
-      return value;
-   }
+	public EntityAttribute setCategory(EntityAttribute.Category category) {
+		this.category = category;
+		return this;
+	}
 
-   public String getTranslationKey() {
-      return this.translationKey;
-   }
+	public double clamp(double value) {
+		return value;
+	}
 
-   public Formatting getFormatting(boolean addition) {
-      return this.category.getFormatting(addition);
-   }
+	public String getTranslationKey() {
+		return this.translationKey;
+	}
 
-   public static enum Category {
-      POSITIVE,
-      NEUTRAL,
-      NEGATIVE;
+	public Formatting getFormatting(boolean addition) {
+		return this.category.getFormatting(addition);
+	}
 
-      public Formatting getFormatting(boolean addition) {
-         return switch (this) {
-            case POSITIVE -> addition ? Formatting.BLUE : Formatting.RED;
-            case NEUTRAL -> Formatting.GRAY;
-            case NEGATIVE -> addition ? Formatting.RED : Formatting.BLUE;
-         };
-      }
-   }
+	/**
+	 * {@code Category}.
+	 */
+	public static enum Category {
+		POSITIVE,
+		NEUTRAL,
+		NEGATIVE;
+
+		public Formatting getFormatting(boolean addition) {
+			return switch (this) {
+				case POSITIVE -> addition ? Formatting.BLUE : Formatting.RED;
+				case NEUTRAL -> Formatting.GRAY;
+				case NEGATIVE -> addition ? Formatting.RED : Formatting.BLUE;
+			};
+		}
+	}
 }

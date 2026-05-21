@@ -10,33 +10,34 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 public class SelectAdvancementTabS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, SelectAdvancementTabS2CPacket> CODEC = Packet.createCodec(
-      SelectAdvancementTabS2CPacket::write, SelectAdvancementTabS2CPacket::new
-   );
-   private final @Nullable Identifier tabId;
 
-   public SelectAdvancementTabS2CPacket(@Nullable Identifier tabId) {
-      this.tabId = tabId;
-   }
+	public static final PacketCodec<PacketByteBuf, SelectAdvancementTabS2CPacket> CODEC = Packet.createCodec(
+			SelectAdvancementTabS2CPacket::write, SelectAdvancementTabS2CPacket::new
+	);
+	private final @Nullable Identifier tabId;
 
-   private SelectAdvancementTabS2CPacket(PacketByteBuf buf) {
-      this.tabId = buf.readNullable(PacketByteBuf::readIdentifier);
-   }
+	public SelectAdvancementTabS2CPacket(@Nullable Identifier tabId) {
+		this.tabId = tabId;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeNullable(this.tabId, PacketByteBuf::writeIdentifier);
-   }
+	private SelectAdvancementTabS2CPacket(PacketByteBuf buf) {
+		this.tabId = buf.readNullable(PacketByteBuf::readIdentifier);
+	}
 
-   @Override
-   public PacketType<SelectAdvancementTabS2CPacket> getPacketType() {
-      return PlayPackets.SELECT_ADVANCEMENTS_TAB;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeNullable(this.tabId, PacketByteBuf::writeIdentifier);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onSelectAdvancementTab(this);
-   }
+	@Override
+	public PacketType<SelectAdvancementTabS2CPacket> getPacketType() {
+		return PlayPackets.SELECT_ADVANCEMENTS_TAB;
+	}
 
-   public @Nullable Identifier getTabId() {
-      return this.tabId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onSelectAdvancementTab(this);
+	}
+
+	public @Nullable Identifier getTabId() {
+		return this.tabId;
+	}
 }

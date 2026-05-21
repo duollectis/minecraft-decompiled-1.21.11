@@ -8,33 +8,52 @@ import net.minecraft.client.texture.TextureManager;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RotatingCubeMapRenderer}.
+ */
 public class RotatingCubeMapRenderer {
-   public static final Identifier OVERLAY_TEXTURE = Identifier.ofVanilla("textures/gui/title/background/panorama_overlay.png");
-   private final MinecraftClient client;
-   private final CubeMapRenderer cubeMap;
-   private float pitch;
 
-   public RotatingCubeMapRenderer(CubeMapRenderer cubeMap) {
-      this.cubeMap = cubeMap;
-      this.client = MinecraftClient.getInstance();
-   }
+	public static final Identifier
+			OVERLAY_TEXTURE =
+			Identifier.ofVanilla("textures/gui/title/background/panorama_overlay.png");
+	private final MinecraftClient client;
+	private final CubeMapRenderer cubeMap;
+	private float pitch;
 
-   public void render(DrawContext context, int width, int height, boolean rotate) {
-      if (rotate) {
-         float f = this.client.getRenderTickCounter().getFixedDeltaTicks();
-         float g = (float)(f * this.client.options.getPanoramaSpeed().getValue());
-         this.pitch = wrapOnce(this.pitch + g * 0.1F, 360.0F);
-      }
+	public RotatingCubeMapRenderer(CubeMapRenderer cubeMap) {
+		this.cubeMap = cubeMap;
+		this.client = MinecraftClient.getInstance();
+	}
 
-      this.cubeMap.draw(this.client, 10.0F, -this.pitch);
-      context.drawTexture(RenderPipelines.GUI_TEXTURED, OVERLAY_TEXTURE, 0, 0, 0.0F, 0.0F, width, height, 16, 128, 16, 128);
-   }
+	public void render(DrawContext context, int width, int height, boolean rotate) {
+		if (rotate) {
+			float f = this.client.getRenderTickCounter().getFixedDeltaTicks();
+			float g = (float) (f * this.client.options.getPanoramaSpeed().getValue());
+			this.pitch = wrapOnce(this.pitch + g * 0.1F, 360.0F);
+		}
 
-   private static float wrapOnce(float a, float b) {
-      return a > b ? a - b : a;
-   }
+		this.cubeMap.draw(this.client, 10.0F, -this.pitch);
+		context.drawTexture(
+				RenderPipelines.GUI_TEXTURED,
+				OVERLAY_TEXTURE,
+				0,
+				0,
+				0.0F,
+				0.0F,
+				width,
+				height,
+				16,
+				128,
+				16,
+				128
+		);
+	}
 
-   public void registerTextures(TextureManager textureManager) {
-      this.cubeMap.registerTextures(textureManager);
-   }
+	private static float wrapOnce(float a, float b) {
+		return a > b ? a - b : a;
+	}
+
+	public void registerTextures(TextureManager textureManager) {
+		this.cubeMap.registerTextures(textureManager);
+	}
 }

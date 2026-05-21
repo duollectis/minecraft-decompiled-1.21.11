@@ -5,45 +5,60 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.registry.Registries;
 
+/**
+ * {@code PermissionCheck}.
+ */
 public interface PermissionCheck {
-   Codec<PermissionCheck> CODEC = Registries.PERMISSION_CHECK_TYPE.getCodec().dispatch(PermissionCheck::getCodec, codec -> codec);
 
-   boolean allows(PermissionPredicate permissions);
+	Codec<PermissionCheck>
+			CODEC =
+			Registries.PERMISSION_CHECK_TYPE.getCodec().dispatch(PermissionCheck::getCodec, codec -> codec);
 
-   MapCodec<? extends PermissionCheck> getCodec();
+	boolean allows(PermissionPredicate permissions);
 
-   public static class AlwaysPass implements PermissionCheck {
-      public static final PermissionCheck.AlwaysPass INSTANCE = new PermissionCheck.AlwaysPass();
-      public static final MapCodec<PermissionCheck.AlwaysPass> CODEC = MapCodec.unit(INSTANCE);
+	MapCodec<? extends PermissionCheck> getCodec();
 
-      private AlwaysPass() {
-      }
+	/**
+	 * {@code AlwaysPass}.
+	 */
+	public static class AlwaysPass implements PermissionCheck {
 
-      @Override
-      public boolean allows(PermissionPredicate permissions) {
-         return true;
-      }
+		public static final PermissionCheck.AlwaysPass INSTANCE = new PermissionCheck.AlwaysPass();
+		public static final MapCodec<PermissionCheck.AlwaysPass> CODEC = MapCodec.unit(INSTANCE);
 
-      @Override
-      public MapCodec<PermissionCheck.AlwaysPass> getCodec() {
-         return CODEC;
-      }
-   }
+		private AlwaysPass() {
+		}
 
-   public record Require(Permission permission) implements PermissionCheck {
-      public static final MapCodec<PermissionCheck.Require> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(Permission.CODEC.fieldOf("permission").forGetter(PermissionCheck.Require::permission))
-            .apply(instance, PermissionCheck.Require::new)
-      );
+		@Override
+		public boolean allows(PermissionPredicate permissions) {
+			return true;
+		}
 
-      @Override
-      public MapCodec<PermissionCheck.Require> getCodec() {
-         return CODEC;
-      }
+		@Override
+		public MapCodec<PermissionCheck.AlwaysPass> getCodec() {
+			return CODEC;
+		}
+	}
 
-      @Override
-      public boolean allows(PermissionPredicate permissions) {
-         return permissions.hasPermission(this.permission);
-      }
-   }
+	/**
+	 * {@code Require}.
+	 */
+	public record Require(Permission permission) implements PermissionCheck {
+
+		public static final MapCodec<PermissionCheck.Require> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance
+						.group(Permission.CODEC.fieldOf("permission").forGetter(PermissionCheck.Require::permission))
+						.apply(instance, PermissionCheck.Require::new)
+		);
+
+		@Override
+		public MapCodec<PermissionCheck.Require> getCodec() {
+			return CODEC;
+		}
+
+		@Override
+		public boolean allows(PermissionPredicate permissions) {
+			return permissions.hasPermission(this.permission);
+		}
+	}
 }

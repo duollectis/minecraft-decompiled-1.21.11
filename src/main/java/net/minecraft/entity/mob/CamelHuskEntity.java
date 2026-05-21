@@ -20,108 +20,113 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CamelHuskEntity}.
+ */
 public class CamelHuskEntity extends CamelEntity {
-   public CamelHuskEntity(EntityType<? extends CamelEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   @Override
-   public boolean canImmediatelyDespawn(double distanceSquared) {
-      return true;
-   }
+	public CamelHuskEntity(EntityType<? extends CamelEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   public boolean isControlledByMob() {
-      return this.getFirstPassenger() instanceof MobEntity;
-   }
+	@Override
+	public boolean canImmediatelyDespawn(double distanceSquared) {
+		return true;
+	}
 
-   @Override
-   public ActionResult interact(PlayerEntity player, Hand hand) {
-      this.setPersistent();
-      return super.interact(player, hand);
-   }
+	@Override
+	public boolean isControlledByMob() {
+		return this.getFirstPassenger() instanceof MobEntity;
+	}
 
-   @Override
-   public boolean canBeLeashed() {
-      return !this.isControlledByMob();
-   }
+	@Override
+	public ActionResult interact(PlayerEntity player, Hand hand) {
+		this.setPersistent();
+		return super.interact(player, hand);
+	}
 
-   @Override
-   public boolean isBreedingItem(ItemStack stack) {
-      return stack.isIn(ItemTags.CAMEL_HUSK_FOOD);
-   }
+	@Override
+	public boolean canBeLeashed() {
+		return !this.isControlledByMob();
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_CAMEL_HUSK_AMBIENT;
-   }
+	@Override
+	public boolean isBreedingItem(ItemStack stack) {
+		return stack.isIn(ItemTags.CAMEL_HUSK_FOOD);
+	}
 
-   @Override
-   public boolean canBreedWith(AnimalEntity other) {
-      return false;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_CAMEL_HUSK_AMBIENT;
+	}
 
-   @Override
-   public @Nullable CamelEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
-      return null;
-   }
+	@Override
+	public boolean canBreedWith(AnimalEntity other) {
+		return false;
+	}
 
-   @Override
-   public boolean canEat() {
-      return false;
-   }
+	@Override
+	public @Nullable CamelEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
+		return null;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_CAMEL_HUSK_DEATH;
-   }
+	@Override
+	public boolean canEat() {
+		return false;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_CAMEL_HUSK_HURT;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_CAMEL_HUSK_DEATH;
+	}
 
-   @Override
-   protected void playStepSound(BlockPos pos, BlockState state) {
-      if (state.isIn(BlockTags.CAMEL_SAND_STEP_SOUND_BLOCKS)) {
-         this.playSound(SoundEvents.ENTITY_CAMEL_HUSK_STEP_SAND, 0.4F, 1.0F);
-      } else {
-         this.playSound(SoundEvents.ENTITY_CAMEL_HUSK_STEP, 0.4F, 1.0F);
-      }
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_CAMEL_HUSK_HURT;
+	}
 
-   @Override
-   protected SoundEvent getDashSound() {
-      return SoundEvents.ENTITY_CAMEL_HUSK_DASH;
-   }
+	@Override
+	protected void playStepSound(BlockPos pos, BlockState state) {
+		if (state.isIn(BlockTags.CAMEL_SAND_STEP_SOUND_BLOCKS)) {
+			this.playSound(SoundEvents.ENTITY_CAMEL_HUSK_STEP_SAND, 0.4F, 1.0F);
+		}
+		else {
+			this.playSound(SoundEvents.ENTITY_CAMEL_HUSK_STEP, 0.4F, 1.0F);
+		}
+	}
 
-   @Override
-   protected SoundEvent getDashReadySound() {
-      return SoundEvents.ENTITY_CAMEL_HUSK_DASH_READY;
-   }
+	@Override
+	protected SoundEvent getDashSound() {
+		return SoundEvents.ENTITY_CAMEL_HUSK_DASH;
+	}
 
-   @Override
-   protected SoundEvent getEatSound() {
-      return SoundEvents.ENTITY_CAMEL_HUSK_EAT;
-   }
+	@Override
+	protected SoundEvent getDashReadySound() {
+		return SoundEvents.ENTITY_CAMEL_HUSK_DASH_READY;
+	}
 
-   @Override
-   protected SoundEvent getStandSound() {
-      return SoundEvents.ENTITY_CAMEL_HUSK_STAND;
-   }
+	@Override
+	protected SoundEvent getEatSound() {
+		return SoundEvents.ENTITY_CAMEL_HUSK_EAT;
+	}
 
-   @Override
-   protected SoundEvent getSitSound() {
-      return SoundEvents.ENTITY_CAMEL_HUSK_SIT;
-   }
+	@Override
+	protected SoundEvent getStandSound() {
+		return SoundEvents.ENTITY_CAMEL_HUSK_STAND;
+	}
 
-   @Override
-   protected RegistryEntry.Reference<SoundEvent> getSaddleSound() {
-      return SoundEvents.ENTITY_CAMEL_HUSK_SADDLE;
-   }
+	@Override
+	protected SoundEvent getSitSound() {
+		return SoundEvents.ENTITY_CAMEL_HUSK_SIT;
+	}
 
-   @Override
-   public float getRiderChargingSpeedMultiplier() {
-      return 4.0F;
-   }
+	@Override
+	protected RegistryEntry.Reference<SoundEvent> getSaddleSound() {
+		return SoundEvents.ENTITY_CAMEL_HUSK_SADDLE;
+	}
+
+	@Override
+	public float getRiderChargingSpeedMultiplier() {
+		return 4.0F;
+	}
 }

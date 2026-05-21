@@ -2,8 +2,6 @@ package net.minecraft.component.type;
 
 import com.google.common.collect.Lists;
 import com.mojang.serialization.Codec;
-import java.util.List;
-import java.util.function.Consumer;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.item.Item;
 import net.minecraft.item.tooltip.TooltipAppender;
@@ -18,34 +16,49 @@ import net.minecraft.text.Texts;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Util;
 
+import java.util.List;
+import java.util.function.Consumer;
+
+/**
+ * {@code LoreComponent}.
+ */
 public record LoreComponent(List<Text> lines, List<Text> styledLines) implements TooltipAppender {
-   public static final LoreComponent DEFAULT = new LoreComponent(List.of());
-   public static final int MAX_LORES = 256;
-   private static final Style STYLE = Style.EMPTY.withColor(Formatting.DARK_PURPLE).withItalic(true);
-   public static final Codec<LoreComponent> CODEC = TextCodecs.CODEC.sizeLimitedListOf(256).xmap(LoreComponent::new, LoreComponent::lines);
-   public static final PacketCodec<RegistryByteBuf, LoreComponent> PACKET_CODEC = TextCodecs.REGISTRY_PACKET_CODEC
-      .collect(PacketCodecs.toList(256))
-      .xmap(LoreComponent::new, LoreComponent::lines);
 
-   public LoreComponent(List<Text> lines) {
-      this(lines, Lists.transform(lines, style -> Texts.withStyle(style, STYLE)));
-   }
+	public static final LoreComponent DEFAULT = new LoreComponent(List.of());
+	public static final int MAX_LORES = 256;
+	private static final Style STYLE = Style.EMPTY.withColor(Formatting.DARK_PURPLE).withItalic(true);
+	public static final Codec<LoreComponent>
+			CODEC =
+			TextCodecs.CODEC.sizeLimitedListOf(256).xmap(LoreComponent::new, LoreComponent::lines);
+	public static final PacketCodec<RegistryByteBuf, LoreComponent> PACKET_CODEC = TextCodecs.REGISTRY_PACKET_CODEC
+			.collect(PacketCodecs.toList(256))
+			.xmap(LoreComponent::new, LoreComponent::lines);
 
-   public LoreComponent(List<Text> lines, List<Text> styledLines) {
-      if (lines.size() > 256) {
-         throw new IllegalArgumentException("Got " + lines.size() + " lines, but maximum is 256");
-      } else {
-         this.lines = lines;
-         this.styledLines = styledLines;
-      }
-   }
+	public LoreComponent(List<Text> lines) {
+		this(lines, Lists.transform(lines, style -> Texts.withStyle(style, STYLE)));
+	}
 
-   public LoreComponent with(Text line) {
-      return new LoreComponent(Util.withAppended(this.lines, line));
-   }
+	public LoreComponent(List<Text> lines, List<Text> styledLines) {
+		if (lines.size() > 256) {
+			throw new IllegalArgumentException("Got " + lines.size() + " lines, but maximum is 256");
+		}
+		else {
+			this.lines = lines;
+			this.styledLines = styledLines;
+		}
+	}
 
-   @Override
-   public void appendTooltip(Item.TooltipContext context, Consumer<Text> textConsumer, TooltipType type, ComponentsAccess components) {
-      this.styledLines.forEach(textConsumer);
-   }
+	public LoreComponent with(Text line) {
+		return new LoreComponent(Util.withAppended(this.lines, line));
+	}
+
+	@Override
+	public void appendTooltip(
+			Item.TooltipContext context,
+			Consumer<Text> textConsumer,
+			TooltipType type,
+			ComponentsAccess components
+	) {
+		this.styledLines.forEach(textConsumer);
+	}
 }

@@ -7,28 +7,39 @@ import net.minecraft.entity.SpawnGroup;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.SpawnHelper;
 
+/**
+ * {@code DebugMobSpawningCommand}.
+ */
 public class DebugMobSpawningCommand {
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      LiteralArgumentBuilder<ServerCommandSource> literalArgumentBuilder = (LiteralArgumentBuilder<ServerCommandSource>)CommandManager.literal(
-            "debugmobspawning"
-         )
-         .requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK));
 
-      for (SpawnGroup spawnGroup : SpawnGroup.values()) {
-         literalArgumentBuilder.then(
-            CommandManager.literal(spawnGroup.getName())
-               .then(
-                  CommandManager.argument("at", BlockPosArgumentType.blockPos())
-                     .executes(context -> execute((ServerCommandSource)context.getSource(), spawnGroup, BlockPosArgumentType.getLoadedBlockPos(context, "at")))
-               )
-         );
-      }
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		LiteralArgumentBuilder<ServerCommandSource>
+				literalArgumentBuilder =
+				(LiteralArgumentBuilder<ServerCommandSource>) CommandManager.literal(
+						                                                            "debugmobspawning"
+				                                                            )
+				                                                            .requires(CommandManager.requirePermissionLevel(
+						                                                            CommandManager.GAMEMASTERS_CHECK));
 
-      dispatcher.register(literalArgumentBuilder);
-   }
+		for (SpawnGroup spawnGroup : SpawnGroup.values()) {
+			literalArgumentBuilder.then(
+					CommandManager.literal(spawnGroup.getName())
+					              .then(
+							              CommandManager.argument("at", BlockPosArgumentType.blockPos())
+							                            .executes(context -> execute(
+									                            (ServerCommandSource) context.getSource(),
+									                            spawnGroup,
+									                            BlockPosArgumentType.getLoadedBlockPos(context, "at")
+							                            ))
+					              )
+			);
+		}
 
-   private static int execute(ServerCommandSource source, SpawnGroup group, BlockPos pos) {
-      SpawnHelper.spawnEntitiesInChunk(group, source.getWorld(), pos);
-      return 1;
-   }
+		dispatcher.register(literalArgumentBuilder);
+	}
+
+	private static int execute(ServerCommandSource source, SpawnGroup group, BlockPos pos) {
+		SpawnHelper.spawnEntitiesInChunk(group, source.getWorld(), pos);
+		return 1;
+	}
 }

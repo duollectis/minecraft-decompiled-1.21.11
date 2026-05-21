@@ -8,23 +8,28 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
-public record WorldTimeUpdateS2CPacket(long time, long timeOfDay, boolean tickDayTime) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, WorldTimeUpdateS2CPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.LONG,
-      WorldTimeUpdateS2CPacket::time,
-      PacketCodecs.LONG,
-      WorldTimeUpdateS2CPacket::timeOfDay,
-      PacketCodecs.BOOLEAN,
-      WorldTimeUpdateS2CPacket::tickDayTime,
-      WorldTimeUpdateS2CPacket::new
-   );
+public record WorldTimeUpdateS2CPacket(
+		long time,
+		long timeOfDay,
+		boolean tickDayTime
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<WorldTimeUpdateS2CPacket> getPacketType() {
-      return PlayPackets.SET_TIME;
-   }
+	public static final PacketCodec<PacketByteBuf, WorldTimeUpdateS2CPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.LONG,
+			WorldTimeUpdateS2CPacket::time,
+			PacketCodecs.LONG,
+			WorldTimeUpdateS2CPacket::timeOfDay,
+			PacketCodecs.BOOLEAN,
+			WorldTimeUpdateS2CPacket::tickDayTime,
+			WorldTimeUpdateS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onWorldTimeUpdate(this);
-   }
+	@Override
+	public PacketType<WorldTimeUpdateS2CPacket> getPacketType() {
+		return PlayPackets.SET_TIME;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onWorldTimeUpdate(this);
+	}
 }

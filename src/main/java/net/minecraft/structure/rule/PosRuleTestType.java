@@ -4,14 +4,22 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 
+/**
+ * {@code PosRuleTestType}.
+ */
 public interface PosRuleTestType<P extends PosRuleTest> {
-   PosRuleTestType<AlwaysTruePosRuleTest> ALWAYS_TRUE = register("always_true", AlwaysTruePosRuleTest.CODEC);
-   PosRuleTestType<LinearPosRuleTest> LINEAR_POS = register("linear_pos", LinearPosRuleTest.CODEC);
-   PosRuleTestType<AxisAlignedLinearPosRuleTest> AXIS_ALIGNED_LINEAR_POS = register("axis_aligned_linear_pos", AxisAlignedLinearPosRuleTest.CODEC);
 
-   MapCodec<P> codec();
+	PosRuleTestType<AlwaysTruePosRuleTest> ALWAYS_TRUE = register("always_true", AlwaysTruePosRuleTest.CODEC);
 
-   static <P extends PosRuleTest> PosRuleTestType<P> register(String id, MapCodec<P> codec) {
-      return Registry.register(Registries.POS_RULE_TEST, id, () -> codec);
-   }
+	PosRuleTestType<LinearPosRuleTest> LINEAR_POS = register("linear_pos", LinearPosRuleTest.CODEC);
+
+	PosRuleTestType<AxisAlignedLinearPosRuleTest>
+			AXIS_ALIGNED_LINEAR_POS =
+			register("axis_aligned_linear_pos", AxisAlignedLinearPosRuleTest.CODEC);
+
+	MapCodec<P> codec();
+
+	static <P extends PosRuleTest> PosRuleTestType<P> register(String id, MapCodec<P> codec) {
+		return Registry.register(Registries.POS_RULE_TEST, id, () -> codec);
+	}
 }

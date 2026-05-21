@@ -3,78 +3,83 @@ package net.minecraft.client.option;
 import com.mojang.datafixers.DataFixer;
 import com.mojang.logging.LogUtils;
 import com.mojang.serialization.DataResult;
-import java.nio.file.Path;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.datafixer.DataFixTypes;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtHelper;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.*;
 import org.slf4j.Logger;
 
+import java.nio.file.Path;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code HotbarStorage}.
+ */
 public class HotbarStorage {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final int STORAGE_ENTRY_COUNT = 9;
-   private final Path file;
-   private final DataFixer dataFixer;
-   private final HotbarStorageEntry[] entries = new HotbarStorageEntry[9];
-   private boolean loaded;
 
-   public HotbarStorage(Path directory, DataFixer dataFixer) {
-      this.file = directory.resolve("hotbar.nbt");
-      this.dataFixer = dataFixer;
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final int STORAGE_ENTRY_COUNT = 9;
+	private final Path file;
+	private final DataFixer dataFixer;
+	private final HotbarStorageEntry[] entries = new HotbarStorageEntry[9];
+	private boolean loaded;
 
-      for (int i = 0; i < 9; i++) {
-         this.entries[i] = new HotbarStorageEntry();
-      }
-   }
+	public HotbarStorage(Path directory, DataFixer dataFixer) {
+		this.file = directory.resolve("hotbar.nbt");
+		this.dataFixer = dataFixer;
 
-   private void load() {
-      try {
-         NbtCompound nbtCompound = NbtIo.read(this.file);
-         if (nbtCompound == null) {
-            return;
-         }
+		for (int i = 0; i < 9; i++) {
+			this.entries[i] = new HotbarStorageEntry();
+		}
+	}
 
-         int i = NbtHelper.getDataVersion(nbtCompound, 1343);
-         nbtCompound = DataFixTypes.HOTBAR.update(this.dataFixer, nbtCompound, i);
+	private void load() {
+		try {
+			NbtCompound nbtCompound = NbtIo.read(this.file);
+			if (nbtCompound == null) {
+				return;
+			}
 
-         for (int j = 0; j < 9; j++) {
-            this.entries[j] = HotbarStorageEntry.CODEC
-               .parse(NbtOps.INSTANCE, nbtCompound.get(String.valueOf(j)))
-               .resultOrPartial(error -> LOGGER.warn("Failed to parse hotbar: {}", error))
-               .orElseGet(HotbarStorageEntry::new);
-         }
-      } catch (Exception var4) {
-         LOGGER.error("Failed to load creative mode options", var4);
-      }
-   }
+			int i = NbtHelper.getDataVersion(nbtCompound, 1343);
+			nbtCompound = DataFixTypes.HOTBAR.update(this.dataFixer, nbtCompound, i);
 
-   public void save() {
-      try {
-         NbtCompound nbtCompound = NbtHelper.putDataVersion(new NbtCompound());
+			for (int j = 0; j < 9; j++) {
+				this.entries[j] = HotbarStorageEntry.CODEC
+						.parse(NbtOps.INSTANCE, nbtCompound.get(String.valueOf(j)))
+						.resultOrPartial(error -> LOGGER.warn("Failed to parse hotbar: {}", error))
+						.orElseGet(HotbarStorageEntry::new);
+			}
+		}
+		catch (Exception var4) {
+			LOGGER.error("Failed to load creative mode options", var4);
+		}
+	}
 
-         for (int i = 0; i < 9; i++) {
-            HotbarStorageEntry hotbarStorageEntry = this.getSavedHotbar(i);
-            DataResult<NbtElement> dataResult = HotbarStorageEntry.CODEC.encodeStart(NbtOps.INSTANCE, hotbarStorageEntry);
-            nbtCompound.put(String.valueOf(i), (NbtElement)dataResult.getOrThrow());
-         }
+	public void save() {
+		try {
+			NbtCompound nbtCompound = NbtHelper.putDataVersion(new NbtCompound());
 
-         NbtIo.write(nbtCompound, this.file);
-      } catch (Exception var5) {
-         LOGGER.error("Failed to save creative mode options", var5);
-      }
-   }
+			for (int i = 0; i < 9; i++) {
+				HotbarStorageEntry hotbarStorageEntry = this.getSavedHotbar(i);
+				DataResult<NbtElement>
+						dataResult =
+						HotbarStorageEntry.CODEC.encodeStart(NbtOps.INSTANCE, hotbarStorageEntry);
+				nbtCompound.put(String.valueOf(i), (NbtElement) dataResult.getOrThrow());
+			}
 
-   public HotbarStorageEntry getSavedHotbar(int i) {
-      if (!this.loaded) {
-         this.load();
-         this.loaded = true;
-      }
+			NbtIo.write(nbtCompound, this.file);
+		}
+		catch (Exception var5) {
+			LOGGER.error("Failed to save creative mode options", var5);
+		}
+	}
 
-      return this.entries[i];
-   }
+	public HotbarStorageEntry getSavedHotbar(int i) {
+		if (!this.loaded) {
+			this.load();
+			this.loaded = true;
+		}
+
+		return this.entries[i];
+	}
 }

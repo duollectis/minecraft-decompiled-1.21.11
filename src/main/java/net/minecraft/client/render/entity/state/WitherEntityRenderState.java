@@ -4,9 +4,13 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WitherEntityRenderState}.
+ */
 public class WitherEntityRenderState extends LivingEntityRenderState {
-   public float[] sideHeadPitches = new float[2];
-   public float[] sideHeadYaws = new float[2];
-   public float invulnerableTimer;
-   public boolean armored;
+
+	public float[] sideHeadPitches = new float[2];
+	public float[] sideHeadYaws = new float[2];
+	public float invulnerableTimer;
+	public boolean armored;
 }

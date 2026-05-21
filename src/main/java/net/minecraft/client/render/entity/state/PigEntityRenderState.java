@@ -7,7 +7,11 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PigEntityRenderState}.
+ */
 public class PigEntityRenderState extends LivingEntityRenderState {
-   public ItemStack saddleStack = ItemStack.EMPTY;
-   public @Nullable PigVariant variant;
+
+	public ItemStack saddleStack = ItemStack.EMPTY;
+	public @Nullable PigVariant variant;
 }

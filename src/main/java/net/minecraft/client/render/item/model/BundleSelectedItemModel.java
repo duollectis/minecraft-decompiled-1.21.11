@@ -14,42 +14,52 @@ import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BundleSelectedItemModel}.
+ */
 public class BundleSelectedItemModel implements ItemModel {
-   static final ItemModel INSTANCE = new BundleSelectedItemModel();
 
-   @Override
-   public void update(
-      ItemRenderState state,
-      ItemStack stack,
-      ItemModelManager resolver,
-      ItemDisplayContext displayContext,
-      @Nullable ClientWorld world,
-      @Nullable HeldItemContext heldItemContext,
-      int seed
-   ) {
-      state.addModelKey(this);
-      ItemStack itemStack = BundleItem.getSelectedStack(stack);
-      if (!itemStack.isEmpty()) {
-         resolver.update(state, itemStack, displayContext, world, heldItemContext, seed);
-      }
-   }
+	static final ItemModel INSTANCE = new BundleSelectedItemModel();
 
-   @Environment(EnvType.CLIENT)
-   public record Unbaked() implements ItemModel.Unbaked {
-      public static final MapCodec<BundleSelectedItemModel.Unbaked> CODEC = MapCodec.unit(new BundleSelectedItemModel.Unbaked());
+	@Override
+	public void update(
+			ItemRenderState state,
+			ItemStack stack,
+			ItemModelManager resolver,
+			ItemDisplayContext displayContext,
+			@Nullable ClientWorld world,
+			@Nullable HeldItemContext heldItemContext,
+			int seed
+	) {
+		state.addModelKey(this);
+		ItemStack itemStack = BundleItem.getSelectedStack(stack);
+		if (!itemStack.isEmpty()) {
+			resolver.update(state, itemStack, displayContext, world, heldItemContext, seed);
+		}
+	}
 
-      @Override
-      public MapCodec<BundleSelectedItemModel.Unbaked> getCodec() {
-         return CODEC;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Unbaked}.
+	 */
+	public record Unbaked() implements ItemModel.Unbaked {
 
-      @Override
-      public ItemModel bake(ItemModel.BakeContext context) {
-         return BundleSelectedItemModel.INSTANCE;
-      }
+		public static final MapCodec<BundleSelectedItemModel.Unbaked>
+				CODEC =
+				MapCodec.unit(new BundleSelectedItemModel.Unbaked());
 
-      @Override
-      public void resolve(ResolvableModel.Resolver resolver) {
-      }
-   }
+		@Override
+		public MapCodec<BundleSelectedItemModel.Unbaked> getCodec() {
+			return CODEC;
+		}
+
+		@Override
+		public ItemModel bake(ItemModel.BakeContext context) {
+			return BundleSelectedItemModel.INSTANCE;
+		}
+
+		@Override
+		public void resolve(ResolvableModel.Resolver resolver) {
+		}
+	}
 }

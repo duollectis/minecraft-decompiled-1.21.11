@@ -5,6 +5,10 @@ import net.fabricmc.api.Environment;
 import org.joml.Vector2ic;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TooltipPositioner}.
+ */
 public interface TooltipPositioner {
-   Vector2ic getPosition(int screenWidth, int screenHeight, int x, int y, int width, int height);
+
+	Vector2ic getPosition(int screenWidth, int screenHeight, int x, int y, int width, int height);
 }

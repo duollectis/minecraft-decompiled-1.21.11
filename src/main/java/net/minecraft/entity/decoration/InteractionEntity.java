@@ -2,16 +2,9 @@ package net.minecraft.entity.decoration;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.UUID;
 import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.block.piston.PistonBehavior;
-import net.minecraft.entity.Attackable;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityDimensions;
-import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.Targeter;
+import net.minecraft.entity.*;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
@@ -29,168 +22,197 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.UUID;
+
+/**
+ * {@code InteractionEntity}.
+ */
 public class InteractionEntity extends Entity implements Attackable, Targeter {
-   private static final TrackedData<Float> WIDTH = DataTracker.registerData(InteractionEntity.class, TrackedDataHandlerRegistry.FLOAT);
-   private static final TrackedData<Float> HEIGHT = DataTracker.registerData(InteractionEntity.class, TrackedDataHandlerRegistry.FLOAT);
-   private static final TrackedData<Boolean> RESPONSE = DataTracker.registerData(InteractionEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final String WIDTH_KEY = "width";
-   private static final String HEIGHT_KEY = "height";
-   private static final String ATTACK_KEY = "attack";
-   private static final String INTERACTION_KEY = "interaction";
-   private static final String RESPONSE_KEY = "response";
-   private static final float DEFAULT_WIDTH = 1.0F;
-   private static final float DEFAULT_HEIGHT = 1.0F;
-   private static final boolean DEFAULT_RESPONSE = false;
-   private InteractionEntity.@Nullable Interaction attack;
-   private InteractionEntity.@Nullable Interaction interaction;
 
-   public InteractionEntity(EntityType<?> entityType, World world) {
-      super(entityType, world);
-      this.noClip = true;
-   }
+	private static final TrackedData<Float>
+			WIDTH =
+			DataTracker.registerData(InteractionEntity.class, TrackedDataHandlerRegistry.FLOAT);
+	private static final TrackedData<Float>
+			HEIGHT =
+			DataTracker.registerData(InteractionEntity.class, TrackedDataHandlerRegistry.FLOAT);
+	private static final TrackedData<Boolean>
+			RESPONSE =
+			DataTracker.registerData(InteractionEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final String WIDTH_KEY = "width";
+	private static final String HEIGHT_KEY = "height";
+	private static final String ATTACK_KEY = "attack";
+	private static final String INTERACTION_KEY = "interaction";
+	private static final String RESPONSE_KEY = "response";
+	private static final float DEFAULT_WIDTH = 1.0F;
+	private static final float DEFAULT_HEIGHT = 1.0F;
+	private static final boolean DEFAULT_RESPONSE = false;
+	private InteractionEntity.@Nullable Interaction attack;
+	private InteractionEntity.@Nullable Interaction interaction;
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      builder.add(WIDTH, 1.0F);
-      builder.add(HEIGHT, 1.0F);
-      builder.add(RESPONSE, false);
-   }
+	public InteractionEntity(EntityType<?> entityType, World world) {
+		super(entityType, world);
+		this.noClip = true;
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      this.setInteractionWidth(view.getFloat("width", 1.0F));
-      this.setInteractionHeight(view.getFloat("height", 1.0F));
-      this.attack = view.<InteractionEntity.Interaction>read("attack", InteractionEntity.Interaction.CODEC).orElse(null);
-      this.interaction = view.<InteractionEntity.Interaction>read("interaction", InteractionEntity.Interaction.CODEC).orElse(null);
-      this.setResponse(view.getBoolean("response", false));
-      this.setBoundingBox(this.calculateBoundingBox());
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		builder.add(WIDTH, 1.0F);
+		builder.add(HEIGHT, 1.0F);
+		builder.add(RESPONSE, false);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      view.putFloat("width", this.getInteractionWidth());
-      view.putFloat("height", this.getInteractionHeight());
-      view.putNullable("attack", InteractionEntity.Interaction.CODEC, this.attack);
-      view.putNullable("interaction", InteractionEntity.Interaction.CODEC, this.interaction);
-      view.putBoolean("response", this.shouldRespond());
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		this.setInteractionWidth(view.getFloat("width", 1.0F));
+		this.setInteractionHeight(view.getFloat("height", 1.0F));
+		this.attack =
+				view.<InteractionEntity.Interaction>read("attack", InteractionEntity.Interaction.CODEC).orElse(null);
+		this.interaction =
+				view
+						.<InteractionEntity.Interaction>read("interaction", InteractionEntity.Interaction.CODEC)
+						.orElse(null);
+		this.setResponse(view.getBoolean("response", false));
+		this.setBoundingBox(this.calculateBoundingBox());
+	}
 
-   @Override
-   public void onTrackedDataSet(TrackedData<?> data) {
-      super.onTrackedDataSet(data);
-      if (HEIGHT.equals(data) || WIDTH.equals(data)) {
-         this.calculateDimensions();
-      }
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		view.putFloat("width", this.getInteractionWidth());
+		view.putFloat("height", this.getInteractionHeight());
+		view.putNullable("attack", InteractionEntity.Interaction.CODEC, this.attack);
+		view.putNullable("interaction", InteractionEntity.Interaction.CODEC, this.interaction);
+		view.putBoolean("response", this.shouldRespond());
+	}
 
-   @Override
-   public boolean canBeHitByProjectile() {
-      return false;
-   }
+	@Override
+	public void onTrackedDataSet(TrackedData<?> data) {
+		super.onTrackedDataSet(data);
+		if (HEIGHT.equals(data) || WIDTH.equals(data)) {
+			this.calculateDimensions();
+		}
+	}
 
-   @Override
-   public boolean canHit() {
-      return true;
-   }
+	@Override
+	public boolean canBeHitByProjectile() {
+		return false;
+	}
 
-   @Override
-   public PistonBehavior getPistonBehavior() {
-      return PistonBehavior.IGNORE;
-   }
+	@Override
+	public boolean canHit() {
+		return true;
+	}
 
-   @Override
-   public boolean canAvoidTraps() {
-      return true;
-   }
+	@Override
+	public PistonBehavior getPistonBehavior() {
+		return PistonBehavior.IGNORE;
+	}
 
-   @Override
-   public boolean handleAttack(Entity attacker) {
-      if (attacker instanceof PlayerEntity playerEntity) {
-         this.attack = new InteractionEntity.Interaction(playerEntity.getUuid(), this.getEntityWorld().getTime());
-         if (playerEntity instanceof ServerPlayerEntity serverPlayerEntity) {
-            Criteria.PLAYER_HURT_ENTITY.trigger(serverPlayerEntity, this, playerEntity.getDamageSources().generic(), 1.0F, 1.0F, false);
-         }
+	@Override
+	public boolean canAvoidTraps() {
+		return true;
+	}
 
-         return !this.shouldRespond();
-      } else {
-         return false;
-      }
-   }
+	@Override
+	public boolean handleAttack(Entity attacker) {
+		if (attacker instanceof PlayerEntity playerEntity) {
+			this.attack = new InteractionEntity.Interaction(playerEntity.getUuid(), this.getEntityWorld().getTime());
+			if (playerEntity instanceof ServerPlayerEntity serverPlayerEntity) {
+				Criteria.PLAYER_HURT_ENTITY.trigger(
+						serverPlayerEntity,
+						this,
+						playerEntity.getDamageSources().generic(),
+						1.0F,
+						1.0F,
+						false
+				);
+			}
 
-   @Override
-   public final boolean damage(ServerWorld world, DamageSource source, float amount) {
-      return false;
-   }
+			return !this.shouldRespond();
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Override
-   public ActionResult interact(PlayerEntity player, Hand hand) {
-      if (this.getEntityWorld().isClient()) {
-         return this.shouldRespond() ? ActionResult.SUCCESS : ActionResult.CONSUME;
-      } else {
-         this.interaction = new InteractionEntity.Interaction(player.getUuid(), this.getEntityWorld().getTime());
-         return ActionResult.CONSUME;
-      }
-   }
+	@Override
+	public final boolean damage(ServerWorld world, DamageSource source, float amount) {
+		return false;
+	}
 
-   @Override
-   public void tick() {
-   }
+	@Override
+	public ActionResult interact(PlayerEntity player, Hand hand) {
+		if (this.getEntityWorld().isClient()) {
+			return this.shouldRespond() ? ActionResult.SUCCESS : ActionResult.CONSUME;
+		}
+		else {
+			this.interaction = new InteractionEntity.Interaction(player.getUuid(), this.getEntityWorld().getTime());
+			return ActionResult.CONSUME;
+		}
+	}
 
-   @Override
-   public @Nullable LivingEntity getLastAttacker() {
-      return this.attack != null ? this.getEntityWorld().getPlayerByUuid(this.attack.player()) : null;
-   }
+	@Override
+	public void tick() {
+	}
 
-   @Override
-   public @Nullable LivingEntity getTarget() {
-      return this.interaction != null ? this.getEntityWorld().getPlayerByUuid(this.interaction.player()) : null;
-   }
+	@Override
+	public @Nullable LivingEntity getLastAttacker() {
+		return this.attack != null ? this.getEntityWorld().getPlayerByUuid(this.attack.player()) : null;
+	}
 
-   public final void setInteractionWidth(float width) {
-      this.dataTracker.set(WIDTH, width);
-   }
+	@Override
+	public @Nullable LivingEntity getTarget() {
+		return this.interaction != null ? this.getEntityWorld().getPlayerByUuid(this.interaction.player()) : null;
+	}
 
-   public final float getInteractionWidth() {
-      return this.dataTracker.get(WIDTH);
-   }
+	public final void setInteractionWidth(float width) {
+		this.dataTracker.set(WIDTH, width);
+	}
 
-   public final void setInteractionHeight(float height) {
-      this.dataTracker.set(HEIGHT, height);
-   }
+	public final float getInteractionWidth() {
+		return this.dataTracker.get(WIDTH);
+	}
 
-   public final float getInteractionHeight() {
-      return this.dataTracker.get(HEIGHT);
-   }
+	public final void setInteractionHeight(float height) {
+		this.dataTracker.set(HEIGHT, height);
+	}
 
-   public final void setResponse(boolean response) {
-      this.dataTracker.set(RESPONSE, response);
-   }
+	public final float getInteractionHeight() {
+		return this.dataTracker.get(HEIGHT);
+	}
 
-   public final boolean shouldRespond() {
-      return this.dataTracker.get(RESPONSE);
-   }
+	public final void setResponse(boolean response) {
+		this.dataTracker.set(RESPONSE, response);
+	}
 
-   private EntityDimensions getDimensions() {
-      return EntityDimensions.changing(this.getInteractionWidth(), this.getInteractionHeight());
-   }
+	public final boolean shouldRespond() {
+		return this.dataTracker.get(RESPONSE);
+	}
 
-   @Override
-   public EntityDimensions getDimensions(EntityPose pose) {
-      return this.getDimensions();
-   }
+	private EntityDimensions getDimensions() {
+		return EntityDimensions.changing(this.getInteractionWidth(), this.getInteractionHeight());
+	}
 
-   @Override
-   protected Box calculateDefaultBoundingBox(Vec3d pos) {
-      return this.getDimensions().getBoxAt(pos);
-   }
+	@Override
+	public EntityDimensions getDimensions(EntityPose pose) {
+		return this.getDimensions();
+	}
 
-   record Interaction(UUID player, long timestamp) {
-      public static final Codec<InteractionEntity.Interaction> CODEC = RecordCodecBuilder.create(
-         instance -> instance.group(
-               Uuids.INT_STREAM_CODEC.fieldOf("player").forGetter(InteractionEntity.Interaction::player),
-               Codec.LONG.fieldOf("timestamp").forGetter(InteractionEntity.Interaction::timestamp)
-            )
-            .apply(instance, InteractionEntity.Interaction::new)
-      );
-   }
+	@Override
+	protected Box calculateDefaultBoundingBox(Vec3d pos) {
+		return this.getDimensions().getBoxAt(pos);
+	}
+
+	/**
+	 * {@code Interaction}.
+	 */
+	record Interaction(UUID player, long timestamp) {
+
+		public static final Codec<InteractionEntity.Interaction> CODEC = RecordCodecBuilder.create(
+				instance -> instance.group(
+						                    Uuids.INT_STREAM_CODEC.fieldOf("player").forGetter(InteractionEntity.Interaction::player),
+						                    Codec.LONG.fieldOf("timestamp").forGetter(InteractionEntity.Interaction::timestamp)
+				                    )
+				                    .apply(instance, InteractionEntity.Interaction::new)
+		);
+	}
 }

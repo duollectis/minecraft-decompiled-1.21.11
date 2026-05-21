@@ -4,28 +4,42 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.DyeColor;
 
+/**
+ * {@code StainedGlassPaneBlock}.
+ */
 public class StainedGlassPaneBlock extends PaneBlock implements Stainable {
-   public static final MapCodec<StainedGlassPaneBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(DyeColor.CODEC.fieldOf("color").forGetter(StainedGlassPaneBlock::getColor), createSettingsCodec())
-         .apply(instance, StainedGlassPaneBlock::new)
-   );
-   private final DyeColor color;
 
-   @Override
-   public MapCodec<StainedGlassPaneBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<StainedGlassPaneBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(
+							DyeColor.CODEC.fieldOf("color").forGetter(StainedGlassPaneBlock::getColor),
+							createSettingsCodec()
+					)
+					.apply(instance, StainedGlassPaneBlock::new)
+	);
+	private final DyeColor color;
 
-   public StainedGlassPaneBlock(DyeColor color, AbstractBlock.Settings settings) {
-      super(settings);
-      this.color = color;
-      this.setDefaultState(
-         this.stateManager.getDefaultState().with(NORTH, false).with(EAST, false).with(SOUTH, false).with(WEST, false).with(WATERLOGGED, false)
-      );
-   }
+	@Override
+	public MapCodec<StainedGlassPaneBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public DyeColor getColor() {
-      return this.color;
-   }
+	public StainedGlassPaneBlock(DyeColor color, AbstractBlock.Settings settings) {
+		super(settings);
+		this.color = color;
+		this.setDefaultState(
+				this.stateManager
+						.getDefaultState()
+						.with(NORTH, false)
+						.with(EAST, false)
+						.with(SOUTH, false)
+						.with(WEST, false)
+						.with(WATERLOGGED, false)
+		);
+	}
+
+	@Override
+	public DyeColor getColor() {
+		return this.color;
+	}
 }

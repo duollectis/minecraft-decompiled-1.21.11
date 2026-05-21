@@ -4,14 +4,18 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Handle}.
+ */
 public interface Handle<T> {
-   Handle<?> EMPTY = () -> {
-      throw new IllegalStateException("Cannot dereference handle with no underlying resource");
-   };
 
-   static <T> Handle<T> empty() {
-      return (Handle<T>)EMPTY;
-   }
+	Handle<?> EMPTY = () -> {
+		throw new IllegalStateException("Cannot dereference handle with no underlying resource");
+	};
 
-   T get();
+	static <T> Handle<T> empty() {
+		return (Handle<T>) EMPTY;
+	}
+
+	T get();
 }

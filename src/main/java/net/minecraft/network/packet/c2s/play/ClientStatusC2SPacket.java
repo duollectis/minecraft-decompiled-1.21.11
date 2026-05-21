@@ -8,36 +8,39 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class ClientStatusC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ClientStatusC2SPacket> CODEC = Packet.createCodec(ClientStatusC2SPacket::write, ClientStatusC2SPacket::new);
-   private final ClientStatusC2SPacket.Mode mode;
 
-   public ClientStatusC2SPacket(ClientStatusC2SPacket.Mode mode) {
-      this.mode = mode;
-   }
+	public static final PacketCodec<PacketByteBuf, ClientStatusC2SPacket>
+			CODEC =
+			Packet.createCodec(ClientStatusC2SPacket::write, ClientStatusC2SPacket::new);
+	private final ClientStatusC2SPacket.Mode mode;
 
-   private ClientStatusC2SPacket(PacketByteBuf buf) {
-      this.mode = buf.readEnumConstant(ClientStatusC2SPacket.Mode.class);
-   }
+	public ClientStatusC2SPacket(ClientStatusC2SPacket.Mode mode) {
+		this.mode = mode;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeEnumConstant(this.mode);
-   }
+	private ClientStatusC2SPacket(PacketByteBuf buf) {
+		this.mode = buf.readEnumConstant(ClientStatusC2SPacket.Mode.class);
+	}
 
-   @Override
-   public PacketType<ClientStatusC2SPacket> getPacketType() {
-      return PlayPackets.CLIENT_COMMAND;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeEnumConstant(this.mode);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onClientStatus(this);
-   }
+	@Override
+	public PacketType<ClientStatusC2SPacket> getPacketType() {
+		return PlayPackets.CLIENT_COMMAND;
+	}
 
-   public ClientStatusC2SPacket.Mode getMode() {
-      return this.mode;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onClientStatus(this);
+	}
 
-   public static enum Mode {
-      PERFORM_RESPAWN,
-      REQUEST_STATS;
-   }
+	public ClientStatusC2SPacket.Mode getMode() {
+		return this.mode;
+	}
+
+	public static enum Mode {
+		PERFORM_RESPAWN,
+		REQUEST_STATS;
+	}
 }

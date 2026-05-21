@@ -4,6 +4,10 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.world.World;
 
+/**
+ * {@code Consumable}.
+ */
 public interface Consumable {
-   void onConsume(World world, LivingEntity user, ItemStack stack, ConsumableComponent consumable);
+
+	void onConsume(World world, LivingEntity user, ItemStack stack, ConsumableComponent consumable);
 }

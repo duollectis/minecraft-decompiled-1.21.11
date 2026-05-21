@@ -23,116 +23,133 @@ import net.minecraft.util.Hand;
 import net.minecraft.world.CommandBlockExecutor;
 import net.minecraft.world.World;
 
+/**
+ * {@code CommandBlockMinecartEntity}.
+ */
 public class CommandBlockMinecartEntity extends AbstractMinecartEntity {
-   static final TrackedData<String> COMMAND = DataTracker.registerData(CommandBlockMinecartEntity.class, TrackedDataHandlerRegistry.STRING);
-   static final TrackedData<Text> LAST_OUTPUT = DataTracker.registerData(CommandBlockMinecartEntity.class, TrackedDataHandlerRegistry.TEXT_COMPONENT);
-   private final CommandBlockExecutor commandExecutor = new CommandBlockMinecartEntity.CommandExecutor();
-   private static final int EXECUTE_TICK_COOLDOWN = 4;
-   private int lastExecuted;
 
-   public CommandBlockMinecartEntity(EntityType<? extends CommandBlockMinecartEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	static final TrackedData<String>
+			COMMAND =
+			DataTracker.registerData(CommandBlockMinecartEntity.class, TrackedDataHandlerRegistry.STRING);
+	static final TrackedData<Text>
+			LAST_OUTPUT =
+			DataTracker.registerData(CommandBlockMinecartEntity.class, TrackedDataHandlerRegistry.TEXT_COMPONENT);
+	private final CommandBlockExecutor commandExecutor = new CommandBlockMinecartEntity.CommandExecutor();
+	private static final int EXECUTE_TICK_COOLDOWN = 4;
+	private int lastExecuted;
 
-   @Override
-   protected Item asItem() {
-      return Items.MINECART;
-   }
+	public CommandBlockMinecartEntity(EntityType<? extends CommandBlockMinecartEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   public ItemStack getPickBlockStack() {
-      return new ItemStack(Items.COMMAND_BLOCK_MINECART);
-   }
+	@Override
+	protected Item asItem() {
+		return Items.MINECART;
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(COMMAND, "");
-      builder.add(LAST_OUTPUT, ScreenTexts.EMPTY);
-   }
+	@Override
+	public ItemStack getPickBlockStack() {
+		return new ItemStack(Items.COMMAND_BLOCK_MINECART);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.commandExecutor.readData(view);
-      this.getDataTracker().set(COMMAND, this.getCommandExecutor().getCommand());
-      this.getDataTracker().set(LAST_OUTPUT, this.getCommandExecutor().getLastOutput());
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(COMMAND, "");
+		builder.add(LAST_OUTPUT, ScreenTexts.EMPTY);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      this.commandExecutor.writeData(view);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.commandExecutor.readData(view);
+		this.getDataTracker().set(COMMAND, this.getCommandExecutor().getCommand());
+		this.getDataTracker().set(LAST_OUTPUT, this.getCommandExecutor().getLastOutput());
+	}
 
-   @Override
-   public BlockState getDefaultContainedBlock() {
-      return Blocks.COMMAND_BLOCK.getDefaultState();
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		this.commandExecutor.writeData(view);
+	}
 
-   public CommandBlockExecutor getCommandExecutor() {
-      return this.commandExecutor;
-   }
+	@Override
+	public BlockState getDefaultContainedBlock() {
+		return Blocks.COMMAND_BLOCK.getDefaultState();
+	}
 
-   @Override
-   public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
-      if (bl && this.age - this.lastExecuted >= 4) {
-         this.getCommandExecutor().execute(serverWorld);
-         this.lastExecuted = this.age;
-      }
-   }
+	public CommandBlockExecutor getCommandExecutor() {
+		return this.commandExecutor;
+	}
 
-   @Override
-   public ActionResult interact(PlayerEntity player, Hand hand) {
-      if (!player.isCreativeLevelTwoOp()) {
-         return ActionResult.PASS;
-      } else {
-         if (player.getEntityWorld().isClient()) {
-            player.openCommandBlockMinecartScreen(this);
-         }
+	@Override
+	public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
+		if (bl && this.age - this.lastExecuted >= 4) {
+			this.getCommandExecutor().execute(serverWorld);
+			this.lastExecuted = this.age;
+		}
+	}
 
-         return ActionResult.SUCCESS;
-      }
-   }
+	@Override
+	public ActionResult interact(PlayerEntity player, Hand hand) {
+		if (!player.isCreativeLevelTwoOp()) {
+			return ActionResult.PASS;
+		}
+		else {
+			if (player.getEntityWorld().isClient()) {
+				player.openCommandBlockMinecartScreen(this);
+			}
 
-   @Override
-   public void onTrackedDataSet(TrackedData<?> data) {
-      super.onTrackedDataSet(data);
-      if (LAST_OUTPUT.equals(data)) {
-         try {
-            this.commandExecutor.setLastOutput(this.getDataTracker().get(LAST_OUTPUT));
-         } catch (Throwable var3) {
-         }
-      } else if (COMMAND.equals(data)) {
-         this.commandExecutor.setCommand(this.getDataTracker().get(COMMAND));
-      }
-   }
+			return ActionResult.SUCCESS;
+		}
+	}
 
-   class CommandExecutor extends CommandBlockExecutor {
-      @Override
-      public void markDirty(ServerWorld world) {
-         CommandBlockMinecartEntity.this.getDataTracker().set(CommandBlockMinecartEntity.COMMAND, this.getCommand());
-         CommandBlockMinecartEntity.this.getDataTracker().set(CommandBlockMinecartEntity.LAST_OUTPUT, this.getLastOutput());
-      }
+	@Override
+	public void onTrackedDataSet(TrackedData<?> data) {
+		super.onTrackedDataSet(data);
+		if (LAST_OUTPUT.equals(data)) {
+			try {
+				this.commandExecutor.setLastOutput(this.getDataTracker().get(LAST_OUTPUT));
+			}
+			catch (Throwable var3) {
+			}
+		}
+		else if (COMMAND.equals(data)) {
+			this.commandExecutor.setCommand(this.getDataTracker().get(COMMAND));
+		}
+	}
 
-      @Override
-      public ServerCommandSource getSource(ServerWorld world, CommandOutput output) {
-         return new ServerCommandSource(
-            output,
-            CommandBlockMinecartEntity.this.getEntityPos(),
-            CommandBlockMinecartEntity.this.getRotationClient(),
-            world,
-            LeveledPermissionPredicate.GAMEMASTERS,
-            this.getName().getString(),
-            CommandBlockMinecartEntity.this.getDisplayName(),
-            world.getServer(),
-            CommandBlockMinecartEntity.this
-         );
-      }
+	/**
+	 * {@code CommandExecutor}.
+	 */
+	class CommandExecutor extends CommandBlockExecutor {
 
-      @Override
-      public boolean isEditable() {
-         return !CommandBlockMinecartEntity.this.isRemoved();
-      }
-   }
+		@Override
+		public void markDirty(ServerWorld world) {
+			CommandBlockMinecartEntity.this.getDataTracker().set(CommandBlockMinecartEntity.COMMAND, this.getCommand());
+			CommandBlockMinecartEntity.this
+					.getDataTracker()
+					.set(CommandBlockMinecartEntity.LAST_OUTPUT, this.getLastOutput());
+		}
+
+		@Override
+		public ServerCommandSource getSource(ServerWorld world, CommandOutput output) {
+			return new ServerCommandSource(
+					output,
+					CommandBlockMinecartEntity.this.getEntityPos(),
+					CommandBlockMinecartEntity.this.getRotationClient(),
+					world,
+					LeveledPermissionPredicate.GAMEMASTERS,
+					this.getName().getString(),
+					CommandBlockMinecartEntity.this.getDisplayName(),
+					world.getServer(),
+					CommandBlockMinecartEntity.this
+			);
+		}
+
+		@Override
+		public boolean isEditable() {
+			return !CommandBlockMinecartEntity.this.isRemoved();
+		}
+	}
 }

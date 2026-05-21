@@ -3,47 +3,54 @@ package net.minecraft.text;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.command.ServerCommandSource;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+
+/**
+ * {@code SelectorTextContent}.
+ */
 public record SelectorTextContent(ParsedSelector selector, Optional<Text> separator) implements TextContent {
-   public static final MapCodec<SelectorTextContent> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            ParsedSelector.CODEC.fieldOf("selector").forGetter(SelectorTextContent::selector),
-            TextCodecs.CODEC.optionalFieldOf("separator").forGetter(SelectorTextContent::separator)
-         )
-         .apply(instance, SelectorTextContent::new)
-   );
 
-   @Override
-   public MapCodec<SelectorTextContent> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SelectorTextContent> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    ParsedSelector.CODEC.fieldOf("selector").forGetter(SelectorTextContent::selector),
+					                    TextCodecs.CODEC.optionalFieldOf("separator").forGetter(SelectorTextContent::separator)
+			                    )
+			                    .apply(instance, SelectorTextContent::new)
+	);
 
-   @Override
-   public MutableText parse(@Nullable ServerCommandSource source, @Nullable Entity sender, int depth) throws CommandSyntaxException {
-      if (source == null) {
-         return Text.empty();
-      } else {
-         Optional<? extends Text> optional = Texts.parse(source, this.separator, sender, depth);
-         return Texts.join(this.selector.comp_3068().getEntities(source), optional, Entity::getDisplayName);
-      }
-   }
+	@Override
+	public MapCodec<SelectorTextContent> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
-      return visitor.accept(style, this.selector.comp_3067());
-   }
+	@Override
+	public MutableText parse(@Nullable ServerCommandSource source, @Nullable Entity sender, int depth)
+	throws CommandSyntaxException {
+		if (source == null) {
+			return Text.empty();
+		}
+		else {
+			Optional<? extends Text> optional = Texts.parse(source, this.separator, sender, depth);
+			return Texts.join(this.selector.comp_3068().getEntities(source), optional, Entity::getDisplayName);
+		}
+	}
 
-   @Override
-   public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
-      return visitor.accept(this.selector.comp_3067());
-   }
+	@Override
+	public <T> Optional<T> visit(StringVisitable.StyledVisitor<T> visitor, Style style) {
+		return visitor.accept(style, this.selector.comp_3067());
+	}
 
-   @Override
-   public String toString() {
-      return "pattern{" + this.selector + "}";
-   }
+	@Override
+	public <T> Optional<T> visit(StringVisitable.Visitor<T> visitor) {
+		return visitor.accept(this.selector.comp_3067());
+	}
+
+	@Override
+	public String toString() {
+		return "pattern{" + this.selector + "}";
+	}
 }

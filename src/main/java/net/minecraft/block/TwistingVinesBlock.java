@@ -5,31 +5,35 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.util.shape.VoxelShape;
 
+/**
+ * {@code TwistingVinesBlock}.
+ */
 public class TwistingVinesBlock extends AbstractPlantStemBlock {
-   public static final MapCodec<TwistingVinesBlock> CODEC = createCodec(TwistingVinesBlock::new);
-   private static final VoxelShape SHAPE = Block.createColumnShape(8.0, 0.0, 15.0);
 
-   @Override
-   public MapCodec<TwistingVinesBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<TwistingVinesBlock> CODEC = createCodec(TwistingVinesBlock::new);
+	private static final VoxelShape SHAPE = Block.createColumnShape(8.0, 0.0, 15.0);
 
-   public TwistingVinesBlock(AbstractBlock.Settings settings) {
-      super(settings, Direction.UP, SHAPE, false, 0.1);
-   }
+	@Override
+	public MapCodec<TwistingVinesBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected int getGrowthLength(Random random) {
-      return VineLogic.getGrowthLength(random);
-   }
+	public TwistingVinesBlock(AbstractBlock.Settings settings) {
+		super(settings, Direction.UP, SHAPE, false, 0.1);
+	}
 
-   @Override
-   protected Block getPlant() {
-      return Blocks.TWISTING_VINES_PLANT;
-   }
+	@Override
+	protected int getGrowthLength(Random random) {
+		return VineLogic.getGrowthLength(random);
+	}
 
-   @Override
-   protected boolean chooseStemState(BlockState state) {
-      return VineLogic.isValidForWeepingStem(state);
-   }
+	@Override
+	protected Block getPlant() {
+		return Blocks.TWISTING_VINES_PLANT;
+	}
+
+	@Override
+	protected boolean chooseStemState(BlockState state) {
+		return VineLogic.isValidForWeepingStem(state);
+	}
 }

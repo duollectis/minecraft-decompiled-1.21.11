@@ -20,117 +20,145 @@ import net.minecraft.client.util.math.MatrixStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SpecialGuiElementRenderer}.
+ */
 public abstract class SpecialGuiElementRenderer<T extends SpecialGuiElementRenderState> implements AutoCloseable {
-   protected final VertexConsumerProvider.Immediate vertexConsumers;
-   private @Nullable GpuTexture texture;
-   private @Nullable GpuTextureView textureView;
-   private @Nullable GpuTexture depthTexture;
-   private @Nullable GpuTextureView depthTextureView;
-   private final ProjectionMatrix2 projectionMatrix = new ProjectionMatrix2("PIP - " + this.getClass().getSimpleName(), -1000.0F, 1000.0F, true);
 
-   protected SpecialGuiElementRenderer(VertexConsumerProvider.Immediate vertexConsumers) {
-      this.vertexConsumers = vertexConsumers;
-   }
+	protected final VertexConsumerProvider.Immediate vertexConsumers;
+	private @Nullable GpuTexture texture;
+	private @Nullable GpuTextureView textureView;
+	private @Nullable GpuTexture depthTexture;
+	private @Nullable GpuTextureView depthTextureView;
+	private final ProjectionMatrix2
+			projectionMatrix =
+			new ProjectionMatrix2("PIP - " + this.getClass().getSimpleName(), -1000.0F, 1000.0F, true);
 
-   public void render(T elementState, GuiRenderState state, int windowScaleFactor) {
-      int i = (elementState.x2() - elementState.x1()) * windowScaleFactor;
-      int j = (elementState.y2() - elementState.y1()) * windowScaleFactor;
-      boolean bl = this.texture == null || this.texture.getWidth(0) != i || this.texture.getHeight(0) != j;
-      if (!bl && this.shouldBypassScaling(elementState)) {
-         this.renderElement(elementState, state);
-      } else {
-         this.prepareTextures(bl, i, j);
-         RenderSystem.outputColorTextureOverride = this.textureView;
-         RenderSystem.outputDepthTextureOverride = this.depthTextureView;
-         MatrixStack matrixStack = new MatrixStack();
-         matrixStack.translate(i / 2.0F, this.getYOffset(j, windowScaleFactor), 0.0F);
-         float f = windowScaleFactor * elementState.scale();
-         matrixStack.scale(f, f, -f);
-         this.render(elementState, matrixStack);
-         this.vertexConsumers.draw();
-         RenderSystem.outputColorTextureOverride = null;
-         RenderSystem.outputDepthTextureOverride = null;
-         this.renderElement(elementState, state);
-      }
-   }
+	protected SpecialGuiElementRenderer(VertexConsumerProvider.Immediate vertexConsumers) {
+		this.vertexConsumers = vertexConsumers;
+	}
 
-   protected void renderElement(T element, GuiRenderState state) {
-      state.addSimpleElementToCurrentLayer(
-         new TexturedQuadGuiElementRenderState(
-            RenderPipelines.GUI_TEXTURED_PREMULTIPLIED_ALPHA,
-            TextureSetup.of(this.textureView, RenderSystem.getSamplerCache().getRepeated(FilterMode.NEAREST)),
-            element.pose(),
-            element.x1(),
-            element.y1(),
-            element.x2(),
-            element.y2(),
-            0.0F,
-            1.0F,
-            1.0F,
-            0.0F,
-            -1,
-            element.scissorArea(),
-            null
-         )
-      );
-   }
+	public void render(T elementState, GuiRenderState state, int windowScaleFactor) {
+		int i = (elementState.x2() - elementState.x1()) * windowScaleFactor;
+		int j = (elementState.y2() - elementState.y1()) * windowScaleFactor;
+		boolean bl = this.texture == null || this.texture.getWidth(0) != i || this.texture.getHeight(0) != j;
+		if (!bl && this.shouldBypassScaling(elementState)) {
+			this.renderElement(elementState, state);
+		}
+		else {
+			this.prepareTextures(bl, i, j);
+			RenderSystem.outputColorTextureOverride = this.textureView;
+			RenderSystem.outputDepthTextureOverride = this.depthTextureView;
+			MatrixStack matrixStack = new MatrixStack();
+			matrixStack.translate(i / 2.0F, this.getYOffset(j, windowScaleFactor), 0.0F);
+			float f = windowScaleFactor * elementState.scale();
+			matrixStack.scale(f, f, -f);
+			this.render(elementState, matrixStack);
+			this.vertexConsumers.draw();
+			RenderSystem.outputColorTextureOverride = null;
+			RenderSystem.outputDepthTextureOverride = null;
+			this.renderElement(elementState, state);
+		}
+	}
 
-   private void prepareTextures(boolean closePrevious, int width, int height) {
-      if (this.texture != null && closePrevious) {
-         this.texture.close();
-         this.texture = null;
-         this.textureView.close();
-         this.textureView = null;
-         this.depthTexture.close();
-         this.depthTexture = null;
-         this.depthTextureView.close();
-         this.depthTextureView = null;
-      }
+	protected void renderElement(T element, GuiRenderState state) {
+		state.addSimpleElementToCurrentLayer(
+				new TexturedQuadGuiElementRenderState(
+						RenderPipelines.GUI_TEXTURED_PREMULTIPLIED_ALPHA,
+						TextureSetup.of(
+								this.textureView,
+								RenderSystem.getSamplerCache().getRepeated(FilterMode.NEAREST)
+						),
+						element.pose(),
+						element.x1(),
+						element.y1(),
+						element.x2(),
+						element.y2(),
+						0.0F,
+						1.0F,
+						1.0F,
+						0.0F,
+						-1,
+						element.scissorArea(),
+						null
+				)
+		);
+	}
 
-      GpuDevice gpuDevice = RenderSystem.getDevice();
-      if (this.texture == null) {
-         this.texture = gpuDevice.createTexture(() -> "UI " + this.getName() + " texture", 12, TextureFormat.RGBA8, width, height, 1, 1);
-         this.textureView = gpuDevice.createTextureView(this.texture);
-         this.depthTexture = gpuDevice.createTexture(() -> "UI " + this.getName() + " depth texture", 8, TextureFormat.DEPTH32, width, height, 1, 1);
-         this.depthTextureView = gpuDevice.createTextureView(this.depthTexture);
-      }
+	private void prepareTextures(boolean closePrevious, int width, int height) {
+		if (this.texture != null && closePrevious) {
+			this.texture.close();
+			this.texture = null;
+			this.textureView.close();
+			this.textureView = null;
+			this.depthTexture.close();
+			this.depthTexture = null;
+			this.depthTextureView.close();
+			this.depthTextureView = null;
+		}
 
-      gpuDevice.createCommandEncoder().clearColorAndDepthTextures(this.texture, 0, this.depthTexture, 1.0);
-      RenderSystem.setProjectionMatrix(this.projectionMatrix.set(width, height), ProjectionType.ORTHOGRAPHIC);
-   }
+		GpuDevice gpuDevice = RenderSystem.getDevice();
+		if (this.texture == null) {
+			this.texture =
+					gpuDevice.createTexture(
+							() -> "UI " + this.getName() + " texture",
+							12,
+							TextureFormat.RGBA8,
+							width,
+							height,
+							1,
+							1
+					);
+			this.textureView = gpuDevice.createTextureView(this.texture);
+			this.depthTexture =
+					gpuDevice.createTexture(
+							() -> "UI " + this.getName() + " depth texture",
+							8,
+							TextureFormat.DEPTH32,
+							width,
+							height,
+							1,
+							1
+					);
+			this.depthTextureView = gpuDevice.createTextureView(this.depthTexture);
+		}
 
-   protected boolean shouldBypassScaling(T elementRenderer) {
-      return false;
-   }
+		gpuDevice.createCommandEncoder().clearColorAndDepthTextures(this.texture, 0, this.depthTexture, 1.0);
+		RenderSystem.setProjectionMatrix(this.projectionMatrix.set(width, height), ProjectionType.ORTHOGRAPHIC);
+	}
 
-   protected float getYOffset(int height, int windowScaleFactor) {
-      return height;
-   }
+	protected boolean shouldBypassScaling(T elementRenderer) {
+		return false;
+	}
 
-   @Override
-   public void close() {
-      if (this.texture != null) {
-         this.texture.close();
-      }
+	protected float getYOffset(int height, int windowScaleFactor) {
+		return height;
+	}
 
-      if (this.textureView != null) {
-         this.textureView.close();
-      }
+	@Override
+	public void close() {
+		if (this.texture != null) {
+			this.texture.close();
+		}
 
-      if (this.depthTexture != null) {
-         this.depthTexture.close();
-      }
+		if (this.textureView != null) {
+			this.textureView.close();
+		}
 
-      if (this.depthTextureView != null) {
-         this.depthTextureView.close();
-      }
+		if (this.depthTexture != null) {
+			this.depthTexture.close();
+		}
 
-      this.projectionMatrix.close();
-   }
+		if (this.depthTextureView != null) {
+			this.depthTextureView.close();
+		}
 
-   public abstract Class<T> getElementClass();
+		this.projectionMatrix.close();
+	}
 
-   protected abstract void render(T state, MatrixStack matrices);
+	public abstract Class<T> getElementClass();
 
-   protected abstract String getName();
+	protected abstract void render(T state, MatrixStack matrices);
+
+	protected abstract String getName();
 }

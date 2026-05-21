@@ -1,9 +1,14 @@
 package net.minecraft.test;
 
-import java.util.stream.Stream;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.stream.Stream;
+
 @FunctionalInterface
+/**
+ * {@code TestInstanceBlockFinder}.
+ */
 public interface TestInstanceBlockFinder {
-   Stream<BlockPos> findTestPos();
+
+	Stream<BlockPos> findTestPos();
 }

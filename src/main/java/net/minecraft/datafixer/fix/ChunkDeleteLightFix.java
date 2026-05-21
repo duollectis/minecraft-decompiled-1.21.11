@@ -8,17 +8,28 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.Type;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code ChunkDeleteLightFix}.
+ */
 public class ChunkDeleteLightFix extends DataFix {
-   public ChunkDeleteLightFix(Schema outputSchema) {
-      super(outputSchema, false);
-   }
 
-   protected TypeRewriteRule makeRule() {
-      Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
-      OpticFinder<?> opticFinder = type.findField("sections");
-      return this.fixTypeEverywhereTyped("ChunkDeleteLightFix for " + this.getOutputSchema().getVersionKey(), type, typed -> {
-         typed = typed.update(DSL.remainderFinder(), dynamic -> dynamic.remove("isLightOn"));
-         return typed.updateTyped(opticFinder, typedx -> typedx.update(DSL.remainderFinder(), dynamic -> dynamic.remove("BlockLight").remove("SkyLight")));
-      });
-   }
+	public ChunkDeleteLightFix(Schema outputSchema) {
+		super(outputSchema, false);
+	}
+
+	protected TypeRewriteRule makeRule() {
+		Type<?> type = this.getInputSchema().getType(TypeReferences.CHUNK);
+		OpticFinder<?> opticFinder = type.findField("sections");
+		return this.fixTypeEverywhereTyped(
+				"ChunkDeleteLightFix for " + this.getOutputSchema().getVersionKey(), type, typed -> {
+					typed = typed.update(DSL.remainderFinder(), dynamic -> dynamic.remove("isLightOn"));
+					return typed.updateTyped(opticFinder,
+							typedx -> typedx.update(
+									DSL.remainderFinder(),
+									dynamic -> dynamic.remove("BlockLight").remove("SkyLight")
+							)
+					);
+				}
+		);
+	}
 }

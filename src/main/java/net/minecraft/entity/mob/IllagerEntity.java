@@ -8,53 +8,66 @@ import net.minecraft.entity.raid.RaiderEntity;
 import net.minecraft.registry.tag.EntityTypeTags;
 import net.minecraft.world.World;
 
+/**
+ * {@code IllagerEntity}.
+ */
 public abstract class IllagerEntity extends RaiderEntity {
-   protected IllagerEntity(EntityType<? extends IllagerEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   @Override
-   protected void initGoals() {
-      super.initGoals();
-   }
+	protected IllagerEntity(EntityType<? extends IllagerEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public IllagerEntity.State getState() {
-      return IllagerEntity.State.CROSSED;
-   }
+	@Override
+	protected void initGoals() {
+		super.initGoals();
+	}
 
-   @Override
-   public boolean canTarget(LivingEntity target) {
-      return target instanceof MerchantEntity && target.isBaby() ? false : super.canTarget(target);
-   }
+	public IllagerEntity.State getState() {
+		return IllagerEntity.State.CROSSED;
+	}
 
-   @Override
-   public boolean isInSameTeam(Entity other) {
-      if (super.isInSameTeam(other)) {
-         return true;
-      } else {
-         return !other.getType().isIn(EntityTypeTags.ILLAGER_FRIENDS) ? false : this.getScoreboardTeam() == null && other.getScoreboardTeam() == null;
-      }
-   }
+	@Override
+	public boolean canTarget(LivingEntity target) {
+		return target instanceof MerchantEntity && target.isBaby() ? false : super.canTarget(target);
+	}
 
-   protected class LongDoorInteractGoal extends net.minecraft.entity.ai.goal.LongDoorInteractGoal {
-      public LongDoorInteractGoal(final RaiderEntity raider) {
-         super(raider, false);
-      }
+	@Override
+	public boolean isInSameTeam(Entity other) {
+		if (super.isInSameTeam(other)) {
+			return true;
+		}
+		else {
+			return !other.getType().isIn(EntityTypeTags.ILLAGER_FRIENDS) ? false : this.getScoreboardTeam() == null
+			                                                                       && other.getScoreboardTeam() == null;
+		}
+	}
 
-      @Override
-      public boolean canStart() {
-         return super.canStart() && IllagerEntity.this.hasActiveRaid();
-      }
-   }
+	/**
+	 * {@code LongDoorInteractGoal}.
+	 */
+	protected class LongDoorInteractGoal extends net.minecraft.entity.ai.goal.LongDoorInteractGoal {
 
-   public static enum State {
-      CROSSED,
-      ATTACKING,
-      SPELLCASTING,
-      BOW_AND_ARROW,
-      CROSSBOW_HOLD,
-      CROSSBOW_CHARGE,
-      CELEBRATING,
-      NEUTRAL;
-   }
+		public LongDoorInteractGoal(final RaiderEntity raider) {
+			super(raider, false);
+		}
+
+		@Override
+		public boolean canStart() {
+			return super.canStart() && IllagerEntity.this.hasActiveRaid();
+		}
+	}
+
+	/**
+	 * {@code State}.
+	 */
+	public static enum State {
+		CROSSED,
+		ATTACKING,
+		SPELLCASTING,
+		BOW_AND_ARROW,
+		CROSSBOW_HOLD,
+		CROSSBOW_CHARGE,
+		CELEBRATING,
+		NEUTRAL;
+	}
 }

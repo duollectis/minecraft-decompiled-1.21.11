@@ -1,7 +1,5 @@
 package net.minecraft.entity.passive;
 
-import java.util.List;
-import java.util.stream.Stream;
 import net.minecraft.entity.EntityData;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
@@ -11,108 +9,131 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.stream.Stream;
+
+/**
+ * {@code SchoolingFishEntity}.
+ */
 public abstract class SchoolingFishEntity extends FishEntity {
-   private @Nullable SchoolingFishEntity leader;
-   private int groupSize = 1;
 
-   public SchoolingFishEntity(EntityType<? extends SchoolingFishEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private @Nullable SchoolingFishEntity leader;
+	private int groupSize = 1;
 
-   @Override
-   protected void initGoals() {
-      super.initGoals();
-      this.goalSelector.add(5, new FollowGroupLeaderGoal(this));
-   }
+	public SchoolingFishEntity(EntityType<? extends SchoolingFishEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   public int getLimitPerChunk() {
-      return this.getMaxGroupSize();
-   }
+	@Override
+	protected void initGoals() {
+		super.initGoals();
+		this.goalSelector.add(5, new FollowGroupLeaderGoal(this));
+	}
 
-   public int getMaxGroupSize() {
-      return super.getLimitPerChunk();
-   }
+	@Override
+	public int getLimitPerChunk() {
+		return this.getMaxGroupSize();
+	}
 
-   @Override
-   protected boolean hasSelfControl() {
-      return !this.hasLeader();
-   }
+	public int getMaxGroupSize() {
+		return super.getLimitPerChunk();
+	}
 
-   public boolean hasLeader() {
-      return this.leader != null && this.leader.isAlive();
-   }
+	@Override
+	protected boolean hasSelfControl() {
+		return !this.hasLeader();
+	}
 
-   public SchoolingFishEntity joinGroupOf(SchoolingFishEntity groupLeader) {
-      this.leader = groupLeader;
-      groupLeader.increaseGroupSize();
-      return groupLeader;
-   }
+	public boolean hasLeader() {
+		return this.leader != null && this.leader.isAlive();
+	}
 
-   public void leaveGroup() {
-      this.leader.decreaseGroupSize();
-      this.leader = null;
-   }
+	public SchoolingFishEntity joinGroupOf(SchoolingFishEntity groupLeader) {
+		this.leader = groupLeader;
+		groupLeader.increaseGroupSize();
+		return groupLeader;
+	}
 
-   private void increaseGroupSize() {
-      this.groupSize++;
-   }
+	public void leaveGroup() {
+		this.leader.decreaseGroupSize();
+		this.leader = null;
+	}
 
-   private void decreaseGroupSize() {
-      this.groupSize--;
-   }
+	private void increaseGroupSize() {
+		this.groupSize++;
+	}
 
-   public boolean canHaveMoreFishInGroup() {
-      return this.hasOtherFishInGroup() && this.groupSize < this.getMaxGroupSize();
-   }
+	private void decreaseGroupSize() {
+		this.groupSize--;
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      if (this.hasOtherFishInGroup() && this.getEntityWorld().random.nextInt(200) == 1) {
-         List<? extends FishEntity> list = this.getEntityWorld()
-            .getNonSpectatingEntities((Class<? extends FishEntity>)this.getClass(), this.getBoundingBox().expand(8.0, 8.0, 8.0));
-         if (list.size() <= 1) {
-            this.groupSize = 1;
-         }
-      }
-   }
+	public boolean canHaveMoreFishInGroup() {
+		return this.hasOtherFishInGroup() && this.groupSize < this.getMaxGroupSize();
+	}
 
-   public boolean hasOtherFishInGroup() {
-      return this.groupSize > 1;
-   }
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.hasOtherFishInGroup() && this.getEntityWorld().random.nextInt(200) == 1) {
+			List<? extends FishEntity> list = this.getEntityWorld()
+			                                      .getNonSpectatingEntities(
+					                                      (Class<? extends FishEntity>) this.getClass(),
+					                                      this.getBoundingBox().expand(8.0, 8.0, 8.0)
+			                                      );
+			if (list.size() <= 1) {
+				this.groupSize = 1;
+			}
+		}
+	}
 
-   public boolean isCloseEnoughToLeader() {
-      return this.squaredDistanceTo(this.leader) <= 121.0;
-   }
+	public boolean hasOtherFishInGroup() {
+		return this.groupSize > 1;
+	}
 
-   public void moveTowardLeader() {
-      if (this.hasLeader()) {
-         this.getNavigation().startMovingTo(this.leader, 1.0);
-      }
-   }
+	public boolean isCloseEnoughToLeader() {
+		return this.squaredDistanceTo(this.leader) <= 121.0;
+	}
 
-   public void pullInOtherFish(Stream<? extends SchoolingFishEntity> fish) {
-      fish.limit(this.getMaxGroupSize() - this.groupSize).filter(fishx -> fishx != this).forEach(fishx -> fishx.joinGroupOf(this));
-   }
+	public void moveTowardLeader() {
+		if (this.hasLeader()) {
+			this.getNavigation().startMovingTo(this.leader, 1.0);
+		}
+	}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      super.initialize(world, difficulty, spawnReason, entityData);
-      if (entityData == null) {
-         entityData = new SchoolingFishEntity.FishData(this);
-      } else {
-         this.joinGroupOf(((SchoolingFishEntity.FishData)entityData).leader);
-      }
+	public void pullInOtherFish(Stream<? extends SchoolingFishEntity> fish) {
+		fish
+				.limit(this.getMaxGroupSize() - this.groupSize)
+				.filter(fishx -> fishx != this)
+				.forEach(fishx -> fishx.joinGroupOf(this));
+	}
 
-      return entityData;
-   }
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		super.initialize(world, difficulty, spawnReason, entityData);
+		if (entityData == null) {
+			entityData = new SchoolingFishEntity.FishData(this);
+		}
+		else {
+			this.joinGroupOf(((SchoolingFishEntity.FishData) entityData).leader);
+		}
 
-   public static class FishData implements EntityData {
-      public final SchoolingFishEntity leader;
+		return entityData;
+	}
 
-      public FishData(SchoolingFishEntity leader) {
-         this.leader = leader;
-      }
-   }
+	/**
+	 * {@code FishData}.
+	 */
+	public static class FishData implements EntityData {
+
+		public final SchoolingFishEntity leader;
+
+		public FishData(SchoolingFishEntity leader) {
+			this.leader = leader;
+		}
+	}
 }

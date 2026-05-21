@@ -1,6 +1,5 @@
 package net.minecraft.world.block;
 
-import java.util.Locale;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -14,65 +13,115 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Locale;
+
+/**
+ * {@code NeighborUpdater}.
+ */
 public interface NeighborUpdater {
-   Direction[] UPDATE_ORDER = new Direction[]{Direction.WEST, Direction.EAST, Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH};
 
-   void replaceWithStateForNeighborUpdate(
-      Direction direction, BlockState neighborState, BlockPos pos, BlockPos neighborPos, @Block.SetBlockStateFlag int flags, int maxUpdateDepth
-   );
+	Direction[]
+			UPDATE_ORDER =
+			new Direction[]{
+					Direction.WEST,
+					Direction.EAST,
+					Direction.DOWN,
+					Direction.UP,
+					Direction.NORTH,
+					Direction.SOUTH
+			};
 
-   void updateNeighbor(BlockPos pos, Block sourceBlock, @Nullable WireOrientation orientation);
+	void replaceWithStateForNeighborUpdate(
+			Direction direction,
+			BlockState neighborState,
+			BlockPos pos,
+			BlockPos neighborPos,
+			@Block.SetBlockStateFlag int flags,
+			int maxUpdateDepth
+	);
 
-   void updateNeighbor(BlockState state, BlockPos pos, Block sourceBlock, @Nullable WireOrientation orientation, boolean notify);
+	void updateNeighbor(BlockPos pos, Block sourceBlock, @Nullable WireOrientation orientation);
 
-   default void updateNeighbors(BlockPos pos, Block sourceBlock, @Nullable Direction except, @Nullable WireOrientation orientation) {
-      for (Direction direction : UPDATE_ORDER) {
-         if (direction != except) {
-            this.updateNeighbor(pos.offset(direction), sourceBlock, null);
-         }
-      }
-   }
+	void updateNeighbor(
+			BlockState state,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation orientation,
+			boolean notify
+	);
 
-   static void replaceWithStateForNeighborUpdate(
-      WorldAccess world,
-      Direction direction,
-      BlockPos pos,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      @Block.SetBlockStateFlag int flags,
-      int maxUpdateDepth
-   ) {
-      BlockState blockState = world.getBlockState(pos);
-      if ((flags & 128) == 0 || !blockState.isOf(Blocks.REDSTONE_WIRE)) {
-         BlockState blockState2 = blockState.getStateForNeighborUpdate(world, world, pos, direction, neighborPos, neighborState, world.getRandom());
-         Block.replace(blockState, blockState2, world, pos, flags, maxUpdateDepth);
-      }
-   }
+	default void updateNeighbors(
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable Direction except,
+			@Nullable WireOrientation orientation
+	) {
+		for (Direction direction : UPDATE_ORDER) {
+			if (direction != except) {
+				this.updateNeighbor(pos.offset(direction), sourceBlock, null);
+			}
+		}
+	}
 
-   static void tryNeighborUpdate(World world, BlockState state, BlockPos pos, Block sourceBlock, @Nullable WireOrientation orientation, boolean notify) {
-      try {
-         state.neighborUpdate(world, pos, sourceBlock, orientation, notify);
-      } catch (Throwable var9) {
-         CrashReport crashReport = CrashReport.create(var9, "Exception while updating neighbours");
-         CrashReportSection crashReportSection = crashReport.addElement("Block being updated");
-         crashReportSection.add(
-            "Source block type",
-            () -> {
-               try {
-                  return String.format(
-                     Locale.ROOT,
-                     "ID #%s (%s // %s)",
-                     Registries.BLOCK.getId(sourceBlock),
-                     sourceBlock.getTranslationKey(),
-                     sourceBlock.getClass().getCanonicalName()
-                  );
-               } catch (Throwable var2) {
-                  return "ID #" + Registries.BLOCK.getId(sourceBlock);
-               }
-            }
-         );
-         CrashReportSection.addBlockInfo(crashReportSection, world, pos, state);
-         throw new CrashException(crashReport);
-      }
-   }
+	static void replaceWithStateForNeighborUpdate(
+			WorldAccess world,
+			Direction direction,
+			BlockPos pos,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			@Block.SetBlockStateFlag int flags,
+			int maxUpdateDepth
+	) {
+		BlockState blockState = world.getBlockState(pos);
+		if ((flags & 128) == 0 || !blockState.isOf(Blocks.REDSTONE_WIRE)) {
+			BlockState
+					blockState2 =
+					blockState.getStateForNeighborUpdate(
+							world,
+							world,
+							pos,
+							direction,
+							neighborPos,
+							neighborState,
+							world.getRandom()
+					);
+			Block.replace(blockState, blockState2, world, pos, flags, maxUpdateDepth);
+		}
+	}
+
+	static void tryNeighborUpdate(
+			World world,
+			BlockState state,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation orientation,
+			boolean notify
+	) {
+		try {
+			state.neighborUpdate(world, pos, sourceBlock, orientation, notify);
+		}
+		catch (Throwable var9) {
+			CrashReport crashReport = CrashReport.create(var9, "Exception while updating neighbours");
+			CrashReportSection crashReportSection = crashReport.addElement("Block being updated");
+			crashReportSection.add(
+					"Source block type",
+					() -> {
+						try {
+							return String.format(
+									Locale.ROOT,
+									"ID #%s (%s // %s)",
+									Registries.BLOCK.getId(sourceBlock),
+									sourceBlock.getTranslationKey(),
+									sourceBlock.getClass().getCanonicalName()
+							);
+						}
+						catch (Throwable var2) {
+							return "ID #" + Registries.BLOCK.getId(sourceBlock);
+						}
+					}
+			);
+			CrashReportSection.addBlockInfo(crashReportSection, world, pos, state);
+			throw new CrashException(crashReport);
+		}
+	}
 }

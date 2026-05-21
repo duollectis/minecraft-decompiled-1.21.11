@@ -6,26 +6,30 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ModifiableWorld}.
+ */
 public interface ModifiableWorld {
-   boolean setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags, int maxUpdateDepth);
 
-   default boolean setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
-      return this.setBlockState(pos, state, flags, 512);
-   }
+	boolean setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags, int maxUpdateDepth);
 
-   boolean removeBlock(BlockPos pos, boolean move);
+	default boolean setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
+		return this.setBlockState(pos, state, flags, 512);
+	}
 
-   default boolean breakBlock(BlockPos pos, boolean drop) {
-      return this.breakBlock(pos, drop, null);
-   }
+	boolean removeBlock(BlockPos pos, boolean move);
 
-   default boolean breakBlock(BlockPos pos, boolean drop, @Nullable Entity breakingEntity) {
-      return this.breakBlock(pos, drop, breakingEntity, 512);
-   }
+	default boolean breakBlock(BlockPos pos, boolean drop) {
+		return this.breakBlock(pos, drop, null);
+	}
 
-   boolean breakBlock(BlockPos pos, boolean drop, @Nullable Entity breakingEntity, int maxUpdateDepth);
+	default boolean breakBlock(BlockPos pos, boolean drop, @Nullable Entity breakingEntity) {
+		return this.breakBlock(pos, drop, breakingEntity, 512);
+	}
 
-   default boolean spawnEntity(Entity entity) {
-      return false;
-   }
+	boolean breakBlock(BlockPos pos, boolean drop, @Nullable Entity breakingEntity, int maxUpdateDepth);
+
+	default boolean spawnEntity(Entity entity) {
+		return false;
+	}
 }

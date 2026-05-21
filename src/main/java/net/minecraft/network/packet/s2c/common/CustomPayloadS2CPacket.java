@@ -1,35 +1,37 @@
 package net.minecraft.network.packet.s2c.common;
 
-import java.util.List;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.listener.ClientCommonPacketListener;
-import net.minecraft.network.packet.BrandCustomPayload;
-import net.minecraft.network.packet.CommonPackets;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.PacketType;
-import net.minecraft.network.packet.UnknownCustomPayload;
+import net.minecraft.network.packet.*;
+
+import java.util.List;
 
 public record CustomPayloadS2CPacket(CustomPayload payload) implements Packet<ClientCommonPacketListener> {
-   private static final int MAX_PAYLOAD_SIZE = 1048576;
-   public static final PacketCodec<RegistryByteBuf, CustomPayloadS2CPacket> PLAY_CODEC = CustomPayload.<RegistryByteBuf>createCodec(
-         id -> UnknownCustomPayload.createCodec(id, 1048576),
-         List.of(new CustomPayload.Type<>(BrandCustomPayload.ID, BrandCustomPayload.CODEC))
-      )
-      .xmap(CustomPayloadS2CPacket::new, CustomPayloadS2CPacket::payload);
-   public static final PacketCodec<PacketByteBuf, CustomPayloadS2CPacket> CONFIGURATION_CODEC = CustomPayload.<PacketByteBuf>createCodec(
-         id -> UnknownCustomPayload.createCodec(id, 1048576), List.of(new CustomPayload.Type<>(BrandCustomPayload.ID, BrandCustomPayload.CODEC))
-      )
-      .xmap(CustomPayloadS2CPacket::new, CustomPayloadS2CPacket::payload);
 
-   @Override
-   public PacketType<CustomPayloadS2CPacket> getPacketType() {
-      return CommonPackets.CUSTOM_PAYLOAD_S2C;
-   }
+	private static final int MAX_PAYLOAD_SIZE = 1048576;
+	public static final PacketCodec<RegistryByteBuf, CustomPayloadS2CPacket>
+			PLAY_CODEC =
+			CustomPayload.<RegistryByteBuf>createCodec(
+					             id -> UnknownCustomPayload.createCodec(id, 1048576),
+					             List.of(new CustomPayload.Type<>(BrandCustomPayload.ID, BrandCustomPayload.CODEC))
+			             )
+			             .xmap(CustomPayloadS2CPacket::new, CustomPayloadS2CPacket::payload);
+	public static final PacketCodec<PacketByteBuf, CustomPayloadS2CPacket>
+			CONFIGURATION_CODEC =
+			CustomPayload.<PacketByteBuf>createCodec(
+					             id -> UnknownCustomPayload.createCodec(id, 1048576),
+					             List.of(new CustomPayload.Type<>(BrandCustomPayload.ID, BrandCustomPayload.CODEC))
+			             )
+			             .xmap(CustomPayloadS2CPacket::new, CustomPayloadS2CPacket::payload);
 
-   public void apply(ClientCommonPacketListener clientCommonPacketListener) {
-      clientCommonPacketListener.onCustomPayload(this);
-   }
+	@Override
+	public PacketType<CustomPayloadS2CPacket> getPacketType() {
+		return CommonPackets.CUSTOM_PAYLOAD_S2C;
+	}
+
+	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
+		clientCommonPacketListener.onCustomPayload(this);
+	}
 }

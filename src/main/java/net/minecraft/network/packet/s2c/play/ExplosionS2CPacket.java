@@ -1,6 +1,5 @@
 package net.minecraft.network.packet.s2c.play;
 
-import java.util.Optional;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
@@ -16,39 +15,42 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.collection.Pool;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.Optional;
+
 public record ExplosionS2CPacket(
-   Vec3d center,
-   float radius,
-   int blockCount,
-   Optional<Vec3d> playerKnockback,
-   ParticleEffect explosionParticle,
-   RegistryEntry<SoundEvent> explosionSound,
-   Pool<BlockParticleEffect> blockParticles
+		Vec3d center,
+		float radius,
+		int blockCount,
+		Optional<Vec3d> playerKnockback,
+		ParticleEffect explosionParticle,
+		RegistryEntry<SoundEvent> explosionSound,
+		Pool<BlockParticleEffect> blockParticles
 ) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, ExplosionS2CPacket> CODEC = PacketCodec.tuple(
-      Vec3d.PACKET_CODEC,
-      ExplosionS2CPacket::center,
-      PacketCodecs.FLOAT,
-      ExplosionS2CPacket::radius,
-      PacketCodecs.INTEGER,
-      ExplosionS2CPacket::blockCount,
-      Vec3d.PACKET_CODEC.collect(PacketCodecs::optional),
-      ExplosionS2CPacket::playerKnockback,
-      ParticleTypes.PACKET_CODEC,
-      ExplosionS2CPacket::explosionParticle,
-      SoundEvent.ENTRY_PACKET_CODEC,
-      ExplosionS2CPacket::explosionSound,
-      Pool.createPacketCodec(BlockParticleEffect.PACKET_CODEC),
-      ExplosionS2CPacket::blockParticles,
-      ExplosionS2CPacket::new
-   );
 
-   @Override
-   public PacketType<ExplosionS2CPacket> getPacketType() {
-      return PlayPackets.EXPLODE;
-   }
+	public static final PacketCodec<RegistryByteBuf, ExplosionS2CPacket> CODEC = PacketCodec.tuple(
+			Vec3d.PACKET_CODEC,
+			ExplosionS2CPacket::center,
+			PacketCodecs.FLOAT,
+			ExplosionS2CPacket::radius,
+			PacketCodecs.INTEGER,
+			ExplosionS2CPacket::blockCount,
+			Vec3d.PACKET_CODEC.collect(PacketCodecs::optional),
+			ExplosionS2CPacket::playerKnockback,
+			ParticleTypes.PACKET_CODEC,
+			ExplosionS2CPacket::explosionParticle,
+			SoundEvent.ENTRY_PACKET_CODEC,
+			ExplosionS2CPacket::explosionSound,
+			Pool.createPacketCodec(BlockParticleEffect.PACKET_CODEC),
+			ExplosionS2CPacket::blockParticles,
+			ExplosionS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onExplosion(this);
-   }
+	@Override
+	public PacketType<ExplosionS2CPacket> getPacketType() {
+		return PlayPackets.EXPLODE;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onExplosion(this);
+	}
 }

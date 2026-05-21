@@ -4,14 +4,6 @@ import com.google.common.collect.Lists;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
@@ -32,151 +24,204 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
+
+/**
+ * Источник команд на стороне клиента.
+ * Предоставляет подсказки для автодополнения команд, запрашивая их у сервера,
+ * а также локальные подсказки (имена игроков, команды, позиции).
+ */
 @Environment(EnvType.CLIENT)
 public class ClientCommandSource implements CommandSource {
-   private final ClientPlayNetworkHandler networkHandler;
-   private final MinecraftClient client;
-   private int completionId = -1;
-   private @Nullable CompletableFuture<Suggestions> pendingCommandCompletion;
-   private final Set<String> chatSuggestions = new HashSet<>();
-   private final PermissionPredicate permissionPredicate;
 
-   public ClientCommandSource(ClientPlayNetworkHandler networkHandler, MinecraftClient client, PermissionPredicate permissionPredicate) {
-      this.networkHandler = networkHandler;
-      this.client = client;
-      this.permissionPredicate = permissionPredicate;
-   }
+	private static final int NO_PENDING_COMPLETION = -1;
 
-   @Override
-   public Collection<String> getPlayerNames() {
-      List<String> list = Lists.newArrayList();
+	private final ClientPlayNetworkHandler networkHandler;
+	private final MinecraftClient client;
+	private int completionId = NO_PENDING_COMPLETION;
+	private @Nullable CompletableFuture<Suggestions> pendingCommandCompletion;
+	private final Set<String> chatSuggestions = new HashSet<>();
+	private final PermissionPredicate permissionPredicate;
 
-      for (PlayerListEntry playerListEntry : this.networkHandler.getPlayerList()) {
-         list.add(playerListEntry.getProfile().name());
-      }
+	/**
+	 * @param networkHandler      сетевой обработчик для отправки пакетов
+	 * @param client              клиент Minecraft
+	 * @param permissionPredicate предикат проверки прав
+	 */
+	public ClientCommandSource(
+			ClientPlayNetworkHandler networkHandler,
+			MinecraftClient client,
+			PermissionPredicate permissionPredicate
+	) {
+		this.networkHandler = networkHandler;
+		this.client = client;
+		this.permissionPredicate = permissionPredicate;
+	}
 
-      return list;
-   }
+	@Override
+	public Collection<String> getPlayerNames() {
+		List<String> names = Lists.newArrayList();
 
-   @Override
-   public Collection<String> getChatSuggestions() {
-      if (this.chatSuggestions.isEmpty()) {
-         return this.getPlayerNames();
-      } else {
-         Set<String> set = new HashSet<>(this.getPlayerNames());
-         set.addAll(this.chatSuggestions);
-         return set;
-      }
-   }
+		for (PlayerListEntry entry : networkHandler.getPlayerList()) {
+			names.add(entry.getProfile().name());
+		}
 
-   @Override
-   public Collection<String> getEntitySuggestions() {
-      return (Collection<String>)(this.client.crosshairTarget != null && this.client.crosshairTarget.getType() == HitResult.Type.ENTITY
-         ? Collections.singleton(((EntityHitResult)this.client.crosshairTarget).getEntity().getUuidAsString())
-         : Collections.emptyList());
-   }
+		return names;
+	}
 
-   @Override
-   public Collection<String> getTeamNames() {
-      return this.networkHandler.getScoreboard().getTeamNames();
-   }
+	@Override
+	public Collection<String> getChatSuggestions() {
+		if (chatSuggestions.isEmpty()) {
+			return getPlayerNames();
+		}
 
-   @Override
-   public Stream<Identifier> getSoundIds() {
-      return this.client.getSoundManager().getKeys().stream();
-   }
+		Set<String> combined = new HashSet<>(getPlayerNames());
+		combined.addAll(chatSuggestions);
+		return combined;
+	}
 
-   @Override
-   public PermissionPredicate getPermissions() {
-      return this.permissionPredicate;
-   }
+	@Override
+	public Collection<String> getEntitySuggestions() {
+		if (client.crosshairTarget == null
+				|| client.crosshairTarget.getType() != HitResult.Type.ENTITY
+		) {
+			return Collections.emptyList();
+		}
 
-   @Override
-   public CompletableFuture<Suggestions> listIdSuggestions(
-      RegistryKey<? extends Registry<?>> registryRef, CommandSource.SuggestedIdType suggestedIdType, SuggestionsBuilder builder, CommandContext<?> context
-   ) {
-      return this.getRegistryManager().getOptional(registryRef).map(registry -> {
-         this.suggestIdentifiers(registry, suggestedIdType, builder);
-         return builder.buildFuture();
-      }).orElseGet(() -> this.getCompletions(context));
-   }
+		String uuid = ((EntityHitResult) client.crosshairTarget).getEntity().getUuidAsString();
+		return Collections.singleton(uuid);
+	}
 
-   @Override
-   public CompletableFuture<Suggestions> getCompletions(CommandContext<?> context) {
-      if (this.pendingCommandCompletion != null) {
-         this.pendingCommandCompletion.cancel(false);
-      }
+	@Override
+	public Collection<String> getTeamNames() {
+		return networkHandler.getScoreboard().getTeamNames();
+	}
 
-      this.pendingCommandCompletion = new CompletableFuture<>();
-      int i = ++this.completionId;
-      this.networkHandler.sendPacket(new RequestCommandCompletionsC2SPacket(i, context.getInput()));
-      return this.pendingCommandCompletion;
-   }
+	@Override
+	public Stream<Identifier> getSoundIds() {
+		return client.getSoundManager().getKeys().stream();
+	}
 
-   private static String format(double d) {
-      return String.format(Locale.ROOT, "%.2f", d);
-   }
+	@Override
+	public PermissionPredicate getPermissions() {
+		return permissionPredicate;
+	}
 
-   private static String format(int i) {
-      return Integer.toString(i);
-   }
+	@Override
+	public CompletableFuture<Suggestions> listIdSuggestions(
+			RegistryKey<? extends Registry<?>> registryRef,
+			CommandSource.SuggestedIdType suggestedIdType,
+			SuggestionsBuilder builder,
+			CommandContext<?> context
+	) {
+		return getRegistryManager()
+				.getOptional(registryRef)
+				.map(registry -> {
+					suggestIdentifiers(registry, suggestedIdType, builder);
+					return builder.buildFuture();
+				})
+				.orElseGet(() -> getCompletions(context));
+	}
 
-   @Override
-   public Collection<CommandSource.RelativePosition> getBlockPositionSuggestions() {
-      HitResult hitResult = this.client.crosshairTarget;
-      if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
-         BlockPos blockPos = ((BlockHitResult)hitResult).getBlockPos();
-         return Collections.singleton(new CommandSource.RelativePosition(format(blockPos.getX()), format(blockPos.getY()), format(blockPos.getZ())));
-      } else {
-         return CommandSource.super.getBlockPositionSuggestions();
-      }
-   }
+	@Override
+	public CompletableFuture<Suggestions> getCompletions(CommandContext<?> context) {
+		if (pendingCommandCompletion != null) {
+			pendingCommandCompletion.cancel(false);
+		}
 
-   @Override
-   public Collection<CommandSource.RelativePosition> getPositionSuggestions() {
-      HitResult hitResult = this.client.crosshairTarget;
-      if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
-         Vec3d vec3d = hitResult.getPos();
-         return Collections.singleton(new CommandSource.RelativePosition(format(vec3d.x), format(vec3d.y), format(vec3d.z)));
-      } else {
-         return CommandSource.super.getPositionSuggestions();
-      }
-   }
+		pendingCommandCompletion = new CompletableFuture<>();
+		int id = ++completionId;
+		networkHandler.sendPacket(new RequestCommandCompletionsC2SPacket(id, context.getInput()));
+		return pendingCommandCompletion;
+	}
 
-   @Override
-   public Set<RegistryKey<World>> getWorldKeys() {
-      return this.networkHandler.getWorldKeys();
-   }
+	@Override
+	public Collection<CommandSource.RelativePosition> getBlockPositionSuggestions() {
+		HitResult hit = client.crosshairTarget;
 
-   @Override
-   public DynamicRegistryManager getRegistryManager() {
-      return this.networkHandler.getRegistryManager();
-   }
+		if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
+			return CommandSource.super.getBlockPositionSuggestions();
+		}
 
-   @Override
-   public FeatureSet getEnabledFeatures() {
-      return this.networkHandler.getEnabledFeatures();
-   }
+		BlockPos pos = ((BlockHitResult) hit).getBlockPos();
+		return Collections.singleton(new CommandSource.RelativePosition(
+				formatInt(pos.getX()),
+				formatInt(pos.getY()),
+				formatInt(pos.getZ())
+		));
+	}
 
-   public void onCommandSuggestions(int completionId, Suggestions suggestions) {
-      if (completionId == this.completionId) {
-         this.pendingCommandCompletion.complete(suggestions);
-         this.pendingCommandCompletion = null;
-         this.completionId = -1;
-      }
-   }
+	@Override
+	public Collection<CommandSource.RelativePosition> getPositionSuggestions() {
+		HitResult hit = client.crosshairTarget;
 
-   public void onChatSuggestions(ChatSuggestionsS2CPacket.Action action, List<String> suggestions) {
-      switch (action) {
-         case ADD:
-            this.chatSuggestions.addAll(suggestions);
-            break;
-         case REMOVE:
-            suggestions.forEach(this.chatSuggestions::remove);
-            break;
-         case SET:
-            this.chatSuggestions.clear();
-            this.chatSuggestions.addAll(suggestions);
-      }
-   }
+		if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
+			return CommandSource.super.getPositionSuggestions();
+		}
+
+		Vec3d pos = hit.getPos();
+		return Collections.singleton(new CommandSource.RelativePosition(
+				formatDouble(pos.x),
+				formatDouble(pos.y),
+				formatDouble(pos.z)
+		));
+	}
+
+	@Override
+	public Set<RegistryKey<World>> getWorldKeys() {
+		return networkHandler.getWorldKeys();
+	}
+
+	@Override
+	public DynamicRegistryManager getRegistryManager() {
+		return networkHandler.getRegistryManager();
+	}
+
+	@Override
+	public FeatureSet getEnabledFeatures() {
+		return networkHandler.getEnabledFeatures();
+	}
+
+	/**
+	 * Завершает ожидающий запрос автодополнения, если идентификатор совпадает.
+	 *
+	 * @param completionId идентификатор запроса
+	 * @param suggestions  полученные подсказки
+	 */
+	public void onCommandSuggestions(int completionId, Suggestions suggestions) {
+		if (completionId != this.completionId) {
+			return;
+		}
+
+		pendingCommandCompletion.complete(suggestions);
+		pendingCommandCompletion = null;
+		this.completionId = NO_PENDING_COMPLETION;
+	}
+
+	/**
+	 * Обновляет набор подсказок чата согласно действию из пакета сервера.
+	 *
+	 * @param action      тип действия (ADD, REMOVE, SET)
+	 * @param suggestions список подсказок
+	 */
+	public void onChatSuggestions(ChatSuggestionsS2CPacket.Action action, List<String> suggestions) {
+		switch (action) {
+			case ADD -> chatSuggestions.addAll(suggestions);
+			case REMOVE -> suggestions.forEach(chatSuggestions::remove);
+			case SET -> {
+				chatSuggestions.clear();
+				chatSuggestions.addAll(suggestions);
+			}
+		}
+	}
+
+	private static String formatDouble(double value) {
+		return String.format(Locale.ROOT, "%.2f", value);
+	}
+
+	private static String formatInt(int value) {
+		return Integer.toString(value);
+	}
 }

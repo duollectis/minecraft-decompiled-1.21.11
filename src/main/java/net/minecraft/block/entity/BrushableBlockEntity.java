@@ -2,7 +2,6 @@ package net.minecraft.block.entity;
 
 import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import java.util.Objects;
 import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -34,213 +33,237 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.Objects;
+
+/**
+ * {@code BrushableBlockEntity}.
+ */
 public class BrushableBlockEntity extends BlockEntity {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final String LOOT_TABLE_NBT_KEY = "LootTable";
-   private static final String LOOT_TABLE_SEED_NBT_KEY = "LootTableSeed";
-   private static final String HIT_DIRECTION_NBT_KEY = "hit_direction";
-   private static final String ITEM_NBT_KEY = "item";
-   private static final int field_42806 = 10;
-   private static final int field_42807 = 40;
-   private static final int field_42808 = 10;
-   private int brushesCount;
-   private long nextDustTime;
-   private long nextBrushTime;
-   private ItemStack item = ItemStack.EMPTY;
-   private @Nullable Direction hitDirection;
-   private @Nullable RegistryKey<LootTable> lootTable;
-   private long lootTableSeed;
 
-   public BrushableBlockEntity(BlockPos pos, BlockState state) {
-      super(BlockEntityType.BRUSHABLE_BLOCK, pos, state);
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final String LOOT_TABLE_NBT_KEY = "LootTable";
+	private static final String LOOT_TABLE_SEED_NBT_KEY = "LootTableSeed";
+	private static final String HIT_DIRECTION_NBT_KEY = "hit_direction";
+	private static final String ITEM_NBT_KEY = "item";
+	private static final int BRUSH_COOLDOWN_TICKS = 10;
+	private static final int DUST_COOLDOWN_TICKS = 40;
+	private static final int BRUSHES_TO_COMPLETE = 10;
+	private int brushesCount;
+	private long nextDustTime;
+	private long nextBrushTime;
+	private ItemStack item = ItemStack.EMPTY;
+	private @Nullable Direction hitDirection;
+	private @Nullable RegistryKey<LootTable> lootTable;
+	private long lootTableSeed;
 
-   public boolean brush(long worldTime, ServerWorld world, LivingEntity brusher, Direction hitDirection, ItemStack brush) {
-      if (this.hitDirection == null) {
-         this.hitDirection = hitDirection;
-      }
+	public BrushableBlockEntity(BlockPos pos, BlockState state) {
+		super(BlockEntityType.BRUSHABLE_BLOCK, pos, state);
+	}
 
-      this.nextDustTime = worldTime + 40L;
-      if (worldTime < this.nextBrushTime) {
-         return false;
-      } else {
-         this.nextBrushTime = worldTime + 10L;
-         this.generateItem(world, brusher, brush);
-         int i = this.getDustedLevel();
-         if (++this.brushesCount >= 10) {
-            this.finishBrushing(world, brusher, brush);
-            return true;
-         } else {
-            world.scheduleBlockTick(this.getPos(), this.getCachedState().getBlock(), 2);
-            int j = this.getDustedLevel();
-            if (i != j) {
-               BlockState blockState = this.getCachedState();
-               BlockState blockState2 = blockState.with(Properties.DUSTED, j);
-               world.setBlockState(this.getPos(), blockState2, 3);
-            }
+	public boolean brush(
+			long worldTime,
+			ServerWorld world,
+			LivingEntity brusher,
+			Direction hitDirection,
+			ItemStack brush
+	) {
+		if (this.hitDirection == null) {
+			this.hitDirection = hitDirection;
+		}
 
-            return false;
-         }
-      }
-   }
+		this.nextDustTime = worldTime + 40L;
+		if (worldTime < this.nextBrushTime) {
+			return false;
+		}
+		else {
+			this.nextBrushTime = worldTime + 10L;
+			this.generateItem(world, brusher, brush);
+			int i = this.getDustedLevel();
+			if (++this.brushesCount >= 10) {
+				this.finishBrushing(world, brusher, brush);
+				return true;
+			}
+			else {
+				world.scheduleBlockTick(this.getPos(), this.getCachedState().getBlock(), 2);
+				int j = this.getDustedLevel();
+				if (i != j) {
+					BlockState blockState = this.getCachedState();
+					BlockState blockState2 = blockState.with(Properties.DUSTED, j);
+					world.setBlockState(this.getPos(), blockState2, 3);
+				}
 
-   private void generateItem(ServerWorld world, LivingEntity brusher, ItemStack brush) {
-      if (this.lootTable != null) {
-         LootTable lootTable = world.getServer().getReloadableRegistries().getLootTable(this.lootTable);
-         if (brusher instanceof ServerPlayerEntity serverPlayerEntity) {
-            Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger(serverPlayerEntity, this.lootTable);
-         }
+				return false;
+			}
+		}
+	}
 
-         LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
-            .add(LootContextParameters.ORIGIN, Vec3d.ofCenter(this.pos))
-            .luck(brusher.getLuck())
-            .add(LootContextParameters.THIS_ENTITY, brusher)
-            .add(LootContextParameters.TOOL, brush)
-            .build(LootContextTypes.ARCHAEOLOGY);
-         ObjectArrayList<ItemStack> objectArrayList = lootTable.generateLoot(lootWorldContext, this.lootTableSeed);
+	private void generateItem(ServerWorld world, LivingEntity brusher, ItemStack brush) {
+		if (this.lootTable != null) {
+			LootTable lootTable = world.getServer().getReloadableRegistries().getLootTable(this.lootTable);
+			if (brusher instanceof ServerPlayerEntity serverPlayerEntity) {
+				Criteria.PLAYER_GENERATES_CONTAINER_LOOT.trigger(serverPlayerEntity, this.lootTable);
+			}
 
-         this.item = switch (objectArrayList.size()) {
-            case 0 -> ItemStack.EMPTY;
-            case 1 -> (ItemStack)objectArrayList.getFirst();
-            default -> {
-               LOGGER.warn("Expected max 1 loot from loot table {}, but got {}", this.lootTable.getValue(), objectArrayList.size());
-               yield (ItemStack)objectArrayList.getFirst();
-            }
-         };
-         this.lootTable = null;
-         this.markDirty();
-      }
-   }
+			LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
+					.add(LootContextParameters.ORIGIN, Vec3d.ofCenter(this.pos))
+					.luck(brusher.getLuck())
+					.add(LootContextParameters.THIS_ENTITY, brusher)
+					.add(LootContextParameters.TOOL, brush)
+					.build(LootContextTypes.ARCHAEOLOGY);
+			ObjectArrayList<ItemStack> objectArrayList = lootTable.generateLoot(lootWorldContext, this.lootTableSeed);
 
-   private void finishBrushing(ServerWorld world, LivingEntity brusher, ItemStack brush) {
-      this.spawnItem(world, brusher, brush);
-      BlockState blockState = this.getCachedState();
-      world.syncWorldEvent(3008, this.getPos(), Block.getRawIdFromState(blockState));
-      Block block2;
-      if (this.getCachedState().getBlock() instanceof BrushableBlock brushableBlock) {
-         block2 = brushableBlock.getBaseBlock();
-      } else {
-         block2 = Blocks.AIR;
-      }
+			this.item = switch (objectArrayList.size()) {
+				case 0 -> ItemStack.EMPTY;
+				case 1 -> (ItemStack) objectArrayList.getFirst();
+				default -> {
+					LOGGER.warn(
+							"Expected max 1 loot from loot table {}, but got {}",
+							this.lootTable.getValue(),
+							objectArrayList.size()
+					);
+					yield (ItemStack) objectArrayList.getFirst();
+				}
+			};
+			this.lootTable = null;
+			this.markDirty();
+		}
+	}
 
-      world.setBlockState(this.pos, block2.getDefaultState(), 3);
-   }
+	private void finishBrushing(ServerWorld world, LivingEntity brusher, ItemStack brush) {
+		this.spawnItem(world, brusher, brush);
+		BlockState blockState = this.getCachedState();
+		world.syncWorldEvent(3008, this.getPos(), Block.getRawIdFromState(blockState));
+		Block block2;
+		if (this.getCachedState().getBlock() instanceof BrushableBlock brushableBlock) {
+			block2 = brushableBlock.getBaseBlock();
+		}
+		else {
+			block2 = Blocks.AIR;
+		}
 
-   private void spawnItem(ServerWorld world, LivingEntity brusher, ItemStack brush) {
-      this.generateItem(world, brusher, brush);
-      if (!this.item.isEmpty()) {
-         double d = EntityType.ITEM.getWidth();
-         double e = 1.0 - d;
-         double f = d / 2.0;
-         Direction direction = Objects.requireNonNullElse(this.hitDirection, Direction.UP);
-         BlockPos blockPos = this.pos.offset(direction, 1);
-         double g = blockPos.getX() + 0.5 * e + f;
-         double h = blockPos.getY() + 0.5 + EntityType.ITEM.getHeight() / 2.0F;
-         double i = blockPos.getZ() + 0.5 * e + f;
-         ItemEntity itemEntity = new ItemEntity(world, g, h, i, this.item.split(world.random.nextInt(21) + 10));
-         itemEntity.setVelocity(Vec3d.ZERO);
-         world.spawnEntity(itemEntity);
-         this.item = ItemStack.EMPTY;
-      }
-   }
+		world.setBlockState(this.pos, block2.getDefaultState(), 3);
+	}
 
-   public void scheduledTick(ServerWorld world) {
-      if (this.brushesCount != 0 && world.getTime() >= this.nextDustTime) {
-         int i = this.getDustedLevel();
-         this.brushesCount = Math.max(0, this.brushesCount - 2);
-         int j = this.getDustedLevel();
-         if (i != j) {
-            world.setBlockState(this.getPos(), this.getCachedState().with(Properties.DUSTED, j), 3);
-         }
+	private void spawnItem(ServerWorld world, LivingEntity brusher, ItemStack brush) {
+		this.generateItem(world, brusher, brush);
+		if (!this.item.isEmpty()) {
+			double d = EntityType.ITEM.getWidth();
+			double e = 1.0 - d;
+			double f = d / 2.0;
+			Direction direction = Objects.requireNonNullElse(this.hitDirection, Direction.UP);
+			BlockPos blockPos = this.pos.offset(direction, 1);
+			double g = blockPos.getX() + 0.5 * e + f;
+			double h = blockPos.getY() + 0.5 + EntityType.ITEM.getHeight() / 2.0F;
+			double i = blockPos.getZ() + 0.5 * e + f;
+			ItemEntity itemEntity = new ItemEntity(world, g, h, i, this.item.split(world.random.nextInt(21) + 10));
+			itemEntity.setVelocity(Vec3d.ZERO);
+			world.spawnEntity(itemEntity);
+			this.item = ItemStack.EMPTY;
+		}
+	}
 
-         int k = 4;
-         this.nextDustTime = world.getTime() + 4L;
-      }
+	public void scheduledTick(ServerWorld world) {
+		if (this.brushesCount != 0 && world.getTime() >= this.nextDustTime) {
+			int i = this.getDustedLevel();
+			this.brushesCount = Math.max(0, this.brushesCount - 2);
+			int j = this.getDustedLevel();
+			if (i != j) {
+				world.setBlockState(this.getPos(), this.getCachedState().with(Properties.DUSTED, j), 3);
+			}
 
-      if (this.brushesCount == 0) {
-         this.hitDirection = null;
-         this.nextDustTime = 0L;
-         this.nextBrushTime = 0L;
-      } else {
-         world.scheduleBlockTick(this.getPos(), this.getCachedState().getBlock(), 2);
-      }
-   }
+			int k = 4;
+			this.nextDustTime = world.getTime() + 4L;
+		}
 
-   private boolean readLootTableFromData(ReadView view) {
-      this.lootTable = view.<RegistryKey<LootTable>>read("LootTable", LootTable.TABLE_KEY).orElse(null);
-      this.lootTableSeed = view.getLong("LootTableSeed", 0L);
-      return this.lootTable != null;
-   }
+		if (this.brushesCount == 0) {
+			this.hitDirection = null;
+			this.nextDustTime = 0L;
+			this.nextBrushTime = 0L;
+		}
+		else {
+			world.scheduleBlockTick(this.getPos(), this.getCachedState().getBlock(), 2);
+		}
+	}
 
-   private boolean writeLootTableToData(WriteView view) {
-      if (this.lootTable == null) {
-         return false;
-      } else {
-         view.put("LootTable", LootTable.TABLE_KEY, this.lootTable);
-         if (this.lootTableSeed != 0L) {
-            view.putLong("LootTableSeed", this.lootTableSeed);
-         }
+	private boolean readLootTableFromData(ReadView view) {
+		this.lootTable = view.<RegistryKey<LootTable>>read("LootTable", LootTable.TABLE_KEY).orElse(null);
+		this.lootTableSeed = view.getLong("LootTableSeed", 0L);
+		return this.lootTable != null;
+	}
 
-         return true;
-      }
-   }
+	private boolean writeLootTableToData(WriteView view) {
+		if (this.lootTable == null) {
+			return false;
+		}
+		else {
+			view.put("LootTable", LootTable.TABLE_KEY, this.lootTable);
+			if (this.lootTableSeed != 0L) {
+				view.putLong("LootTableSeed", this.lootTableSeed);
+			}
 
-   @Override
-   public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
-      NbtCompound nbtCompound = super.toInitialChunkDataNbt(registries);
-      nbtCompound.putNullable("hit_direction", Direction.INDEX_CODEC, this.hitDirection);
-      if (!this.item.isEmpty()) {
-         RegistryOps<NbtElement> registryOps = registries.getOps(NbtOps.INSTANCE);
-         nbtCompound.put("item", ItemStack.CODEC, registryOps, this.item);
-      }
+			return true;
+		}
+	}
 
-      return nbtCompound;
-   }
+	@Override
+	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
+		NbtCompound nbtCompound = super.toInitialChunkDataNbt(registries);
+		nbtCompound.putNullable("hit_direction", Direction.INDEX_CODEC, this.hitDirection);
+		if (!this.item.isEmpty()) {
+			RegistryOps<NbtElement> registryOps = registries.getOps(NbtOps.INSTANCE);
+			nbtCompound.put("item", ItemStack.CODEC, registryOps, this.item);
+		}
 
-   public BlockEntityUpdateS2CPacket toUpdatePacket() {
-      return BlockEntityUpdateS2CPacket.create(this);
-   }
+		return nbtCompound;
+	}
 
-   @Override
-   protected void readData(ReadView view) {
-      super.readData(view);
-      if (!this.readLootTableFromData(view)) {
-         this.item = view.<ItemStack>read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY);
-      } else {
-         this.item = ItemStack.EMPTY;
-      }
+	public BlockEntityUpdateS2CPacket toUpdatePacket() {
+		return BlockEntityUpdateS2CPacket.create(this);
+	}
 
-      this.hitDirection = view.<Direction>read("hit_direction", Direction.INDEX_CODEC).orElse(null);
-   }
+	@Override
+	protected void readData(ReadView view) {
+		super.readData(view);
+		if (!this.readLootTableFromData(view)) {
+			this.item = view.<ItemStack>read("item", ItemStack.CODEC).orElse(ItemStack.EMPTY);
+		}
+		else {
+			this.item = ItemStack.EMPTY;
+		}
 
-   @Override
-   protected void writeData(WriteView view) {
-      super.writeData(view);
-      if (!this.writeLootTableToData(view) && !this.item.isEmpty()) {
-         view.put("item", ItemStack.CODEC, this.item);
-      }
-   }
+		this.hitDirection = view.<Direction>read("hit_direction", Direction.INDEX_CODEC).orElse(null);
+	}
 
-   public void setLootTable(RegistryKey<LootTable> lootTable, long seed) {
-      this.lootTable = lootTable;
-      this.lootTableSeed = seed;
-   }
+	@Override
+	protected void writeData(WriteView view) {
+		super.writeData(view);
+		if (!this.writeLootTableToData(view) && !this.item.isEmpty()) {
+			view.put("item", ItemStack.CODEC, this.item);
+		}
+	}
 
-   private int getDustedLevel() {
-      if (this.brushesCount == 0) {
-         return 0;
-      } else if (this.brushesCount < 3) {
-         return 1;
-      } else {
-         return this.brushesCount < 6 ? 2 : 3;
-      }
-   }
+	public void setLootTable(RegistryKey<LootTable> lootTable, long seed) {
+		this.lootTable = lootTable;
+		this.lootTableSeed = seed;
+	}
 
-   public @Nullable Direction getHitDirection() {
-      return this.hitDirection;
-   }
+	private int getDustedLevel() {
+		if (this.brushesCount == 0) {
+			return 0;
+		}
+		else if (this.brushesCount < 3) {
+			return 1;
+		}
+		else {
+			return this.brushesCount < 6 ? 2 : 3;
+		}
+	}
 
-   public ItemStack getItem() {
-      return this.item;
-   }
+	public @Nullable Direction getHitDirection() {
+		return this.hitDirection;
+	}
+
+	public ItemStack getItem() {
+		return this.item;
+	}
 }

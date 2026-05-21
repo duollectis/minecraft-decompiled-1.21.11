@@ -9,23 +9,29 @@ import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MobEntityRenderer}.
+ */
 public abstract class MobEntityRenderer<T extends MobEntity, S extends LivingEntityRenderState, M extends EntityModel<? super S>>
-   extends LivingEntityRenderer<T, S, M> {
-   public MobEntityRenderer(EntityRendererFactory.Context context, M entityModel, float f) {
-      super(context, entityModel, f);
-   }
+		extends LivingEntityRenderer<T, S, M> {
 
-   protected boolean hasLabel(T mobEntity, double d) {
-      return super.hasLabel(mobEntity, d) && (mobEntity.shouldRenderName() || mobEntity.hasCustomName() && mobEntity == this.dispatcher.targetedEntity);
-   }
+	public MobEntityRenderer(EntityRendererFactory.Context context, M entityModel, float f) {
+		super(context, entityModel, f);
+	}
 
-   @Override
-   protected float getShadowRadius(S livingEntityRenderState) {
-      return super.getShadowRadius(livingEntityRenderState) * livingEntityRenderState.ageScale;
-   }
+	protected boolean hasLabel(T mobEntity, double d) {
+		return super.hasLabel(mobEntity, d) && (mobEntity.shouldRenderName()
+				|| mobEntity.hasCustomName() && mobEntity == this.dispatcher.targetedEntity
+		);
+	}
 
-   protected static boolean nameEquals(Entity entity, String name) {
-      Text text = entity.getCustomName();
-      return text != null && name.equals(text.getString());
-   }
+	@Override
+	protected float getShadowRadius(S livingEntityRenderState) {
+		return super.getShadowRadius(livingEntityRenderState) * livingEntityRenderState.ageScale;
+	}
+
+	protected static boolean nameEquals(Entity entity, String name) {
+		Text text = entity.getCustomName();
+		return text != null && name.equals(text.getString());
+	}
 }

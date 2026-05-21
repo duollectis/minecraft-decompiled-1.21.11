@@ -9,54 +9,62 @@ import net.minecraft.entity.mob.WardenEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundEvents;
 
+/**
+ * {@code SniffTask}.
+ */
 public class SniffTask<E extends WardenEntity> extends MultiTickTask<E> {
-   private static final double HORIZONTAL_RADIUS = 6.0;
-   private static final double VERTICAL_RADIUS = 20.0;
 
-   public SniffTask(int runTime) {
-      super(
-         ImmutableMap.of(
-            MemoryModuleType.IS_SNIFFING,
-            MemoryModuleState.VALUE_PRESENT,
-            MemoryModuleType.ATTACK_TARGET,
-            MemoryModuleState.VALUE_ABSENT,
-            MemoryModuleType.WALK_TARGET,
-            MemoryModuleState.VALUE_ABSENT,
-            MemoryModuleType.LOOK_TARGET,
-            MemoryModuleState.REGISTERED,
-            MemoryModuleType.NEAREST_ATTACKABLE,
-            MemoryModuleState.REGISTERED,
-            MemoryModuleType.DISTURBANCE_LOCATION,
-            MemoryModuleState.REGISTERED,
-            MemoryModuleType.SNIFF_COOLDOWN,
-            MemoryModuleState.REGISTERED
-         ),
-         runTime
-      );
-   }
+	private static final double HORIZONTAL_RADIUS = 6.0;
+	private static final double VERTICAL_RADIUS = 20.0;
 
-   protected boolean shouldKeepRunning(ServerWorld serverWorld, E wardenEntity, long l) {
-      return true;
-   }
+	public SniffTask(int runTime) {
+		super(
+				ImmutableMap.of(
+						MemoryModuleType.IS_SNIFFING,
+						MemoryModuleState.VALUE_PRESENT,
+						MemoryModuleType.ATTACK_TARGET,
+						MemoryModuleState.VALUE_ABSENT,
+						MemoryModuleType.WALK_TARGET,
+						MemoryModuleState.VALUE_ABSENT,
+						MemoryModuleType.LOOK_TARGET,
+						MemoryModuleState.REGISTERED,
+						MemoryModuleType.NEAREST_ATTACKABLE,
+						MemoryModuleState.REGISTERED,
+						MemoryModuleType.DISTURBANCE_LOCATION,
+						MemoryModuleState.REGISTERED,
+						MemoryModuleType.SNIFF_COOLDOWN,
+						MemoryModuleState.REGISTERED
+				),
+				runTime
+		);
+	}
 
-   protected void run(ServerWorld serverWorld, E wardenEntity, long l) {
-      wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_SNIFF, 5.0F, 1.0F);
-   }
+	protected boolean shouldKeepRunning(ServerWorld serverWorld, E wardenEntity, long l) {
+		return true;
+	}
 
-   protected void finishRunning(ServerWorld serverWorld, E wardenEntity, long l) {
-      if (wardenEntity.isInPose(EntityPose.SNIFFING)) {
-         wardenEntity.setPose(EntityPose.STANDING);
-      }
+	protected void run(ServerWorld serverWorld, E wardenEntity, long l) {
+		wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_SNIFF, 5.0F, 1.0F);
+	}
 
-      wardenEntity.getBrain().forget(MemoryModuleType.IS_SNIFFING);
-      wardenEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.NEAREST_ATTACKABLE).filter(wardenEntity::isValidTarget).ifPresent(target -> {
-         if (wardenEntity.isInRange(target, 6.0, 20.0)) {
-            wardenEntity.increaseAngerAt(target);
-         }
+	protected void finishRunning(ServerWorld serverWorld, E wardenEntity, long l) {
+		if (wardenEntity.isInPose(EntityPose.SNIFFING)) {
+			wardenEntity.setPose(EntityPose.STANDING);
+		}
 
-         if (!wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.DISTURBANCE_LOCATION)) {
-            WardenBrain.lookAtDisturbance(wardenEntity, target.getBlockPos());
-         }
-      });
-   }
+		wardenEntity.getBrain().forget(MemoryModuleType.IS_SNIFFING);
+		wardenEntity
+				.getBrain()
+				.getOptionalRegisteredMemory(MemoryModuleType.NEAREST_ATTACKABLE)
+				.filter(wardenEntity::isValidTarget)
+				.ifPresent(target -> {
+					if (wardenEntity.isInRange(target, 6.0, 20.0)) {
+						wardenEntity.increaseAngerAt(target);
+					}
+
+					if (!wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.DISTURBANCE_LOCATION)) {
+						WardenBrain.lookAtDisturbance(wardenEntity, target.getBlockPos());
+					}
+				});
+	}
 }

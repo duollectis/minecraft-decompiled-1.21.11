@@ -1,6 +1,5 @@
 package net.minecraft.client.render.block;
 
-import java.util.Map;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.fabricmc.fabric.api.renderer.v1.model.FabricBlockModels;
@@ -9,33 +8,39 @@ import net.minecraft.client.render.model.BakedModelManager;
 import net.minecraft.client.render.model.BlockStateModel;
 import net.minecraft.client.texture.Sprite;
 
+import java.util.Map;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BlockModels}.
+ */
 public class BlockModels implements FabricBlockModels {
-   private Map<BlockState, BlockStateModel> models = Map.of();
-   private final BakedModelManager modelManager;
 
-   public BlockModels(BakedModelManager modelManager) {
-      this.modelManager = modelManager;
-   }
+	private Map<BlockState, BlockStateModel> models = Map.of();
+	private final BakedModelManager modelManager;
 
-   public Sprite getModelParticleSprite(BlockState state) {
-      return this.getModel(state).particleSprite();
-   }
+	public BlockModels(BakedModelManager modelManager) {
+		this.modelManager = modelManager;
+	}
 
-   public BlockStateModel getModel(BlockState state) {
-      BlockStateModel blockStateModel = this.models.get(state);
-      if (blockStateModel == null) {
-         blockStateModel = this.modelManager.getMissingModel();
-      }
+	public Sprite getModelParticleSprite(BlockState state) {
+		return this.getModel(state).particleSprite();
+	}
 
-      return blockStateModel;
-   }
+	public BlockStateModel getModel(BlockState state) {
+		BlockStateModel blockStateModel = this.models.get(state);
+		if (blockStateModel == null) {
+			blockStateModel = this.modelManager.getMissingModel();
+		}
 
-   public BakedModelManager getModelManager() {
-      return this.modelManager;
-   }
+		return blockStateModel;
+	}
 
-   public void setModels(Map<BlockState, BlockStateModel> models) {
-      this.models = models;
-   }
+	public BakedModelManager getModelManager() {
+		return this.modelManager;
+	}
+
+	public void setModels(Map<BlockState, BlockStateModel> models) {
+		this.models = models;
+	}
 }

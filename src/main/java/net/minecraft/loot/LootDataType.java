@@ -1,7 +1,6 @@
 package net.minecraft.loot;
 
 import com.mojang.serialization.Codec;
-import java.util.stream.Stream;
 import net.minecraft.loot.condition.LootCondition;
 import net.minecraft.loot.context.LootContextAware;
 import net.minecraft.loot.function.LootFunction;
@@ -11,29 +10,54 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.ErrorReporter;
 
-public record LootDataType<T>(RegistryKey<Registry<T>> registryKey, Codec<T> codec, LootDataType.Validator<T> validator) {
-   public static final LootDataType<LootCondition> PREDICATES = new LootDataType<>(RegistryKeys.PREDICATE, LootCondition.CODEC, simpleValidator());
-   public static final LootDataType<LootFunction> ITEM_MODIFIERS = new LootDataType<>(RegistryKeys.ITEM_MODIFIER, LootFunctionTypes.CODEC, simpleValidator());
-   public static final LootDataType<LootTable> LOOT_TABLES = new LootDataType<>(RegistryKeys.LOOT_TABLE, LootTable.CODEC, tableValidator());
+import java.util.stream.Stream;
 
-   public void validate(LootTableReporter reporter, RegistryKey<T> key, T value) {
-      this.validator.run(reporter, key, value);
-   }
+/**
+ * {@code LootDataType}.
+ */
+public record LootDataType<T>(
+		RegistryKey<Registry<T>> registryKey,
+		Codec<T> codec,
+		LootDataType.Validator<T> validator
+) {
 
-   public static Stream<LootDataType<?>> stream() {
-      return Stream.of(PREDICATES, ITEM_MODIFIERS, LOOT_TABLES);
-   }
+	public static final LootDataType<LootCondition>
+			PREDICATES =
+			new LootDataType<>(RegistryKeys.PREDICATE, LootCondition.CODEC, simpleValidator());
+	public static final LootDataType<LootFunction>
+			ITEM_MODIFIERS =
+			new LootDataType<>(RegistryKeys.ITEM_MODIFIER, LootFunctionTypes.CODEC, simpleValidator());
+	public static final LootDataType<LootTable>
+			LOOT_TABLES =
+			new LootDataType<>(RegistryKeys.LOOT_TABLE, LootTable.CODEC, tableValidator());
 
-   private static <T extends LootContextAware> LootDataType.Validator<T> simpleValidator() {
-      return (reporter, key, value) -> value.validate(reporter.makeChild(new ErrorReporter.LootTableContext(key), key));
-   }
+	public void validate(LootTableReporter reporter, RegistryKey<T> key, T value) {
+		this.validator.run(reporter, key, value);
+	}
 
-   private static LootDataType.Validator<LootTable> tableValidator() {
-      return (reporter, key, value) -> value.validate(reporter.withContextType(value.getType()).makeChild(new ErrorReporter.LootTableContext(key), key));
-   }
+	public static Stream<LootDataType<?>> stream() {
+		return Stream.of(PREDICATES, ITEM_MODIFIERS, LOOT_TABLES);
+	}
 
-   @FunctionalInterface
-   public interface Validator<T> {
-      void run(LootTableReporter reporter, RegistryKey<T> key, T value);
-   }
+	private static <T extends LootContextAware> LootDataType.Validator<T> simpleValidator() {
+		return (reporter, key, value) -> value.validate(reporter.makeChild(
+				new ErrorReporter.LootTableContext(key),
+				key
+		));
+	}
+
+	private static LootDataType.Validator<LootTable> tableValidator() {
+		return (reporter, key, value) -> value.validate(reporter
+				.withContextType(value.getType())
+				.makeChild(new ErrorReporter.LootTableContext(key), key));
+	}
+
+	@FunctionalInterface
+	/**
+	 * {@code Validator}.
+	 */
+	public interface Validator<T> {
+
+		void run(LootTableReporter reporter, RegistryKey<T> key, T value);
+	}
 }

@@ -1,6 +1,5 @@
 package net.minecraft.network.packet.c2s.play;
 
-import java.time.Instant;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.listener.ServerPlayPacketListener;
@@ -10,31 +9,44 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+import java.time.Instant;
+
 public record ChatCommandSignedC2SPacket(
-   String command, Instant timestamp, long salt, ArgumentSignatureDataMap argumentSignatures, LastSeenMessageList.Acknowledgment lastSeenMessages
+		String command,
+		Instant timestamp,
+		long salt,
+		ArgumentSignatureDataMap argumentSignatures,
+		LastSeenMessageList.Acknowledgment lastSeenMessages
 ) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ChatCommandSignedC2SPacket> CODEC = Packet.createCodec(
-      ChatCommandSignedC2SPacket::write, ChatCommandSignedC2SPacket::new
-   );
 
-   private ChatCommandSignedC2SPacket(PacketByteBuf buf) {
-      this(buf.readString(), buf.readInstant(), buf.readLong(), new ArgumentSignatureDataMap(buf), new LastSeenMessageList.Acknowledgment(buf));
-   }
+	public static final PacketCodec<PacketByteBuf, ChatCommandSignedC2SPacket> CODEC = Packet.createCodec(
+			ChatCommandSignedC2SPacket::write, ChatCommandSignedC2SPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeString(this.command);
-      buf.writeInstant(this.timestamp);
-      buf.writeLong(this.salt);
-      this.argumentSignatures.write(buf);
-      this.lastSeenMessages.write(buf);
-   }
+	private ChatCommandSignedC2SPacket(PacketByteBuf buf) {
+		this(
+				buf.readString(),
+				buf.readInstant(),
+				buf.readLong(),
+				new ArgumentSignatureDataMap(buf),
+				new LastSeenMessageList.Acknowledgment(buf)
+		);
+	}
 
-   @Override
-   public PacketType<ChatCommandSignedC2SPacket> getPacketType() {
-      return PlayPackets.CHAT_COMMAND_SIGNED;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeString(this.command);
+		buf.writeInstant(this.timestamp);
+		buf.writeLong(this.salt);
+		this.argumentSignatures.write(buf);
+		this.lastSeenMessages.write(buf);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onChatCommandSigned(this);
-   }
+	@Override
+	public PacketType<ChatCommandSignedC2SPacket> getPacketType() {
+		return PlayPackets.CHAT_COMMAND_SIGNED;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onChatCommandSigned(this);
+	}
 }

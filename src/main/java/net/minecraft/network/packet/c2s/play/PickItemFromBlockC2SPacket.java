@@ -9,17 +9,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
-public record PickItemFromBlockC2SPacket(BlockPos pos, boolean includeData) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<ByteBuf, PickItemFromBlockC2SPacket> CODEC = PacketCodec.tuple(
-      BlockPos.PACKET_CODEC, PickItemFromBlockC2SPacket::pos, PacketCodecs.BOOLEAN, PickItemFromBlockC2SPacket::includeData, PickItemFromBlockC2SPacket::new
-   );
+public record PickItemFromBlockC2SPacket(
+		BlockPos pos,
+		boolean includeData
+) implements Packet<ServerPlayPacketListener> {
 
-   @Override
-   public PacketType<PickItemFromBlockC2SPacket> getPacketType() {
-      return PlayPackets.PICK_ITEM_FROM_BLOCK;
-   }
+	public static final PacketCodec<ByteBuf, PickItemFromBlockC2SPacket> CODEC = PacketCodec.tuple(
+			BlockPos.PACKET_CODEC,
+			PickItemFromBlockC2SPacket::pos,
+			PacketCodecs.BOOLEAN,
+			PickItemFromBlockC2SPacket::includeData,
+			PickItemFromBlockC2SPacket::new
+	);
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onPickItemFromBlock(this);
-   }
+	@Override
+	public PacketType<PickItemFromBlockC2SPacket> getPacketType() {
+		return PlayPackets.PICK_ITEM_FROM_BLOCK;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onPickItemFromBlock(this);
+	}
 }

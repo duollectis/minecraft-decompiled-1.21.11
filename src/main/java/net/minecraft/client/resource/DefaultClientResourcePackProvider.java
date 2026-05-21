@@ -1,25 +1,10 @@
 package net.minecraft.client.resource;
 
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.SharedConstants;
 import net.minecraft.registry.VersionedIdentifier;
-import net.minecraft.resource.DefaultResourcePack;
-import net.minecraft.resource.DefaultResourcePackBuilder;
-import net.minecraft.resource.ResourcePack;
-import net.minecraft.resource.ResourcePackInfo;
-import net.minecraft.resource.ResourcePackPosition;
-import net.minecraft.resource.ResourcePackProfile;
-import net.minecraft.resource.ResourcePackSource;
-import net.minecraft.resource.ResourceType;
-import net.minecraft.resource.VanillaResourcePackProvider;
+import net.minecraft.resource.*;
 import net.minecraft.resource.metadata.PackResourceMetadata;
 import net.minecraft.resource.metadata.ResourceMetadataMap;
 import net.minecraft.text.Text;
@@ -27,72 +12,120 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.path.SymlinkFinder;
 import org.jspecify.annotations.Nullable;
 
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DefaultClientResourcePackProvider}.
+ */
 public class DefaultClientResourcePackProvider extends VanillaResourcePackProvider {
-   private static final PackResourceMetadata METADATA = new PackResourceMetadata(
-      Text.translatable("resourcePack.vanilla.description"), SharedConstants.getGameVersion().packVersion(ResourceType.CLIENT_RESOURCES).majorRange()
-   );
-   private static final ResourceMetadataMap METADATA_MAP = ResourceMetadataMap.of(PackResourceMetadata.CLIENT_RESOURCES_SERIALIZER, METADATA);
-   public static final String HIGH_CONTRAST_ID = "high_contrast";
-   private static final Map<String, Text> PROFILE_NAME_TEXTS = Map.of(
-      "programmer_art", Text.translatable("resourcePack.programmer_art.name"), "high_contrast", Text.translatable("resourcePack.high_contrast.name")
-   );
-   private static final ResourcePackInfo INFO = new ResourcePackInfo(
-      "vanilla", Text.translatable("resourcePack.vanilla.name"), ResourcePackSource.BUILTIN, Optional.of(VANILLA_ID)
-   );
-   private static final ResourcePackPosition REQUIRED_POSITION = new ResourcePackPosition(true, ResourcePackProfile.InsertionPosition.BOTTOM, false);
-   private static final ResourcePackPosition OPTIONAL_POSITION = new ResourcePackPosition(false, ResourcePackProfile.InsertionPosition.TOP, false);
-   private static final Identifier ID = Identifier.ofVanilla("resourcepacks");
-   private final @Nullable Path resourcePacksPath;
 
-   public DefaultClientResourcePackProvider(Path assetsPath, SymlinkFinder symlinkFinder) {
-      super(ResourceType.CLIENT_RESOURCES, createDefaultPack(assetsPath), ID, symlinkFinder);
-      this.resourcePacksPath = this.getResourcePacksPath(assetsPath);
-   }
+	private static final PackResourceMetadata METADATA = new PackResourceMetadata(
+			Text.translatable("resourcePack.vanilla.description"),
+			SharedConstants.getGameVersion().packVersion(ResourceType.CLIENT_RESOURCES).majorRange()
+	);
+	private static final ResourceMetadataMap
+			METADATA_MAP =
+			ResourceMetadataMap.of(PackResourceMetadata.CLIENT_RESOURCES_SERIALIZER, METADATA);
+	public static final String HIGH_CONTRAST_ID = "high_contrast";
+	private static final Map<String, Text> PROFILE_NAME_TEXTS = Map.of(
+			"programmer_art",
+			Text.translatable("resourcePack.programmer_art.name"),
+			"high_contrast",
+			Text.translatable("resourcePack.high_contrast.name")
+	);
+	private static final ResourcePackInfo INFO = new ResourcePackInfo(
+			"vanilla",
+			Text.translatable("resourcePack.vanilla.name"),
+			ResourcePackSource.BUILTIN,
+			Optional.of(VANILLA_ID)
+	);
+	private static final ResourcePackPosition
+			REQUIRED_POSITION =
+			new ResourcePackPosition(true, ResourcePackProfile.InsertionPosition.BOTTOM, false);
+	private static final ResourcePackPosition
+			OPTIONAL_POSITION =
+			new ResourcePackPosition(false, ResourcePackProfile.InsertionPosition.TOP, false);
+	private static final Identifier ID = Identifier.ofVanilla("resourcepacks");
+	private final @Nullable Path resourcePacksPath;
 
-   private static ResourcePackInfo createInfo(String id, Text title) {
-      return new ResourcePackInfo(id, title, ResourcePackSource.BUILTIN, Optional.of(VersionedIdentifier.createVanilla(id)));
-   }
+	public DefaultClientResourcePackProvider(Path assetsPath, SymlinkFinder symlinkFinder) {
+		super(ResourceType.CLIENT_RESOURCES, createDefaultPack(assetsPath), ID, symlinkFinder);
+		this.resourcePacksPath = this.getResourcePacksPath(assetsPath);
+	}
 
-   private @Nullable Path getResourcePacksPath(Path path) {
-      if (SharedConstants.isDevelopment && path.getFileSystem() == FileSystems.getDefault()) {
-         Path path2 = path.getParent().resolve("resourcepacks");
-         if (Files.isDirectory(path2)) {
-            return path2;
-         }
-      }
+	private static ResourcePackInfo createInfo(String id, Text title) {
+		return new ResourcePackInfo(
+				id,
+				title,
+				ResourcePackSource.BUILTIN,
+				Optional.of(VersionedIdentifier.createVanilla(id))
+		);
+	}
 
-      return null;
-   }
+	private @Nullable Path getResourcePacksPath(Path path) {
+		if (SharedConstants.isDevelopment && path.getFileSystem() == FileSystems.getDefault()) {
+			Path path2 = path.getParent().resolve("resourcepacks");
+			if (Files.isDirectory(path2)) {
+				return path2;
+			}
+		}
 
-   private static DefaultResourcePack createDefaultPack(Path assetsPath) {
-      DefaultResourcePackBuilder defaultResourcePackBuilder = new DefaultResourcePackBuilder()
-         .withMetadataMap(METADATA_MAP)
-         .withNamespaces("minecraft", "realms");
-      return defaultResourcePackBuilder.runCallback().withDefaultPaths().withPath(ResourceType.CLIENT_RESOURCES, assetsPath).build(INFO);
-   }
+		return null;
+	}
 
-   @Override
-   protected Text getDisplayName(String id) {
-      Text text = PROFILE_NAME_TEXTS.get(id);
-      return (Text)(text != null ? text : Text.literal(id));
-   }
+	private static DefaultResourcePack createDefaultPack(Path assetsPath) {
+		DefaultResourcePackBuilder defaultResourcePackBuilder = new DefaultResourcePackBuilder()
+				.withMetadataMap(METADATA_MAP)
+				.withNamespaces("minecraft", "realms");
+		return defaultResourcePackBuilder
+				.runCallback()
+				.withDefaultPaths()
+				.withPath(ResourceType.CLIENT_RESOURCES, assetsPath)
+				.build(INFO);
+	}
 
-   @Override
-   protected @Nullable ResourcePackProfile createDefault(ResourcePack pack) {
-      return ResourcePackProfile.create(INFO, createPackFactory(pack), ResourceType.CLIENT_RESOURCES, REQUIRED_POSITION);
-   }
+	@Override
+	protected Text getDisplayName(String id) {
+		Text text = PROFILE_NAME_TEXTS.get(id);
+		return (Text) (text != null ? text : Text.literal(id));
+	}
 
-   @Override
-   protected @Nullable ResourcePackProfile create(String fileName, ResourcePackProfile.PackFactory packFactory, Text displayName) {
-      return ResourcePackProfile.create(createInfo(fileName, displayName), packFactory, ResourceType.CLIENT_RESOURCES, OPTIONAL_POSITION);
-   }
+	@Override
+	protected @Nullable ResourcePackProfile createDefault(ResourcePack pack) {
+		return ResourcePackProfile.create(
+				INFO,
+				createPackFactory(pack),
+				ResourceType.CLIENT_RESOURCES,
+				REQUIRED_POSITION
+		);
+	}
 
-   @Override
-   protected void forEachProfile(BiConsumer<String, Function<String, ResourcePackProfile>> consumer) {
-      super.forEachProfile(consumer);
-      if (this.resourcePacksPath != null) {
-         this.forEachProfile(this.resourcePacksPath, consumer);
-      }
-   }
+	@Override
+	protected @Nullable ResourcePackProfile create(
+			String fileName,
+			ResourcePackProfile.PackFactory packFactory,
+			Text displayName
+	) {
+		return ResourcePackProfile.create(
+				createInfo(fileName, displayName),
+				packFactory,
+				ResourceType.CLIENT_RESOURCES,
+				OPTIONAL_POSITION
+		);
+	}
+
+	@Override
+	protected void forEachProfile(BiConsumer<String, Function<String, ResourcePackProfile>> consumer) {
+		super.forEachProfile(consumer);
+		if (this.resourcePacksPath != null) {
+			this.forEachProfile(this.resourcePacksPath, consumer);
+		}
+	}
 }

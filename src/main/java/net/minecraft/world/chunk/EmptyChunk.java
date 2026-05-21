@@ -14,68 +14,72 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code EmptyChunk}.
+ */
 public class EmptyChunk extends WorldChunk {
-   private final RegistryEntry<Biome> biomeEntry;
 
-   public EmptyChunk(World world, ChunkPos pos, RegistryEntry<Biome> biomeEntry) {
-      super(world, pos);
-      this.biomeEntry = biomeEntry;
-   }
+	private final RegistryEntry<Biome> biomeEntry;
 
-   @Override
-   public BlockState getBlockState(BlockPos pos) {
-      return Blocks.VOID_AIR.getDefaultState();
-   }
+	public EmptyChunk(World world, ChunkPos pos, RegistryEntry<Biome> biomeEntry) {
+		super(world, pos);
+		this.biomeEntry = biomeEntry;
+	}
 
-   @Override
-   public @Nullable BlockState setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
-      return null;
-   }
+	@Override
+	public BlockState getBlockState(BlockPos pos) {
+		return Blocks.VOID_AIR.getDefaultState();
+	}
 
-   @Override
-   public FluidState getFluidState(BlockPos pos) {
-      return Fluids.EMPTY.getDefaultState();
-   }
+	@Override
+	public @Nullable BlockState setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
+		return null;
+	}
 
-   @Override
-   public int getLuminance(BlockPos pos) {
-      return 0;
-   }
+	@Override
+	public FluidState getFluidState(BlockPos pos) {
+		return Fluids.EMPTY.getDefaultState();
+	}
 
-   @Override
-   public @Nullable BlockEntity getBlockEntity(BlockPos pos, WorldChunk.CreationType creationType) {
-      return null;
-   }
+	@Override
+	public int getLuminance(BlockPos pos) {
+		return 0;
+	}
 
-   @Override
-   public void addBlockEntity(BlockEntity blockEntity) {
-   }
+	@Override
+	public @Nullable BlockEntity getBlockEntity(BlockPos pos, WorldChunk.CreationType creationType) {
+		return null;
+	}
 
-   @Override
-   public void setBlockEntity(BlockEntity blockEntity) {
-   }
+	@Override
+	public void addBlockEntity(BlockEntity blockEntity) {
+	}
 
-   @Override
-   public void removeBlockEntity(BlockPos pos) {
-   }
+	@Override
+	public void setBlockEntity(BlockEntity blockEntity) {
+	}
 
-   @Override
-   public boolean isEmpty() {
-      return true;
-   }
+	@Override
+	public void removeBlockEntity(BlockPos pos) {
+	}
 
-   @Override
-   public boolean areSectionsEmptyBetween(int lowerHeight, int upperHeight) {
-      return true;
-   }
+	@Override
+	public boolean isEmpty() {
+		return true;
+	}
 
-   @Override
-   public ChunkLevelType getLevelType() {
-      return ChunkLevelType.FULL;
-   }
+	@Override
+	public boolean areSectionsEmptyBetween(int lowerHeight, int upperHeight) {
+		return true;
+	}
 
-   @Override
-   public RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
-      return this.biomeEntry;
-   }
+	@Override
+	public ChunkLevelType getLevelType() {
+		return ChunkLevelType.FULL;
+	}
+
+	@Override
+	public RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
+		return this.biomeEntry;
+	}
 }

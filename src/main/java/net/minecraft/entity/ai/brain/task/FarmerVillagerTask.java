@@ -2,7 +2,6 @@ package net.minecraft.entity.ai.brain.task;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import java.util.List;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.CropBlock;
@@ -25,136 +24,166 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
+/**
+ * {@code FarmerVillagerTask}.
+ */
 public class FarmerVillagerTask extends MultiTickTask<VillagerEntity> {
-   private static final int MAX_RUN_TIME = 200;
-   public static final float WALK_SPEED = 0.5F;
-   private @Nullable BlockPos currentTarget;
-   private long nextResponseTime;
-   private int ticksRan;
-   private final List<BlockPos> targetPositions = Lists.newArrayList();
 
-   public FarmerVillagerTask() {
-      super(
-         ImmutableMap.of(
-            MemoryModuleType.LOOK_TARGET,
-            MemoryModuleState.VALUE_ABSENT,
-            MemoryModuleType.WALK_TARGET,
-            MemoryModuleState.VALUE_ABSENT,
-            MemoryModuleType.SECONDARY_JOB_SITE,
-            MemoryModuleState.VALUE_PRESENT
-         )
-      );
-   }
+	private static final int MAX_RUN_TIME = 200;
+	public static final float WALK_SPEED = 0.5F;
+	private @Nullable BlockPos currentTarget;
+	private long nextResponseTime;
+	private int ticksRan;
+	private final List<BlockPos> targetPositions = Lists.newArrayList();
 
-   protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
-      if (!serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
-         return false;
-      } else if (!villagerEntity.getVillagerData().profession().matchesKey(VillagerProfession.FARMER)) {
-         return false;
-      } else {
-         BlockPos.Mutable mutable = villagerEntity.getBlockPos().mutableCopy();
-         this.targetPositions.clear();
+	public FarmerVillagerTask() {
+		super(
+				ImmutableMap.of(
+						MemoryModuleType.LOOK_TARGET,
+						MemoryModuleState.VALUE_ABSENT,
+						MemoryModuleType.WALK_TARGET,
+						MemoryModuleState.VALUE_ABSENT,
+						MemoryModuleType.SECONDARY_JOB_SITE,
+						MemoryModuleState.VALUE_PRESENT
+				)
+		);
+	}
 
-         for (int i = -1; i <= 1; i++) {
-            for (int j = -1; j <= 1; j++) {
-               for (int k = -1; k <= 1; k++) {
-                  mutable.set(villagerEntity.getX() + i, villagerEntity.getY() + j, villagerEntity.getZ() + k);
-                  if (this.isSuitableTarget(mutable, serverWorld)) {
-                     this.targetPositions.add(new BlockPos(mutable));
-                  }
-               }
-            }
-         }
+	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
+		if (!serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
+			return false;
+		}
+		else if (!villagerEntity.getVillagerData().profession().matchesKey(VillagerProfession.FARMER)) {
+			return false;
+		}
+		else {
+			BlockPos.Mutable mutable = villagerEntity.getBlockPos().mutableCopy();
+			this.targetPositions.clear();
 
-         this.currentTarget = this.chooseRandomTarget(serverWorld);
-         return this.currentTarget != null;
-      }
-   }
+			for (int i = -1; i <= 1; i++) {
+				for (int j = -1; j <= 1; j++) {
+					for (int k = -1; k <= 1; k++) {
+						mutable.set(villagerEntity.getX() + i, villagerEntity.getY() + j, villagerEntity.getZ() + k);
+						if (this.isSuitableTarget(mutable, serverWorld)) {
+							this.targetPositions.add(new BlockPos(mutable));
+						}
+					}
+				}
+			}
 
-   private @Nullable BlockPos chooseRandomTarget(ServerWorld world) {
-      return this.targetPositions.isEmpty() ? null : this.targetPositions.get(world.getRandom().nextInt(this.targetPositions.size()));
-   }
+			this.currentTarget = this.chooseRandomTarget(serverWorld);
+			return this.currentTarget != null;
+		}
+	}
 
-   private boolean isSuitableTarget(BlockPos pos, ServerWorld world) {
-      BlockState blockState = world.getBlockState(pos);
-      Block block = blockState.getBlock();
-      Block block2 = world.getBlockState(pos.down()).getBlock();
-      return block instanceof CropBlock && ((CropBlock)block).isMature(blockState) || blockState.isAir() && block2 instanceof FarmlandBlock;
-   }
+	private @Nullable BlockPos chooseRandomTarget(ServerWorld world) {
+		return this.targetPositions.isEmpty() ? null : this.targetPositions.get(world
+		                                                                        .getRandom()
+		                                                                        .nextInt(this.targetPositions.size()));
+	}
 
-   protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-      if (l > this.nextResponseTime && this.currentTarget != null) {
-         villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(this.currentTarget));
-         villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(new BlockPosLookTarget(this.currentTarget), 0.5F, 1));
-      }
-   }
+	private boolean isSuitableTarget(BlockPos pos, ServerWorld world) {
+		BlockState blockState = world.getBlockState(pos);
+		Block block = blockState.getBlock();
+		Block block2 = world.getBlockState(pos.down()).getBlock();
+		return block instanceof CropBlock && ((CropBlock) block).isMature(blockState)
+				|| blockState.isAir() && block2 instanceof FarmlandBlock;
+	}
 
-   protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-      villagerEntity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
-      villagerEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
-      this.ticksRan = 0;
-      this.nextResponseTime = l + 40L;
-   }
+	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
+		if (l > this.nextResponseTime && this.currentTarget != null) {
+			villagerEntity
+					.getBrain()
+					.remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(this.currentTarget));
+			villagerEntity
+					.getBrain()
+					.remember(
+							MemoryModuleType.WALK_TARGET,
+							new WalkTarget(new BlockPosLookTarget(this.currentTarget), 0.5F, 1)
+					);
+		}
+	}
 
-   protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-      if (this.currentTarget == null || this.currentTarget.isWithinDistance(villagerEntity.getEntityPos(), 1.0)) {
-         if (this.currentTarget != null && l > this.nextResponseTime) {
-            BlockState blockState = serverWorld.getBlockState(this.currentTarget);
-            Block block = blockState.getBlock();
-            Block block2 = serverWorld.getBlockState(this.currentTarget.down()).getBlock();
-            if (block instanceof CropBlock && ((CropBlock)block).isMature(blockState)) {
-               serverWorld.breakBlock(this.currentTarget, true, villagerEntity);
-            }
+	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
+		villagerEntity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
+		villagerEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
+		this.ticksRan = 0;
+		this.nextResponseTime = l + 40L;
+	}
 
-            if (blockState.isAir() && block2 instanceof FarmlandBlock && villagerEntity.hasSeedToPlant()) {
-               SimpleInventory simpleInventory = villagerEntity.getInventory();
+	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
+		if (this.currentTarget == null || this.currentTarget.isWithinDistance(villagerEntity.getEntityPos(), 1.0)) {
+			if (this.currentTarget != null && l > this.nextResponseTime) {
+				BlockState blockState = serverWorld.getBlockState(this.currentTarget);
+				Block block = blockState.getBlock();
+				Block block2 = serverWorld.getBlockState(this.currentTarget.down()).getBlock();
+				if (block instanceof CropBlock && ((CropBlock) block).isMature(blockState)) {
+					serverWorld.breakBlock(this.currentTarget, true, villagerEntity);
+				}
 
-               for (int i = 0; i < simpleInventory.size(); i++) {
-                  ItemStack itemStack = simpleInventory.getStack(i);
-                  boolean bl = false;
-                  if (!itemStack.isEmpty() && itemStack.isIn(ItemTags.VILLAGER_PLANTABLE_SEEDS) && itemStack.getItem() instanceof BlockItem blockItem) {
-                     BlockState blockState2 = blockItem.getBlock().getDefaultState();
-                     serverWorld.setBlockState(this.currentTarget, blockState2);
-                     serverWorld.emitGameEvent(GameEvent.BLOCK_PLACE, this.currentTarget, GameEvent.Emitter.of(villagerEntity, blockState2));
-                     bl = true;
-                  }
+				if (blockState.isAir() && block2 instanceof FarmlandBlock && villagerEntity.hasSeedToPlant()) {
+					SimpleInventory simpleInventory = villagerEntity.getInventory();
 
-                  if (bl) {
-                     serverWorld.playSound(
-                        null,
-                        this.currentTarget.getX(),
-                        this.currentTarget.getY(),
-                        this.currentTarget.getZ(),
-                        SoundEvents.ITEM_CROP_PLANT,
-                        SoundCategory.BLOCKS,
-                        1.0F,
-                        1.0F
-                     );
-                     itemStack.decrement(1);
-                     if (itemStack.isEmpty()) {
-                        simpleInventory.setStack(i, ItemStack.EMPTY);
-                     }
-                     break;
-                  }
-               }
-            }
+					for (int i = 0; i < simpleInventory.size(); i++) {
+						ItemStack itemStack = simpleInventory.getStack(i);
+						boolean bl = false;
+						if (!itemStack.isEmpty() && itemStack.isIn(ItemTags.VILLAGER_PLANTABLE_SEEDS)
+								&& itemStack.getItem() instanceof BlockItem blockItem) {
+							BlockState blockState2 = blockItem.getBlock().getDefaultState();
+							serverWorld.setBlockState(this.currentTarget, blockState2);
+							serverWorld.emitGameEvent(
+									GameEvent.BLOCK_PLACE,
+									this.currentTarget,
+									GameEvent.Emitter.of(villagerEntity, blockState2)
+							);
+							bl = true;
+						}
 
-            if (block instanceof CropBlock && !((CropBlock)block).isMature(blockState)) {
-               this.targetPositions.remove(this.currentTarget);
-               this.currentTarget = this.chooseRandomTarget(serverWorld);
-               if (this.currentTarget != null) {
-                  this.nextResponseTime = l + 20L;
-                  villagerEntity.getBrain().remember(MemoryModuleType.WALK_TARGET, new WalkTarget(new BlockPosLookTarget(this.currentTarget), 0.5F, 1));
-                  villagerEntity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(this.currentTarget));
-               }
-            }
-         }
+						if (bl) {
+							serverWorld.playSound(
+									null,
+									this.currentTarget.getX(),
+									this.currentTarget.getY(),
+									this.currentTarget.getZ(),
+									SoundEvents.ITEM_CROP_PLANT,
+									SoundCategory.BLOCKS,
+									1.0F,
+									1.0F
+							);
+							itemStack.decrement(1);
+							if (itemStack.isEmpty()) {
+								simpleInventory.setStack(i, ItemStack.EMPTY);
+							}
+							break;
+						}
+					}
+				}
 
-         this.ticksRan++;
-      }
-   }
+				if (block instanceof CropBlock && !((CropBlock) block).isMature(blockState)) {
+					this.targetPositions.remove(this.currentTarget);
+					this.currentTarget = this.chooseRandomTarget(serverWorld);
+					if (this.currentTarget != null) {
+						this.nextResponseTime = l + 20L;
+						villagerEntity
+								.getBrain()
+								.remember(
+										MemoryModuleType.WALK_TARGET,
+										new WalkTarget(new BlockPosLookTarget(this.currentTarget), 0.5F, 1)
+								);
+						villagerEntity
+								.getBrain()
+								.remember(MemoryModuleType.LOOK_TARGET, new BlockPosLookTarget(this.currentTarget));
+					}
+				}
+			}
 
-   protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
-      return this.ticksRan < 200;
-   }
+			this.ticksRan++;
+		}
+	}
+
+	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
+		return this.ticksRan < 200;
+	}
 }

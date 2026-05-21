@@ -2,54 +2,59 @@ package net.minecraft.entity;
 
 import java.util.function.Consumer;
 
+/**
+ * {@code AnimationState}.
+ */
 public class AnimationState {
-   private static final int STOPPED = Integer.MIN_VALUE;
-   private int startTick = Integer.MIN_VALUE;
 
-   public void start(int tick) {
-      this.startTick = tick;
-   }
+	private static final int STOPPED = Integer.MIN_VALUE;
+	private int startTick = Integer.MIN_VALUE;
 
-   public void startIfNotRunning(int tick) {
-      if (!this.isRunning()) {
-         this.start(tick);
-      }
-   }
+	public void start(int tick) {
+		this.startTick = tick;
+	}
 
-   public void setRunning(boolean running, int tick) {
-      if (running) {
-         this.startIfNotRunning(tick);
-      } else {
-         this.stop();
-      }
-   }
+	public void startIfNotRunning(int tick) {
+		if (!this.isRunning()) {
+			this.start(tick);
+		}
+	}
 
-   public void stop() {
-      this.startTick = Integer.MIN_VALUE;
-   }
+	public void setRunning(boolean running, int tick) {
+		if (running) {
+			this.startIfNotRunning(tick);
+		}
+		else {
+			this.stop();
+		}
+	}
 
-   public void run(Consumer<AnimationState> consumer) {
-      if (this.isRunning()) {
-         consumer.accept(this);
-      }
-   }
+	public void stop() {
+		this.startTick = Integer.MIN_VALUE;
+	}
 
-   public void skip(int ticks, float speedMultiplier) {
-      if (this.isRunning()) {
-         this.startTick -= (int)(ticks * speedMultiplier);
-      }
-   }
+	public void run(Consumer<AnimationState> consumer) {
+		if (this.isRunning()) {
+			consumer.accept(this);
+		}
+	}
 
-   public long getTimeInMilliseconds(float age) {
-      float f = age - this.startTick;
-      return (long)(f * 50.0F);
-   }
+	public void skip(int ticks, float speedMultiplier) {
+		if (this.isRunning()) {
+			this.startTick -= (int) (ticks * speedMultiplier);
+		}
+	}
 
-   public boolean isRunning() {
-      return this.startTick != Integer.MIN_VALUE;
-   }
+	public long getTimeInMilliseconds(float age) {
+		float f = age - this.startTick;
+		return (long) (f * 50.0F);
+	}
 
-   public void copyFrom(AnimationState state) {
-      this.startTick = state.startTick;
-   }
+	public boolean isRunning() {
+		return this.startTick != Integer.MIN_VALUE;
+	}
+
+	public void copyFrom(AnimationState state) {
+		this.startTick = state.startTick;
+	}
 }

@@ -5,84 +5,91 @@ import net.minecraft.server.dedicated.management.network.ManagementConnectionId;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.GameMode;
 
+/**
+ * {@code PropertiesManagementHandler}.
+ */
 public interface PropertiesManagementHandler {
-   boolean getAutosave();
 
-   boolean setAutosave(boolean autosaveEnabled, ManagementConnectionId remote);
+	boolean getAutosave();
 
-   Difficulty getDifficulty();
+	boolean setAutosave(boolean autosaveEnabled, ManagementConnectionId remote);
 
-   Difficulty setDifficulty(Difficulty difficulty, ManagementConnectionId remote);
+	Difficulty getDifficulty();
 
-   boolean getEnforceAllowlist();
+	Difficulty setDifficulty(Difficulty difficulty, ManagementConnectionId remote);
 
-   boolean setEnforceAllowlist(boolean enforceAllowlist, ManagementConnectionId remote);
+	boolean getEnforceAllowlist();
 
-   boolean getUseAllowlist();
+	boolean setEnforceAllowlist(boolean enforceAllowlist, ManagementConnectionId remote);
 
-   boolean setUseAllowlist(boolean useAllowlist, ManagementConnectionId remote);
+	boolean getUseAllowlist();
 
-   int getMaxPlayers();
+	boolean setUseAllowlist(boolean useAllowlist, ManagementConnectionId remote);
 
-   int setMaxPlayers(int maxPlayers, ManagementConnectionId remote);
+	int getMaxPlayers();
 
-   int getPauseWhenEmptySeconds();
+	int setMaxPlayers(int maxPlayers, ManagementConnectionId remote);
 
-   int setPauseWhenEmptySeconds(int pauseWhenEmptySeconds, ManagementConnectionId remote);
+	int getPauseWhenEmptySeconds();
 
-   int getPlayerIdleTimeout();
+	int setPauseWhenEmptySeconds(int pauseWhenEmptySeconds, ManagementConnectionId remote);
 
-   int setPlayerIdleTimeout(int playerIdleTimeout, ManagementConnectionId remote);
+	int getPlayerIdleTimeout();
 
-   boolean getAllowFlight();
+	int setPlayerIdleTimeout(int playerIdleTimeout, ManagementConnectionId remote);
 
-   boolean setAllowFlight(boolean allowFlight, ManagementConnectionId remote);
+	boolean getAllowFlight();
 
-   int getSpawnProtectionRadius();
+	boolean setAllowFlight(boolean allowFlight, ManagementConnectionId remote);
 
-   int setSpawnProtectionRadius(int spawnProtectionRadius, ManagementConnectionId remote);
+	int getSpawnProtectionRadius();
 
-   String getMotd();
+	int setSpawnProtectionRadius(int spawnProtectionRadius, ManagementConnectionId remote);
 
-   String setMotd(String motd, ManagementConnectionId remote);
+	String getMotd();
 
-   boolean getForceGameMode();
+	String setMotd(String motd, ManagementConnectionId remote);
 
-   boolean setForceGameMode(boolean forceGameMode, ManagementConnectionId remote);
+	boolean getForceGameMode();
 
-   GameMode getGameMode();
+	boolean setForceGameMode(boolean forceGameMode, ManagementConnectionId remote);
 
-   GameMode setGameMode(GameMode gameMode, ManagementConnectionId remote);
+	GameMode getGameMode();
 
-   int getViewDistance();
+	GameMode setGameMode(GameMode gameMode, ManagementConnectionId remote);
 
-   int setViewDistance(int viewDistance, ManagementConnectionId remote);
+	int getViewDistance();
 
-   int getSimulationDistance();
+	int setViewDistance(int viewDistance, ManagementConnectionId remote);
 
-   int setSimulationDistance(int simulationDistance, ManagementConnectionId remote);
+	int getSimulationDistance();
 
-   boolean getAcceptTransfers();
+	int setSimulationDistance(int simulationDistance, ManagementConnectionId remote);
 
-   boolean setAcceptTransfers(boolean acceptTransfers, ManagementConnectionId remote);
+	boolean getAcceptTransfers();
 
-   int getStatusHeartbeatInterval();
+	boolean setAcceptTransfers(boolean acceptTransfers, ManagementConnectionId remote);
 
-   int setStatusHeartbeatInterval(int statusHeartbeatInterval, ManagementConnectionId remote);
+	int getStatusHeartbeatInterval();
 
-   LeveledPermissionPredicate getOperatorUserPermissionLevel();
+	int setStatusHeartbeatInterval(int statusHeartbeatInterval, ManagementConnectionId remote);
 
-   LeveledPermissionPredicate setOperatorUserPermissionLevel(LeveledPermissionPredicate operatorUserPermissionLevel, ManagementConnectionId remote);
+	LeveledPermissionPredicate getOperatorUserPermissionLevel();
 
-   boolean getHideOnlinePlayers();
+	LeveledPermissionPredicate setOperatorUserPermissionLevel(
+			LeveledPermissionPredicate operatorUserPermissionLevel,
+			ManagementConnectionId remote
+	);
 
-   boolean setHideOnlinePlayers(boolean hideOnlinePlayers, ManagementConnectionId remote);
+	boolean getHideOnlinePlayers();
 
-   boolean getStatusReplies();
+	boolean setHideOnlinePlayers(boolean hideOnlinePlayers, ManagementConnectionId remote);
 
-   boolean setStatusReplies(boolean repliesToStatus, ManagementConnectionId remote);
+	boolean getStatusReplies();
 
-   int getEntityBroadcastRange();
+	boolean setStatusReplies(boolean repliesToStatus, ManagementConnectionId remote);
 
-   int setEntityBroadcastRange(int entityBroadcastRange, ManagementConnectionId remote);
+	int getEntityBroadcastRange();
+
+	int setEntityBroadcastRange(int entityBroadcastRange, ManagementConnectionId remote);
 }

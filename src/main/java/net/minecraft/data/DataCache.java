@@ -1,11 +1,16 @@
 package net.minecraft.data;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.collect.ImmutableMap.Builder;
+import com.google.common.collect.UnmodifiableIterator;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.mojang.logging.LogUtils;
+import net.minecraft.GameVersion;
+import org.apache.commons.lang3.mutable.MutableInt;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -17,241 +22,269 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import net.minecraft.GameVersion;
-import org.apache.commons.lang3.mutable.MutableInt;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
+/**
+ * {@code DataCache}.
+ */
 public class DataCache {
-   static final Logger LOGGER = LogUtils.getLogger();
-   private static final String HEADER = "// ";
-   private final Path root;
-   private final Path cachePath;
-   private final String versionName;
-   private final Map<String, DataCache.CachedData> cachedDatas;
-   private final Set<String> dataWriters = new HashSet<>();
-   final Set<Path> paths = new HashSet<>();
-   private final int totalSize;
-   private int totalCacheMissCount;
 
-   private Path getPath(String providerName) {
-      return this.cachePath.resolve(Hashing.sha1().hashString(providerName, StandardCharsets.UTF_8).toString());
-   }
+	static final Logger LOGGER = LogUtils.getLogger();
+	private static final String HEADER = "// ";
+	private final Path root;
+	private final Path cachePath;
+	private final String versionName;
+	private final Map<String, DataCache.CachedData> cachedDatas;
+	private final Set<String> dataWriters = new HashSet<>();
+	final Set<Path> paths = new HashSet<>();
+	private final int totalSize;
+	private int totalCacheMissCount;
 
-   public DataCache(Path root, Collection<String> providerNames, GameVersion gameVersion) throws IOException {
-      this.versionName = gameVersion.id();
-      this.root = root;
-      this.cachePath = root.resolve(".cache");
-      Files.createDirectories(this.cachePath);
-      Map<String, DataCache.CachedData> map = new HashMap<>();
-      int i = 0;
+	private Path getPath(String providerName) {
+		return this.cachePath.resolve(Hashing.sha1().hashString(providerName, StandardCharsets.UTF_8).toString());
+	}
 
-      for (String string : providerNames) {
-         Path path = this.getPath(string);
-         this.paths.add(path);
-         DataCache.CachedData cachedData = parseOrCreateCache(root, path);
-         map.put(string, cachedData);
-         i += cachedData.size();
-      }
+	public DataCache(Path root, Collection<String> providerNames, GameVersion gameVersion) throws IOException {
+		this.versionName = gameVersion.id();
+		this.root = root;
+		this.cachePath = root.resolve(".cache");
+		Files.createDirectories(this.cachePath);
+		Map<String, DataCache.CachedData> map = new HashMap<>();
+		int i = 0;
 
-      this.cachedDatas = map;
-      this.totalSize = i;
-   }
+		for (String string : providerNames) {
+			Path path = this.getPath(string);
+			this.paths.add(path);
+			DataCache.CachedData cachedData = parseOrCreateCache(root, path);
+			map.put(string, cachedData);
+			i += cachedData.size();
+		}
 
-   private static DataCache.CachedData parseOrCreateCache(Path root, Path dataProviderPath) {
-      if (Files.isReadable(dataProviderPath)) {
-         try {
-            return DataCache.CachedData.parseCache(root, dataProviderPath);
-         } catch (Exception var3) {
-            LOGGER.warn("Failed to parse cache {}, discarding", dataProviderPath, var3);
-         }
-      }
+		this.cachedDatas = map;
+		this.totalSize = i;
+	}
 
-      return new DataCache.CachedData("unknown", ImmutableMap.of());
-   }
+	private static DataCache.CachedData parseOrCreateCache(Path root, Path dataProviderPath) {
+		if (Files.isReadable(dataProviderPath)) {
+			try {
+				return DataCache.CachedData.parseCache(root, dataProviderPath);
+			}
+			catch (Exception var3) {
+				LOGGER.warn("Failed to parse cache {}, discarding", dataProviderPath, var3);
+			}
+		}
 
-   public boolean isVersionDifferent(String providerName) {
-      DataCache.CachedData cachedData = this.cachedDatas.get(providerName);
-      return cachedData == null || !cachedData.version.equals(this.versionName);
-   }
+		return new DataCache.CachedData("unknown", ImmutableMap.of());
+	}
 
-   public CompletableFuture<DataCache.RunResult> run(String providerName, DataCache.Runner runner) {
-      DataCache.CachedData cachedData = this.cachedDatas.get(providerName);
-      if (cachedData == null) {
-         throw new IllegalStateException("Provider not registered: " + providerName);
-      } else {
-         DataCache.CachedDataWriter cachedDataWriter = new DataCache.CachedDataWriter(providerName, this.versionName, cachedData);
-         return runner.update(cachedDataWriter).thenApply(void_ -> cachedDataWriter.finish());
-      }
-   }
+	public boolean isVersionDifferent(String providerName) {
+		DataCache.CachedData cachedData = this.cachedDatas.get(providerName);
+		return cachedData == null || !cachedData.version.equals(this.versionName);
+	}
 
-   public void store(DataCache.RunResult runResult) {
-      this.cachedDatas.put(runResult.providerName(), runResult.cache());
-      this.dataWriters.add(runResult.providerName());
-      this.totalCacheMissCount = this.totalCacheMissCount + runResult.cacheMissCount();
-   }
+	public CompletableFuture<DataCache.RunResult> run(String providerName, DataCache.Runner runner) {
+		DataCache.CachedData cachedData = this.cachedDatas.get(providerName);
+		if (cachedData == null) {
+			throw new IllegalStateException("Provider not registered: " + providerName);
+		}
+		else {
+			DataCache.CachedDataWriter
+					cachedDataWriter =
+					new DataCache.CachedDataWriter(providerName, this.versionName, cachedData);
+			return runner.update(cachedDataWriter).thenApply(void_ -> cachedDataWriter.finish());
+		}
+	}
 
-   public void write() throws IOException {
-      final Set<Path> set = new HashSet<>();
-      this.cachedDatas.forEach((providerName, cachedData) -> {
-         if (this.dataWriters.contains(providerName)) {
-            Path path = this.getPath(providerName);
-            cachedData.write(this.root, path, DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(ZonedDateTime.now()) + "\t" + providerName);
-         }
+	public void store(DataCache.RunResult runResult) {
+		this.cachedDatas.put(runResult.providerName(), runResult.cache());
+		this.dataWriters.add(runResult.providerName());
+		this.totalCacheMissCount = this.totalCacheMissCount + runResult.cacheMissCount();
+	}
 
-         set.addAll(cachedData.data().keySet());
-      });
-      set.add(this.root.resolve("version.json"));
-      final MutableInt mutableInt = new MutableInt();
-      final MutableInt mutableInt2 = new MutableInt();
-      Files.walkFileTree(this.root, new SimpleFileVisitor<Path>() {
-         public FileVisitResult visitFile(Path path, BasicFileAttributes basicFileAttributes) {
-            if (DataCache.this.paths.contains(path)) {
-               return FileVisitResult.CONTINUE;
-            } else {
-               mutableInt.increment();
-               if (set.contains(path)) {
-                  return FileVisitResult.CONTINUE;
-               } else {
-                  try {
-                     Files.delete(path);
-                  } catch (IOException var4) {
-                     DataCache.LOGGER.warn("Failed to delete file {}", path, var4);
-                  }
+	public void write() throws IOException {
+		final Set<Path> set = new HashSet<>();
+		this.cachedDatas.forEach((providerName, cachedData) -> {
+			if (this.dataWriters.contains(providerName)) {
+				Path path = this.getPath(providerName);
+				cachedData.write(
+						this.root,
+						path,
+						DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(ZonedDateTime.now()) + "\t" + providerName
+				);
+			}
 
-                  mutableInt2.increment();
-                  return FileVisitResult.CONTINUE;
-               }
-            }
-         }
-      });
-      LOGGER.info(
-         "Caching: total files: {}, old count: {}, new count: {}, removed stale: {}, written: {}",
-         new Object[]{mutableInt, this.totalSize, set.size(), mutableInt2, this.totalCacheMissCount}
-      );
-   }
+			set.addAll(cachedData.data().keySet());
+		});
+		set.add(this.root.resolve("version.json"));
+		final MutableInt mutableInt = new MutableInt();
+		final MutableInt mutableInt2 = new MutableInt();
+		Files.walkFileTree(
+				this.root, new SimpleFileVisitor<Path>() {
+					public FileVisitResult visitFile(Path path, BasicFileAttributes basicFileAttributes) {
+						if (DataCache.this.paths.contains(path)) {
+							return FileVisitResult.CONTINUE;
+						}
+						else {
+							mutableInt.increment();
+							if (set.contains(path)) {
+								return FileVisitResult.CONTINUE;
+							}
+							else {
+								try {
+									Files.delete(path);
+								}
+								catch (IOException var4) {
+									DataCache.LOGGER.warn("Failed to delete file {}", path, var4);
+								}
 
-   record CachedData(String version, ImmutableMap<Path, HashCode> data) {
+								mutableInt2.increment();
+								return FileVisitResult.CONTINUE;
+							}
+						}
+					}
+				}
+		);
+		LOGGER.info(
+				"Caching: total files: {}, old count: {}, new count: {}, removed stale: {}, written: {}",
+				new Object[]{mutableInt, this.totalSize, set.size(), mutableInt2, this.totalCacheMissCount}
+		);
+	}
 
-      public @Nullable HashCode get(Path path) {
-         return (HashCode)this.data.get(path);
-      }
+	/**
+	 * {@code CachedData}.
+	 */
+	record CachedData(String version, ImmutableMap<Path, HashCode> data) {
 
-      public int size() {
-         return this.data.size();
-      }
+		public @Nullable HashCode get(Path path) {
+			return (HashCode) this.data.get(path);
+		}
 
-      public static DataCache.CachedData parseCache(Path root, Path dataProviderPath) throws IOException {
-         DataCache.CachedData var7;
-         try (BufferedReader bufferedReader = Files.newBufferedReader(dataProviderPath, StandardCharsets.UTF_8)) {
-            String string = bufferedReader.readLine();
-            if (!string.startsWith("// ")) {
-               throw new IllegalStateException("Missing cache file header");
-            }
+		public int size() {
+			return this.data.size();
+		}
 
-            String[] strings = string.substring("// ".length()).split("\t", 2);
-            String string2 = strings[0];
-            Builder<Path, HashCode> builder = ImmutableMap.builder();
-            bufferedReader.lines().forEach(line -> {
-               int i = line.indexOf(32);
-               builder.put(root.resolve(line.substring(i + 1)), HashCode.fromString(line.substring(0, i)));
-            });
-            var7 = new DataCache.CachedData(string2, builder.build());
-         }
+		public static DataCache.CachedData parseCache(Path root, Path dataProviderPath) throws IOException {
+			DataCache.CachedData var7;
+			try (BufferedReader bufferedReader = Files.newBufferedReader(dataProviderPath, StandardCharsets.UTF_8)) {
+				String string = bufferedReader.readLine();
+				if (!string.startsWith("// ")) {
+					throw new IllegalStateException("Missing cache file header");
+				}
 
-         return var7;
-      }
+				String[] strings = string.substring("// ".length()).split("\t", 2);
+				String string2 = strings[0];
+				Builder<Path, HashCode> builder = ImmutableMap.builder();
+				bufferedReader.lines().forEach(line -> {
+					int i = line.indexOf(32);
+					builder.put(root.resolve(line.substring(i + 1)), HashCode.fromString(line.substring(0, i)));
+				});
+				var7 = new DataCache.CachedData(string2, builder.build());
+			}
 
-      public void write(Path root, Path dataProviderPath, String description) {
-         try (BufferedWriter bufferedWriter = Files.newBufferedWriter(dataProviderPath, StandardCharsets.UTF_8)) {
-            bufferedWriter.write("// ");
-            bufferedWriter.write(this.version);
-            bufferedWriter.write(9);
-            bufferedWriter.write(description);
-            bufferedWriter.newLine();
-            UnmodifiableIterator var5 = this.data.entrySet().iterator();
+			return var7;
+		}
 
-            while (var5.hasNext()) {
-               Entry<Path, HashCode> entry = (Entry<Path, HashCode>)var5.next();
-               bufferedWriter.write(entry.getValue().toString());
-               bufferedWriter.write(32);
-               bufferedWriter.write(root.relativize(entry.getKey()).toString());
-               bufferedWriter.newLine();
-            }
-         } catch (IOException var9) {
-            DataCache.LOGGER.warn("Unable write cachefile {}: {}", dataProviderPath, var9);
-         }
-      }
-   }
+		public void write(Path root, Path dataProviderPath, String description) {
+			try (BufferedWriter bufferedWriter = Files.newBufferedWriter(dataProviderPath, StandardCharsets.UTF_8)) {
+				bufferedWriter.write("// ");
+				bufferedWriter.write(this.version);
+				bufferedWriter.write(9);
+				bufferedWriter.write(description);
+				bufferedWriter.newLine();
+				UnmodifiableIterator var5 = this.data.entrySet().iterator();
 
-   static class CachedDataWriter implements DataWriter {
-      private final String providerName;
-      private final DataCache.CachedData oldCache;
-      private final DataCache.IntermediaryCache newCache;
-      private final AtomicInteger cacheMissCount = new AtomicInteger();
-      private volatile boolean closed;
+				while (var5.hasNext()) {
+					Entry<Path, HashCode> entry = (Entry<Path, HashCode>) var5.next();
+					bufferedWriter.write(entry.getValue().toString());
+					bufferedWriter.write(32);
+					bufferedWriter.write(root.relativize(entry.getKey()).toString());
+					bufferedWriter.newLine();
+				}
+			}
+			catch (IOException var9) {
+				DataCache.LOGGER.warn("Unable write cachefile {}: {}", dataProviderPath, var9);
+			}
+		}
+	}
 
-      CachedDataWriter(String providerName, String version, DataCache.CachedData oldCache) {
-         this.providerName = providerName;
-         this.oldCache = oldCache;
-         this.newCache = new DataCache.IntermediaryCache(version);
-      }
+	/**
+	 * {@code CachedDataWriter}.
+	 */
+	static class CachedDataWriter implements DataWriter {
 
-      private boolean isCacheInvalid(Path path, HashCode hashCode) {
-         return !Objects.equals(this.oldCache.get(path), hashCode) || !Files.exists(path);
-      }
+		private final String providerName;
+		private final DataCache.CachedData oldCache;
+		private final DataCache.IntermediaryCache newCache;
+		private final AtomicInteger cacheMissCount = new AtomicInteger();
+		private volatile boolean closed;
 
-      @Override
-      public void write(Path path, byte[] data, HashCode hashCode) throws IOException {
-         if (this.closed) {
-            throw new IllegalStateException("Cannot write to cache as it has already been closed");
-         } else {
-            if (this.isCacheInvalid(path, hashCode)) {
-               this.cacheMissCount.incrementAndGet();
-               Files.createDirectories(path.getParent());
-               Files.write(path, data);
-            }
+		CachedDataWriter(String providerName, String version, DataCache.CachedData oldCache) {
+			this.providerName = providerName;
+			this.oldCache = oldCache;
+			this.newCache = new DataCache.IntermediaryCache(version);
+		}
 
-            this.newCache.put(path, hashCode);
-         }
-      }
+		private boolean isCacheInvalid(Path path, HashCode hashCode) {
+			return !Objects.equals(this.oldCache.get(path), hashCode) || !Files.exists(path);
+		}
 
-      public DataCache.RunResult finish() {
-         this.closed = true;
-         return new DataCache.RunResult(this.providerName, this.newCache.toCachedData(), this.cacheMissCount.get());
-      }
-   }
+		@Override
+		public void write(Path path, byte[] data, HashCode hashCode) throws IOException {
+			if (this.closed) {
+				throw new IllegalStateException("Cannot write to cache as it has already been closed");
+			}
+			else {
+				if (this.isCacheInvalid(path, hashCode)) {
+					this.cacheMissCount.incrementAndGet();
+					Files.createDirectories(path.getParent());
+					Files.write(path, data);
+				}
 
-   record IntermediaryCache(String version, ConcurrentMap<Path, HashCode> data) {
-      IntermediaryCache(String version) {
-         this(version, new ConcurrentHashMap<>());
-      }
+				this.newCache.put(path, hashCode);
+			}
+		}
 
-      public void put(Path path, HashCode hashCode) {
-         this.data.put(path, hashCode);
-      }
+		public DataCache.RunResult finish() {
+			this.closed = true;
+			return new DataCache.RunResult(this.providerName, this.newCache.toCachedData(), this.cacheMissCount.get());
+		}
+	}
 
-      public DataCache.CachedData toCachedData() {
-         return new DataCache.CachedData(this.version, ImmutableMap.copyOf(this.data));
-      }
-   }
+	/**
+	 * {@code IntermediaryCache}.
+	 */
+	record IntermediaryCache(String version, ConcurrentMap<Path, HashCode> data) {
 
-   public record RunResult(String providerName, DataCache.CachedData cache, int cacheMissCount) {
-   }
+		IntermediaryCache(String version) {
+			this(version, new ConcurrentHashMap<>());
+		}
 
-   @FunctionalInterface
-   public interface Runner {
-      CompletableFuture<?> update(DataWriter writer);
-   }
+		public void put(Path path, HashCode hashCode) {
+			this.data.put(path, hashCode);
+		}
+
+		public DataCache.CachedData toCachedData() {
+			return new DataCache.CachedData(this.version, ImmutableMap.copyOf(this.data));
+		}
+	}
+
+	/**
+	 * {@code RunResult}.
+	 */
+	public record RunResult(String providerName, DataCache.CachedData cache, int cacheMissCount) {
+	}
+
+	@FunctionalInterface
+	/**
+	 * {@code Runner}.
+	 */
+	public interface Runner {
+
+		CompletableFuture<?> update(DataWriter writer);
+	}
 }

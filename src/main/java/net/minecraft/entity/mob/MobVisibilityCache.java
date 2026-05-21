@@ -6,38 +6,45 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.profiler.Profiler;
 import net.minecraft.util.profiler.Profilers;
 
+/**
+ * {@code MobVisibilityCache}.
+ */
 public class MobVisibilityCache {
-   private final MobEntity owner;
-   private final IntSet visibleEntities = new IntOpenHashSet();
-   private final IntSet invisibleEntities = new IntOpenHashSet();
 
-   public MobVisibilityCache(MobEntity owner) {
-      this.owner = owner;
-   }
+	private final MobEntity owner;
+	private final IntSet visibleEntities = new IntOpenHashSet();
+	private final IntSet invisibleEntities = new IntOpenHashSet();
 
-   public void clear() {
-      this.visibleEntities.clear();
-      this.invisibleEntities.clear();
-   }
+	public MobVisibilityCache(MobEntity owner) {
+		this.owner = owner;
+	}
 
-   public boolean canSee(Entity entity) {
-      int i = entity.getId();
-      if (this.visibleEntities.contains(i)) {
-         return true;
-      } else if (this.invisibleEntities.contains(i)) {
-         return false;
-      } else {
-         Profiler profiler = Profilers.get();
-         profiler.push("hasLineOfSight");
-         boolean bl = this.owner.canSee(entity);
-         profiler.pop();
-         if (bl) {
-            this.visibleEntities.add(i);
-         } else {
-            this.invisibleEntities.add(i);
-         }
+	public void clear() {
+		this.visibleEntities.clear();
+		this.invisibleEntities.clear();
+	}
 
-         return bl;
-      }
-   }
+	public boolean canSee(Entity entity) {
+		int i = entity.getId();
+		if (this.visibleEntities.contains(i)) {
+			return true;
+		}
+		else if (this.invisibleEntities.contains(i)) {
+			return false;
+		}
+		else {
+			Profiler profiler = Profilers.get();
+			profiler.push("hasLineOfSight");
+			boolean bl = this.owner.canSee(entity);
+			profiler.pop();
+			if (bl) {
+				this.visibleEntities.add(i);
+			}
+			else {
+				this.invisibleEntities.add(i);
+			}
+
+			return bl;
+		}
+	}
 }

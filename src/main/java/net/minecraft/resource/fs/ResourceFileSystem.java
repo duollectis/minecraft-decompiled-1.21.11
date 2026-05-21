@@ -2,11 +2,9 @@ package net.minecraft.resource.fs;
 
 import com.google.common.base.Splitter;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import java.nio.file.FileStore;
-import java.nio.file.FileSystem;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.WatchService;
+import org.jspecify.annotations.Nullable;
+
+import java.nio.file.*;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.nio.file.spi.FileSystemProvider;
 import java.util.HashMap;
@@ -15,171 +13,199 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ResourceFileSystem}.
+ */
 public class ResourceFileSystem extends FileSystem {
-   private static final Set<String> SUPPORTED_FILE_ATTRIBUTE_VIEWS = Set.of("basic");
-   public static final String SEPARATOR = "/";
-   private static final Splitter SEPARATOR_SPLITTER = Splitter.on('/');
-   private final FileStore store;
-   private final FileSystemProvider fileSystemProvider = new ResourceFileSystemProvider();
-   private final ResourcePath root;
 
-   ResourceFileSystem(String name, ResourceFileSystem.Directory root) {
-      this.store = new ResourceFileStore(name);
-      this.root = toResourcePath(root, this, "", null);
-   }
+	private static final Set<String> SUPPORTED_FILE_ATTRIBUTE_VIEWS = Set.of("basic");
+	public static final String SEPARATOR = "/";
+	private static final Splitter SEPARATOR_SPLITTER = Splitter.on('/');
+	private final FileStore store;
+	private final FileSystemProvider fileSystemProvider = new ResourceFileSystemProvider();
+	private final ResourcePath root;
 
-   private static ResourcePath toResourcePath(ResourceFileSystem.Directory root, ResourceFileSystem fileSystem, String name, @Nullable ResourcePath parent) {
-      Object2ObjectOpenHashMap<String, ResourcePath> object2ObjectOpenHashMap = new Object2ObjectOpenHashMap();
-      ResourcePath resourcePath = new ResourcePath(fileSystem, name, parent, new ResourceFile.Directory(object2ObjectOpenHashMap));
-      root.files
-         .forEach((fileName, path) -> object2ObjectOpenHashMap.put(fileName, new ResourcePath(fileSystem, fileName, resourcePath, new ResourceFile.File(path))));
-      root.children
-         .forEach((directoryName, directory) -> object2ObjectOpenHashMap.put(directoryName, toResourcePath(directory, fileSystem, directoryName, resourcePath)));
-      object2ObjectOpenHashMap.trim();
-      return resourcePath;
-   }
+	ResourceFileSystem(String name, ResourceFileSystem.Directory root) {
+		this.store = new ResourceFileStore(name);
+		this.root = toResourcePath(root, this, "", null);
+	}
 
-   @Override
-   public FileSystemProvider provider() {
-      return this.fileSystemProvider;
-   }
+	private static ResourcePath toResourcePath(
+			ResourceFileSystem.Directory root,
+			ResourceFileSystem fileSystem,
+			String name,
+			@Nullable ResourcePath parent
+	) {
+		Object2ObjectOpenHashMap<String, ResourcePath> object2ObjectOpenHashMap = new Object2ObjectOpenHashMap();
+		ResourcePath
+				resourcePath =
+				new ResourcePath(fileSystem, name, parent, new ResourceFile.Directory(object2ObjectOpenHashMap));
+		root.files
+				.forEach((fileName, path) -> object2ObjectOpenHashMap.put(
+						fileName,
+						new ResourcePath(fileSystem, fileName, resourcePath, new ResourceFile.File(path))
+				));
+		root.children
+				.forEach((directoryName, directory) -> object2ObjectOpenHashMap.put(
+						directoryName,
+						toResourcePath(directory, fileSystem, directoryName, resourcePath)
+				));
+		object2ObjectOpenHashMap.trim();
+		return resourcePath;
+	}
 
-   @Override
-   public void close() {
-   }
+	@Override
+	public FileSystemProvider provider() {
+		return this.fileSystemProvider;
+	}
 
-   @Override
-   public boolean isOpen() {
-      return true;
-   }
+	@Override
+	public void close() {
+	}
 
-   @Override
-   public boolean isReadOnly() {
-      return true;
-   }
+	@Override
+	public boolean isOpen() {
+		return true;
+	}
 
-   @Override
-   public String getSeparator() {
-      return "/";
-   }
+	@Override
+	public boolean isReadOnly() {
+		return true;
+	}
 
-   @Override
-   public Iterable<Path> getRootDirectories() {
-      return List.of(this.root);
-   }
+	@Override
+	public String getSeparator() {
+		return "/";
+	}
 
-   @Override
-   public Iterable<FileStore> getFileStores() {
-      return List.of(this.store);
-   }
+	@Override
+	public Iterable<Path> getRootDirectories() {
+		return List.of(this.root);
+	}
 
-   @Override
-   public Set<String> supportedFileAttributeViews() {
-      return SUPPORTED_FILE_ATTRIBUTE_VIEWS;
-   }
+	@Override
+	public Iterable<FileStore> getFileStores() {
+		return List.of(this.store);
+	}
 
-   @Override
-   public Path getPath(String first, String... more) {
-      Stream<String> stream = Stream.of(first);
-      if (more.length > 0) {
-         stream = Stream.concat(stream, Stream.of(more));
-      }
+	@Override
+	public Set<String> supportedFileAttributeViews() {
+		return SUPPORTED_FILE_ATTRIBUTE_VIEWS;
+	}
 
-      String string = stream.collect(Collectors.joining("/"));
-      if (string.equals("/")) {
-         return this.root;
-      } else if (string.startsWith("/")) {
-         ResourcePath resourcePath = this.root;
+	@Override
+	public Path getPath(String first, String... more) {
+		Stream<String> stream = Stream.of(first);
+		if (more.length > 0) {
+			stream = Stream.concat(stream, Stream.of(more));
+		}
 
-         for (String string2 : SEPARATOR_SPLITTER.split(string.substring(1))) {
-            if (string2.isEmpty()) {
-               throw new IllegalArgumentException("Empty paths not allowed");
-            }
+		String string = stream.collect(Collectors.joining("/"));
+		if (string.equals("/")) {
+			return this.root;
+		}
+		else if (string.startsWith("/")) {
+			ResourcePath resourcePath = this.root;
 
-            resourcePath = resourcePath.get(string2);
-         }
+			for (String string2 : SEPARATOR_SPLITTER.split(string.substring(1))) {
+				if (string2.isEmpty()) {
+					throw new IllegalArgumentException("Empty paths not allowed");
+				}
 
-         return resourcePath;
-      } else {
-         ResourcePath resourcePath = null;
+				resourcePath = resourcePath.get(string2);
+			}
 
-         for (String string2 : SEPARATOR_SPLITTER.split(string)) {
-            if (string2.isEmpty()) {
-               throw new IllegalArgumentException("Empty paths not allowed");
-            }
+			return resourcePath;
+		}
+		else {
+			ResourcePath resourcePath = null;
 
-            resourcePath = new ResourcePath(this, string2, resourcePath, ResourceFile.RELATIVE);
-         }
+			for (String string2 : SEPARATOR_SPLITTER.split(string)) {
+				if (string2.isEmpty()) {
+					throw new IllegalArgumentException("Empty paths not allowed");
+				}
 
-         if (resourcePath == null) {
-            throw new IllegalArgumentException("Empty paths not allowed");
-         } else {
-            return resourcePath;
-         }
-      }
-   }
+				resourcePath = new ResourcePath(this, string2, resourcePath, ResourceFile.RELATIVE);
+			}
 
-   @Override
-   public PathMatcher getPathMatcher(String syntaxAndPattern) {
-      throw new UnsupportedOperationException();
-   }
+			if (resourcePath == null) {
+				throw new IllegalArgumentException("Empty paths not allowed");
+			}
+			else {
+				return resourcePath;
+			}
+		}
+	}
 
-   @Override
-   public UserPrincipalLookupService getUserPrincipalLookupService() {
-      throw new UnsupportedOperationException();
-   }
+	@Override
+	public PathMatcher getPathMatcher(String syntaxAndPattern) {
+		throw new UnsupportedOperationException();
+	}
 
-   @Override
-   public WatchService newWatchService() {
-      throw new UnsupportedOperationException();
-   }
+	@Override
+	public UserPrincipalLookupService getUserPrincipalLookupService() {
+		throw new UnsupportedOperationException();
+	}
 
-   public FileStore getStore() {
-      return this.store;
-   }
+	@Override
+	public WatchService newWatchService() {
+		throw new UnsupportedOperationException();
+	}
 
-   public ResourcePath getRoot() {
-      return this.root;
-   }
+	public FileStore getStore() {
+		return this.store;
+	}
 
-   public static ResourceFileSystem.Builder builder() {
-      return new ResourceFileSystem.Builder();
-   }
+	public ResourcePath getRoot() {
+		return this.root;
+	}
 
-   public static class Builder {
-      private final ResourceFileSystem.Directory root = new ResourceFileSystem.Directory();
+	public static ResourceFileSystem.Builder builder() {
+		return new ResourceFileSystem.Builder();
+	}
 
-      public ResourceFileSystem.Builder withFile(List<String> directories, String name, Path path) {
-         ResourceFileSystem.Directory directory = this.root;
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder {
 
-         for (String string : directories) {
-            directory = directory.children.computeIfAbsent(string, directoryx -> new ResourceFileSystem.Directory());
-         }
+		private final ResourceFileSystem.Directory root = new ResourceFileSystem.Directory();
 
-         directory.files.put(name, path);
-         return this;
-      }
+		public ResourceFileSystem.Builder withFile(List<String> directories, String name, Path path) {
+			ResourceFileSystem.Directory directory = this.root;
 
-      public ResourceFileSystem.Builder withFile(List<String> directories, Path path) {
-         if (directories.isEmpty()) {
-            throw new IllegalArgumentException("Path can't be empty");
-         } else {
-            int i = directories.size() - 1;
-            return this.withFile(directories.subList(0, i), directories.get(i), path);
-         }
-      }
+			for (String string : directories) {
+				directory =
+						directory.children.computeIfAbsent(string, directoryx -> new ResourceFileSystem.Directory());
+			}
 
-      public FileSystem build(String name) {
-         return new ResourceFileSystem(name, this.root);
-      }
-   }
+			directory.files.put(name, path);
+			return this;
+		}
 
-   record Directory(Map<String, ResourceFileSystem.Directory> children, Map<String, Path> files) {
+		public ResourceFileSystem.Builder withFile(List<String> directories, Path path) {
+			if (directories.isEmpty()) {
+				throw new IllegalArgumentException("Path can't be empty");
+			}
+			else {
+				int i = directories.size() - 1;
+				return this.withFile(directories.subList(0, i), directories.get(i), path);
+			}
+		}
 
-      public Directory() {
-         this(new HashMap<>(), new HashMap<>());
-      }
-   }
+		public FileSystem build(String name) {
+			return new ResourceFileSystem(name, this.root);
+		}
+	}
+
+	/**
+	 * {@code Directory}.
+	 */
+	record Directory(Map<String, ResourceFileSystem.Directory> children, Map<String, Path> files) {
+
+		public Directory() {
+			this(new HashMap<>(), new HashMap<>());
+		}
+	}
 }

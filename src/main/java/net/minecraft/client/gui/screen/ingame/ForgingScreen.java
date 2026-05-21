@@ -13,49 +13,64 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ForgingScreen}.
+ */
 public abstract class ForgingScreen<T extends ForgingScreenHandler> extends HandledScreen<T> implements ScreenHandlerListener {
-   private final Identifier texture;
 
-   public ForgingScreen(T handler, PlayerInventory playerInventory, Text title, Identifier texture) {
-      super(handler, playerInventory, title);
-      this.texture = texture;
-   }
+	private final Identifier texture;
 
-   protected void setup() {
-   }
+	public ForgingScreen(T handler, PlayerInventory playerInventory, Text title, Identifier texture) {
+		super(handler, playerInventory, title);
+		this.texture = texture;
+	}
 
-   @Override
-   protected void init() {
-      super.init();
-      this.setup();
-      this.handler.addListener(this);
-   }
+	protected void setup() {
+	}
 
-   @Override
-   public void removed() {
-      super.removed();
-      this.handler.removeListener(this);
-   }
+	@Override
+	protected void init() {
+		super.init();
+		this.setup();
+		this.handler.addListener(this);
+	}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      this.drawMouseoverTooltip(context, mouseX, mouseY);
-   }
+	@Override
+	public void removed() {
+		super.removed();
+		this.handler.removeListener(this);
+	}
 
-   @Override
-   protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
-      context.drawTexture(RenderPipelines.GUI_TEXTURED, this.texture, this.x, this.y, 0.0F, 0.0F, this.backgroundWidth, this.backgroundHeight, 256, 256);
-      this.drawInvalidRecipeArrow(context, this.x, this.y);
-   }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		this.drawMouseoverTooltip(context, mouseX, mouseY);
+	}
 
-   protected abstract void drawInvalidRecipeArrow(DrawContext context, int x, int y);
+	@Override
+	protected void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY) {
+		context.drawTexture(
+				RenderPipelines.GUI_TEXTURED,
+				this.texture,
+				this.x,
+				this.y,
+				0.0F,
+				0.0F,
+				this.backgroundWidth,
+				this.backgroundHeight,
+				256,
+				256
+		);
+		this.drawInvalidRecipeArrow(context, this.x, this.y);
+	}
 
-   @Override
-   public void onPropertyUpdate(ScreenHandler handler, int property, int value) {
-   }
+	protected abstract void drawInvalidRecipeArrow(DrawContext context, int x, int y);
 
-   @Override
-   public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
-   }
+	@Override
+	public void onPropertyUpdate(ScreenHandler handler, int property, int value) {
+	}
+
+	@Override
+	public void onSlotUpdate(ScreenHandler handler, int slotId, ItemStack stack) {
+	}
 }

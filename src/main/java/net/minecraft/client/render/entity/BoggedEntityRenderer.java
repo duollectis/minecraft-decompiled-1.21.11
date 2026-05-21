@@ -10,25 +10,40 @@ import net.minecraft.entity.mob.BoggedEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BoggedEntityRenderer}.
+ */
 public class BoggedEntityRenderer extends AbstractSkeletonEntityRenderer<BoggedEntity, BoggedEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/bogged.png");
-   private static final Identifier OVERLAY_TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/bogged_overlay.png");
 
-   public BoggedEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, EntityModelLayers.BOGGED_EQUIPMENT, new BoggedEntityModel(context.getPart(EntityModelLayers.BOGGED)));
-      this.addFeature(new SkeletonOverlayFeatureRenderer<>(this, context.getEntityModels(), EntityModelLayers.BOGGED_OUTER, OVERLAY_TEXTURE));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/bogged.png");
+	private static final Identifier
+			OVERLAY_TEXTURE =
+			Identifier.ofVanilla("textures/entity/skeleton/bogged_overlay.png");
 
-   public Identifier getTexture(BoggedEntityRenderState boggedEntityRenderState) {
-      return TEXTURE;
-   }
+	public BoggedEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				EntityModelLayers.BOGGED_EQUIPMENT,
+				new BoggedEntityModel(context.getPart(EntityModelLayers.BOGGED))
+		);
+		this.addFeature(new SkeletonOverlayFeatureRenderer<>(
+				this,
+				context.getEntityModels(),
+				EntityModelLayers.BOGGED_OUTER,
+				OVERLAY_TEXTURE
+		));
+	}
 
-   public BoggedEntityRenderState createRenderState() {
-      return new BoggedEntityRenderState();
-   }
+	public Identifier getTexture(BoggedEntityRenderState boggedEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(BoggedEntity boggedEntity, BoggedEntityRenderState boggedEntityRenderState, float f) {
-      super.updateRenderState(boggedEntity, boggedEntityRenderState, f);
-      boggedEntityRenderState.sheared = boggedEntity.isSheared();
-   }
+	public BoggedEntityRenderState createRenderState() {
+		return new BoggedEntityRenderState();
+	}
+
+	public void updateRenderState(BoggedEntity boggedEntity, BoggedEntityRenderState boggedEntityRenderState, float f) {
+		super.updateRenderState(boggedEntity, boggedEntityRenderState, f);
+		boggedEntityRenderState.sheared = boggedEntity.isSheared();
+	}
 }

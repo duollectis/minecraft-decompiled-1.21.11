@@ -1,16 +1,10 @@
 package net.minecraft.entity.passive;
 
 import io.netty.buffer.ByteBuf;
-import java.util.function.IntFunction;
 import net.minecraft.component.ComponentType;
 import net.minecraft.component.ComponentsAccess;
 import net.minecraft.component.DataComponentTypes;
-import net.minecraft.entity.Bucketable;
-import net.minecraft.entity.EntityData;
-import net.minecraft.entity.EntityDimensions;
-import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnReason;
+import net.minecraft.entity.*;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedData;
@@ -31,153 +25,177 @@ import net.minecraft.world.ServerWorldAccess;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.IntFunction;
+
+/**
+ * {@code SalmonEntity}.
+ */
 public class SalmonEntity extends SchoolingFishEntity {
-   private static final String TYPE_KEY = "type";
-   private static final TrackedData<Integer> VARIANT = DataTracker.registerData(SalmonEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
-   public SalmonEntity(EntityType<? extends SalmonEntity> entityType, World world) {
-      super(entityType, world);
-      this.calculateDimensions();
-   }
+	private static final String TYPE_KEY = "type";
+	private static final TrackedData<Integer>
+			VARIANT =
+			DataTracker.registerData(SalmonEntity.class, TrackedDataHandlerRegistry.INTEGER);
 
-   @Override
-   public int getMaxGroupSize() {
-      return 5;
-   }
+	public SalmonEntity(EntityType<? extends SalmonEntity> entityType, World world) {
+		super(entityType, world);
+		this.calculateDimensions();
+	}
 
-   @Override
-   public ItemStack getBucketItem() {
-      return new ItemStack(Items.SALMON_BUCKET);
-   }
+	@Override
+	public int getMaxGroupSize() {
+		return 5;
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_SALMON_AMBIENT;
-   }
+	@Override
+	public ItemStack getBucketItem() {
+		return new ItemStack(Items.SALMON_BUCKET);
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_SALMON_DEATH;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_SALMON_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_SALMON_HURT;
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_SALMON_DEATH;
+	}
 
-   @Override
-   protected SoundEvent getFlopSound() {
-      return SoundEvents.ENTITY_SALMON_FLOP;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_SALMON_HURT;
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(VARIANT, SalmonEntity.Variant.DEFAULT.getIndex());
-   }
+	@Override
+	protected SoundEvent getFlopSound() {
+		return SoundEvents.ENTITY_SALMON_FLOP;
+	}
 
-   @Override
-   public void onTrackedDataSet(TrackedData<?> data) {
-      super.onTrackedDataSet(data);
-      if (VARIANT.equals(data)) {
-         this.calculateDimensions();
-      }
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(VARIANT, SalmonEntity.Variant.DEFAULT.getIndex());
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.put("type", SalmonEntity.Variant.CODEC, this.getVariant());
-   }
+	@Override
+	public void onTrackedDataSet(TrackedData<?> data) {
+		super.onTrackedDataSet(data);
+		if (VARIANT.equals(data)) {
+			this.calculateDimensions();
+		}
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.setVariant(view.<SalmonEntity.Variant>read("type", SalmonEntity.Variant.CODEC).orElse(SalmonEntity.Variant.DEFAULT));
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.put("type", SalmonEntity.Variant.CODEC, this.getVariant());
+	}
 
-   @Override
-   public void copyDataToStack(ItemStack stack) {
-      Bucketable.copyDataToStack(this, stack);
-      stack.copy(DataComponentTypes.SALMON_SIZE, this);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.setVariant(view
+				.<SalmonEntity.Variant>read("type", SalmonEntity.Variant.CODEC)
+				.orElse(SalmonEntity.Variant.DEFAULT));
+	}
 
-   private void setVariant(SalmonEntity.Variant variant) {
-      this.dataTracker.set(VARIANT, variant.index);
-   }
+	@Override
+	public void copyDataToStack(ItemStack stack) {
+		Bucketable.copyDataToStack(this, stack);
+		stack.copy(DataComponentTypes.SALMON_SIZE, this);
+	}
 
-   public SalmonEntity.Variant getVariant() {
-      return SalmonEntity.Variant.FROM_INDEX.apply(this.dataTracker.get(VARIANT));
-   }
+	private void setVariant(SalmonEntity.Variant variant) {
+		this.dataTracker.set(VARIANT, variant.index);
+	}
 
-   @Override
-   public <T> @Nullable T get(ComponentType<? extends T> type) {
-      return type == DataComponentTypes.SALMON_SIZE ? castComponentValue((ComponentType<T>)type, this.getVariant()) : super.get(type);
-   }
+	public SalmonEntity.Variant getVariant() {
+		return SalmonEntity.Variant.FROM_INDEX.apply(this.dataTracker.get(VARIANT));
+	}
 
-   @Override
-   protected void copyComponentsFrom(ComponentsAccess from) {
-      this.copyComponentFrom(from, DataComponentTypes.SALMON_SIZE);
-      super.copyComponentsFrom(from);
-   }
+	@Override
+	public <T> @Nullable T get(ComponentType<? extends T> type) {
+		return type == DataComponentTypes.SALMON_SIZE ? castComponentValue((ComponentType<T>) type, this.getVariant())
+		                                              : super.get(type);
+	}
 
-   @Override
-   protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
-      if (type == DataComponentTypes.SALMON_SIZE) {
-         this.setVariant(castComponentValue(DataComponentTypes.SALMON_SIZE, value));
-         return true;
-      } else {
-         return super.setApplicableComponent(type, value);
-      }
-   }
+	@Override
+	protected void copyComponentsFrom(ComponentsAccess from) {
+		this.copyComponentFrom(from, DataComponentTypes.SALMON_SIZE);
+		super.copyComponentsFrom(from);
+	}
 
-   @Override
-   public @Nullable EntityData initialize(ServerWorldAccess world, LocalDifficulty difficulty, SpawnReason spawnReason, @Nullable EntityData entityData) {
-      Pool.Builder<SalmonEntity.Variant> builder = Pool.builder();
-      builder.add(SalmonEntity.Variant.SMALL, 30);
-      builder.add(SalmonEntity.Variant.MEDIUM, 50);
-      builder.add(SalmonEntity.Variant.LARGE, 15);
-      builder.build().getOrEmpty(this.random).ifPresent(this::setVariant);
-      return super.initialize(world, difficulty, spawnReason, entityData);
-   }
+	@Override
+	protected <T> boolean setApplicableComponent(ComponentType<T> type, T value) {
+		if (type == DataComponentTypes.SALMON_SIZE) {
+			this.setVariant(castComponentValue(DataComponentTypes.SALMON_SIZE, value));
+			return true;
+		}
+		else {
+			return super.setApplicableComponent(type, value);
+		}
+	}
 
-   public float getVariantScale() {
-      return this.getVariant().scale;
-   }
+	@Override
+	public @Nullable EntityData initialize(
+			ServerWorldAccess world,
+			LocalDifficulty difficulty,
+			SpawnReason spawnReason,
+			@Nullable EntityData entityData
+	) {
+		Pool.Builder<SalmonEntity.Variant> builder = Pool.builder();
+		builder.add(SalmonEntity.Variant.SMALL, 30);
+		builder.add(SalmonEntity.Variant.MEDIUM, 50);
+		builder.add(SalmonEntity.Variant.LARGE, 15);
+		builder.build().getOrEmpty(this.random).ifPresent(this::setVariant);
+		return super.initialize(world, difficulty, spawnReason, entityData);
+	}
 
-   @Override
-   protected EntityDimensions getBaseDimensions(EntityPose pose) {
-      return super.getBaseDimensions(pose).scaled(this.getVariantScale());
-   }
+	public float getVariantScale() {
+		return this.getVariant().scale;
+	}
 
-   public static enum Variant implements StringIdentifiable {
-      SMALL("small", 0, 0.5F),
-      MEDIUM("medium", 1, 1.0F),
-      LARGE("large", 2, 1.5F);
+	@Override
+	protected EntityDimensions getBaseDimensions(EntityPose pose) {
+		return super.getBaseDimensions(pose).scaled(this.getVariantScale());
+	}
 
-      public static final SalmonEntity.Variant DEFAULT = MEDIUM;
-      public static final StringIdentifiable.EnumCodec<SalmonEntity.Variant> CODEC = StringIdentifiable.createCodec(SalmonEntity.Variant::values);
-      static final IntFunction<SalmonEntity.Variant> FROM_INDEX = ValueLists.createIndexToValueFunction(
-         SalmonEntity.Variant::getIndex, values(), ValueLists.OutOfBoundsHandling.CLAMP
-      );
-      public static final PacketCodec<ByteBuf, SalmonEntity.Variant> PACKET_CODEC = PacketCodecs.indexed(FROM_INDEX, SalmonEntity.Variant::getIndex);
-      private final String id;
-      final int index;
-      final float scale;
+	/**
+	 * {@code Variant}.
+	 */
+	public static enum Variant implements StringIdentifiable {
+		SMALL("small", 0, 0.5F),
+		MEDIUM("medium", 1, 1.0F),
+		LARGE("large", 2, 1.5F);
 
-      private Variant(final String id, final int index, final float scale) {
-         this.id = id;
-         this.index = index;
-         this.scale = scale;
-      }
+		public static final SalmonEntity.Variant DEFAULT = MEDIUM;
+		public static final StringIdentifiable.EnumCodec<SalmonEntity.Variant>
+				CODEC =
+				StringIdentifiable.createCodec(SalmonEntity.Variant::values);
+		static final IntFunction<SalmonEntity.Variant> FROM_INDEX = ValueLists.createIndexToValueFunction(
+				SalmonEntity.Variant::getIndex, values(), ValueLists.OutOfBoundsHandling.CLAMP
+		);
+		public static final PacketCodec<ByteBuf, SalmonEntity.Variant>
+				PACKET_CODEC =
+				PacketCodecs.indexed(FROM_INDEX, SalmonEntity.Variant::getIndex);
+		private final String id;
+		final int index;
+		final float scale;
 
-      @Override
-      public String asString() {
-         return this.id;
-      }
+		private Variant(final String id, final int index, final float scale) {
+			this.id = id;
+			this.index = index;
+			this.scale = scale;
+		}
 
-      int getIndex() {
-         return this.index;
-      }
-   }
+		@Override
+		public String asString() {
+			return this.id;
+		}
+
+		int getIndex() {
+			return this.index;
+		}
+	}
 }

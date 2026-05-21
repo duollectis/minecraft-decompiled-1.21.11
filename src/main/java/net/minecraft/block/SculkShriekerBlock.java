@@ -27,115 +27,150 @@ import net.minecraft.world.event.Vibrations;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SculkShriekerBlock}.
+ */
 public class SculkShriekerBlock extends BlockWithEntity implements Waterloggable {
-   public static final MapCodec<SculkShriekerBlock> CODEC = createCodec(SculkShriekerBlock::new);
-   public static final BooleanProperty SHRIEKING = Properties.SHRIEKING;
-   public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
-   public static final BooleanProperty CAN_SUMMON = Properties.CAN_SUMMON;
-   private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 8.0);
-   public static final double TOP = SHAPE.getMax(Direction.Axis.Y);
 
-   @Override
-   public MapCodec<SculkShriekerBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SculkShriekerBlock> CODEC = createCodec(SculkShriekerBlock::new);
+	public static final BooleanProperty SHRIEKING = Properties.SHRIEKING;
+	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
+	public static final BooleanProperty CAN_SUMMON = Properties.CAN_SUMMON;
+	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 8.0);
+	public static final double TOP = SHAPE.getMax(Direction.Axis.Y);
 
-   public SculkShriekerBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(SHRIEKING, false).with(WATERLOGGED, false).with(CAN_SUMMON, false));
-   }
+	@Override
+	public MapCodec<SculkShriekerBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(SHRIEKING);
-      builder.add(WATERLOGGED);
-      builder.add(CAN_SUMMON);
-   }
+	public SculkShriekerBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(SHRIEKING, false)
+				.with(WATERLOGGED, false)
+				.with(CAN_SUMMON, false));
+	}
 
-   @Override
-   public void onSteppedOn(World world, BlockPos pos, BlockState state, Entity entity) {
-      if (world instanceof ServerWorld serverWorld) {
-         ServerPlayerEntity serverPlayerEntity = SculkShriekerBlockEntity.findResponsiblePlayerFromEntity(entity);
-         if (serverPlayerEntity != null) {
-            serverWorld.getBlockEntity(pos, BlockEntityType.SCULK_SHRIEKER).ifPresent(blockEntity -> blockEntity.shriek(serverWorld, serverPlayerEntity));
-         }
-      }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(SHRIEKING);
+		builder.add(WATERLOGGED);
+		builder.add(CAN_SUMMON);
+	}
 
-      super.onSteppedOn(world, pos, state, entity);
-   }
+	@Override
+	public void onSteppedOn(World world, BlockPos pos, BlockState state, Entity entity) {
+		if (world instanceof ServerWorld serverWorld) {
+			ServerPlayerEntity serverPlayerEntity = SculkShriekerBlockEntity.findResponsiblePlayerFromEntity(entity);
+			if (serverPlayerEntity != null) {
+				serverWorld
+						.getBlockEntity(pos, BlockEntityType.SCULK_SHRIEKER)
+						.ifPresent(blockEntity -> blockEntity.shriek(serverWorld, serverPlayerEntity));
+			}
+		}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (state.get(SHRIEKING)) {
-         world.setBlockState(pos, state.with(SHRIEKING, false), 3);
-         world.getBlockEntity(pos, BlockEntityType.SCULK_SHRIEKER).ifPresent(blockEntity -> blockEntity.warn(world));
-      }
-   }
+		super.onSteppedOn(world, pos, state, entity);
+	}
 
-   @Override
-   protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (state.get(SHRIEKING)) {
+			world.setBlockState(pos, state.with(SHRIEKING, false), 3);
+			world.getBlockEntity(pos, BlockEntityType.SCULK_SHRIEKER).ifPresent(blockEntity -> blockEntity.warn(world));
+		}
+	}
 
-   @Override
-   protected VoxelShape getCullingShape(BlockState state) {
-      return SHAPE;
-   }
+	@Override
+	protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   @Override
-   protected boolean hasSidedTransparency(BlockState state) {
-      return true;
-   }
+	@Override
+	protected VoxelShape getCullingShape(BlockState state) {
+		return SHAPE;
+	}
 
-   @Override
-   public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new SculkShriekerBlockEntity(pos, state);
-   }
+	@Override
+	protected boolean hasSidedTransparency(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (state.get(WATERLOGGED)) {
-         tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-      }
+	@Override
+	public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new SculkShriekerBlockEntity(pos, state);
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(WATERLOGGED, ctx.getWorld().getFluidState(ctx.getBlockPos()).getFluid() == Fluids.WATER);
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
-   }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this
+				.getDefaultState()
+				.with(WATERLOGGED, ctx.getWorld().getFluidState(ctx.getBlockPos()).getFluid() == Fluids.WATER);
+	}
 
-   @Override
-   protected void onStacksDropped(BlockState state, ServerWorld world, BlockPos pos, ItemStack tool, boolean dropExperience) {
-      super.onStacksDropped(state, world, pos, tool, dropExperience);
-      if (dropExperience) {
-         this.dropExperienceWhenMined(world, pos, tool, ConstantIntProvider.create(5));
-      }
-   }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return !world.isClient()
-         ? BlockWithEntity.validateTicker(
-            type,
-            BlockEntityType.SCULK_SHRIEKER,
-            (worldx, pos, statex, blockEntity) -> Vibrations.Ticker.tick(worldx, blockEntity.getVibrationListenerData(), blockEntity.getVibrationCallback())
-         )
-         : null;
-   }
+	@Override
+	protected void onStacksDropped(
+			BlockState state,
+			ServerWorld world,
+			BlockPos pos,
+			ItemStack tool,
+			boolean dropExperience
+	) {
+		super.onStacksDropped(state, world, pos, tool, dropExperience);
+		if (dropExperience) {
+			this.dropExperienceWhenMined(world, pos, tool, ConstantIntProvider.create(5));
+		}
+	}
+
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return !world.isClient()
+		       ? BlockWithEntity.validateTicker(
+				type,
+				BlockEntityType.SCULK_SHRIEKER,
+				(worldx, pos, statex, blockEntity) -> Vibrations.Ticker.tick(
+						worldx,
+						blockEntity.getVibrationListenerData(),
+						blockEntity.getVibrationCallback()
+				)
+		)
+		       : null;
+	}
 }

@@ -5,57 +5,62 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.CorruptedFrameException;
-import java.util.List;
 import net.minecraft.network.encoding.VarInts;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 public class SplitterHandler extends ByteToMessageDecoder {
-   private static final int LENGTH_BYTES = 3;
-   private final ByteBuf reusableBuf = Unpooled.directBuffer(3);
-   private final @Nullable PacketSizeLogger packetSizeLogger;
 
-   public SplitterHandler(@Nullable PacketSizeLogger packetSizeLogger) {
-      this.packetSizeLogger = packetSizeLogger;
-   }
+	private static final int LENGTH_BYTES = 3;
+	private final ByteBuf reusableBuf = Unpooled.directBuffer(3);
+	private final @Nullable PacketSizeLogger packetSizeLogger;
 
-   protected void handlerRemoved0(ChannelHandlerContext context) {
-      this.reusableBuf.release();
-   }
+	public SplitterHandler(@Nullable PacketSizeLogger packetSizeLogger) {
+		this.packetSizeLogger = packetSizeLogger;
+	}
 
-   private static boolean shouldSplit(ByteBuf source, ByteBuf sizeBuf) {
-      for (int i = 0; i < 3; i++) {
-         if (!source.isReadable()) {
-            return false;
-         }
+	protected void handlerRemoved0(ChannelHandlerContext context) {
+		this.reusableBuf.release();
+	}
 
-         byte b = source.readByte();
-         sizeBuf.writeByte(b);
-         if (!VarInts.shouldContinueRead(b)) {
-            return true;
-         }
-      }
+	private static boolean shouldSplit(ByteBuf source, ByteBuf sizeBuf) {
+		for (int i = 0; i < 3; i++) {
+			if (!source.isReadable()) {
+				return false;
+			}
 
-      throw new CorruptedFrameException("length wider than 21-bit");
-   }
+			byte b = source.readByte();
+			sizeBuf.writeByte(b);
+			if (!VarInts.shouldContinueRead(b)) {
+				return true;
+			}
+		}
 
-   protected void decode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> bytes) {
-      buf.markReaderIndex();
-      this.reusableBuf.clear();
-      if (!shouldSplit(buf, this.reusableBuf)) {
-         buf.resetReaderIndex();
-      } else {
-         int i = VarInts.read(this.reusableBuf);
-         if (i == 0) {
-            throw new CorruptedFrameException("Frame length cannot be zero");
-         } else if (buf.readableBytes() < i) {
-            buf.resetReaderIndex();
-         } else {
-            if (this.packetSizeLogger != null) {
-               this.packetSizeLogger.increment(i + VarInts.getSizeInBytes(i));
-            }
+		throw new CorruptedFrameException("length wider than 21-bit");
+	}
 
-            bytes.add(buf.readBytes(i));
-         }
-      }
-   }
+	protected void decode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> bytes) {
+		buf.markReaderIndex();
+		this.reusableBuf.clear();
+		if (!shouldSplit(buf, this.reusableBuf)) {
+			buf.resetReaderIndex();
+		}
+		else {
+			int i = VarInts.read(this.reusableBuf);
+			if (i == 0) {
+				throw new CorruptedFrameException("Frame length cannot be zero");
+			}
+			else if (buf.readableBytes() < i) {
+				buf.resetReaderIndex();
+			}
+			else {
+				if (this.packetSizeLogger != null) {
+					this.packetSizeLogger.increment(i + VarInts.getSizeInBytes(i));
+				}
+
+				bytes.add(buf.readBytes(i));
+			}
+		}
+	}
 }

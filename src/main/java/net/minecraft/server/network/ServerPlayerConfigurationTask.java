@@ -1,21 +1,30 @@
 package net.minecraft.server.network;
 
-import java.util.function.Consumer;
 import net.minecraft.network.packet.Packet;
 
+import java.util.function.Consumer;
+
+/**
+ * {@code ServerPlayerConfigurationTask}.
+ */
 public interface ServerPlayerConfigurationTask {
-   void sendPacket(Consumer<Packet<?>> sender);
 
-   default boolean hasFinished() {
-      return false;
-   }
+	void sendPacket(Consumer<Packet<?>> sender);
 
-   ServerPlayerConfigurationTask.Key getKey();
+	default boolean hasFinished() {
+		return false;
+	}
 
-   public record Key(String id) {
-      @Override
-      public String toString() {
-         return this.id;
-      }
-   }
+	ServerPlayerConfigurationTask.Key getKey();
+
+	/**
+	 * {@code Key}.
+	 */
+	public record Key(String id) {
+
+		@Override
+		public String toString() {
+			return this.id;
+		}
+	}
 }

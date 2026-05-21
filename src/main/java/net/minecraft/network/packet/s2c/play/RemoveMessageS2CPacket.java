@@ -9,22 +9,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record RemoveMessageS2CPacket(MessageSignatureData.Indexed messageSignature) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, RemoveMessageS2CPacket> CODEC = Packet.createCodec(RemoveMessageS2CPacket::write, RemoveMessageS2CPacket::new);
 
-   private RemoveMessageS2CPacket(PacketByteBuf buf) {
-      this(MessageSignatureData.Indexed.fromBuf(buf));
-   }
+	public static final PacketCodec<PacketByteBuf, RemoveMessageS2CPacket>
+			CODEC =
+			Packet.createCodec(RemoveMessageS2CPacket::write, RemoveMessageS2CPacket::new);
 
-   private void write(PacketByteBuf buf) {
-      MessageSignatureData.Indexed.write(buf, this.messageSignature);
-   }
+	private RemoveMessageS2CPacket(PacketByteBuf buf) {
+		this(MessageSignatureData.Indexed.fromBuf(buf));
+	}
 
-   @Override
-   public PacketType<RemoveMessageS2CPacket> getPacketType() {
-      return PlayPackets.DELETE_CHAT;
-   }
+	private void write(PacketByteBuf buf) {
+		MessageSignatureData.Indexed.write(buf, this.messageSignature);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onRemoveMessage(this);
-   }
+	@Override
+	public PacketType<RemoveMessageS2CPacket> getPacketType() {
+		return PlayPackets.DELETE_CHAT;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onRemoveMessage(this);
+	}
 }

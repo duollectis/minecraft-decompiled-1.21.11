@@ -2,71 +2,80 @@ package net.minecraft.loot.entry;
 
 import com.google.common.collect.ImmutableList;
 import com.mojang.serialization.MapCodec;
-import java.util.List;
 import net.minecraft.loot.condition.LootCondition;
 
+import java.util.List;
+
+/**
+ * {@code GroupEntry}.
+ */
 public class GroupEntry extends CombinedEntry {
-   public static final MapCodec<GroupEntry> CODEC = createCodec(GroupEntry::new);
 
-   GroupEntry(List<LootPoolEntry> list, List<LootCondition> list2) {
-      super(list, list2);
-   }
+	public static final MapCodec<GroupEntry> CODEC = createCodec(GroupEntry::new);
 
-   @Override
-   public LootPoolEntryType getType() {
-      return LootPoolEntryTypes.GROUP;
-   }
+	GroupEntry(List<LootPoolEntry> list, List<LootCondition> list2) {
+		super(list, list2);
+	}
 
-   @Override
-   protected EntryCombiner combine(List<? extends EntryCombiner> terms) {
-      return switch (terms.size()) {
-         case 0 -> ALWAYS_TRUE;
-         case 1 -> (EntryCombiner)terms.get(0);
-         case 2 -> {
-            EntryCombiner entryCombiner = terms.get(0);
-            EntryCombiner entryCombiner2 = terms.get(1);
-            yield (context, choiceConsumer) -> {
-               entryCombiner.expand(context, choiceConsumer);
-               entryCombiner2.expand(context, choiceConsumer);
-               return true;
-            };
-         }
-         default -> (context, lootChoiceExpander) -> {
-            for (EntryCombiner entryCombinerx : terms) {
-               entryCombinerx.expand(context, lootChoiceExpander);
-            }
+	@Override
+	public LootPoolEntryType getType() {
+		return LootPoolEntryTypes.GROUP;
+	}
 
-            return true;
-         };
-      };
-   }
+	@Override
+	protected EntryCombiner combine(List<? extends EntryCombiner> terms) {
+		return switch (terms.size()) {
+			case 0 -> ALWAYS_TRUE;
+			case 1 -> (EntryCombiner) terms.get(0);
+			case 2 -> {
+				EntryCombiner entryCombiner = terms.get(0);
+				EntryCombiner entryCombiner2 = terms.get(1);
+				yield (context, choiceConsumer) -> {
+					entryCombiner.expand(context, choiceConsumer);
+					entryCombiner2.expand(context, choiceConsumer);
+					return true;
+				};
+			}
+			default -> (context, lootChoiceExpander) -> {
+				for (EntryCombiner entryCombinerx : terms) {
+					entryCombinerx.expand(context, lootChoiceExpander);
+				}
 
-   public static GroupEntry.Builder create(LootPoolEntry.Builder<?>... entries) {
-      return new GroupEntry.Builder(entries);
-   }
+				return true;
+			};
+		};
+	}
 
-   public static class Builder extends LootPoolEntry.Builder<GroupEntry.Builder> {
-      private final com.google.common.collect.ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
+	public static GroupEntry.Builder create(LootPoolEntry.Builder<?>... entries) {
+		return new GroupEntry.Builder(entries);
+	}
 
-      public Builder(LootPoolEntry.Builder<?>... entries) {
-         for (LootPoolEntry.Builder<?> builder : entries) {
-            this.entries.add(builder.build());
-         }
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder extends LootPoolEntry.Builder<GroupEntry.Builder> {
 
-      protected GroupEntry.Builder getThisBuilder() {
-         return this;
-      }
+		private final com.google.common.collect.ImmutableList.Builder<LootPoolEntry> entries = ImmutableList.builder();
 
-      @Override
-      public GroupEntry.Builder groupEntry(LootPoolEntry.Builder<?> entry) {
-         this.entries.add(entry.build());
-         return this;
-      }
+		public Builder(LootPoolEntry.Builder<?>... entries) {
+			for (LootPoolEntry.Builder<?> builder : entries) {
+				this.entries.add(builder.build());
+			}
+		}
 
-      @Override
-      public LootPoolEntry build() {
-         return new GroupEntry(this.entries.build(), this.getConditions());
-      }
-   }
+		protected GroupEntry.Builder getThisBuilder() {
+			return this;
+		}
+
+		@Override
+		public GroupEntry.Builder groupEntry(LootPoolEntry.Builder<?> entry) {
+			this.entries.add(entry.build());
+			return this;
+		}
+
+		@Override
+		public LootPoolEntry build() {
+			return new GroupEntry(this.entries.build(), this.getConditions());
+		}
+	}
 }

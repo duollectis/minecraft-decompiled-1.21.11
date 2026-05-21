@@ -28,115 +28,151 @@ import net.minecraft.world.explosion.Explosion;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code TntBlock}.
+ */
 public class TntBlock extends Block {
-   public static final MapCodec<TntBlock> CODEC = createCodec(TntBlock::new);
-   public static final BooleanProperty UNSTABLE = Properties.UNSTABLE;
 
-   @Override
-   public MapCodec<TntBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<TntBlock> CODEC = createCodec(TntBlock::new);
+	public static final BooleanProperty UNSTABLE = Properties.UNSTABLE;
 
-   public TntBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.getDefaultState().with(UNSTABLE, false));
-   }
+	@Override
+	public MapCodec<TntBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-      if (!oldState.isOf(state.getBlock())) {
-         if (world.isReceivingRedstonePower(pos) && primeTnt(world, pos)) {
-            world.removeBlock(pos, false);
-         }
-      }
-   }
+	public TntBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.getDefaultState().with(UNSTABLE, false));
+	}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      if (world.isReceivingRedstonePower(pos) && primeTnt(world, pos)) {
-         world.removeBlock(pos, false);
-      }
-   }
+	@Override
+	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
+		if (!oldState.isOf(state.getBlock())) {
+			if (world.isReceivingRedstonePower(pos) && primeTnt(world, pos)) {
+				world.removeBlock(pos, false);
+			}
+		}
+	}
 
-   @Override
-   public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
-      if (!world.isClient() && !player.getAbilities().creativeMode && state.get(UNSTABLE)) {
-         primeTnt(world, pos);
-      }
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		if (world.isReceivingRedstonePower(pos) && primeTnt(world, pos)) {
+			world.removeBlock(pos, false);
+		}
+	}
 
-      return super.onBreak(world, pos, state, player);
-   }
+	@Override
+	public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
+		if (!world.isClient() && !player.getAbilities().creativeMode && state.get(UNSTABLE)) {
+			primeTnt(world, pos);
+		}
 
-   @Override
-   public void onDestroyedByExplosion(ServerWorld world, BlockPos pos, Explosion explosion) {
-      if (world.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
-         TntEntity tntEntity = new TntEntity(world, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, explosion.getCausingEntity());
-         int i = tntEntity.getFuse();
-         tntEntity.setFuse((short)(world.random.nextInt(i / 4) + i / 8));
-         world.spawnEntity(tntEntity);
-      }
-   }
+		return super.onBreak(world, pos, state, player);
+	}
 
-   public static boolean primeTnt(World world, BlockPos pos) {
-      return primeTnt(world, pos, null);
-   }
+	@Override
+	public void onDestroyedByExplosion(ServerWorld world, BlockPos pos, Explosion explosion) {
+		if (world.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
+			TntEntity
+					tntEntity =
+					new TntEntity(world, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, explosion.getCausingEntity());
+			int i = tntEntity.getFuse();
+			tntEntity.setFuse((short) (world.random.nextInt(i / 4) + i / 8));
+			world.spawnEntity(tntEntity);
+		}
+	}
 
-   private static boolean primeTnt(World world, BlockPos pos, @Nullable LivingEntity igniter) {
-      if (world instanceof ServerWorld serverWorld && serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
-         TntEntity tntEntity = new TntEntity(world, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, igniter);
-         world.spawnEntity(tntEntity);
-         world.playSound(null, tntEntity.getX(), tntEntity.getY(), tntEntity.getZ(), SoundEvents.ENTITY_TNT_PRIMED, SoundCategory.BLOCKS, 1.0F, 1.0F);
-         world.emitGameEvent(igniter, GameEvent.PRIME_FUSE, pos);
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public static boolean primeTnt(World world, BlockPos pos) {
+		return primeTnt(world, pos, null);
+	}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      if (!stack.isOf(Items.FLINT_AND_STEEL) && !stack.isOf(Items.FIRE_CHARGE)) {
-         return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
-      } else {
-         if (primeTnt(world, pos, player)) {
-            world.setBlockState(pos, Blocks.AIR.getDefaultState(), 11);
-            Item item = stack.getItem();
-            if (stack.isOf(Items.FLINT_AND_STEEL)) {
-               stack.damage(1, player, hand.getEquipmentSlot());
-            } else {
-               stack.decrementUnlessCreative(1, player);
-            }
+	private static boolean primeTnt(World world, BlockPos pos, @Nullable LivingEntity igniter) {
+		if (world instanceof ServerWorld serverWorld && serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
+			TntEntity tntEntity = new TntEntity(world, pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, igniter);
+			world.spawnEntity(tntEntity);
+			world.playSound(
+					null,
+					tntEntity.getX(),
+					tntEntity.getY(),
+					tntEntity.getZ(),
+					SoundEvents.ENTITY_TNT_PRIMED,
+					SoundCategory.BLOCKS,
+					1.0F,
+					1.0F
+			);
+			world.emitGameEvent(igniter, GameEvent.PRIME_FUSE, pos);
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-            player.incrementStat(Stats.USED.getOrCreateStat(item));
-         } else if (world instanceof ServerWorld serverWorld && !serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
-            player.sendMessage(Text.translatable("block.minecraft.tnt.disabled"), true);
-            return ActionResult.PASS;
-         }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		if (!stack.isOf(Items.FLINT_AND_STEEL) && !stack.isOf(Items.FIRE_CHARGE)) {
+			return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
+		}
+		else {
+			if (primeTnt(world, pos, player)) {
+				world.setBlockState(pos, Blocks.AIR.getDefaultState(), 11);
+				Item item = stack.getItem();
+				if (stack.isOf(Items.FLINT_AND_STEEL)) {
+					stack.damage(1, player, hand.getEquipmentSlot());
+				}
+				else {
+					stack.decrementUnlessCreative(1, player);
+				}
 
-         return ActionResult.SUCCESS;
-      }
-   }
+				player.incrementStat(Stats.USED.getOrCreateStat(item));
+			}
+			else if (world instanceof ServerWorld serverWorld && !serverWorld
+					.getGameRules()
+					.getValue(GameRules.TNT_EXPLODES)) {
+				player.sendMessage(Text.translatable("block.minecraft.tnt.disabled"), true);
+				return ActionResult.PASS;
+			}
 
-   @Override
-   protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
-      if (world instanceof ServerWorld serverWorld) {
-         BlockPos blockPos = hit.getBlockPos();
-         Entity entity = projectile.getOwner();
-         if (projectile.isOnFire()
-            && projectile.canModifyAt(serverWorld, blockPos)
-            && primeTnt(world, blockPos, entity instanceof LivingEntity ? (LivingEntity)entity : null)) {
-            world.removeBlock(blockPos, false);
-         }
-      }
-   }
+			return ActionResult.SUCCESS;
+		}
+	}
 
-   @Override
-   public boolean shouldDropItemsOnExplosion(Explosion explosion) {
-      return false;
-   }
+	@Override
+	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
+		if (world instanceof ServerWorld serverWorld) {
+			BlockPos blockPos = hit.getBlockPos();
+			Entity entity = projectile.getOwner();
+			if (projectile.isOnFire()
+					&& projectile.canModifyAt(serverWorld, blockPos)
+					&& primeTnt(world, blockPos, entity instanceof LivingEntity ? (LivingEntity) entity : null)) {
+				world.removeBlock(blockPos, false);
+			}
+		}
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(UNSTABLE);
-   }
+	@Override
+	public boolean shouldDropItemsOnExplosion(Explosion explosion) {
+		return false;
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(UNSTABLE);
+	}
 }

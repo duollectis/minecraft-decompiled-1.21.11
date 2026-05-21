@@ -4,7 +4,11 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LecternBlockEntityRenderState}.
+ */
 public class LecternBlockEntityRenderState extends BlockEntityRenderState {
-   public boolean hasBook;
-   public float bookRotationDegrees;
+
+	public boolean hasBook;
+	public float bookRotationDegrees;
 }

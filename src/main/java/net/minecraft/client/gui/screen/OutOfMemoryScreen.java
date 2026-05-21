@@ -10,34 +10,44 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code OutOfMemoryScreen}.
+ */
 public class OutOfMemoryScreen extends Screen {
-   private static final Text TITLE = Text.translatable("outOfMemory.title");
-   private static final Text MESSAGE = Text.translatable("outOfMemory.message");
-   private static final int MAX_TEXT_WIDTH = 300;
-   private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this);
 
-   public OutOfMemoryScreen() {
-      super(TITLE);
-   }
+	private static final Text TITLE = Text.translatable("outOfMemory.title");
+	private static final Text MESSAGE = Text.translatable("outOfMemory.message");
+	private static final int MAX_TEXT_WIDTH = 300;
+	private final ThreePartsLayoutWidget layout = new ThreePartsLayoutWidget(this);
 
-   @Override
-   protected void init() {
-      this.layout.addHeader(TITLE, this.textRenderer);
-      this.layout.addBody(NarratedMultilineTextWidget.builder(MESSAGE, this.textRenderer).width(300).build());
-      DirectionalLayoutWidget directionalLayoutWidget = this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
-      directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.TO_TITLE, button -> this.client.setScreen(new TitleScreen())).build());
-      directionalLayoutWidget.add(ButtonWidget.builder(Text.translatable("menu.quit"), button -> this.client.scheduleStop()).build());
-      this.layout.forEachChild(this::addDrawableChild);
-      this.refreshWidgetPositions();
-   }
+	public OutOfMemoryScreen() {
+		super(TITLE);
+	}
 
-   @Override
-   protected void refreshWidgetPositions() {
-      this.layout.refreshPositions();
-   }
+	@Override
+	protected void init() {
+		this.layout.addHeader(TITLE, this.textRenderer);
+		this.layout.addBody(NarratedMultilineTextWidget.builder(MESSAGE, this.textRenderer).width(300).build());
+		DirectionalLayoutWidget
+				directionalLayoutWidget =
+				this.layout.addFooter(DirectionalLayoutWidget.horizontal().spacing(8));
+		directionalLayoutWidget.add(ButtonWidget
+				.builder(ScreenTexts.TO_TITLE, button -> this.client.setScreen(new TitleScreen()))
+				.build());
+		directionalLayoutWidget.add(ButtonWidget
+				.builder(Text.translatable("menu.quit"), button -> this.client.scheduleStop())
+				.build());
+		this.layout.forEachChild(this::addDrawableChild);
+		this.refreshWidgetPositions();
+	}
 
-   @Override
-   public boolean shouldCloseOnEsc() {
-      return false;
-   }
+	@Override
+	protected void refreshWidgetPositions() {
+		this.layout.refreshPositions();
+	}
+
+	@Override
+	public boolean shouldCloseOnEsc() {
+		return false;
+	}
 }

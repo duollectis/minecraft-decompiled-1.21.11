@@ -6,7 +6,8 @@ import org.jspecify.annotations.Nullable;
 
 @FunctionalInterface
 public interface MessageDecorator {
-   MessageDecorator NOOP = (sender, message) -> message;
 
-   Text decorate(@Nullable ServerPlayerEntity sender, Text message);
+	MessageDecorator NOOP = (sender, message) -> message;
+
+	Text decorate(@Nullable ServerPlayerEntity sender, Text message);
 }

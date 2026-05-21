@@ -3,32 +3,36 @@ package net.minecraft.util.profiler;
 import java.nio.file.Path;
 import java.util.List;
 
+/**
+ * {@code ProfileResult}.
+ */
 public interface ProfileResult {
-   char SPLITTER_CHAR = '\u001e';
 
-   List<ProfilerTiming> getTimings(String parentPath);
+	char SPLITTER_CHAR = '\u001e';
 
-   boolean save(Path path);
+	List<ProfilerTiming> getTimings(String parentPath);
 
-   long getStartTime();
+	boolean save(Path path);
 
-   int getStartTick();
+	long getStartTime();
 
-   long getEndTime();
+	int getStartTick();
 
-   int getEndTick();
+	long getEndTime();
 
-   default long getTimeSpan() {
-      return this.getEndTime() - this.getStartTime();
-   }
+	int getEndTick();
 
-   default int getTickSpan() {
-      return this.getEndTick() - this.getStartTick();
-   }
+	default long getTimeSpan() {
+		return this.getEndTime() - this.getStartTime();
+	}
 
-   String getRootTimings();
+	default int getTickSpan() {
+		return this.getEndTick() - this.getStartTick();
+	}
 
-   static String getHumanReadableName(String path) {
-      return path.replace('\u001e', '.');
-   }
+	String getRootTimings();
+
+	static String getHumanReadableName(String path) {
+		return path.replace('\u001e', '.');
+	}
 }

@@ -1,206 +1,224 @@
 package net.minecraft.util.profiling.jfr;
 
 import com.mojang.datafixers.util.Pair;
+import jdk.jfr.consumer.RecordedEvent;
+import jdk.jfr.consumer.RecordingFile;
+import net.minecraft.util.profiling.jfr.sample.*;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Spliterators;
+import java.util.*;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import jdk.jfr.consumer.RecordedEvent;
-import jdk.jfr.consumer.RecordingFile;
-import net.minecraft.util.profiling.jfr.sample.ChunkGenerationSample;
-import net.minecraft.util.profiling.jfr.sample.ChunkRegionSample;
-import net.minecraft.util.profiling.jfr.sample.ClientFpsSample;
-import net.minecraft.util.profiling.jfr.sample.CpuLoadSample;
-import net.minecraft.util.profiling.jfr.sample.FileIoSample;
-import net.minecraft.util.profiling.jfr.sample.GcHeapSummarySample;
-import net.minecraft.util.profiling.jfr.sample.NetworkIoStatistics;
-import net.minecraft.util.profiling.jfr.sample.PacketSample;
-import net.minecraft.util.profiling.jfr.sample.ServerTickTimeSample;
-import net.minecraft.util.profiling.jfr.sample.StructureGenerationSample;
-import net.minecraft.util.profiling.jfr.sample.ThreadAllocationStatisticsSample;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code JfrProfileRecorder}.
+ */
 public class JfrProfileRecorder {
-   private Instant startTime = Instant.EPOCH;
-   private Instant endTime = Instant.EPOCH;
-   private final List<ChunkGenerationSample> chunkGenerationSamples = new ArrayList<>();
-   private final List<StructureGenerationSample> structureGenerationSamples = new ArrayList<>();
-   private final List<CpuLoadSample> cpuLoadSamples = new ArrayList<>();
-   private final Map<PacketSample, JfrProfileRecorder.Counter> receivedPacketsToCounter = new HashMap<>();
-   private final Map<PacketSample, JfrProfileRecorder.Counter> sentPacketsToCounter = new HashMap<>();
-   private final Map<ChunkRegionSample, JfrProfileRecorder.Counter> chunkRegionReadCounter = new HashMap<>();
-   private final Map<ChunkRegionSample, JfrProfileRecorder.Counter> chunkRegionWriteCounter = new HashMap<>();
-   private final List<FileIoSample> fileWriteSamples = new ArrayList<>();
-   private final List<FileIoSample> fileReadSamples = new ArrayList<>();
-   private int gcCount;
-   private Duration gcDuration = Duration.ZERO;
-   private final List<GcHeapSummarySample> gcHeapSummarySamples = new ArrayList<>();
-   private final List<ThreadAllocationStatisticsSample> threadAllocationStatisticsSamples = new ArrayList<>();
-   private final List<ClientFpsSample> clientFpsSamples = new ArrayList<>();
-   private final List<ServerTickTimeSample> serverTickTimeSamples = new ArrayList<>();
-   private @Nullable Duration worldGenDuration = null;
 
-   private JfrProfileRecorder(Stream<RecordedEvent> events) {
-      this.handleEvents(events);
-   }
+	private Instant startTime = Instant.EPOCH;
+	private Instant endTime = Instant.EPOCH;
+	private final List<ChunkGenerationSample> chunkGenerationSamples = new ArrayList<>();
+	private final List<StructureGenerationSample> structureGenerationSamples = new ArrayList<>();
+	private final List<CpuLoadSample> cpuLoadSamples = new ArrayList<>();
+	private final Map<PacketSample, JfrProfileRecorder.Counter> receivedPacketsToCounter = new HashMap<>();
+	private final Map<PacketSample, JfrProfileRecorder.Counter> sentPacketsToCounter = new HashMap<>();
+	private final Map<ChunkRegionSample, JfrProfileRecorder.Counter> chunkRegionReadCounter = new HashMap<>();
+	private final Map<ChunkRegionSample, JfrProfileRecorder.Counter> chunkRegionWriteCounter = new HashMap<>();
+	private final List<FileIoSample> fileWriteSamples = new ArrayList<>();
+	private final List<FileIoSample> fileReadSamples = new ArrayList<>();
+	private int gcCount;
+	private Duration gcDuration = Duration.ZERO;
+	private final List<GcHeapSummarySample> gcHeapSummarySamples = new ArrayList<>();
+	private final List<ThreadAllocationStatisticsSample> threadAllocationStatisticsSamples = new ArrayList<>();
+	private final List<ClientFpsSample> clientFpsSamples = new ArrayList<>();
+	private final List<ServerTickTimeSample> serverTickTimeSamples = new ArrayList<>();
+	private @Nullable Duration worldGenDuration = null;
 
-   public static JfrProfile readProfile(Path path) {
-      try {
-         JfrProfile var4;
-         try (final RecordingFile recordingFile = new RecordingFile(path)) {
-            Iterator<RecordedEvent> iterator = new Iterator<RecordedEvent>() {
-               @Override
-               public boolean hasNext() {
-                  return recordingFile.hasMoreEvents();
-               }
+	private JfrProfileRecorder(Stream<RecordedEvent> events) {
+		this.handleEvents(events);
+	}
 
-               public RecordedEvent next() {
-                  if (!this.hasNext()) {
-                     throw new NoSuchElementException();
-                  } else {
-                     try {
-                        return recordingFile.readEvent();
-                     } catch (IOException var2) {
-                        throw new UncheckedIOException(var2);
-                     }
-                  }
-               }
-            };
-            Stream<RecordedEvent> stream = StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 1297), false);
-            var4 = new JfrProfileRecorder(stream).createProfile();
-         }
+	public static JfrProfile readProfile(Path path) {
+		try {
+			JfrProfile var4;
+			try (final RecordingFile recordingFile = new RecordingFile(path)) {
+				Iterator<RecordedEvent> iterator = new Iterator<RecordedEvent>() {
+					@Override
+					public boolean hasNext() {
+						return recordingFile.hasMoreEvents();
+					}
 
-         return var4;
-      } catch (IOException var7) {
-         throw new UncheckedIOException(var7);
-      }
-   }
+					public RecordedEvent next() {
+						if (!this.hasNext()) {
+							throw new NoSuchElementException();
+						}
+						else {
+							try {
+								return recordingFile.readEvent();
+							}
+							catch (IOException var2) {
+								throw new UncheckedIOException(var2);
+							}
+						}
+					}
+				};
+				Stream<RecordedEvent>
+						stream =
+						StreamSupport.stream(Spliterators.spliteratorUnknownSize(iterator, 1297), false);
+				var4 = new JfrProfileRecorder(stream).createProfile();
+			}
 
-   private JfrProfile createProfile() {
-      Duration duration = Duration.between(this.startTime, this.endTime);
-      return new JfrProfile(
-         this.startTime,
-         this.endTime,
-         duration,
-         this.worldGenDuration,
-         this.clientFpsSamples,
-         this.serverTickTimeSamples,
-         this.cpuLoadSamples,
-         GcHeapSummarySample.toStatistics(duration, this.gcHeapSummarySamples, this.gcDuration, this.gcCount),
-         ThreadAllocationStatisticsSample.toAllocationMap(this.threadAllocationStatisticsSamples),
-         createNetworkIoStatistics(duration, this.receivedPacketsToCounter),
-         createNetworkIoStatistics(duration, this.sentPacketsToCounter),
-         createNetworkIoStatistics(duration, this.chunkRegionWriteCounter),
-         createNetworkIoStatistics(duration, this.chunkRegionReadCounter),
-         FileIoSample.toStatistics(duration, this.fileWriteSamples),
-         FileIoSample.toStatistics(duration, this.fileReadSamples),
-         this.chunkGenerationSamples,
-         this.structureGenerationSamples
-      );
-   }
+			return var4;
+		}
+		catch (IOException var7) {
+			throw new UncheckedIOException(var7);
+		}
+	}
 
-   private void handleEvents(Stream<RecordedEvent> events) {
-      events.forEach(event -> {
-         if (event.getEndTime().isAfter(this.endTime) || this.endTime.equals(Instant.EPOCH)) {
-            this.endTime = event.getEndTime();
-         }
+	private JfrProfile createProfile() {
+		Duration duration = Duration.between(this.startTime, this.endTime);
+		return new JfrProfile(
+				this.startTime,
+				this.endTime,
+				duration,
+				this.worldGenDuration,
+				this.clientFpsSamples,
+				this.serverTickTimeSamples,
+				this.cpuLoadSamples,
+				GcHeapSummarySample.toStatistics(duration, this.gcHeapSummarySamples, this.gcDuration, this.gcCount),
+				ThreadAllocationStatisticsSample.toAllocationMap(this.threadAllocationStatisticsSamples),
+				createNetworkIoStatistics(duration, this.receivedPacketsToCounter),
+				createNetworkIoStatistics(duration, this.sentPacketsToCounter),
+				createNetworkIoStatistics(duration, this.chunkRegionWriteCounter),
+				createNetworkIoStatistics(duration, this.chunkRegionReadCounter),
+				FileIoSample.toStatistics(duration, this.fileWriteSamples),
+				FileIoSample.toStatistics(duration, this.fileReadSamples),
+				this.chunkGenerationSamples,
+				this.structureGenerationSamples
+		);
+	}
 
-         if (event.getStartTime().isBefore(this.startTime) || this.startTime.equals(Instant.EPOCH)) {
-            this.startTime = event.getStartTime();
-         }
+	private void handleEvents(Stream<RecordedEvent> events) {
+		events.forEach(event -> {
+			if (event.getEndTime().isAfter(this.endTime) || this.endTime.equals(Instant.EPOCH)) {
+				this.endTime = event.getEndTime();
+			}
 
-         String var2 = event.getEventType().getName();
-         switch (var2) {
-            case "minecraft.ChunkGeneration":
-               this.chunkGenerationSamples.add(ChunkGenerationSample.fromEvent(event));
-               break;
-            case "minecraft.StructureGeneration":
-               this.structureGenerationSamples.add(StructureGenerationSample.fromEvent(event));
-               break;
-            case "minecraft.LoadWorld":
-               this.worldGenDuration = event.getDuration();
-               break;
-            case "minecraft.ClientFps":
-               this.clientFpsSamples.add(ClientFpsSample.fromEvent(event, "fps"));
-               break;
-            case "minecraft.ServerTickTime":
-               this.serverTickTimeSamples.add(ServerTickTimeSample.fromEvent(event));
-               break;
-            case "minecraft.PacketReceived":
-               this.addPacket(event, event.getInt("bytes"), this.receivedPacketsToCounter);
-               break;
-            case "minecraft.PacketSent":
-               this.addPacket(event, event.getInt("bytes"), this.sentPacketsToCounter);
-               break;
-            case "minecraft.ChunkRegionRead":
-               this.addChunkRegionEvent(event, event.getInt("bytes"), this.chunkRegionReadCounter);
-               break;
-            case "minecraft.ChunkRegionWrite":
-               this.addChunkRegionEvent(event, event.getInt("bytes"), this.chunkRegionWriteCounter);
-               break;
-            case "jdk.ThreadAllocationStatistics":
-               this.threadAllocationStatisticsSamples.add(ThreadAllocationStatisticsSample.fromEvent(event));
-               break;
-            case "jdk.GCHeapSummary":
-               this.gcHeapSummarySamples.add(GcHeapSummarySample.fromEvent(event));
-               break;
-            case "jdk.CPULoad":
-               this.cpuLoadSamples.add(CpuLoadSample.fromEvent(event));
-               break;
-            case "jdk.FileWrite":
-               this.addFileIoSample(event, this.fileWriteSamples, "bytesWritten");
-               break;
-            case "jdk.FileRead":
-               this.addFileIoSample(event, this.fileReadSamples, "bytesRead");
-               break;
-            case "jdk.GarbageCollection":
-               this.gcCount++;
-               this.gcDuration = this.gcDuration.plus(event.getDuration());
-         }
-      });
-   }
+			if (event.getStartTime().isBefore(this.startTime) || this.startTime.equals(Instant.EPOCH)) {
+				this.startTime = event.getStartTime();
+			}
 
-   private void addPacket(RecordedEvent event, int bytes, Map<PacketSample, JfrProfileRecorder.Counter> packetsToCounter) {
-      packetsToCounter.computeIfAbsent(PacketSample.fromEvent(event), packet -> new JfrProfileRecorder.Counter()).add(bytes);
-   }
+			String var2 = event.getEventType().getName();
+			switch (var2) {
+				case "minecraft.ChunkGeneration":
+					this.chunkGenerationSamples.add(ChunkGenerationSample.fromEvent(event));
+					break;
+				case "minecraft.StructureGeneration":
+					this.structureGenerationSamples.add(StructureGenerationSample.fromEvent(event));
+					break;
+				case "minecraft.LoadWorld":
+					this.worldGenDuration = event.getDuration();
+					break;
+				case "minecraft.ClientFps":
+					this.clientFpsSamples.add(ClientFpsSample.fromEvent(event, "fps"));
+					break;
+				case "minecraft.ServerTickTime":
+					this.serverTickTimeSamples.add(ServerTickTimeSample.fromEvent(event));
+					break;
+				case "minecraft.PacketReceived":
+					this.addPacket(event, event.getInt("bytes"), this.receivedPacketsToCounter);
+					break;
+				case "minecraft.PacketSent":
+					this.addPacket(event, event.getInt("bytes"), this.sentPacketsToCounter);
+					break;
+				case "minecraft.ChunkRegionRead":
+					this.addChunkRegionEvent(event, event.getInt("bytes"), this.chunkRegionReadCounter);
+					break;
+				case "minecraft.ChunkRegionWrite":
+					this.addChunkRegionEvent(event, event.getInt("bytes"), this.chunkRegionWriteCounter);
+					break;
+				case "jdk.ThreadAllocationStatistics":
+					this.threadAllocationStatisticsSamples.add(ThreadAllocationStatisticsSample.fromEvent(event));
+					break;
+				case "jdk.GCHeapSummary":
+					this.gcHeapSummarySamples.add(GcHeapSummarySample.fromEvent(event));
+					break;
+				case "jdk.CPULoad":
+					this.cpuLoadSamples.add(CpuLoadSample.fromEvent(event));
+					break;
+				case "jdk.FileWrite":
+					this.addFileIoSample(event, this.fileWriteSamples, "bytesWritten");
+					break;
+				case "jdk.FileRead":
+					this.addFileIoSample(event, this.fileReadSamples, "bytesRead");
+					break;
+				case "jdk.GarbageCollection":
+					this.gcCount++;
+					this.gcDuration = this.gcDuration.plus(event.getDuration());
+			}
+		});
+	}
 
-   private void addChunkRegionEvent(RecordedEvent event, int bytes, Map<ChunkRegionSample, JfrProfileRecorder.Counter> chunksToCounter) {
-      chunksToCounter.computeIfAbsent(ChunkRegionSample.fromEvent(event), chunk -> new JfrProfileRecorder.Counter()).add(bytes);
-   }
+	private void addPacket(
+			RecordedEvent event,
+			int bytes,
+			Map<PacketSample, JfrProfileRecorder.Counter> packetsToCounter
+	) {
+		packetsToCounter
+				.computeIfAbsent(PacketSample.fromEvent(event), packet -> new JfrProfileRecorder.Counter())
+				.add(bytes);
+	}
 
-   private void addFileIoSample(RecordedEvent event, List<FileIoSample> samples, String bytesKey) {
-      samples.add(new FileIoSample(event.getDuration(), event.getString("path"), event.getLong(bytesKey)));
-   }
+	private void addChunkRegionEvent(
+			RecordedEvent event,
+			int bytes,
+			Map<ChunkRegionSample, JfrProfileRecorder.Counter> chunksToCounter
+	) {
+		chunksToCounter
+				.computeIfAbsent(ChunkRegionSample.fromEvent(event), chunk -> new JfrProfileRecorder.Counter())
+				.add(bytes);
+	}
 
-   private static <T> NetworkIoStatistics<T> createNetworkIoStatistics(Duration duration, Map<T, JfrProfileRecorder.Counter> packetsToCounter) {
-      List<Pair<T, NetworkIoStatistics.PacketStatistics>> list = packetsToCounter.entrySet()
-         .stream()
-         .map(entry -> Pair.of(entry.getKey(), entry.getValue().toStatistics()))
-         .toList();
-      return new NetworkIoStatistics<>(duration, list);
-   }
+	private void addFileIoSample(RecordedEvent event, List<FileIoSample> samples, String bytesKey) {
+		samples.add(new FileIoSample(event.getDuration(), event.getString("path"), event.getLong(bytesKey)));
+	}
 
-   public static final class Counter {
-      private long totalCount;
-      private long totalBytes;
+	private static <T> NetworkIoStatistics<T> createNetworkIoStatistics(
+			Duration duration,
+			Map<T, JfrProfileRecorder.Counter> packetsToCounter
+	) {
+		List<Pair<T, NetworkIoStatistics.PacketStatistics>> list = packetsToCounter.entrySet()
+		                                                                           .stream()
+		                                                                           .map(entry -> Pair.of(
+				                                                                           entry.getKey(),
+				                                                                           entry
+						                                                                           .getValue()
+						                                                                           .toStatistics()
+		                                                                           ))
+		                                                                           .toList();
+		return new NetworkIoStatistics<>(duration, list);
+	}
 
-      public void add(int bytes) {
-         this.totalBytes += bytes;
-         this.totalCount++;
-      }
+	/**
+	 * {@code Counter}.
+	 */
+	public static final class Counter {
 
-      public NetworkIoStatistics.PacketStatistics toStatistics() {
-         return new NetworkIoStatistics.PacketStatistics(this.totalCount, this.totalBytes);
-      }
-   }
+		private long totalCount;
+		private long totalBytes;
+
+		public void add(int bytes) {
+			this.totalBytes += bytes;
+			this.totalCount++;
+		}
+
+		public NetworkIoStatistics.PacketStatistics toStatistics() {
+			return new NetworkIoStatistics.PacketStatistics(this.totalCount, this.totalBytes);
+		}
+	}
 }

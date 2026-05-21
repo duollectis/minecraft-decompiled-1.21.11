@@ -3,7 +3,6 @@ package net.minecraft.world.gen.structure;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Optional;
 import net.minecraft.structure.OceanRuinGenerator;
 import net.minecraft.structure.StructurePiecesCollector;
 import net.minecraft.util.BlockRotation;
@@ -12,63 +11,100 @@ import net.minecraft.util.dynamic.Codecs;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.Heightmap;
 
+import java.util.Optional;
+
+/**
+ * {@code OceanRuinStructure}.
+ */
 public class OceanRuinStructure extends Structure {
-   public static final MapCodec<OceanRuinStructure> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            configCodecBuilder(instance),
-            OceanRuinStructure.BiomeTemperature.CODEC.fieldOf("biome_temp").forGetter(structure -> structure.biomeTemperature),
-            Codec.floatRange(0.0F, 1.0F).fieldOf("large_probability").forGetter(structure -> structure.largeProbability),
-            Codec.floatRange(0.0F, 1.0F).fieldOf("cluster_probability").forGetter(structure -> structure.clusterProbability)
-         )
-         .apply(instance, OceanRuinStructure::new)
-   );
-   public final OceanRuinStructure.BiomeTemperature biomeTemperature;
-   public final float largeProbability;
-   public final float clusterProbability;
 
-   public OceanRuinStructure(Structure.Config config, OceanRuinStructure.BiomeTemperature biomeTemperature, float largeProbability, float clusterProbability) {
-      super(config);
-      this.biomeTemperature = biomeTemperature;
-      this.largeProbability = largeProbability;
-      this.clusterProbability = clusterProbability;
-   }
+	public static final MapCodec<OceanRuinStructure> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    configCodecBuilder(instance),
+					                    OceanRuinStructure.BiomeTemperature.CODEC
+							                    .fieldOf("biome_temp")
+							                    .forGetter(structure -> structure.biomeTemperature),
+					                    Codec
+							                    .floatRange(0.0F, 1.0F)
+							                    .fieldOf("large_probability")
+							                    .forGetter(structure -> structure.largeProbability),
+					                    Codec
+							                    .floatRange(0.0F, 1.0F)
+							                    .fieldOf("cluster_probability")
+							                    .forGetter(structure -> structure.clusterProbability)
+			                    )
+			                    .apply(instance, OceanRuinStructure::new)
+	);
+	public final OceanRuinStructure.BiomeTemperature biomeTemperature;
+	public final float largeProbability;
+	public final float clusterProbability;
 
-   @Override
-   public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
-      return getStructurePosition(context, Heightmap.Type.OCEAN_FLOOR_WG, collector -> this.addPieces(collector, context));
-   }
+	public OceanRuinStructure(
+			Structure.Config config,
+			OceanRuinStructure.BiomeTemperature biomeTemperature,
+			float largeProbability,
+			float clusterProbability
+	) {
+		super(config);
+		this.biomeTemperature = biomeTemperature;
+		this.largeProbability = largeProbability;
+		this.clusterProbability = clusterProbability;
+	}
 
-   private void addPieces(StructurePiecesCollector collector, Structure.Context context) {
-      BlockPos blockPos = new BlockPos(context.chunkPos().getStartX(), 90, context.chunkPos().getStartZ());
-      BlockRotation blockRotation = BlockRotation.random(context.random());
-      OceanRuinGenerator.addPieces(context.structureTemplateManager(), blockPos, blockRotation, collector, context.random(), this);
-   }
+	@Override
+	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
+		return getStructurePosition(
+				context,
+				Heightmap.Type.OCEAN_FLOOR_WG,
+				collector -> this.addPieces(collector, context)
+		);
+	}
 
-   @Override
-   public StructureType<?> getType() {
-      return StructureType.OCEAN_RUIN;
-   }
+	private void addPieces(StructurePiecesCollector collector, Structure.Context context) {
+		BlockPos blockPos = new BlockPos(context.chunkPos().getStartX(), 90, context.chunkPos().getStartZ());
+		BlockRotation blockRotation = BlockRotation.random(context.random());
+		OceanRuinGenerator.addPieces(
+				context.structureTemplateManager(),
+				blockPos,
+				blockRotation,
+				collector,
+				context.random(),
+				this
+		);
+	}
 
-   public static enum BiomeTemperature implements StringIdentifiable {
-      WARM("warm"),
-      COLD("cold");
+	@Override
+	public StructureType<?> getType() {
+		return StructureType.OCEAN_RUIN;
+	}
 
-      public static final Codec<OceanRuinStructure.BiomeTemperature> CODEC = StringIdentifiable.createCodec(OceanRuinStructure.BiomeTemperature::values);
-      @Deprecated
-      public static final Codec<OceanRuinStructure.BiomeTemperature> ENUM_NAME_CODEC = Codecs.enumByName(OceanRuinStructure.BiomeTemperature::valueOf);
-      private final String name;
+	/**
+	 * {@code BiomeTemperature}.
+	 */
+	public static enum BiomeTemperature implements StringIdentifiable {
+		WARM("warm"),
+		COLD("cold");
 
-      private BiomeTemperature(final String name) {
-         this.name = name;
-      }
+		public static final Codec<OceanRuinStructure.BiomeTemperature>
+				CODEC =
+				StringIdentifiable.createCodec(OceanRuinStructure.BiomeTemperature::values);
+		@Deprecated
+		public static final Codec<OceanRuinStructure.BiomeTemperature>
+				ENUM_NAME_CODEC =
+				Codecs.enumByName(OceanRuinStructure.BiomeTemperature::valueOf);
+		private final String name;
 
-      public String getName() {
-         return this.name;
-      }
+		private BiomeTemperature(final String name) {
+			this.name = name;
+		}
 
-      @Override
-      public String asString() {
-         return this.name;
-      }
-   }
+		public String getName() {
+			return this.name;
+		}
+
+		@Override
+		public String asString() {
+			return this.name;
+		}
+	}
 }

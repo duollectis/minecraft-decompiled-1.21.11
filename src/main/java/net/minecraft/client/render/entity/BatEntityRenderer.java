@@ -9,25 +9,29 @@ import net.minecraft.entity.passive.BatEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BatEntityRenderer}.
+ */
 public class BatEntityRenderer extends MobEntityRenderer<BatEntity, BatEntityRenderState, BatEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/bat.png");
 
-   public BatEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new BatEntityModel(context.getPart(EntityModelLayers.BAT)), 0.25F);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/bat.png");
 
-   public Identifier getTexture(BatEntityRenderState batEntityRenderState) {
-      return TEXTURE;
-   }
+	public BatEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new BatEntityModel(context.getPart(EntityModelLayers.BAT)), 0.25F);
+	}
 
-   public BatEntityRenderState createRenderState() {
-      return new BatEntityRenderState();
-   }
+	public Identifier getTexture(BatEntityRenderState batEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(BatEntity batEntity, BatEntityRenderState batEntityRenderState, float f) {
-      super.updateRenderState(batEntity, batEntityRenderState, f);
-      batEntityRenderState.roosting = batEntity.isRoosting();
-      batEntityRenderState.flyingAnimationState.copyFrom(batEntity.flyingAnimationState);
-      batEntityRenderState.roostingAnimationState.copyFrom(batEntity.roostingAnimationState);
-   }
+	public BatEntityRenderState createRenderState() {
+		return new BatEntityRenderState();
+	}
+
+	public void updateRenderState(BatEntity batEntity, BatEntityRenderState batEntityRenderState, float f) {
+		super.updateRenderState(batEntity, batEntityRenderState, f);
+		batEntityRenderState.roosting = batEntity.isRoosting();
+		batEntityRenderState.flyingAnimationState.copyFrom(batEntity.flyingAnimationState);
+		batEntityRenderState.roostingAnimationState.copyFrom(batEntity.roostingAnimationState);
+	}
 }

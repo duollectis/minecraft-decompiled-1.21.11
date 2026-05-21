@@ -11,63 +11,67 @@ import net.minecraft.client.input.KeyInput;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Element}.
+ */
 public interface Element extends Navigable {
-   default void mouseMoved(double mouseX, double mouseY) {
-   }
 
-   default boolean mouseClicked(Click click, boolean doubled) {
-      return false;
-   }
+	default void mouseMoved(double mouseX, double mouseY) {
+	}
 
-   default boolean mouseReleased(Click click) {
-      return false;
-   }
+	default boolean mouseClicked(Click click, boolean doubled) {
+		return false;
+	}
 
-   default boolean mouseDragged(Click click, double offsetX, double offsetY) {
-      return false;
-   }
+	default boolean mouseReleased(Click click) {
+		return false;
+	}
 
-   default boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-      return false;
-   }
+	default boolean mouseDragged(Click click, double offsetX, double offsetY) {
+		return false;
+	}
 
-   default boolean keyPressed(KeyInput input) {
-      return false;
-   }
+	default boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+		return false;
+	}
 
-   default boolean keyReleased(KeyInput input) {
-      return false;
-   }
+	default boolean keyPressed(KeyInput input) {
+		return false;
+	}
 
-   default boolean charTyped(CharInput input) {
-      return false;
-   }
+	default boolean keyReleased(KeyInput input) {
+		return false;
+	}
 
-   default @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-      return null;
-   }
+	default boolean charTyped(CharInput input) {
+		return false;
+	}
 
-   default boolean isMouseOver(double mouseX, double mouseY) {
-      return false;
-   }
+	default @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+		return null;
+	}
 
-   void setFocused(boolean focused);
+	default boolean isMouseOver(double mouseX, double mouseY) {
+		return false;
+	}
 
-   boolean isFocused();
+	void setFocused(boolean focused);
 
-   default boolean isClickable() {
-      return true;
-   }
+	boolean isFocused();
 
-   default @Nullable GuiNavigationPath getFocusedPath() {
-      return this.isFocused() ? GuiNavigationPath.of(this) : null;
-   }
+	default boolean isClickable() {
+		return true;
+	}
 
-   default ScreenRect getNavigationFocus() {
-      return ScreenRect.empty();
-   }
+	default @Nullable GuiNavigationPath getFocusedPath() {
+		return this.isFocused() ? GuiNavigationPath.of(this) : null;
+	}
 
-   default ScreenRect getBorder(NavigationDirection direction) {
-      return this.getNavigationFocus().getBorder(direction);
-   }
+	default ScreenRect getNavigationFocus() {
+		return ScreenRect.empty();
+	}
+
+	default ScreenRect getBorder(NavigationDirection direction) {
+		return this.getNavigationFocus().getBorder(direction);
+	}
 }

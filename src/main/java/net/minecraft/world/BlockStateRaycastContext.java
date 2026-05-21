@@ -1,29 +1,34 @@
 package net.minecraft.world;
 
-import java.util.function.Predicate;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.function.Predicate;
+
+/**
+ * {@code BlockStateRaycastContext}.
+ */
 public class BlockStateRaycastContext {
-   private final Vec3d start;
-   private final Vec3d end;
-   private final Predicate<BlockState> statePredicate;
 
-   public BlockStateRaycastContext(Vec3d start, Vec3d end, Predicate<BlockState> statePredicate) {
-      this.start = start;
-      this.end = end;
-      this.statePredicate = statePredicate;
-   }
+	private final Vec3d start;
+	private final Vec3d end;
+	private final Predicate<BlockState> statePredicate;
 
-   public Vec3d getEnd() {
-      return this.end;
-   }
+	public BlockStateRaycastContext(Vec3d start, Vec3d end, Predicate<BlockState> statePredicate) {
+		this.start = start;
+		this.end = end;
+		this.statePredicate = statePredicate;
+	}
 
-   public Vec3d getStart() {
-      return this.start;
-   }
+	public Vec3d getEnd() {
+		return this.end;
+	}
 
-   public Predicate<BlockState> getStatePredicate() {
-      return this.statePredicate;
-   }
+	public Vec3d getStart() {
+		return this.start;
+	}
+
+	public Predicate<BlockState> getStatePredicate() {
+		return this.statePredicate;
+	}
 }

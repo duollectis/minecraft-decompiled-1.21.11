@@ -7,16 +7,17 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class BundleS2CPacket extends BundlePacket<ClientPlayPacketListener> {
-   public BundleS2CPacket(Iterable<Packet<? super ClientPlayPacketListener>> iterable) {
-      super(iterable);
-   }
 
-   @Override
-   public PacketType<BundleS2CPacket> getPacketType() {
-      return PlayPackets.BUNDLE;
-   }
+	public BundleS2CPacket(Iterable<Packet<? super ClientPlayPacketListener>> iterable) {
+		super(iterable);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onBundle(this);
-   }
+	@Override
+	public PacketType<BundleS2CPacket> getPacketType() {
+		return PlayPackets.BUNDLE;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onBundle(this);
+	}
 }

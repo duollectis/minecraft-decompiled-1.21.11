@@ -4,11 +4,15 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FelineEntityRenderState}.
+ */
 public class FelineEntityRenderState extends LivingEntityRenderState {
-   public boolean inSneakingPose;
-   public boolean sprinting;
-   public boolean inSittingPose;
-   public float sleepAnimationProgress;
-   public float tailCurlAnimationProgress;
-   public float headDownAnimationProgress;
+
+	public boolean inSneakingPose;
+	public boolean sprinting;
+	public boolean inSittingPose;
+	public float sleepAnimationProgress;
+	public float tailCurlAnimationProgress;
+	public float headDownAnimationProgress;
 }

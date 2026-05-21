@@ -1,6 +1,5 @@
 package net.minecraft.world.explosion;
 
-import java.util.Optional;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
@@ -10,43 +9,59 @@ import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockView;
 
+import java.util.Optional;
+
+/**
+ * {@code AdvancedExplosionBehavior}.
+ */
 public class AdvancedExplosionBehavior extends ExplosionBehavior {
-   private final boolean destroyBlocks;
-   private final boolean damageEntities;
-   private final Optional<Float> knockbackModifier;
-   private final Optional<RegistryEntryList<Block>> immuneBlocks;
 
-   public AdvancedExplosionBehavior(
-      boolean destroyBlocks, boolean damageEntities, Optional<Float> knockbackModifier, Optional<RegistryEntryList<Block>> immuneBlocks
-   ) {
-      this.destroyBlocks = destroyBlocks;
-      this.damageEntities = damageEntities;
-      this.knockbackModifier = knockbackModifier;
-      this.immuneBlocks = immuneBlocks;
-   }
+	private final boolean destroyBlocks;
+	private final boolean damageEntities;
+	private final Optional<Float> knockbackModifier;
+	private final Optional<RegistryEntryList<Block>> immuneBlocks;
 
-   @Override
-   public Optional<Float> getBlastResistance(Explosion explosion, BlockView world, BlockPos pos, BlockState blockState, FluidState fluidState) {
-      if (this.immuneBlocks.isPresent()) {
-         return blockState.isIn(this.immuneBlocks.get()) ? Optional.of(3600000.0F) : Optional.empty();
-      } else {
-         return super.getBlastResistance(explosion, world, pos, blockState, fluidState);
-      }
-   }
+	public AdvancedExplosionBehavior(
+			boolean destroyBlocks,
+			boolean damageEntities,
+			Optional<Float> knockbackModifier,
+			Optional<RegistryEntryList<Block>> immuneBlocks
+	) {
+		this.destroyBlocks = destroyBlocks;
+		this.damageEntities = damageEntities;
+		this.knockbackModifier = knockbackModifier;
+		this.immuneBlocks = immuneBlocks;
+	}
 
-   @Override
-   public boolean canDestroyBlock(Explosion explosion, BlockView world, BlockPos pos, BlockState state, float power) {
-      return this.destroyBlocks;
-   }
+	@Override
+	public Optional<Float> getBlastResistance(
+			Explosion explosion,
+			BlockView world,
+			BlockPos pos,
+			BlockState blockState,
+			FluidState fluidState
+	) {
+		if (this.immuneBlocks.isPresent()) {
+			return blockState.isIn(this.immuneBlocks.get()) ? Optional.of(3600000.0F) : Optional.empty();
+		}
+		else {
+			return super.getBlastResistance(explosion, world, pos, blockState, fluidState);
+		}
+	}
 
-   @Override
-   public boolean shouldDamage(Explosion explosion, Entity entity) {
-      return this.damageEntities;
-   }
+	@Override
+	public boolean canDestroyBlock(Explosion explosion, BlockView world, BlockPos pos, BlockState state, float power) {
+		return this.destroyBlocks;
+	}
 
-   @Override
-   public float getKnockbackModifier(Entity entity) {
-      boolean bl = entity instanceof PlayerEntity playerEntity && playerEntity.getAbilities().flying;
-      return bl ? 0.0F : this.knockbackModifier.orElseGet(() -> super.getKnockbackModifier(entity));
-   }
+	@Override
+	public boolean shouldDamage(Explosion explosion, Entity entity) {
+		return this.damageEntities;
+	}
+
+	@Override
+	public float getKnockbackModifier(Entity entity) {
+		boolean bl = entity instanceof PlayerEntity playerEntity && playerEntity.getAbilities().flying;
+		return bl ? 0.0F : this.knockbackModifier.orElseGet(() -> super.getKnockbackModifier(entity));
+	}
 }

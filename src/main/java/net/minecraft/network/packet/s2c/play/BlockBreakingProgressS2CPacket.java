@@ -9,49 +9,50 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
 public class BlockBreakingProgressS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, BlockBreakingProgressS2CPacket> CODEC = Packet.createCodec(
-      BlockBreakingProgressS2CPacket::write, BlockBreakingProgressS2CPacket::new
-   );
-   private final int entityId;
-   private final BlockPos pos;
-   private final int progress;
 
-   public BlockBreakingProgressS2CPacket(int entityId, BlockPos pos, int progress) {
-      this.entityId = entityId;
-      this.pos = pos;
-      this.progress = progress;
-   }
+	public static final PacketCodec<PacketByteBuf, BlockBreakingProgressS2CPacket> CODEC = Packet.createCodec(
+			BlockBreakingProgressS2CPacket::write, BlockBreakingProgressS2CPacket::new
+	);
+	private final int entityId;
+	private final BlockPos pos;
+	private final int progress;
 
-   private BlockBreakingProgressS2CPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      this.pos = buf.readBlockPos();
-      this.progress = buf.readUnsignedByte();
-   }
+	public BlockBreakingProgressS2CPacket(int entityId, BlockPos pos, int progress) {
+		this.entityId = entityId;
+		this.pos = pos;
+		this.progress = progress;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      buf.writeBlockPos(this.pos);
-      buf.writeByte(this.progress);
-   }
+	private BlockBreakingProgressS2CPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		this.pos = buf.readBlockPos();
+		this.progress = buf.readUnsignedByte();
+	}
 
-   @Override
-   public PacketType<BlockBreakingProgressS2CPacket> getPacketType() {
-      return PlayPackets.BLOCK_DESTRUCTION;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		buf.writeBlockPos(this.pos);
+		buf.writeByte(this.progress);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onBlockBreakingProgress(this);
-   }
+	@Override
+	public PacketType<BlockBreakingProgressS2CPacket> getPacketType() {
+		return PlayPackets.BLOCK_DESTRUCTION;
+	}
 
-   public int getEntityId() {
-      return this.entityId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onBlockBreakingProgress(this);
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public int getEntityId() {
+		return this.entityId;
+	}
 
-   public int getProgress() {
-      return this.progress;
-   }
+	public BlockPos getPos() {
+		return this.pos;
+	}
+
+	public int getProgress() {
+		return this.progress;
+	}
 }

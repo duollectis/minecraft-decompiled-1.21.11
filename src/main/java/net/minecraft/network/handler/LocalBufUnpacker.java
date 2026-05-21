@@ -5,7 +5,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import net.minecraft.network.OpaqueByteBufHolder;
 
 public class LocalBufUnpacker extends ChannelInboundHandlerAdapter {
-   public void channelRead(ChannelHandlerContext context, Object buf) {
-      context.fireChannelRead(OpaqueByteBufHolder.unpack(buf));
-   }
+
+	public void channelRead(ChannelHandlerContext context, Object buf) {
+		context.fireChannelRead(OpaqueByteBufHolder.unpack(buf));
+	}
 }

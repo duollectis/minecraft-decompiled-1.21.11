@@ -1,11 +1,37 @@
 package net.minecraft.network;
 
+/**
+ * Контракт для серверов, поддерживающих запросы статуса по протоколу Minecraft.
+ * <p>Реализуется серверами, которые должны отвечать на пинг-запросы клиентов
+ * и предоставлять базовую информацию о состоянии сервера.
+ */
 public interface QueryableServer {
-   String getServerMotd();
 
-   String getVersion();
+	/**
+	 * Возвращает MOTD (Message Of The Day) — описание сервера в списке серверов.
+	 *
+	 * @return строка с описанием сервера
+	 */
+	String getServerMotd();
 
-   int getCurrentPlayerCount();
+	/**
+	 * Возвращает версию сервера.
+	 *
+	 * @return строка с версией (например, {@code "1.21.1"})
+	 */
+	String getVersion();
 
-   int getMaxPlayerCount();
+	/**
+	 * Возвращает текущее количество игроков на сервере.
+	 *
+	 * @return количество подключённых игроков
+	 */
+	int getCurrentPlayerCount();
+
+	/**
+	 * Возвращает максимально допустимое количество игроков.
+	 *
+	 * @return лимит игроков
+	 */
+	int getMaxPlayerCount();
 }

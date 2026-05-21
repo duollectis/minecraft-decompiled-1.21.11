@@ -26,81 +26,107 @@ import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code EnderEyeItem}.
+ */
 public class EnderEyeItem extends Item {
-   public EnderEyeItem(Item.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   public ActionResult useOnBlock(ItemUsageContext context) {
-      World world = context.getWorld();
-      BlockPos blockPos = context.getBlockPos();
-      BlockState blockState = world.getBlockState(blockPos);
-      if (!blockState.isOf(Blocks.END_PORTAL_FRAME) || blockState.get(EndPortalFrameBlock.EYE)) {
-         return ActionResult.PASS;
-      } else if (world.isClient()) {
-         return ActionResult.SUCCESS;
-      } else {
-         BlockState blockState2 = blockState.with(EndPortalFrameBlock.EYE, true);
-         Block.pushEntitiesUpBeforeBlockChange(blockState, blockState2, world, blockPos);
-         world.setBlockState(blockPos, blockState2, 2);
-         world.updateComparators(blockPos, Blocks.END_PORTAL_FRAME);
-         context.getStack().decrement(1);
-         world.syncWorldEvent(1503, blockPos, 0);
-         BlockPattern.Result result = EndPortalFrameBlock.getCompletedFramePattern().searchAround(world, blockPos);
-         if (result != null) {
-            BlockPos blockPos2 = result.getFrontTopLeft().add(-3, 0, -3);
+	public EnderEyeItem(Item.Settings settings) {
+		super(settings);
+	}
 
-            for (int i = 0; i < 3; i++) {
-               for (int j = 0; j < 3; j++) {
-                  BlockPos blockPos3 = blockPos2.add(i, 0, j);
-                  world.breakBlock(blockPos3, true, null);
-                  world.setBlockState(blockPos3, Blocks.END_PORTAL.getDefaultState(), 2);
-               }
-            }
+	@Override
+	public ActionResult useOnBlock(ItemUsageContext context) {
+		World world = context.getWorld();
+		BlockPos blockPos = context.getBlockPos();
+		BlockState blockState = world.getBlockState(blockPos);
+		if (!blockState.isOf(Blocks.END_PORTAL_FRAME) || blockState.get(EndPortalFrameBlock.EYE)) {
+			return ActionResult.PASS;
+		}
+		else if (world.isClient()) {
+			return ActionResult.SUCCESS;
+		}
+		else {
+			BlockState blockState2 = blockState.with(EndPortalFrameBlock.EYE, true);
+			Block.pushEntitiesUpBeforeBlockChange(blockState, blockState2, world, blockPos);
+			world.setBlockState(blockPos, blockState2, 2);
+			world.updateComparators(blockPos, Blocks.END_PORTAL_FRAME);
+			context.getStack().decrement(1);
+			world.syncWorldEvent(1503, blockPos, 0);
+			BlockPattern.Result result = EndPortalFrameBlock.getCompletedFramePattern().searchAround(world, blockPos);
+			if (result != null) {
+				BlockPos blockPos2 = result.getFrontTopLeft().add(-3, 0, -3);
 
-            world.syncGlobalEvent(1038, blockPos2.add(1, 0, 1), 0);
-         }
+				for (int i = 0; i < 3; i++) {
+					for (int j = 0; j < 3; j++) {
+						BlockPos blockPos3 = blockPos2.add(i, 0, j);
+						world.breakBlock(blockPos3, true, null);
+						world.setBlockState(blockPos3, Blocks.END_PORTAL.getDefaultState(), 2);
+					}
+				}
 
-         return ActionResult.SUCCESS;
-      }
-   }
+				world.syncGlobalEvent(1038, blockPos2.add(1, 0, 1), 0);
+			}
 
-   @Override
-   public int getMaxUseTime(ItemStack stack, LivingEntity user) {
-      return 0;
-   }
+			return ActionResult.SUCCESS;
+		}
+	}
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      BlockHitResult blockHitResult = raycast(world, user, RaycastContext.FluidHandling.NONE);
-      if (blockHitResult.getType() == HitResult.Type.BLOCK && world.getBlockState(blockHitResult.getBlockPos()).isOf(Blocks.END_PORTAL_FRAME)) {
-         return ActionResult.PASS;
-      } else {
-         user.setCurrentHand(hand);
-         if (world instanceof ServerWorld serverWorld) {
-            BlockPos blockPos = serverWorld.locateStructure(StructureTags.EYE_OF_ENDER_LOCATED, user.getBlockPos(), 100, false);
-            if (blockPos == null) {
-               return ActionResult.CONSUME;
-            }
+	@Override
+	public int getMaxUseTime(ItemStack stack, LivingEntity user) {
+		return 0;
+	}
 
-            EyeOfEnderEntity eyeOfEnderEntity = new EyeOfEnderEntity(world, user.getX(), user.getBodyY(0.5), user.getZ());
-            eyeOfEnderEntity.setItem(itemStack);
-            eyeOfEnderEntity.initTargetPos(Vec3d.of(blockPos));
-            world.emitGameEvent(GameEvent.PROJECTILE_SHOOT, eyeOfEnderEntity.getEntityPos(), GameEvent.Emitter.of(user));
-            world.spawnEntity(eyeOfEnderEntity);
-            if (user instanceof ServerPlayerEntity serverPlayerEntity) {
-               Criteria.USED_ENDER_EYE.trigger(serverPlayerEntity, blockPos);
-            }
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		BlockHitResult blockHitResult = raycast(world, user, RaycastContext.FluidHandling.NONE);
+		if (blockHitResult.getType() == HitResult.Type.BLOCK && world
+				.getBlockState(blockHitResult.getBlockPos())
+				.isOf(Blocks.END_PORTAL_FRAME)) {
+			return ActionResult.PASS;
+		}
+		else {
+			user.setCurrentHand(hand);
+			if (world instanceof ServerWorld serverWorld) {
+				BlockPos
+						blockPos =
+						serverWorld.locateStructure(StructureTags.EYE_OF_ENDER_LOCATED, user.getBlockPos(), 100, false);
+				if (blockPos == null) {
+					return ActionResult.CONSUME;
+				}
 
-            float f = MathHelper.lerp(world.random.nextFloat(), 0.33F, 0.5F);
-            world.playSound(null, user.getX(), user.getY(), user.getZ(), SoundEvents.ENTITY_ENDER_EYE_LAUNCH, SoundCategory.NEUTRAL, 1.0F, f);
-            itemStack.decrementUnlessCreative(1, user);
-            user.incrementStat(Stats.USED.getOrCreateStat(this));
-         }
+				EyeOfEnderEntity
+						eyeOfEnderEntity =
+						new EyeOfEnderEntity(world, user.getX(), user.getBodyY(0.5), user.getZ());
+				eyeOfEnderEntity.setItem(itemStack);
+				eyeOfEnderEntity.initTargetPos(Vec3d.of(blockPos));
+				world.emitGameEvent(
+						GameEvent.PROJECTILE_SHOOT,
+						eyeOfEnderEntity.getEntityPos(),
+						GameEvent.Emitter.of(user)
+				);
+				world.spawnEntity(eyeOfEnderEntity);
+				if (user instanceof ServerPlayerEntity serverPlayerEntity) {
+					Criteria.USED_ENDER_EYE.trigger(serverPlayerEntity, blockPos);
+				}
 
-         return ActionResult.SUCCESS_SERVER;
-      }
-   }
+				float f = MathHelper.lerp(world.random.nextFloat(), 0.33F, 0.5F);
+				world.playSound(
+						null,
+						user.getX(),
+						user.getY(),
+						user.getZ(),
+						SoundEvents.ENTITY_ENDER_EYE_LAUNCH,
+						SoundCategory.NEUTRAL,
+						1.0F,
+						f
+				);
+				itemStack.decrementUnlessCreative(1, user);
+				user.incrementStat(Stats.USED.getOrCreateStat(this));
+			}
+
+			return ActionResult.SUCCESS_SERVER;
+		}
+	}
 }

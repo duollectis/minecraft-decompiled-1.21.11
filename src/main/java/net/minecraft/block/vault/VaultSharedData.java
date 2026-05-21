@@ -3,86 +3,102 @@ package net.minecraft.block.vault;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
 import net.minecraft.item.ItemStack;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Uuids;
 import net.minecraft.util.math.BlockPos;
 
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+/**
+ * {@code VaultSharedData}.
+ */
 public class VaultSharedData {
-   public static final String SHARED_DATA_KEY = "shared_data";
-   public static Codec<VaultSharedData> codec = RecordCodecBuilder.create(
-      instance -> instance.group(
-            ItemStack.createOptionalCodec("display_item").forGetter(data -> data.displayItem),
-            Uuids.LINKED_SET_CODEC.lenientOptionalFieldOf("connected_players", Set.of()).forGetter(data -> data.connectedPlayers),
-            Codec.DOUBLE
-               .lenientOptionalFieldOf("connected_particles_range", VaultConfig.DEFAULT.deactivationRange())
-               .forGetter(data -> data.connectedParticlesRange)
-         )
-         .apply(instance, VaultSharedData::new)
-   );
-   private ItemStack displayItem = ItemStack.EMPTY;
-   private Set<UUID> connectedPlayers = new ObjectLinkedOpenHashSet<>();
-   private double connectedParticlesRange = VaultConfig.DEFAULT.deactivationRange();
-   public boolean dirty;
 
-   public VaultSharedData(ItemStack displayItem, Set<UUID> connectedPlayers, double connectedParticlesRange) {
-      this.displayItem = displayItem;
-      this.connectedPlayers.addAll(connectedPlayers);
-      this.connectedParticlesRange = connectedParticlesRange;
-   }
+	public static final String SHARED_DATA_KEY = "shared_data";
+	public static Codec<VaultSharedData> codec = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    ItemStack.createOptionalCodec("display_item").forGetter(data -> data.displayItem),
+					                    Uuids.LINKED_SET_CODEC
+							                    .lenientOptionalFieldOf("connected_players", Set.of())
+							                    .forGetter(data -> data.connectedPlayers),
+					                    Codec.DOUBLE
+							                    .lenientOptionalFieldOf(
+									                    "connected_particles_range",
+									                    VaultConfig.DEFAULT.deactivationRange()
+							                    )
+							                    .forGetter(data -> data.connectedParticlesRange)
+			                    )
+			                    .apply(instance, VaultSharedData::new)
+	);
+	private ItemStack displayItem = ItemStack.EMPTY;
+	private Set<UUID> connectedPlayers = new ObjectLinkedOpenHashSet<>();
+	private double connectedParticlesRange = VaultConfig.DEFAULT.deactivationRange();
+	public boolean dirty;
 
-   public VaultSharedData() {
-   }
+	public VaultSharedData(ItemStack displayItem, Set<UUID> connectedPlayers, double connectedParticlesRange) {
+		this.displayItem = displayItem;
+		this.connectedPlayers.addAll(connectedPlayers);
+		this.connectedParticlesRange = connectedParticlesRange;
+	}
 
-   public ItemStack getDisplayItem() {
-      return this.displayItem;
-   }
+	public VaultSharedData() {
+	}
 
-   public boolean hasDisplayItem() {
-      return !this.displayItem.isEmpty();
-   }
+	public ItemStack getDisplayItem() {
+		return this.displayItem;
+	}
 
-   public void setDisplayItem(ItemStack stack) {
-      if (!ItemStack.areEqual(this.displayItem, stack)) {
-         this.displayItem = stack.copy();
-         this.markDirty();
-      }
-   }
+	public boolean hasDisplayItem() {
+		return !this.displayItem.isEmpty();
+	}
 
-   public boolean hasConnectedPlayers() {
-      return !this.connectedPlayers.isEmpty();
-   }
+	public void setDisplayItem(ItemStack stack) {
+		if (!ItemStack.areEqual(this.displayItem, stack)) {
+			this.displayItem = stack.copy();
+			this.markDirty();
+		}
+	}
 
-   public Set<UUID> getConnectedPlayers() {
-      return this.connectedPlayers;
-   }
+	public boolean hasConnectedPlayers() {
+		return !this.connectedPlayers.isEmpty();
+	}
 
-   public double getConnectedParticlesRange() {
-      return this.connectedParticlesRange;
-   }
+	public Set<UUID> getConnectedPlayers() {
+		return this.connectedPlayers;
+	}
 
-   public void updateConnectedPlayers(ServerWorld world, BlockPos pos, VaultServerData serverData, VaultConfig config, double radius) {
-      Set<UUID> set = config.playerDetector()
-         .detect(world, config.entitySelector(), pos, radius, false)
-         .stream()
-         .filter(uuid -> !serverData.getRewardedPlayers().contains(uuid))
-         .collect(Collectors.toSet());
-      if (!this.connectedPlayers.equals(set)) {
-         this.connectedPlayers = set;
-         this.markDirty();
-      }
-   }
+	public double getConnectedParticlesRange() {
+		return this.connectedParticlesRange;
+	}
 
-   private void markDirty() {
-      this.dirty = true;
-   }
+	public void updateConnectedPlayers(
+			ServerWorld world,
+			BlockPos pos,
+			VaultServerData serverData,
+			VaultConfig config,
+			double radius
+	) {
+		Set<UUID> set = config.playerDetector()
+		                      .detect(world, config.entitySelector(), pos, radius, false)
+		                      .stream()
+		                      .filter(uuid -> !serverData.getRewardedPlayers().contains(uuid))
+		                      .collect(Collectors.toSet());
+		if (!this.connectedPlayers.equals(set)) {
+			this.connectedPlayers = set;
+			this.markDirty();
+		}
+	}
 
-   public void copyFrom(VaultSharedData data) {
-      this.displayItem = data.displayItem;
-      this.connectedPlayers = data.connectedPlayers;
-      this.connectedParticlesRange = data.connectedParticlesRange;
-   }
+	private void markDirty() {
+		this.dirty = true;
+	}
+
+	public void copyFrom(VaultSharedData data) {
+		this.displayItem = data.displayItem;
+		this.connectedPlayers = data.connectedPlayers;
+		this.connectedParticlesRange = data.connectedParticlesRange;
+	}
 }

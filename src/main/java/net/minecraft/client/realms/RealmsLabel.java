@@ -8,25 +8,35 @@ import net.minecraft.client.gui.Drawable;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsLabel}.
+ */
 public class RealmsLabel implements Drawable {
-   private final Text text;
-   private final int x;
-   private final int y;
-   private final int color;
 
-   public RealmsLabel(Text text, int x, int y, int color) {
-      this.text = text;
-      this.x = x;
-      this.y = y;
-      this.color = color;
-   }
+	private final Text text;
+	private final int x;
+	private final int y;
+	private final int color;
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      context.drawCenteredTextWithShadow(MinecraftClient.getInstance().textRenderer, this.text, this.x, this.y, this.color);
-   }
+	public RealmsLabel(Text text, int x, int y, int color) {
+		this.text = text;
+		this.x = x;
+		this.y = y;
+		this.color = color;
+	}
 
-   public Text getText() {
-      return this.text;
-   }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		context.drawCenteredTextWithShadow(
+				MinecraftClient.getInstance().textRenderer,
+				this.text,
+				this.x,
+				this.y,
+				this.color
+		);
+	}
+
+	public Text getText() {
+		return this.text;
+	}
 }

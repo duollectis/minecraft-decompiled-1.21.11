@@ -8,24 +8,25 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record MessageAcknowledgmentC2SPacket(int offset) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, MessageAcknowledgmentC2SPacket> CODEC = Packet.createCodec(
-      MessageAcknowledgmentC2SPacket::write, MessageAcknowledgmentC2SPacket::new
-   );
 
-   private MessageAcknowledgmentC2SPacket(PacketByteBuf buf) {
-      this(buf.readVarInt());
-   }
+	public static final PacketCodec<PacketByteBuf, MessageAcknowledgmentC2SPacket> CODEC = Packet.createCodec(
+			MessageAcknowledgmentC2SPacket::write, MessageAcknowledgmentC2SPacket::new
+	);
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.offset);
-   }
+	private MessageAcknowledgmentC2SPacket(PacketByteBuf buf) {
+		this(buf.readVarInt());
+	}
 
-   @Override
-   public PacketType<MessageAcknowledgmentC2SPacket> getPacketType() {
-      return PlayPackets.CHAT_ACK;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.offset);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onMessageAcknowledgment(this);
-   }
+	@Override
+	public PacketType<MessageAcknowledgmentC2SPacket> getPacketType() {
+		return PlayPackets.CHAT_ACK;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onMessageAcknowledgment(this);
+	}
 }

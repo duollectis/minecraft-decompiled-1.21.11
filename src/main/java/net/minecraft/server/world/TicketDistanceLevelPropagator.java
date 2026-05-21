@@ -1,47 +1,51 @@
 package net.minecraft.server.world;
 
+/**
+ * {@code TicketDistanceLevelPropagator}.
+ */
 class TicketDistanceLevelPropagator extends ChunkPosDistanceLevelPropagator {
-   private static final int UNLOADED = ChunkLevels.INACCESSIBLE + 1;
-   private final ChunkLevelManager levelManager;
-   private final ChunkTicketManager ticketManager;
 
-   public TicketDistanceLevelPropagator(ChunkLevelManager levelManager, ChunkTicketManager ticketManager) {
-      super(UNLOADED + 1, 16, 256);
-      this.levelManager = levelManager;
-      this.ticketManager = ticketManager;
-      ticketManager.setLoadingLevelUpdater(this::updateLevel);
-   }
+	private static final int UNLOADED = ChunkLevels.INACCESSIBLE + 1;
+	private final ChunkLevelManager levelManager;
+	private final ChunkTicketManager ticketManager;
 
-   @Override
-   protected int getInitialLevel(long id) {
-      return this.ticketManager.getLevel(id, false);
-   }
+	public TicketDistanceLevelPropagator(ChunkLevelManager levelManager, ChunkTicketManager ticketManager) {
+		super(UNLOADED + 1, 16, 256);
+		this.levelManager = levelManager;
+		this.ticketManager = ticketManager;
+		ticketManager.setLoadingLevelUpdater(this::updateLevel);
+	}
 
-   @Override
-   protected int getLevel(long id) {
-      if (!this.levelManager.isUnloaded(id)) {
-         ChunkHolder chunkHolder = this.levelManager.getChunkHolder(id);
-         if (chunkHolder != null) {
-            return chunkHolder.getLevel();
-         }
-      }
+	@Override
+	protected int getInitialLevel(long id) {
+		return this.ticketManager.getLevel(id, false);
+	}
 
-      return UNLOADED;
-   }
+	@Override
+	protected int getLevel(long id) {
+		if (!this.levelManager.isUnloaded(id)) {
+			ChunkHolder chunkHolder = this.levelManager.getChunkHolder(id);
+			if (chunkHolder != null) {
+				return chunkHolder.getLevel();
+			}
+		}
 
-   @Override
-   protected void setLevel(long id, int level) {
-      ChunkHolder chunkHolder = this.levelManager.getChunkHolder(id);
-      int i = chunkHolder == null ? UNLOADED : chunkHolder.getLevel();
-      if (i != level) {
-         chunkHolder = this.levelManager.setLevel(id, level, chunkHolder, i);
-         if (chunkHolder != null) {
-            this.levelManager.chunkHoldersWithPendingUpdates.add(chunkHolder);
-         }
-      }
-   }
+		return UNLOADED;
+	}
 
-   public int update(int distance) {
-      return this.applyPendingUpdates(distance);
-   }
+	@Override
+	protected void setLevel(long id, int level) {
+		ChunkHolder chunkHolder = this.levelManager.getChunkHolder(id);
+		int i = chunkHolder == null ? UNLOADED : chunkHolder.getLevel();
+		if (i != level) {
+			chunkHolder = this.levelManager.setLevel(id, level, chunkHolder, i);
+			if (chunkHolder != null) {
+				this.levelManager.chunkHoldersWithPendingUpdates.add(chunkHolder);
+			}
+		}
+	}
+
+	public int update(int distance) {
+		return this.applyPendingUpdates(distance);
+	}
 }

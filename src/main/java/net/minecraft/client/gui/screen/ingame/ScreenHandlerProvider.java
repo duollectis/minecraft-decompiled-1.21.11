@@ -5,6 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.screen.ScreenHandler;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ScreenHandlerProvider}.
+ */
 public interface ScreenHandlerProvider<T extends ScreenHandler> {
-   T getScreenHandler();
+
+	T getScreenHandler();
 }

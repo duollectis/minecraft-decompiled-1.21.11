@@ -13,46 +13,63 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FoxEntityRenderer}.
+ */
 public class FoxEntityRenderer extends AgeableMobEntityRenderer<FoxEntity, FoxEntityRenderState, FoxEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/fox/fox.png");
-   private static final Identifier SLEEPING_TEXTURE = Identifier.ofVanilla("textures/entity/fox/fox_sleep.png");
-   private static final Identifier SNOW_TEXTURE = Identifier.ofVanilla("textures/entity/fox/snow_fox.png");
-   private static final Identifier SLEEPING_SNOW_TEXTURE = Identifier.ofVanilla("textures/entity/fox/snow_fox_sleep.png");
 
-   public FoxEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new FoxEntityModel(context.getPart(EntityModelLayers.FOX)), new FoxEntityModel(context.getPart(EntityModelLayers.FOX_BABY)), 0.4F);
-      this.addFeature(new FoxHeldItemFeatureRenderer(this));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/fox/fox.png");
+	private static final Identifier SLEEPING_TEXTURE = Identifier.ofVanilla("textures/entity/fox/fox_sleep.png");
+	private static final Identifier SNOW_TEXTURE = Identifier.ofVanilla("textures/entity/fox/snow_fox.png");
+	private static final Identifier
+			SLEEPING_SNOW_TEXTURE =
+			Identifier.ofVanilla("textures/entity/fox/snow_fox_sleep.png");
 
-   protected void setupTransforms(FoxEntityRenderState foxEntityRenderState, MatrixStack matrixStack, float f, float g) {
-      super.setupTransforms(foxEntityRenderState, matrixStack, f, g);
-      if (foxEntityRenderState.chasing || foxEntityRenderState.walking) {
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-foxEntityRenderState.pitch));
-      }
-   }
+	public FoxEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new FoxEntityModel(context.getPart(EntityModelLayers.FOX)),
+				new FoxEntityModel(context.getPart(EntityModelLayers.FOX_BABY)),
+				0.4F
+		);
+		this.addFeature(new FoxHeldItemFeatureRenderer(this));
+	}
 
-   public Identifier getTexture(FoxEntityRenderState foxEntityRenderState) {
-      if (foxEntityRenderState.type == FoxEntity.Variant.RED) {
-         return foxEntityRenderState.sleeping ? SLEEPING_TEXTURE : TEXTURE;
-      } else {
-         return foxEntityRenderState.sleeping ? SLEEPING_SNOW_TEXTURE : SNOW_TEXTURE;
-      }
-   }
+	protected void setupTransforms(
+			FoxEntityRenderState foxEntityRenderState,
+			MatrixStack matrixStack,
+			float f,
+			float g
+	) {
+		super.setupTransforms(foxEntityRenderState, matrixStack, f, g);
+		if (foxEntityRenderState.chasing || foxEntityRenderState.walking) {
+			matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-foxEntityRenderState.pitch));
+		}
+	}
 
-   public FoxEntityRenderState createRenderState() {
-      return new FoxEntityRenderState();
-   }
+	public Identifier getTexture(FoxEntityRenderState foxEntityRenderState) {
+		if (foxEntityRenderState.type == FoxEntity.Variant.RED) {
+			return foxEntityRenderState.sleeping ? SLEEPING_TEXTURE : TEXTURE;
+		}
+		else {
+			return foxEntityRenderState.sleeping ? SLEEPING_SNOW_TEXTURE : SNOW_TEXTURE;
+		}
+	}
 
-   public void updateRenderState(FoxEntity foxEntity, FoxEntityRenderState foxEntityRenderState, float f) {
-      super.updateRenderState(foxEntity, foxEntityRenderState, f);
-      ItemHolderEntityRenderState.update(foxEntity, foxEntityRenderState, this.itemModelResolver);
-      foxEntityRenderState.headRoll = foxEntity.getHeadRoll(f);
-      foxEntityRenderState.inSneakingPose = foxEntity.isInSneakingPose();
-      foxEntityRenderState.bodyRotationHeightOffset = foxEntity.getBodyRotationHeightOffset(f);
-      foxEntityRenderState.sleeping = foxEntity.isSleeping();
-      foxEntityRenderState.sitting = foxEntity.isSitting();
-      foxEntityRenderState.walking = foxEntity.isWalking();
-      foxEntityRenderState.chasing = foxEntity.isChasing();
-      foxEntityRenderState.type = foxEntity.getVariant();
-   }
+	public FoxEntityRenderState createRenderState() {
+		return new FoxEntityRenderState();
+	}
+
+	public void updateRenderState(FoxEntity foxEntity, FoxEntityRenderState foxEntityRenderState, float f) {
+		super.updateRenderState(foxEntity, foxEntityRenderState, f);
+		ItemHolderEntityRenderState.update(foxEntity, foxEntityRenderState, this.itemModelResolver);
+		foxEntityRenderState.headRoll = foxEntity.getHeadRoll(f);
+		foxEntityRenderState.inSneakingPose = foxEntity.isInSneakingPose();
+		foxEntityRenderState.bodyRotationHeightOffset = foxEntity.getBodyRotationHeightOffset(f);
+		foxEntityRenderState.sleeping = foxEntity.isSleeping();
+		foxEntityRenderState.sitting = foxEntity.isSitting();
+		foxEntityRenderState.walking = foxEntity.isWalking();
+		foxEntityRenderState.chasing = foxEntity.isChasing();
+		foxEntityRenderState.type = foxEntity.getVariant();
+	}
 }

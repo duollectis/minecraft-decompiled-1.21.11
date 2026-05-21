@@ -5,44 +5,49 @@ import java.util.NoSuchElementException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+/**
+ * {@code AbstractNbtList}.
+ */
 public sealed interface AbstractNbtList extends Iterable<NbtElement>, NbtElement permits NbtList, NbtByteArray, NbtIntArray, NbtLongArray {
-   void clear();
 
-   boolean setElement(int index, NbtElement element);
+	void clear();
 
-   boolean addElement(int index, NbtElement element);
+	boolean setElement(int index, NbtElement element);
 
-   NbtElement method_10536(int i);
+	boolean addElement(int index, NbtElement element);
 
-   NbtElement method_10534(int i);
+	NbtElement remove(int i);
 
-   int size();
+	NbtElement get(int i);
 
-   default boolean isEmpty() {
-      return this.size() == 0;
-   }
+	int size();
 
-   @Override
-   default Iterator<NbtElement> iterator() {
-      return new Iterator<NbtElement>() {
-         private int current;
+	default boolean isEmpty() {
+		return this.size() == 0;
+	}
 
-         @Override
-         public boolean hasNext() {
-            return this.current < AbstractNbtList.this.size();
-         }
+	@Override
+	default Iterator<NbtElement> iterator() {
+		return new Iterator<NbtElement>() {
+			private int current;
 
-         public NbtElement next() {
-            if (!this.hasNext()) {
-               throw new NoSuchElementException();
-            } else {
-               return AbstractNbtList.this.method_10534(this.current++);
-            }
-         }
-      };
-   }
+			@Override
+			public boolean hasNext() {
+				return this.current < AbstractNbtList.this.size();
+			}
 
-   default Stream<NbtElement> stream() {
-      return StreamSupport.stream(this.spliterator(), false);
-   }
+			public NbtElement next() {
+				if (!this.hasNext()) {
+					throw new NoSuchElementException();
+				}
+				else {
+					return AbstractNbtList.this.get(this.current++);
+				}
+			}
+		};
+	}
+
+	default Stream<NbtElement> stream() {
+		return StreamSupport.stream(this.spliterator(), false);
+	}
 }

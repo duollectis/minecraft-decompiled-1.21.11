@@ -4,111 +4,129 @@ import com.google.common.base.MoreObjects;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Stream;
 import net.minecraft.state.State;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+
+/**
+ * {@code Property}.
+ */
 public abstract class Property<T extends Comparable<T>> {
-   private final Class<T> type;
-   private final String name;
-   private @Nullable Integer hashCodeCache;
-   private final Codec<T> codec = Codec.STRING
-      .comapFlatMap(
-         value -> this.parse(value)
-            .<DataResult>map(DataResult::success)
-            .orElseGet(() -> DataResult.error(() -> "Unable to read property: " + this + " with value: " + value)),
-         this::name
-      );
-   private final Codec<Property.Value<T>> valueCodec = this.codec.xmap(this::createValue, Property.Value::value);
 
-   protected Property(String name, Class<T> type) {
-      this.type = type;
-      this.name = name;
-   }
+	private final Class<T> type;
+	private final String name;
+	private @Nullable Integer hashCodeCache;
+	private final Codec<T> codec = Codec.STRING
+			.comapFlatMap(
+					value -> this.parse(value)
+					             .<DataResult>map(DataResult::success)
+					             .orElseGet(() -> DataResult.error(() -> "Unable to read property: " + this
+							             + " with value: " + value)),
+					this::name
+			);
+	private final Codec<Property.Value<T>> valueCodec = this.codec.xmap(this::createValue, Property.Value::value);
 
-   public Property.Value<T> createValue(T value) {
-      return new Property.Value<>(this, value);
-   }
+	protected Property(String name, Class<T> type) {
+		this.type = type;
+		this.name = name;
+	}
 
-   public Property.Value<T> createValue(State<?, ?> state) {
-      return new Property.Value<>(this, state.get(this));
-   }
+	public Property.Value<T> createValue(T value) {
+		return new Property.Value<>(this, value);
+	}
 
-   public Stream<Property.Value<T>> stream() {
-      return this.getValues().stream().map(this::createValue);
-   }
+	public Property.Value<T> createValue(State<?, ?> state) {
+		return new Property.Value<>(this, state.get(this));
+	}
 
-   public Codec<T> getCodec() {
-      return this.codec;
-   }
+	public Stream<Property.Value<T>> stream() {
+		return this.getValues().stream().map(this::createValue);
+	}
 
-   public Codec<Property.Value<T>> getValueCodec() {
-      return this.valueCodec;
-   }
+	public Codec<T> getCodec() {
+		return this.codec;
+	}
 
-   public String getName() {
-      return this.name;
-   }
+	public Codec<Property.Value<T>> getValueCodec() {
+		return this.valueCodec;
+	}
 
-   public Class<T> getType() {
-      return this.type;
-   }
+	public String getName() {
+		return this.name;
+	}
 
-   public abstract List<T> getValues();
+	public Class<T> getType() {
+		return this.type;
+	}
 
-   public abstract String name(T value);
+	public abstract List<T> getValues();
 
-   public abstract Optional<T> parse(String name);
+	public abstract String name(T value);
 
-   public abstract int ordinal(T value);
+	public abstract Optional<T> parse(String name);
 
-   @Override
-   public String toString() {
-      return MoreObjects.toStringHelper(this).add("name", this.name).add("clazz", this.type).add("values", this.getValues()).toString();
-   }
+	public abstract int ordinal(T value);
 
-   @Override
-   public boolean equals(Object o) {
-      if (this == o) {
-         return true;
-      } else {
-         return !(o instanceof Property<?> property) ? false : this.type.equals(property.type) && this.name.equals(property.name);
-      }
-   }
+	@Override
+	public String toString() {
+		return MoreObjects
+				.toStringHelper(this)
+				.add("name", this.name)
+				.add("clazz", this.type)
+				.add("values", this.getValues())
+				.toString();
+	}
 
-   @Override
-   public final int hashCode() {
-      if (this.hashCodeCache == null) {
-         this.hashCodeCache = this.computeHashCode();
-      }
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) {
+			return true;
+		}
+		else {
+			return !(o instanceof Property<?> property) ? false : this.type.equals(property.type) && this.name.equals(
+					property.name);
+		}
+	}
 
-      return this.hashCodeCache;
-   }
+	@Override
+	public final int hashCode() {
+		if (this.hashCodeCache == null) {
+			this.hashCodeCache = this.computeHashCode();
+		}
 
-   public int computeHashCode() {
-      return 31 * this.type.hashCode() + this.name.hashCode();
-   }
+		return this.hashCodeCache;
+	}
 
-   public <U, S extends State<?, S>> DataResult<S> parse(DynamicOps<U> ops, S state, U input) {
-      DataResult<T> dataResult = this.codec.parse(ops, input);
-      return dataResult.map(property -> state.with(this, property)).setPartial(state);
-   }
+	public int computeHashCode() {
+		return 31 * this.type.hashCode() + this.name.hashCode();
+	}
 
-   public record Value<T extends Comparable<T>>(Property<T> property, T value) {
-      public Value(Property<T> property, T value) {
-         if (!property.getValues().contains(value)) {
-            throw new IllegalArgumentException("Value " + value + " does not belong to property " + property);
-         } else {
-            this.property = property;
-            this.value = value;
-         }
-      }
+	public <U, S extends State<?, S>> DataResult<S> parse(DynamicOps<U> ops, S state, U input) {
+		DataResult<T> dataResult = this.codec.parse(ops, input);
+		return dataResult.map(property -> state.with(this, property)).setPartial(state);
+	}
 
-      @Override
-      public String toString() {
-         return this.property.getName() + "=" + this.property.name(this.value);
-      }
-   }
+	/**
+	 * {@code Value}.
+	 */
+	public record Value<T extends Comparable<T>>(Property<T> property, T value) {
+
+		public Value(Property<T> property, T value) {
+			if (!property.getValues().contains(value)) {
+				throw new IllegalArgumentException("Value " + value + " does not belong to property " + property);
+			}
+			else {
+				this.property = property;
+				this.value = value;
+			}
+		}
+
+		@Override
+		public String toString() {
+			return this.property.getName() + "=" + this.property.name(this.value);
+		}
+	}
 }

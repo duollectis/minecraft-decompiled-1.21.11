@@ -1,56 +1,67 @@
 package net.minecraft.util;
 
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.io.Writer;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.commons.lang3.StringEscapeUtils;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CsvWriter}.
+ */
 public class CsvWriter {
-   private static final String CRLF = "\r\n";
-   private static final String COMMA = ",";
-   private final Writer writer;
-   private final int column;
 
-   CsvWriter(Writer writer, List<String> columns) throws IOException {
-      this.writer = writer;
-      this.column = columns.size();
-      this.printRow(columns.stream());
-   }
+	private static final String CRLF = "\r\n";
+	private static final String COMMA = ",";
+	private final Writer writer;
+	private final int column;
 
-   public static CsvWriter.Header makeHeader() {
-      return new CsvWriter.Header();
-   }
+	CsvWriter(Writer writer, List<String> columns) throws IOException {
+		this.writer = writer;
+		this.column = columns.size();
+		this.printRow(columns.stream());
+	}
 
-   public void printRow(@Nullable Object... columns) throws IOException {
-      if (columns.length != this.column) {
-         throw new IllegalArgumentException("Invalid number of columns, expected " + this.column + ", but got " + columns.length);
-      } else {
-         this.printRow(Stream.of(columns));
-      }
-   }
+	public static CsvWriter.Header makeHeader() {
+		return new CsvWriter.Header();
+	}
 
-   private void printRow(Stream<? extends @Nullable Object> columns) throws IOException {
-      this.writer.write(columns.map(CsvWriter::escape).collect(Collectors.joining(",")) + "\r\n");
-   }
+	public void printRow(@Nullable Object... columns) throws IOException {
+		if (columns.length != this.column) {
+			throw new IllegalArgumentException(
+					"Invalid number of columns, expected " + this.column + ", but got " + columns.length);
+		}
+		else {
+			this.printRow(Stream.of(columns));
+		}
+	}
 
-   private static String escape(@Nullable Object o) {
-      return StringEscapeUtils.escapeCsv(o != null ? o.toString() : "[null]");
-   }
+	private void printRow(Stream<? extends @Nullable Object> columns) throws IOException {
+		this.writer.write(columns.map(CsvWriter::escape).collect(Collectors.joining(",")) + "\r\n");
+	}
 
-   public static class Header {
-      private final List<String> columns = Lists.newArrayList();
+	private static String escape(@Nullable Object o) {
+		return StringEscapeUtils.escapeCsv(o != null ? o.toString() : "[null]");
+	}
 
-      public CsvWriter.Header addColumn(String name) {
-         this.columns.add(name);
-         return this;
-      }
+	/**
+	 * {@code Header}.
+	 */
+	public static class Header {
 
-      public CsvWriter startBody(Writer writer) throws IOException {
-         return new CsvWriter(writer, this.columns);
-      }
-   }
+		private final List<String> columns = Lists.newArrayList();
+
+		public CsvWriter.Header addColumn(String name) {
+			this.columns.add(name);
+			return this;
+		}
+
+		public CsvWriter startBody(Writer writer) throws IOException {
+			return new CsvWriter(writer, this.columns);
+		}
+	}
 }

@@ -9,33 +9,46 @@ import net.minecraft.client.option.SimpleOption;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ControlsOptionsScreen}.
+ */
 public class ControlsOptionsScreen extends GameOptionsScreen {
-   private static final Text TITLE_TEXT = Text.translatable("controls.title");
 
-   private static SimpleOption<?>[] getOptions(GameOptions gameOptions) {
-      return new SimpleOption[]{
-         gameOptions.getSneakToggled(),
-         gameOptions.getSprintToggled(),
-         gameOptions.getAttackToggled(),
-         gameOptions.getUseToggled(),
-         gameOptions.getAutoJump(),
-         gameOptions.getSprintWindow(),
-         gameOptions.getOperatorItemsTab()
-      };
-   }
+	private static final Text TITLE_TEXT = Text.translatable("controls.title");
 
-   public ControlsOptionsScreen(Screen parent, GameOptions options) {
-      super(parent, options, TITLE_TEXT);
-   }
+	private static SimpleOption<?>[] getOptions(GameOptions gameOptions) {
+		return new SimpleOption[]{
+				gameOptions.getSneakToggled(),
+				gameOptions.getSprintToggled(),
+				gameOptions.getAttackToggled(),
+				gameOptions.getUseToggled(),
+				gameOptions.getAutoJump(),
+				gameOptions.getSprintWindow(),
+				gameOptions.getOperatorItemsTab()
+		};
+	}
 
-   @Override
-   protected void addOptions() {
-      this.body
-         .addWidgetEntry(
-            ButtonWidget.builder(Text.translatable("options.mouse_settings"), button -> this.client.setScreen(new MouseOptionsScreen(this, this.gameOptions)))
-               .build(),
-            ButtonWidget.builder(Text.translatable("controls.keybinds"), button -> this.client.setScreen(new KeybindsScreen(this, this.gameOptions))).build()
-         );
-      this.body.addAll(getOptions(this.gameOptions));
-   }
+	public ControlsOptionsScreen(Screen parent, GameOptions options) {
+		super(parent, options, TITLE_TEXT);
+	}
+
+	@Override
+	protected void addOptions() {
+		this.body
+				.addWidgetEntry(
+						ButtonWidget
+								.builder(
+										Text.translatable("options.mouse_settings"),
+										button -> this.client.setScreen(new MouseOptionsScreen(this, this.gameOptions))
+								)
+								.build(),
+						ButtonWidget
+								.builder(
+										Text.translatable("controls.keybinds"),
+										button -> this.client.setScreen(new KeybindsScreen(this, this.gameOptions))
+								)
+								.build()
+				);
+		this.body.addAll(getOptions(this.gameOptions));
+	}
 }

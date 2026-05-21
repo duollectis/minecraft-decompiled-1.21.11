@@ -3,8 +3,6 @@ package net.minecraft.block;
 import com.mojang.datafixers.DataFixUtils;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Map;
-import java.util.Optional;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemConvertible;
 import net.minecraft.item.ItemStack;
@@ -23,87 +21,115 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * {@code AttachedStemBlock}.
+ */
 public class AttachedStemBlock extends PlantBlock {
-   public static final MapCodec<AttachedStemBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            RegistryKey.createCodec(RegistryKeys.BLOCK).fieldOf("fruit").forGetter(block -> block.gourdBlock),
-            RegistryKey.createCodec(RegistryKeys.BLOCK).fieldOf("stem").forGetter(block -> block.stemBlock),
-            RegistryKey.createCodec(RegistryKeys.ITEM).fieldOf("seed").forGetter(block -> block.pickBlockItem),
-            createSettingsCodec()
-         )
-         .apply(instance, AttachedStemBlock::new)
-   );
-   public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
-   private static final Map<Direction, VoxelShape> SHAPES_BY_DIRECTION = VoxelShapes.createHorizontalFacingShapeMap(
-      Block.createCuboidZShape(4.0, 0.0, 10.0, 0.0, 10.0)
-   );
-   private final RegistryKey<Block> gourdBlock;
-   private final RegistryKey<Block> stemBlock;
-   private final RegistryKey<Item> pickBlockItem;
 
-   @Override
-   public MapCodec<AttachedStemBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<AttachedStemBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    RegistryKey.createCodec(RegistryKeys.BLOCK).fieldOf("fruit").forGetter(block -> block.gourdBlock),
+					                    RegistryKey.createCodec(RegistryKeys.BLOCK).fieldOf("stem").forGetter(block -> block.stemBlock),
+					                    RegistryKey.createCodec(RegistryKeys.ITEM).fieldOf("seed").forGetter(block -> block.pickBlockItem),
+					                    createSettingsCodec()
+			                    )
+			                    .apply(instance, AttachedStemBlock::new)
+	);
+	public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
+	private static final Map<Direction, VoxelShape> SHAPES_BY_DIRECTION = VoxelShapes.createHorizontalFacingShapeMap(
+			Block.createCuboidZShape(4.0, 0.0, 10.0, 0.0, 10.0)
+	);
+	private final RegistryKey<Block> gourdBlock;
+	private final RegistryKey<Block> stemBlock;
+	private final RegistryKey<Item> pickBlockItem;
 
-   public AttachedStemBlock(RegistryKey<Block> stemBlock, RegistryKey<Block> gourdBlock, RegistryKey<Item> pickBlockItem, AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH));
-      this.stemBlock = stemBlock;
-      this.gourdBlock = gourdBlock;
-      this.pickBlockItem = pickBlockItem;
-   }
+	@Override
+	public MapCodec<AttachedStemBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPES_BY_DIRECTION.get(state.get(FACING));
-   }
+	public AttachedStemBlock(
+			RegistryKey<Block> stemBlock,
+			RegistryKey<Block> gourdBlock,
+			RegistryKey<Item> pickBlockItem,
+			AbstractBlock.Settings settings
+	) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH));
+		this.stemBlock = stemBlock;
+		this.gourdBlock = gourdBlock;
+		this.pickBlockItem = pickBlockItem;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (!neighborState.matchesKey(this.gourdBlock) && direction == state.get(FACING)) {
-         Optional<Block> optional = world.getRegistryManager().getOrThrow(RegistryKeys.BLOCK).getOptionalValue(this.stemBlock);
-         if (optional.isPresent()) {
-            return optional.get().getDefaultState().withIfExists(StemBlock.AGE, 7);
-         }
-      }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPES_BY_DIRECTION.get(state.get(FACING));
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (!neighborState.matchesKey(this.gourdBlock) && direction == state.get(FACING)) {
+			Optional<Block>
+					optional =
+					world.getRegistryManager().getOrThrow(RegistryKeys.BLOCK).getOptionalValue(this.stemBlock);
+			if (optional.isPresent()) {
+				return optional.get().getDefaultState().withIfExists(StemBlock.AGE, 7);
+			}
+		}
 
-   @Override
-   protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
-      return floor.isOf(Blocks.FARMLAND);
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return new ItemStack(
-         (ItemConvertible)DataFixUtils.orElse(world.getRegistryManager().getOrThrow(RegistryKeys.ITEM).getOptionalValue(this.pickBlockItem), this)
-      );
-   }
+	@Override
+	protected boolean canPlantOnTop(BlockState floor, BlockView world, BlockPos pos) {
+		return floor.isOf(Blocks.FARMLAND);
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(FACING, rotation.rotate(state.get(FACING)));
-   }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return new ItemStack(
+				(ItemConvertible) DataFixUtils.orElse(
+						world
+								.getRegistryManager()
+								.getOrThrow(RegistryKeys.ITEM)
+								.getOptionalValue(this.pickBlockItem), this
+				)
+		);
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.rotate(mirror.getRotation(state.get(FACING)));
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(FACING, rotation.rotate(state.get(FACING)));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(FACING);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.rotate(mirror.getRotation(state.get(FACING)));
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(FACING);
+	}
 }

@@ -4,15 +4,19 @@ import net.minecraft.block.BlockState;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code DropperBlockEntity}.
+ */
 public class DropperBlockEntity extends DispenserBlockEntity {
-   private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.dropper");
 
-   public DropperBlockEntity(BlockPos blockPos, BlockState blockState) {
-      super(BlockEntityType.DROPPER, blockPos, blockState);
-   }
+	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.dropper");
 
-   @Override
-   protected Text getContainerName() {
-      return CONTAINER_NAME_TEXT;
-   }
+	public DropperBlockEntity(BlockPos blockPos, BlockState blockState) {
+		super(BlockEntityType.DROPPER, blockPos, blockState);
+	}
+
+	@Override
+	protected Text getContainerName() {
+		return CONTAINER_NAME_TEXT;
+	}
 }

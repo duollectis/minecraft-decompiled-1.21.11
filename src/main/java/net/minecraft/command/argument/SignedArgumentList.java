@@ -4,63 +4,78 @@ import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.context.CommandContextBuilder;
 import com.mojang.brigadier.context.ParsedCommandNode;
 import com.mojang.brigadier.tree.ArgumentCommandNode;
-import java.util.ArrayList;
-import java.util.List;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * {@code SignedArgumentList}.
+ */
 public record SignedArgumentList<S>(List<SignedArgumentList.ParsedArgument<S>> arguments) {
-   public static <S> boolean isNotEmpty(ParseResults<S> parseResults) {
-      return !of(parseResults).arguments().isEmpty();
-   }
 
-   public static <S> SignedArgumentList<S> of(ParseResults<S> parseResults) {
-      String string = parseResults.getReader().getString();
-      CommandContextBuilder<S> commandContextBuilder = parseResults.getContext();
-      CommandContextBuilder<S> commandContextBuilder2 = commandContextBuilder;
-      List<SignedArgumentList.ParsedArgument<S>> list = collectDecoratableArguments(string, commandContextBuilder);
+	public static <S> boolean isNotEmpty(ParseResults<S> parseResults) {
+		return !of(parseResults).arguments().isEmpty();
+	}
 
-      CommandContextBuilder<S> commandContextBuilder3;
-      while (
-         (commandContextBuilder3 = commandContextBuilder2.getChild()) != null && commandContextBuilder3.getRootNode() != commandContextBuilder.getRootNode()
-      ) {
-         list.addAll(collectDecoratableArguments(string, commandContextBuilder3));
-         commandContextBuilder2 = commandContextBuilder3;
-      }
+	public static <S> SignedArgumentList<S> of(ParseResults<S> parseResults) {
+		String string = parseResults.getReader().getString();
+		CommandContextBuilder<S> commandContextBuilder = parseResults.getContext();
+		CommandContextBuilder<S> commandContextBuilder2 = commandContextBuilder;
+		List<SignedArgumentList.ParsedArgument<S>> list = collectDecoratableArguments(string, commandContextBuilder);
 
-      return new SignedArgumentList<>(list);
-   }
+		CommandContextBuilder<S> commandContextBuilder3;
+		while (
+				(commandContextBuilder3 = commandContextBuilder2.getChild()) != null
+						&& commandContextBuilder3.getRootNode() != commandContextBuilder.getRootNode()
+		) {
+			list.addAll(collectDecoratableArguments(string, commandContextBuilder3));
+			commandContextBuilder2 = commandContextBuilder3;
+		}
 
-   private static <S> List<SignedArgumentList.ParsedArgument<S>> collectDecoratableArguments(String argumentName, CommandContextBuilder<S> builder) {
-      List<SignedArgumentList.ParsedArgument<S>> list = new ArrayList<>();
+		return new SignedArgumentList<>(list);
+	}
 
-      for (ParsedCommandNode<S> parsedCommandNode : builder.getNodes()) {
-         if (parsedCommandNode.getNode() instanceof ArgumentCommandNode<S, ?> argumentCommandNode
-            && argumentCommandNode.getType() instanceof SignedArgumentType) {
-            com.mojang.brigadier.context.ParsedArgument<S, ?> parsedArgument = (com.mojang.brigadier.context.ParsedArgument<S, ?>)builder.getArguments()
-               .get(argumentCommandNode.getName());
-            if (parsedArgument != null) {
-               String string = parsedArgument.getRange().get(argumentName);
-               list.add(new SignedArgumentList.ParsedArgument<>(argumentCommandNode, string));
-            }
-         }
-      }
+	private static <S> List<SignedArgumentList.ParsedArgument<S>> collectDecoratableArguments(
+			String argumentName,
+			CommandContextBuilder<S> builder
+	) {
+		List<SignedArgumentList.ParsedArgument<S>> list = new ArrayList<>();
 
-      return list;
-   }
+		for (ParsedCommandNode<S> parsedCommandNode : builder.getNodes()) {
+			if (parsedCommandNode.getNode() instanceof ArgumentCommandNode<S, ?> argumentCommandNode
+					&& argumentCommandNode.getType() instanceof SignedArgumentType) {
+				com.mojang.brigadier.context.ParsedArgument<S, ?>
+						parsedArgument =
+						(com.mojang.brigadier.context.ParsedArgument<S, ?>) builder.getArguments()
+						                                                           .get(argumentCommandNode.getName());
+				if (parsedArgument != null) {
+					String string = parsedArgument.getRange().get(argumentName);
+					list.add(new SignedArgumentList.ParsedArgument<>(argumentCommandNode, string));
+				}
+			}
+		}
 
-   public SignedArgumentList.@Nullable ParsedArgument<S> get(String name) {
-      for (SignedArgumentList.ParsedArgument<S> parsedArgument : this.arguments) {
-         if (name.equals(parsedArgument.getNodeName())) {
-            return parsedArgument;
-         }
-      }
+		return list;
+	}
 
-      return null;
-   }
+	public SignedArgumentList.@Nullable ParsedArgument<S> get(String name) {
+		for (SignedArgumentList.ParsedArgument<S> parsedArgument : this.arguments) {
+			if (name.equals(parsedArgument.getNodeName())) {
+				return parsedArgument;
+			}
+		}
 
-   public record ParsedArgument<S>(ArgumentCommandNode<S, ?> node, String value) {
-      public String getNodeName() {
-         return this.node.getName();
-      }
-   }
+		return null;
+	}
+
+	/**
+	 * {@code ParsedArgument}.
+	 */
+	public record ParsedArgument<S>(ArgumentCommandNode<S, ?> node, String value) {
+
+		public String getNodeName() {
+			return this.node.getName();
+		}
+	}
 }

@@ -6,7 +6,11 @@ import net.minecraft.block.CopperGolemStatueBlock;
 import net.minecraft.util.math.Direction;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CopperGolemStatueBlockEntityRenderState}.
+ */
 public class CopperGolemStatueBlockEntityRenderState extends BlockEntityRenderState {
-   public CopperGolemStatueBlock.Pose pose = CopperGolemStatueBlock.Pose.STANDING;
-   public Direction facing = Direction.NORTH;
+
+	public CopperGolemStatueBlock.Pose pose = CopperGolemStatueBlock.Pose.STANDING;
+	public Direction facing = Direction.NORTH;
 }

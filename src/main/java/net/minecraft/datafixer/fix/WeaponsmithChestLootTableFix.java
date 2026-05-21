@@ -5,21 +5,28 @@ import com.mojang.datafixers.Typed;
 import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code WeaponsmithChestLootTableFix}.
+ */
 public class WeaponsmithChestLootTableFix extends ChoiceFix {
-   public WeaponsmithChestLootTableFix(Schema schema, boolean bl) {
-      super(schema, bl, "WeaponSmithChestLootTableFix", TypeReferences.BLOCK_ENTITY, "minecraft:chest");
-   }
 
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      return inputTyped.update(
-         DSL.remainderFinder(),
-         dynamic -> {
-            String string = dynamic.get("LootTable").asString("");
-            return string.equals("minecraft:chests/village_blacksmith")
-               ? dynamic.set("LootTable", dynamic.createString("minecraft:chests/village/village_weaponsmith"))
-               : dynamic;
-         }
-      );
-   }
+	public WeaponsmithChestLootTableFix(Schema schema, boolean bl) {
+		super(schema, bl, "WeaponSmithChestLootTableFix", TypeReferences.BLOCK_ENTITY, "minecraft:chest");
+	}
+
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		return inputTyped.update(
+				DSL.remainderFinder(),
+				dynamic -> {
+					String string = dynamic.get("LootTable").asString("");
+					return string.equals("minecraft:chests/village_blacksmith")
+					       ? dynamic.set(
+							"LootTable",
+							dynamic.createString("minecraft:chests/village/village_weaponsmith")
+					)
+					       : dynamic;
+				}
+		);
+	}
 }

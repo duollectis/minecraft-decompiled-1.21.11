@@ -9,72 +9,102 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FlameParticle}.
+ */
 public class FlameParticle extends AbstractSlowingParticle {
-   FlameParticle(ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Sprite sprite) {
-      super(clientWorld, d, e, f, g, h, i, sprite);
-   }
 
-   @Override
-   public BillboardParticle.RenderType getRenderType() {
-      return BillboardParticle.RenderType.PARTICLE_ATLAS_OPAQUE;
-   }
+	FlameParticle(ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Sprite sprite) {
+		super(clientWorld, d, e, f, g, h, i, sprite);
+	}
 
-   @Override
-   public void move(double dx, double dy, double dz) {
-      this.setBoundingBox(this.getBoundingBox().offset(dx, dy, dz));
-      this.repositionFromBoundingBox();
-   }
+	@Override
+	public BillboardParticle.RenderType getRenderType() {
+		return BillboardParticle.RenderType.PARTICLE_ATLAS_OPAQUE;
+	}
 
-   @Override
-   public float getSize(float tickProgress) {
-      float f = (this.age + tickProgress) / this.maxAge;
-      return this.scale * (1.0F - f * f * 0.5F);
-   }
+	@Override
+	public void move(double dx, double dy, double dz) {
+		this.setBoundingBox(this.getBoundingBox().offset(dx, dy, dz));
+		this.repositionFromBoundingBox();
+	}
 
-   @Override
-   public int getBrightness(float tint) {
-      float f = (this.age + tint) / this.maxAge;
-      f = MathHelper.clamp(f, 0.0F, 1.0F);
-      int i = super.getBrightness(tint);
-      int j = i & 0xFF;
-      int k = i >> 16 & 0xFF;
-      j += (int)(f * 15.0F * 16.0F);
-      if (j > 240) {
-         j = 240;
-      }
+	@Override
+	public float getSize(float tickProgress) {
+		float f = (this.age + tickProgress) / this.maxAge;
+		return this.scale * (1.0F - f * f * 0.5F);
+	}
 
-      return j | k << 16;
-   }
+	@Override
+	public int getBrightness(float tint) {
+		float f = (this.age + tint) / this.maxAge;
+		f = MathHelper.clamp(f, 0.0F, 1.0F);
+		int i = super.getBrightness(tint);
+		int j = i & 0xFF;
+		int k = i >> 16 & 0xFF;
+		j += (int) (f * 15.0F * 16.0F);
+		if (j > 240) {
+			j = 240;
+		}
 
-   @Environment(EnvType.CLIENT)
-   public static class Factory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+		return j | k << 16;
+	}
 
-      public Factory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Factory}.
+	 */
+	public static class Factory implements ParticleFactory<SimpleParticleType> {
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new FlameParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
-      }
-   }
+		private final SpriteProvider spriteProvider;
 
-   @Environment(EnvType.CLIENT)
-   public static class SmallFactory implements ParticleFactory<SimpleParticleType> {
-      private final SpriteProvider spriteProvider;
+		public Factory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
 
-      public SmallFactory(SpriteProvider spriteProvider) {
-         this.spriteProvider = spriteProvider;
-      }
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new FlameParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
+		}
+	}
 
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         FlameParticle flameParticle = new FlameParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
-         flameParticle.scale(0.5F);
-         return flameParticle;
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code SmallFactory}.
+	 */
+	public static class SmallFactory implements ParticleFactory<SimpleParticleType> {
+
+		private final SpriteProvider spriteProvider;
+
+		public SmallFactory(SpriteProvider spriteProvider) {
+			this.spriteProvider = spriteProvider;
+		}
+
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			FlameParticle
+					flameParticle =
+					new FlameParticle(clientWorld, d, e, f, g, h, i, this.spriteProvider.getSprite(random));
+			flameParticle.scale(0.5F);
+			return flameParticle;
+		}
+	}
 }

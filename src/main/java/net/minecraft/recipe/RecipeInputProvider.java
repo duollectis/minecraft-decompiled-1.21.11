@@ -1,6 +1,10 @@
 package net.minecraft.recipe;
 
 @FunctionalInterface
+/**
+ * {@code RecipeInputProvider}.
+ */
 public interface RecipeInputProvider {
-   void provideRecipeInputs(RecipeFinder finder);
+
+	void provideRecipeInputs(RecipeFinder finder);
 }

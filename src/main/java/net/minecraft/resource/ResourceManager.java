@@ -1,55 +1,69 @@
 package net.minecraft.resource;
 
+import net.minecraft.util.Identifier;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-import net.minecraft.util.Identifier;
 
+/**
+ * {@code ResourceManager}.
+ */
 public interface ResourceManager extends ResourceFactory {
-   Set<String> getAllNamespaces();
 
-   List<Resource> getAllResources(Identifier id);
+	Set<String> getAllNamespaces();
 
-   Map<Identifier, Resource> findResources(String startingPath, Predicate<Identifier> allowedPathPredicate);
+	List<Resource> getAllResources(Identifier id);
 
-   Map<Identifier, List<Resource>> findAllResources(String startingPath, Predicate<Identifier> allowedPathPredicate);
+	Map<Identifier, Resource> findResources(String startingPath, Predicate<Identifier> allowedPathPredicate);
 
-   Stream<ResourcePack> streamResourcePacks();
+	Map<Identifier, List<Resource>> findAllResources(String startingPath, Predicate<Identifier> allowedPathPredicate);
 
-   public static enum Empty implements ResourceManager {
-      INSTANCE;
+	Stream<ResourcePack> streamResourcePacks();
 
-      @Override
-      public Set<String> getAllNamespaces() {
-         return Set.of();
-      }
+	/**
+	 * {@code Empty}.
+	 */
+	public static enum Empty implements ResourceManager {
+		INSTANCE;
 
-      @Override
-      public Optional<Resource> getResource(Identifier identifier) {
-         return Optional.empty();
-      }
+		@Override
+		public Set<String> getAllNamespaces() {
+			return Set.of();
+		}
 
-      @Override
-      public List<Resource> getAllResources(Identifier id) {
-         return List.of();
-      }
+		@Override
+		public Optional<Resource> getResource(Identifier identifier) {
+			return Optional.empty();
+		}
 
-      @Override
-      public Map<Identifier, Resource> findResources(String startingPath, Predicate<Identifier> allowedPathPredicate) {
-         return Map.of();
-      }
+		@Override
+		public List<Resource> getAllResources(Identifier id) {
+			return List.of();
+		}
 
-      @Override
-      public Map<Identifier, List<Resource>> findAllResources(String startingPath, Predicate<Identifier> allowedPathPredicate) {
-         return Map.of();
-      }
+		@Override
+		public Map<Identifier, Resource> findResources(
+				String startingPath,
+				Predicate<Identifier> allowedPathPredicate
+		) {
+			return Map.of();
+		}
 
-      @Override
-      public Stream<ResourcePack> streamResourcePacks() {
-         return Stream.of();
-      }
-   }
+		@Override
+		public Map<Identifier, List<Resource>> findAllResources(
+				String startingPath,
+				Predicate<Identifier> allowedPathPredicate
+		) {
+			return Map.of();
+		}
+
+		@Override
+		public Stream<ResourcePack> streamResourcePacks() {
+			return Stream.of();
+		}
+	}
 }

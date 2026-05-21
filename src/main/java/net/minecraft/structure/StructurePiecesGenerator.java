@@ -7,17 +7,24 @@ import net.minecraft.world.gen.chunk.ChunkGenerator;
 import net.minecraft.world.gen.feature.FeatureConfig;
 
 @FunctionalInterface
+/**
+ * {@code StructurePiecesGenerator}.
+ */
 public interface StructurePiecesGenerator<C extends FeatureConfig> {
-   void generatePieces(StructurePiecesCollector collector, StructurePiecesGenerator.Context<C> context);
 
-   public record Context<C extends FeatureConfig>(
-      C config,
-      ChunkGenerator chunkGenerator,
-      StructureTemplateManager structureTemplateManager,
-      ChunkPos chunkPos,
-      HeightLimitView world,
-      ChunkRandom random,
-      long seed
-   ) {
-   }
+	void generatePieces(StructurePiecesCollector collector, StructurePiecesGenerator.Context<C> context);
+
+	/**
+	 * {@code Context}.
+	 */
+	public record Context<C extends FeatureConfig>(
+			C config,
+			ChunkGenerator chunkGenerator,
+			StructureTemplateManager structureTemplateManager,
+			ChunkPos chunkPos,
+			HeightLimitView world,
+			ChunkRandom random,
+			long seed
+	) {
+	}
 }

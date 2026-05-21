@@ -7,15 +7,20 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code HangingSignItem}.
+ */
 public class HangingSignItem extends SignItem {
-   public HangingSignItem(Block hangingSign, Block wallHangingSign, Item.Settings settings) {
-      super(settings, hangingSign, wallHangingSign, Direction.UP);
-   }
 
-   @Override
-   protected boolean canPlaceAt(WorldView world, BlockState state, BlockPos pos) {
-      return state.getBlock() instanceof WallHangingSignBlock wallHangingSignBlock && !wallHangingSignBlock.canAttachAt(state, world, pos)
-         ? false
-         : super.canPlaceAt(world, state, pos);
-   }
+	public HangingSignItem(Block hangingSign, Block wallHangingSign, Item.Settings settings) {
+		super(settings, hangingSign, wallHangingSign, Direction.UP);
+	}
+
+	@Override
+	protected boolean canPlaceAt(WorldView world, BlockState state, BlockPos pos) {
+		return state.getBlock() instanceof WallHangingSignBlock wallHangingSignBlock
+				       && !wallHangingSignBlock.canAttachAt(state, world, pos)
+		       ? false
+		       : super.canPlaceAt(world, state, pos);
+	}
 }

@@ -7,15 +7,25 @@ import net.fabricmc.fabric.api.block.v1.FabricBlockState;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
 
+/**
+ * {@code BlockState}.
+ */
 public class BlockState extends AbstractBlock.AbstractBlockState implements FabricBlockState {
-   public static final Codec<BlockState> CODEC = createCodec(Registries.BLOCK.getCodec(), Block::getDefaultState).stable();
 
-   public BlockState(Block block, Reference2ObjectArrayMap<Property<?>, Comparable<?>> reference2ObjectArrayMap, MapCodec<BlockState> mapCodec) {
-      super(block, reference2ObjectArrayMap, mapCodec);
-   }
+	public static final Codec<BlockState>
+			CODEC =
+			createCodec(Registries.BLOCK.getCodec(), Block::getDefaultState).stable();
 
-   @Override
-   protected BlockState asBlockState() {
-      return this;
-   }
+	public BlockState(
+			Block block,
+			Reference2ObjectArrayMap<Property<?>, Comparable<?>> reference2ObjectArrayMap,
+			MapCodec<BlockState> mapCodec
+	) {
+		super(block, reference2ObjectArrayMap, mapCodec);
+	}
+
+	@Override
+	protected BlockState asBlockState() {
+		return this;
+	}
 }

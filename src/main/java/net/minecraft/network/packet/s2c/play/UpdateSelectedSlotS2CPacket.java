@@ -9,16 +9,17 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public record UpdateSelectedSlotS2CPacket(int slot) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<ByteBuf, UpdateSelectedSlotS2CPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.VAR_INT, UpdateSelectedSlotS2CPacket::slot, UpdateSelectedSlotS2CPacket::new
-   );
 
-   @Override
-   public PacketType<UpdateSelectedSlotS2CPacket> getPacketType() {
-      return PlayPackets.SET_CARRIED_ITEM_S2C;
-   }
+	public static final PacketCodec<ByteBuf, UpdateSelectedSlotS2CPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.VAR_INT, UpdateSelectedSlotS2CPacket::slot, UpdateSelectedSlotS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onUpdateSelectedSlot(this);
-   }
+	@Override
+	public PacketType<UpdateSelectedSlotS2CPacket> getPacketType() {
+		return PlayPackets.SET_CARRIED_ITEM_S2C;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onUpdateSelectedSlot(this);
+	}
 }

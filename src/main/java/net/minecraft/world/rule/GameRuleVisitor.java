@@ -1,12 +1,16 @@
 package net.minecraft.world.rule;
 
+/**
+ * {@code GameRuleVisitor}.
+ */
 public interface GameRuleVisitor {
-   default <T> void visit(GameRule<T> rule) {
-   }
 
-   default void visitBoolean(GameRule<Boolean> rule) {
-   }
+	default <T> void visit(GameRule<T> rule) {
+	}
 
-   default void visitInt(GameRule<Integer> rule) {
-   }
+	default void visitBoolean(GameRule<Boolean> rule) {
+	}
+
+	default void visitInt(GameRule<Integer> rule) {
+	}
 }

@@ -9,17 +9,28 @@ import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GpuUtilizationDebugHudEntry}.
+ */
 public class GpuUtilizationDebugHudEntry implements DebugHudEntry {
-   @Override
-   public void render(DebugHudLines lines, @Nullable World world, @Nullable WorldChunk clientChunk, @Nullable WorldChunk chunk) {
-      MinecraftClient minecraftClient = MinecraftClient.getInstance();
-      String string = "GPU: "
-         + (minecraftClient.getGpuUtilizationPercentage() > 100.0 ? Formatting.RED + "100%" : Math.round(minecraftClient.getGpuUtilizationPercentage()) + "%");
-      lines.addLine(string);
-   }
 
-   @Override
-   public boolean canShow(boolean reducedDebugInfo) {
-      return true;
-   }
+	@Override
+	public void render(
+			DebugHudLines lines,
+			@Nullable World world,
+			@Nullable WorldChunk clientChunk,
+			@Nullable WorldChunk chunk
+	) {
+		MinecraftClient minecraftClient = MinecraftClient.getInstance();
+		String string = "GPU: "
+				+ (minecraftClient.getGpuUtilizationPercentage() > 100.0 ? Formatting.RED + "100%" :
+				   Math.round(minecraftClient.getGpuUtilizationPercentage()) + "%"
+		);
+		lines.addLine(string);
+	}
+
+	@Override
+	public boolean canShow(boolean reducedDebugInfo) {
+		return true;
+	}
 }

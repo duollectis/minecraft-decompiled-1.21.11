@@ -4,7 +4,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.objects.Object2ObjectArrayMap;
-import java.util.Map;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.IntProperty;
@@ -17,77 +16,95 @@ import net.minecraft.util.math.RotationPropertyHelper;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 
+import java.util.Map;
+
+/**
+ * {@code SkullBlock}.
+ */
 public class SkullBlock extends AbstractSkullBlock {
-   public static final MapCodec<SkullBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(SkullBlock.SkullType.CODEC.fieldOf("kind").forGetter(AbstractSkullBlock::getSkullType), createSettingsCodec())
-         .apply(instance, SkullBlock::new)
-   );
-   public static final int MAX_ROTATION_INDEX = RotationPropertyHelper.getMax();
-   private static final int MAX_ROTATIONS = MAX_ROTATION_INDEX + 1;
-   public static final IntProperty ROTATION = Properties.ROTATION;
-   private static final VoxelShape SHAPE = Block.createColumnShape(8.0, 0.0, 8.0);
-   private static final VoxelShape PIGLIN_SHAPE = Block.createColumnShape(10.0, 0.0, 8.0);
 
-   @Override
-   public MapCodec<? extends SkullBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SkullBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(
+							SkullBlock.SkullType.CODEC.fieldOf("kind").forGetter(AbstractSkullBlock::getSkullType),
+							createSettingsCodec()
+					)
+					.apply(instance, SkullBlock::new)
+	);
+	public static final int MAX_ROTATION_INDEX = RotationPropertyHelper.getMax();
+	private static final int MAX_ROTATIONS = MAX_ROTATION_INDEX + 1;
+	public static final IntProperty ROTATION = Properties.ROTATION;
+	private static final VoxelShape SHAPE = Block.createColumnShape(8.0, 0.0, 8.0);
+	private static final VoxelShape PIGLIN_SHAPE = Block.createColumnShape(10.0, 0.0, 8.0);
 
-   public SkullBlock(SkullBlock.SkullType skullType, AbstractBlock.Settings settings) {
-      super(skullType, settings);
-      this.setDefaultState(this.getDefaultState().with(ROTATION, 0));
-   }
+	@Override
+	public MapCodec<? extends SkullBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return this.getSkullType() == SkullBlock.Type.PIGLIN ? PIGLIN_SHAPE : SHAPE;
-   }
+	public SkullBlock(SkullBlock.SkullType skullType, AbstractBlock.Settings settings) {
+		super(skullType, settings);
+		this.setDefaultState(this.getDefaultState().with(ROTATION, 0));
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return super.getPlacementState(ctx).with(ROTATION, RotationPropertyHelper.fromYaw(ctx.getPlayerYaw()));
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return this.getSkullType() == SkullBlock.Type.PIGLIN ? PIGLIN_SHAPE : SHAPE;
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(ROTATION, rotation.rotate(state.get(ROTATION), MAX_ROTATIONS));
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return super.getPlacementState(ctx).with(ROTATION, RotationPropertyHelper.fromYaw(ctx.getPlayerYaw()));
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.with(ROTATION, mirror.mirror(state.get(ROTATION), MAX_ROTATIONS));
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(ROTATION, rotation.rotate(state.get(ROTATION), MAX_ROTATIONS));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      super.appendProperties(builder);
-      builder.add(ROTATION);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.with(ROTATION, mirror.mirror(state.get(ROTATION), MAX_ROTATIONS));
+	}
 
-   public interface SkullType extends StringIdentifiable {
-      Map<String, SkullBlock.SkullType> TYPES = new Object2ObjectArrayMap();
-      Codec<SkullBlock.SkullType> CODEC = Codec.stringResolver(StringIdentifiable::asString, TYPES::get);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		super.appendProperties(builder);
+		builder.add(ROTATION);
+	}
 
-   public static enum Type implements SkullBlock.SkullType {
-      SKELETON("skeleton"),
-      WITHER_SKELETON("wither_skeleton"),
-      PLAYER("player"),
-      ZOMBIE("zombie"),
-      CREEPER("creeper"),
-      PIGLIN("piglin"),
-      DRAGON("dragon");
+	/**
+	 * {@code SkullType}.
+	 */
+	public interface SkullType extends StringIdentifiable {
 
-      private final String id;
+		Map<String, SkullBlock.SkullType> TYPES = new Object2ObjectArrayMap();
 
-      private Type(final String id) {
-         this.id = id;
-         TYPES.put(id, this);
-      }
+		Codec<SkullBlock.SkullType> CODEC = Codec.stringResolver(StringIdentifiable::asString, TYPES::get);
+	}
 
-      @Override
-      public String asString() {
-         return this.id;
-      }
-   }
+	/**
+	 * {@code Type}.
+	 */
+	public static enum Type implements SkullBlock.SkullType {
+		SKELETON("skeleton"),
+		WITHER_SKELETON("wither_skeleton"),
+		PLAYER("player"),
+		ZOMBIE("zombie"),
+		CREEPER("creeper"),
+		PIGLIN("piglin"),
+		DRAGON("dragon");
+
+		private final String id;
+
+		private Type(final String id) {
+			this.id = id;
+			TYPES.put(id, this);
+		}
+
+		@Override
+		public String asString() {
+			return this.id;
+		}
+	}
 }

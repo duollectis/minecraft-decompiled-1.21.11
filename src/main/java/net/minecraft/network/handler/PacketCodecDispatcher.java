@@ -5,101 +5,118 @@ import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.EncoderException;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Function;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.encoding.VarInts;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Function;
+
 public class PacketCodecDispatcher<B extends ByteBuf, V, T> implements PacketCodec<B, V> {
-   private static final int UNKNOWN_PACKET_INDEX = -1;
-   private final Function<V, ? extends T> packetIdGetter;
-   private final List<PacketCodecDispatcher.PacketType<B, V, T>> packetTypes;
-   private final Object2IntMap<T> typeToIndex;
 
-   PacketCodecDispatcher(Function<V, ? extends T> packetIdGetter, List<PacketCodecDispatcher.PacketType<B, V, T>> packetTypes, Object2IntMap<T> typeToIndex) {
-      this.packetIdGetter = packetIdGetter;
-      this.packetTypes = packetTypes;
-      this.typeToIndex = typeToIndex;
-   }
+	private static final int UNKNOWN_PACKET_INDEX = -1;
+	private final Function<V, ? extends T> packetIdGetter;
+	private final List<PacketCodecDispatcher.PacketType<B, V, T>> packetTypes;
+	private final Object2IntMap<T> typeToIndex;
 
-   public V decode(B byteBuf) {
-      int i = VarInts.read(byteBuf);
-      if (i >= 0 && i < this.packetTypes.size()) {
-         PacketCodecDispatcher.PacketType<B, V, T> packetType = this.packetTypes.get(i);
+	PacketCodecDispatcher(
+			Function<V, ? extends T> packetIdGetter,
+			List<PacketCodecDispatcher.PacketType<B, V, T>> packetTypes,
+			Object2IntMap<T> typeToIndex
+	) {
+		this.packetIdGetter = packetIdGetter;
+		this.packetTypes = packetTypes;
+		this.typeToIndex = typeToIndex;
+	}
 
-         try {
-            return (V)packetType.codec.decode(byteBuf);
-         } catch (Exception var5) {
-            if (var5 instanceof PacketCodecDispatcher.UndecoratedException) {
-               throw var5;
-            } else {
-               throw new DecoderException("Failed to decode packet '" + packetType.id + "'", var5);
-            }
-         }
-      } else {
-         throw new DecoderException("Received unknown packet id " + i);
-      }
-   }
+	public V decode(B byteBuf) {
+		int i = VarInts.read(byteBuf);
+		if (i >= 0 && i < this.packetTypes.size()) {
+			PacketCodecDispatcher.PacketType<B, V, T> packetType = this.packetTypes.get(i);
 
-   public void encode(B byteBuf, V object) {
-      T object2 = (T)this.packetIdGetter.apply(object);
-      int i = this.typeToIndex.getOrDefault(object2, -1);
-      if (i == -1) {
-         throw new EncoderException("Sending unknown packet '" + object2 + "'");
-      } else {
-         VarInts.write(byteBuf, i);
-         PacketCodecDispatcher.PacketType<B, V, T> packetType = this.packetTypes.get(i);
+			try {
+				return (V) packetType.codec.decode(byteBuf);
+			}
+			catch (Exception var5) {
+				if (var5 instanceof PacketCodecDispatcher.UndecoratedException) {
+					throw var5;
+				}
+				else {
+					throw new DecoderException("Failed to decode packet '" + packetType.id + "'", var5);
+				}
+			}
+		}
+		else {
+			throw new DecoderException("Received unknown packet id " + i);
+		}
+	}
 
-         try {
-            PacketCodec<? super B, V> packetCodec = (PacketCodec<? super B, V>)packetType.codec;
-            packetCodec.encode(byteBuf, object);
-         } catch (Exception var7) {
-            if (var7 instanceof PacketCodecDispatcher.UndecoratedException) {
-               throw var7;
-            } else {
-               throw new EncoderException("Failed to encode packet '" + object2 + "'", var7);
-            }
-         }
-      }
-   }
+	public void encode(B byteBuf, V object) {
+		T object2 = (T) this.packetIdGetter.apply(object);
+		int i = this.typeToIndex.getOrDefault(object2, -1);
+		if (i == -1) {
+			throw new EncoderException("Sending unknown packet '" + object2 + "'");
+		}
+		else {
+			VarInts.write(byteBuf, i);
+			PacketCodecDispatcher.PacketType<B, V, T> packetType = this.packetTypes.get(i);
 
-   public static <B extends ByteBuf, V, T> PacketCodecDispatcher.Builder<B, V, T> builder(Function<V, ? extends T> packetIdGetter) {
-      return new PacketCodecDispatcher.Builder<>(packetIdGetter);
-   }
+			try {
+				PacketCodec<? super B, V> packetCodec = (PacketCodec<? super B, V>) packetType.codec;
+				packetCodec.encode(byteBuf, object);
+			}
+			catch (Exception var7) {
+				if (var7 instanceof PacketCodecDispatcher.UndecoratedException) {
+					throw var7;
+				}
+				else {
+					throw new EncoderException("Failed to encode packet '" + object2 + "'", var7);
+				}
+			}
+		}
+	}
 
-   public static class Builder<B extends ByteBuf, V, T> {
-      private final List<PacketCodecDispatcher.PacketType<B, V, T>> packetTypes = new ArrayList<>();
-      private final Function<V, ? extends T> packetIdGetter;
+	public static <B extends ByteBuf, V, T> PacketCodecDispatcher.Builder<B, V, T> builder(Function<V, ? extends T> packetIdGetter) {
+		return new PacketCodecDispatcher.Builder<>(packetIdGetter);
+	}
 
-      Builder(Function<V, ? extends T> packetIdGetter) {
-         this.packetIdGetter = packetIdGetter;
-      }
+	public static class Builder<B extends ByteBuf, V, T> {
 
-      public PacketCodecDispatcher.Builder<B, V, T> add(T id, PacketCodec<? super B, ? extends V> codec) {
-         this.packetTypes.add(new PacketCodecDispatcher.PacketType<>(codec, id));
-         return this;
-      }
+		private final List<PacketCodecDispatcher.PacketType<B, V, T>> packetTypes = new ArrayList<>();
+		private final Function<V, ? extends T> packetIdGetter;
 
-      public PacketCodecDispatcher<B, V, T> build() {
-         Object2IntOpenHashMap<T> object2IntOpenHashMap = new Object2IntOpenHashMap();
-         object2IntOpenHashMap.defaultReturnValue(-2);
+		Builder(Function<V, ? extends T> packetIdGetter) {
+			this.packetIdGetter = packetIdGetter;
+		}
 
-         for (PacketCodecDispatcher.PacketType<B, V, T> packetType : this.packetTypes) {
-            int i = object2IntOpenHashMap.size();
-            int j = object2IntOpenHashMap.putIfAbsent(packetType.id, i);
-            if (j != -2) {
-               throw new IllegalStateException("Duplicate registration for type " + packetType.id);
-            }
-         }
+		public PacketCodecDispatcher.Builder<B, V, T> add(T id, PacketCodec<? super B, ? extends V> codec) {
+			this.packetTypes.add(new PacketCodecDispatcher.PacketType<>(codec, id));
+			return this;
+		}
 
-         return new PacketCodecDispatcher<>(this.packetIdGetter, List.copyOf(this.packetTypes), object2IntOpenHashMap);
-      }
-   }
+		public PacketCodecDispatcher<B, V, T> build() {
+			Object2IntOpenHashMap<T> object2IntOpenHashMap = new Object2IntOpenHashMap();
+			object2IntOpenHashMap.defaultReturnValue(-2);
 
-   record PacketType<B, V, T>(PacketCodec<? super B, ? extends V> codec, T id) {
-   }
+			for (PacketCodecDispatcher.PacketType<B, V, T> packetType : this.packetTypes) {
+				int i = object2IntOpenHashMap.size();
+				int j = object2IntOpenHashMap.putIfAbsent(packetType.id, i);
+				if (j != -2) {
+					throw new IllegalStateException("Duplicate registration for type " + packetType.id);
+				}
+			}
 
-   public interface UndecoratedException {
-   }
+			return new PacketCodecDispatcher<>(
+					this.packetIdGetter,
+					List.copyOf(this.packetTypes),
+					object2IntOpenHashMap
+			);
+		}
+	}
+
+	record PacketType<B, V, T>(PacketCodec<? super B, ? extends V> codec, T id) {
+	}
+
+	public interface UndecoratedException {
+	}
 }

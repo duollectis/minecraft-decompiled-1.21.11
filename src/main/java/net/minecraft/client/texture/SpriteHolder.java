@@ -5,6 +5,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.util.SpriteIdentifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SpriteHolder}.
+ */
 public interface SpriteHolder {
-   Sprite getSprite(SpriteIdentifier id);
+
+	Sprite getSprite(SpriteIdentifier id);
 }

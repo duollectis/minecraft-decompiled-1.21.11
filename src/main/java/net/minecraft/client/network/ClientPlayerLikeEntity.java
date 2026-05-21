@@ -9,13 +9,14 @@ import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
 public interface ClientPlayerLikeEntity {
-   ClientPlayerLikeState getState();
 
-   SkinTextures getSkin();
+	ClientPlayerLikeState getState();
 
-   @Nullable Text getMannequinName();
+	SkinTextures getSkin();
 
-   ParrotEntity.@Nullable Variant getShoulderParrotVariant(boolean leftShoulder);
+	@Nullable Text getMannequinName();
 
-   boolean hasExtraEars();
+	ParrotEntity.@Nullable Variant getShoulderParrotVariant(boolean leftShoulder);
+
+	boolean hasExtraEars();
 }

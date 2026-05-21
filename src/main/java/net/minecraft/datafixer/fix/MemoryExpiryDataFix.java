@@ -8,33 +8,37 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code MemoryExpiryDataFix}.
+ */
 public class MemoryExpiryDataFix extends ChoiceFix {
-   public MemoryExpiryDataFix(Schema outputSchema, String choiceName) {
-      super(outputSchema, false, "Memory expiry data fix (" + choiceName + ")", TypeReferences.ENTITY, choiceName);
-   }
 
-   @Override
-   protected Typed<?> transform(Typed<?> inputTyped) {
-      return inputTyped.update(DSL.remainderFinder(), this::updateBrain);
-   }
+	public MemoryExpiryDataFix(Schema outputSchema, String choiceName) {
+		super(outputSchema, false, "Memory expiry data fix (" + choiceName + ")", TypeReferences.ENTITY, choiceName);
+	}
 
-   public Dynamic<?> updateBrain(Dynamic<?> entityDynamic) {
-      return entityDynamic.update("Brain", this::updateMemories);
-   }
+	@Override
+	protected Typed<?> transform(Typed<?> inputTyped) {
+		return inputTyped.update(DSL.remainderFinder(), this::updateBrain);
+	}
 
-   private Dynamic<?> updateMemories(Dynamic<?> brainDynamic) {
-      return brainDynamic.update("memories", this::updateMemoryMap);
-   }
+	public Dynamic<?> updateBrain(Dynamic<?> entityDynamic) {
+		return entityDynamic.update("Brain", this::updateMemories);
+	}
 
-   private Dynamic<?> updateMemoryMap(Dynamic<?> memoriesDynamic) {
-      return memoriesDynamic.updateMapValues(this::updateMemoryMapValues);
-   }
+	private Dynamic<?> updateMemories(Dynamic<?> brainDynamic) {
+		return brainDynamic.update("memories", this::updateMemoryMap);
+	}
 
-   private Pair<Dynamic<?>, Dynamic<?>> updateMemoryMapValues(Pair<Dynamic<?>, Dynamic<?>> memoryKv) {
-      return memoryKv.mapSecond(this::updateMemoryMapValueEntry);
-   }
+	private Dynamic<?> updateMemoryMap(Dynamic<?> memoriesDynamic) {
+		return memoriesDynamic.updateMapValues(this::updateMemoryMapValues);
+	}
 
-   private Dynamic<?> updateMemoryMapValueEntry(Dynamic<?> memoryValue) {
-      return memoryValue.createMap(ImmutableMap.of(memoryValue.createString("value"), memoryValue));
-   }
+	private Pair<Dynamic<?>, Dynamic<?>> updateMemoryMapValues(Pair<Dynamic<?>, Dynamic<?>> memoryKv) {
+		return memoryKv.mapSecond(this::updateMemoryMapValueEntry);
+	}
+
+	private Dynamic<?> updateMemoryMapValueEntry(Dynamic<?> memoryValue) {
+		return memoryValue.createMap(ImmutableMap.of(memoryValue.createString("value"), memoryValue));
+	}
 }

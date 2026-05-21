@@ -8,20 +8,27 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3i;
 import net.minecraft.world.StructureWorldAccess;
 
+/**
+ * {@code OffsetPredicate}.
+ */
 public abstract class OffsetPredicate implements BlockPredicate {
-   protected final Vec3i offset;
 
-   protected static <P extends OffsetPredicate> P1<Mu<P>, Vec3i> registerOffsetField(Instance<P> instance) {
-      return instance.group(Vec3i.createOffsetCodec(16).optionalFieldOf("offset", Vec3i.ZERO).forGetter(predicate -> predicate.offset));
-   }
+	protected final Vec3i offset;
 
-   protected OffsetPredicate(Vec3i offset) {
-      this.offset = offset;
-   }
+	protected static <P extends OffsetPredicate> P1<Mu<P>, Vec3i> registerOffsetField(Instance<P> instance) {
+		return instance.group(Vec3i
+				.createOffsetCodec(16)
+				.optionalFieldOf("offset", Vec3i.ZERO)
+				.forGetter(predicate -> predicate.offset));
+	}
 
-   public final boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
-      return this.test(structureWorldAccess.getBlockState(blockPos.add(this.offset)));
-   }
+	protected OffsetPredicate(Vec3i offset) {
+		this.offset = offset;
+	}
 
-   protected abstract boolean test(BlockState state);
+	public final boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
+		return this.test(structureWorldAccess.getBlockState(blockPos.add(this.offset)));
+	}
+
+	protected abstract boolean test(BlockState state);
 }

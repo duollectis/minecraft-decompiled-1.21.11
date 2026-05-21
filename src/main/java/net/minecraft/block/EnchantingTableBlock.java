@@ -1,7 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.List;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
@@ -24,91 +23,120 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
+/**
+ * {@code EnchantingTableBlock}.
+ */
 public class EnchantingTableBlock extends BlockWithEntity {
-   public static final MapCodec<EnchantingTableBlock> CODEC = createCodec(EnchantingTableBlock::new);
-   public static final List<BlockPos> POWER_PROVIDER_OFFSETS = BlockPos.stream(-2, 0, -2, 2, 1, 2)
-      .filter(pos -> Math.abs(pos.getX()) == 2 || Math.abs(pos.getZ()) == 2)
-      .map(BlockPos::toImmutable)
-      .toList();
-   private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 12.0);
 
-   @Override
-   public MapCodec<EnchantingTableBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<EnchantingTableBlock> CODEC = createCodec(EnchantingTableBlock::new);
+	public static final List<BlockPos> POWER_PROVIDER_OFFSETS = BlockPos.stream(-2, 0, -2, 2, 1, 2)
+	                                                                    .filter(pos -> Math.abs(pos.getX()) == 2
+			                                                                    || Math.abs(pos.getZ()) == 2)
+	                                                                    .map(BlockPos::toImmutable)
+	                                                                    .toList();
+	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 12.0);
 
-   public EnchantingTableBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<EnchantingTableBlock> getCodec() {
+		return CODEC;
+	}
 
-   public static boolean canAccessPowerProvider(World world, BlockPos tablePos, BlockPos providerOffset) {
-      return world.getBlockState(tablePos.add(providerOffset)).isIn(BlockTags.ENCHANTMENT_POWER_PROVIDER)
-         && world.getBlockState(tablePos.add(providerOffset.getX() / 2, providerOffset.getY(), providerOffset.getZ() / 2))
-            .isIn(BlockTags.ENCHANTMENT_POWER_TRANSMITTER);
-   }
+	public EnchantingTableBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected boolean hasSidedTransparency(BlockState state) {
-      return true;
-   }
+	public static boolean canAccessPowerProvider(World world, BlockPos tablePos, BlockPos providerOffset) {
+		return world.getBlockState(tablePos.add(providerOffset)).isIn(BlockTags.ENCHANTMENT_POWER_PROVIDER)
+				&& world
+				.getBlockState(tablePos.add(
+						providerOffset.getX() / 2,
+						providerOffset.getY(),
+						providerOffset.getZ() / 2
+				))
+				.isIn(BlockTags.ENCHANTMENT_POWER_TRANSMITTER);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	@Override
+	protected boolean hasSidedTransparency(BlockState state) {
+		return true;
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      super.randomDisplayTick(state, world, pos, random);
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-      for (BlockPos blockPos : POWER_PROVIDER_OFFSETS) {
-         if (random.nextInt(16) == 0 && canAccessPowerProvider(world, pos, blockPos)) {
-            world.addParticleClient(
-               ParticleTypes.ENCHANT,
-               pos.getX() + 0.5,
-               pos.getY() + 2.0,
-               pos.getZ() + 0.5,
-               blockPos.getX() + random.nextFloat() - 0.5,
-               blockPos.getY() - random.nextFloat() - 1.0F,
-               blockPos.getZ() + random.nextFloat() - 0.5
-            );
-         }
-      }
-   }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		super.randomDisplayTick(state, world, pos, random);
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new EnchantingTableBlockEntity(pos, state);
-   }
+		for (BlockPos blockPos : POWER_PROVIDER_OFFSETS) {
+			if (random.nextInt(16) == 0 && canAccessPowerProvider(world, pos, blockPos)) {
+				world.addParticleClient(
+						ParticleTypes.ENCHANT,
+						pos.getX() + 0.5,
+						pos.getY() + 2.0,
+						pos.getZ() + 0.5,
+						blockPos.getX() + random.nextFloat() - 0.5,
+						blockPos.getY() - random.nextFloat() - 1.0F,
+						blockPos.getZ() + random.nextFloat() - 0.5
+				);
+			}
+		}
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return world.isClient() ? validateTicker(type, BlockEntityType.ENCHANTING_TABLE, EnchantingTableBlockEntity::tick) : null;
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new EnchantingTableBlockEntity(pos, state);
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient()) {
-         player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
-      }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return world.isClient() ? validateTicker(
+				type,
+				BlockEntityType.ENCHANTING_TABLE,
+				EnchantingTableBlockEntity::tick
+		) : null;
+	}
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient()) {
+			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
+		}
 
-   @Override
-   protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
-      if (world.getBlockEntity(pos) instanceof EnchantingTableBlockEntity enchantingTableBlockEntity) {
-         Text text = enchantingTableBlockEntity.getDisplayName();
-         return new SimpleNamedScreenHandlerFactory(
-            (syncId, inventory, player) -> new EnchantmentScreenHandler(syncId, inventory, ScreenHandlerContext.create(world, pos)), text
-         );
-      } else {
-         return null;
-      }
-   }
+		return ActionResult.SUCCESS;
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(
+			BlockState state,
+			World world,
+			BlockPos pos
+	) {
+		if (world.getBlockEntity(pos) instanceof EnchantingTableBlockEntity enchantingTableBlockEntity) {
+			Text text = enchantingTableBlockEntity.getDisplayName();
+			return new SimpleNamedScreenHandlerFactory(
+					(syncId, inventory, player) -> new EnchantmentScreenHandler(
+							syncId,
+							inventory,
+							ScreenHandlerContext.create(world, pos)
+					), text
+			);
+		}
+		else {
+			return null;
+		}
+	}
+
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 }

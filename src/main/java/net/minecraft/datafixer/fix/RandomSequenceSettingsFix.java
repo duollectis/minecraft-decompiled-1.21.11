@@ -6,16 +6,25 @@ import com.mojang.datafixers.TypeRewriteRule;
 import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code RandomSequenceSettingsFix}.
+ */
 public class RandomSequenceSettingsFix extends DataFix {
-   public RandomSequenceSettingsFix(Schema outputSchema) {
-      super(outputSchema, false);
-   }
 
-   protected TypeRewriteRule makeRule() {
-      return this.fixTypeEverywhereTyped(
-         "RandomSequenceSettingsFix",
-         this.getInputSchema().getType(TypeReferences.SAVED_DATA_RANDOM_SEQUENCES),
-         typed -> typed.update(DSL.remainderFinder(), randomSequencesData -> randomSequencesData.update("data", data -> data.emptyMap().set("sequences", data)))
-      );
-   }
+	public RandomSequenceSettingsFix(Schema outputSchema) {
+		super(outputSchema, false);
+	}
+
+	protected TypeRewriteRule makeRule() {
+		return this.fixTypeEverywhereTyped(
+				"RandomSequenceSettingsFix",
+				this.getInputSchema().getType(TypeReferences.SAVED_DATA_RANDOM_SEQUENCES),
+				typed -> typed.update(DSL.remainderFinder(),
+						randomSequencesData -> randomSequencesData.update(
+								"data",
+								data -> data.emptyMap().set("sequences", data)
+						)
+				)
+		);
+	}
 }

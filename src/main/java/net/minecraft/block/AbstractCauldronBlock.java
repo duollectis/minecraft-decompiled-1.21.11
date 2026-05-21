@@ -20,83 +20,95 @@ import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 
+/**
+ * {@code AbstractCauldronBlock}.
+ */
 public abstract class AbstractCauldronBlock extends Block {
-   protected static final int field_30988 = 4;
-   private static final VoxelShape RAYCAST_SHAPE = Block.createColumnShape(12.0, 4.0, 16.0);
-   protected static final VoxelShape OUTLINE_SHAPE = Util.make(
-      () -> {
-         int i = 4;
-         int j = 3;
-         int k = 2;
-         return VoxelShapes.combineAndSimplify(
-            VoxelShapes.fullCube(),
-            VoxelShapes.union(
-               Block.createColumnShape(16.0, 8.0, 0.0, 3.0),
-               Block.createColumnShape(8.0, 16.0, 0.0, 3.0),
-               Block.createColumnShape(12.0, 0.0, 3.0),
-               RAYCAST_SHAPE
-            ),
-            BooleanBiFunction.ONLY_FIRST
-         );
-      }
-   );
-   protected final CauldronBehavior.CauldronBehaviorMap behaviorMap;
 
-   @Override
-   protected abstract MapCodec<? extends AbstractCauldronBlock> getCodec();
+	protected static final int WALL_HEIGHT = 4;
+	private static final VoxelShape RAYCAST_SHAPE = Block.createColumnShape(12.0, 4.0, 16.0);
+	protected static final VoxelShape OUTLINE_SHAPE = Util.make(
+			() -> {
+				int i = 4;
+				int j = 3;
+				int k = 2;
+				return VoxelShapes.combineAndSimplify(
+						VoxelShapes.fullCube(),
+						VoxelShapes.union(
+								Block.createColumnShape(16.0, 8.0, 0.0, 3.0),
+								Block.createColumnShape(8.0, 16.0, 0.0, 3.0),
+								Block.createColumnShape(12.0, 0.0, 3.0),
+								RAYCAST_SHAPE
+						),
+						BooleanBiFunction.ONLY_FIRST
+				);
+			}
+	);
+	protected final CauldronBehavior.CauldronBehaviorMap behaviorMap;
 
-   public AbstractCauldronBlock(AbstractBlock.Settings settings, CauldronBehavior.CauldronBehaviorMap behaviorMap) {
-      super(settings);
-      this.behaviorMap = behaviorMap;
-   }
+	@Override
+	protected abstract MapCodec<? extends AbstractCauldronBlock> getCodec();
 
-   protected double getFluidHeight(BlockState state) {
-      return 0.0;
-   }
+	public AbstractCauldronBlock(AbstractBlock.Settings settings, CauldronBehavior.CauldronBehaviorMap behaviorMap) {
+		super(settings);
+		this.behaviorMap = behaviorMap;
+	}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      CauldronBehavior cauldronBehavior = this.behaviorMap.map().get(stack.getItem());
-      return cauldronBehavior.interact(state, world, pos, player, hand, stack);
-   }
+	protected double getFluidHeight(BlockState state) {
+		return 0.0;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return OUTLINE_SHAPE;
-   }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		CauldronBehavior cauldronBehavior = this.behaviorMap.map().get(stack.getItem());
+		return cauldronBehavior.interact(state, world, pos, player, hand, stack);
+	}
 
-   @Override
-   protected VoxelShape getRaycastShape(BlockState state, BlockView world, BlockPos pos) {
-      return RAYCAST_SHAPE;
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return OUTLINE_SHAPE;
+	}
 
-   @Override
-   protected boolean hasComparatorOutput(BlockState state) {
-      return true;
-   }
+	@Override
+	protected VoxelShape getRaycastShape(BlockState state, BlockView world, BlockPos pos) {
+		return RAYCAST_SHAPE;
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected boolean hasComparatorOutput(BlockState state) {
+		return true;
+	}
 
-   public abstract boolean isFull(BlockState state);
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      BlockPos blockPos = PointedDripstoneBlock.getDripPos(world, pos);
-      if (blockPos != null) {
-         Fluid fluid = PointedDripstoneBlock.getDripFluid(world, blockPos);
-         if (fluid != Fluids.EMPTY && this.canBeFilledByDripstone(fluid)) {
-            this.fillFromDripstone(state, world, pos, fluid);
-         }
-      }
-   }
+	public abstract boolean isFull(BlockState state);
 
-   protected boolean canBeFilledByDripstone(Fluid fluid) {
-      return false;
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		BlockPos blockPos = PointedDripstoneBlock.getDripPos(world, pos);
+		if (blockPos != null) {
+			Fluid fluid = PointedDripstoneBlock.getDripFluid(world, blockPos);
+			if (fluid != Fluids.EMPTY && this.canBeFilledByDripstone(fluid)) {
+				this.fillFromDripstone(state, world, pos, fluid);
+			}
+		}
+	}
 
-   protected void fillFromDripstone(BlockState state, World world, BlockPos pos, Fluid fluid) {
-   }
+	protected boolean canBeFilledByDripstone(Fluid fluid) {
+		return false;
+	}
+
+	protected void fillFromDripstone(BlockState state, World world, BlockPos pos, Fluid fluid) {
+	}
 }

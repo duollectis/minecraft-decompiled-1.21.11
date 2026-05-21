@@ -2,7 +2,6 @@ package net.minecraft.entity.passive;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
 import net.minecraft.entity.VariantSelectorProvider;
 import net.minecraft.entity.spawn.SpawnCondition;
 import net.minecraft.entity.spawn.SpawnConditionSelectors;
@@ -16,46 +15,62 @@ import net.minecraft.registry.entry.RegistryFixedCodec;
 import net.minecraft.util.ModelAndTexture;
 import net.minecraft.util.StringIdentifiable;
 
+import java.util.List;
+
+/**
+ * {@code CowVariant}.
+ */
 public record CowVariant(ModelAndTexture<CowVariant.Model> modelAndTexture, SpawnConditionSelectors spawnConditions)
-   implements VariantSelectorProvider<SpawnContext, SpawnCondition> {
-   public static final Codec<CowVariant> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            ModelAndTexture.createMapCodec(CowVariant.Model.CODEC, CowVariant.Model.NORMAL).forGetter(CowVariant::modelAndTexture),
-            SpawnConditionSelectors.CODEC.fieldOf("spawn_conditions").forGetter(CowVariant::spawnConditions)
-         )
-         .apply(instance, CowVariant::new)
-   );
-   public static final Codec<CowVariant> NETWORK_CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(ModelAndTexture.createMapCodec(CowVariant.Model.CODEC, CowVariant.Model.NORMAL).forGetter(CowVariant::modelAndTexture))
-         .apply(instance, CowVariant::new)
-   );
-   public static final Codec<RegistryEntry<CowVariant>> ENTRY_CODEC = RegistryFixedCodec.of(RegistryKeys.COW_VARIANT);
-   public static final PacketCodec<RegistryByteBuf, RegistryEntry<CowVariant>> ENTRY_PACKET_CODEC = PacketCodecs.registryEntry(RegistryKeys.COW_VARIANT);
+		implements VariantSelectorProvider<SpawnContext, SpawnCondition> {
 
-   private CowVariant(ModelAndTexture<CowVariant.Model> modelAndTexture) {
-      this(modelAndTexture, SpawnConditionSelectors.EMPTY);
-   }
+	public static final Codec<CowVariant> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    ModelAndTexture
+							                    .createMapCodec(CowVariant.Model.CODEC, CowVariant.Model.NORMAL)
+							                    .forGetter(CowVariant::modelAndTexture),
+					                    SpawnConditionSelectors.CODEC.fieldOf("spawn_conditions").forGetter(CowVariant::spawnConditions)
+			                    )
+			                    .apply(instance, CowVariant::new)
+	);
+	public static final Codec<CowVariant> NETWORK_CODEC = RecordCodecBuilder.create(
+			instance -> instance
+					.group(ModelAndTexture
+							.createMapCodec(CowVariant.Model.CODEC, CowVariant.Model.NORMAL)
+							.forGetter(CowVariant::modelAndTexture))
+					.apply(instance, CowVariant::new)
+	);
+	public static final Codec<RegistryEntry<CowVariant>> ENTRY_CODEC = RegistryFixedCodec.of(RegistryKeys.COW_VARIANT);
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<CowVariant>>
+			ENTRY_PACKET_CODEC =
+			PacketCodecs.registryEntry(RegistryKeys.COW_VARIANT);
 
-   @Override
-   public List<VariantSelectorProvider.Selector<SpawnContext, SpawnCondition>> getSelectors() {
-      return this.spawnConditions.selectors();
-   }
+	private CowVariant(ModelAndTexture<CowVariant.Model> modelAndTexture) {
+		this(modelAndTexture, SpawnConditionSelectors.EMPTY);
+	}
 
-   public static enum Model implements StringIdentifiable {
-      NORMAL("normal"),
-      COLD("cold"),
-      WARM("warm");
+	@Override
+	public List<VariantSelectorProvider.Selector<SpawnContext, SpawnCondition>> getSelectors() {
+		return this.spawnConditions.selectors();
+	}
 
-      public static final Codec<CowVariant.Model> CODEC = StringIdentifiable.createCodec(CowVariant.Model::values);
-      private final String id;
+	/**
+	 * {@code Model}.
+	 */
+	public static enum Model implements StringIdentifiable {
+		NORMAL("normal"),
+		COLD("cold"),
+		WARM("warm");
 
-      private Model(final String id) {
-         this.id = id;
-      }
+		public static final Codec<CowVariant.Model> CODEC = StringIdentifiable.createCodec(CowVariant.Model::values);
+		private final String id;
 
-      @Override
-      public String asString() {
-         return this.id;
-      }
-   }
+		private Model(final String id) {
+			this.id = id;
+		}
+
+		@Override
+		public String asString() {
+			return this.id;
+		}
+	}
 }

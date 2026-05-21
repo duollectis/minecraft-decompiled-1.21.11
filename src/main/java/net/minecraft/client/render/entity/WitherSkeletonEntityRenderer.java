@@ -8,18 +8,22 @@ import net.minecraft.entity.mob.WitherSkeletonEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WitherSkeletonEntityRenderer}.
+ */
 public class WitherSkeletonEntityRenderer extends AbstractSkeletonEntityRenderer<WitherSkeletonEntity, SkeletonEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/wither_skeleton.png");
 
-   public WitherSkeletonEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, EntityModelLayers.WITHER_SKELETON, EntityModelLayers.WITHER_SKELETON_EQUIPMENT);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/wither_skeleton.png");
 
-   public Identifier getTexture(SkeletonEntityRenderState skeletonEntityRenderState) {
-      return TEXTURE;
-   }
+	public WitherSkeletonEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, EntityModelLayers.WITHER_SKELETON, EntityModelLayers.WITHER_SKELETON_EQUIPMENT);
+	}
 
-   public SkeletonEntityRenderState createRenderState() {
-      return new SkeletonEntityRenderState();
-   }
+	public Identifier getTexture(SkeletonEntityRenderState skeletonEntityRenderState) {
+		return TEXTURE;
+	}
+
+	public SkeletonEntityRenderState createRenderState() {
+		return new SkeletonEntityRenderState();
+	}
 }

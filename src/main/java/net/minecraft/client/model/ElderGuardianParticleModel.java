@@ -6,8 +6,12 @@ import net.minecraft.client.render.RenderLayers;
 import net.minecraft.util.Unit;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ElderGuardianParticleModel}.
+ */
 public class ElderGuardianParticleModel extends Model<Unit> {
-   public ElderGuardianParticleModel(ModelPart part) {
-      super(part, RenderLayers::entityCutoutNoCull);
-   }
+
+	public ElderGuardianParticleModel(ModelPart part) {
+		super(part, RenderLayers::entityCutoutNoCull);
+	}
 }

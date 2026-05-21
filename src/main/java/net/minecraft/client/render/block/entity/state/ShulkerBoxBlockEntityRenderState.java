@@ -7,8 +7,12 @@ import net.minecraft.util.math.Direction;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ShulkerBoxBlockEntityRenderState}.
+ */
 public class ShulkerBoxBlockEntityRenderState extends BlockEntityRenderState {
-   public Direction facing = Direction.NORTH;
-   public @Nullable DyeColor dyeColor;
-   public float animationProgress;
+
+	public Direction facing = Direction.NORTH;
+	public @Nullable DyeColor dyeColor;
+	public float animationProgress;
 }

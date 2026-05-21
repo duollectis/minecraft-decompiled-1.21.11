@@ -1,7 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.Map;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.block.entity.LecternBlockEntity;
@@ -40,214 +39,262 @@ import net.minecraft.world.block.WireOrientation;
 import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Map;
+
+/**
+ * {@code LecternBlock}.
+ */
 public class LecternBlock extends BlockWithEntity {
-   public static final MapCodec<LecternBlock> CODEC = createCodec(LecternBlock::new);
-   public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
-   public static final BooleanProperty POWERED = Properties.POWERED;
-   public static final BooleanProperty HAS_BOOK = Properties.HAS_BOOK;
-   private static final VoxelShape BASE_SHAPE = VoxelShapes.union(Block.createColumnShape(16.0, 0.0, 2.0), Block.createColumnShape(8.0, 2.0, 14.0));
-   private static final Map<Direction, VoxelShape> OUTLINE_SHAPES_BY_DIRECTION = VoxelShapes.createHorizontalFacingShapeMap(
-      VoxelShapes.union(
-         Block.createCuboidZShape(16.0, 10.0, 14.0, 1.0, 5.333333),
-         Block.createCuboidZShape(16.0, 12.0, 16.0, 5.333333, 9.666667),
-         Block.createCuboidZShape(16.0, 14.0, 18.0, 9.666667, 14.0),
-         BASE_SHAPE
-      )
-   );
-   private static final int SCHEDULED_TICK_DELAY = 2;
 
-   @Override
-   public MapCodec<LecternBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<LecternBlock> CODEC = createCodec(LecternBlock::new);
+	public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
+	public static final BooleanProperty POWERED = Properties.POWERED;
+	public static final BooleanProperty HAS_BOOK = Properties.HAS_BOOK;
+	private static final VoxelShape
+			BASE_SHAPE =
+			VoxelShapes.union(Block.createColumnShape(16.0, 0.0, 2.0), Block.createColumnShape(8.0, 2.0, 14.0));
+	private static final Map<Direction, VoxelShape>
+			OUTLINE_SHAPES_BY_DIRECTION =
+			VoxelShapes.createHorizontalFacingShapeMap(
+					VoxelShapes.union(
+							Block.createCuboidZShape(16.0, 10.0, 14.0, 1.0, 5.333333),
+							Block.createCuboidZShape(16.0, 12.0, 16.0, 5.333333, 9.666667),
+							Block.createCuboidZShape(16.0, 14.0, 18.0, 9.666667, 14.0),
+							BASE_SHAPE
+					)
+			);
+	private static final int SCHEDULED_TICK_DELAY = 2;
 
-   public LecternBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH).with(POWERED, false).with(HAS_BOOK, false));
-   }
+	@Override
+	public MapCodec<LecternBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getCullingShape(BlockState state) {
-      return BASE_SHAPE;
-   }
+	public LecternBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(FACING, Direction.NORTH)
+				.with(POWERED, false)
+				.with(HAS_BOOK, false));
+	}
 
-   @Override
-   protected boolean hasSidedTransparency(BlockState state) {
-      return true;
-   }
+	@Override
+	protected VoxelShape getCullingShape(BlockState state) {
+		return BASE_SHAPE;
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      World world = ctx.getWorld();
-      ItemStack itemStack = ctx.getStack();
-      PlayerEntity playerEntity = ctx.getPlayer();
-      boolean bl = false;
-      if (!world.isClient() && playerEntity != null && playerEntity.isCreativeLevelTwoOp()) {
-         TypedEntityData<BlockEntityType<?>> typedEntityData = itemStack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
-         if (typedEntityData != null && typedEntityData.contains("Book")) {
-            bl = true;
-         }
-      }
+	@Override
+	protected boolean hasSidedTransparency(BlockState state) {
+		return true;
+	}
 
-      return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite()).with(HAS_BOOK, bl);
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		World world = ctx.getWorld();
+		ItemStack itemStack = ctx.getStack();
+		PlayerEntity playerEntity = ctx.getPlayer();
+		boolean bl = false;
+		if (!world.isClient() && playerEntity != null && playerEntity.isCreativeLevelTwoOp()) {
+			TypedEntityData<BlockEntityType<?>> typedEntityData = itemStack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
+			if (typedEntityData != null && typedEntityData.contains("Book")) {
+				bl = true;
+			}
+		}
 
-   @Override
-   protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return BASE_SHAPE;
-   }
+		return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite()).with(HAS_BOOK, bl);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return OUTLINE_SHAPES_BY_DIRECTION.get(state.get(FACING));
-   }
+	@Override
+	protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return BASE_SHAPE;
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(FACING, rotation.rotate(state.get(FACING)));
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return OUTLINE_SHAPES_BY_DIRECTION.get(state.get(FACING));
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.rotate(mirror.getRotation(state.get(FACING)));
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(FACING, rotation.rotate(state.get(FACING)));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(FACING, POWERED, HAS_BOOK);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.rotate(mirror.getRotation(state.get(FACING)));
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new LecternBlockEntity(pos, state);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(FACING, POWERED, HAS_BOOK);
+	}
 
-   public static boolean putBookIfAbsent(@Nullable LivingEntity user, World world, BlockPos pos, BlockState state, ItemStack stack) {
-      if (!state.get(HAS_BOOK)) {
-         if (!world.isClient()) {
-            putBook(user, world, pos, state, stack);
-         }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new LecternBlockEntity(pos, state);
+	}
 
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public static boolean putBookIfAbsent(
+			@Nullable LivingEntity user,
+			World world,
+			BlockPos pos,
+			BlockState state,
+			ItemStack stack
+	) {
+		if (!state.get(HAS_BOOK)) {
+			if (!world.isClient()) {
+				putBook(user, world, pos, state, stack);
+			}
 
-   private static void putBook(@Nullable LivingEntity user, World world, BlockPos pos, BlockState state, ItemStack stack) {
-      if (world.getBlockEntity(pos) instanceof LecternBlockEntity lecternBlockEntity) {
-         lecternBlockEntity.setBook(stack.splitUnlessCreative(1, user));
-         setHasBook(user, world, pos, state, true);
-         world.playSound(null, pos, SoundEvents.ITEM_BOOK_PUT, SoundCategory.BLOCKS, 1.0F, 1.0F);
-      }
-   }
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   public static void setHasBook(@Nullable Entity user, World world, BlockPos pos, BlockState state, boolean hasBook) {
-      BlockState blockState = state.with(POWERED, false).with(HAS_BOOK, hasBook);
-      world.setBlockState(pos, blockState, 3);
-      world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(user, blockState));
-      updateNeighborAlways(world, pos, state);
-   }
+	private static void putBook(
+			@Nullable LivingEntity user,
+			World world,
+			BlockPos pos,
+			BlockState state,
+			ItemStack stack
+	) {
+		if (world.getBlockEntity(pos) instanceof LecternBlockEntity lecternBlockEntity) {
+			lecternBlockEntity.setBook(stack.splitUnlessCreative(1, user));
+			setHasBook(user, world, pos, state, true);
+			world.playSound(null, pos, SoundEvents.ITEM_BOOK_PUT, SoundCategory.BLOCKS, 1.0F, 1.0F);
+		}
+	}
 
-   public static void setPowered(World world, BlockPos pos, BlockState state) {
-      setPowered(world, pos, state, true);
-      world.scheduleBlockTick(pos, state.getBlock(), 2);
-      world.syncWorldEvent(1043, pos, 0);
-   }
+	public static void setHasBook(@Nullable Entity user, World world, BlockPos pos, BlockState state, boolean hasBook) {
+		BlockState blockState = state.with(POWERED, false).with(HAS_BOOK, hasBook);
+		world.setBlockState(pos, blockState, 3);
+		world.emitGameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Emitter.of(user, blockState));
+		updateNeighborAlways(world, pos, state);
+	}
 
-   private static void setPowered(World world, BlockPos pos, BlockState state, boolean powered) {
-      world.setBlockState(pos, state.with(POWERED, powered), 3);
-      updateNeighborAlways(world, pos, state);
-   }
+	public static void setPowered(World world, BlockPos pos, BlockState state) {
+		setPowered(world, pos, state, true);
+		world.scheduleBlockTick(pos, state.getBlock(), 2);
+		world.syncWorldEvent(1043, pos, 0);
+	}
 
-   private static void updateNeighborAlways(World world, BlockPos pos, BlockState state) {
-      WireOrientation wireOrientation = OrientationHelper.getEmissionOrientation(world, state.get(FACING).getOpposite(), Direction.UP);
-      world.updateNeighborsAlways(pos.down(), state.getBlock(), wireOrientation);
-   }
+	private static void setPowered(World world, BlockPos pos, BlockState state, boolean powered) {
+		world.setBlockState(pos, state.with(POWERED, powered), 3);
+		updateNeighborAlways(world, pos, state);
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      setPowered(world, pos, state, false);
-   }
+	private static void updateNeighborAlways(World world, BlockPos pos, BlockState state) {
+		WireOrientation
+				wireOrientation =
+				OrientationHelper.getEmissionOrientation(world, state.get(FACING).getOpposite(), Direction.UP);
+		world.updateNeighborsAlways(pos.down(), state.getBlock(), wireOrientation);
+	}
 
-   @Override
-   protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-      if (state.get(POWERED)) {
-         updateNeighborAlways(world, pos, state);
-      }
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		setPowered(world, pos, state, false);
+	}
 
-   @Override
-   protected boolean emitsRedstonePower(BlockState state) {
-      return true;
-   }
+	@Override
+	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+		if (state.get(POWERED)) {
+			updateNeighborAlways(world, pos, state);
+		}
+	}
 
-   @Override
-   protected int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-      return state.get(POWERED) ? 15 : 0;
-   }
+	@Override
+	protected boolean emitsRedstonePower(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected int getStrongRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-      return direction == Direction.UP && state.get(POWERED) ? 15 : 0;
-   }
+	@Override
+	protected int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
+		return state.get(POWERED) ? 15 : 0;
+	}
 
-   @Override
-   protected boolean hasComparatorOutput(BlockState state) {
-      return true;
-   }
+	@Override
+	protected int getStrongRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
+		return direction == Direction.UP && state.get(POWERED) ? 15 : 0;
+	}
 
-   @Override
-   protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-      if (state.get(HAS_BOOK)) {
-         BlockEntity blockEntity = world.getBlockEntity(pos);
-         if (blockEntity instanceof LecternBlockEntity) {
-            return ((LecternBlockEntity)blockEntity).getComparatorOutput();
-         }
-      }
+	@Override
+	protected boolean hasComparatorOutput(BlockState state) {
+		return true;
+	}
 
-      return 0;
-   }
+	@Override
+	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
+		if (state.get(HAS_BOOK)) {
+			BlockEntity blockEntity = world.getBlockEntity(pos);
+			if (blockEntity instanceof LecternBlockEntity) {
+				return ((LecternBlockEntity) blockEntity).getComparatorOutput();
+			}
+		}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      if (state.get(HAS_BOOK)) {
-         return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
-      } else if (stack.isIn(ItemTags.LECTERN_BOOKS)) {
-         return (ActionResult)(putBookIfAbsent(player, world, pos, state, stack) ? ActionResult.SUCCESS : ActionResult.PASS);
-      } else {
-         return (ActionResult)(stack.isEmpty() && hand == Hand.MAIN_HAND ? ActionResult.PASS : ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION);
-      }
-   }
+		return 0;
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (state.get(HAS_BOOK)) {
-         if (!world.isClient()) {
-            this.openScreen(world, pos, player);
-         }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		if (state.get(HAS_BOOK)) {
+			return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
+		}
+		else if (stack.isIn(ItemTags.LECTERN_BOOKS)) {
+			return (ActionResult) (putBookIfAbsent(player, world, pos, state, stack) ? ActionResult.SUCCESS
+			                                                                         : ActionResult.PASS
+			);
+		}
+		else {
+			return (ActionResult) (stack.isEmpty() && hand == Hand.MAIN_HAND ? ActionResult.PASS
+			                                                                 : ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION
+			);
+		}
+	}
 
-         return ActionResult.SUCCESS;
-      } else {
-         return ActionResult.CONSUME;
-      }
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (state.get(HAS_BOOK)) {
+			if (!world.isClient()) {
+				this.openScreen(world, pos, player);
+			}
 
-   @Override
-   protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
-      return !state.get(HAS_BOOK) ? null : super.createScreenHandlerFactory(state, world, pos);
-   }
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return ActionResult.CONSUME;
+		}
+	}
 
-   private void openScreen(World world, BlockPos pos, PlayerEntity player) {
-      BlockEntity blockEntity = world.getBlockEntity(pos);
-      if (blockEntity instanceof LecternBlockEntity) {
-         player.openHandledScreen((LecternBlockEntity)blockEntity);
-         player.incrementStat(Stats.INTERACT_WITH_LECTERN);
-      }
-   }
+	@Override
+	protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(
+			BlockState state,
+			World world,
+			BlockPos pos
+	) {
+		return !state.get(HAS_BOOK) ? null : super.createScreenHandlerFactory(state, world, pos);
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	private void openScreen(World world, BlockPos pos, PlayerEntity player) {
+		BlockEntity blockEntity = world.getBlockEntity(pos);
+		if (blockEntity instanceof LecternBlockEntity) {
+			player.openHandledScreen((LecternBlockEntity) blockEntity);
+			player.incrementStat(Stats.INTERACT_WITH_LECTERN);
+		}
+	}
+
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 }

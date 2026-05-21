@@ -12,41 +12,49 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CreeperEntityRenderer}.
+ */
 public class CreeperEntityRenderer extends MobEntityRenderer<CreeperEntity, CreeperEntityRenderState, CreeperEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/creeper/creeper.png");
 
-   public CreeperEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new CreeperEntityModel(context.getPart(EntityModelLayers.CREEPER)), 0.5F);
-      this.addFeature(new CreeperChargeFeatureRenderer(this, context.getEntityModels()));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/creeper/creeper.png");
 
-   protected void scale(CreeperEntityRenderState creeperEntityRenderState, MatrixStack matrixStack) {
-      float f = creeperEntityRenderState.fuseTime;
-      float g = 1.0F + MathHelper.sin(f * 100.0F) * f * 0.01F;
-      f = MathHelper.clamp(f, 0.0F, 1.0F);
-      f *= f;
-      f *= f;
-      float h = (1.0F + f * 0.4F) * g;
-      float i = (1.0F + f * 0.1F) / g;
-      matrixStack.scale(h, i, h);
-   }
+	public CreeperEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new CreeperEntityModel(context.getPart(EntityModelLayers.CREEPER)), 0.5F);
+		this.addFeature(new CreeperChargeFeatureRenderer(this, context.getEntityModels()));
+	}
 
-   protected float getAnimationCounter(CreeperEntityRenderState creeperEntityRenderState) {
-      float f = creeperEntityRenderState.fuseTime;
-      return (int)(f * 10.0F) % 2 == 0 ? 0.0F : MathHelper.clamp(f, 0.5F, 1.0F);
-   }
+	protected void scale(CreeperEntityRenderState creeperEntityRenderState, MatrixStack matrixStack) {
+		float f = creeperEntityRenderState.fuseTime;
+		float g = 1.0F + MathHelper.sin(f * 100.0F) * f * 0.01F;
+		f = MathHelper.clamp(f, 0.0F, 1.0F);
+		f *= f;
+		f *= f;
+		float h = (1.0F + f * 0.4F) * g;
+		float i = (1.0F + f * 0.1F) / g;
+		matrixStack.scale(h, i, h);
+	}
 
-   public Identifier getTexture(CreeperEntityRenderState creeperEntityRenderState) {
-      return TEXTURE;
-   }
+	protected float getAnimationCounter(CreeperEntityRenderState creeperEntityRenderState) {
+		float f = creeperEntityRenderState.fuseTime;
+		return (int) (f * 10.0F) % 2 == 0 ? 0.0F : MathHelper.clamp(f, 0.5F, 1.0F);
+	}
 
-   public CreeperEntityRenderState createRenderState() {
-      return new CreeperEntityRenderState();
-   }
+	public Identifier getTexture(CreeperEntityRenderState creeperEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(CreeperEntity creeperEntity, CreeperEntityRenderState creeperEntityRenderState, float f) {
-      super.updateRenderState(creeperEntity, creeperEntityRenderState, f);
-      creeperEntityRenderState.fuseTime = creeperEntity.getLerpedFuseTime(f);
-      creeperEntityRenderState.charged = creeperEntity.isCharged();
-   }
+	public CreeperEntityRenderState createRenderState() {
+		return new CreeperEntityRenderState();
+	}
+
+	public void updateRenderState(
+			CreeperEntity creeperEntity,
+			CreeperEntityRenderState creeperEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(creeperEntity, creeperEntityRenderState, f);
+		creeperEntityRenderState.fuseTime = creeperEntity.getLerpedFuseTime(f);
+		creeperEntityRenderState.charged = creeperEntity.isCharged();
+	}
 }

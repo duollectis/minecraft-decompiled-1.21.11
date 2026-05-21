@@ -10,36 +10,47 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.Vec3d;
 
-public record VehicleMoveC2SPacket(Vec3d position, float yaw, float pitch, boolean onGround) implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, VehicleMoveC2SPacket> CODEC = PacketCodec.tuple(
-      Vec3d.PACKET_CODEC,
-      VehicleMoveC2SPacket::position,
-      PacketCodecs.FLOAT,
-      VehicleMoveC2SPacket::yaw,
-      PacketCodecs.FLOAT,
-      VehicleMoveC2SPacket::pitch,
-      PacketCodecs.BOOLEAN,
-      VehicleMoveC2SPacket::onGround,
-      VehicleMoveC2SPacket::new
-   );
+public record VehicleMoveC2SPacket(
+		Vec3d position,
+		float yaw,
+		float pitch,
+		boolean onGround
+) implements Packet<ServerPlayPacketListener> {
 
-   public static VehicleMoveC2SPacket fromVehicle(Entity vehicle) {
-      return vehicle.isInterpolating()
-         ? new VehicleMoveC2SPacket(
-            vehicle.getInterpolator().getLerpedPos(),
-            vehicle.getInterpolator().getLerpedYaw(),
-            vehicle.getInterpolator().getLerpedPitch(),
-            vehicle.isOnGround()
-         )
-         : new VehicleMoveC2SPacket(vehicle.getEntityPos(), vehicle.getYaw(), vehicle.getPitch(), vehicle.isOnGround());
-   }
+	public static final PacketCodec<PacketByteBuf, VehicleMoveC2SPacket> CODEC = PacketCodec.tuple(
+			Vec3d.PACKET_CODEC,
+			VehicleMoveC2SPacket::position,
+			PacketCodecs.FLOAT,
+			VehicleMoveC2SPacket::yaw,
+			PacketCodecs.FLOAT,
+			VehicleMoveC2SPacket::pitch,
+			PacketCodecs.BOOLEAN,
+			VehicleMoveC2SPacket::onGround,
+			VehicleMoveC2SPacket::new
+	);
 
-   @Override
-   public PacketType<VehicleMoveC2SPacket> getPacketType() {
-      return PlayPackets.MOVE_VEHICLE_C2S;
-   }
+	public static VehicleMoveC2SPacket fromVehicle(Entity vehicle) {
+		return vehicle.isInterpolating()
+		       ? new VehicleMoveC2SPacket(
+				vehicle.getInterpolator().getLerpedPos(),
+				vehicle.getInterpolator().getLerpedYaw(),
+				vehicle.getInterpolator().getLerpedPitch(),
+				vehicle.isOnGround()
+		)
+		       : new VehicleMoveC2SPacket(
+				       vehicle.getEntityPos(),
+				       vehicle.getYaw(),
+				       vehicle.getPitch(),
+				       vehicle.isOnGround()
+		       );
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onVehicleMove(this);
-   }
+	@Override
+	public PacketType<VehicleMoveC2SPacket> getPacketType() {
+		return PlayPackets.MOVE_VEHICLE_C2S;
+	}
+
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onVehicleMove(this);
+	}
 }

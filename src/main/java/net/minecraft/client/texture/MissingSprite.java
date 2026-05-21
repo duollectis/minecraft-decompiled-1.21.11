@@ -5,39 +5,44 @@ import net.fabricmc.api.Environment;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MissingSprite}.
+ */
 public final class MissingSprite {
-   private static final int WIDTH = 16;
-   private static final int HEIGHT = 16;
-   private static final String MISSINGNO_ID = "missingno";
-   private static final Identifier MISSINGNO = Identifier.ofVanilla("missingno");
 
-   public static NativeImage createImage() {
-      return createImage(16, 16);
-   }
+	private static final int WIDTH = 16;
+	private static final int HEIGHT = 16;
+	private static final String MISSINGNO_ID = "missingno";
+	private static final Identifier MISSINGNO = Identifier.ofVanilla("missingno");
 
-   public static NativeImage createImage(int width, int height) {
-      NativeImage nativeImage = new NativeImage(width, height, false);
-      int i = -524040;
+	public static NativeImage createImage() {
+		return createImage(16, 16);
+	}
 
-      for (int j = 0; j < height; j++) {
-         for (int k = 0; k < width; k++) {
-            if (j < height / 2 ^ k < width / 2) {
-               nativeImage.setColorArgb(k, j, -524040);
-            } else {
-               nativeImage.setColorArgb(k, j, -16777216);
-            }
-         }
-      }
+	public static NativeImage createImage(int width, int height) {
+		NativeImage nativeImage = new NativeImage(width, height, false);
+		int i = -524040;
 
-      return nativeImage;
-   }
+		for (int j = 0; j < height; j++) {
+			for (int k = 0; k < width; k++) {
+				if (j < height / 2 ^ k < width / 2) {
+					nativeImage.setColorArgb(k, j, -524040);
+				}
+				else {
+					nativeImage.setColorArgb(k, j, -16777216);
+				}
+			}
+		}
 
-   public static SpriteContents createSpriteContents() {
-      NativeImage nativeImage = createImage(16, 16);
-      return new SpriteContents(MISSINGNO, new SpriteDimensions(16, 16), nativeImage);
-   }
+		return nativeImage;
+	}
 
-   public static Identifier getMissingSpriteId() {
-      return MISSINGNO;
-   }
+	public static SpriteContents createSpriteContents() {
+		NativeImage nativeImage = createImage(16, 16);
+		return new SpriteContents(MISSINGNO, new SpriteDimensions(16, 16), nativeImage);
+	}
+
+	public static Identifier getMissingSpriteId() {
+		return MISSINGNO;
+	}
 }

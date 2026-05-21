@@ -9,19 +9,35 @@ import net.minecraft.world.World;
 import net.minecraft.world.block.OrientationHelper;
 import net.minecraft.world.block.WireOrientation;
 
+/**
+ * {@code TrappedChestBlockEntity}.
+ */
 public class TrappedChestBlockEntity extends ChestBlockEntity {
-   public TrappedChestBlockEntity(BlockPos blockPos, BlockState blockState) {
-      super(BlockEntityType.TRAPPED_CHEST, blockPos, blockState);
-   }
 
-   @Override
-   protected void onViewerCountUpdate(World world, BlockPos pos, BlockState state, int oldViewerCount, int newViewerCount) {
-      super.onViewerCountUpdate(world, pos, state, oldViewerCount, newViewerCount);
-      if (oldViewerCount != newViewerCount) {
-         WireOrientation wireOrientation = OrientationHelper.getEmissionOrientation(world, state.get(TrappedChestBlock.FACING).getOpposite(), Direction.UP);
-         Block block = state.getBlock();
-         world.updateNeighborsAlways(pos, block, wireOrientation);
-         world.updateNeighborsAlways(pos.down(), block, wireOrientation);
-      }
-   }
+	public TrappedChestBlockEntity(BlockPos blockPos, BlockState blockState) {
+		super(BlockEntityType.TRAPPED_CHEST, blockPos, blockState);
+	}
+
+	@Override
+	protected void onViewerCountUpdate(
+			World world,
+			BlockPos pos,
+			BlockState state,
+			int oldViewerCount,
+			int newViewerCount
+	) {
+		super.onViewerCountUpdate(world, pos, state, oldViewerCount, newViewerCount);
+		if (oldViewerCount != newViewerCount) {
+			WireOrientation
+					wireOrientation =
+					OrientationHelper.getEmissionOrientation(
+							world,
+							state.get(TrappedChestBlock.FACING).getOpposite(),
+							Direction.UP
+					);
+			Block block = state.getBlock();
+			world.updateNeighborsAlways(pos, block, wireOrientation);
+			world.updateNeighborsAlways(pos.down(), block, wireOrientation);
+		}
+	}
 }

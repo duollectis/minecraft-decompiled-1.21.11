@@ -11,22 +11,29 @@ import net.minecraft.entity.mob.MobEntity;
 
 @Deprecated
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AgeableMobEntityRenderer}.
+ */
 public abstract class AgeableMobEntityRenderer<T extends MobEntity, S extends LivingEntityRenderState, M extends EntityModel<? super S>>
-   extends MobEntityRenderer<T, S, M> {
-   private final M adultModel;
-   private final M babyModel;
+		extends MobEntityRenderer<T, S, M> {
 
-   public AgeableMobEntityRenderer(EntityRendererFactory.Context context, M model, M babyModel, float shadowRadius) {
-      super(context, model, shadowRadius);
-      this.adultModel = model;
-      this.babyModel = babyModel;
-   }
+	private final M adultModel;
+	private final M babyModel;
 
-   @Override
-   public void render(
-      S livingEntityRenderState, MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState
-   ) {
-      this.model = livingEntityRenderState.baby ? this.babyModel : this.adultModel;
-      super.render(livingEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
-   }
+	public AgeableMobEntityRenderer(EntityRendererFactory.Context context, M model, M babyModel, float shadowRadius) {
+		super(context, model, shadowRadius);
+		this.adultModel = model;
+		this.babyModel = babyModel;
+	}
+
+	@Override
+	public void render(
+			S livingEntityRenderState,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			CameraRenderState cameraRenderState
+	) {
+		this.model = livingEntityRenderState.baby ? this.babyModel : this.adultModel;
+		super.render(livingEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
+	}
 }

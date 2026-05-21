@@ -10,51 +10,66 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ArmorSlot}.
+ */
 public class ArmorSlot extends Slot {
-   private final LivingEntity entity;
-   private final EquipmentSlot equipmentSlot;
-   private final @Nullable Identifier backgroundSprite;
 
-   public ArmorSlot(Inventory inventory, LivingEntity entity, EquipmentSlot equipmentSlot, int index, int x, int y, @Nullable Identifier backgroundSprite) {
-      super(inventory, index, x, y);
-      this.entity = entity;
-      this.equipmentSlot = equipmentSlot;
-      this.backgroundSprite = backgroundSprite;
-   }
+	private final LivingEntity entity;
+	private final EquipmentSlot equipmentSlot;
+	private final @Nullable Identifier backgroundSprite;
 
-   @Override
-   public void setStack(ItemStack stack, ItemStack previousStack) {
-      this.entity.onEquipStack(this.equipmentSlot, previousStack, stack);
-      super.setStack(stack, previousStack);
-   }
+	public ArmorSlot(
+			Inventory inventory,
+			LivingEntity entity,
+			EquipmentSlot equipmentSlot,
+			int index,
+			int x,
+			int y,
+			@Nullable Identifier backgroundSprite
+	) {
+		super(inventory, index, x, y);
+		this.entity = entity;
+		this.equipmentSlot = equipmentSlot;
+		this.backgroundSprite = backgroundSprite;
+	}
 
-   @Override
-   public int getMaxItemCount() {
-      return 1;
-   }
+	@Override
+	public void setStack(ItemStack stack, ItemStack previousStack) {
+		this.entity.onEquipStack(this.equipmentSlot, previousStack, stack);
+		super.setStack(stack, previousStack);
+	}
 
-   @Override
-   public boolean canInsert(ItemStack stack) {
-      return this.entity.canEquip(stack, this.equipmentSlot);
-   }
+	@Override
+	public int getMaxItemCount() {
+		return 1;
+	}
 
-   @Override
-   public boolean isEnabled() {
-      return this.entity.canUseSlot(this.equipmentSlot);
-   }
+	@Override
+	public boolean canInsert(ItemStack stack) {
+		return this.entity.canEquip(stack, this.equipmentSlot);
+	}
 
-   @Override
-   public boolean canTakeItems(PlayerEntity playerEntity) {
-      ItemStack itemStack = this.getStack();
-      return !itemStack.isEmpty()
-            && !playerEntity.isCreative()
-            && EnchantmentHelper.hasAnyEnchantmentsWith(itemStack, EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE)
-         ? false
-         : super.canTakeItems(playerEntity);
-   }
+	@Override
+	public boolean isEnabled() {
+		return this.entity.canUseSlot(this.equipmentSlot);
+	}
 
-   @Override
-   public @Nullable Identifier getBackgroundSprite() {
-      return this.backgroundSprite;
-   }
+	@Override
+	public boolean canTakeItems(PlayerEntity playerEntity) {
+		ItemStack itemStack = this.getStack();
+		return !itemStack.isEmpty()
+				       && !playerEntity.isCreative()
+				       && EnchantmentHelper.hasAnyEnchantmentsWith(
+				itemStack,
+				EnchantmentEffectComponentTypes.PREVENT_ARMOR_CHANGE
+		)
+		       ? false
+		       : super.canTakeItems(playerEntity);
+	}
+
+	@Override
+	public @Nullable Identifier getBackgroundSprite() {
+		return this.backgroundSprite;
+	}
 }

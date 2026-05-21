@@ -12,60 +12,70 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ScaffoldingItem}.
+ */
 public class ScaffoldingItem extends BlockItem {
-   public ScaffoldingItem(Block block, Item.Settings settings) {
-      super(block, settings);
-   }
 
-   @Override
-   public @Nullable ItemPlacementContext getPlacementContext(ItemPlacementContext context) {
-      BlockPos blockPos = context.getBlockPos();
-      World world = context.getWorld();
-      BlockState blockState = world.getBlockState(blockPos);
-      Block block = this.getBlock();
-      if (!blockState.isOf(block)) {
-         return ScaffoldingBlock.calculateDistance(world, blockPos) == 7 ? null : context;
-      } else {
-         Direction direction;
-         if (context.shouldCancelInteraction()) {
-            direction = context.hitsInsideBlock() ? context.getSide().getOpposite() : context.getSide();
-         } else {
-            direction = context.getSide() == Direction.UP ? context.getHorizontalPlayerFacing() : Direction.UP;
-         }
+	public ScaffoldingItem(Block block, Item.Settings settings) {
+		super(block, settings);
+	}
 
-         int i = 0;
-         BlockPos.Mutable mutable = blockPos.mutableCopy().move(direction);
+	@Override
+	public @Nullable ItemPlacementContext getPlacementContext(ItemPlacementContext context) {
+		BlockPos blockPos = context.getBlockPos();
+		World world = context.getWorld();
+		BlockState blockState = world.getBlockState(blockPos);
+		Block block = this.getBlock();
+		if (!blockState.isOf(block)) {
+			return ScaffoldingBlock.calculateDistance(world, blockPos) == 7 ? null : context;
+		}
+		else {
+			Direction direction;
+			if (context.shouldCancelInteraction()) {
+				direction = context.hitsInsideBlock() ? context.getSide().getOpposite() : context.getSide();
+			}
+			else {
+				direction = context.getSide() == Direction.UP ? context.getHorizontalPlayerFacing() : Direction.UP;
+			}
 
-         while (i < 7) {
-            if (!world.isClient() && !world.isInBuildLimit(mutable)) {
-               PlayerEntity playerEntity = context.getPlayer();
-               int j = world.getTopYInclusive();
-               if (playerEntity instanceof ServerPlayerEntity && mutable.getY() > j) {
-                  ((ServerPlayerEntity)playerEntity).sendMessageToClient(Text.translatable("build.tooHigh", j).formatted(Formatting.RED), true);
-               }
-               break;
-            }
+			int i = 0;
+			BlockPos.Mutable mutable = blockPos.mutableCopy().move(direction);
 
-            blockState = world.getBlockState(mutable);
-            if (!blockState.isOf(this.getBlock())) {
-               if (blockState.canReplace(context)) {
-                  return ItemPlacementContext.offset(context, mutable, direction);
-               }
-               break;
-            }
+			while (i < 7) {
+				if (!world.isClient() && !world.isInBuildLimit(mutable)) {
+					PlayerEntity playerEntity = context.getPlayer();
+					int j = world.getTopYInclusive();
+					if (playerEntity instanceof ServerPlayerEntity && mutable.getY() > j) {
+						((ServerPlayerEntity) playerEntity).sendMessageToClient(
+								Text
+										.translatable("build.tooHigh", j)
+										.formatted(Formatting.RED), true
+						);
+					}
+					break;
+				}
 
-            mutable.move(direction);
-            if (direction.getAxis().isHorizontal()) {
-               i++;
-            }
-         }
+				blockState = world.getBlockState(mutable);
+				if (!blockState.isOf(this.getBlock())) {
+					if (blockState.canReplace(context)) {
+						return ItemPlacementContext.offset(context, mutable, direction);
+					}
+					break;
+				}
 
-         return null;
-      }
-   }
+				mutable.move(direction);
+				if (direction.getAxis().isHorizontal()) {
+					i++;
+				}
+			}
 
-   @Override
-   protected boolean checkStatePlacement() {
-      return false;
-   }
+			return null;
+		}
+	}
+
+	@Override
+	protected boolean checkStatePlacement() {
+		return false;
+	}
 }

@@ -12,70 +12,84 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code WallMountedBlock}.
+ */
 public abstract class WallMountedBlock extends HorizontalFacingBlock {
-   public static final EnumProperty<BlockFace> FACE = Properties.BLOCK_FACE;
 
-   protected WallMountedBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	public static final EnumProperty<BlockFace> FACE = Properties.BLOCK_FACE;
 
-   @Override
-   protected abstract MapCodec<? extends WallMountedBlock> getCodec();
+	protected WallMountedBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      return canPlaceAt(world, pos, getDirection(state).getOpposite());
-   }
+	@Override
+	protected abstract MapCodec<? extends WallMountedBlock> getCodec();
 
-   public static boolean canPlaceAt(WorldView world, BlockPos pos, Direction direction) {
-      BlockPos blockPos = pos.offset(direction);
-      return world.getBlockState(blockPos).isSideSolidFullSquare(world, blockPos, direction.getOpposite());
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		return canPlaceAt(world, pos, getDirection(state).getOpposite());
+	}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      for (Direction direction : ctx.getPlacementDirections()) {
-         BlockState blockState;
-         if (direction.getAxis() == Direction.Axis.Y) {
-            blockState = this.getDefaultState()
-               .with(FACE, direction == Direction.UP ? BlockFace.CEILING : BlockFace.FLOOR)
-               .with(FACING, ctx.getHorizontalPlayerFacing());
-         } else {
-            blockState = this.getDefaultState().with(FACE, BlockFace.WALL).with(FACING, direction.getOpposite());
-         }
+	public static boolean canPlaceAt(WorldView world, BlockPos pos, Direction direction) {
+		BlockPos blockPos = pos.offset(direction);
+		return world.getBlockState(blockPos).isSideSolidFullSquare(world, blockPos, direction.getOpposite());
+	}
 
-         if (blockState.canPlaceAt(ctx.getWorld(), ctx.getBlockPos())) {
-            return blockState;
-         }
-      }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		for (Direction direction : ctx.getPlacementDirections()) {
+			BlockState blockState;
+			if (direction.getAxis() == Direction.Axis.Y) {
+				blockState = this.getDefaultState()
+				                 .with(FACE, direction == Direction.UP ? BlockFace.CEILING : BlockFace.FLOOR)
+				                 .with(FACING, ctx.getHorizontalPlayerFacing());
+			}
+			else {
+				blockState = this.getDefaultState().with(FACE, BlockFace.WALL).with(FACING, direction.getOpposite());
+			}
 
-      return null;
-   }
+			if (blockState.canPlaceAt(ctx.getWorld(), ctx.getBlockPos())) {
+				return blockState;
+			}
+		}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      return getDirection(state).getOpposite() == direction && !state.canPlaceAt(world, pos)
-         ? Blocks.AIR.getDefaultState()
-         : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+		return null;
+	}
 
-   protected static Direction getDirection(BlockState state) {
-      switch ((BlockFace)state.get(FACE)) {
-         case CEILING:
-            return Direction.DOWN;
-         case FLOOR:
-            return Direction.UP;
-         default:
-            return state.get(FACING);
-      }
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		return getDirection(state).getOpposite() == direction && !state.canPlaceAt(world, pos)
+		       ? Blocks.AIR.getDefaultState()
+		       : super.getStateForNeighborUpdate(
+				       state,
+				       world,
+				       tickView,
+				       pos,
+				       direction,
+				       neighborPos,
+				       neighborState,
+				       random
+		       );
+	}
+
+	protected static Direction getDirection(BlockState state) {
+		switch ((BlockFace) state.get(FACE)) {
+			case CEILING:
+				return Direction.DOWN;
+			case FLOOR:
+				return Direction.UP;
+			default:
+				return state.get(FACING);
+		}
+	}
 }

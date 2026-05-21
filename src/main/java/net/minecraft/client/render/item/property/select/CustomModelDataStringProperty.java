@@ -15,30 +15,41 @@ import net.minecraft.util.dynamic.Codecs;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CustomModelDataStringProperty}.
+ */
 public record CustomModelDataStringProperty(int index) implements SelectProperty<String> {
-   public static final PrimitiveCodec<String> VALUE_CODEC = Codec.STRING;
-   public static final SelectProperty.Type<CustomModelDataStringProperty, String> TYPE = SelectProperty.Type.create(
-      RecordCodecBuilder.mapCodec(
-         instance -> instance.group(Codecs.NON_NEGATIVE_INT.optionalFieldOf("index", 0).forGetter(CustomModelDataStringProperty::index))
-            .apply(instance, CustomModelDataStringProperty::new)
-      ),
-      VALUE_CODEC
-   );
 
-   public @Nullable String getValue(
-      ItemStack itemStack, @Nullable ClientWorld clientWorld, @Nullable LivingEntity livingEntity, int i, ItemDisplayContext itemDisplayContext
-   ) {
-      CustomModelDataComponent customModelDataComponent = itemStack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
-      return customModelDataComponent != null ? customModelDataComponent.getString(this.index) : null;
-   }
+	public static final PrimitiveCodec<String> VALUE_CODEC = Codec.STRING;
+	public static final SelectProperty.Type<CustomModelDataStringProperty, String> TYPE = SelectProperty.Type.create(
+			RecordCodecBuilder.mapCodec(
+					instance -> instance
+							.group(Codecs.NON_NEGATIVE_INT
+									.optionalFieldOf("index", 0)
+									.forGetter(CustomModelDataStringProperty::index))
+							.apply(instance, CustomModelDataStringProperty::new)
+			),
+			VALUE_CODEC
+	);
 
-   @Override
-   public SelectProperty.Type<CustomModelDataStringProperty, String> getType() {
-      return TYPE;
-   }
+	public @Nullable String getValue(
+			ItemStack itemStack,
+			@Nullable ClientWorld clientWorld,
+			@Nullable LivingEntity livingEntity,
+			int i,
+			ItemDisplayContext itemDisplayContext
+	) {
+		CustomModelDataComponent customModelDataComponent = itemStack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+		return customModelDataComponent != null ? customModelDataComponent.getString(this.index) : null;
+	}
 
-   @Override
-   public Codec<String> valueCodec() {
-      return VALUE_CODEC;
-   }
+	@Override
+	public SelectProperty.Type<CustomModelDataStringProperty, String> getType() {
+		return TYPE;
+	}
+
+	@Override
+	public Codec<String> valueCodec() {
+		return VALUE_CODEC;
+	}
 }

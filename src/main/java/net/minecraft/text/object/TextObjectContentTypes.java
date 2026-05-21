@@ -4,12 +4,20 @@ import com.mojang.serialization.MapCodec;
 import net.minecraft.text.TextCodecs;
 import net.minecraft.util.dynamic.Codecs;
 
+/**
+ * {@code TextObjectContentTypes}.
+ */
 public class TextObjectContentTypes {
-   private static final Codecs.IdMapper<String, MapCodec<? extends TextObjectContents>> ID_MAPPER = new Codecs.IdMapper<>();
-   public static final MapCodec<TextObjectContents> CODEC = TextCodecs.dispatchingCodec(ID_MAPPER, TextObjectContents::getCodec, "object");
 
-   static {
-      ID_MAPPER.put("atlas", AtlasTextObjectContents.CODEC);
-      ID_MAPPER.put("player", PlayerTextObjectContents.CODEC);
-   }
+	private static final Codecs.IdMapper<String, MapCodec<? extends TextObjectContents>>
+			ID_MAPPER =
+			new Codecs.IdMapper<>();
+	public static final MapCodec<TextObjectContents>
+			CODEC =
+			TextCodecs.dispatchingCodec(ID_MAPPER, TextObjectContents::getCodec, "object");
+
+	static {
+		ID_MAPPER.put("atlas", AtlasTextObjectContents.CODEC);
+		ID_MAPPER.put("player", PlayerTextObjectContents.CODEC);
+	}
 }

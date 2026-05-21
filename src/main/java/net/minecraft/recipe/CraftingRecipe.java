@@ -8,39 +8,43 @@ import net.minecraft.recipe.book.RecipeBookCategory;
 import net.minecraft.recipe.input.CraftingRecipeInput;
 import net.minecraft.util.collection.DefaultedList;
 
+/**
+ * {@code CraftingRecipe}.
+ */
 public interface CraftingRecipe extends Recipe<CraftingRecipeInput> {
-   @Override
-   default RecipeType<CraftingRecipe> getType() {
-      return RecipeType.CRAFTING;
-   }
 
-   @Override
-   RecipeSerializer<? extends CraftingRecipe> getSerializer();
+	@Override
+	default RecipeType<CraftingRecipe> getType() {
+		return RecipeType.CRAFTING;
+	}
 
-   CraftingRecipeCategory getCategory();
+	@Override
+	RecipeSerializer<? extends CraftingRecipe> getSerializer();
 
-   default DefaultedList<ItemStack> getRecipeRemainders(CraftingRecipeInput input) {
-      return collectRecipeRemainders(input);
-   }
+	CraftingRecipeCategory getCategory();
 
-   static DefaultedList<ItemStack> collectRecipeRemainders(CraftingRecipeInput input) {
-      DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
+	default DefaultedList<ItemStack> getRecipeRemainders(CraftingRecipeInput input) {
+		return collectRecipeRemainders(input);
+	}
 
-      for (int i = 0; i < defaultedList.size(); i++) {
-         Item item = input.getStackInSlot(i).getItem();
-         defaultedList.set(i, item.getRecipeRemainder());
-      }
+	static DefaultedList<ItemStack> collectRecipeRemainders(CraftingRecipeInput input) {
+		DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
 
-      return defaultedList;
-   }
+		for (int i = 0; i < defaultedList.size(); i++) {
+			Item item = input.getStackInSlot(i).getItem();
+			defaultedList.set(i, item.getRecipeRemainder());
+		}
 
-   @Override
-   default RecipeBookCategory getRecipeBookCategory() {
-      return switch (this.getCategory()) {
-         case BUILDING -> RecipeBookCategories.CRAFTING_BUILDING_BLOCKS;
-         case EQUIPMENT -> RecipeBookCategories.CRAFTING_EQUIPMENT;
-         case REDSTONE -> RecipeBookCategories.CRAFTING_REDSTONE;
-         case MISC -> RecipeBookCategories.CRAFTING_MISC;
-      };
-   }
+		return defaultedList;
+	}
+
+	@Override
+	default RecipeBookCategory getRecipeBookCategory() {
+		return switch (this.getCategory()) {
+			case BUILDING -> RecipeBookCategories.CRAFTING_BUILDING_BLOCKS;
+			case EQUIPMENT -> RecipeBookCategories.CRAFTING_EQUIPMENT;
+			case REDSTONE -> RecipeBookCategories.CRAFTING_REDSTONE;
+			case MISC -> RecipeBookCategories.CRAFTING_MISC;
+		};
+	}
 }

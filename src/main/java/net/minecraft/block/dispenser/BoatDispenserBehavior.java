@@ -12,49 +12,56 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * {@code BoatDispenserBehavior}.
+ */
 public class BoatDispenserBehavior extends ItemDispenserBehavior {
-   private final ItemDispenserBehavior fallbackBehavior = new ItemDispenserBehavior();
-   private final EntityType<? extends AbstractBoatEntity> boatType;
 
-   public BoatDispenserBehavior(EntityType<? extends AbstractBoatEntity> boatType) {
-      this.boatType = boatType;
-   }
+	private final ItemDispenserBehavior fallbackBehavior = new ItemDispenserBehavior();
+	private final EntityType<? extends AbstractBoatEntity> boatType;
 
-   @Override
-   public ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
-      Direction direction = pointer.state().get(DispenserBlock.FACING);
-      ServerWorld serverWorld = pointer.world();
-      Vec3d vec3d = pointer.centerPos();
-      double d = 0.5625 + this.boatType.getWidth() / 2.0;
-      double e = vec3d.getX() + direction.getOffsetX() * d;
-      double f = vec3d.getY() + direction.getOffsetY() * 1.125F;
-      double g = vec3d.getZ() + direction.getOffsetZ() * d;
-      BlockPos blockPos = pointer.pos().offset(direction);
-      double h;
-      if (serverWorld.getFluidState(blockPos).isIn(FluidTags.WATER)) {
-         h = 1.0;
-      } else {
-         if (!serverWorld.getBlockState(blockPos).isAir() || !serverWorld.getFluidState(blockPos.down()).isIn(FluidTags.WATER)) {
-            return this.fallbackBehavior.dispense(pointer, stack);
-         }
+	public BoatDispenserBehavior(EntityType<? extends AbstractBoatEntity> boatType) {
+		this.boatType = boatType;
+	}
 
-         h = 0.0;
-      }
+	@Override
+	public ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
+		Direction direction = pointer.state().get(DispenserBlock.FACING);
+		ServerWorld serverWorld = pointer.world();
+		Vec3d vec3d = pointer.centerPos();
+		double d = 0.5625 + this.boatType.getWidth() / 2.0;
+		double e = vec3d.getX() + direction.getOffsetX() * d;
+		double f = vec3d.getY() + direction.getOffsetY() * 1.125F;
+		double g = vec3d.getZ() + direction.getOffsetZ() * d;
+		BlockPos blockPos = pointer.pos().offset(direction);
+		double h;
+		if (serverWorld.getFluidState(blockPos).isIn(FluidTags.WATER)) {
+			h = 1.0;
+		}
+		else {
+			if (!serverWorld.getBlockState(blockPos).isAir() || !serverWorld
+					.getFluidState(blockPos.down())
+					.isIn(FluidTags.WATER)) {
+				return this.fallbackBehavior.dispense(pointer, stack);
+			}
 
-      AbstractBoatEntity abstractBoatEntity = this.boatType.create(serverWorld, SpawnReason.DISPENSER);
-      if (abstractBoatEntity != null) {
-         abstractBoatEntity.initPosition(e, f + h, g);
-         EntityType.<AbstractBoatEntity>copier(serverWorld, stack, null).accept(abstractBoatEntity);
-         abstractBoatEntity.setYaw(direction.getPositiveHorizontalDegrees());
-         serverWorld.spawnEntity(abstractBoatEntity);
-         stack.decrement(1);
-      }
+			h = 0.0;
+		}
 
-      return stack;
-   }
+		AbstractBoatEntity abstractBoatEntity = this.boatType.create(serverWorld, SpawnReason.DISPENSER);
+		if (abstractBoatEntity != null) {
+			abstractBoatEntity.initPosition(e, f + h, g);
+			EntityType.<AbstractBoatEntity>copier(serverWorld, stack, null).accept(abstractBoatEntity);
+			abstractBoatEntity.setYaw(direction.getPositiveHorizontalDegrees());
+			serverWorld.spawnEntity(abstractBoatEntity);
+			stack.decrement(1);
+		}
 
-   @Override
-   protected void playSound(BlockPointer pointer) {
-      pointer.world().syncWorldEvent(1000, pointer.pos(), 0);
-   }
+		return stack;
+	}
+
+	@Override
+	protected void playSound(BlockPointer pointer) {
+		pointer.world().syncWorldEvent(1000, pointer.pos(), 0);
+	}
 }

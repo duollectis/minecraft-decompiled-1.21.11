@@ -4,37 +4,55 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code GameEventDispatcher}.
+ */
 public interface GameEventDispatcher {
-   GameEventDispatcher EMPTY = new GameEventDispatcher() {
-      @Override
-      public boolean isEmpty() {
-         return true;
-      }
 
-      @Override
-      public void addListener(GameEventListener listener) {
-      }
+	GameEventDispatcher EMPTY = new GameEventDispatcher() {
+		@Override
+		public boolean isEmpty() {
+			return true;
+		}
 
-      @Override
-      public void removeListener(GameEventListener listener) {
-      }
+		@Override
+		public void addListener(GameEventListener listener) {
+		}
 
-      @Override
-      public boolean dispatch(RegistryEntry<GameEvent> event, Vec3d pos, GameEvent.Emitter emitter, GameEventDispatcher.DispatchCallback callback) {
-         return false;
-      }
-   };
+		@Override
+		public void removeListener(GameEventListener listener) {
+		}
 
-   boolean isEmpty();
+		@Override
+		public boolean dispatch(
+				RegistryEntry<GameEvent> event,
+				Vec3d pos,
+				GameEvent.Emitter emitter,
+				GameEventDispatcher.DispatchCallback callback
+		) {
+			return false;
+		}
+	};
 
-   void addListener(GameEventListener listener);
+	boolean isEmpty();
 
-   void removeListener(GameEventListener listener);
+	void addListener(GameEventListener listener);
 
-   boolean dispatch(RegistryEntry<GameEvent> event, Vec3d pos, GameEvent.Emitter emitter, GameEventDispatcher.DispatchCallback callback);
+	void removeListener(GameEventListener listener);
 
-   @FunctionalInterface
-   public interface DispatchCallback {
-      void visit(GameEventListener listener, Vec3d listenerPos);
-   }
+	boolean dispatch(
+			RegistryEntry<GameEvent> event,
+			Vec3d pos,
+			GameEvent.Emitter emitter,
+			GameEventDispatcher.DispatchCallback callback
+	);
+
+	@FunctionalInterface
+	/**
+	 * {@code DispatchCallback}.
+	 */
+	public interface DispatchCallback {
+
+		void visit(GameEventListener listener, Vec3d listenerPos);
+	}
 }

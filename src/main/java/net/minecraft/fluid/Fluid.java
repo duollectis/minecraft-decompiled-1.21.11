@@ -1,6 +1,5 @@
 package net.minecraft.fluid;
 
-import java.util.Optional;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityCollisionHandler;
@@ -24,104 +23,117 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+
+/**
+ * {@code Fluid}.
+ */
 public abstract class Fluid {
-   public static final IdList<FluidState> STATE_IDS = new IdList<>();
-   protected final StateManager<Fluid, FluidState> stateManager;
-   private FluidState defaultState;
-   private final RegistryEntry.Reference<Fluid> registryEntry = Registries.FLUID.createEntry(this);
 
-   protected Fluid() {
-      StateManager.Builder<Fluid, FluidState> builder = new StateManager.Builder<>(this);
-      this.appendProperties(builder);
-      this.stateManager = builder.build(Fluid::getDefaultState, FluidState::new);
-      this.setDefaultState(this.stateManager.getDefaultState());
-   }
+	public static final IdList<FluidState> STATE_IDS = new IdList<>();
+	protected final StateManager<Fluid, FluidState> stateManager;
+	private FluidState defaultState;
+	private final RegistryEntry.Reference<Fluid> registryEntry = Registries.FLUID.createEntry(this);
 
-   protected void appendProperties(StateManager.Builder<Fluid, FluidState> builder) {
-   }
+	protected Fluid() {
+		StateManager.Builder<Fluid, FluidState> builder = new StateManager.Builder<>(this);
+		this.appendProperties(builder);
+		this.stateManager = builder.build(Fluid::getDefaultState, FluidState::new);
+		this.setDefaultState(this.stateManager.getDefaultState());
+	}
 
-   public StateManager<Fluid, FluidState> getStateManager() {
-      return this.stateManager;
-   }
+	protected void appendProperties(StateManager.Builder<Fluid, FluidState> builder) {
+	}
 
-   protected final void setDefaultState(FluidState state) {
-      this.defaultState = state;
-   }
+	public StateManager<Fluid, FluidState> getStateManager() {
+		return this.stateManager;
+	}
 
-   public final FluidState getDefaultState() {
-      return this.defaultState;
-   }
+	protected final void setDefaultState(FluidState state) {
+		this.defaultState = state;
+	}
 
-   public abstract Item getBucketItem();
+	public final FluidState getDefaultState() {
+		return this.defaultState;
+	}
 
-   protected void randomDisplayTick(World world, BlockPos pos, FluidState state, Random random) {
-   }
+	public abstract Item getBucketItem();
 
-   protected void onScheduledTick(ServerWorld world, BlockPos pos, BlockState blockState, FluidState fluidState) {
-   }
+	protected void randomDisplayTick(World world, BlockPos pos, FluidState state, Random random) {
+	}
 
-   protected void onRandomTick(ServerWorld world, BlockPos pos, FluidState state, Random random) {
-   }
+	protected void onScheduledTick(ServerWorld world, BlockPos pos, BlockState blockState, FluidState fluidState) {
+	}
 
-   protected void onEntityCollision(World world, BlockPos pos, Entity entity, EntityCollisionHandler handler) {
-   }
+	protected void onRandomTick(ServerWorld world, BlockPos pos, FluidState state, Random random) {
+	}
 
-   protected @Nullable ParticleEffect getParticle() {
-      return null;
-   }
+	protected void onEntityCollision(World world, BlockPos pos, Entity entity, EntityCollisionHandler handler) {
+	}
 
-   protected abstract boolean canBeReplacedWith(FluidState state, BlockView world, BlockPos pos, Fluid fluid, Direction direction);
+	protected @Nullable ParticleEffect getParticle() {
+		return null;
+	}
 
-   protected abstract Vec3d getVelocity(BlockView world, BlockPos pos, FluidState state);
+	protected abstract boolean canBeReplacedWith(
+			FluidState state,
+			BlockView world,
+			BlockPos pos,
+			Fluid fluid,
+			Direction direction
+	);
 
-   public abstract int getTickRate(WorldView world);
+	protected abstract Vec3d getVelocity(BlockView world, BlockPos pos, FluidState state);
 
-   protected boolean hasRandomTicks() {
-      return false;
-   }
+	public abstract int getTickRate(WorldView world);
 
-   protected boolean isEmpty() {
-      return false;
-   }
+	protected boolean hasRandomTicks() {
+		return false;
+	}
 
-   protected abstract float getBlastResistance();
+	protected boolean isEmpty() {
+		return false;
+	}
 
-   public abstract float getHeight(FluidState state, BlockView world, BlockPos pos);
+	protected abstract float getBlastResistance();
 
-   public abstract float getHeight(FluidState state);
+	public abstract float getHeight(FluidState state, BlockView world, BlockPos pos);
 
-   protected abstract BlockState toBlockState(FluidState state);
+	public abstract float getHeight(FluidState state);
 
-   public abstract boolean isStill(FluidState state);
+	protected abstract BlockState toBlockState(FluidState state);
 
-   public abstract int getLevel(FluidState state);
+	public abstract boolean isStill(FluidState state);
 
-   public boolean matchesType(Fluid fluid) {
-      return fluid == this;
-   }
+	public abstract int getLevel(FluidState state);
 
-   @Deprecated
-   public boolean isIn(TagKey<Fluid> tag) {
-      return this.registryEntry.isIn(tag);
-   }
+	public boolean matchesType(Fluid fluid) {
+		return fluid == this;
+	}
 
-   public abstract VoxelShape getShape(FluidState state, BlockView world, BlockPos pos);
+	@Deprecated
+	public boolean isIn(TagKey<Fluid> tag) {
+		return this.registryEntry.isIn(tag);
+	}
 
-   public @Nullable Box getCollisionBox(FluidState state, BlockView world, BlockPos pos) {
-      if (this.isEmpty()) {
-         return null;
-      } else {
-         float f = state.getHeight(world, pos);
-         return new Box(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1.0, pos.getY() + f, pos.getZ() + 1.0);
-      }
-   }
+	public abstract VoxelShape getShape(FluidState state, BlockView world, BlockPos pos);
 
-   public Optional<SoundEvent> getBucketFillSound() {
-      return Optional.empty();
-   }
+	public @Nullable Box getCollisionBox(FluidState state, BlockView world, BlockPos pos) {
+		if (this.isEmpty()) {
+			return null;
+		}
+		else {
+			float f = state.getHeight(world, pos);
+			return new Box(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1.0, pos.getY() + f, pos.getZ() + 1.0);
+		}
+	}
 
-   @Deprecated
-   public RegistryEntry.Reference<Fluid> getRegistryEntry() {
-      return this.registryEntry;
-   }
+	public Optional<SoundEvent> getBucketFillSound() {
+		return Optional.empty();
+	}
+
+	@Deprecated
+	public RegistryEntry.Reference<Fluid> getRegistryEntry() {
+		return this.registryEntry;
+	}
 }

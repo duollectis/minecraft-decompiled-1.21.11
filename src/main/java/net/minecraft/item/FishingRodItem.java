@@ -13,52 +13,57 @@ import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code FishingRodItem}.
+ */
 public class FishingRodItem extends Item {
-   public FishingRodItem(Item.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      if (user.fishHook != null) {
-         if (!world.isClient()) {
-            int i = user.fishHook.use(itemStack);
-            itemStack.damage(i, user, hand.getEquipmentSlot());
-         }
+	public FishingRodItem(Item.Settings settings) {
+		super(settings);
+	}
 
-         world.playSound(
-            null,
-            user.getX(),
-            user.getY(),
-            user.getZ(),
-            SoundEvents.ENTITY_FISHING_BOBBER_RETRIEVE,
-            SoundCategory.NEUTRAL,
-            1.0F,
-            0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
-         );
-         itemStack.emitUseGameEvent(user, GameEvent.ITEM_INTERACT_FINISH);
-      } else {
-         world.playSound(
-            null,
-            user.getX(),
-            user.getY(),
-            user.getZ(),
-            SoundEvents.ENTITY_FISHING_BOBBER_THROW,
-            SoundCategory.NEUTRAL,
-            0.5F,
-            0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
-         );
-         if (world instanceof ServerWorld serverWorld) {
-            int j = (int)(EnchantmentHelper.getFishingTimeReduction(serverWorld, itemStack, user) * 20.0F);
-            int k = EnchantmentHelper.getFishingLuckBonus(serverWorld, itemStack, user);
-            ProjectileEntity.spawn(new FishingBobberEntity(user, world, k, j), serverWorld, itemStack);
-         }
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		if (user.fishHook != null) {
+			if (!world.isClient()) {
+				int i = user.fishHook.use(itemStack);
+				itemStack.damage(i, user, hand.getEquipmentSlot());
+			}
 
-         user.incrementStat(Stats.USED.getOrCreateStat(this));
-         itemStack.emitUseGameEvent(user, GameEvent.ITEM_INTERACT_START);
-      }
+			world.playSound(
+					null,
+					user.getX(),
+					user.getY(),
+					user.getZ(),
+					SoundEvents.ENTITY_FISHING_BOBBER_RETRIEVE,
+					SoundCategory.NEUTRAL,
+					1.0F,
+					0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
+			);
+			itemStack.emitUseGameEvent(user, GameEvent.ITEM_INTERACT_FINISH);
+		}
+		else {
+			world.playSound(
+					null,
+					user.getX(),
+					user.getY(),
+					user.getZ(),
+					SoundEvents.ENTITY_FISHING_BOBBER_THROW,
+					SoundCategory.NEUTRAL,
+					0.5F,
+					0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
+			);
+			if (world instanceof ServerWorld serverWorld) {
+				int j = (int) (EnchantmentHelper.getFishingTimeReduction(serverWorld, itemStack, user) * 20.0F);
+				int k = EnchantmentHelper.getFishingLuckBonus(serverWorld, itemStack, user);
+				ProjectileEntity.spawn(new FishingBobberEntity(user, world, k, j), serverWorld, itemStack);
+			}
 
-      return ActionResult.SUCCESS;
-   }
+			user.incrementStat(Stats.USED.getOrCreateStat(this));
+			itemStack.emitUseGameEvent(user, GameEvent.ITEM_INTERACT_START);
+		}
+
+		return ActionResult.SUCCESS;
+	}
 }

@@ -1,86 +1,104 @@
 package net.minecraft.recipe;
 
-import java.lang.ref.WeakReference;
-import java.util.Arrays;
-import java.util.Optional;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.input.CraftingRecipeInput;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.collection.DefaultedList;
 import org.jspecify.annotations.Nullable;
 
+import java.lang.ref.WeakReference;
+import java.util.Arrays;
+import java.util.Optional;
+
+/**
+ * {@code RecipeCache}.
+ */
 public class RecipeCache {
-   private final RecipeCache.@Nullable CachedRecipe[] cache;
-   private WeakReference<@Nullable ServerRecipeManager> recipeManagerRef = new WeakReference<>(null);
 
-   public RecipeCache(int size) {
-      this.cache = new RecipeCache.CachedRecipe[size];
-   }
+	private final RecipeCache.@Nullable CachedRecipe[] cache;
+	private WeakReference<@Nullable ServerRecipeManager> recipeManagerRef = new WeakReference<>(null);
 
-   public Optional<RecipeEntry<CraftingRecipe>> getRecipe(ServerWorld world, CraftingRecipeInput input) {
-      if (input.isEmpty()) {
-         return Optional.empty();
-      } else {
-         this.validateRecipeManager(world);
+	public RecipeCache(int size) {
+		this.cache = new RecipeCache.CachedRecipe[size];
+	}
 
-         for (int i = 0; i < this.cache.length; i++) {
-            RecipeCache.CachedRecipe cachedRecipe = this.cache[i];
-            if (cachedRecipe != null && cachedRecipe.matches(input)) {
-               this.sendToFront(i);
-               return Optional.ofNullable(cachedRecipe.value());
-            }
-         }
+	public Optional<RecipeEntry<CraftingRecipe>> getRecipe(ServerWorld world, CraftingRecipeInput input) {
+		if (input.isEmpty()) {
+			return Optional.empty();
+		}
+		else {
+			this.validateRecipeManager(world);
 
-         return this.getAndCacheRecipe(input, world);
-      }
-   }
+			for (int i = 0; i < this.cache.length; i++) {
+				RecipeCache.CachedRecipe cachedRecipe = this.cache[i];
+				if (cachedRecipe != null && cachedRecipe.matches(input)) {
+					this.sendToFront(i);
+					return Optional.ofNullable(cachedRecipe.value());
+				}
+			}
 
-   private void validateRecipeManager(ServerWorld world) {
-      ServerRecipeManager serverRecipeManager = world.getRecipeManager();
-      if (serverRecipeManager != this.recipeManagerRef.get()) {
-         this.recipeManagerRef = new WeakReference<>(serverRecipeManager);
-         Arrays.fill(this.cache, null);
-      }
-   }
+			return this.getAndCacheRecipe(input, world);
+		}
+	}
 
-   private Optional<RecipeEntry<CraftingRecipe>> getAndCacheRecipe(CraftingRecipeInput input, ServerWorld world) {
-      Optional<RecipeEntry<CraftingRecipe>> optional = world.getRecipeManager().getFirstMatch(RecipeType.CRAFTING, input, world);
-      this.cache(input, optional.orElse(null));
-      return optional;
-   }
+	private void validateRecipeManager(ServerWorld world) {
+		ServerRecipeManager serverRecipeManager = world.getRecipeManager();
+		if (serverRecipeManager != this.recipeManagerRef.get()) {
+			this.recipeManagerRef = new WeakReference<>(serverRecipeManager);
+			Arrays.fill(this.cache, null);
+		}
+	}
 
-   private void sendToFront(int index) {
-      if (index > 0) {
-         RecipeCache.CachedRecipe cachedRecipe = this.cache[index];
-         System.arraycopy(this.cache, 0, this.cache, 1, index);
-         this.cache[0] = cachedRecipe;
-      }
-   }
+	private Optional<RecipeEntry<CraftingRecipe>> getAndCacheRecipe(CraftingRecipeInput input, ServerWorld world) {
+		Optional<RecipeEntry<CraftingRecipe>>
+				optional =
+				world.getRecipeManager().getFirstMatch(RecipeType.CRAFTING, input, world);
+		this.cache(input, optional.orElse(null));
+		return optional;
+	}
 
-   private void cache(CraftingRecipeInput input, @Nullable RecipeEntry<CraftingRecipe> recipe) {
-      DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
+	private void sendToFront(int index) {
+		if (index > 0) {
+			RecipeCache.CachedRecipe cachedRecipe = this.cache[index];
+			System.arraycopy(this.cache, 0, this.cache, 1, index);
+			this.cache[0] = cachedRecipe;
+		}
+	}
 
-      for (int i = 0; i < input.size(); i++) {
-         defaultedList.set(i, input.getStackInSlot(i).copyWithCount(1));
-      }
+	private void cache(CraftingRecipeInput input, @Nullable RecipeEntry<CraftingRecipe> recipe) {
+		DefaultedList<ItemStack> defaultedList = DefaultedList.ofSize(input.size(), ItemStack.EMPTY);
 
-      System.arraycopy(this.cache, 0, this.cache, 1, this.cache.length - 1);
-      this.cache[0] = new RecipeCache.CachedRecipe(defaultedList, input.getWidth(), input.getHeight(), recipe);
-   }
+		for (int i = 0; i < input.size(); i++) {
+			defaultedList.set(i, input.getStackInSlot(i).copyWithCount(1));
+		}
 
-   record CachedRecipe(DefaultedList<ItemStack> key, int width, int height, @Nullable RecipeEntry<CraftingRecipe> value) {
-      public boolean matches(CraftingRecipeInput input) {
-         if (this.width == input.getWidth() && this.height == input.getHeight()) {
-            for (int i = 0; i < this.key.size(); i++) {
-               if (!ItemStack.areItemsAndComponentsEqual(this.key.get(i), input.getStackInSlot(i))) {
-                  return false;
-               }
-            }
+		System.arraycopy(this.cache, 0, this.cache, 1, this.cache.length - 1);
+		this.cache[0] = new RecipeCache.CachedRecipe(defaultedList, input.getWidth(), input.getHeight(), recipe);
+	}
 
-            return true;
-         } else {
-            return false;
-         }
-      }
-   }
+	/**
+	 * {@code CachedRecipe}.
+	 */
+	record CachedRecipe(
+			DefaultedList<ItemStack> key,
+			int width,
+			int height,
+			@Nullable RecipeEntry<CraftingRecipe> value
+	) {
+
+		public boolean matches(CraftingRecipeInput input) {
+			if (this.width == input.getWidth() && this.height == input.getHeight()) {
+				for (int i = 0; i < this.key.size(); i++) {
+					if (!ItemStack.areItemsAndComponentsEqual(this.key.get(i), input.getStackInSlot(i))) {
+						return false;
+					}
+				}
+
+				return true;
+			}
+			else {
+				return false;
+			}
+		}
+	}
 }

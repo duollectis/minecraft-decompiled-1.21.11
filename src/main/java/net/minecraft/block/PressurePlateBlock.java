@@ -10,44 +10,52 @@ import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code PressurePlateBlock}.
+ */
 public class PressurePlateBlock extends AbstractPressurePlateBlock {
-   public static final MapCodec<PressurePlateBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(BlockSetType.CODEC.fieldOf("block_set_type").forGetter(block -> block.blockSetType), createSettingsCodec())
-         .apply(instance, PressurePlateBlock::new)
-   );
-   public static final BooleanProperty POWERED = Properties.POWERED;
 
-   @Override
-   public MapCodec<PressurePlateBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<PressurePlateBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(
+							BlockSetType.CODEC.fieldOf("block_set_type").forGetter(block -> block.blockSetType),
+							createSettingsCodec()
+					)
+					.apply(instance, PressurePlateBlock::new)
+	);
+	public static final BooleanProperty POWERED = Properties.POWERED;
 
-   public PressurePlateBlock(BlockSetType type, AbstractBlock.Settings settings) {
-      super(settings, type);
-      this.setDefaultState(this.stateManager.getDefaultState().with(POWERED, false));
-   }
+	@Override
+	public MapCodec<PressurePlateBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected int getRedstoneOutput(BlockState state) {
-      return state.get(POWERED) ? 15 : 0;
-   }
+	public PressurePlateBlock(BlockSetType type, AbstractBlock.Settings settings) {
+		super(settings, type);
+		this.setDefaultState(this.stateManager.getDefaultState().with(POWERED, false));
+	}
 
-   @Override
-   protected BlockState setRedstoneOutput(BlockState state, int rsOut) {
-      return state.with(POWERED, rsOut > 0);
-   }
+	@Override
+	protected int getRedstoneOutput(BlockState state) {
+		return state.get(POWERED) ? 15 : 0;
+	}
 
-   @Override
-   protected int getRedstoneOutput(World world, BlockPos pos) {
-      Class<? extends Entity> class_ = switch (this.blockSetType.pressurePlateSensitivity()) {
-         case EVERYTHING -> Entity.class;
-         case MOBS -> LivingEntity.class;
-      };
-      return getEntityCount(world, BOX.offset(pos), class_) > 0 ? 15 : 0;
-   }
+	@Override
+	protected BlockState setRedstoneOutput(BlockState state, int rsOut) {
+		return state.with(POWERED, rsOut > 0);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(POWERED);
-   }
+	@Override
+	protected int getRedstoneOutput(World world, BlockPos pos) {
+		Class<? extends Entity> class_ = switch (this.blockSetType.pressurePlateSensitivity()) {
+			case EVERYTHING -> Entity.class;
+			case MOBS -> LivingEntity.class;
+		};
+		return getEntityCount(world, BOX.offset(pos), class_) > 0 ? 15 : 0;
+	}
+
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(POWERED);
+	}
 }

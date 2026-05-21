@@ -6,11 +6,6 @@ import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
-import java.io.IOException;
-import java.io.Reader;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryWrapper;
@@ -19,52 +14,83 @@ import net.minecraft.util.StrictJsonParser;
 import net.minecraft.util.profiler.Profiler;
 import org.slf4j.Logger;
 
+import java.io.IOException;
+import java.io.Reader;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+
+/**
+ * {@code JsonDataLoader}.
+ */
 public abstract class JsonDataLoader<T> extends SinglePreparationResourceReloader<Map<Identifier, T>> {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private final DynamicOps<JsonElement> ops;
-   private final Codec<T> codec;
-   private final ResourceFinder finder;
 
-   protected JsonDataLoader(RegistryWrapper.WrapperLookup registries, Codec<T> codec, RegistryKey<? extends Registry<T>> registryRef) {
-      this(registries.getOps(JsonOps.INSTANCE), codec, ResourceFinder.json(registryRef));
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private final DynamicOps<JsonElement> ops;
+	private final Codec<T> codec;
+	private final ResourceFinder finder;
 
-   protected JsonDataLoader(Codec<T> codec, ResourceFinder finder) {
-      this(JsonOps.INSTANCE, codec, finder);
-   }
+	protected JsonDataLoader(
+			RegistryWrapper.WrapperLookup registries,
+			Codec<T> codec,
+			RegistryKey<? extends Registry<T>> registryRef
+	) {
+		this(registries.getOps(JsonOps.INSTANCE), codec, ResourceFinder.json(registryRef));
+	}
 
-   private JsonDataLoader(DynamicOps<JsonElement> ops, Codec<T> codec, ResourceFinder finder) {
-      this.ops = ops;
-      this.codec = codec;
-      this.finder = finder;
-   }
+	protected JsonDataLoader(Codec<T> codec, ResourceFinder finder) {
+		this(JsonOps.INSTANCE, codec, finder);
+	}
 
-   protected Map<Identifier, T> prepare(ResourceManager resourceManager, Profiler profiler) {
-      Map<Identifier, T> map = new HashMap<>();
-      load(resourceManager, this.finder, this.ops, this.codec, map);
-      return map;
-   }
+	private JsonDataLoader(DynamicOps<JsonElement> ops, Codec<T> codec, ResourceFinder finder) {
+		this.ops = ops;
+		this.codec = codec;
+		this.finder = finder;
+	}
 
-   public static <T> void load(
-      ResourceManager manager, RegistryKey<? extends Registry<T>> registryRef, DynamicOps<JsonElement> ops, Codec<T> codec, Map<Identifier, T> results
-   ) {
-      load(manager, ResourceFinder.json(registryRef), ops, codec, results);
-   }
+	protected Map<Identifier, T> prepare(ResourceManager resourceManager, Profiler profiler) {
+		Map<Identifier, T> map = new HashMap<>();
+		load(resourceManager, this.finder, this.ops, this.codec, map);
+		return map;
+	}
 
-   public static <T> void load(ResourceManager manager, ResourceFinder finder, DynamicOps<JsonElement> ops, Codec<T> codec, Map<Identifier, T> results) {
-      for (Entry<Identifier, Resource> entry : finder.findResources(manager).entrySet()) {
-         Identifier identifier = entry.getKey();
-         Identifier identifier2 = finder.toResourceId(identifier);
+	public static <T> void load(
+			ResourceManager manager,
+			RegistryKey<? extends Registry<T>> registryRef,
+			DynamicOps<JsonElement> ops,
+			Codec<T> codec,
+			Map<Identifier, T> results
+	) {
+		load(manager, ResourceFinder.json(registryRef), ops, codec, results);
+	}
 
-         try (Reader reader = entry.getValue().getReader()) {
-            codec.parse(ops, StrictJsonParser.parse(reader)).ifSuccess(value -> {
-               if (results.putIfAbsent(identifier2, (T)value) != null) {
-                  throw new IllegalStateException("Duplicate data file ignored with ID " + identifier2);
-               }
-            }).ifError(error -> LOGGER.error("Couldn't parse data file '{}' from '{}': {}", new Object[]{identifier2, identifier, error}));
-         } catch (IllegalArgumentException | IOException | JsonParseException var14) {
-            LOGGER.error("Couldn't parse data file '{}' from '{}'", new Object[]{identifier2, identifier, var14});
-         }
-      }
-   }
+	public static <T> void load(
+			ResourceManager manager,
+			ResourceFinder finder,
+			DynamicOps<JsonElement> ops,
+			Codec<T> codec,
+			Map<Identifier, T> results
+	) {
+		for (Entry<Identifier, Resource> entry : finder.findResources(manager).entrySet()) {
+			Identifier identifier = entry.getKey();
+			Identifier identifier2 = finder.toResourceId(identifier);
+
+			try (Reader reader = entry.getValue().getReader()) {
+				codec
+						.parse(ops, StrictJsonParser.parse(reader))
+						.ifSuccess(value -> {
+							if (results.putIfAbsent(identifier2, (T) value) != null) {
+								throw new IllegalStateException("Duplicate data file ignored with ID " + identifier2);
+							}
+						})
+						.ifError(error -> LOGGER.error(
+								"Couldn't parse data file '{}' from '{}': {}",
+								new Object[]{identifier2, identifier, error}
+						));
+			}
+			catch (IllegalArgumentException | IOException | JsonParseException var14) {
+				LOGGER.error("Couldn't parse data file '{}' from '{}'", new Object[]{identifier2, identifier, var14});
+			}
+		}
+	}
 }

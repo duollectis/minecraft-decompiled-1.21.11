@@ -1,9 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.List;
-import java.util.Map;
-import java.util.OptionalInt;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ShelfBlockEntity;
 import net.minecraft.block.enums.SideChainPart;
@@ -25,11 +22,7 @@ import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
 import net.minecraft.state.property.EnumProperty;
 import net.minecraft.state.property.Properties;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.BlockMirror;
-import net.minecraft.util.BlockRotation;
-import net.minecraft.util.Hand;
-import net.minecraft.util.ItemScatterer;
+import net.minecraft.util.*;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -45,278 +38,342 @@ import net.minecraft.world.event.GameEvent;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Map;
+import java.util.OptionalInt;
+
+/**
+ * {@code ShelfBlock}.
+ */
 public class ShelfBlock extends BlockWithEntity implements InteractibleSlotContainer, SideChaining, Waterloggable {
-   public static final MapCodec<ShelfBlock> CODEC = createCodec(ShelfBlock::new);
-   public static final BooleanProperty POWERED = Properties.POWERED;
-   public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
-   public static final EnumProperty<SideChainPart> SIDE_CHAIN = Properties.SIDE_CHAIN;
-   public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
-   private static final Map<Direction, VoxelShape> SHAPES = VoxelShapes.createHorizontalFacingShapeMap(
-      VoxelShapes.union(
-         Block.createCuboidShape(0.0, 12.0, 11.0, 16.0, 16.0, 13.0),
-         Block.createCuboidShape(0.0, 0.0, 13.0, 16.0, 16.0, 16.0),
-         Block.createCuboidShape(0.0, 0.0, 11.0, 16.0, 4.0, 13.0)
-      )
-   );
 
-   @Override
-   public MapCodec<ShelfBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<ShelfBlock> CODEC = createCodec(ShelfBlock::new);
+	public static final BooleanProperty POWERED = Properties.POWERED;
+	public static final EnumProperty<Direction> FACING = Properties.HORIZONTAL_FACING;
+	public static final EnumProperty<SideChainPart> SIDE_CHAIN = Properties.SIDE_CHAIN;
+	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
+	private static final Map<Direction, VoxelShape> SHAPES = VoxelShapes.createHorizontalFacingShapeMap(
+			VoxelShapes.union(
+					Block.createCuboidShape(0.0, 12.0, 11.0, 16.0, 16.0, 13.0),
+					Block.createCuboidShape(0.0, 0.0, 13.0, 16.0, 16.0, 16.0),
+					Block.createCuboidShape(0.0, 0.0, 11.0, 16.0, 4.0, 13.0)
+			)
+	);
 
-   public ShelfBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(
-         this.stateManager
-            .getDefaultState()
-            .with(FACING, Direction.NORTH)
-            .with(POWERED, false)
-            .with(SIDE_CHAIN, SideChainPart.UNCONNECTED)
-            .with(WATERLOGGED, false)
-      );
-   }
+	@Override
+	public MapCodec<ShelfBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPES.get(state.get(FACING));
-   }
+	public ShelfBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(
+				this.stateManager
+						.getDefaultState()
+						.with(FACING, Direction.NORTH)
+						.with(POWERED, false)
+						.with(SIDE_CHAIN, SideChainPart.UNCONNECTED)
+						.with(WATERLOGGED, false)
+		);
+	}
 
-   @Override
-   protected boolean hasSidedTransparency(BlockState state) {
-      return true;
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPES.get(state.get(FACING));
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return type == NavigationType.WATER && state.getFluidState().isIn(FluidTags.WATER);
-   }
+	@Override
+	protected boolean hasSidedTransparency(BlockState state) {
+		return true;
+	}
 
-   @Override
-   public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new ShelfBlockEntity(pos, state);
-   }
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return type == NavigationType.WATER && state.getFluidState().isIn(FluidTags.WATER);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(FACING, POWERED, SIDE_CHAIN, WATERLOGGED);
-   }
+	@Override
+	public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new ShelfBlockEntity(pos, state);
+	}
 
-   @Override
-   protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-      ItemScatterer.onStateReplaced(state, world, pos);
-      this.disconnectNeighbors(world, pos, state);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(FACING, POWERED, SIDE_CHAIN, WATERLOGGED);
+	}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      if (!world.isClient()) {
-         boolean bl = world.isReceivingRedstonePower(pos);
-         if (state.get(POWERED) != bl) {
-            BlockState blockState = state.with(POWERED, bl);
-            if (!bl) {
-               blockState = blockState.with(SIDE_CHAIN, SideChainPart.UNCONNECTED);
-            }
+	@Override
+	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+		ItemScatterer.onStateReplaced(state, world, pos);
+		this.disconnectNeighbors(world, pos, state);
+	}
 
-            world.setBlockState(pos, blockState, 3);
-            this.playSound(world, pos, bl ? SoundEvents.BLOCK_SHELF_ACTIVATE : SoundEvents.BLOCK_SHELF_DEACTIVATE);
-            world.emitGameEvent(bl ? GameEvent.BLOCK_ACTIVATE : GameEvent.BLOCK_DEACTIVATE, pos, GameEvent.Emitter.of(blockState));
-         }
-      }
-   }
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		if (!world.isClient()) {
+			boolean bl = world.isReceivingRedstonePower(pos);
+			if (state.get(POWERED) != bl) {
+				BlockState blockState = state.with(POWERED, bl);
+				if (!bl) {
+					blockState = blockState.with(SIDE_CHAIN, SideChainPart.UNCONNECTED);
+				}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-      return this.getDefaultState()
-         .with(FACING, ctx.getHorizontalPlayerFacing().getOpposite())
-         .with(POWERED, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()))
-         .with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
-   }
+				world.setBlockState(pos, blockState, 3);
+				this.playSound(world, pos, bl ? SoundEvents.BLOCK_SHELF_ACTIVATE : SoundEvents.BLOCK_SHELF_DEACTIVATE);
+				world.emitGameEvent(
+						bl ? GameEvent.BLOCK_ACTIVATE : GameEvent.BLOCK_DEACTIVATE,
+						pos,
+						GameEvent.Emitter.of(blockState)
+				);
+			}
+		}
+	}
 
-   @Override
-   public BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(FACING, rotation.rotate(state.get(FACING)));
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
+		return this.getDefaultState()
+		           .with(FACING, ctx.getHorizontalPlayerFacing().getOpposite())
+		           .with(POWERED, ctx.getWorld().isReceivingRedstonePower(ctx.getBlockPos()))
+		           .with(WATERLOGGED, fluidState.getFluid() == Fluids.WATER);
+	}
 
-   @Override
-   public BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.rotate(mirror.getRotation(state.get(FACING)));
-   }
+	@Override
+	public BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(FACING, rotation.rotate(state.get(FACING)));
+	}
 
-   @Override
-   public int getRows() {
-      return 1;
-   }
+	@Override
+	public BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.rotate(mirror.getRotation(state.get(FACING)));
+	}
 
-   @Override
-   public int getColumns() {
-      return 3;
-   }
+	@Override
+	public int getRows() {
+		return 1;
+	}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      if (world.getBlockEntity(pos) instanceof ShelfBlockEntity shelfBlockEntity && !hand.equals(Hand.OFF_HAND)) {
-         OptionalInt optionalInt = this.getHitSlot(hit, state.get(FACING));
-         if (optionalInt.isEmpty()) {
-            return ActionResult.PASS;
-         } else {
-            PlayerInventory playerInventory = player.getInventory();
-            if (world.isClient()) {
-               return (ActionResult)(playerInventory.getSelectedStack().isEmpty() ? ActionResult.PASS : ActionResult.SUCCESS);
-            } else if (!state.get(POWERED)) {
-               boolean bl = swapSingleStack(stack, player, shelfBlockEntity, optionalInt.getAsInt(), playerInventory);
-               if (bl) {
-                  this.playSound(world, pos, stack.isEmpty() ? SoundEvents.BLOCK_SHELF_TAKE_ITEM : SoundEvents.BLOCK_SHELF_SINGLE_SWAP);
-               } else {
-                  if (stack.isEmpty()) {
-                     return ActionResult.PASS;
-                  }
+	@Override
+	public int getColumns() {
+		return 3;
+	}
 
-                  this.playSound(world, pos, SoundEvents.BLOCK_SHELF_PLACE_ITEM);
-               }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		if (world.getBlockEntity(pos) instanceof ShelfBlockEntity shelfBlockEntity && !hand.equals(Hand.OFF_HAND)) {
+			OptionalInt optionalInt = this.getHitSlot(hit, state.get(FACING));
+			if (optionalInt.isEmpty()) {
+				return ActionResult.PASS;
+			}
+			else {
+				PlayerInventory playerInventory = player.getInventory();
+				if (world.isClient()) {
+					return (ActionResult) (playerInventory.getSelectedStack().isEmpty() ? ActionResult.PASS
+					                                                                    : ActionResult.SUCCESS
+					);
+				}
+				else if (!state.get(POWERED)) {
+					boolean
+							bl =
+							swapSingleStack(stack, player, shelfBlockEntity, optionalInt.getAsInt(), playerInventory);
+					if (bl) {
+						this.playSound(
+								world,
+								pos,
+								stack.isEmpty() ? SoundEvents.BLOCK_SHELF_TAKE_ITEM
+								                : SoundEvents.BLOCK_SHELF_SINGLE_SWAP
+						);
+					}
+					else {
+						if (stack.isEmpty()) {
+							return ActionResult.PASS;
+						}
 
-               return ActionResult.SUCCESS.withNewHandStack(stack);
-            } else {
-               ItemStack itemStack = playerInventory.getSelectedStack();
-               boolean bl2 = this.swapAllStacks(world, pos, playerInventory);
-               if (!bl2) {
-                  return ActionResult.CONSUME;
-               } else {
-                  this.playSound(world, pos, SoundEvents.BLOCK_SHELF_MULTI_SWAP);
-                  return itemStack == playerInventory.getSelectedStack()
-                     ? ActionResult.SUCCESS
-                     : ActionResult.SUCCESS.withNewHandStack(playerInventory.getSelectedStack());
-               }
-            }
-         }
-      } else {
-         return ActionResult.PASS;
-      }
-   }
+						this.playSound(world, pos, SoundEvents.BLOCK_SHELF_PLACE_ITEM);
+					}
 
-   private static boolean swapSingleStack(ItemStack stack, PlayerEntity player, ShelfBlockEntity blockEntity, int hitSlot, PlayerInventory playerInventory) {
-      ItemStack itemStack = blockEntity.swapStackNoMarkDirty(hitSlot, stack);
-      ItemStack itemStack2 = player.isInCreativeMode() && itemStack.isEmpty() ? stack.copy() : itemStack;
-      playerInventory.setStack(playerInventory.getSelectedSlot(), itemStack2);
-      playerInventory.markDirty();
-      blockEntity.markDirty(
-         itemStack2.contains(DataComponentTypes.USE_EFFECTS) && !itemStack2.get(DataComponentTypes.USE_EFFECTS).interactVibrations()
-            ? null
-            : GameEvent.ITEM_INTERACT_FINISH
-      );
-      return !itemStack.isEmpty();
-   }
+					return ActionResult.SUCCESS.withNewHandStack(stack);
+				}
+				else {
+					ItemStack itemStack = playerInventory.getSelectedStack();
+					boolean bl2 = this.swapAllStacks(world, pos, playerInventory);
+					if (!bl2) {
+						return ActionResult.CONSUME;
+					}
+					else {
+						this.playSound(world, pos, SoundEvents.BLOCK_SHELF_MULTI_SWAP);
+						return itemStack == playerInventory.getSelectedStack()
+						       ? ActionResult.SUCCESS
+						       : ActionResult.SUCCESS.withNewHandStack(playerInventory.getSelectedStack());
+					}
+				}
+			}
+		}
+		else {
+			return ActionResult.PASS;
+		}
+	}
 
-   private boolean swapAllStacks(World world, BlockPos pos, PlayerInventory playerInventory) {
-      List<BlockPos> list = this.getPositionsInChain(world, pos);
-      if (list.isEmpty()) {
-         return false;
-      } else {
-         boolean bl = false;
+	private static boolean swapSingleStack(
+			ItemStack stack,
+			PlayerEntity player,
+			ShelfBlockEntity blockEntity,
+			int hitSlot,
+			PlayerInventory playerInventory
+	) {
+		ItemStack itemStack = blockEntity.swapStackNoMarkDirty(hitSlot, stack);
+		ItemStack itemStack2 = player.isInCreativeMode() && itemStack.isEmpty() ? stack.copy() : itemStack;
+		playerInventory.setStack(playerInventory.getSelectedSlot(), itemStack2);
+		playerInventory.markDirty();
+		blockEntity.markDirty(
+				itemStack2.contains(DataComponentTypes.USE_EFFECTS) && !itemStack2
+						.get(DataComponentTypes.USE_EFFECTS)
+						.interactVibrations()
+				? null
+				: GameEvent.ITEM_INTERACT_FINISH
+		);
+		return !itemStack.isEmpty();
+	}
 
-         for (int i = 0; i < list.size(); i++) {
-            ShelfBlockEntity shelfBlockEntity = (ShelfBlockEntity)world.getBlockEntity(list.get(i));
-            if (shelfBlockEntity != null) {
-               for (int j = 0; j < shelfBlockEntity.size(); j++) {
-                  int k = 9 - (list.size() - i) * shelfBlockEntity.size() + j;
-                  if (k >= 0 && k <= playerInventory.size()) {
-                     ItemStack itemStack = playerInventory.removeStack(k);
-                     ItemStack itemStack2 = shelfBlockEntity.swapStackNoMarkDirty(j, itemStack);
-                     if (!itemStack.isEmpty() || !itemStack2.isEmpty()) {
-                        playerInventory.setStack(k, itemStack2);
-                        bl = true;
-                     }
-                  }
-               }
+	private boolean swapAllStacks(World world, BlockPos pos, PlayerInventory playerInventory) {
+		List<BlockPos> list = this.getPositionsInChain(world, pos);
+		if (list.isEmpty()) {
+			return false;
+		}
+		else {
+			boolean bl = false;
 
-               playerInventory.markDirty();
-               shelfBlockEntity.markDirty(GameEvent.ENTITY_INTERACT);
-            }
-         }
+			for (int i = 0; i < list.size(); i++) {
+				ShelfBlockEntity shelfBlockEntity = (ShelfBlockEntity) world.getBlockEntity(list.get(i));
+				if (shelfBlockEntity != null) {
+					for (int j = 0; j < shelfBlockEntity.size(); j++) {
+						int k = 9 - (list.size() - i) * shelfBlockEntity.size() + j;
+						if (k >= 0 && k <= playerInventory.size()) {
+							ItemStack itemStack = playerInventory.removeStack(k);
+							ItemStack itemStack2 = shelfBlockEntity.swapStackNoMarkDirty(j, itemStack);
+							if (!itemStack.isEmpty() || !itemStack2.isEmpty()) {
+								playerInventory.setStack(k, itemStack2);
+								bl = true;
+							}
+						}
+					}
 
-         return bl;
-      }
-   }
+					playerInventory.markDirty();
+					shelfBlockEntity.markDirty(GameEvent.ENTITY_INTERACT);
+				}
+			}
 
-   @Override
-   public SideChainPart getSideChainPart(BlockState state) {
-      return state.get(SIDE_CHAIN);
-   }
+			return bl;
+		}
+	}
 
-   @Override
-   public BlockState withSideChainPart(BlockState state, SideChainPart sideChainPart) {
-      return state.with(SIDE_CHAIN, sideChainPart);
-   }
+	@Override
+	public SideChainPart getSideChainPart(BlockState state) {
+		return state.get(SIDE_CHAIN);
+	}
 
-   @Override
-   public Direction getFacing(BlockState state) {
-      return state.get(FACING);
-   }
+	@Override
+	public BlockState withSideChainPart(BlockState state, SideChainPart sideChainPart) {
+		return state.with(SIDE_CHAIN, sideChainPart);
+	}
 
-   @Override
-   public boolean canChainWith(BlockState state) {
-      return state.isIn(BlockTags.WOODEN_SHELVES) && state.contains(POWERED) && state.get(POWERED);
-   }
+	@Override
+	public Direction getFacing(BlockState state) {
+		return state.get(FACING);
+	}
 
-   @Override
-   public int getMaxSideChainLength() {
-      return 3;
-   }
+	@Override
+	public boolean canChainWith(BlockState state) {
+		return state.isIn(BlockTags.WOODEN_SHELVES) && state.contains(POWERED) && state.get(POWERED);
+	}
 
-   @Override
-   protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-      if (state.get(POWERED)) {
-         this.connectNeighbors(world, pos, state, oldState);
-      } else {
-         this.disconnectNeighbors(world, pos, state);
-      }
-   }
+	@Override
+	public int getMaxSideChainLength() {
+		return 3;
+	}
 
-   private void playSound(WorldAccess world, BlockPos pos, SoundEvent sound) {
-      world.playSound(null, pos, sound, SoundCategory.BLOCKS, 1.0F, 1.0F);
-   }
+	@Override
+	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
+		if (state.get(POWERED)) {
+			this.connectNeighbors(world, pos, state, oldState);
+		}
+		else {
+			this.disconnectNeighbors(world, pos, state);
+		}
+	}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
-   }
+	private void playSound(WorldAccess world, BlockPos pos, SoundEvent sound) {
+		world.playSound(null, pos, sound, SoundCategory.BLOCKS, 1.0F, 1.0F);
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (state.get(WATERLOGGED)) {
-         tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-      }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
 
-   @Override
-   protected boolean hasComparatorOutput(BlockState state) {
-      return true;
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   @Override
-   protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-      if (world.isClient()) {
-         return 0;
-      } else if (direction != state.get(FACING).getOpposite()) {
-         return 0;
-      } else if (world.getBlockEntity(pos) instanceof ShelfBlockEntity shelfBlockEntity) {
-         int i = shelfBlockEntity.getStack(0).isEmpty() ? 0 : 1;
-         int j = shelfBlockEntity.getStack(1).isEmpty() ? 0 : 1;
-         int k = shelfBlockEntity.getStack(2).isEmpty() ? 0 : 1;
-         return i | j << 1 | k << 2;
-      } else {
-         return 0;
-      }
-   }
+	@Override
+	protected boolean hasComparatorOutput(BlockState state) {
+		return true;
+	}
+
+	@Override
+	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
+		if (world.isClient()) {
+			return 0;
+		}
+		else if (direction != state.get(FACING).getOpposite()) {
+			return 0;
+		}
+		else if (world.getBlockEntity(pos) instanceof ShelfBlockEntity shelfBlockEntity) {
+			int i = shelfBlockEntity.getStack(0).isEmpty() ? 0 : 1;
+			int j = shelfBlockEntity.getStack(1).isEmpty() ? 0 : 1;
+			int k = shelfBlockEntity.getStack(2).isEmpty() ? 0 : 1;
+			return i | j << 1 | k << 2;
+		}
+		else {
+			return 0;
+		}
+	}
 }

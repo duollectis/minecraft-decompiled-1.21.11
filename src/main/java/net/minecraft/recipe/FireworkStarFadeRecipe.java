@@ -12,66 +12,79 @@ import net.minecraft.recipe.input.CraftingRecipeInput;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.world.World;
 
+/**
+ * {@code FireworkStarFadeRecipe}.
+ */
 public class FireworkStarFadeRecipe extends SpecialCraftingRecipe {
-   private static final Ingredient INPUT_STAR = Ingredient.ofItem(Items.FIREWORK_STAR);
 
-   public FireworkStarFadeRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-      super(craftingRecipeCategory);
-   }
+	private static final Ingredient INPUT_STAR = Ingredient.ofItem(Items.FIREWORK_STAR);
 
-   public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-      if (craftingRecipeInput.getStackCount() < 2) {
-         return false;
-      } else {
-         boolean bl = false;
-         boolean bl2 = false;
+	public FireworkStarFadeRecipe(CraftingRecipeCategory craftingRecipeCategory) {
+		super(craftingRecipeCategory);
+	}
 
-         for (int i = 0; i < craftingRecipeInput.size(); i++) {
-            ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-            if (!itemStack.isEmpty()) {
-               if (itemStack.getItem() instanceof DyeItem) {
-                  bl = true;
-               } else {
-                  if (!INPUT_STAR.test(itemStack)) {
-                     return false;
-                  }
+	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
+		if (craftingRecipeInput.getStackCount() < 2) {
+			return false;
+		}
+		else {
+			boolean bl = false;
+			boolean bl2 = false;
 
-                  if (bl2) {
-                     return false;
-                  }
+			for (int i = 0; i < craftingRecipeInput.size(); i++) {
+				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
+				if (!itemStack.isEmpty()) {
+					if (itemStack.getItem() instanceof DyeItem) {
+						bl = true;
+					}
+					else {
+						if (!INPUT_STAR.test(itemStack)) {
+							return false;
+						}
 
-                  bl2 = true;
-               }
-            }
-         }
+						if (bl2) {
+							return false;
+						}
 
-         return bl2 && bl;
-      }
-   }
+						bl2 = true;
+					}
+				}
+			}
 
-   public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-      IntList intList = new IntArrayList();
-      ItemStack itemStack = null;
+			return bl2 && bl;
+		}
+	}
 
-      for (int i = 0; i < craftingRecipeInput.size(); i++) {
-         ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(i);
-         if (itemStack2.getItem() instanceof DyeItem dyeItem) {
-            intList.add(dyeItem.getColor().getFireworkColor());
-         } else if (INPUT_STAR.test(itemStack2)) {
-            itemStack = itemStack2.copyWithCount(1);
-         }
-      }
+	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
+		IntList intList = new IntArrayList();
+		ItemStack itemStack = null;
 
-      if (itemStack != null && !intList.isEmpty()) {
-         itemStack.apply(DataComponentTypes.FIREWORK_EXPLOSION, FireworkExplosionComponent.DEFAULT, intList, FireworkExplosionComponent::withFadeColors);
-         return itemStack;
-      } else {
-         return ItemStack.EMPTY;
-      }
-   }
+		for (int i = 0; i < craftingRecipeInput.size(); i++) {
+			ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(i);
+			if (itemStack2.getItem() instanceof DyeItem dyeItem) {
+				intList.add(dyeItem.getColor().getFireworkColor());
+			}
+			else if (INPUT_STAR.test(itemStack2)) {
+				itemStack = itemStack2.copyWithCount(1);
+			}
+		}
 
-   @Override
-   public RecipeSerializer<FireworkStarFadeRecipe> getSerializer() {
-      return RecipeSerializer.FIREWORK_STAR_FADE;
-   }
+		if (itemStack != null && !intList.isEmpty()) {
+			itemStack.apply(
+					DataComponentTypes.FIREWORK_EXPLOSION,
+					FireworkExplosionComponent.DEFAULT,
+					intList,
+					FireworkExplosionComponent::withFadeColors
+			);
+			return itemStack;
+		}
+		else {
+			return ItemStack.EMPTY;
+		}
+	}
+
+	@Override
+	public RecipeSerializer<FireworkStarFadeRecipe> getSerializer() {
+		return RecipeSerializer.FIREWORK_STAR_FADE;
+	}
 }

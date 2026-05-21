@@ -13,70 +13,88 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code SoulSandBlock}.
+ */
 public class SoulSandBlock extends Block {
-   public static final MapCodec<SoulSandBlock> CODEC = createCodec(SoulSandBlock::new);
-   private static final VoxelShape COLLISION_SHAPE = Block.createColumnShape(16.0, 0.0, 14.0);
-   private static final int SCHEDULED_TICK_DELAY = 20;
 
-   @Override
-   public MapCodec<SoulSandBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<SoulSandBlock> CODEC = createCodec(SoulSandBlock::new);
+	private static final VoxelShape COLLISION_SHAPE = Block.createColumnShape(16.0, 0.0, 14.0);
+	private static final int SCHEDULED_TICK_DELAY = 20;
 
-   public SoulSandBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<SoulSandBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return COLLISION_SHAPE;
-   }
+	public SoulSandBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected VoxelShape getSidesShape(BlockState state, BlockView world, BlockPos pos) {
-      return VoxelShapes.fullCube();
-   }
+	@Override
+	protected VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return COLLISION_SHAPE;
+	}
 
-   @Override
-   protected VoxelShape getCameraCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return VoxelShapes.fullCube();
-   }
+	@Override
+	protected VoxelShape getSidesShape(BlockState state, BlockView world, BlockPos pos) {
+		return VoxelShapes.fullCube();
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      BubbleColumnBlock.update(world, pos.up(), state);
-   }
+	@Override
+	protected VoxelShape getCameraCollisionShape(
+			BlockState state,
+			BlockView world,
+			BlockPos pos,
+			ShapeContext context
+	) {
+		return VoxelShapes.fullCube();
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (direction == Direction.UP && neighborState.isOf(Blocks.WATER)) {
-         tickView.scheduleBlockTick(pos, this, 20);
-      }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		BubbleColumnBlock.update(world, pos.up(), state);
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (direction == Direction.UP && neighborState.isOf(Blocks.WATER)) {
+			tickView.scheduleBlockTick(pos, this, 20);
+		}
 
-   @Override
-   protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
-      world.scheduleBlockTick(pos, this, 20);
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
+		world.scheduleBlockTick(pos, this, 20);
+	}
 
-   @Override
-   protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
-      return 0.2F;
-   }
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
+
+	@Override
+	protected float getAmbientOcclusionLightLevel(BlockState state, BlockView world, BlockPos pos) {
+		return 0.2F;
+	}
 }

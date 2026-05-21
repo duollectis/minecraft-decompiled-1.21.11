@@ -6,6 +6,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 import com.mojang.logging.LogUtils;
+import net.minecraft.text.OrderedText;
+import net.minecraft.text.StringVisitable;
+import net.minecraft.text.Style;
+import net.minecraft.text.TextVisitFactory;
+import org.slf4j.Logger;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -13,94 +19,103 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
-import net.minecraft.text.OrderedText;
-import net.minecraft.text.StringVisitable;
-import net.minecraft.text.Style;
-import net.minecraft.text.TextVisitFactory;
-import org.slf4j.Logger;
 
+/**
+ * {@code Language}.
+ */
 public abstract class Language {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final Gson GSON = new Gson();
-   private static final Pattern TOKEN_PATTERN = Pattern.compile("%(\\d+\\$)?[\\d.]*[df]");
-   public static final String DEFAULT_LANGUAGE = "en_us";
-   private static volatile Language instance = create();
 
-   private static Language create() {
-      DeprecatedLanguageData deprecatedLanguageData = DeprecatedLanguageData.create();
-      Map<String, String> map = new HashMap<>();
-      BiConsumer<String, String> biConsumer = map::put;
-      load(biConsumer, "/assets/minecraft/lang/en_us.json");
-      deprecatedLanguageData.apply(map);
-      final Map<String, String> map2 = Map.copyOf(map);
-      return new Language() {
-         @Override
-         public String get(String key, String fallback) {
-            return map2.getOrDefault(key, fallback);
-         }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final Gson GSON = new Gson();
+	private static final Pattern TOKEN_PATTERN = Pattern.compile("%(\\d+\\$)?[\\d.]*[df]");
+	public static final String DEFAULT_LANGUAGE = "en_us";
+	private static volatile Language instance = create();
 
-         @Override
-         public boolean hasTranslation(String key) {
-            return map2.containsKey(key);
-         }
+	private static Language create() {
+		DeprecatedLanguageData deprecatedLanguageData = DeprecatedLanguageData.create();
+		Map<String, String> map = new HashMap<>();
+		BiConsumer<String, String> biConsumer = map::put;
+		load(biConsumer, "/assets/minecraft/lang/en_us.json");
+		deprecatedLanguageData.apply(map);
+		final Map<String, String> map2 = Map.copyOf(map);
+		return new Language() {
+			@Override
+			public String get(String key, String fallback) {
+				return map2.getOrDefault(key, fallback);
+			}
 
-         @Override
-         public boolean isRightToLeft() {
-            return false;
-         }
+			@Override
+			public boolean hasTranslation(String key) {
+				return map2.containsKey(key);
+			}
 
-         @Override
-         public OrderedText reorder(StringVisitable text) {
-            return visitor -> text.visit(
-                  (style, string) -> TextVisitFactory.visitFormatted(string, style, visitor) ? Optional.empty() : StringVisitable.TERMINATE_VISIT, Style.EMPTY
-               )
-               .isPresent();
-         }
-      };
-   }
+			@Override
+			public boolean isRightToLeft() {
+				return false;
+			}
 
-   private static void load(BiConsumer<String, String> entryConsumer, String path) {
-      try (InputStream inputStream = Language.class.getResourceAsStream(path)) {
-         load(inputStream, entryConsumer);
-      } catch (JsonParseException | IOException var7) {
-         LOGGER.error("Couldn't read strings from {}", path, var7);
-      }
-   }
+			@Override
+			public OrderedText reorder(StringVisitable text) {
+				return visitor -> text.visit(
+						                      (style, string) -> TextVisitFactory.visitFormatted(string, style, visitor) ? Optional.empty()
+						                                                                                                 : StringVisitable.TERMINATE_VISIT,
+						                      Style.EMPTY
+				                      )
+				                      .isPresent();
+			}
+		};
+	}
 
-   public static void load(InputStream inputStream, BiConsumer<String, String> entryConsumer) {
-      JsonObject jsonObject = (JsonObject)GSON.fromJson(new InputStreamReader(inputStream, StandardCharsets.UTF_8), JsonObject.class);
+	private static void load(BiConsumer<String, String> entryConsumer, String path) {
+		try (InputStream inputStream = Language.class.getResourceAsStream(path)) {
+			load(inputStream, entryConsumer);
+		}
+		catch (JsonParseException | IOException var7) {
+			LOGGER.error("Couldn't read strings from {}", path, var7);
+		}
+	}
 
-      for (Entry<String, JsonElement> entry : jsonObject.entrySet()) {
-         String string = TOKEN_PATTERN.matcher(JsonHelper.asString(entry.getValue(), entry.getKey())).replaceAll("%$1s");
-         entryConsumer.accept(entry.getKey(), string);
-      }
-   }
+	public static void load(InputStream inputStream, BiConsumer<String, String> entryConsumer) {
+		JsonObject
+				jsonObject =
+				(JsonObject) GSON.fromJson(
+						new InputStreamReader(inputStream, StandardCharsets.UTF_8),
+						JsonObject.class
+				);
 
-   public static Language getInstance() {
-      return instance;
-   }
+		for (Entry<String, JsonElement> entry : jsonObject.entrySet()) {
+			String
+					string =
+					TOKEN_PATTERN.matcher(JsonHelper.asString(entry.getValue(), entry.getKey())).replaceAll("%$1s");
+			entryConsumer.accept(entry.getKey(), string);
+		}
+	}
 
-   public static void setInstance(Language language) {
-      instance = language;
-   }
+	public static Language getInstance() {
+		return instance;
+	}
 
-   public String get(String key) {
-      return this.get(key, key);
-   }
+	public static void setInstance(Language language) {
+		instance = language;
+	}
 
-   public abstract String get(String key, String fallback);
+	public String get(String key) {
+		return this.get(key, key);
+	}
 
-   public abstract boolean hasTranslation(String key);
+	public abstract String get(String key, String fallback);
 
-   public abstract boolean isRightToLeft();
+	public abstract boolean hasTranslation(String key);
 
-   public abstract OrderedText reorder(StringVisitable text);
+	public abstract boolean isRightToLeft();
 
-   public List<OrderedText> reorder(List<StringVisitable> texts) {
-      return texts.stream().map(this::reorder).collect(ImmutableList.toImmutableList());
-   }
+	public abstract OrderedText reorder(StringVisitable text);
+
+	public List<OrderedText> reorder(List<StringVisitable> texts) {
+		return texts.stream().map(this::reorder).collect(ImmutableList.toImmutableList());
+	}
 }

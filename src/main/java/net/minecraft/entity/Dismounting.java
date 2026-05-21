@@ -1,6 +1,5 @@
 package net.minecraft.entity;
 
-import java.util.function.Function;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.TrapdoorBlock;
 import net.minecraft.registry.tag.BlockTags;
@@ -14,91 +13,122 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.CollisionView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.Function;
+
+/**
+ * {@code Dismounting}.
+ */
 public class Dismounting {
-   public static int[][] getDismountOffsets(Direction movementDirection) {
-      Direction direction = movementDirection.rotateYClockwise();
-      Direction direction2 = direction.getOpposite();
-      Direction direction3 = movementDirection.getOpposite();
-      return new int[][]{
-         {direction.getOffsetX(), direction.getOffsetZ()},
-         {direction2.getOffsetX(), direction2.getOffsetZ()},
-         {direction3.getOffsetX() + direction.getOffsetX(), direction3.getOffsetZ() + direction.getOffsetZ()},
-         {direction3.getOffsetX() + direction2.getOffsetX(), direction3.getOffsetZ() + direction2.getOffsetZ()},
-         {movementDirection.getOffsetX() + direction.getOffsetX(), movementDirection.getOffsetZ() + direction.getOffsetZ()},
-         {movementDirection.getOffsetX() + direction2.getOffsetX(), movementDirection.getOffsetZ() + direction2.getOffsetZ()},
-         {direction3.getOffsetX(), direction3.getOffsetZ()},
-         {movementDirection.getOffsetX(), movementDirection.getOffsetZ()}
-      };
-   }
 
-   public static boolean canDismountInBlock(double height) {
-      return !Double.isInfinite(height) && height < 1.0;
-   }
+	public static int[][] getDismountOffsets(Direction movementDirection) {
+		Direction direction = movementDirection.rotateYClockwise();
+		Direction direction2 = direction.getOpposite();
+		Direction direction3 = movementDirection.getOpposite();
+		return new int[][]{
+				{direction.getOffsetX(), direction.getOffsetZ()},
+				{direction2.getOffsetX(), direction2.getOffsetZ()},
+				{direction3.getOffsetX() + direction.getOffsetX(), direction3.getOffsetZ() + direction.getOffsetZ()},
+				{direction3.getOffsetX() + direction2.getOffsetX(), direction3.getOffsetZ() + direction2.getOffsetZ()},
+				{
+						movementDirection.getOffsetX() + direction.getOffsetX(),
+						movementDirection.getOffsetZ() + direction.getOffsetZ()
+				},
+				{
+						movementDirection.getOffsetX() + direction2.getOffsetX(),
+						movementDirection.getOffsetZ() + direction2.getOffsetZ()
+				},
+				{direction3.getOffsetX(), direction3.getOffsetZ()},
+				{movementDirection.getOffsetX(), movementDirection.getOffsetZ()}
+		};
+	}
 
-   public static boolean canPlaceEntityAt(CollisionView world, LivingEntity entity, Box targetBox) {
-      for (VoxelShape voxelShape : world.getBlockCollisions(entity, targetBox)) {
-         if (!voxelShape.isEmpty()) {
-            return false;
-         }
-      }
+	public static boolean canDismountInBlock(double height) {
+		return !Double.isInfinite(height) && height < 1.0;
+	}
 
-      return world.getWorldBorder().contains(targetBox);
-   }
+	public static boolean canPlaceEntityAt(CollisionView world, LivingEntity entity, Box targetBox) {
+		for (VoxelShape voxelShape : world.getBlockCollisions(entity, targetBox)) {
+			if (!voxelShape.isEmpty()) {
+				return false;
+			}
+		}
 
-   public static boolean canPlaceEntityAt(CollisionView world, Vec3d offset, LivingEntity entity, EntityPose pose) {
-      return canPlaceEntityAt(world, entity, entity.getBoundingBox(pose).offset(offset));
-   }
+		return world.getWorldBorder().contains(targetBox);
+	}
 
-   public static VoxelShape getCollisionShape(BlockView world, BlockPos pos) {
-      BlockState blockState = world.getBlockState(pos);
-      return !blockState.isIn(BlockTags.CLIMBABLE) && (!(blockState.getBlock() instanceof TrapdoorBlock) || !blockState.get(TrapdoorBlock.OPEN))
-         ? blockState.getCollisionShape(world, pos)
-         : VoxelShapes.empty();
-   }
+	public static boolean canPlaceEntityAt(CollisionView world, Vec3d offset, LivingEntity entity, EntityPose pose) {
+		return canPlaceEntityAt(world, entity, entity.getBoundingBox(pose).offset(offset));
+	}
 
-   public static double getCeilingHeight(BlockPos pos, int maxDistance, Function<BlockPos, VoxelShape> collisionShapeGetter) {
-      BlockPos.Mutable mutable = pos.mutableCopy();
-      int i = 0;
+	public static VoxelShape getCollisionShape(BlockView world, BlockPos pos) {
+		BlockState blockState = world.getBlockState(pos);
+		return !blockState.isIn(BlockTags.CLIMBABLE) && (!(blockState.getBlock() instanceof TrapdoorBlock)
+				|| !blockState.get(TrapdoorBlock.OPEN)
+		)
+		       ? blockState.getCollisionShape(world, pos)
+		       : VoxelShapes.empty();
+	}
 
-      while (i < maxDistance) {
-         VoxelShape voxelShape = collisionShapeGetter.apply(mutable);
-         if (!voxelShape.isEmpty()) {
-            return pos.getY() + i + voxelShape.getMin(Direction.Axis.Y);
-         }
+	public static double getCeilingHeight(
+			BlockPos pos,
+			int maxDistance,
+			Function<BlockPos, VoxelShape> collisionShapeGetter
+	) {
+		BlockPos.Mutable mutable = pos.mutableCopy();
+		int i = 0;
 
-         i++;
-         mutable.move(Direction.UP);
-      }
+		while (i < maxDistance) {
+			VoxelShape voxelShape = collisionShapeGetter.apply(mutable);
+			if (!voxelShape.isEmpty()) {
+				return pos.getY() + i + voxelShape.getMin(Direction.Axis.Y);
+			}
 
-      return Double.POSITIVE_INFINITY;
-   }
+			i++;
+			mutable.move(Direction.UP);
+		}
 
-   public static @Nullable Vec3d findRespawnPos(EntityType<?> entityType, CollisionView world, BlockPos pos, boolean ignoreInvalidPos) {
-      if (ignoreInvalidPos && entityType.isInvalidSpawn(world.getBlockState(pos))) {
-         return null;
-      } else {
-         double d = world.getDismountHeight(getCollisionShape(world, pos), () -> getCollisionShape(world, pos.down()));
-         if (!canDismountInBlock(d)) {
-            return null;
-         } else if (ignoreInvalidPos && d <= 0.0 && entityType.isInvalidSpawn(world.getBlockState(pos.down()))) {
-            return null;
-         } else {
-            Vec3d vec3d = Vec3d.ofCenter(pos, d);
-            Box box = entityType.getDimensions().getBoxAt(vec3d);
+		return Double.POSITIVE_INFINITY;
+	}
 
-            for (VoxelShape voxelShape : world.getBlockCollisions(null, box)) {
-               if (!voxelShape.isEmpty()) {
-                  return null;
-               }
-            }
+	public static @Nullable Vec3d findRespawnPos(
+			EntityType<?> entityType,
+			CollisionView world,
+			BlockPos pos,
+			boolean ignoreInvalidPos
+	) {
+		if (ignoreInvalidPos && entityType.isInvalidSpawn(world.getBlockState(pos))) {
+			return null;
+		}
+		else {
+			double
+					d =
+					world.getDismountHeight(getCollisionShape(world, pos), () -> getCollisionShape(world, pos.down()));
+			if (!canDismountInBlock(d)) {
+				return null;
+			}
+			else if (ignoreInvalidPos && d <= 0.0 && entityType.isInvalidSpawn(world.getBlockState(pos.down()))) {
+				return null;
+			}
+			else {
+				Vec3d vec3d = Vec3d.ofCenter(pos, d);
+				Box box = entityType.getDimensions().getBoxAt(vec3d);
 
-            if (entityType != EntityType.PLAYER
-               || !world.getBlockState(pos).isIn(BlockTags.INVALID_SPAWN_INSIDE) && !world.getBlockState(pos.up()).isIn(BlockTags.INVALID_SPAWN_INSIDE)) {
-               return !world.getWorldBorder().contains(box) ? null : vec3d;
-            } else {
-               return null;
-            }
-         }
-      }
-   }
+				for (VoxelShape voxelShape : world.getBlockCollisions(null, box)) {
+					if (!voxelShape.isEmpty()) {
+						return null;
+					}
+				}
+
+				if (entityType != EntityType.PLAYER
+						|| !world.getBlockState(pos).isIn(BlockTags.INVALID_SPAWN_INSIDE) && !world
+						.getBlockState(pos.up())
+						.isIn(BlockTags.INVALID_SPAWN_INSIDE)) {
+					return !world.getWorldBorder().contains(box) ? null : vec3d;
+				}
+				else {
+					return null;
+				}
+			}
+		}
+	}
 }

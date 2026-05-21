@@ -11,25 +11,29 @@ import net.minecraft.resource.ResourceType;
 import net.minecraft.structure.StructureTemplate;
 import org.slf4j.Logger;
 
+/**
+ * {@code StructureValidatorProvider}.
+ */
 public class StructureValidatorProvider implements SnbtProvider.Tweaker {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final String PATH_PREFIX = ResourceType.SERVER_DATA.getDirectory() + "/minecraft/structure/";
 
-   @Override
-   public NbtCompound write(String name, NbtCompound nbt) {
-      return name.startsWith(PATH_PREFIX) ? update(name, nbt) : nbt;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final String PATH_PREFIX = ResourceType.SERVER_DATA.getDirectory() + "/minecraft/structure/";
 
-   public static NbtCompound update(String name, NbtCompound nbt) {
-      StructureTemplate structureTemplate = new StructureTemplate();
-      int i = NbtHelper.getDataVersion(nbt, 500);
-      int j = 4650;
-      if (i < 4650) {
-         LOGGER.warn("SNBT Too old, do not forget to update: {} < {}: {}", new Object[]{i, 4650, name});
-      }
+	@Override
+	public NbtCompound write(String name, NbtCompound nbt) {
+		return name.startsWith(PATH_PREFIX) ? update(name, nbt) : nbt;
+	}
 
-      NbtCompound nbtCompound = DataFixTypes.STRUCTURE.update(Schemas.getFixer(), nbt, i);
-      structureTemplate.readNbt(Registries.BLOCK, nbtCompound);
-      return structureTemplate.writeNbt(new NbtCompound());
-   }
+	public static NbtCompound update(String name, NbtCompound nbt) {
+		StructureTemplate structureTemplate = new StructureTemplate();
+		int i = NbtHelper.getDataVersion(nbt, 500);
+		int j = 4650;
+		if (i < 4650) {
+			LOGGER.warn("SNBT Too old, do not forget to update: {} < {}: {}", new Object[]{i, 4650, name});
+		}
+
+		NbtCompound nbtCompound = DataFixTypes.STRUCTURE.update(Schemas.getFixer(), nbt, i);
+		structureTemplate.readNbt(Registries.BLOCK, nbtCompound);
+		return structureTemplate.writeNbt(new NbtCompound());
+	}
 }

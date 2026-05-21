@@ -2,7 +2,6 @@ package net.minecraft.world.gen.treedecorator;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.dynamic.Codecs;
@@ -13,74 +12,89 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.gen.feature.TreeFeature;
 import net.minecraft.world.gen.stateprovider.BlockStateProvider;
 
+import java.util.List;
+
+/**
+ * {@code PlaceOnGroundTreeDecorator}.
+ */
 public class PlaceOnGroundTreeDecorator extends TreeDecorator {
-   public static final MapCodec<PlaceOnGroundTreeDecorator> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codecs.POSITIVE_INT.fieldOf("tries").orElse(128).forGetter(treeDecorator -> treeDecorator.tries),
-            Codecs.NON_NEGATIVE_INT.fieldOf("radius").orElse(2).forGetter(treeDecorator -> treeDecorator.radius),
-            Codecs.NON_NEGATIVE_INT.fieldOf("height").orElse(1).forGetter(treeDecorator -> treeDecorator.height),
-            BlockStateProvider.TYPE_CODEC.fieldOf("block_state_provider").forGetter(treeDecorator -> treeDecorator.blockStateProvider)
-         )
-         .apply(instance, PlaceOnGroundTreeDecorator::new)
-   );
-   private final int tries;
-   private final int radius;
-   private final int height;
-   private final BlockStateProvider blockStateProvider;
 
-   public PlaceOnGroundTreeDecorator(int tries, int radius, int height, BlockStateProvider blockStateProvider) {
-      this.tries = tries;
-      this.radius = radius;
-      this.height = height;
-      this.blockStateProvider = blockStateProvider;
-   }
+	public static final MapCodec<PlaceOnGroundTreeDecorator> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codecs.POSITIVE_INT.fieldOf("tries").orElse(128).forGetter(treeDecorator -> treeDecorator.tries),
+					                    Codecs.NON_NEGATIVE_INT
+							                    .fieldOf("radius")
+							                    .orElse(2)
+							                    .forGetter(treeDecorator -> treeDecorator.radius),
+					                    Codecs.NON_NEGATIVE_INT
+							                    .fieldOf("height")
+							                    .orElse(1)
+							                    .forGetter(treeDecorator -> treeDecorator.height),
+					                    BlockStateProvider.TYPE_CODEC
+							                    .fieldOf("block_state_provider")
+							                    .forGetter(treeDecorator -> treeDecorator.blockStateProvider)
+			                    )
+			                    .apply(instance, PlaceOnGroundTreeDecorator::new)
+	);
+	private final int tries;
+	private final int radius;
+	private final int height;
+	private final BlockStateProvider blockStateProvider;
 
-   @Override
-   protected TreeDecoratorType<?> getType() {
-      return TreeDecoratorType.PLACE_ON_GROUND;
-   }
+	public PlaceOnGroundTreeDecorator(int tries, int radius, int height, BlockStateProvider blockStateProvider) {
+		this.tries = tries;
+		this.radius = radius;
+		this.height = height;
+		this.blockStateProvider = blockStateProvider;
+	}
 
-   @Override
-   public void generate(TreeDecorator.Generator generator) {
-      List<BlockPos> list = TreeFeature.getLeafLitterPositions(generator);
-      if (!list.isEmpty()) {
-         BlockPos blockPos = list.getFirst();
-         int i = blockPos.getY();
-         int j = blockPos.getX();
-         int k = blockPos.getX();
-         int l = blockPos.getZ();
-         int m = blockPos.getZ();
+	@Override
+	protected TreeDecoratorType<?> getType() {
+		return TreeDecoratorType.PLACE_ON_GROUND;
+	}
 
-         for (BlockPos blockPos2 : list) {
-            if (blockPos2.getY() == i) {
-               j = Math.min(j, blockPos2.getX());
-               k = Math.max(k, blockPos2.getX());
-               l = Math.min(l, blockPos2.getZ());
-               m = Math.max(m, blockPos2.getZ());
-            }
-         }
+	@Override
+	public void generate(TreeDecorator.Generator generator) {
+		List<BlockPos> list = TreeFeature.getLeafLitterPositions(generator);
+		if (!list.isEmpty()) {
+			BlockPos blockPos = list.getFirst();
+			int i = blockPos.getY();
+			int j = blockPos.getX();
+			int k = blockPos.getX();
+			int l = blockPos.getZ();
+			int m = blockPos.getZ();
 
-         Random random = generator.getRandom();
-         BlockBox blockBox = new BlockBox(j, i, l, k, i, m).expand(this.radius, this.height, this.radius);
-         BlockPos.Mutable mutable = new BlockPos.Mutable();
+			for (BlockPos blockPos2 : list) {
+				if (blockPos2.getY() == i) {
+					j = Math.min(j, blockPos2.getX());
+					k = Math.max(k, blockPos2.getX());
+					l = Math.min(l, blockPos2.getZ());
+					m = Math.max(m, blockPos2.getZ());
+				}
+			}
 
-         for (int n = 0; n < this.tries; n++) {
-            mutable.set(
-               random.nextBetween(blockBox.getMinX(), blockBox.getMaxX()),
-               random.nextBetween(blockBox.getMinY(), blockBox.getMaxY()),
-               random.nextBetween(blockBox.getMinZ(), blockBox.getMaxZ())
-            );
-            this.generate(generator, mutable);
-         }
-      }
-   }
+			Random random = generator.getRandom();
+			BlockBox blockBox = new BlockBox(j, i, l, k, i, m).expand(this.radius, this.height, this.radius);
+			BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-   private void generate(TreeDecorator.Generator generator, BlockPos pos) {
-      BlockPos blockPos = pos.up();
-      if (generator.getWorld().testBlockState(blockPos, state -> state.isAir() || state.isOf(Blocks.VINE))
-         && generator.matches(pos, AbstractBlock.AbstractBlockState::isOpaqueFullCube)
-         && generator.getWorld().getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, pos).getY() <= blockPos.getY()) {
-         generator.replace(blockPos, this.blockStateProvider.get(generator.getRandom(), blockPos));
-      }
-   }
+			for (int n = 0; n < this.tries; n++) {
+				mutable.set(
+						random.nextBetween(blockBox.getMinX(), blockBox.getMaxX()),
+						random.nextBetween(blockBox.getMinY(), blockBox.getMaxY()),
+						random.nextBetween(blockBox.getMinZ(), blockBox.getMaxZ())
+				);
+				this.generate(generator, mutable);
+			}
+		}
+	}
+
+	private void generate(TreeDecorator.Generator generator, BlockPos pos) {
+		BlockPos blockPos = pos.up();
+		if (generator.getWorld().testBlockState(blockPos, state -> state.isAir() || state.isOf(Blocks.VINE))
+				&& generator.matches(pos, AbstractBlock.AbstractBlockState::isOpaqueFullCube)
+				&& generator.getWorld().getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, pos).getY()
+				<= blockPos.getY()) {
+			generator.replace(blockPos, this.blockStateProvider.get(generator.getRandom(), blockPos));
+		}
+	}
 }

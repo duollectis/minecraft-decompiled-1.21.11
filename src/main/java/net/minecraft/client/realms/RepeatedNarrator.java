@@ -1,43 +1,55 @@
 package net.minecraft.client.realms;
 
 import com.google.common.util.concurrent.RateLimiter;
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicReference;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.util.NarratorManager;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RepeatedNarrator}.
+ */
 public class RepeatedNarrator {
-   private final float permitsPerSecond;
-   private final AtomicReference<RepeatedNarrator.@Nullable Parameters> params = new AtomicReference<>();
 
-   public RepeatedNarrator(Duration duration) {
-      this.permitsPerSecond = 1000.0F / (float)duration.toMillis();
-   }
+	private final float permitsPerSecond;
+	private final AtomicReference<RepeatedNarrator.@Nullable Parameters> params = new AtomicReference<>();
 
-   public void narrate(NarratorManager narratorManager, Text text) {
-      RepeatedNarrator.Parameters parameters = this.params
-         .updateAndGet(
-            parametersx -> parametersx != null && text.equals(parametersx.message)
-               ? parametersx
-               : new RepeatedNarrator.Parameters(text, RateLimiter.create(this.permitsPerSecond))
-         );
-      if (parameters.rateLimiter.tryAcquire(1)) {
-         narratorManager.narrateSystemImmediately(text);
-      }
-   }
+	public RepeatedNarrator(Duration duration) {
+		this.permitsPerSecond = 1000.0F / (float) duration.toMillis();
+	}
 
-   @Environment(EnvType.CLIENT)
-   static class Parameters {
-      final Text message;
-      final RateLimiter rateLimiter;
+	public void narrate(NarratorManager narratorManager, Text text) {
+		RepeatedNarrator.Parameters parameters = this.params
+				.updateAndGet(
+						parametersx -> parametersx != null && text.equals(parametersx.message)
+						               ? parametersx
+						               : new RepeatedNarrator.Parameters(
+								               text,
+								               RateLimiter.create(this.permitsPerSecond)
+						               )
+				);
+		if (parameters.rateLimiter.tryAcquire(1)) {
+			narratorManager.narrateSystemImmediately(text);
+		}
+	}
 
-      Parameters(Text text, RateLimiter rateLimiter) {
-         this.message = text;
-         this.rateLimiter = rateLimiter;
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Parameters}.
+	 */
+	static class Parameters {
+
+		final Text message;
+		final RateLimiter rateLimiter;
+
+		Parameters(Text text, RateLimiter rateLimiter) {
+			this.message = text;
+			this.rateLimiter = rateLimiter;
+		}
+	}
 }

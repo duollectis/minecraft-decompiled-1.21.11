@@ -11,32 +11,39 @@ import net.minecraft.text.Text;
 import net.minecraft.util.math.ColorHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TeleportToSpecificPlayerSpectatorCommand}.
+ */
 public class TeleportToSpecificPlayerSpectatorCommand implements SpectatorMenuCommand {
-   private final PlayerListEntry player;
-   private final Text name;
 
-   public TeleportToSpecificPlayerSpectatorCommand(PlayerListEntry player) {
-      this.player = player;
-      this.name = Text.literal(player.getProfile().name());
-   }
+	private final PlayerListEntry player;
+	private final Text name;
 
-   @Override
-   public void use(SpectatorMenu menu) {
-      MinecraftClient.getInstance().getNetworkHandler().sendPacket(new SpectatorTeleportC2SPacket(this.player.getProfile().id()));
-   }
+	public TeleportToSpecificPlayerSpectatorCommand(PlayerListEntry player) {
+		this.player = player;
+		this.name = Text.literal(player.getProfile().name());
+	}
 
-   @Override
-   public Text getName() {
-      return this.name;
-   }
+	@Override
+	public void use(SpectatorMenu menu) {
+		MinecraftClient
+				.getInstance()
+				.getNetworkHandler()
+				.sendPacket(new SpectatorTeleportC2SPacket(this.player.getProfile().id()));
+	}
 
-   @Override
-   public void renderIcon(DrawContext context, float brightness, float alpha) {
-      PlayerSkinDrawer.draw(context, this.player.getSkinTextures(), 2, 2, 12, ColorHelper.getWhite(alpha));
-   }
+	@Override
+	public Text getName() {
+		return this.name;
+	}
 
-   @Override
-   public boolean isEnabled() {
-      return true;
-   }
+	@Override
+	public void renderIcon(DrawContext context, float brightness, float alpha) {
+		PlayerSkinDrawer.draw(context, this.player.getSkinTextures(), 2, 2, 12, ColorHelper.getWhite(alpha));
+	}
+
+	@Override
+	public boolean isEnabled() {
+		return true;
+	}
 }

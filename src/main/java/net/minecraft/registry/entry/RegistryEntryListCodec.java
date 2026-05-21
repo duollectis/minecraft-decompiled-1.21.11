@@ -5,9 +5,6 @@ import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryEntryLookup;
 import net.minecraft.registry.RegistryKey;
@@ -15,88 +12,119 @@ import net.minecraft.registry.RegistryOps;
 import net.minecraft.registry.tag.TagKey;
 import net.minecraft.util.dynamic.Codecs;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * {@code RegistryEntryListCodec}.
+ */
 public class RegistryEntryListCodec<E> implements Codec<RegistryEntryList<E>> {
-   private final RegistryKey<? extends Registry<E>> registry;
-   private final Codec<RegistryEntry<E>> entryCodec;
-   private final Codec<List<RegistryEntry<E>>> directEntryListCodec;
-   private final Codec<Either<TagKey<E>, List<RegistryEntry<E>>>> entryListStorageCodec;
 
-   private static <E> Codec<List<RegistryEntry<E>>> createDirectEntryListCodec(Codec<RegistryEntry<E>> entryCodec, boolean alwaysSerializeAsList) {
-      Codec<List<RegistryEntry<E>>> codec = entryCodec.listOf().validate(Codecs.createEqualTypeChecker(RegistryEntry::getType));
-      return alwaysSerializeAsList ? codec : Codecs.listOrSingle(entryCodec, codec);
-   }
+	private final RegistryKey<? extends Registry<E>> registry;
+	private final Codec<RegistryEntry<E>> entryCodec;
+	private final Codec<List<RegistryEntry<E>>> directEntryListCodec;
+	private final Codec<Either<TagKey<E>, List<RegistryEntry<E>>>> entryListStorageCodec;
 
-   public static <E> Codec<RegistryEntryList<E>> create(
-      RegistryKey<? extends Registry<E>> registryRef, Codec<RegistryEntry<E>> entryCodec, boolean alwaysSerializeAsList
-   ) {
-      return new RegistryEntryListCodec<>(registryRef, entryCodec, alwaysSerializeAsList);
-   }
+	private static <E> Codec<List<RegistryEntry<E>>> createDirectEntryListCodec(
+			Codec<RegistryEntry<E>> entryCodec,
+			boolean alwaysSerializeAsList
+	) {
+		Codec<List<RegistryEntry<E>>>
+				codec =
+				entryCodec.listOf().validate(Codecs.createEqualTypeChecker(RegistryEntry::getType));
+		return alwaysSerializeAsList ? codec : Codecs.listOrSingle(entryCodec, codec);
+	}
 
-   private RegistryEntryListCodec(RegistryKey<? extends Registry<E>> registry, Codec<RegistryEntry<E>> entryCodec, boolean alwaysSerializeAsList) {
-      this.registry = registry;
-      this.entryCodec = entryCodec;
-      this.directEntryListCodec = createDirectEntryListCodec(entryCodec, alwaysSerializeAsList);
-      this.entryListStorageCodec = Codec.either(TagKey.codec(registry), this.directEntryListCodec);
-   }
+	public static <E> Codec<RegistryEntryList<E>> create(
+			RegistryKey<? extends Registry<E>> registryRef,
+			Codec<RegistryEntry<E>> entryCodec,
+			boolean alwaysSerializeAsList
+	) {
+		return new RegistryEntryListCodec<>(registryRef, entryCodec, alwaysSerializeAsList);
+	}
 
-   public <T> DataResult<Pair<RegistryEntryList<E>, T>> decode(DynamicOps<T> ops, T input) {
-      if (ops instanceof RegistryOps<T> registryOps) {
-         Optional<RegistryEntryLookup<E>> optional = registryOps.getEntryLookup(this.registry);
-         if (optional.isPresent()) {
-            RegistryEntryLookup<E> registryEntryLookup = optional.get();
-            return this.entryListStorageCodec
-               .decode(ops, input)
-               .flatMap(
-                  pair -> {
-                     DataResult<RegistryEntryList<E>> dataResult = (DataResult<RegistryEntryList<E>>)((Either<?, List<RegistryEntry<E>>>)pair.getFirst())
-                        .map(tag -> get(registryEntryLookup, (TagKey<E>) tag), entries -> DataResult.success(RegistryEntryList.of(entries)));
-                     return dataResult.map(entries -> Pair.of(entries, pair.getSecond()));
-                  }
-               );
-         }
-      }
+	private RegistryEntryListCodec(
+			RegistryKey<? extends Registry<E>> registry,
+			Codec<RegistryEntry<E>> entryCodec,
+			boolean alwaysSerializeAsList
+	) {
+		this.registry = registry;
+		this.entryCodec = entryCodec;
+		this.directEntryListCodec = createDirectEntryListCodec(entryCodec, alwaysSerializeAsList);
+		this.entryListStorageCodec = Codec.either(TagKey.codec(registry), this.directEntryListCodec);
+	}
 
-      return this.decodeDirect(ops, input);
-   }
+	public <T> DataResult<Pair<RegistryEntryList<E>, T>> decode(DynamicOps<T> ops, T input) {
+		if (ops instanceof RegistryOps<T> registryOps) {
+			Optional<RegistryEntryLookup<E>> optional = registryOps.getEntryLookup(this.registry);
+			if (optional.isPresent()) {
+				RegistryEntryLookup<E> registryEntryLookup = optional.get();
+				return this.entryListStorageCodec
+						.decode(ops, input)
+						.flatMap(
+								pair -> {
+									DataResult<RegistryEntryList<E>>
+											dataResult =
+											(DataResult<RegistryEntryList<E>>) ((Either<?, List<RegistryEntry<E>>>) pair.getFirst())
+													.map(
+															tag -> get(registryEntryLookup, (TagKey<E>) tag),
+															entries -> DataResult.success(RegistryEntryList.of(entries))
+													);
+									return dataResult.map(entries -> Pair.of(entries, pair.getSecond()));
+								}
+						);
+			}
+		}
 
-   private static <E> DataResult<RegistryEntryList<E>> get(RegistryEntryLookup<E> registry, TagKey<E> tag) {
-      return registry.getOptional(tag)
-         .<DataResult<RegistryEntryList<E>>>map(DataResult::success)
-         .orElseGet(() -> DataResult.error(() -> "Missing tag: '" + tag.id() + "' in '" + tag.registryRef().getValue() + "'"));
-   }
+		return this.decodeDirect(ops, input);
+	}
 
-   public <T> DataResult<T> encode(RegistryEntryList<E> registryEntryList, DynamicOps<T> dynamicOps, T object) {
-      if (dynamicOps instanceof RegistryOps<T> registryOps) {
-         Optional<RegistryEntryOwner<E>> optional = registryOps.getOwner(this.registry);
-         if (optional.isPresent()) {
-            if (!registryEntryList.ownerEquals(optional.get())) {
-               return DataResult.error(() -> "HolderSet " + registryEntryList + " is not valid in current registry set");
-            }
+	private static <E> DataResult<RegistryEntryList<E>> get(RegistryEntryLookup<E> registry, TagKey<E> tag) {
+		return registry.getOptional(tag)
+		               .<DataResult<RegistryEntryList<E>>>map(DataResult::success)
+		               .orElseGet(() -> DataResult.error(() -> "Missing tag: '" + tag.id() + "' in '" + tag
+				               .registryRef()
+				               .getValue() + "'"));
+	}
 
-            return this.entryListStorageCodec.encode(registryEntryList.getStorage().mapRight(List::copyOf), dynamicOps, object);
-         }
-      }
+	public <T> DataResult<T> encode(RegistryEntryList<E> registryEntryList, DynamicOps<T> dynamicOps, T object) {
+		if (dynamicOps instanceof RegistryOps<T> registryOps) {
+			Optional<RegistryEntryOwner<E>> optional = registryOps.getOwner(this.registry);
+			if (optional.isPresent()) {
+				if (!registryEntryList.ownerEquals(optional.get())) {
+					return DataResult.error(() -> "HolderSet " + registryEntryList
+							+ " is not valid in current registry set");
+				}
 
-      return this.encodeDirect(registryEntryList, dynamicOps, object);
-   }
+				return this.entryListStorageCodec.encode(
+						registryEntryList.getStorage().mapRight(List::copyOf),
+						dynamicOps,
+						object
+				);
+			}
+		}
 
-   private <T> DataResult<Pair<RegistryEntryList<E>, T>> decodeDirect(DynamicOps<T> ops, T input) {
-      return this.entryCodec.listOf().decode(ops, input).flatMap(pair -> {
-         List<RegistryEntry.Direct<E>> list = new ArrayList<>();
+		return this.encodeDirect(registryEntryList, dynamicOps, object);
+	}
 
-         for (RegistryEntry<E> registryEntry : (List<RegistryEntry<E>>) (List<?>) pair.getFirst()) {
-            if (!(registryEntry instanceof RegistryEntry.Direct<E> direct)) {
-               return DataResult.error(() -> "Can't decode element " + registryEntry + " without registry");
-            }
+	private <T> DataResult<Pair<RegistryEntryList<E>, T>> decodeDirect(DynamicOps<T> ops, T input) {
+		return this.entryCodec.listOf().decode(ops, input).flatMap(pair -> {
+			List<RegistryEntry.Direct<E>> list = new ArrayList<>();
 
-            list.add(direct);
-         }
+			for (RegistryEntry<E> registryEntry : (List<RegistryEntry<E>>) (List<?>) pair.getFirst()) {
+				if (!(registryEntry instanceof RegistryEntry.Direct<E> direct)) {
+					return DataResult.error(() -> "Can't decode element " + registryEntry + " without registry");
+				}
 
-         return DataResult.success(new Pair(RegistryEntryList.of(list), pair.getSecond()));
-      });
-   }
+				list.add(direct);
+			}
 
-   private <T> DataResult<T> encodeDirect(RegistryEntryList<E> entryList, DynamicOps<T> ops, T prefix) {
-      return this.directEntryListCodec.encode(entryList.stream().toList(), ops, prefix);
-   }
+			return DataResult.success(new Pair(RegistryEntryList.of(list), pair.getSecond()));
+		});
+	}
+
+	private <T> DataResult<T> encodeDirect(RegistryEntryList<E> entryList, DynamicOps<T> ops, T prefix) {
+		return this.directEntryListCodec.encode(entryList.stream().toList(), ops, prefix);
+	}
 }

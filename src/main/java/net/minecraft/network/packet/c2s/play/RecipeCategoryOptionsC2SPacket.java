@@ -9,49 +9,50 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.recipe.book.RecipeBookType;
 
 public class RecipeCategoryOptionsC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, RecipeCategoryOptionsC2SPacket> CODEC = Packet.createCodec(
-      RecipeCategoryOptionsC2SPacket::write, RecipeCategoryOptionsC2SPacket::new
-   );
-   private final RecipeBookType category;
-   private final boolean guiOpen;
-   private final boolean filteringCraftable;
 
-   public RecipeCategoryOptionsC2SPacket(RecipeBookType category, boolean guiOpen, boolean filteringCraftable) {
-      this.category = category;
-      this.guiOpen = guiOpen;
-      this.filteringCraftable = filteringCraftable;
-   }
+	public static final PacketCodec<PacketByteBuf, RecipeCategoryOptionsC2SPacket> CODEC = Packet.createCodec(
+			RecipeCategoryOptionsC2SPacket::write, RecipeCategoryOptionsC2SPacket::new
+	);
+	private final RecipeBookType category;
+	private final boolean guiOpen;
+	private final boolean filteringCraftable;
 
-   private RecipeCategoryOptionsC2SPacket(PacketByteBuf buf) {
-      this.category = buf.readEnumConstant(RecipeBookType.class);
-      this.guiOpen = buf.readBoolean();
-      this.filteringCraftable = buf.readBoolean();
-   }
+	public RecipeCategoryOptionsC2SPacket(RecipeBookType category, boolean guiOpen, boolean filteringCraftable) {
+		this.category = category;
+		this.guiOpen = guiOpen;
+		this.filteringCraftable = filteringCraftable;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeEnumConstant(this.category);
-      buf.writeBoolean(this.guiOpen);
-      buf.writeBoolean(this.filteringCraftable);
-   }
+	private RecipeCategoryOptionsC2SPacket(PacketByteBuf buf) {
+		this.category = buf.readEnumConstant(RecipeBookType.class);
+		this.guiOpen = buf.readBoolean();
+		this.filteringCraftable = buf.readBoolean();
+	}
 
-   @Override
-   public PacketType<RecipeCategoryOptionsC2SPacket> getPacketType() {
-      return PlayPackets.RECIPE_BOOK_CHANGE_SETTINGS;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeEnumConstant(this.category);
+		buf.writeBoolean(this.guiOpen);
+		buf.writeBoolean(this.filteringCraftable);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onRecipeCategoryOptions(this);
-   }
+	@Override
+	public PacketType<RecipeCategoryOptionsC2SPacket> getPacketType() {
+		return PlayPackets.RECIPE_BOOK_CHANGE_SETTINGS;
+	}
 
-   public RecipeBookType getCategory() {
-      return this.category;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onRecipeCategoryOptions(this);
+	}
 
-   public boolean isGuiOpen() {
-      return this.guiOpen;
-   }
+	public RecipeBookType getCategory() {
+		return this.category;
+	}
 
-   public boolean isFilteringCraftable() {
-      return this.filteringCraftable;
-   }
+	public boolean isGuiOpen() {
+		return this.guiOpen;
+	}
+
+	public boolean isFilteringCraftable() {
+		return this.filteringCraftable;
+	}
 }

@@ -9,41 +9,42 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
 public class SignEditorOpenS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, SignEditorOpenS2CPacket> CODEC = Packet.createCodec(
-      SignEditorOpenS2CPacket::write, SignEditorOpenS2CPacket::new
-   );
-   private final BlockPos pos;
-   private final boolean front;
 
-   public SignEditorOpenS2CPacket(BlockPos pos, boolean front) {
-      this.pos = pos;
-      this.front = front;
-   }
+	public static final PacketCodec<PacketByteBuf, SignEditorOpenS2CPacket> CODEC = Packet.createCodec(
+			SignEditorOpenS2CPacket::write, SignEditorOpenS2CPacket::new
+	);
+	private final BlockPos pos;
+	private final boolean front;
 
-   private SignEditorOpenS2CPacket(PacketByteBuf buf) {
-      this.pos = buf.readBlockPos();
-      this.front = buf.readBoolean();
-   }
+	public SignEditorOpenS2CPacket(BlockPos pos, boolean front) {
+		this.pos = pos;
+		this.front = front;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeBlockPos(this.pos);
-      buf.writeBoolean(this.front);
-   }
+	private SignEditorOpenS2CPacket(PacketByteBuf buf) {
+		this.pos = buf.readBlockPos();
+		this.front = buf.readBoolean();
+	}
 
-   @Override
-   public PacketType<SignEditorOpenS2CPacket> getPacketType() {
-      return PlayPackets.OPEN_SIGN_EDITOR;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeBlockPos(this.pos);
+		buf.writeBoolean(this.front);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onSignEditorOpen(this);
-   }
+	@Override
+	public PacketType<SignEditorOpenS2CPacket> getPacketType() {
+		return PlayPackets.OPEN_SIGN_EDITOR;
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onSignEditorOpen(this);
+	}
 
-   public boolean isFront() {
-      return this.front;
-   }
+	public BlockPos getPos() {
+		return this.pos;
+	}
+
+	public boolean isFront() {
+		return this.front;
+	}
 }

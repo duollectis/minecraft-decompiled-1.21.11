@@ -8,34 +8,40 @@ import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
+/**
+ * {@code StyledNumberFormat}.
+ */
 public record StyledNumberFormat(Style style) implements NumberFormat {
-   public static final NumberFormatType<StyledNumberFormat> TYPE = new NumberFormatType<StyledNumberFormat>() {
-      private static final MapCodec<StyledNumberFormat> CODEC = Style.Codecs.MAP_CODEC.xmap(StyledNumberFormat::new, StyledNumberFormat::style);
-      private static final PacketCodec<RegistryByteBuf, StyledNumberFormat> PACKET_CODEC = PacketCodec.tuple(
-         Style.Codecs.PACKET_CODEC, StyledNumberFormat::style, StyledNumberFormat::new
-      );
 
-      @Override
-      public MapCodec<StyledNumberFormat> getCodec() {
-         return CODEC;
-      }
+	public static final NumberFormatType<StyledNumberFormat> TYPE = new NumberFormatType<StyledNumberFormat>() {
+		private static final MapCodec<StyledNumberFormat>
+				CODEC =
+				Style.Codecs.MAP_CODEC.xmap(StyledNumberFormat::new, StyledNumberFormat::style);
+		private static final PacketCodec<RegistryByteBuf, StyledNumberFormat> PACKET_CODEC = PacketCodec.tuple(
+				Style.Codecs.PACKET_CODEC, StyledNumberFormat::style, StyledNumberFormat::new
+		);
 
-      @Override
-      public PacketCodec<RegistryByteBuf, StyledNumberFormat> getPacketCodec() {
-         return PACKET_CODEC;
-      }
-   };
-   public static final StyledNumberFormat EMPTY = new StyledNumberFormat(Style.EMPTY);
-   public static final StyledNumberFormat RED = new StyledNumberFormat(Style.EMPTY.withColor(Formatting.RED));
-   public static final StyledNumberFormat YELLOW = new StyledNumberFormat(Style.EMPTY.withColor(Formatting.YELLOW));
+		@Override
+		public MapCodec<StyledNumberFormat> getCodec() {
+			return CODEC;
+		}
 
-   @Override
-   public MutableText format(int number) {
-      return Text.literal(Integer.toString(number)).fillStyle(this.style);
-   }
+		@Override
+		public PacketCodec<RegistryByteBuf, StyledNumberFormat> getPacketCodec() {
+			return PACKET_CODEC;
+		}
+	};
+	public static final StyledNumberFormat EMPTY = new StyledNumberFormat(Style.EMPTY);
+	public static final StyledNumberFormat RED = new StyledNumberFormat(Style.EMPTY.withColor(Formatting.RED));
+	public static final StyledNumberFormat YELLOW = new StyledNumberFormat(Style.EMPTY.withColor(Formatting.YELLOW));
 
-   @Override
-   public NumberFormatType<StyledNumberFormat> getType() {
-      return TYPE;
-   }
+	@Override
+	public MutableText format(int number) {
+		return Text.literal(Integer.toString(number)).fillStyle(this.style);
+	}
+
+	@Override
+	public NumberFormatType<StyledNumberFormat> getType() {
+		return TYPE;
+	}
 }

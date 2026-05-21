@@ -1,53 +1,85 @@
 package net.minecraft.client.network;
 
 import com.mojang.logging.LogUtils;
-import java.util.Hashtable;
-import java.util.Optional;
-import javax.naming.directory.Attribute;
-import javax.naming.directory.Attributes;
-import javax.naming.directory.DirContext;
-import javax.naming.directory.InitialDirContext;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.slf4j.Logger;
 
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
+import java.util.Hashtable;
+import java.util.Optional;
+
+/**
+ * Разрешает SRV-перенаправления DNS для адресов серверов Minecraft.
+ * <p>При подключении к серверу на стандартном порту {@code 25565} выполняет
+ * DNS-запрос записи {@code _minecraft._tcp.<host>} и возвращает перенаправленный адрес,
+ * если запись существует.
+ */
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
 public interface RedirectResolver {
-   Logger LOGGER = LogUtils.getLogger();
-   RedirectResolver INVALID = address -> Optional.empty();
 
-   Optional<ServerAddress> lookupRedirect(ServerAddress address);
+	Logger LOGGER = LogUtils.getLogger();
 
-   static RedirectResolver createSrv() {
-      DirContext dirContext;
-      try {
-         String string = "com.sun.jndi.dns.DnsContextFactory";
-         Class.forName("com.sun.jndi.dns.DnsContextFactory");
-         Hashtable<String, String> hashtable = new Hashtable<>();
-         hashtable.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
-         hashtable.put("java.naming.provider.url", "dns:");
-         hashtable.put("com.sun.jndi.dns.timeout.retries", "1");
-         dirContext = new InitialDirContext(hashtable);
-      } catch (Throwable var3) {
-         LOGGER.error("Failed to initialize SRV redirect resolved, some servers might not work", var3);
-         return INVALID;
-      }
+	/**
+	 * Заглушка, всегда возвращающая пустой результат (используется при ошибке инициализации DNS).
+	 */
+	RedirectResolver INVALID = address -> Optional.empty();
 
-      return address -> {
-         if (address.getPort() == 25565) {
-            try {
-               Attributes attributes = dirContext.getAttributes("_minecraft._tcp." + address.getAddress(), new String[]{"SRV"});
-               Attribute attribute = attributes.get("srv");
-               if (attribute != null) {
-                  String[] strings = attribute.get().toString().split(" ", 4);
-                  return Optional.of(new ServerAddress(strings[3], ServerAddress.portOrDefault(strings[2])));
-               }
-            } catch (Throwable var5) {
-            }
-         }
+	/**
+	 * Ищет SRV-перенаправление для указанного адреса.
+	 *
+	 * @param address адрес сервера для поиска перенаправления
+	 * @return перенаправленный адрес или {@link Optional#empty()} если перенаправление не найдено
+	 */
+	Optional<ServerAddress> lookupRedirect(ServerAddress address);
 
-         return Optional.empty();
-      };
-   }
+	/**
+	 * Создаёт резолвер SRV-записей через JNDI DNS.
+	 * При ошибке инициализации возвращает {@link #INVALID}.
+	 *
+	 * @return рабочий SRV-резолвер или {@link #INVALID}
+	 */
+	static RedirectResolver createSrv() {
+		DirContext dnsContext;
+
+		try {
+			Class.forName("com.sun.jndi.dns.DnsContextFactory");
+			Hashtable<String, String> env = new Hashtable<>();
+			env.put("java.naming.factory.initial", "com.sun.jndi.dns.DnsContextFactory");
+			env.put("java.naming.provider.url", "dns:");
+			env.put("com.sun.jndi.dns.timeout.retries", "1");
+			dnsContext = new InitialDirContext(env);
+		}
+		catch (Throwable e) {
+			LOGGER.error("Failed to initialize SRV redirect resolved, some servers might not work", e);
+			return INVALID;
+		}
+
+		return address -> {
+			if (address.getPort() != ServerAddress.DEFAULT_PORT) {
+				return Optional.empty();
+			}
+
+			try {
+				Attributes attributes = dnsContext.getAttributes(
+						"_minecraft._tcp." + address.getAddress(),
+						new String[]{"SRV"}
+				);
+				Attribute srvRecord = attributes.get("srv");
+
+				if (srvRecord != null) {
+					String[] parts = srvRecord.get().toString().split(" ", 4);
+					return Optional.of(new ServerAddress(parts[3], ServerAddress.portOrDefault(parts[2])));
+				}
+			}
+			catch (Throwable ignored) {
+			}
+
+			return Optional.empty();
+		};
+	}
 }

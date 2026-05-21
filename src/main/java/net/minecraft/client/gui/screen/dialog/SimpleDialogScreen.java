@@ -10,21 +10,28 @@ import net.minecraft.dialog.type.SimpleDialog;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SimpleDialogScreen}.
+ */
 public class SimpleDialogScreen<T extends SimpleDialog> extends DialogScreen<T> {
-   public SimpleDialogScreen(@Nullable Screen parent, T dialog, DialogNetworkAccess networkAccess) {
-      super(parent, dialog, networkAccess);
-   }
 
-   protected void initHeaderAndFooter(
-      ThreePartsLayoutWidget threePartsLayoutWidget, DialogControls dialogControls, T simpleDialog, DialogNetworkAccess dialogNetworkAccess
-   ) {
-      super.initHeaderAndFooter(threePartsLayoutWidget, dialogControls, simpleDialog, dialogNetworkAccess);
-      DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(8);
+	public SimpleDialogScreen(@Nullable Screen parent, T dialog, DialogNetworkAccess networkAccess) {
+		super(parent, dialog, networkAccess);
+	}
 
-      for (DialogActionButtonData dialogActionButtonData : simpleDialog.getButtons()) {
-         directionalLayoutWidget.add(dialogControls.createButton(dialogActionButtonData).build());
-      }
+	protected void initHeaderAndFooter(
+			ThreePartsLayoutWidget threePartsLayoutWidget,
+			DialogControls dialogControls,
+			T simpleDialog,
+			DialogNetworkAccess dialogNetworkAccess
+	) {
+		super.initHeaderAndFooter(threePartsLayoutWidget, dialogControls, simpleDialog, dialogNetworkAccess);
+		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(8);
 
-      threePartsLayoutWidget.addFooter(directionalLayoutWidget);
-   }
+		for (DialogActionButtonData dialogActionButtonData : simpleDialog.getButtons()) {
+			directionalLayoutWidget.add(dialogControls.createButton(dialogActionButtonData).build());
+		}
+
+		threePartsLayoutWidget.addFooter(directionalLayoutWidget);
+	}
 }

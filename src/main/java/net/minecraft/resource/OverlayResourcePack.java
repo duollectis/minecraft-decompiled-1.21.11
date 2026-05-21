@@ -1,81 +1,86 @@
 package net.minecraft.resource;
 
 import com.google.common.collect.Lists;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import net.minecraft.resource.metadata.ResourceMetadataSerializer;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.*;
+
+/**
+ * {@code OverlayResourcePack}.
+ */
 public class OverlayResourcePack implements ResourcePack {
-   private final ResourcePack base;
-   private final List<ResourcePack> overlaysAndBase;
 
-   public OverlayResourcePack(ResourcePack base, List<ResourcePack> overlays) {
-      this.base = base;
-      List<ResourcePack> list = new ArrayList<>(overlays.size() + 1);
-      list.addAll(Lists.reverse(overlays));
-      list.add(base);
-      this.overlaysAndBase = List.copyOf(list);
-   }
+	private final ResourcePack base;
+	private final List<ResourcePack> overlaysAndBase;
 
-   @Override
-   public @Nullable InputSupplier<InputStream> openRoot(String... segments) {
-      return this.base.openRoot(segments);
-   }
+	public OverlayResourcePack(ResourcePack base, List<ResourcePack> overlays) {
+		this.base = base;
+		List<ResourcePack> list = new ArrayList<>(overlays.size() + 1);
+		list.addAll(Lists.reverse(overlays));
+		list.add(base);
+		this.overlaysAndBase = List.copyOf(list);
+	}
 
-   @Override
-   public @Nullable InputSupplier<InputStream> open(ResourceType type, Identifier id) {
-      for (ResourcePack resourcePack : this.overlaysAndBase) {
-         InputSupplier<InputStream> inputSupplier = resourcePack.open(type, id);
-         if (inputSupplier != null) {
-            return inputSupplier;
-         }
-      }
+	@Override
+	public @Nullable InputSupplier<InputStream> openRoot(String... segments) {
+		return this.base.openRoot(segments);
+	}
 
-      return null;
-   }
+	@Override
+	public @Nullable InputSupplier<InputStream> open(ResourceType type, Identifier id) {
+		for (ResourcePack resourcePack : this.overlaysAndBase) {
+			InputSupplier<InputStream> inputSupplier = resourcePack.open(type, id);
+			if (inputSupplier != null) {
+				return inputSupplier;
+			}
+		}
 
-   @Override
-   public void findResources(ResourceType type, String namespace, String prefix, ResourcePack.ResultConsumer consumer) {
-      Map<Identifier, InputSupplier<InputStream>> map = new HashMap<>();
+		return null;
+	}
 
-      for (ResourcePack resourcePack : this.overlaysAndBase) {
-         resourcePack.findResources(type, namespace, prefix, map::putIfAbsent);
-      }
+	@Override
+	public void findResources(
+			ResourceType type,
+			String namespace,
+			String prefix,
+			ResourcePack.ResultConsumer consumer
+	) {
+		Map<Identifier, InputSupplier<InputStream>> map = new HashMap<>();
 
-      map.forEach(consumer);
-   }
+		for (ResourcePack resourcePack : this.overlaysAndBase) {
+			resourcePack.findResources(type, namespace, prefix, map::putIfAbsent);
+		}
 
-   @Override
-   public Set<String> getNamespaces(ResourceType type) {
-      Set<String> set = new HashSet<>();
+		map.forEach(consumer);
+	}
 
-      for (ResourcePack resourcePack : this.overlaysAndBase) {
-         set.addAll(resourcePack.getNamespaces(type));
-      }
+	@Override
+	public Set<String> getNamespaces(ResourceType type) {
+		Set<String> set = new HashSet<>();
 
-      return set;
-   }
+		for (ResourcePack resourcePack : this.overlaysAndBase) {
+			set.addAll(resourcePack.getNamespaces(type));
+		}
 
-   @Override
-   public <T> @Nullable T parseMetadata(ResourceMetadataSerializer<T> metadataSerializer) throws IOException {
-      return this.base.parseMetadata(metadataSerializer);
-   }
+		return set;
+	}
 
-   @Override
-   public ResourcePackInfo getInfo() {
-      return this.base.getInfo();
-   }
+	@Override
+	public <T> @Nullable T parseMetadata(ResourceMetadataSerializer<T> metadataSerializer) throws IOException {
+		return this.base.parseMetadata(metadataSerializer);
+	}
 
-   @Override
-   public void close() {
-      this.overlaysAndBase.forEach(ResourcePack::close);
-   }
+	@Override
+	public ResourcePackInfo getInfo() {
+		return this.base.getInfo();
+	}
+
+	@Override
+	public void close() {
+		this.overlaysAndBase.forEach(ResourcePack::close);
+	}
 }

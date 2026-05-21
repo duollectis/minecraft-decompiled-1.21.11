@@ -1,14 +1,6 @@
 package net.minecraft;
 
 import com.mojang.logging.LogUtils;
-import java.io.PrintStream;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.ComposterBlock;
 import net.minecraft.block.FireBlock;
@@ -33,110 +25,133 @@ import net.minecraft.world.rule.GameRuleVisitor;
 import net.minecraft.world.rule.GameRules;
 import org.slf4j.Logger;
 
+import java.io.PrintStream;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
 @SuppressLinter(reason = "System.out setup")
+/**
+ * {@code Bootstrap}.
+ */
 public class Bootstrap {
-   public static final PrintStream SYSOUT = System.out;
-   private static volatile boolean initialized;
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final AtomicLong LOAD_TIME = new AtomicLong(-1L);
 
-   public static void initialize() {
-      if (!initialized) {
-         initialized = true;
-         Instant instant = Instant.now();
-         if (Registries.REGISTRIES.getIds().isEmpty()) {
-            throw new IllegalStateException("Unable to load registries");
-         } else {
-            FireBlock.registerDefaultFlammables();
-            ComposterBlock.registerDefaultCompostableItems();
-            if (EntityType.getId(EntityType.PLAYER) == null) {
-               throw new IllegalStateException("Failed loading EntityTypes");
-            } else {
-               EntitySelectorOptions.register();
-               DispenserBehavior.registerDefaults();
-               CauldronBehavior.registerBehavior();
-               Registries.bootstrap();
-               ItemGroups.collect();
-               setOutputStreams();
-               LOAD_TIME.set(Duration.between(instant, Instant.now()).toMillis());
-            }
-         }
-      }
-   }
+	public static final PrintStream SYSOUT = System.out;
+	private static volatile boolean initialized;
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final AtomicLong LOAD_TIME = new AtomicLong(-1L);
 
-   private static <T> void collectMissingTranslations(Iterable<T> registry, Function<T, String> keyExtractor, Set<String> translationKeys) {
-      Language language = Language.getInstance();
-      registry.forEach(object -> {
-         String string = keyExtractor.apply((T)object);
-         if (!language.hasTranslation(string)) {
-            translationKeys.add(string);
-         }
-      });
-   }
+	public static void initialize() {
+		if (!initialized) {
+			initialized = true;
+			Instant instant = Instant.now();
+			if (Registries.REGISTRIES.getIds().isEmpty()) {
+				throw new IllegalStateException("Unable to load registries");
+			}
+			else {
+				FireBlock.registerDefaultFlammables();
+				ComposterBlock.registerDefaultCompostableItems();
+				if (EntityType.getId(EntityType.PLAYER) == null) {
+					throw new IllegalStateException("Failed loading EntityTypes");
+				}
+				else {
+					EntitySelectorOptions.register();
+					DispenserBehavior.registerDefaults();
+					CauldronBehavior.registerBehavior();
+					Registries.bootstrap();
+					ItemGroups.collect();
+					setOutputStreams();
+					LOAD_TIME.set(Duration.between(instant, Instant.now()).toMillis());
+				}
+			}
+		}
+	}
 
-   private static void collectMissingGameRuleTranslations(Set<String> translations) {
-      final Language language = Language.getInstance();
-      GameRules gameRules = new GameRules(FeatureFlags.FEATURE_MANAGER.getFeatureSet());
-      gameRules.accept(new GameRuleVisitor() {
-         @Override
-         public <T> void visit(GameRule<T> rule) {
-            if (!language.hasTranslation(rule.getTranslationKey())) {
-               translations.add(rule.toShortString());
-            }
-         }
-      });
-   }
+	private static <T> void collectMissingTranslations(
+			Iterable<T> registry,
+			Function<T, String> keyExtractor,
+			Set<String> translationKeys
+	) {
+		Language language = Language.getInstance();
+		registry.forEach(object -> {
+			String string = keyExtractor.apply((T) object);
+			if (!language.hasTranslation(string)) {
+				translationKeys.add(string);
+			}
+		});
+	}
 
-   public static Set<String> getMissingTranslations() {
-      Set<String> set = new TreeSet<>();
-      collectMissingTranslations(Registries.ATTRIBUTE, EntityAttribute::getTranslationKey, set);
-      collectMissingTranslations(Registries.ENTITY_TYPE, EntityType::getTranslationKey, set);
-      collectMissingTranslations(Registries.STATUS_EFFECT, StatusEffect::getTranslationKey, set);
-      collectMissingTranslations(Registries.ITEM, Item::getTranslationKey, set);
-      collectMissingTranslations(Registries.BLOCK, AbstractBlock::getTranslationKey, set);
-      collectMissingTranslations(Registries.CUSTOM_STAT, stat -> "stat." + stat.toString().replace(':', '.'), set);
-      collectMissingGameRuleTranslations(set);
-      return set;
-   }
+	private static void collectMissingGameRuleTranslations(Set<String> translations) {
+		final Language language = Language.getInstance();
+		GameRules gameRules = new GameRules(FeatureFlags.FEATURE_MANAGER.getFeatureSet());
+		gameRules.accept(new GameRuleVisitor() {
+			@Override
+			public <T> void visit(GameRule<T> rule) {
+				if (!language.hasTranslation(rule.getTranslationKey())) {
+					translations.add(rule.toShortString());
+				}
+			}
+		});
+	}
 
-   public static void ensureBootstrapped(Supplier<String> callerGetter) {
-      if (!initialized) {
-         throw createNotBootstrappedException(callerGetter);
-      }
-   }
+	public static Set<String> getMissingTranslations() {
+		Set<String> set = new TreeSet<>();
+		collectMissingTranslations(Registries.ATTRIBUTE, EntityAttribute::getTranslationKey, set);
+		collectMissingTranslations(Registries.ENTITY_TYPE, EntityType::getTranslationKey, set);
+		collectMissingTranslations(Registries.STATUS_EFFECT, StatusEffect::getTranslationKey, set);
+		collectMissingTranslations(Registries.ITEM, Item::getTranslationKey, set);
+		collectMissingTranslations(Registries.BLOCK, AbstractBlock::getTranslationKey, set);
+		collectMissingTranslations(Registries.CUSTOM_STAT, stat -> "stat." + stat.toString().replace(':', '.'), set);
+		collectMissingGameRuleTranslations(set);
+		return set;
+	}
 
-   private static RuntimeException createNotBootstrappedException(Supplier<String> callerGetter) {
-      try {
-         String string = callerGetter.get();
-         return new IllegalArgumentException("Not bootstrapped (called from " + string + ")");
-      } catch (Exception var3) {
-         RuntimeException runtimeException = new IllegalArgumentException("Not bootstrapped (failed to resolve location)");
-         runtimeException.addSuppressed(var3);
-         return runtimeException;
-      }
-   }
+	public static void ensureBootstrapped(Supplier<String> callerGetter) {
+		if (!initialized) {
+			throw createNotBootstrappedException(callerGetter);
+		}
+	}
 
-   public static void logMissing() {
-      ensureBootstrapped(() -> "validate");
-      if (SharedConstants.isDevelopment) {
-         getMissingTranslations().forEach(key -> LOGGER.error("Missing translations: {}", key));
-         CommandManager.checkMissing();
-      }
+	private static RuntimeException createNotBootstrappedException(Supplier<String> callerGetter) {
+		try {
+			String string = callerGetter.get();
+			return new IllegalArgumentException("Not bootstrapped (called from " + string + ")");
+		}
+		catch (Exception var3) {
+			RuntimeException
+					runtimeException =
+					new IllegalArgumentException("Not bootstrapped (failed to resolve location)");
+			runtimeException.addSuppressed(var3);
+			return runtimeException;
+		}
+	}
 
-      DefaultAttributeRegistry.checkMissing();
-   }
+	public static void logMissing() {
+		ensureBootstrapped(() -> "validate");
+		if (SharedConstants.isDevelopment) {
+			getMissingTranslations().forEach(key -> LOGGER.error("Missing translations: {}", key));
+			CommandManager.checkMissing();
+		}
 
-   private static void setOutputStreams() {
-      if (LOGGER.isDebugEnabled()) {
-         System.setErr(new DebugLoggerPrintStream("STDERR", System.err));
-         System.setOut(new DebugLoggerPrintStream("STDOUT", SYSOUT));
-      } else {
-         System.setErr(new LoggerPrintStream("STDERR", System.err));
-         System.setOut(new LoggerPrintStream("STDOUT", SYSOUT));
-      }
-   }
+		DefaultAttributeRegistry.checkMissing();
+	}
 
-   public static void println(String str) {
-      SYSOUT.println(str);
-   }
+	private static void setOutputStreams() {
+		if (LOGGER.isDebugEnabled()) {
+			System.setErr(new DebugLoggerPrintStream("STDERR", System.err));
+			System.setOut(new DebugLoggerPrintStream("STDOUT", SYSOUT));
+		}
+		else {
+			System.setErr(new LoggerPrintStream("STDERR", System.err));
+			System.setOut(new LoggerPrintStream("STDOUT", SYSOUT));
+		}
+	}
+
+	public static void println(String str) {
+		SYSOUT.println(str);
+	}
 }

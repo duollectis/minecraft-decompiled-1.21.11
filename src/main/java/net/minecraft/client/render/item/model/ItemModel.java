@@ -19,32 +19,43 @@ import net.minecraft.util.HeldItemContext;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ItemModel}.
+ */
 public interface ItemModel {
-   void update(
-      ItemRenderState state,
-      ItemStack stack,
-      ItemModelManager resolver,
-      ItemDisplayContext displayContext,
-      @Nullable ClientWorld world,
-      @Nullable HeldItemContext heldItemContext,
-      int seed
-   );
 
-   @Environment(EnvType.CLIENT)
-   public record BakeContext(
-      Baker blockModelBaker,
-      LoadedEntityModels entityModelSet,
-      SpriteHolder spriteHolder,
-      PlayerSkinCache playerSkinRenderCache,
-      ItemModel missingItemModel,
-      @Nullable ContextSwapper contextSwapper
-   ) implements SpecialModelRenderer.BakeContext {
-   }
+	void update(
+			ItemRenderState state,
+			ItemStack stack,
+			ItemModelManager resolver,
+			ItemDisplayContext displayContext,
+			@Nullable ClientWorld world,
+			@Nullable HeldItemContext heldItemContext,
+			int seed
+	);
 
-   @Environment(EnvType.CLIENT)
-   public interface Unbaked extends ResolvableModel {
-      MapCodec<? extends ItemModel.Unbaked> getCodec();
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code BakeContext}.
+	 */
+	public record BakeContext(
+			Baker blockModelBaker,
+			LoadedEntityModels entityModelSet,
+			SpriteHolder spriteHolder,
+			PlayerSkinCache playerSkinRenderCache,
+			ItemModel missingItemModel,
+			@Nullable ContextSwapper contextSwapper
+	) implements SpecialModelRenderer.BakeContext {
+	}
 
-      ItemModel bake(ItemModel.BakeContext context);
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Unbaked}.
+	 */
+	public interface Unbaked extends ResolvableModel {
+
+		MapCodec<? extends ItemModel.Unbaked> getCodec();
+
+		ItemModel bake(ItemModel.BakeContext context);
+	}
 }

@@ -16,66 +16,87 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
+/**
+ * {@code WindChargeItem}.
+ */
 public class WindChargeItem extends Item implements ProjectileItem {
-   public static float POWER = 1.5F;
 
-   public WindChargeItem(Item.Settings settings) {
-      super(settings);
-   }
+	public static float POWER = 1.5F;
 
-   @Override
-   public ActionResult use(World world, PlayerEntity user, Hand hand) {
-      ItemStack itemStack = user.getStackInHand(hand);
-      if (world instanceof ServerWorld serverWorld) {
-         ProjectileEntity.spawnWithVelocity(
-            (world2, shooter, stack) -> new WindChargeEntity(user, world, user.getEntityPos().getX(), user.getEyePos().getY(), user.getEntityPos().getZ()),
-            serverWorld,
-            itemStack,
-            user,
-            0.0F,
-            POWER,
-            1.0F
-         );
-      }
+	public WindChargeItem(Item.Settings settings) {
+		super(settings);
+	}
 
-      world.playSound(
-         null,
-         user.getX(),
-         user.getY(),
-         user.getZ(),
-         SoundEvents.ENTITY_WIND_CHARGE_THROW,
-         SoundCategory.NEUTRAL,
-         0.5F,
-         0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
-      );
-      user.incrementStat(Stats.USED.getOrCreateStat(this));
-      itemStack.decrementUnlessCreative(1, user);
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	public ActionResult use(World world, PlayerEntity user, Hand hand) {
+		ItemStack itemStack = user.getStackInHand(hand);
+		if (world instanceof ServerWorld serverWorld) {
+			ProjectileEntity.spawnWithVelocity(
+					(world2, shooter, stack) -> new WindChargeEntity(
+							user,
+							world,
+							user.getEntityPos().getX(),
+							user.getEyePos().getY(),
+							user.getEntityPos().getZ()
+					),
+					serverWorld,
+					itemStack,
+					user,
+					0.0F,
+					POWER,
+					1.0F
+			);
+		}
 
-   @Override
-   public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-      Random random = world.getRandom();
-      double d = random.nextTriangular((double)direction.getOffsetX(), 0.11485000000000001);
-      double e = random.nextTriangular((double)direction.getOffsetY(), 0.11485000000000001);
-      double f = random.nextTriangular((double)direction.getOffsetZ(), 0.11485000000000001);
-      Vec3d vec3d = new Vec3d(d, e, f);
-      WindChargeEntity windChargeEntity = new WindChargeEntity(world, pos.getX(), pos.getY(), pos.getZ(), vec3d);
-      windChargeEntity.setVelocity(vec3d);
-      return windChargeEntity;
-   }
+		world.playSound(
+				null,
+				user.getX(),
+				user.getY(),
+				user.getZ(),
+				SoundEvents.ENTITY_WIND_CHARGE_THROW,
+				SoundCategory.NEUTRAL,
+				0.5F,
+				0.4F / (world.getRandom().nextFloat() * 0.4F + 0.8F)
+		);
+		user.incrementStat(Stats.USED.getOrCreateStat(this));
+		itemStack.decrementUnlessCreative(1, user);
+		return ActionResult.SUCCESS;
+	}
 
-   @Override
-   public void initializeProjectile(ProjectileEntity entity, double x, double y, double z, float power, float uncertainty) {
-   }
+	@Override
+	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
+		Random random = world.getRandom();
+		double d = random.nextTriangular((double) direction.getOffsetX(), 0.11485000000000001);
+		double e = random.nextTriangular((double) direction.getOffsetY(), 0.11485000000000001);
+		double f = random.nextTriangular((double) direction.getOffsetZ(), 0.11485000000000001);
+		Vec3d vec3d = new Vec3d(d, e, f);
+		WindChargeEntity windChargeEntity = new WindChargeEntity(world, pos.getX(), pos.getY(), pos.getZ(), vec3d);
+		windChargeEntity.setVelocity(vec3d);
+		return windChargeEntity;
+	}
 
-   @Override
-   public ProjectileItem.Settings getProjectileSettings() {
-      return ProjectileItem.Settings.builder()
-         .positionFunction((pointer, facing) -> DispenserBlock.getOutputLocation(pointer, 1.0, Vec3d.ZERO))
-         .uncertainty(6.6666665F)
-         .power(1.0F)
-         .overrideDispenseEvent(1051)
-         .build();
-   }
+	@Override
+	public void initializeProjectile(
+			ProjectileEntity entity,
+			double x,
+			double y,
+			double z,
+			float power,
+			float uncertainty
+	) {
+	}
+
+	@Override
+	public ProjectileItem.Settings getProjectileSettings() {
+		return ProjectileItem.Settings.builder()
+		                              .positionFunction((pointer, facing) -> DispenserBlock.getOutputLocation(
+				                              pointer,
+				                              1.0,
+				                              Vec3d.ZERO
+		                              ))
+		                              .uncertainty(6.6666665F)
+		                              .power(1.0F)
+		                              .overrideDispenseEvent(1051)
+		                              .build();
+	}
 }

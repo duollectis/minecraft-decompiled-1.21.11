@@ -8,27 +8,32 @@ import net.minecraft.text.Text;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 
+/**
+ * {@code NameTagItem}.
+ */
 public class NameTagItem extends Item {
-   public NameTagItem(Item.Settings settings) {
-      super(settings);
-   }
 
-   @Override
-   public ActionResult useOnEntity(ItemStack stack, PlayerEntity user, LivingEntity entity, Hand hand) {
-      Text text = stack.get(DataComponentTypes.CUSTOM_NAME);
-      if (text != null && entity.getType().isSaveable()) {
-         if (!user.getEntityWorld().isClient() && entity.isAlive()) {
-            entity.setCustomName(text);
-            if (entity instanceof MobEntity mobEntity) {
-               mobEntity.setPersistent();
-            }
+	public NameTagItem(Item.Settings settings) {
+		super(settings);
+	}
 
-            stack.decrement(1);
-         }
+	@Override
+	public ActionResult useOnEntity(ItemStack stack, PlayerEntity user, LivingEntity entity, Hand hand) {
+		Text text = stack.get(DataComponentTypes.CUSTOM_NAME);
+		if (text != null && entity.getType().isSaveable()) {
+			if (!user.getEntityWorld().isClient() && entity.isAlive()) {
+				entity.setCustomName(text);
+				if (entity instanceof MobEntity mobEntity) {
+					mobEntity.setPersistent();
+				}
 
-         return ActionResult.SUCCESS;
-      } else {
-         return ActionResult.PASS;
-      }
-   }
+				stack.decrement(1);
+			}
+
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return ActionResult.PASS;
+		}
+	}
 }

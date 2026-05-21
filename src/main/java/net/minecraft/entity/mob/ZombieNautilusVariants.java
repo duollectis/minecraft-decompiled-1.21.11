@@ -13,39 +13,61 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.ModelAndTexture;
 import net.minecraft.world.biome.Biome;
 
+/**
+ * {@code ZombieNautilusVariants}.
+ */
 public class ZombieNautilusVariants {
-   public static final RegistryKey<ZombieNautilusVariant> TEMPERATE = of(AnimalTemperature.TEMPERATE);
-   public static final RegistryKey<ZombieNautilusVariant> WARM = of(AnimalTemperature.WARM);
-   public static final RegistryKey<ZombieNautilusVariant> DEFAULT = TEMPERATE;
 
-   private static RegistryKey<ZombieNautilusVariant> of(Identifier id) {
-      return RegistryKey.of(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, id);
-   }
+	public static final RegistryKey<ZombieNautilusVariant> TEMPERATE = of(AnimalTemperature.TEMPERATE);
+	public static final RegistryKey<ZombieNautilusVariant> WARM = of(AnimalTemperature.WARM);
+	public static final RegistryKey<ZombieNautilusVariant> DEFAULT = TEMPERATE;
 
-   public static void bootstrap(Registerable<ZombieNautilusVariant> registry) {
-      register(registry, TEMPERATE, ZombieNautilusVariant.Model.NORMAL, "zombie_nautilus", SpawnConditionSelectors.createFallback(0));
-      register(registry, WARM, ZombieNautilusVariant.Model.WARM, "zombie_nautilus_coral", BiomeTags.SPAWNS_CORAL_VARIANT_ZOMBIE_NAUTILUS);
-   }
+	private static RegistryKey<ZombieNautilusVariant> of(Identifier id) {
+		return RegistryKey.of(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, id);
+	}
 
-   private static void register(
-      Registerable<ZombieNautilusVariant> registry,
-      RegistryKey<ZombieNautilusVariant> key,
-      ZombieNautilusVariant.Model model,
-      String textureName,
-      TagKey<Biome> biomes
-   ) {
-      RegistryEntryList<Biome> registryEntryList = registry.getRegistryLookup(RegistryKeys.BIOME).getOrThrow(biomes);
-      register(registry, key, model, textureName, SpawnConditionSelectors.createSingle(new BiomeSpawnCondition(registryEntryList), 1));
-   }
+	public static void bootstrap(Registerable<ZombieNautilusVariant> registry) {
+		register(
+				registry,
+				TEMPERATE,
+				ZombieNautilusVariant.Model.NORMAL,
+				"zombie_nautilus",
+				SpawnConditionSelectors.createFallback(0)
+		);
+		register(
+				registry,
+				WARM,
+				ZombieNautilusVariant.Model.WARM,
+				"zombie_nautilus_coral",
+				BiomeTags.SPAWNS_CORAL_VARIANT_ZOMBIE_NAUTILUS
+		);
+	}
 
-   private static void register(
-      Registerable<ZombieNautilusVariant> registry,
-      RegistryKey<ZombieNautilusVariant> key,
-      ZombieNautilusVariant.Model model,
-      String textureName,
-      SpawnConditionSelectors spawnConditions
-   ) {
-      Identifier identifier = Identifier.ofVanilla("entity/nautilus/" + textureName);
-      registry.register(key, new ZombieNautilusVariant(new ModelAndTexture<>(model, identifier), spawnConditions));
-   }
+	private static void register(
+			Registerable<ZombieNautilusVariant> registry,
+			RegistryKey<ZombieNautilusVariant> key,
+			ZombieNautilusVariant.Model model,
+			String textureName,
+			TagKey<Biome> biomes
+	) {
+		RegistryEntryList<Biome> registryEntryList = registry.getRegistryLookup(RegistryKeys.BIOME).getOrThrow(biomes);
+		register(
+				registry,
+				key,
+				model,
+				textureName,
+				SpawnConditionSelectors.createSingle(new BiomeSpawnCondition(registryEntryList), 1)
+		);
+	}
+
+	private static void register(
+			Registerable<ZombieNautilusVariant> registry,
+			RegistryKey<ZombieNautilusVariant> key,
+			ZombieNautilusVariant.Model model,
+			String textureName,
+			SpawnConditionSelectors spawnConditions
+	) {
+		Identifier identifier = Identifier.ofVanilla("entity/nautilus/" + textureName);
+		registry.register(key, new ZombieNautilusVariant(new ModelAndTexture<>(model, identifier), spawnConditions));
+	}
 }

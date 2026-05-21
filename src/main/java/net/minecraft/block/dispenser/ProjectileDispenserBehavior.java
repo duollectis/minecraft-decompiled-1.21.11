@@ -10,40 +10,45 @@ import net.minecraft.util.math.BlockPointer;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Position;
 
+/**
+ * {@code ProjectileDispenserBehavior}.
+ */
 public class ProjectileDispenserBehavior extends ItemDispenserBehavior {
-   private final ProjectileItem projectile;
-   private final ProjectileItem.Settings projectileSettings;
 
-   public ProjectileDispenserBehavior(Item item) {
-      if (item instanceof ProjectileItem projectileItem) {
-         this.projectile = projectileItem;
-         this.projectileSettings = projectileItem.getProjectileSettings();
-      } else {
-         throw new IllegalArgumentException(item + " not instance of " + ProjectileItem.class.getSimpleName());
-      }
-   }
+	private final ProjectileItem projectile;
+	private final ProjectileItem.Settings projectileSettings;
 
-   @Override
-   public ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
-      ServerWorld serverWorld = pointer.world();
-      Direction direction = pointer.state().get(DispenserBlock.FACING);
-      Position position = this.projectileSettings.positionFunction().getDispensePosition(pointer, direction);
-      ProjectileEntity.spawnWithVelocity(
-         this.projectile.createEntity(serverWorld, position, stack, direction),
-         serverWorld,
-         stack,
-         direction.getOffsetX(),
-         direction.getOffsetY(),
-         direction.getOffsetZ(),
-         this.projectileSettings.power(),
-         this.projectileSettings.uncertainty()
-      );
-      stack.decrement(1);
-      return stack;
-   }
+	public ProjectileDispenserBehavior(Item item) {
+		if (item instanceof ProjectileItem projectileItem) {
+			this.projectile = projectileItem;
+			this.projectileSettings = projectileItem.getProjectileSettings();
+		}
+		else {
+			throw new IllegalArgumentException(item + " not instance of " + ProjectileItem.class.getSimpleName());
+		}
+	}
 
-   @Override
-   protected void playSound(BlockPointer pointer) {
-      pointer.world().syncWorldEvent(this.projectileSettings.overrideDispenseEvent().orElse(1002), pointer.pos(), 0);
-   }
+	@Override
+	public ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
+		ServerWorld serverWorld = pointer.world();
+		Direction direction = pointer.state().get(DispenserBlock.FACING);
+		Position position = this.projectileSettings.positionFunction().getDispensePosition(pointer, direction);
+		ProjectileEntity.spawnWithVelocity(
+				this.projectile.createEntity(serverWorld, position, stack, direction),
+				serverWorld,
+				stack,
+				direction.getOffsetX(),
+				direction.getOffsetY(),
+				direction.getOffsetZ(),
+				this.projectileSettings.power(),
+				this.projectileSettings.uncertainty()
+		);
+		stack.decrement(1);
+		return stack;
+	}
+
+	@Override
+	protected void playSound(BlockPointer pointer) {
+		pointer.world().syncWorldEvent(this.projectileSettings.overrideDispenseEvent().orElse(1002), pointer.pos(), 0);
+	}
 }

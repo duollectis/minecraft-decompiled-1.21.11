@@ -8,32 +8,44 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EntityTrackingSoundInstance}.
+ */
 public class EntityTrackingSoundInstance extends MovingSoundInstance {
-   private final Entity entity;
 
-   public EntityTrackingSoundInstance(SoundEvent sound, SoundCategory category, float volume, float pitch, Entity entity, long seed) {
-      super(sound, category, Random.create(seed));
-      this.volume = volume;
-      this.pitch = pitch;
-      this.entity = entity;
-      this.x = (float)this.entity.getX();
-      this.y = (float)this.entity.getY();
-      this.z = (float)this.entity.getZ();
-   }
+	private final Entity entity;
 
-   @Override
-   public boolean canPlay() {
-      return !this.entity.isSilent();
-   }
+	public EntityTrackingSoundInstance(
+			SoundEvent sound,
+			SoundCategory category,
+			float volume,
+			float pitch,
+			Entity entity,
+			long seed
+	) {
+		super(sound, category, Random.create(seed));
+		this.volume = volume;
+		this.pitch = pitch;
+		this.entity = entity;
+		this.x = (float) this.entity.getX();
+		this.y = (float) this.entity.getY();
+		this.z = (float) this.entity.getZ();
+	}
 
-   @Override
-   public void tick() {
-      if (this.entity.isRemoved()) {
-         this.setDone();
-      } else {
-         this.x = (float)this.entity.getX();
-         this.y = (float)this.entity.getY();
-         this.z = (float)this.entity.getZ();
-      }
-   }
+	@Override
+	public boolean canPlay() {
+		return !this.entity.isSilent();
+	}
+
+	@Override
+	public void tick() {
+		if (this.entity.isRemoved()) {
+			this.setDone();
+		}
+		else {
+			this.x = (float) this.entity.getX();
+			this.y = (float) this.entity.getY();
+			this.z = (float) this.entity.getZ();
+		}
+	}
 }

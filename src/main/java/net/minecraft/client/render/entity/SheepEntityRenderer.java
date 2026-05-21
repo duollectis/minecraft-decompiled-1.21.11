@@ -11,29 +11,38 @@ import net.minecraft.entity.passive.SheepEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SheepEntityRenderer}.
+ */
 public class SheepEntityRenderer extends AgeableMobEntityRenderer<SheepEntity, SheepEntityRenderState, SheepEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/sheep/sheep.png");
 
-   public SheepEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new SheepEntityModel(context.getPart(EntityModelLayers.SHEEP)), new SheepEntityModel(context.getPart(EntityModelLayers.SHEEP_BABY)), 0.7F);
-      this.addFeature(new SheepWoolUndercoatFeatureRenderer(this, context.getEntityModels()));
-      this.addFeature(new SheepWoolFeatureRenderer(this, context.getEntityModels()));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/sheep/sheep.png");
 
-   public Identifier getTexture(SheepEntityRenderState sheepEntityRenderState) {
-      return TEXTURE;
-   }
+	public SheepEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new SheepEntityModel(context.getPart(EntityModelLayers.SHEEP)),
+				new SheepEntityModel(context.getPart(EntityModelLayers.SHEEP_BABY)),
+				0.7F
+		);
+		this.addFeature(new SheepWoolUndercoatFeatureRenderer(this, context.getEntityModels()));
+		this.addFeature(new SheepWoolFeatureRenderer(this, context.getEntityModels()));
+	}
 
-   public SheepEntityRenderState createRenderState() {
-      return new SheepEntityRenderState();
-   }
+	public Identifier getTexture(SheepEntityRenderState sheepEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(SheepEntity sheepEntity, SheepEntityRenderState sheepEntityRenderState, float f) {
-      super.updateRenderState(sheepEntity, sheepEntityRenderState, f);
-      sheepEntityRenderState.headAngle = sheepEntity.getHeadAngle(f);
-      sheepEntityRenderState.neckAngle = sheepEntity.getNeckAngle(f);
-      sheepEntityRenderState.sheared = sheepEntity.isSheared();
-      sheepEntityRenderState.color = sheepEntity.getColor();
-      sheepEntityRenderState.rainbow = nameEquals(sheepEntity, "jeb_");
-   }
+	public SheepEntityRenderState createRenderState() {
+		return new SheepEntityRenderState();
+	}
+
+	public void updateRenderState(SheepEntity sheepEntity, SheepEntityRenderState sheepEntityRenderState, float f) {
+		super.updateRenderState(sheepEntity, sheepEntityRenderState, f);
+		sheepEntityRenderState.headAngle = sheepEntity.getHeadAngle(f);
+		sheepEntityRenderState.neckAngle = sheepEntity.getNeckAngle(f);
+		sheepEntityRenderState.sheared = sheepEntity.isSheared();
+		sheepEntityRenderState.color = sheepEntity.getColor();
+		sheepEntityRenderState.rainbow = nameEquals(sheepEntity, "jeb_");
+	}
 }

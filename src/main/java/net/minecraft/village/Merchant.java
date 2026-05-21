@@ -1,6 +1,5 @@
 package net.minecraft.village;
 
-import java.util.OptionalInt;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.MerchantScreenHandler;
@@ -9,46 +8,63 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
+import java.util.OptionalInt;
+
+/**
+ * {@code Merchant}.
+ */
 public interface Merchant {
-   void setCustomer(@Nullable PlayerEntity customer);
 
-   @Nullable PlayerEntity getCustomer();
+	void setCustomer(@Nullable PlayerEntity customer);
 
-   TradeOfferList getOffers();
+	@Nullable PlayerEntity getCustomer();
 
-   void setOffersFromServer(TradeOfferList offers);
+	TradeOfferList getOffers();
 
-   void trade(TradeOffer offer);
+	void setOffersFromServer(TradeOfferList offers);
 
-   void onSellingItem(ItemStack stack);
+	void trade(TradeOffer offer);
 
-   int getExperience();
+	void onSellingItem(ItemStack stack);
 
-   void setExperienceFromServer(int experience);
+	int getExperience();
 
-   boolean isLeveledMerchant();
+	void setExperienceFromServer(int experience);
 
-   SoundEvent getYesSound();
+	boolean isLeveledMerchant();
 
-   default boolean canRefreshTrades() {
-      return false;
-   }
+	SoundEvent getYesSound();
 
-   default void sendOffers(PlayerEntity player, Text name, int levelProgress) {
-      OptionalInt optionalInt = player.openHandledScreen(
-         new SimpleNamedScreenHandlerFactory((syncId, playerInventory, playerx) -> new MerchantScreenHandler(syncId, playerInventory, this), name)
-      );
-      if (optionalInt.isPresent()) {
-         TradeOfferList tradeOfferList = this.getOffers();
-         if (!tradeOfferList.isEmpty()) {
-            player.sendTradeOffers(
-               optionalInt.getAsInt(), tradeOfferList, levelProgress, this.getExperience(), this.isLeveledMerchant(), this.canRefreshTrades()
-            );
-         }
-      }
-   }
+	default boolean canRefreshTrades() {
+		return false;
+	}
 
-   boolean isClient();
+	default void sendOffers(PlayerEntity player, Text name, int levelProgress) {
+		OptionalInt optionalInt = player.openHandledScreen(
+				new SimpleNamedScreenHandlerFactory(
+						(syncId, playerInventory, playerx) -> new MerchantScreenHandler(
+								syncId,
+								playerInventory,
+								this
+						), name
+				)
+		);
+		if (optionalInt.isPresent()) {
+			TradeOfferList tradeOfferList = this.getOffers();
+			if (!tradeOfferList.isEmpty()) {
+				player.sendTradeOffers(
+						optionalInt.getAsInt(),
+						tradeOfferList,
+						levelProgress,
+						this.getExperience(),
+						this.isLeveledMerchant(),
+						this.canRefreshTrades()
+				);
+			}
+		}
+	}
 
-   boolean canInteract(PlayerEntity player);
+	boolean isClient();
+
+	boolean canInteract(PlayerEntity player);
 }

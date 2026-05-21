@@ -7,16 +7,20 @@ import net.fabricmc.api.Environment;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SimpleModelSupplier}.
+ */
 public class SimpleModelSupplier implements ModelSupplier {
-   private final Identifier parent;
 
-   public SimpleModelSupplier(Identifier parent) {
-      this.parent = parent;
-   }
+	private final Identifier parent;
 
-   public JsonElement get() {
-      JsonObject jsonObject = new JsonObject();
-      jsonObject.addProperty("parent", this.parent.toString());
-      return jsonObject;
-   }
+	public SimpleModelSupplier(Identifier parent) {
+		this.parent = parent;
+	}
+
+	public JsonElement get() {
+		JsonObject jsonObject = new JsonObject();
+		jsonObject.addProperty("parent", this.parent.toString());
+		return jsonObject;
+	}
 }

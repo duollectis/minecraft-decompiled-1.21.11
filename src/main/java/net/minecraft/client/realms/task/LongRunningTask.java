@@ -13,56 +13,65 @@ import net.minecraft.text.Text;
 import org.slf4j.Logger;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LongRunningTask}.
+ */
 public abstract class LongRunningTask implements Runnable {
-   protected static final int MAX_RETRIES = 25;
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private boolean aborted = false;
 
-   protected static void pause(long seconds) {
-      try {
-         Thread.sleep(seconds * 1000L);
-      } catch (InterruptedException var3) {
-         Thread.currentThread().interrupt();
-         LOGGER.error("", var3);
-      }
-   }
+	protected static final int MAX_RETRIES = 25;
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private boolean aborted = false;
 
-   public static void setScreen(Screen screen) {
-      MinecraftClient minecraftClient = MinecraftClient.getInstance();
-      minecraftClient.execute(() -> minecraftClient.setScreen(screen));
-   }
+	protected static void pause(long seconds) {
+		try {
+			Thread.sleep(seconds * 1000L);
+		}
+		catch (InterruptedException var3) {
+			Thread.currentThread().interrupt();
+			LOGGER.error("", var3);
+		}
+	}
 
-   protected void error(Text message) {
-      this.abortTask();
-      MinecraftClient minecraftClient = MinecraftClient.getInstance();
-      minecraftClient.execute(() -> minecraftClient.setScreen(new RealmsGenericErrorScreen(message, new RealmsMainScreen(new TitleScreen()))));
-   }
+	public static void setScreen(Screen screen) {
+		MinecraftClient minecraftClient = MinecraftClient.getInstance();
+		minecraftClient.execute(() -> minecraftClient.setScreen(screen));
+	}
 
-   protected void error(Exception exception) {
-      if (exception instanceof RealmsServiceException realmsServiceException) {
-         this.error(realmsServiceException.error.getText());
-      } else {
-         this.error(Text.literal(exception.getMessage()));
-      }
-   }
+	protected void error(Text message) {
+		this.abortTask();
+		MinecraftClient minecraftClient = MinecraftClient.getInstance();
+		minecraftClient.execute(() -> minecraftClient.setScreen(new RealmsGenericErrorScreen(
+				message,
+				new RealmsMainScreen(new TitleScreen())
+		)));
+	}
 
-   protected void error(RealmsServiceException exception) {
-      this.error(exception.error.getText());
-   }
+	protected void error(Exception exception) {
+		if (exception instanceof RealmsServiceException realmsServiceException) {
+			this.error(realmsServiceException.error.getText());
+		}
+		else {
+			this.error(Text.literal(exception.getMessage()));
+		}
+	}
 
-   public abstract Text getTitle();
+	protected void error(RealmsServiceException exception) {
+		this.error(exception.error.getText());
+	}
 
-   public boolean aborted() {
-      return this.aborted;
-   }
+	public abstract Text getTitle();
 
-   public void tick() {
-   }
+	public boolean aborted() {
+		return this.aborted;
+	}
 
-   public void init() {
-   }
+	public void tick() {
+	}
 
-   public void abortTask() {
-      this.aborted = true;
-   }
+	public void init() {
+	}
+
+	public void abortTask() {
+		this.aborted = true;
+	}
 }

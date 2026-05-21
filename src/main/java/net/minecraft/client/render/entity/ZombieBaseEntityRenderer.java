@@ -15,35 +15,50 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.SwingAnimationType;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ZombieBaseEntityRenderer}.
+ */
 public abstract class ZombieBaseEntityRenderer<T extends ZombieEntity, S extends ZombieEntityRenderState, M extends ZombieEntityModel<S>>
-   extends BipedEntityRenderer<T, S, M> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/zombie/zombie.png");
+		extends BipedEntityRenderer<T, S, M> {
 
-   protected ZombieBaseEntityRenderer(
-      EntityRendererFactory.Context context, M mainModel, M babyMainModel, EquipmentModelData<M> equipmentModelData, EquipmentModelData<M> equipmentModelData2
-   ) {
-      super(context, mainModel, babyMainModel, 0.5F);
-      this.addFeature(new ArmorFeatureRenderer<>(this, equipmentModelData, equipmentModelData2, context.getEquipmentRenderer()));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/zombie/zombie.png");
 
-   public Identifier getTexture(S zombieEntityRenderState) {
-      return TEXTURE;
-   }
+	protected ZombieBaseEntityRenderer(
+			EntityRendererFactory.Context context,
+			M mainModel,
+			M babyMainModel,
+			EquipmentModelData<M> equipmentModelData,
+			EquipmentModelData<M> equipmentModelData2
+	) {
+		super(context, mainModel, babyMainModel, 0.5F);
+		this.addFeature(new ArmorFeatureRenderer<>(
+				this,
+				equipmentModelData,
+				equipmentModelData2,
+				context.getEquipmentRenderer()
+		));
+	}
 
-   public void updateRenderState(T zombieEntity, S zombieEntityRenderState, float f) {
-      super.updateRenderState(zombieEntity, zombieEntityRenderState, f);
-      zombieEntityRenderState.attacking = zombieEntity.isAttacking();
-      zombieEntityRenderState.convertingInWater = zombieEntity.isConvertingInWater();
-   }
+	public Identifier getTexture(S zombieEntityRenderState) {
+		return TEXTURE;
+	}
 
-   protected boolean isShaking(S zombieEntityRenderState) {
-      return super.isShaking(zombieEntityRenderState) || zombieEntityRenderState.convertingInWater;
-   }
+	public void updateRenderState(T zombieEntity, S zombieEntityRenderState, float f) {
+		super.updateRenderState(zombieEntity, zombieEntityRenderState, f);
+		zombieEntityRenderState.attacking = zombieEntity.isAttacking();
+		zombieEntityRenderState.convertingInWater = zombieEntity.isConvertingInWater();
+	}
 
-   protected BipedEntityModel.ArmPose getArmPose(T zombieEntity, Arm arm) {
-      SwingAnimationComponent swingAnimationComponent = zombieEntity.getStackInArm(arm.getOpposite()).get(DataComponentTypes.SWING_ANIMATION);
-      return swingAnimationComponent != null && swingAnimationComponent.type() == SwingAnimationType.STAB
-         ? BipedEntityModel.ArmPose.SPEAR
-         : super.getArmPose(zombieEntity, arm);
-   }
+	protected boolean isShaking(S zombieEntityRenderState) {
+		return super.isShaking(zombieEntityRenderState) || zombieEntityRenderState.convertingInWater;
+	}
+
+	protected BipedEntityModel.ArmPose getArmPose(T zombieEntity, Arm arm) {
+		SwingAnimationComponent
+				swingAnimationComponent =
+				zombieEntity.getStackInArm(arm.getOpposite()).get(DataComponentTypes.SWING_ANIMATION);
+		return swingAnimationComponent != null && swingAnimationComponent.type() == SwingAnimationType.STAB
+		       ? BipedEntityModel.ArmPose.SPEAR
+		       : super.getArmPose(zombieEntity, arm);
+	}
 }

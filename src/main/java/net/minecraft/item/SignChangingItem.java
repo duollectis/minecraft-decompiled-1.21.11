@@ -5,10 +5,14 @@ import net.minecraft.block.entity.SignText;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.world.World;
 
+/**
+ * {@code SignChangingItem}.
+ */
 public interface SignChangingItem {
-   boolean useOnSign(World world, SignBlockEntity signBlockEntity, boolean front, PlayerEntity player);
 
-   default boolean canUseOnSignText(SignText signText, PlayerEntity player) {
-      return signText.hasText(player);
-   }
+	boolean useOnSign(World world, SignBlockEntity signBlockEntity, boolean front, PlayerEntity player);
+
+	default boolean canUseOnSignText(SignText signText, PlayerEntity player) {
+		return signText.hasText(player);
+	}
 }

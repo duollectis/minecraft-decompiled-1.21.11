@@ -6,48 +6,58 @@ import com.mojang.brigadier.arguments.StringArgumentType.StringType;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.network.PacketByteBuf;
 
+/**
+ * {@code StringArgumentSerializer}.
+ */
 public class StringArgumentSerializer implements ArgumentSerializer<StringArgumentType, StringArgumentSerializer.Properties> {
-   public void writePacket(StringArgumentSerializer.Properties properties, PacketByteBuf packetByteBuf) {
-      packetByteBuf.writeEnumConstant(properties.type);
-   }
 
-   public StringArgumentSerializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
-      StringType stringType = packetByteBuf.readEnumConstant(StringType.class);
-      return new StringArgumentSerializer.Properties(stringType);
-   }
+	public void writePacket(StringArgumentSerializer.Properties properties, PacketByteBuf packetByteBuf) {
+		packetByteBuf.writeEnumConstant(properties.type);
+	}
 
-   public void writeJson(StringArgumentSerializer.Properties properties, JsonObject jsonObject) {
-      jsonObject.addProperty("type", switch (properties.type) {
-         case SINGLE_WORD -> "word";
-         case QUOTABLE_PHRASE -> "phrase";
-         case GREEDY_PHRASE -> "greedy";
-         default -> throw new MatchException(null, null);
-      });
-   }
+	public StringArgumentSerializer.Properties fromPacket(PacketByteBuf packetByteBuf) {
+		StringType stringType = packetByteBuf.readEnumConstant(StringType.class);
+		return new StringArgumentSerializer.Properties(stringType);
+	}
 
-   public StringArgumentSerializer.Properties getArgumentTypeProperties(StringArgumentType stringArgumentType) {
-      return new StringArgumentSerializer.Properties(stringArgumentType.getType());
-   }
+	public void writeJson(StringArgumentSerializer.Properties properties, JsonObject jsonObject) {
+		jsonObject.addProperty(
+				"type", switch (properties.type) {
+					case SINGLE_WORD -> "word";
+					case QUOTABLE_PHRASE -> "phrase";
+					case GREEDY_PHRASE -> "greedy";
+					default -> throw new MatchException(null, null);
+				}
+		);
+	}
 
-   public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<StringArgumentType> {
-      final StringType type;
+	public StringArgumentSerializer.Properties getArgumentTypeProperties(StringArgumentType stringArgumentType) {
+		return new StringArgumentSerializer.Properties(stringArgumentType.getType());
+	}
 
-      public Properties(final StringType type) {
-         this.type = type;
-      }
+	/**
+	 * {@code Properties}.
+	 */
+	public final class Properties implements ArgumentSerializer.ArgumentTypeProperties<StringArgumentType> {
 
-      public StringArgumentType createType(CommandRegistryAccess commandRegistryAccess) {
-         return switch (this.type) {
-            case SINGLE_WORD -> StringArgumentType.word();
-            case QUOTABLE_PHRASE -> StringArgumentType.string();
-            case GREEDY_PHRASE -> StringArgumentType.greedyString();
-            default -> throw new MatchException(null, null);
-         };
-      }
+		final StringType type;
 
-      @Override
-      public ArgumentSerializer<StringArgumentType, ?> getSerializer() {
-         return StringArgumentSerializer.this;
-      }
-   }
+		public Properties(final StringType type) {
+			this.type = type;
+		}
+
+		public StringArgumentType createType(CommandRegistryAccess commandRegistryAccess) {
+			return switch (this.type) {
+				case SINGLE_WORD -> StringArgumentType.word();
+				case QUOTABLE_PHRASE -> StringArgumentType.string();
+				case GREEDY_PHRASE -> StringArgumentType.greedyString();
+				default -> throw new MatchException(null, null);
+			};
+		}
+
+		@Override
+		public ArgumentSerializer<StringArgumentType, ?> getSerializer() {
+			return StringArgumentSerializer.this;
+		}
+	}
 }

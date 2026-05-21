@@ -3,9 +3,6 @@ package net.minecraft.world.gen.treedecorator;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.HangingMossBlock;
 import net.minecraft.registry.RegistryKeys;
@@ -16,72 +13,96 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.gen.feature.VegetationConfiguredFeatures;
 
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+
+/**
+ * {@code PaleMossTreeDecorator}.
+ */
 public class PaleMossTreeDecorator extends TreeDecorator {
-   public static final MapCodec<PaleMossTreeDecorator> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codec.floatRange(0.0F, 1.0F).fieldOf("leaves_probability").forGetter(treeDecorator -> treeDecorator.leavesProbability),
-            Codec.floatRange(0.0F, 1.0F).fieldOf("trunk_probability").forGetter(treeDecorator -> treeDecorator.trunkProbability),
-            Codec.floatRange(0.0F, 1.0F).fieldOf("ground_probability").forGetter(treeDecorator -> treeDecorator.groundProbability)
-         )
-         .apply(instance, PaleMossTreeDecorator::new)
-   );
-   private final float leavesProbability;
-   private final float trunkProbability;
-   private final float groundProbability;
 
-   @Override
-   protected TreeDecoratorType<?> getType() {
-      return TreeDecoratorType.PALE_MOSS;
-   }
+	public static final MapCodec<PaleMossTreeDecorator> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codec
+							                    .floatRange(0.0F, 1.0F)
+							                    .fieldOf("leaves_probability")
+							                    .forGetter(treeDecorator -> treeDecorator.leavesProbability),
+					                    Codec
+							                    .floatRange(0.0F, 1.0F)
+							                    .fieldOf("trunk_probability")
+							                    .forGetter(treeDecorator -> treeDecorator.trunkProbability),
+					                    Codec
+							                    .floatRange(0.0F, 1.0F)
+							                    .fieldOf("ground_probability")
+							                    .forGetter(treeDecorator -> treeDecorator.groundProbability)
+			                    )
+			                    .apply(instance, PaleMossTreeDecorator::new)
+	);
+	private final float leavesProbability;
+	private final float trunkProbability;
+	private final float groundProbability;
 
-   public PaleMossTreeDecorator(float leavesProbability, float trunkProbability, float groundProbability) {
-      this.leavesProbability = leavesProbability;
-      this.trunkProbability = trunkProbability;
-      this.groundProbability = groundProbability;
-   }
+	@Override
+	protected TreeDecoratorType<?> getType() {
+		return TreeDecoratorType.PALE_MOSS;
+	}
 
-   @Override
-   public void generate(TreeDecorator.Generator generator) {
-      Random random = generator.getRandom();
-      StructureWorldAccess structureWorldAccess = (StructureWorldAccess)generator.getWorld();
-      List<BlockPos> list = Util.copyShuffled(generator.getLogPositions(), random);
-      if (!list.isEmpty()) {
-         BlockPos blockPos = Collections.min(list, Comparator.comparingInt(Vec3i::getY));
-         if (random.nextFloat() < this.groundProbability) {
-            structureWorldAccess.getRegistryManager()
-               .getOptional(RegistryKeys.CONFIGURED_FEATURE)
-               .flatMap(registry -> registry.getOptional(VegetationConfiguredFeatures.PALE_MOSS_PATCH))
-               .ifPresent(
-                  entry -> entry.value()
-                     .generate(structureWorldAccess, structureWorldAccess.toServerWorld().getChunkManager().getChunkGenerator(), random, blockPos.up())
-               );
-         }
+	public PaleMossTreeDecorator(float leavesProbability, float trunkProbability, float groundProbability) {
+		this.leavesProbability = leavesProbability;
+		this.trunkProbability = trunkProbability;
+		this.groundProbability = groundProbability;
+	}
 
-         generator.getLogPositions().forEach(pos -> {
-            if (random.nextFloat() < this.trunkProbability) {
-               BlockPos blockPosx = pos.down();
-               if (generator.isAir(blockPosx)) {
-                  decorate(blockPosx, generator);
-               }
-            }
-         });
-         generator.getLeavesPositions().forEach(pos -> {
-            if (random.nextFloat() < this.leavesProbability) {
-               BlockPos blockPosx = pos.down();
-               if (generator.isAir(blockPosx)) {
-                  decorate(blockPosx, generator);
-               }
-            }
-         });
-      }
-   }
+	@Override
+	public void generate(TreeDecorator.Generator generator) {
+		Random random = generator.getRandom();
+		StructureWorldAccess structureWorldAccess = (StructureWorldAccess) generator.getWorld();
+		List<BlockPos> list = Util.copyShuffled(generator.getLogPositions(), random);
+		if (!list.isEmpty()) {
+			BlockPos blockPos = Collections.min(list, Comparator.comparingInt(Vec3i::getY));
+			if (random.nextFloat() < this.groundProbability) {
+				structureWorldAccess.getRegistryManager()
+				                    .getOptional(RegistryKeys.CONFIGURED_FEATURE)
+				                    .flatMap(registry -> registry.getOptional(VegetationConfiguredFeatures.PALE_MOSS_PATCH))
+				                    .ifPresent(
+						                    entry -> entry.value()
+						                                  .generate(structureWorldAccess,
+								                                  structureWorldAccess
+										                                  .toServerWorld()
+										                                  .getChunkManager()
+										                                  .getChunkGenerator(),
+								                                  random,
+								                                  blockPos.up()
+						                                  )
+				                    );
+			}
 
-   private static void decorate(BlockPos pos, TreeDecorator.Generator generator) {
-      while (generator.isAir(pos.down()) && !(generator.getRandom().nextFloat() < 0.5)) {
-         generator.replace(pos, Blocks.PALE_HANGING_MOSS.getDefaultState().with(HangingMossBlock.TIP, false));
-         pos = pos.down();
-      }
+			generator.getLogPositions().forEach(pos -> {
+				if (random.nextFloat() < this.trunkProbability) {
+					BlockPos blockPosx = pos.down();
+					if (generator.isAir(blockPosx)) {
+						decorate(blockPosx, generator);
+					}
+				}
+			});
+			generator.getLeavesPositions().forEach(pos -> {
+				if (random.nextFloat() < this.leavesProbability) {
+					BlockPos blockPosx = pos.down();
+					if (generator.isAir(blockPosx)) {
+						decorate(blockPosx, generator);
+					}
+				}
+			});
+		}
+	}
 
-      generator.replace(pos, Blocks.PALE_HANGING_MOSS.getDefaultState().with(HangingMossBlock.TIP, true));
-   }
+	private static void decorate(BlockPos pos, TreeDecorator.Generator generator) {
+		while (generator.isAir(pos.down()) && !(generator.getRandom().nextFloat() < 0.5)) {
+			generator.replace(pos, Blocks.PALE_HANGING_MOSS.getDefaultState().with(HangingMossBlock.TIP, false));
+			pos = pos.down();
+		}
+
+		generator.replace(pos, Blocks.PALE_HANGING_MOSS.getDefaultState().with(HangingMossBlock.TIP, true));
+	}
 }

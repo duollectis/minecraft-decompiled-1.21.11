@@ -13,65 +13,80 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+/**
+ * {@code SculkPatchFeature}.
+ */
 public class SculkPatchFeature extends Feature<SculkPatchFeatureConfig> {
-   public SculkPatchFeature(Codec<SculkPatchFeatureConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<SculkPatchFeatureConfig> context) {
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      BlockPos blockPos = context.getOrigin();
-      if (!this.canGenerate(structureWorldAccess, blockPos)) {
-         return false;
-      } else {
-         SculkPatchFeatureConfig sculkPatchFeatureConfig = context.getConfig();
-         Random random = context.getRandom();
-         SculkSpreadManager sculkSpreadManager = SculkSpreadManager.createWorldGen();
-         int i = sculkPatchFeatureConfig.spreadRounds() + sculkPatchFeatureConfig.growthRounds();
+	public SculkPatchFeature(Codec<SculkPatchFeatureConfig> codec) {
+		super(codec);
+	}
 
-         for (int j = 0; j < i; j++) {
-            for (int k = 0; k < sculkPatchFeatureConfig.chargeCount(); k++) {
-               sculkSpreadManager.spread(blockPos, sculkPatchFeatureConfig.amountPerCharge());
-            }
+	@Override
+	public boolean generate(FeatureContext<SculkPatchFeatureConfig> context) {
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		BlockPos blockPos = context.getOrigin();
+		if (!this.canGenerate(structureWorldAccess, blockPos)) {
+			return false;
+		}
+		else {
+			SculkPatchFeatureConfig sculkPatchFeatureConfig = context.getConfig();
+			Random random = context.getRandom();
+			SculkSpreadManager sculkSpreadManager = SculkSpreadManager.createWorldGen();
+			int i = sculkPatchFeatureConfig.spreadRounds() + sculkPatchFeatureConfig.growthRounds();
 
-            boolean bl = j < sculkPatchFeatureConfig.spreadRounds();
+			for (int j = 0; j < i; j++) {
+				for (int k = 0; k < sculkPatchFeatureConfig.chargeCount(); k++) {
+					sculkSpreadManager.spread(blockPos, sculkPatchFeatureConfig.amountPerCharge());
+				}
 
-            for (int l = 0; l < sculkPatchFeatureConfig.spreadAttempts(); l++) {
-               sculkSpreadManager.tick(structureWorldAccess, blockPos, random, bl);
-            }
+				boolean bl = j < sculkPatchFeatureConfig.spreadRounds();
 
-            sculkSpreadManager.clearCursors();
-         }
+				for (int l = 0; l < sculkPatchFeatureConfig.spreadAttempts(); l++) {
+					sculkSpreadManager.tick(structureWorldAccess, blockPos, random, bl);
+				}
 
-         BlockPos blockPos2 = blockPos.down();
-         if (random.nextFloat() <= sculkPatchFeatureConfig.catalystChance()
-            && structureWorldAccess.getBlockState(blockPos2).isFullCube(structureWorldAccess, blockPos2)) {
-            structureWorldAccess.setBlockState(blockPos, Blocks.SCULK_CATALYST.getDefaultState(), 3);
-         }
+				sculkSpreadManager.clearCursors();
+			}
 
-         int k = sculkPatchFeatureConfig.extraRareGrowths().get(random);
+			BlockPos blockPos2 = blockPos.down();
+			if (random.nextFloat() <= sculkPatchFeatureConfig.catalystChance()
+					&& structureWorldAccess.getBlockState(blockPos2).isFullCube(structureWorldAccess, blockPos2)) {
+				structureWorldAccess.setBlockState(blockPos, Blocks.SCULK_CATALYST.getDefaultState(), 3);
+			}
 
-         for (int l = 0; l < k; l++) {
-            BlockPos blockPos3 = blockPos.add(random.nextInt(5) - 2, 0, random.nextInt(5) - 2);
-            if (structureWorldAccess.getBlockState(blockPos3).isAir()
-               && structureWorldAccess.getBlockState(blockPos3.down()).isSideSolidFullSquare(structureWorldAccess, blockPos3.down(), Direction.UP)) {
-               structureWorldAccess.setBlockState(blockPos3, Blocks.SCULK_SHRIEKER.getDefaultState().with(SculkShriekerBlock.CAN_SUMMON, true), 3);
-            }
-         }
+			int k = sculkPatchFeatureConfig.extraRareGrowths().get(random);
 
-         return true;
-      }
-   }
+			for (int l = 0; l < k; l++) {
+				BlockPos blockPos3 = blockPos.add(random.nextInt(5) - 2, 0, random.nextInt(5) - 2);
+				if (structureWorldAccess.getBlockState(blockPos3).isAir()
+						&& structureWorldAccess
+						.getBlockState(blockPos3.down())
+						.isSideSolidFullSquare(structureWorldAccess, blockPos3.down(), Direction.UP)) {
+					structureWorldAccess.setBlockState(
+							blockPos3,
+							Blocks.SCULK_SHRIEKER.getDefaultState().with(SculkShriekerBlock.CAN_SUMMON, true),
+							3
+					);
+				}
+			}
 
-   private boolean canGenerate(WorldAccess world, BlockPos pos) {
-      BlockState blockState = world.getBlockState(pos);
-      if (blockState.getBlock() instanceof SculkSpreadable) {
-         return true;
-      } else {
-         return !blockState.isAir() && (!blockState.isOf(Blocks.WATER) || !blockState.getFluidState().isStill())
-            ? false
-            : Direction.stream().map(pos::offset).anyMatch(pos2 -> world.getBlockState(pos2).isFullCube(world, pos2));
-      }
-   }
+			return true;
+		}
+	}
+
+	private boolean canGenerate(WorldAccess world, BlockPos pos) {
+		BlockState blockState = world.getBlockState(pos);
+		if (blockState.getBlock() instanceof SculkSpreadable) {
+			return true;
+		}
+		else {
+			return !blockState.isAir() && (!blockState.isOf(Blocks.WATER) || !blockState.getFluidState().isStill())
+			       ? false
+			       : Direction
+			         .stream()
+			         .map(pos::offset)
+			         .anyMatch(pos2 -> world.getBlockState(pos2).isFullCube(world, pos2));
+		}
+	}
 }

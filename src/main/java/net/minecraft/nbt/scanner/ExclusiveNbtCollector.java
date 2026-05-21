@@ -1,46 +1,52 @@
 package net.minecraft.nbt.scanner;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtType;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+
+/**
+ * {@code ExclusiveNbtCollector}.
+ */
 public class ExclusiveNbtCollector extends NbtCollector {
-   private final Deque<NbtTreeNode> treeStack = new ArrayDeque<>();
 
-   public ExclusiveNbtCollector(NbtScanQuery... excludedQueries) {
-      NbtTreeNode nbtTreeNode = NbtTreeNode.createRoot();
+	private final Deque<NbtTreeNode> treeStack = new ArrayDeque<>();
 
-      for (NbtScanQuery nbtScanQuery : excludedQueries) {
-         nbtTreeNode.add(nbtScanQuery);
-      }
+	public ExclusiveNbtCollector(NbtScanQuery... excludedQueries) {
+		NbtTreeNode nbtTreeNode = NbtTreeNode.createRoot();
 
-      this.treeStack.push(nbtTreeNode);
-   }
+		for (NbtScanQuery nbtScanQuery : excludedQueries) {
+			nbtTreeNode.add(nbtScanQuery);
+		}
 
-   @Override
-   public NbtScanner.NestedResult startSubNbt(NbtType<?> type, String key) {
-      NbtTreeNode nbtTreeNode = this.treeStack.element();
-      if (nbtTreeNode.isTypeEqual(type, key)) {
-         return NbtScanner.NestedResult.SKIP;
-      } else {
-         if (type == NbtCompound.TYPE) {
-            NbtTreeNode nbtTreeNode2 = nbtTreeNode.fieldsToRecurse().get(key);
-            if (nbtTreeNode2 != null) {
-               this.treeStack.push(nbtTreeNode2);
-            }
-         }
+		this.treeStack.push(nbtTreeNode);
+	}
 
-         return super.startSubNbt(type, key);
-      }
-   }
+	@Override
+	public NbtScanner.NestedResult startSubNbt(NbtType<?> type, String key) {
+		NbtTreeNode nbtTreeNode = this.treeStack.element();
+		if (nbtTreeNode.isTypeEqual(type, key)) {
+			return NbtScanner.NestedResult.SKIP;
+		}
+		else {
+			if (type == NbtCompound.TYPE) {
+				NbtTreeNode nbtTreeNode2 = nbtTreeNode.fieldsToRecurse().get(key);
+				if (nbtTreeNode2 != null) {
+					this.treeStack.push(nbtTreeNode2);
+				}
+			}
 
-   @Override
-   public NbtScanner.Result endNested() {
-      if (this.getDepth() == this.treeStack.element().depth()) {
-         this.treeStack.pop();
-      }
+			return super.startSubNbt(type, key);
+		}
+	}
 
-      return super.endNested();
-   }
+	@Override
+	public NbtScanner.Result endNested() {
+		if (this.getDepth() == this.treeStack.element().depth()) {
+			this.treeStack.pop();
+		}
+
+		return super.endNested();
+	}
 }

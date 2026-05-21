@@ -1,8 +1,6 @@
 package net.minecraft.client.network;
 
 import com.mojang.logging.LogUtils;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.texture.PlayerSkinCache;
@@ -17,84 +15,114 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Клиентская реализация сущности-манекена с поддержкой скинов игроков.
+ * <p>Асинхронно загружает скин через {@link PlayerSkinCache} при изменении профиля
+ * манекена. До загрузки скина используется {@link #DEFAULT_TEXTURES}.
+ */
 @Environment(EnvType.CLIENT)
 public class ClientMannequinEntity extends MannequinEntity implements ClientPlayerLikeEntity {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final SkinTextures DEFAULT_TEXTURES = DefaultSkinHelper.getSkinTextures(MannequinEntity.DEFAULT_INFO.getGameProfile());
-   private final ClientPlayerLikeState state = new ClientPlayerLikeState();
-   private @Nullable CompletableFuture<Optional<SkinTextures>> skinLookup;
-   private SkinTextures skin = DEFAULT_TEXTURES;
-   private final PlayerSkinCache skinCache;
 
-   public static void setFactory(PlayerSkinCache cache) {
-      MannequinEntity.factory = (type, world) -> (MannequinEntity)(world instanceof ClientWorld
-         ? new ClientMannequinEntity(world, cache)
-         : new MannequinEntity(type, world));
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
 
-   public ClientMannequinEntity(World world, PlayerSkinCache skinCache) {
-      super(world);
-      this.skinCache = skinCache;
-   }
+	/**
+	 * Текстуры по умолчанию для манекена без загруженного скина.
+	 */
+	public static final SkinTextures DEFAULT_TEXTURES = DefaultSkinHelper.getSkinTextures(
+			MannequinEntity.DEFAULT_INFO.getGameProfile()
+	);
 
-   @Override
-   public void tick() {
-      super.tick();
-      this.state.tick(this.getEntityPos(), this.getVelocity());
-      if (this.skinLookup != null && this.skinLookup.isDone()) {
-         try {
-            this.skinLookup.get().ifPresent(this::setSkin);
-            this.skinLookup = null;
-         } catch (Exception var2) {
-            LOGGER.error("Error when trying to look up skin", var2);
-         }
-      }
-   }
+	private final ClientPlayerLikeState state = new ClientPlayerLikeState();
+	private final PlayerSkinCache skinCache;
+	private @Nullable CompletableFuture<Optional<SkinTextures>> skinLookup;
+	private SkinTextures skin = DEFAULT_TEXTURES;
 
-   @Override
-   public void onTrackedDataSet(TrackedData<?> data) {
-      super.onTrackedDataSet(data);
-      if (data.equals(PROFILE)) {
-         this.refreshSkin();
-      }
-   }
+	/**
+	 * Устанавливает фабрику манекенов, создающую {@link ClientMannequinEntity} на клиенте.
+	 *
+	 * @param cache кэш скинов игроков
+	 */
+	public static void setFactory(PlayerSkinCache cache) {
+		MannequinEntity.factory = (type, world) -> world instanceof ClientWorld
+		                                           ? new ClientMannequinEntity(world, cache)
+		                                           : new MannequinEntity(type, world);
+	}
 
-   private void refreshSkin() {
-      if (this.skinLookup != null) {
-         CompletableFuture<Optional<SkinTextures>> completableFuture = this.skinLookup;
-         this.skinLookup = null;
-         completableFuture.cancel(false);
-      }
+	/**
+	 * Создаёт клиентского манекена.
+	 *
+	 * @param world     мир, в котором находится манекен
+	 * @param skinCache кэш скинов для загрузки текстур
+	 */
+	public ClientMannequinEntity(World world, PlayerSkinCache skinCache) {
+		super(world);
+		this.skinCache = skinCache;
+	}
 
-      this.skinLookup = this.skinCache.getFuture(this.getMannequinProfile()).thenApply(skin -> skin.map(PlayerSkinCache.Entry::getTextures));
-   }
+	@Override
+	public void tick() {
+		super.tick();
+		state.tick(getEntityPos(), getVelocity());
 
-   @Override
-   public ClientPlayerLikeState getState() {
-      return this.state;
-   }
+		if (skinLookup == null || skinLookup.isDone() == false) {
+			return;
+		}
 
-   @Override
-   public SkinTextures getSkin() {
-      return this.skin;
-   }
+		try {
+			skinLookup.get().ifPresent(loaded -> skin = loaded);
+			skinLookup = null;
+		}
+		catch (Exception e) {
+			LOGGER.error("Error when trying to look up skin", e);
+		}
+	}
 
-   private void setSkin(SkinTextures skin) {
-      this.skin = skin;
-   }
+	@Override
+	public void onTrackedDataSet(TrackedData<?> data) {
+		super.onTrackedDataSet(data);
 
-   @Override
-   public @Nullable Text getMannequinName() {
-      return this.getDescription();
-   }
+		if (data.equals(PROFILE)) {
+			refreshSkin();
+		}
+	}
 
-   @Override
-   public ParrotEntity.@Nullable Variant getShoulderParrotVariant(boolean leftShoulder) {
-      return null;
-   }
+	@Override
+	public ClientPlayerLikeState getState() {
+		return state;
+	}
 
-   @Override
-   public boolean hasExtraEars() {
-      return false;
-   }
+	@Override
+	public SkinTextures getSkin() {
+		return skin;
+	}
+
+	@Override
+	public @Nullable Text getMannequinName() {
+		return getDescription();
+	}
+
+	@Override
+	public ParrotEntity.@Nullable Variant getShoulderParrotVariant(boolean leftShoulder) {
+		return null;
+	}
+
+	@Override
+	public boolean hasExtraEars() {
+		return false;
+	}
+
+	private void refreshSkin() {
+		if (skinLookup != null) {
+			CompletableFuture<Optional<SkinTextures>> pending = skinLookup;
+			skinLookup = null;
+			pending.cancel(false);
+		}
+
+		skinLookup = skinCache
+				.getFuture(getMannequinProfile())
+				.thenApply(entry -> entry.map(PlayerSkinCache.Entry::getTextures));
+	}
 }

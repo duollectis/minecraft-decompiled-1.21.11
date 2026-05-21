@@ -10,26 +10,41 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SignItem}.
+ */
 public class SignItem extends VerticallyAttachableBlockItem {
-   public SignItem(Block standingBlock, Block wallBlock, Item.Settings settings) {
-      super(standingBlock, wallBlock, Direction.DOWN, settings);
-   }
 
-   public SignItem(Item.Settings settings, Block standingBlock, Block wallBlock, Direction verticalAttachmentDirection) {
-      super(standingBlock, wallBlock, verticalAttachmentDirection, settings);
-   }
+	public SignItem(Block standingBlock, Block wallBlock, Item.Settings settings) {
+		super(standingBlock, wallBlock, Direction.DOWN, settings);
+	}
 
-   @Override
-   protected boolean postPlacement(BlockPos pos, World world, @Nullable PlayerEntity player, ItemStack stack, BlockState state) {
-      boolean bl = super.postPlacement(pos, world, player, stack, state);
-      if (!world.isClient()
-         && !bl
-         && player != null
-         && world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity
-         && world.getBlockState(pos).getBlock() instanceof AbstractSignBlock abstractSignBlock) {
-         abstractSignBlock.openEditScreen(player, signBlockEntity, true);
-      }
+	public SignItem(
+			Item.Settings settings,
+			Block standingBlock,
+			Block wallBlock,
+			Direction verticalAttachmentDirection
+	) {
+		super(standingBlock, wallBlock, verticalAttachmentDirection, settings);
+	}
 
-      return bl;
-   }
+	@Override
+	protected boolean postPlacement(
+			BlockPos pos,
+			World world,
+			@Nullable PlayerEntity player,
+			ItemStack stack,
+			BlockState state
+	) {
+		boolean bl = super.postPlacement(pos, world, player, stack, state);
+		if (!world.isClient()
+				&& !bl
+				&& player != null
+				&& world.getBlockEntity(pos) instanceof SignBlockEntity signBlockEntity
+				&& world.getBlockState(pos).getBlock() instanceof AbstractSignBlock abstractSignBlock) {
+			abstractSignBlock.openEditScreen(player, signBlockEntity, true);
+		}
+
+		return bl;
+	}
 }

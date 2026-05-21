@@ -4,14 +4,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.ai.goal.ActiveTargetGoal;
-import net.minecraft.entity.ai.goal.LookAroundGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.entity.ai.goal.PowderSnowJumpGoal;
-import net.minecraft.entity.ai.goal.RevengeGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.ai.goal.WanderAroundFarGoal;
+import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
@@ -26,119 +19,134 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldAccess;
 
+/**
+ * {@code EndermiteEntity}.
+ */
 public class EndermiteEntity extends HostileEntity {
-   private static final int DESPAWN_TIME = 2400;
-   private static final int DEFAULT_LIFETIME = 0;
-   private int lifeTime = 0;
 
-   public EndermiteEntity(EntityType<? extends EndermiteEntity> entityType, World world) {
-      super(entityType, world);
-      this.experiencePoints = 3;
-   }
+	private static final int DESPAWN_TIME = 2400;
+	private static final int DEFAULT_LIFETIME = 0;
+	private int lifeTime = 0;
 
-   @Override
-   protected void initGoals() {
-      this.goalSelector.add(1, new SwimGoal(this));
-      this.goalSelector.add(1, new PowderSnowJumpGoal(this, this.getEntityWorld()));
-      this.goalSelector.add(2, new MeleeAttackGoal(this, 1.0, false));
-      this.goalSelector.add(3, new WanderAroundFarGoal(this, 1.0));
-      this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-      this.goalSelector.add(8, new LookAroundGoal(this));
-      this.targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
-      this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-   }
+	public EndermiteEntity(EntityType<? extends EndermiteEntity> entityType, World world) {
+		super(entityType, world);
+		this.experiencePoints = 3;
+	}
 
-   public static DefaultAttributeContainer.Builder createEndermiteAttributes() {
-      return HostileEntity.createHostileAttributes()
-         .add(EntityAttributes.MAX_HEALTH, 8.0)
-         .add(EntityAttributes.MOVEMENT_SPEED, 0.25)
-         .add(EntityAttributes.ATTACK_DAMAGE, 2.0);
-   }
+	@Override
+	protected void initGoals() {
+		this.goalSelector.add(1, new SwimGoal(this));
+		this.goalSelector.add(1, new PowderSnowJumpGoal(this, this.getEntityWorld()));
+		this.goalSelector.add(2, new MeleeAttackGoal(this, 1.0, false));
+		this.goalSelector.add(3, new WanderAroundFarGoal(this, 1.0));
+		this.goalSelector.add(7, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		this.goalSelector.add(8, new LookAroundGoal(this));
+		this.targetSelector.add(1, new RevengeGoal(this).setGroupRevenge());
+		this.targetSelector.add(2, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+	}
 
-   @Override
-   protected Entity.MoveEffect getMoveEffect() {
-      return Entity.MoveEffect.EVENTS;
-   }
+	public static DefaultAttributeContainer.Builder createEndermiteAttributes() {
+		return HostileEntity.createHostileAttributes()
+		                    .add(EntityAttributes.MAX_HEALTH, 8.0)
+		                    .add(EntityAttributes.MOVEMENT_SPEED, 0.25)
+		                    .add(EntityAttributes.ATTACK_DAMAGE, 2.0);
+	}
 
-   @Override
-   protected SoundEvent getAmbientSound() {
-      return SoundEvents.ENTITY_ENDERMITE_AMBIENT;
-   }
+	@Override
+	protected Entity.MoveEffect getMoveEffect() {
+		return Entity.MoveEffect.EVENTS;
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_ENDERMITE_HURT;
-   }
+	@Override
+	protected SoundEvent getAmbientSound() {
+		return SoundEvents.ENTITY_ENDERMITE_AMBIENT;
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_ENDERMITE_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_ENDERMITE_HURT;
+	}
 
-   @Override
-   protected void playStepSound(BlockPos pos, BlockState state) {
-      this.playSound(SoundEvents.ENTITY_ENDERMITE_STEP, 0.15F, 1.0F);
-   }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_ENDERMITE_DEATH;
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.lifeTime = view.getInt("Lifetime", 0);
-   }
+	@Override
+	protected void playStepSound(BlockPos pos, BlockState state) {
+		this.playSound(SoundEvents.ENTITY_ENDERMITE_STEP, 0.15F, 1.0F);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putInt("Lifetime", this.lifeTime);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.lifeTime = view.getInt("Lifetime", 0);
+	}
 
-   @Override
-   public void tick() {
-      this.bodyYaw = this.getYaw();
-      super.tick();
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putInt("Lifetime", this.lifeTime);
+	}
 
-   @Override
-   public void setBodyYaw(float bodyYaw) {
-      this.setYaw(bodyYaw);
-      super.setBodyYaw(bodyYaw);
-   }
+	@Override
+	public void tick() {
+		this.bodyYaw = this.getYaw();
+		super.tick();
+	}
 
-   @Override
-   public void tickMovement() {
-      super.tickMovement();
-      if (this.getEntityWorld().isClient()) {
-         for (int i = 0; i < 2; i++) {
-            this.getEntityWorld()
-               .addParticleClient(
-                  ParticleTypes.PORTAL,
-                  this.getParticleX(0.5),
-                  this.getRandomBodyY(),
-                  this.getParticleZ(0.5),
-                  (this.random.nextDouble() - 0.5) * 2.0,
-                  -this.random.nextDouble(),
-                  (this.random.nextDouble() - 0.5) * 2.0
-               );
-         }
-      } else {
-         if (!this.isPersistent()) {
-            this.lifeTime++;
-         }
+	@Override
+	public void setBodyYaw(float bodyYaw) {
+		this.setYaw(bodyYaw);
+		super.setBodyYaw(bodyYaw);
+	}
 
-         if (this.lifeTime >= 2400) {
-            this.discard();
-         }
-      }
-   }
+	@Override
+	public void tickMovement() {
+		super.tickMovement();
+		if (this.getEntityWorld().isClient()) {
+			for (int i = 0; i < 2; i++) {
+				this.getEntityWorld()
+				    .addParticleClient(
+						    ParticleTypes.PORTAL,
+						    this.getParticleX(0.5),
+						    this.getRandomBodyY(),
+						    this.getParticleZ(0.5),
+						    (this.random.nextDouble() - 0.5) * 2.0,
+						    -this.random.nextDouble(),
+						    (this.random.nextDouble() - 0.5) * 2.0
+				    );
+			}
+		}
+		else {
+			if (!this.isPersistent()) {
+				this.lifeTime++;
+			}
 
-   public static boolean canSpawn(EntityType<EndermiteEntity> type, WorldAccess world, SpawnReason spawnReason, BlockPos pos, Random random) {
-      if (!canSpawnIgnoreLightLevel(type, world, spawnReason, pos, random)) {
-         return false;
-      } else if (SpawnReason.isAnySpawner(spawnReason)) {
-         return true;
-      } else {
-         PlayerEntity playerEntity = world.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 5.0, true);
-         return playerEntity == null;
-      }
-   }
+			if (this.lifeTime >= 2400) {
+				this.discard();
+			}
+		}
+	}
+
+	public static boolean canSpawn(
+			EntityType<EndermiteEntity> type,
+			WorldAccess world,
+			SpawnReason spawnReason,
+			BlockPos pos,
+			Random random
+	) {
+		if (!canSpawnIgnoreLightLevel(type, world, spawnReason, pos, random)) {
+			return false;
+		}
+		else if (SpawnReason.isAnySpawner(spawnReason)) {
+			return true;
+		}
+		else {
+			PlayerEntity
+					playerEntity =
+					world.getClosestPlayer(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, 5.0, true);
+			return playerEntity == null;
+		}
+	}
 }

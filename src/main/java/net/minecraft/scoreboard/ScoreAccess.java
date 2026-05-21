@@ -4,34 +4,38 @@ import net.minecraft.scoreboard.number.NumberFormat;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ScoreAccess}.
+ */
 public interface ScoreAccess {
-   int getScore();
 
-   void setScore(int score);
+	int getScore();
 
-   default int incrementScore(int amount) {
-      int i = this.getScore() + amount;
-      this.setScore(i);
-      return i;
-   }
+	void setScore(int score);
 
-   default int incrementScore() {
-      return this.incrementScore(1);
-   }
+	default int incrementScore(int amount) {
+		int i = this.getScore() + amount;
+		this.setScore(i);
+		return i;
+	}
 
-   default void resetScore() {
-      this.setScore(0);
-   }
+	default int incrementScore() {
+		return this.incrementScore(1);
+	}
 
-   boolean isLocked();
+	default void resetScore() {
+		this.setScore(0);
+	}
 
-   void unlock();
+	boolean isLocked();
 
-   void lock();
+	void unlock();
 
-   @Nullable Text getDisplayText();
+	void lock();
 
-   void setDisplayText(@Nullable Text text);
+	@Nullable Text getDisplayText();
 
-   void setNumberFormat(@Nullable NumberFormat numberFormat);
+	void setDisplayText(@Nullable Text text);
+
+	void setNumberFormat(@Nullable NumberFormat numberFormat);
 }

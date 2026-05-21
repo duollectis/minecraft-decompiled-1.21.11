@@ -3,8 +3,6 @@ package net.minecraft.recipe.display;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.stream.Stream;
 import net.minecraft.item.FuelRegistry;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
@@ -23,302 +21,411 @@ import net.minecraft.util.Util;
 import net.minecraft.util.context.ContextParameterMap;
 import net.minecraft.util.math.random.Random;
 
+import java.util.List;
+import java.util.stream.Stream;
+
+/**
+ * {@code SlotDisplay}.
+ */
 public interface SlotDisplay {
-   Codec<SlotDisplay> CODEC = Registries.SLOT_DISPLAY.getCodec().dispatch(SlotDisplay::serializer, SlotDisplay.Serializer::codec);
-   PacketCodec<RegistryByteBuf, SlotDisplay> PACKET_CODEC = PacketCodecs.registryValue(RegistryKeys.SLOT_DISPLAY)
-      .dispatch(SlotDisplay::serializer, SlotDisplay.Serializer::streamCodec);
 
-   <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory);
+	Codec<SlotDisplay>
+			CODEC =
+			Registries.SLOT_DISPLAY.getCodec().dispatch(SlotDisplay::serializer, SlotDisplay.Serializer::codec);
 
-   SlotDisplay.Serializer<? extends SlotDisplay> serializer();
+	PacketCodec<RegistryByteBuf, SlotDisplay> PACKET_CODEC = PacketCodecs.registryValue(RegistryKeys.SLOT_DISPLAY)
+	                                                                     .dispatch(
+			                                                                     SlotDisplay::serializer,
+			                                                                     SlotDisplay.Serializer::streamCodec
+	                                                                     );
 
-   default boolean isEnabled(FeatureSet features) {
-      return true;
-   }
+	<T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory);
 
-   default List<ItemStack> getStacks(ContextParameterMap parameters) {
-      return this.appendStacks(parameters, SlotDisplay.NoopDisplayedItemFactory.INSTANCE).toList();
-   }
+	SlotDisplay.Serializer<? extends SlotDisplay> serializer();
 
-   default ItemStack getFirst(ContextParameterMap context) {
-      return this.appendStacks(context, SlotDisplay.NoopDisplayedItemFactory.INSTANCE).findFirst().orElse(ItemStack.EMPTY);
-   }
+	default boolean isEnabled(FeatureSet features) {
+		return true;
+	}
 
-   public static class AnyFuelSlotDisplay implements SlotDisplay {
-      public static final SlotDisplay.AnyFuelSlotDisplay INSTANCE = new SlotDisplay.AnyFuelSlotDisplay();
-      public static final MapCodec<SlotDisplay.AnyFuelSlotDisplay> CODEC = MapCodec.unit(INSTANCE);
-      public static final PacketCodec<RegistryByteBuf, SlotDisplay.AnyFuelSlotDisplay> PACKET_CODEC = PacketCodec.unit(INSTANCE);
-      public static final SlotDisplay.Serializer<SlotDisplay.AnyFuelSlotDisplay> SERIALIZER = new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+	default List<ItemStack> getStacks(ContextParameterMap parameters) {
+		return this.appendStacks(parameters, SlotDisplay.NoopDisplayedItemFactory.INSTANCE).toList();
+	}
 
-      private AnyFuelSlotDisplay() {
-      }
+	default ItemStack getFirst(ContextParameterMap context) {
+		return this
+				.appendStacks(context, SlotDisplay.NoopDisplayedItemFactory.INSTANCE)
+				.findFirst()
+				.orElse(ItemStack.EMPTY);
+	}
 
-      @Override
-      public SlotDisplay.Serializer<SlotDisplay.AnyFuelSlotDisplay> serializer() {
-         return SERIALIZER;
-      }
+	/**
+	 * {@code AnyFuelSlotDisplay}.
+	 */
+	public static class AnyFuelSlotDisplay implements SlotDisplay {
 
-      @Override
-      public String toString() {
-         return "<any fuel>";
-      }
+		public static final SlotDisplay.AnyFuelSlotDisplay INSTANCE = new SlotDisplay.AnyFuelSlotDisplay();
+		public static final MapCodec<SlotDisplay.AnyFuelSlotDisplay> CODEC = MapCodec.unit(INSTANCE);
+		public static final PacketCodec<RegistryByteBuf, SlotDisplay.AnyFuelSlotDisplay>
+				PACKET_CODEC =
+				PacketCodec.unit(INSTANCE);
+		public static final SlotDisplay.Serializer<SlotDisplay.AnyFuelSlotDisplay>
+				SERIALIZER =
+				new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
 
-      @Override
-      public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
-         if (factory instanceof DisplayedItemFactory.FromStack<T> fromStack) {
-            FuelRegistry fuelRegistry = parameters.getNullable(SlotDisplayContexts.FUEL_REGISTRY);
-            if (fuelRegistry != null) {
-               return fuelRegistry.getFuelItems().stream().map(fromStack::toDisplayed);
-            }
-         }
+		private AnyFuelSlotDisplay() {
+		}
 
-         return Stream.empty();
-      }
-   }
+		@Override
+		public SlotDisplay.Serializer<SlotDisplay.AnyFuelSlotDisplay> serializer() {
+			return SERIALIZER;
+		}
 
-   public record CompositeSlotDisplay(List<SlotDisplay> contents) implements SlotDisplay {
-      public static final MapCodec<SlotDisplay.CompositeSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(SlotDisplay.CODEC.listOf().fieldOf("contents").forGetter(SlotDisplay.CompositeSlotDisplay::contents))
-            .apply(instance, SlotDisplay.CompositeSlotDisplay::new)
-      );
-      public static final PacketCodec<RegistryByteBuf, SlotDisplay.CompositeSlotDisplay> PACKET_CODEC = PacketCodec.tuple(
-         SlotDisplay.PACKET_CODEC.collect(PacketCodecs.toList()), SlotDisplay.CompositeSlotDisplay::contents, SlotDisplay.CompositeSlotDisplay::new
-      );
-      public static final SlotDisplay.Serializer<SlotDisplay.CompositeSlotDisplay> SERIALIZER = new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+		@Override
+		public String toString() {
+			return "<any fuel>";
+		}
 
-      @Override
-      public SlotDisplay.Serializer<SlotDisplay.CompositeSlotDisplay> serializer() {
-         return SERIALIZER;
-      }
+		@Override
+		public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
+			if (factory instanceof DisplayedItemFactory.FromStack<T> fromStack) {
+				FuelRegistry fuelRegistry = parameters.getNullable(SlotDisplayContexts.FUEL_REGISTRY);
+				if (fuelRegistry != null) {
+					return fuelRegistry.getFuelItems().stream().map(fromStack::toDisplayed);
+				}
+			}
 
-      @Override
-      public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
-         return this.contents.stream().flatMap(display -> display.appendStacks(parameters, factory));
-      }
+			return Stream.empty();
+		}
+	}
 
-      @Override
-      public boolean isEnabled(FeatureSet features) {
-         return this.contents.stream().allMatch(child -> child.isEnabled(features));
-      }
-   }
+	/**
+	 * {@code CompositeSlotDisplay}.
+	 */
+	public record CompositeSlotDisplay(List<SlotDisplay> contents) implements SlotDisplay {
 
-   public static class EmptySlotDisplay implements SlotDisplay {
-      public static final SlotDisplay.EmptySlotDisplay INSTANCE = new SlotDisplay.EmptySlotDisplay();
-      public static final MapCodec<SlotDisplay.EmptySlotDisplay> CODEC = MapCodec.unit(INSTANCE);
-      public static final PacketCodec<RegistryByteBuf, SlotDisplay.EmptySlotDisplay> PACKET_CODEC = PacketCodec.unit(INSTANCE);
-      public static final SlotDisplay.Serializer<SlotDisplay.EmptySlotDisplay> SERIALIZER = new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+		public static final MapCodec<SlotDisplay.CompositeSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance
+						.group(SlotDisplay.CODEC
+								.listOf()
+								.fieldOf("contents")
+								.forGetter(SlotDisplay.CompositeSlotDisplay::contents))
+						.apply(instance, SlotDisplay.CompositeSlotDisplay::new)
+		);
+		public static final PacketCodec<RegistryByteBuf, SlotDisplay.CompositeSlotDisplay>
+				PACKET_CODEC =
+				PacketCodec.tuple(
+						SlotDisplay.PACKET_CODEC.collect(PacketCodecs.toList()),
+						SlotDisplay.CompositeSlotDisplay::contents,
+						SlotDisplay.CompositeSlotDisplay::new
+				);
+		public static final SlotDisplay.Serializer<SlotDisplay.CompositeSlotDisplay>
+				SERIALIZER =
+				new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
 
-      private EmptySlotDisplay() {
-      }
+		@Override
+		public SlotDisplay.Serializer<SlotDisplay.CompositeSlotDisplay> serializer() {
+			return SERIALIZER;
+		}
 
-      @Override
-      public SlotDisplay.Serializer<SlotDisplay.EmptySlotDisplay> serializer() {
-         return SERIALIZER;
-      }
+		@Override
+		public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
+			return this.contents.stream().flatMap(display -> display.appendStacks(parameters, factory));
+		}
 
-      @Override
-      public String toString() {
-         return "<empty>";
-      }
+		@Override
+		public boolean isEnabled(FeatureSet features) {
+			return this.contents.stream().allMatch(child -> child.isEnabled(features));
+		}
+	}
 
-      @Override
-      public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
-         return Stream.empty();
-      }
-   }
+	/**
+	 * {@code EmptySlotDisplay}.
+	 */
+	public static class EmptySlotDisplay implements SlotDisplay {
 
-   public record ItemSlotDisplay(RegistryEntry<Item> item) implements SlotDisplay {
-      public static final MapCodec<SlotDisplay.ItemSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(Item.ENTRY_CODEC.fieldOf("item").forGetter(SlotDisplay.ItemSlotDisplay::item))
-            .apply(instance, SlotDisplay.ItemSlotDisplay::new)
-      );
-      public static final PacketCodec<RegistryByteBuf, SlotDisplay.ItemSlotDisplay> PACKET_CODEC = PacketCodec.tuple(
-         Item.ENTRY_PACKET_CODEC, SlotDisplay.ItemSlotDisplay::item, SlotDisplay.ItemSlotDisplay::new
-      );
-      public static final SlotDisplay.Serializer<SlotDisplay.ItemSlotDisplay> SERIALIZER = new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+		public static final SlotDisplay.EmptySlotDisplay INSTANCE = new SlotDisplay.EmptySlotDisplay();
+		public static final MapCodec<SlotDisplay.EmptySlotDisplay> CODEC = MapCodec.unit(INSTANCE);
+		public static final PacketCodec<RegistryByteBuf, SlotDisplay.EmptySlotDisplay>
+				PACKET_CODEC =
+				PacketCodec.unit(INSTANCE);
+		public static final SlotDisplay.Serializer<SlotDisplay.EmptySlotDisplay>
+				SERIALIZER =
+				new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
 
-      public ItemSlotDisplay(Item item) {
-         this(item.getRegistryEntry());
-      }
+		private EmptySlotDisplay() {
+		}
 
-      @Override
-      public SlotDisplay.Serializer<SlotDisplay.ItemSlotDisplay> serializer() {
-         return SERIALIZER;
-      }
+		@Override
+		public SlotDisplay.Serializer<SlotDisplay.EmptySlotDisplay> serializer() {
+			return SERIALIZER;
+		}
 
-      @Override
-      public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
-         return factory instanceof DisplayedItemFactory.FromStack<T> fromStack ? Stream.of(fromStack.toDisplayed(this.item)) : Stream.empty();
-      }
+		@Override
+		public String toString() {
+			return "<empty>";
+		}
 
-      @Override
-      public boolean isEnabled(FeatureSet features) {
-         return this.item.value().isEnabled(features);
-      }
-   }
+		@Override
+		public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
+			return Stream.empty();
+		}
+	}
 
-   public static class NoopDisplayedItemFactory implements DisplayedItemFactory.FromStack<ItemStack> {
-      public static final SlotDisplay.NoopDisplayedItemFactory INSTANCE = new SlotDisplay.NoopDisplayedItemFactory();
+	/**
+	 * {@code ItemSlotDisplay}.
+	 */
+	public record ItemSlotDisplay(RegistryEntry<Item> item) implements SlotDisplay {
 
-      public ItemStack toDisplayed(ItemStack itemStack) {
-         return itemStack;
-      }
-   }
+		public static final MapCodec<SlotDisplay.ItemSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance
+						.group(Item.ENTRY_CODEC.fieldOf("item").forGetter(SlotDisplay.ItemSlotDisplay::item))
+						.apply(instance, SlotDisplay.ItemSlotDisplay::new)
+		);
+		public static final PacketCodec<RegistryByteBuf, SlotDisplay.ItemSlotDisplay> PACKET_CODEC = PacketCodec.tuple(
+				Item.ENTRY_PACKET_CODEC, SlotDisplay.ItemSlotDisplay::item, SlotDisplay.ItemSlotDisplay::new
+		);
+		public static final SlotDisplay.Serializer<SlotDisplay.ItemSlotDisplay>
+				SERIALIZER =
+				new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
 
-   public record Serializer<T extends SlotDisplay>(MapCodec<T> codec, PacketCodec<RegistryByteBuf, T> streamCodec) {
-   }
+		public ItemSlotDisplay(Item item) {
+			this(item.getRegistryEntry());
+		}
 
-   public record SmithingTrimSlotDisplay(SlotDisplay base, SlotDisplay material, RegistryEntry<ArmorTrimPattern> pattern) implements SlotDisplay {
-      public static final MapCodec<SlotDisplay.SmithingTrimSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(
-               SlotDisplay.CODEC.fieldOf("base").forGetter(SlotDisplay.SmithingTrimSlotDisplay::base),
-               SlotDisplay.CODEC.fieldOf("material").forGetter(SlotDisplay.SmithingTrimSlotDisplay::material),
-               ArmorTrimPattern.ENTRY_CODEC.fieldOf("pattern").forGetter(SlotDisplay.SmithingTrimSlotDisplay::pattern)
-            )
-            .apply(instance, SlotDisplay.SmithingTrimSlotDisplay::new)
-      );
-      public static final PacketCodec<RegistryByteBuf, SlotDisplay.SmithingTrimSlotDisplay> PACKET_CODEC = PacketCodec.tuple(
-         SlotDisplay.PACKET_CODEC,
-         SlotDisplay.SmithingTrimSlotDisplay::base,
-         SlotDisplay.PACKET_CODEC,
-         SlotDisplay.SmithingTrimSlotDisplay::material,
-         ArmorTrimPattern.ENTRY_PACKET_CODEC,
-         SlotDisplay.SmithingTrimSlotDisplay::pattern,
-         SlotDisplay.SmithingTrimSlotDisplay::new
-      );
-      public static final SlotDisplay.Serializer<SlotDisplay.SmithingTrimSlotDisplay> SERIALIZER = new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+		@Override
+		public SlotDisplay.Serializer<SlotDisplay.ItemSlotDisplay> serializer() {
+			return SERIALIZER;
+		}
 
-      @Override
-      public SlotDisplay.Serializer<SlotDisplay.SmithingTrimSlotDisplay> serializer() {
-         return SERIALIZER;
-      }
+		@Override
+		public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
+			return factory instanceof DisplayedItemFactory.FromStack<T> fromStack
+			       ? Stream.of(fromStack.toDisplayed(this.item)) : Stream.empty();
+		}
 
-      @Override
-      public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
-         if (factory instanceof DisplayedItemFactory.FromStack<T> fromStack) {
-            RegistryWrapper.WrapperLookup wrapperLookup = parameters.getNullable(SlotDisplayContexts.REGISTRIES);
-            if (wrapperLookup != null) {
-               Random random = Random.create(System.identityHashCode(this));
-               List<ItemStack> list = this.base.getStacks(parameters);
-               if (list.isEmpty()) {
-                  return Stream.empty();
-               }
+		@Override
+		public boolean isEnabled(FeatureSet features) {
+			return this.item.value().isEnabled(features);
+		}
+	}
 
-               List<ItemStack> list2 = this.material.getStacks(parameters);
-               if (list2.isEmpty()) {
-                  return Stream.empty();
-               }
+	/**
+	 * {@code NoopDisplayedItemFactory}.
+	 */
+	public static class NoopDisplayedItemFactory implements DisplayedItemFactory.FromStack<ItemStack> {
 
-               return Stream.<ItemStack>generate(() -> {
-                  ItemStack itemStack = Util.getRandom(list, random);
-                  ItemStack itemStack2 = Util.getRandom(list2, random);
-                  return SmithingTrimRecipe.craft(wrapperLookup, itemStack, itemStack2, this.pattern);
-               }).limit(256L).filter(stack -> !stack.isEmpty()).limit(16L).map(fromStack::toDisplayed);
-            }
-         }
+		public static final SlotDisplay.NoopDisplayedItemFactory INSTANCE = new SlotDisplay.NoopDisplayedItemFactory();
 
-         return Stream.empty();
-      }
-   }
+		public ItemStack toDisplayed(ItemStack itemStack) {
+			return itemStack;
+		}
+	}
 
-   public record StackSlotDisplay(ItemStack stack) implements SlotDisplay {
-      public static final MapCodec<SlotDisplay.StackSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(ItemStack.VALIDATED_CODEC.fieldOf("item").forGetter(SlotDisplay.StackSlotDisplay::stack))
-            .apply(instance, SlotDisplay.StackSlotDisplay::new)
-      );
-      public static final PacketCodec<RegistryByteBuf, SlotDisplay.StackSlotDisplay> PACKET_CODEC = PacketCodec.tuple(
-         ItemStack.PACKET_CODEC, SlotDisplay.StackSlotDisplay::stack, SlotDisplay.StackSlotDisplay::new
-      );
-      public static final SlotDisplay.Serializer<SlotDisplay.StackSlotDisplay> SERIALIZER = new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+	/**
+	 * {@code Serializer}.
+	 */
+	public record Serializer<T extends SlotDisplay>(MapCodec<T> codec, PacketCodec<RegistryByteBuf, T> streamCodec) {
+	}
 
-      @Override
-      public SlotDisplay.Serializer<SlotDisplay.StackSlotDisplay> serializer() {
-         return SERIALIZER;
-      }
+	/**
+	 * {@code SmithingTrimSlotDisplay}.
+	 */
+	public record SmithingTrimSlotDisplay(
+			SlotDisplay base,
+			SlotDisplay material,
+			RegistryEntry<ArmorTrimPattern> pattern
+	) implements SlotDisplay {
 
-      @Override
-      public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
-         return factory instanceof DisplayedItemFactory.FromStack<T> fromStack ? Stream.of(fromStack.toDisplayed(this.stack)) : Stream.empty();
-      }
+		public static final MapCodec<SlotDisplay.SmithingTrimSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance.group(
+						                    SlotDisplay.CODEC.fieldOf("base").forGetter(SlotDisplay.SmithingTrimSlotDisplay::base),
+						                    SlotDisplay.CODEC.fieldOf("material").forGetter(SlotDisplay.SmithingTrimSlotDisplay::material),
+						                    ArmorTrimPattern.ENTRY_CODEC
+								                    .fieldOf("pattern")
+								                    .forGetter(SlotDisplay.SmithingTrimSlotDisplay::pattern)
+				                    )
+				                    .apply(instance, SlotDisplay.SmithingTrimSlotDisplay::new)
+		);
+		public static final PacketCodec<RegistryByteBuf, SlotDisplay.SmithingTrimSlotDisplay>
+				PACKET_CODEC =
+				PacketCodec.tuple(
+						SlotDisplay.PACKET_CODEC,
+						SlotDisplay.SmithingTrimSlotDisplay::base,
+						SlotDisplay.PACKET_CODEC,
+						SlotDisplay.SmithingTrimSlotDisplay::material,
+						ArmorTrimPattern.ENTRY_PACKET_CODEC,
+						SlotDisplay.SmithingTrimSlotDisplay::pattern,
+						SlotDisplay.SmithingTrimSlotDisplay::new
+				);
+		public static final SlotDisplay.Serializer<SlotDisplay.SmithingTrimSlotDisplay>
+				SERIALIZER =
+				new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
 
-      @Override
-      public boolean equals(Object o) {
-         return this == o || o instanceof SlotDisplay.StackSlotDisplay stackSlotDisplay && ItemStack.areEqual(this.stack, stackSlotDisplay.stack);
-      }
+		@Override
+		public SlotDisplay.Serializer<SlotDisplay.SmithingTrimSlotDisplay> serializer() {
+			return SERIALIZER;
+		}
 
-      @Override
-      public boolean isEnabled(FeatureSet features) {
-         return this.stack.getItem().isEnabled(features);
-      }
-   }
+		@Override
+		public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
+			if (factory instanceof DisplayedItemFactory.FromStack<T> fromStack) {
+				RegistryWrapper.WrapperLookup wrapperLookup = parameters.getNullable(SlotDisplayContexts.REGISTRIES);
+				if (wrapperLookup != null) {
+					Random random = Random.create(System.identityHashCode(this));
+					List<ItemStack> list = this.base.getStacks(parameters);
+					if (list.isEmpty()) {
+						return Stream.empty();
+					}
 
-   public record TagSlotDisplay(TagKey<Item> tag) implements SlotDisplay {
-      public static final MapCodec<SlotDisplay.TagSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(TagKey.unprefixedCodec(RegistryKeys.ITEM).fieldOf("tag").forGetter(SlotDisplay.TagSlotDisplay::tag))
-            .apply(instance, SlotDisplay.TagSlotDisplay::new)
-      );
-      public static final PacketCodec<RegistryByteBuf, SlotDisplay.TagSlotDisplay> PACKET_CODEC = PacketCodec.tuple(
-         TagKey.packetCodec(RegistryKeys.ITEM), SlotDisplay.TagSlotDisplay::tag, SlotDisplay.TagSlotDisplay::new
-      );
-      public static final SlotDisplay.Serializer<SlotDisplay.TagSlotDisplay> SERIALIZER = new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+					List<ItemStack> list2 = this.material.getStacks(parameters);
+					if (list2.isEmpty()) {
+						return Stream.empty();
+					}
 
-      @Override
-      public SlotDisplay.Serializer<SlotDisplay.TagSlotDisplay> serializer() {
-         return SERIALIZER;
-      }
+					return Stream.<ItemStack>generate(() -> {
+						ItemStack itemStack = Util.getRandom(list, random);
+						ItemStack itemStack2 = Util.getRandom(list2, random);
+						return SmithingTrimRecipe.craft(wrapperLookup, itemStack, itemStack2, this.pattern);
+					}).limit(256L).filter(stack -> !stack.isEmpty()).limit(16L).map(fromStack::toDisplayed);
+				}
+			}
 
-      @Override
-      public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
-         if (factory instanceof DisplayedItemFactory.FromStack<T> fromStack) {
-            RegistryWrapper.WrapperLookup wrapperLookup = parameters.getNullable(SlotDisplayContexts.REGISTRIES);
-            if (wrapperLookup != null) {
-               return wrapperLookup.getOrThrow(RegistryKeys.ITEM)
-                  .getOptional(this.tag)
-                  .map(tag -> tag.stream().map(fromStack::toDisplayed))
-                  .stream()
-                  .flatMap(values -> values);
-            }
-         }
+			return Stream.empty();
+		}
+	}
 
-         return Stream.empty();
-      }
-   }
+	/**
+	 * {@code StackSlotDisplay}.
+	 */
+	public record StackSlotDisplay(ItemStack stack) implements SlotDisplay {
 
-   public record WithRemainderSlotDisplay(SlotDisplay input, SlotDisplay remainder) implements SlotDisplay {
-      public static final MapCodec<SlotDisplay.WithRemainderSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
-         instance -> instance.group(
-               SlotDisplay.CODEC.fieldOf("input").forGetter(SlotDisplay.WithRemainderSlotDisplay::input),
-               SlotDisplay.CODEC.fieldOf("remainder").forGetter(SlotDisplay.WithRemainderSlotDisplay::remainder)
-            )
-            .apply(instance, SlotDisplay.WithRemainderSlotDisplay::new)
-      );
-      public static final PacketCodec<RegistryByteBuf, SlotDisplay.WithRemainderSlotDisplay> PACKET_CODEC = PacketCodec.tuple(
-         SlotDisplay.PACKET_CODEC,
-         SlotDisplay.WithRemainderSlotDisplay::input,
-         SlotDisplay.PACKET_CODEC,
-         SlotDisplay.WithRemainderSlotDisplay::remainder,
-         SlotDisplay.WithRemainderSlotDisplay::new
-      );
-      public static final SlotDisplay.Serializer<SlotDisplay.WithRemainderSlotDisplay> SERIALIZER = new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+		public static final MapCodec<SlotDisplay.StackSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance
+						.group(ItemStack.VALIDATED_CODEC.fieldOf("item").forGetter(SlotDisplay.StackSlotDisplay::stack))
+						.apply(instance, SlotDisplay.StackSlotDisplay::new)
+		);
+		public static final PacketCodec<RegistryByteBuf, SlotDisplay.StackSlotDisplay> PACKET_CODEC = PacketCodec.tuple(
+				ItemStack.PACKET_CODEC, SlotDisplay.StackSlotDisplay::stack, SlotDisplay.StackSlotDisplay::new
+		);
+		public static final SlotDisplay.Serializer<SlotDisplay.StackSlotDisplay>
+				SERIALIZER =
+				new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
 
-      @Override
-      public SlotDisplay.Serializer<SlotDisplay.WithRemainderSlotDisplay> serializer() {
-         return SERIALIZER;
-      }
+		@Override
+		public SlotDisplay.Serializer<SlotDisplay.StackSlotDisplay> serializer() {
+			return SERIALIZER;
+		}
 
-      @Override
-      public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
-         if (factory instanceof DisplayedItemFactory.FromRemainder<T> fromRemainder) {
-            List<T> list = this.remainder.appendStacks(parameters, factory).toList();
-            return this.input.appendStacks(parameters, factory).map(input -> fromRemainder.toDisplayed((T)input, list));
-         } else {
-            return this.input.appendStacks(parameters, factory);
-         }
-      }
+		@Override
+		public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
+			return factory instanceof DisplayedItemFactory.FromStack<T> fromStack
+			       ? Stream.of(fromStack.toDisplayed(this.stack)) : Stream.empty();
+		}
 
-      @Override
-      public boolean isEnabled(FeatureSet features) {
-         return this.input.isEnabled(features) && this.remainder.isEnabled(features);
-      }
-   }
+		@Override
+		public boolean equals(Object o) {
+			return this == o || o instanceof SlotDisplay.StackSlotDisplay stackSlotDisplay && ItemStack.areEqual(
+					this.stack,
+					stackSlotDisplay.stack
+			);
+		}
+
+		@Override
+		public boolean isEnabled(FeatureSet features) {
+			return this.stack.getItem().isEnabled(features);
+		}
+	}
+
+	/**
+	 * {@code TagSlotDisplay}.
+	 */
+	public record TagSlotDisplay(TagKey<Item> tag) implements SlotDisplay {
+
+		public static final MapCodec<SlotDisplay.TagSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance
+						.group(TagKey
+								.unprefixedCodec(RegistryKeys.ITEM)
+								.fieldOf("tag")
+								.forGetter(SlotDisplay.TagSlotDisplay::tag))
+						.apply(instance, SlotDisplay.TagSlotDisplay::new)
+		);
+		public static final PacketCodec<RegistryByteBuf, SlotDisplay.TagSlotDisplay> PACKET_CODEC = PacketCodec.tuple(
+				TagKey.packetCodec(RegistryKeys.ITEM), SlotDisplay.TagSlotDisplay::tag, SlotDisplay.TagSlotDisplay::new
+		);
+		public static final SlotDisplay.Serializer<SlotDisplay.TagSlotDisplay>
+				SERIALIZER =
+				new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+
+		@Override
+		public SlotDisplay.Serializer<SlotDisplay.TagSlotDisplay> serializer() {
+			return SERIALIZER;
+		}
+
+		@Override
+		public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
+			if (factory instanceof DisplayedItemFactory.FromStack<T> fromStack) {
+				RegistryWrapper.WrapperLookup wrapperLookup = parameters.getNullable(SlotDisplayContexts.REGISTRIES);
+				if (wrapperLookup != null) {
+					return wrapperLookup.getOrThrow(RegistryKeys.ITEM)
+					                    .getOptional(this.tag)
+					                    .map(tag -> tag.stream().map(fromStack::toDisplayed))
+					                    .stream()
+					                    .flatMap(values -> values);
+				}
+			}
+
+			return Stream.empty();
+		}
+	}
+
+	/**
+	 * {@code WithRemainderSlotDisplay}.
+	 */
+	public record WithRemainderSlotDisplay(SlotDisplay input, SlotDisplay remainder) implements SlotDisplay {
+
+		public static final MapCodec<SlotDisplay.WithRemainderSlotDisplay> CODEC = RecordCodecBuilder.mapCodec(
+				instance -> instance.group(
+						                    SlotDisplay.CODEC.fieldOf("input").forGetter(SlotDisplay.WithRemainderSlotDisplay::input),
+						                    SlotDisplay.CODEC
+								                    .fieldOf("remainder")
+								                    .forGetter(SlotDisplay.WithRemainderSlotDisplay::remainder)
+				                    )
+				                    .apply(instance, SlotDisplay.WithRemainderSlotDisplay::new)
+		);
+		public static final PacketCodec<RegistryByteBuf, SlotDisplay.WithRemainderSlotDisplay>
+				PACKET_CODEC =
+				PacketCodec.tuple(
+						SlotDisplay.PACKET_CODEC,
+						SlotDisplay.WithRemainderSlotDisplay::input,
+						SlotDisplay.PACKET_CODEC,
+						SlotDisplay.WithRemainderSlotDisplay::remainder,
+						SlotDisplay.WithRemainderSlotDisplay::new
+				);
+		public static final SlotDisplay.Serializer<SlotDisplay.WithRemainderSlotDisplay>
+				SERIALIZER =
+				new SlotDisplay.Serializer<>(CODEC, PACKET_CODEC);
+
+		@Override
+		public SlotDisplay.Serializer<SlotDisplay.WithRemainderSlotDisplay> serializer() {
+			return SERIALIZER;
+		}
+
+		@Override
+		public <T> Stream<T> appendStacks(ContextParameterMap parameters, DisplayedItemFactory<T> factory) {
+			if (factory instanceof DisplayedItemFactory.FromRemainder<T> fromRemainder) {
+				List<T> list = this.remainder.appendStacks(parameters, factory).toList();
+				return this.input
+						.appendStacks(parameters, factory)
+						.map(input -> fromRemainder.toDisplayed((T) input, list));
+			}
+			else {
+				return this.input.appendStacks(parameters, factory);
+			}
+		}
+
+		@Override
+		public boolean isEnabled(FeatureSet features) {
+			return this.input.isEnabled(features) && this.remainder.isEnabled(features);
+		}
+	}
 }

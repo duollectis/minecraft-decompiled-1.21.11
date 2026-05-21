@@ -6,11 +6,15 @@ import net.minecraft.world.LightType;
 import net.minecraft.world.chunk.light.LightSourceView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ChunkProvider}.
+ */
 public interface ChunkProvider {
-   @Nullable LightSourceView getChunk(int chunkX, int chunkZ);
 
-   default void onLightUpdate(LightType type, ChunkSectionPos pos) {
-   }
+	@Nullable LightSourceView getChunk(int chunkX, int chunkZ);
 
-   BlockView getWorld();
+	default void onLightUpdate(LightType type, ChunkSectionPos pos) {
+	}
+
+	BlockView getWorld();
 }

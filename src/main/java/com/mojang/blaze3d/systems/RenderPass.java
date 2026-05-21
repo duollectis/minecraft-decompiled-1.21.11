@@ -5,70 +5,90 @@ import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import java.util.Collection;
-import java.util.function.BiConsumer;
-import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gl.GpuSampler;
 import net.minecraft.util.annotation.DeobfuscateClass;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collection;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
+
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
+/**
+ * {@code RenderPass}.
+ */
 public interface RenderPass extends AutoCloseable {
-   void pushDebugGroup(Supplier<String> labelGetter);
 
-   void popDebugGroup();
+	void pushDebugGroup(Supplier<String> labelGetter);
 
-   void setPipeline(RenderPipeline pipeline);
+	void popDebugGroup();
 
-   void bindTexture(String name, @Nullable GpuTextureView gpuTextureView, @Nullable GpuSampler sampler);
+	void setPipeline(RenderPipeline pipeline);
 
-   void setUniform(String name, GpuBuffer buffer);
+	void bindTexture(String name, @Nullable GpuTextureView gpuTextureView, @Nullable GpuSampler sampler);
 
-   void setUniform(String name, GpuBufferSlice slice);
+	void setUniform(String name, GpuBuffer buffer);
 
-   void enableScissor(int x, int y, int width, int height);
+	void setUniform(String name, GpuBufferSlice slice);
 
-   void disableScissor();
+	void enableScissor(int x, int y, int width, int height);
 
-   void setVertexBuffer(int index, GpuBuffer buffer);
+	void disableScissor();
 
-   void setIndexBuffer(GpuBuffer indexBuffer, VertexFormat.IndexType indexType);
+	void setVertexBuffer(int index, GpuBuffer buffer);
 
-   void drawIndexed(int baseVertex, int firstIndex, int count, int instanceCount);
+	void setIndexBuffer(GpuBuffer indexBuffer, VertexFormat.IndexType indexType);
 
-   <T> void drawMultipleIndexed(
-      Collection<RenderPass.RenderObject<T>> objects,
-      @Nullable GpuBuffer buffer,
-      VertexFormat.@Nullable IndexType indexType,
-      Collection<String> validationSkippedUniforms,
-      T object
-   );
+	void drawIndexed(int baseVertex, int firstIndex, int count, int instanceCount);
 
-   void draw(int offset, int count);
+	<T> void drawMultipleIndexed(
+			Collection<RenderPass.RenderObject<T>> objects,
+			@Nullable GpuBuffer buffer,
+			VertexFormat.@Nullable IndexType indexType,
+			Collection<String> validationSkippedUniforms,
+			T object
+	);
 
-   @Override
-   void close();
+	void draw(int offset, int count);
 
-   @Environment(EnvType.CLIENT)
-   public record RenderObject<T>(
-      int slot,
-      GpuBuffer vertexBuffer,
-      @Nullable GpuBuffer indexBuffer,
-      VertexFormat.@Nullable IndexType indexType,
-      int firstIndex,
-      int indexCount,
-      @Nullable BiConsumer<T, RenderPass.UniformUploader> uniformUploaderConsumer
-   ) {
-      public RenderObject(int slot, GpuBuffer vertexBuffer, GpuBuffer indexBuffer, VertexFormat.IndexType indexType, int firstIndex, int indexCount) {
-         this(slot, vertexBuffer, indexBuffer, indexType, firstIndex, indexCount, null);
-      }
-   }
+	@Override
+	void close();
 
-   @Environment(EnvType.CLIENT)
-   public interface UniformUploader {
-      void upload(String name, GpuBufferSlice slice);
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code RenderObject}.
+	 */
+	public record RenderObject<T>(
+			int slot,
+			GpuBuffer vertexBuffer,
+			@Nullable GpuBuffer indexBuffer,
+			VertexFormat.@Nullable IndexType indexType,
+			int firstIndex,
+			int indexCount,
+			@Nullable BiConsumer<T, RenderPass.UniformUploader> uniformUploaderConsumer
+	) {
+
+		public RenderObject(
+				int slot,
+				GpuBuffer vertexBuffer,
+				GpuBuffer indexBuffer,
+				VertexFormat.IndexType indexType,
+				int firstIndex,
+				int indexCount
+		) {
+			this(slot, vertexBuffer, indexBuffer, indexType, firstIndex, indexCount, null);
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code UniformUploader}.
+	 */
+	public interface UniformUploader {
+
+		void upload(String name, GpuBufferSlice slice);
+	}
 }

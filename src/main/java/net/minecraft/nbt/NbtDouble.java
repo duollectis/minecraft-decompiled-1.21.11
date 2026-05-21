@@ -1,129 +1,135 @@
 package net.minecraft.nbt;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 import net.minecraft.nbt.scanner.NbtScanner;
 import net.minecraft.nbt.visitor.NbtElementVisitor;
 import net.minecraft.nbt.visitor.StringNbtWriter;
 import net.minecraft.util.math.MathHelper;
 
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+
+/**
+ * {@code NbtDouble}.
+ */
 public record NbtDouble(double value) implements AbstractNbtNumber {
-   private static final int SIZE = 16;
-   public static final NbtDouble ZERO = new NbtDouble(0.0);
-   public static final NbtType<NbtDouble> TYPE = new NbtType.OfFixedSize<NbtDouble>() {
-      public NbtDouble read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
-         return NbtDouble.of(readDouble(dataInput, nbtSizeTracker));
-      }
 
-      @Override
-      public NbtScanner.Result doAccept(DataInput input, NbtScanner visitor, NbtSizeTracker tracker) throws IOException {
-         return visitor.visitDouble(readDouble(input, tracker));
-      }
+	private static final int SIZE = 16;
+	public static final NbtDouble ZERO = new NbtDouble(0.0);
+	public static final NbtType<NbtDouble> TYPE = new NbtType.OfFixedSize<NbtDouble>() {
+		public NbtDouble read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
+			return NbtDouble.of(readDouble(dataInput, nbtSizeTracker));
+		}
 
-      private static double readDouble(DataInput input, NbtSizeTracker tracker) throws IOException {
-         tracker.add(16L);
-         return input.readDouble();
-      }
+		@Override
+		public NbtScanner.Result doAccept(DataInput input, NbtScanner visitor, NbtSizeTracker tracker)
+		throws IOException {
+			return visitor.visitDouble(readDouble(input, tracker));
+		}
 
-      @Override
-      public int getSizeInBytes() {
-         return 8;
-      }
+		private static double readDouble(DataInput input, NbtSizeTracker tracker) throws IOException {
+			tracker.add(16L);
+			return input.readDouble();
+		}
 
-      @Override
-      public String getCrashReportName() {
-         return "DOUBLE";
-      }
+		@Override
+		public int getSizeInBytes() {
+			return 8;
+		}
 
-      @Override
-      public String getCommandFeedbackName() {
-         return "TAG_Double";
-      }
-   };
+		@Override
+		public String getCrashReportName() {
+			return "DOUBLE";
+		}
 
-   @Deprecated(forRemoval = true)
-   public NbtDouble(double value) {
-      this.value = value;
-   }
+		@Override
+		public String getCommandFeedbackName() {
+			return "TAG_Double";
+		}
+	};
 
-   public static NbtDouble of(double value) {
-      return value == 0.0 ? ZERO : new NbtDouble(value);
-   }
+	@Deprecated(forRemoval = true)
+	public NbtDouble(double value) {
+		this.value = value;
+	}
 
-   @Override
-   public void write(DataOutput output) throws IOException {
-      output.writeDouble(this.value);
-   }
+	public static NbtDouble of(double value) {
+		return value == 0.0 ? ZERO : new NbtDouble(value);
+	}
 
-   @Override
-   public int getSizeInBytes() {
-      return 16;
-   }
+	@Override
+	public void write(DataOutput output) throws IOException {
+		output.writeDouble(this.value);
+	}
 
-   @Override
-   public byte getType() {
-      return 6;
-   }
+	@Override
+	public int getSizeInBytes() {
+		return 16;
+	}
 
-   @Override
-   public NbtType<NbtDouble> getNbtType() {
-      return TYPE;
-   }
+	@Override
+	public byte getType() {
+		return 6;
+	}
 
-   public NbtDouble copy() {
-      return this;
-   }
+	@Override
+	public NbtType<NbtDouble> getNbtType() {
+		return TYPE;
+	}
 
-   @Override
-   public void accept(NbtElementVisitor visitor) {
-      visitor.visitDouble(this);
-   }
+	public NbtDouble copy() {
+		return this;
+	}
 
-   @Override
-   public long longValue() {
-      return (long)Math.floor(this.value);
-   }
+	@Override
+	public void accept(NbtElementVisitor visitor) {
+		visitor.visitDouble(this);
+	}
 
-   @Override
-   public int intValue() {
-      return MathHelper.floor(this.value);
-   }
+	@Override
+	public long longValue() {
+		return (long) Math.floor(this.value);
+	}
 
-   @Override
-   public short shortValue() {
-      return (short)(MathHelper.floor(this.value) & 65535);
-   }
+	@Override
+	public int intValue() {
+		return MathHelper.floor(this.value);
+	}
 
-   @Override
-   public byte byteValue() {
-      return (byte)(MathHelper.floor(this.value) & 0xFF);
-   }
+	@Override
+	public short shortValue() {
+		return (short) (MathHelper.floor(this.value) & 65535);
+	}
 
-   @Override
-   public double doubleValue() {
-      return this.value;
-   }
+	@Override
+	public byte byteValue() {
+		return (byte) (MathHelper.floor(this.value) & 0xFF);
+	}
 
-   @Override
-   public float floatValue() {
-      return (float)this.value;
-   }
+	@Override
+	public double doubleValue() {
+		return this.value;
+	}
 
-   @Override
-   public Number numberValue() {
-      return this.value;
-   }
+	@Override
+	public float floatValue() {
+		return (float) this.value;
+	}
 
-   @Override
-   public NbtScanner.Result doAccept(NbtScanner visitor) {
-      return visitor.visitDouble(this.value);
-   }
+	@Override
+	public Number numberValue() {
+		return this.value;
+	}
 
-   @Override
-   public String toString() {
-      StringNbtWriter stringNbtWriter = new StringNbtWriter();
-      stringNbtWriter.visitDouble(this);
-      return stringNbtWriter.getString();
-   }
+	@Override
+	public NbtScanner.Result doAccept(NbtScanner visitor) {
+		return visitor.visitDouble(this.value);
+	}
+
+	@Override
+	public String toString() {
+		StringNbtWriter stringNbtWriter = new StringNbtWriter();
+		stringNbtWriter.visitDouble(this);
+		return stringNbtWriter.getString();
+	}
 }

@@ -9,8 +9,12 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TintSource}.
+ */
 public interface TintSource {
-   int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user);
 
-   MapCodec<? extends TintSource> getCodec();
+	int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user);
+
+	MapCodec<? extends TintSource> getCodec();
 }

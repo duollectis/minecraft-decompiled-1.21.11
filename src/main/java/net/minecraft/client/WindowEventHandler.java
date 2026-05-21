@@ -4,10 +4,14 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WindowEventHandler}.
+ */
 public interface WindowEventHandler {
-   void onWindowFocusChanged(boolean focused);
 
-   void onResolutionChanged();
+	void onWindowFocusChanged(boolean focused);
 
-   void onCursorEnterChanged();
+	void onResolutionChanged();
+
+	void onCursorEnterChanged();
 }

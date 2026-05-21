@@ -10,37 +10,38 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class EntitiesDestroyS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, EntitiesDestroyS2CPacket> CODEC = Packet.createCodec(
-      EntitiesDestroyS2CPacket::write, EntitiesDestroyS2CPacket::new
-   );
-   private final IntList entityIds;
 
-   public EntitiesDestroyS2CPacket(IntList entityIds) {
-      this.entityIds = new IntArrayList(entityIds);
-   }
+	public static final PacketCodec<PacketByteBuf, EntitiesDestroyS2CPacket> CODEC = Packet.createCodec(
+			EntitiesDestroyS2CPacket::write, EntitiesDestroyS2CPacket::new
+	);
+	private final IntList entityIds;
 
-   public EntitiesDestroyS2CPacket(int... entityIds) {
-      this.entityIds = new IntArrayList(entityIds);
-   }
+	public EntitiesDestroyS2CPacket(IntList entityIds) {
+		this.entityIds = new IntArrayList(entityIds);
+	}
 
-   private EntitiesDestroyS2CPacket(PacketByteBuf buf) {
-      this.entityIds = buf.readIntList();
-   }
+	public EntitiesDestroyS2CPacket(int... entityIds) {
+		this.entityIds = new IntArrayList(entityIds);
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeIntList(this.entityIds);
-   }
+	private EntitiesDestroyS2CPacket(PacketByteBuf buf) {
+		this.entityIds = buf.readIntList();
+	}
 
-   @Override
-   public PacketType<EntitiesDestroyS2CPacket> getPacketType() {
-      return PlayPackets.REMOVE_ENTITIES;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeIntList(this.entityIds);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntitiesDestroy(this);
-   }
+	@Override
+	public PacketType<EntitiesDestroyS2CPacket> getPacketType() {
+		return PlayPackets.REMOVE_ENTITIES;
+	}
 
-   public IntList getEntityIds() {
-      return this.entityIds;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntitiesDestroy(this);
+	}
+
+	public IntList getEntityIds() {
+		return this.entityIds;
+	}
 }

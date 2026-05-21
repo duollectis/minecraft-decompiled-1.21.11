@@ -6,16 +6,20 @@ import net.minecraft.client.util.ClosableFactory;
 import net.minecraft.client.util.Handle;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FramePass}.
+ */
 public interface FramePass {
-   <T> Handle<T> addRequiredResource(String name, ClosableFactory<T> factory);
 
-   <T> void dependsOn(Handle<T> handle);
+	<T> Handle<T> addRequiredResource(String name, ClosableFactory<T> factory);
 
-   <T> Handle<T> transfer(Handle<T> handle);
+	<T> void dependsOn(Handle<T> handle);
 
-   void addRequired(FramePass pass);
+	<T> Handle<T> transfer(Handle<T> handle);
 
-   void markToBeVisited();
+	void addRequired(FramePass pass);
 
-   void setRenderer(Runnable renderer);
+	void markToBeVisited();
+
+	void setRenderer(Runnable renderer);
 }

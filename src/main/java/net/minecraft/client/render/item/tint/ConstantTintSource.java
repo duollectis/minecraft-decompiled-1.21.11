@@ -12,23 +12,29 @@ import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ConstantTintSource}.
+ */
 public record ConstantTintSource(int value) implements TintSource {
-   public static final MapCodec<ConstantTintSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codecs.RGB.fieldOf("value").forGetter(ConstantTintSource::value)).apply(instance, ConstantTintSource::new)
-   );
 
-   public ConstantTintSource(int value) {
-      value = ColorHelper.fullAlpha(value);
-      this.value = value;
-   }
+	public static final MapCodec<ConstantTintSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codecs.RGB.fieldOf("value").forGetter(ConstantTintSource::value))
+					.apply(instance, ConstantTintSource::new)
+	);
 
-   @Override
-   public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
-      return this.value;
-   }
+	public ConstantTintSource(int value) {
+		value = ColorHelper.fullAlpha(value);
+		this.value = value;
+	}
 
-   @Override
-   public MapCodec<ConstantTintSource> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
+		return this.value;
+	}
+
+	@Override
+	public MapCodec<ConstantTintSource> getCodec() {
+		return CODEC;
+	}
 }

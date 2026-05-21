@@ -1,107 +1,127 @@
 package net.minecraft.resource.featuretoggle;
 
 import it.unimi.dsi.fastutil.HashCommon;
-import java.util.Arrays;
-import java.util.Collection;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.Collection;
+
+/**
+ * {@code FeatureSet}.
+ */
 public final class FeatureSet {
-   private static final FeatureSet EMPTY = new FeatureSet(null, 0L);
-   public static final int MAX_FEATURE_FLAGS = 64;
-   private final @Nullable FeatureUniverse universe;
-   private final long featuresMask;
 
-   private FeatureSet(@Nullable FeatureUniverse universe, long featuresMask) {
-      this.universe = universe;
-      this.featuresMask = featuresMask;
-   }
+	private static final FeatureSet EMPTY = new FeatureSet(null, 0L);
+	public static final int MAX_FEATURE_FLAGS = 64;
+	private final @Nullable FeatureUniverse universe;
+	private final long featuresMask;
 
-   static FeatureSet of(FeatureUniverse universe, Collection<FeatureFlag> features) {
-      if (features.isEmpty()) {
-         return EMPTY;
-      } else {
-         long l = combineMask(universe, 0L, features);
-         return new FeatureSet(universe, l);
-      }
-   }
+	private FeatureSet(@Nullable FeatureUniverse universe, long featuresMask) {
+		this.universe = universe;
+		this.featuresMask = featuresMask;
+	}
 
-   public static FeatureSet empty() {
-      return EMPTY;
-   }
+	static FeatureSet of(FeatureUniverse universe, Collection<FeatureFlag> features) {
+		if (features.isEmpty()) {
+			return EMPTY;
+		}
+		else {
+			long l = combineMask(universe, 0L, features);
+			return new FeatureSet(universe, l);
+		}
+	}
 
-   public static FeatureSet of(FeatureFlag feature) {
-      return new FeatureSet(feature.universe, feature.mask);
-   }
+	public static FeatureSet empty() {
+		return EMPTY;
+	}
 
-   public static FeatureSet of(FeatureFlag feature1, FeatureFlag... features) {
-      long l = features.length == 0 ? feature1.mask : combineMask(feature1.universe, feature1.mask, Arrays.asList(features));
-      return new FeatureSet(feature1.universe, l);
-   }
+	public static FeatureSet of(FeatureFlag feature) {
+		return new FeatureSet(feature.universe, feature.mask);
+	}
 
-   private static long combineMask(FeatureUniverse universe, long featuresMask, Iterable<FeatureFlag> newFeatures) {
-      for (FeatureFlag featureFlag : newFeatures) {
-         if (universe != featureFlag.universe) {
-            throw new IllegalStateException("Mismatched feature universe, expected '" + universe + "', but got '" + featureFlag.universe + "'");
-         }
+	public static FeatureSet of(FeatureFlag feature1, FeatureFlag... features) {
+		long
+				l =
+				features.length == 0 ? feature1.mask
+				                     : combineMask(feature1.universe, feature1.mask, Arrays.asList(features));
+		return new FeatureSet(feature1.universe, l);
+	}
 
-         featuresMask |= featureFlag.mask;
-      }
+	private static long combineMask(FeatureUniverse universe, long featuresMask, Iterable<FeatureFlag> newFeatures) {
+		for (FeatureFlag featureFlag : newFeatures) {
+			if (universe != featureFlag.universe) {
+				throw new IllegalStateException(
+						"Mismatched feature universe, expected '" + universe + "', but got '" + featureFlag.universe
+								+ "'");
+			}
 
-      return featuresMask;
-   }
+			featuresMask |= featureFlag.mask;
+		}
 
-   public boolean contains(FeatureFlag feature) {
-      return this.universe != feature.universe ? false : (this.featuresMask & feature.mask) != 0L;
-   }
+		return featuresMask;
+	}
 
-   public boolean isEmpty() {
-      return this.equals(EMPTY);
-   }
+	public boolean contains(FeatureFlag feature) {
+		return this.universe != feature.universe ? false : (this.featuresMask & feature.mask) != 0L;
+	}
 
-   public boolean isSubsetOf(FeatureSet features) {
-      if (this.universe == null) {
-         return true;
-      } else {
-         return this.universe != features.universe ? false : (this.featuresMask & ~features.featuresMask) == 0L;
-      }
-   }
+	public boolean isEmpty() {
+		return this.equals(EMPTY);
+	}
 
-   public boolean intersects(FeatureSet features) {
-      return this.universe != null && features.universe != null && this.universe == features.universe
-         ? (this.featuresMask & features.featuresMask) != 0L
-         : false;
-   }
+	public boolean isSubsetOf(FeatureSet features) {
+		if (this.universe == null) {
+			return true;
+		}
+		else {
+			return this.universe != features.universe ? false : (this.featuresMask & ~features.featuresMask) == 0L;
+		}
+	}
 
-   public FeatureSet combine(FeatureSet features) {
-      if (this.universe == null) {
-         return features;
-      } else if (features.universe == null) {
-         return this;
-      } else if (this.universe != features.universe) {
-         throw new IllegalArgumentException("Mismatched set elements: '" + this.universe + "' != '" + features.universe + "'");
-      } else {
-         return new FeatureSet(this.universe, this.featuresMask | features.featuresMask);
-      }
-   }
+	public boolean intersects(FeatureSet features) {
+		return this.universe != null && features.universe != null && this.universe == features.universe
+		       ? (this.featuresMask & features.featuresMask) != 0L
+		       : false;
+	}
 
-   public FeatureSet subtract(FeatureSet features) {
-      if (this.universe == null || features.universe == null) {
-         return this;
-      } else if (this.universe != features.universe) {
-         throw new IllegalArgumentException("Mismatched set elements: '" + this.universe + "' != '" + features.universe + "'");
-      } else {
-         long l = this.featuresMask & ~features.featuresMask;
-         return l == 0L ? EMPTY : new FeatureSet(this.universe, l);
-      }
-   }
+	public FeatureSet combine(FeatureSet features) {
+		if (this.universe == null) {
+			return features;
+		}
+		else if (features.universe == null) {
+			return this;
+		}
+		else if (this.universe != features.universe) {
+			throw new IllegalArgumentException(
+					"Mismatched set elements: '" + this.universe + "' != '" + features.universe + "'");
+		}
+		else {
+			return new FeatureSet(this.universe, this.featuresMask | features.featuresMask);
+		}
+	}
 
-   @Override
-   public boolean equals(Object o) {
-      return this == o ? true : o instanceof FeatureSet featureSet && this.universe == featureSet.universe && this.featuresMask == featureSet.featuresMask;
-   }
+	public FeatureSet subtract(FeatureSet features) {
+		if (this.universe == null || features.universe == null) {
+			return this;
+		}
+		else if (this.universe != features.universe) {
+			throw new IllegalArgumentException(
+					"Mismatched set elements: '" + this.universe + "' != '" + features.universe + "'");
+		}
+		else {
+			long l = this.featuresMask & ~features.featuresMask;
+			return l == 0L ? EMPTY : new FeatureSet(this.universe, l);
+		}
+	}
 
-   @Override
-   public int hashCode() {
-      return (int)HashCommon.mix(this.featuresMask);
-   }
+	@Override
+	public boolean equals(Object o) {
+		return this == o ? true : o instanceof FeatureSet featureSet && this.universe == featureSet.universe
+		                          && this.featuresMask == featureSet.featuresMask;
+	}
+
+	@Override
+	public int hashCode() {
+		return (int) HashCommon.mix(this.featuresMask);
+	}
 }

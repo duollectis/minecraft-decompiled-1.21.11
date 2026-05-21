@@ -17,98 +17,105 @@ import net.minecraft.world.GameMode;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TutorialManager}.
+ */
 public class TutorialManager {
-   private final MinecraftClient client;
-   private @Nullable TutorialStepHandler currentHandler;
 
-   public TutorialManager(MinecraftClient client, GameOptions options) {
-      this.client = client;
-   }
+	private final MinecraftClient client;
+	private @Nullable TutorialStepHandler currentHandler;
 
-   public void onMovement(Input input) {
-      if (this.currentHandler != null) {
-         this.currentHandler.onMovement(input);
-      }
-   }
+	public TutorialManager(MinecraftClient client, GameOptions options) {
+		this.client = client;
+	}
 
-   public void onUpdateMouse(double deltaX, double deltaY) {
-      if (this.currentHandler != null) {
-         this.currentHandler.onMouseUpdate(deltaX, deltaY);
-      }
-   }
+	public void onMovement(Input input) {
+		if (this.currentHandler != null) {
+			this.currentHandler.onMovement(input);
+		}
+	}
 
-   public void tick(@Nullable ClientWorld world, @Nullable HitResult hitResult) {
-      if (this.currentHandler != null && hitResult != null && world != null) {
-         this.currentHandler.onTarget(world, hitResult);
-      }
-   }
+	public void onUpdateMouse(double deltaX, double deltaY) {
+		if (this.currentHandler != null) {
+			this.currentHandler.onMouseUpdate(deltaX, deltaY);
+		}
+	}
 
-   public void onBlockBreaking(ClientWorld world, BlockPos pos, BlockState state, float progress) {
-      if (this.currentHandler != null) {
-         this.currentHandler.onBlockBreaking(world, pos, state, progress);
-      }
-   }
+	public void tick(@Nullable ClientWorld world, @Nullable HitResult hitResult) {
+		if (this.currentHandler != null && hitResult != null && world != null) {
+			this.currentHandler.onTarget(world, hitResult);
+		}
+	}
 
-   public void onInventoryOpened() {
-      if (this.currentHandler != null) {
-         this.currentHandler.onInventoryOpened();
-      }
-   }
+	public void onBlockBreaking(ClientWorld world, BlockPos pos, BlockState state, float progress) {
+		if (this.currentHandler != null) {
+			this.currentHandler.onBlockBreaking(world, pos, state, progress);
+		}
+	}
 
-   public void onSlotUpdate(ItemStack stack) {
-      if (this.currentHandler != null) {
-         this.currentHandler.onSlotUpdate(stack);
-      }
-   }
+	public void onInventoryOpened() {
+		if (this.currentHandler != null) {
+			this.currentHandler.onInventoryOpened();
+		}
+	}
 
-   public void destroyHandler() {
-      if (this.currentHandler != null) {
-         this.currentHandler.destroy();
-         this.currentHandler = null;
-      }
-   }
+	public void onSlotUpdate(ItemStack stack) {
+		if (this.currentHandler != null) {
+			this.currentHandler.onSlotUpdate(stack);
+		}
+	}
 
-   public void createHandler() {
-      if (this.currentHandler != null) {
-         this.destroyHandler();
-      }
+	public void destroyHandler() {
+		if (this.currentHandler != null) {
+			this.currentHandler.destroy();
+			this.currentHandler = null;
+		}
+	}
 
-      this.currentHandler = this.client.options.tutorialStep.createHandler(this);
-   }
+	public void createHandler() {
+		if (this.currentHandler != null) {
+			this.destroyHandler();
+		}
 
-   public void tick() {
-      if (this.currentHandler != null) {
-         if (this.client.world != null) {
-            this.currentHandler.tick();
-         } else {
-            this.destroyHandler();
-         }
-      } else if (this.client.world != null) {
-         this.createHandler();
-      }
-   }
+		this.currentHandler = this.client.options.tutorialStep.createHandler(this);
+	}
 
-   public void setStep(TutorialStep step) {
-      this.client.options.tutorialStep = step;
-      this.client.options.write();
-      if (this.currentHandler != null) {
-         this.currentHandler.destroy();
-         this.currentHandler = step.createHandler(this);
-      }
-   }
+	public void tick() {
+		if (this.currentHandler != null) {
+			if (this.client.world != null) {
+				this.currentHandler.tick();
+			}
+			else {
+				this.destroyHandler();
+			}
+		}
+		else if (this.client.world != null) {
+			this.createHandler();
+		}
+	}
 
-   public MinecraftClient getClient() {
-      return this.client;
-   }
+	public void setStep(TutorialStep step) {
+		this.client.options.tutorialStep = step;
+		this.client.options.write();
+		if (this.currentHandler != null) {
+			this.currentHandler.destroy();
+			this.currentHandler = step.createHandler(this);
+		}
+	}
 
-   public boolean isInSurvival() {
-      return this.client.interactionManager == null ? false : this.client.interactionManager.getCurrentGameMode() == GameMode.SURVIVAL;
-   }
+	public MinecraftClient getClient() {
+		return this.client;
+	}
 
-   public static Text keyToText(String name) {
-      return Text.keybind("key." + name).formatted(Formatting.BOLD);
-   }
+	public boolean isInSurvival() {
+		return this.client.interactionManager == null ? false : this.client.interactionManager.getCurrentGameMode()
+		                                                        == GameMode.SURVIVAL;
+	}
 
-   public void onPickupSlotClick(ItemStack cursorStack, ItemStack slotStack, ClickType clickType) {
-   }
+	public static Text keyToText(String name) {
+		return Text.keybind("key." + name).formatted(Formatting.BOLD);
+	}
+
+	public void onPickupSlotClick(ItemStack cursorStack, ItemStack slotStack, ClickType clickType) {
+	}
 }

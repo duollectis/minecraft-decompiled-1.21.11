@@ -7,8 +7,12 @@ import net.minecraft.util.math.Direction;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PaintingEntityRenderState}.
+ */
 public class PaintingEntityRenderState extends EntityRenderState {
-   public Direction facing = Direction.NORTH;
-   public @Nullable PaintingVariant variant;
-   public int[] lightmapCoordinates = new int[0];
+
+	public Direction facing = Direction.NORTH;
+	public @Nullable PaintingVariant variant;
+	public int[] lightmapCoordinates = new int[0];
 }

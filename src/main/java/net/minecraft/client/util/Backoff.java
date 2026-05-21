@@ -6,41 +6,45 @@ import net.fabricmc.api.Environment;
 import org.slf4j.Logger;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code Backoff}.
+ */
 public interface Backoff {
-   Backoff ONE_CYCLE = new Backoff() {
-      @Override
-      public long success() {
-         return 1L;
-      }
 
-      @Override
-      public long fail() {
-         return 1L;
-      }
-   };
+	Backoff ONE_CYCLE = new Backoff() {
+		@Override
+		public long success() {
+			return 1L;
+		}
 
-   long success();
+		@Override
+		public long fail() {
+			return 1L;
+		}
+	};
 
-   long fail();
+	long success();
 
-   static Backoff exponential(int maxSkippableCycles) {
-      return new Backoff() {
-         private static final Logger LOGGER = LogUtils.getLogger();
-         private int failureCount;
+	long fail();
 
-         @Override
-         public long success() {
-            this.failureCount = 0;
-            return 1L;
-         }
+	static Backoff exponential(int maxSkippableCycles) {
+		return new Backoff() {
+			private static final Logger LOGGER = LogUtils.getLogger();
+			private int failureCount;
 
-         @Override
-         public long fail() {
-            this.failureCount++;
-            long l = Math.min(1L << this.failureCount, (long)maxSkippableCycles);
-            LOGGER.debug("Skipping for {} extra cycles", l);
-            return l;
-         }
-      };
-   }
+			@Override
+			public long success() {
+				this.failureCount = 0;
+				return 1L;
+			}
+
+			@Override
+			public long fail() {
+				this.failureCount++;
+				long l = Math.min(1L << this.failureCount, (long) maxSkippableCycles);
+				LOGGER.debug("Skipping for {} extra cycles", l);
+				return l;
+			}
+		};
+	}
 }

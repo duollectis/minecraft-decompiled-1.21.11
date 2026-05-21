@@ -14,46 +14,54 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code LlamaSpitEntityRenderer}.
+ */
 public class LlamaSpitEntityRenderer extends EntityRenderer<LlamaSpitEntity, LlamaSpitEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/llama/spit.png");
-   private final LlamaSpitEntityModel model;
 
-   public LlamaSpitEntityRenderer(EntityRendererFactory.Context context) {
-      super(context);
-      this.model = new LlamaSpitEntityModel(context.getPart(EntityModelLayers.LLAMA_SPIT));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/llama/spit.png");
+	private final LlamaSpitEntityModel model;
 
-   public void render(
-      LlamaSpitEntityRenderState llamaSpitEntityRenderState,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      CameraRenderState cameraRenderState
-   ) {
-      matrixStack.push();
-      matrixStack.translate(0.0F, 0.15F, 0.0F);
-      matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(llamaSpitEntityRenderState.yaw - 90.0F));
-      matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(llamaSpitEntityRenderState.pitch));
-      orderedRenderCommandQueue.submitModel(
-         this.model,
-         llamaSpitEntityRenderState,
-         matrixStack,
-         this.model.getLayer(TEXTURE),
-         llamaSpitEntityRenderState.light,
-         OverlayTexture.DEFAULT_UV,
-         llamaSpitEntityRenderState.outlineColor,
-         null
-      );
-      matrixStack.pop();
-      super.render(llamaSpitEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
-   }
+	public LlamaSpitEntityRenderer(EntityRendererFactory.Context context) {
+		super(context);
+		this.model = new LlamaSpitEntityModel(context.getPart(EntityModelLayers.LLAMA_SPIT));
+	}
 
-   public LlamaSpitEntityRenderState createRenderState() {
-      return new LlamaSpitEntityRenderState();
-   }
+	public void render(
+			LlamaSpitEntityRenderState llamaSpitEntityRenderState,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			CameraRenderState cameraRenderState
+	) {
+		matrixStack.push();
+		matrixStack.translate(0.0F, 0.15F, 0.0F);
+		matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(llamaSpitEntityRenderState.yaw - 90.0F));
+		matrixStack.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(llamaSpitEntityRenderState.pitch));
+		orderedRenderCommandQueue.submitModel(
+				this.model,
+				llamaSpitEntityRenderState,
+				matrixStack,
+				this.model.getLayer(TEXTURE),
+				llamaSpitEntityRenderState.light,
+				OverlayTexture.DEFAULT_UV,
+				llamaSpitEntityRenderState.outlineColor,
+				null
+		);
+		matrixStack.pop();
+		super.render(llamaSpitEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
+	}
 
-   public void updateRenderState(LlamaSpitEntity llamaSpitEntity, LlamaSpitEntityRenderState llamaSpitEntityRenderState, float f) {
-      super.updateRenderState(llamaSpitEntity, llamaSpitEntityRenderState, f);
-      llamaSpitEntityRenderState.pitch = llamaSpitEntity.getLerpedPitch(f);
-      llamaSpitEntityRenderState.yaw = llamaSpitEntity.getLerpedYaw(f);
-   }
+	public LlamaSpitEntityRenderState createRenderState() {
+		return new LlamaSpitEntityRenderState();
+	}
+
+	public void updateRenderState(
+			LlamaSpitEntity llamaSpitEntity,
+			LlamaSpitEntityRenderState llamaSpitEntityRenderState,
+			float f
+	) {
+		super.updateRenderState(llamaSpitEntity, llamaSpitEntityRenderState, f);
+		llamaSpitEntityRenderState.pitch = llamaSpitEntity.getLerpedPitch(f);
+		llamaSpitEntityRenderState.yaw = llamaSpitEntity.getLerpedYaw(f);
+	}
 }

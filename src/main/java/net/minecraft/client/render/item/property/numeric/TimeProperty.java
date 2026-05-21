@@ -14,76 +14,91 @@ import net.minecraft.world.MoonPhase;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TimeProperty}.
+ */
 public class TimeProperty extends NeedleAngleState implements NumericProperty {
-   public static final MapCodec<TimeProperty> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codec.BOOL.optionalFieldOf("wobble", true).forGetter(NeedleAngleState::hasWobble),
-            TimeProperty.Source.CODEC.fieldOf("source").forGetter(property -> property.source)
-         )
-         .apply(instance, TimeProperty::new)
-   );
-   private final TimeProperty.Source source;
-   private final Random random = Random.create();
-   private final NeedleAngleState.Angler angler;
 
-   public TimeProperty(boolean wobble, TimeProperty.Source source) {
-      super(wobble);
-      this.source = source;
-      this.angler = this.createAngler(0.9F);
-   }
+	public static final MapCodec<TimeProperty> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codec.BOOL.optionalFieldOf("wobble", true).forGetter(NeedleAngleState::hasWobble),
+					                    TimeProperty.Source.CODEC.fieldOf("source").forGetter(property -> property.source)
+			                    )
+			                    .apply(instance, TimeProperty::new)
+	);
+	private final TimeProperty.Source source;
+	private final Random random = Random.create();
+	private final NeedleAngleState.Angler angler;
 
-   @Override
-   protected float getAngle(ItemStack stack, ClientWorld world, int seed, HeldItemContext context) {
-      float f = this.source.getAngle(world, stack, context, this.random);
-      long l = world.getTime();
-      if (this.angler.shouldUpdate(l)) {
-         this.angler.update(l, f);
-      }
+	public TimeProperty(boolean wobble, TimeProperty.Source source) {
+		super(wobble);
+		this.source = source;
+		this.angler = this.createAngler(0.9F);
+	}
 
-      return this.angler.getAngle();
-   }
+	@Override
+	protected float getAngle(ItemStack stack, ClientWorld world, int seed, HeldItemContext context) {
+		float f = this.source.getAngle(world, stack, context, this.random);
+		long l = world.getTime();
+		if (this.angler.shouldUpdate(l)) {
+			this.angler.update(l, f);
+		}
 
-   @Override
-   public MapCodec<TimeProperty> getCodec() {
-      return CODEC;
-   }
+		return this.angler.getAngle();
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum Source implements StringIdentifiable {
-      RANDOM("random") {
-         @Override
-         public float getAngle(ClientWorld world, ItemStack stack, HeldItemContext heldItemContext, Random random) {
-            return random.nextFloat();
-         }
-      },
-      DAYTIME("daytime") {
-         @Override
-         public float getAngle(ClientWorld world, ItemStack stack, HeldItemContext heldItemContext, Random random) {
-            return world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.SUN_ANGLE_VISUAL, heldItemContext.getEntityPos()) / 360.0F;
-         }
-      },
-      MOON_PHASE("moon_phase") {
-         @Override
-         public float getAngle(ClientWorld world, ItemStack stack, HeldItemContext heldItemContext, Random random) {
-            return (float)world.getEnvironmentAttributes()
-                  .getAttributeValue(EnvironmentAttributes.MOON_PHASE_VISUAL, heldItemContext.getEntityPos())
-                  .getIndex()
-               / MoonPhase.COUNT;
-         }
-      };
+	@Override
+	public MapCodec<TimeProperty> getCodec() {
+		return CODEC;
+	}
 
-      public static final Codec<TimeProperty.Source> CODEC = StringIdentifiable.createCodec(TimeProperty.Source::values);
-      private final String name;
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Source}.
+	 */
+	public static enum Source implements StringIdentifiable {
+		RANDOM("random") {
+			@Override
+			public float getAngle(ClientWorld world, ItemStack stack, HeldItemContext heldItemContext, Random random) {
+				return random.nextFloat();
+			}
+		},
+		DAYTIME("daytime") {
+			@Override
+			public float getAngle(ClientWorld world, ItemStack stack, HeldItemContext heldItemContext, Random random) {
+				return world
+						.getEnvironmentAttributes()
+						.getAttributeValue(EnvironmentAttributes.SUN_ANGLE_VISUAL, heldItemContext.getEntityPos())
+						/ 360.0F;
+			}
+		},
+		MOON_PHASE("moon_phase") {
+			@Override
+			public float getAngle(ClientWorld world, ItemStack stack, HeldItemContext heldItemContext, Random random) {
+				return (float) world.getEnvironmentAttributes()
+				                    .getAttributeValue(
+						                    EnvironmentAttributes.MOON_PHASE_VISUAL,
+						                    heldItemContext.getEntityPos()
+				                    )
+				                    .getIndex()
+						/ MoonPhase.COUNT;
+			}
+		};
 
-      Source(final String name) {
-         this.name = name;
-      }
+		public static final Codec<TimeProperty.Source>
+				CODEC =
+				StringIdentifiable.createCodec(TimeProperty.Source::values);
+		private final String name;
 
-      @Override
-      public String asString() {
-         return this.name;
-      }
+		Source(final String name) {
+			this.name = name;
+		}
 
-      abstract float getAngle(ClientWorld world, ItemStack stack, HeldItemContext heldItemContext, Random random);
-   }
+		@Override
+		public String asString() {
+			return this.name;
+		}
+
+		abstract float getAngle(ClientWorld world, ItemStack stack, HeldItemContext heldItemContext, Random random);
+	}
 }

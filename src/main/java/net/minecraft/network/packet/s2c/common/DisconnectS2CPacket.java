@@ -10,14 +10,17 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
 public record DisconnectS2CPacket(Text reason) implements Packet<ClientCommonPacketListener> {
-   public static final PacketCodec<ByteBuf, DisconnectS2CPacket> CODEC = TextCodecs.PACKET_CODEC.xmap(DisconnectS2CPacket::new, DisconnectS2CPacket::reason);
 
-   @Override
-   public PacketType<DisconnectS2CPacket> getPacketType() {
-      return CommonPackets.DISCONNECT;
-   }
+	public static final PacketCodec<ByteBuf, DisconnectS2CPacket>
+			CODEC =
+			TextCodecs.PACKET_CODEC.xmap(DisconnectS2CPacket::new, DisconnectS2CPacket::reason);
 
-   public void apply(ClientCommonPacketListener clientCommonPacketListener) {
-      clientCommonPacketListener.onDisconnect(this);
-   }
+	@Override
+	public PacketType<DisconnectS2CPacket> getPacketType() {
+		return CommonPackets.DISCONNECT;
+	}
+
+	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
+		clientCommonPacketListener.onDisconnect(this);
+	}
 }

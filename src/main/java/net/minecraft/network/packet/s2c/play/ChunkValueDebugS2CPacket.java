@@ -9,21 +9,25 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.debug.DebugSubscriptionType;
 
-public record ChunkValueDebugS2CPacket(ChunkPos chunkPos, DebugSubscriptionType.OptionalValue<?> update) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, ChunkValueDebugS2CPacket> PACKET_CODEC = PacketCodec.tuple(
-      ChunkPos.PACKET_CODEC,
-      ChunkValueDebugS2CPacket::chunkPos,
-      DebugSubscriptionType.OptionalValue.PACKET_CODEC,
-      ChunkValueDebugS2CPacket::update,
-      ChunkValueDebugS2CPacket::new
-   );
+public record ChunkValueDebugS2CPacket(
+		ChunkPos chunkPos,
+		DebugSubscriptionType.OptionalValue<?> update
+) implements Packet<ClientPlayPacketListener> {
 
-   @Override
-   public PacketType<ChunkValueDebugS2CPacket> getPacketType() {
-      return PlayPackets.CHUNK_VALUE_DEBUG;
-   }
+	public static final PacketCodec<RegistryByteBuf, ChunkValueDebugS2CPacket> PACKET_CODEC = PacketCodec.tuple(
+			ChunkPos.PACKET_CODEC,
+			ChunkValueDebugS2CPacket::chunkPos,
+			DebugSubscriptionType.OptionalValue.PACKET_CODEC,
+			ChunkValueDebugS2CPacket::update,
+			ChunkValueDebugS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onChunkValueDebug(this);
-   }
+	@Override
+	public PacketType<ChunkValueDebugS2CPacket> getPacketType() {
+		return PlayPackets.CHUNK_VALUE_DEBUG;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onChunkValueDebug(this);
+	}
 }

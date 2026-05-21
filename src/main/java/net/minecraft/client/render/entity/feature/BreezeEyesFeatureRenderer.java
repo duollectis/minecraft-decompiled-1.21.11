@@ -14,23 +14,45 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BreezeEyesFeatureRenderer}.
+ */
 public class BreezeEyesFeatureRenderer extends FeatureRenderer<BreezeEntityRenderState, BreezeEntityModel> {
-   private static final RenderLayer TEXTURE = RenderLayers.entityTranslucentEmissiveNoOutline(Identifier.ofVanilla("textures/entity/breeze/breeze_eyes.png"));
-   private final BreezeEntityModel field_61803;
 
-   public BreezeEyesFeatureRenderer(
-      FeatureRendererContext<BreezeEntityRenderState, BreezeEntityModel> featureRendererContext, LoadedEntityModels loadedEntityModels
-   ) {
-      super(featureRendererContext);
-      this.field_61803 = new BreezeEntityModel(loadedEntityModels.getModelPart(EntityModelLayers.BREEZE_EYES));
-   }
+	private static final RenderLayer
+			TEXTURE =
+			RenderLayers.entityTranslucentEmissiveNoOutline(Identifier.ofVanilla(
+					"textures/entity/breeze/breeze_eyes.png"));
+	private final BreezeEntityModel eyesModel;
 
-   public void render(
-      MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, BreezeEntityRenderState breezeEntityRenderState, float f, float g
-   ) {
-      orderedRenderCommandQueue.getBatchingQueue(1)
-         .submitModel(
-            this.field_61803, breezeEntityRenderState, matrixStack, TEXTURE, i, OverlayTexture.DEFAULT_UV, -1, null, breezeEntityRenderState.outlineColor, null
-         );
-   }
+	public BreezeEyesFeatureRenderer(
+			FeatureRendererContext<BreezeEntityRenderState, BreezeEntityModel> featureRendererContext,
+			LoadedEntityModels loadedEntityModels
+	) {
+		super(featureRendererContext);
+		this.eyesModel = new BreezeEntityModel(loadedEntityModels.getModelPart(EntityModelLayers.BREEZE_EYES));
+	}
+
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			BreezeEntityRenderState breezeEntityRenderState,
+			float f,
+			float g
+	) {
+		orderedRenderCommandQueue.getBatchingQueue(1)
+		                         .submitModel(
+				                         this.eyesModel,
+				                         breezeEntityRenderState,
+				                         matrixStack,
+				                         TEXTURE,
+				                         i,
+				                         OverlayTexture.DEFAULT_UV,
+				                         -1,
+				                         null,
+				                         breezeEntityRenderState.outlineColor,
+				                         null
+		                         );
+	}
 }

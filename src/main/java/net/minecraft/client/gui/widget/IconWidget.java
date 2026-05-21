@@ -13,91 +13,110 @@ import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code IconWidget}.
+ */
 public abstract class IconWidget extends ClickableWidget {
-   IconWidget(int x, int y, int width, int height) {
-      super(x, y, width, height, ScreenTexts.EMPTY);
-   }
 
-   public static IconWidget create(int width, int height, Identifier texture, int textureWidth, int textureHeight) {
-      return new IconWidget.Texture(0, 0, width, height, texture, textureWidth, textureHeight);
-   }
+	IconWidget(int x, int y, int width, int height) {
+		super(x, y, width, height, ScreenTexts.EMPTY);
+	}
 
-   public static IconWidget create(int width, int height, Identifier texture) {
-      return new IconWidget.Simple(0, 0, width, height, texture);
-   }
+	public static IconWidget create(int width, int height, Identifier texture, int textureWidth, int textureHeight) {
+		return new IconWidget.Texture(0, 0, width, height, texture, textureWidth, textureHeight);
+	}
 
-   @Override
-   protected void appendClickableNarrations(NarrationMessageBuilder builder) {
-   }
+	public static IconWidget create(int width, int height, Identifier texture) {
+		return new IconWidget.Simple(0, 0, width, height, texture);
+	}
 
-   @Override
-   public void playDownSound(SoundManager soundManager) {
-   }
+	@Override
+	protected void appendClickableNarrations(NarrationMessageBuilder builder) {
+	}
 
-   @Override
-   public boolean isInteractable() {
-      return false;
-   }
+	@Override
+	public void playDownSound(SoundManager soundManager) {
+	}
 
-   public abstract void setTexture(Identifier texture);
+	@Override
+	public boolean isInteractable() {
+		return false;
+	}
 
-   @Override
-   public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
-      return null;
-   }
+	public abstract void setTexture(Identifier texture);
 
-   @Environment(EnvType.CLIENT)
-   static class Simple extends IconWidget {
-      private Identifier texture;
+	@Override
+	public @Nullable GuiNavigationPath getNavigationPath(GuiNavigation navigation) {
+		return null;
+	}
 
-      public Simple(int x, int y, int width, int height, Identifier texture) {
-         super(x, y, width, height);
-         this.texture = texture;
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Simple}.
+	 */
+	static class Simple extends IconWidget {
 
-      @Override
-      public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-         context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, this.texture, this.getX(), this.getY(), this.getWidth(), this.getHeight());
-      }
+		private Identifier texture;
 
-      @Override
-      public void setTexture(Identifier texture) {
-         this.texture = texture;
-      }
-   }
+		public Simple(int x, int y, int width, int height, Identifier texture) {
+			super(x, y, width, height);
+			this.texture = texture;
+		}
 
-   @Environment(EnvType.CLIENT)
-   static class Texture extends IconWidget {
-      private Identifier texture;
-      private final int textureWidth;
-      private final int textureHeight;
+		@Override
+		public void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+			context.drawGuiTexture(
+					RenderPipelines.GUI_TEXTURED,
+					this.texture,
+					this.getX(),
+					this.getY(),
+					this.getWidth(),
+					this.getHeight()
+			);
+		}
 
-      public Texture(int x, int y, int width, int height, Identifier texture, int textureWidth, int textureHeight) {
-         super(x, y, width, height);
-         this.texture = texture;
-         this.textureWidth = textureWidth;
-         this.textureHeight = textureHeight;
-      }
+		@Override
+		public void setTexture(Identifier texture) {
+			this.texture = texture;
+		}
+	}
 
-      @Override
-      protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-         context.drawTexture(
-            RenderPipelines.GUI_TEXTURED,
-            this.texture,
-            this.getX(),
-            this.getY(),
-            0.0F,
-            0.0F,
-            this.getWidth(),
-            this.getHeight(),
-            this.textureWidth,
-            this.textureHeight
-         );
-      }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Texture}.
+	 */
+	static class Texture extends IconWidget {
 
-      @Override
-      public void setTexture(Identifier texture) {
-         this.texture = texture;
-      }
-   }
+		private Identifier texture;
+		private final int textureWidth;
+		private final int textureHeight;
+
+		public Texture(int x, int y, int width, int height, Identifier texture, int textureWidth, int textureHeight) {
+			super(x, y, width, height);
+			this.texture = texture;
+			this.textureWidth = textureWidth;
+			this.textureHeight = textureHeight;
+		}
+
+		@Override
+		protected void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+			context.drawTexture(
+					RenderPipelines.GUI_TEXTURED,
+					this.texture,
+					this.getX(),
+					this.getY(),
+					0.0F,
+					0.0F,
+					this.getWidth(),
+					this.getHeight(),
+					this.textureWidth,
+					this.textureHeight
+			);
+		}
+
+		@Override
+		public void setTexture(Identifier texture) {
+			this.texture = texture;
+		}
+	}
 }

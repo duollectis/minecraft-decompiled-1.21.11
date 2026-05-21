@@ -7,22 +7,33 @@ import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code OptionsProgrammerArtFix}.
+ */
 public class OptionsProgrammerArtFix extends DataFix {
-   public OptionsProgrammerArtFix(Schema outputSchema) {
-      super(outputSchema, false);
-   }
 
-   public TypeRewriteRule makeRule() {
-      return this.fixTypeEverywhereTyped(
-         "OptionsProgrammerArtFix",
-         this.getInputSchema().getType(TypeReferences.OPTIONS),
-         typed -> typed.update(
-            DSL.remainderFinder(), options -> options.update("resourcePacks", this::replaceTypo).update("incompatibleResourcePacks", this::replaceTypo)
-         )
-      );
-   }
+	public OptionsProgrammerArtFix(Schema outputSchema) {
+		super(outputSchema, false);
+	}
 
-   private <T> Dynamic<T> replaceTypo(Dynamic<T> option) {
-      return option.asString().result().map(value -> option.createString(value.replace("\"programer_art\"", "\"programmer_art\""))).orElse(option);
-   }
+	public TypeRewriteRule makeRule() {
+		return this.fixTypeEverywhereTyped(
+				"OptionsProgrammerArtFix",
+				this.getInputSchema().getType(TypeReferences.OPTIONS),
+				typed -> typed.update(
+						DSL.remainderFinder(),
+						options -> options
+								.update("resourcePacks", this::replaceTypo)
+								.update("incompatibleResourcePacks", this::replaceTypo)
+				)
+		);
+	}
+
+	private <T> Dynamic<T> replaceTypo(Dynamic<T> option) {
+		return option
+				.asString()
+				.result()
+				.map(value -> option.createString(value.replace("\"programer_art\"", "\"programmer_art\"")))
+				.orElse(option);
+	}
 }

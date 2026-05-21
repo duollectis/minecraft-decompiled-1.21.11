@@ -1,130 +1,143 @@
 package net.minecraft.resource;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import com.google.common.collect.*;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.util.Util;
 import org.jspecify.annotations.Nullable;
 
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * {@code ResourcePackManager}.
+ */
 public class ResourcePackManager {
-   private final Set<ResourcePackProvider> providers;
-   private Map<String, ResourcePackProfile> profiles = ImmutableMap.of();
-   private List<ResourcePackProfile> enabled = ImmutableList.of();
 
-   public ResourcePackManager(ResourcePackProvider... providers) {
-      this.providers = ImmutableSet.copyOf(providers);
-   }
+	private final Set<ResourcePackProvider> providers;
+	private Map<String, ResourcePackProfile> profiles = ImmutableMap.of();
+	private List<ResourcePackProfile> enabled = ImmutableList.of();
 
-   public static String listPacks(Collection<ResourcePackProfile> profiles) {
-      return profiles.stream()
-         .map(profile -> profile.getId() + (profile.getCompatibility().isCompatible() ? "" : " (incompatible)"))
-         .collect(Collectors.joining(", "));
-   }
+	public ResourcePackManager(ResourcePackProvider... providers) {
+		this.providers = ImmutableSet.copyOf(providers);
+	}
 
-   public void scanPacks() {
-      List<String> list = this.enabled.stream().map(ResourcePackProfile::getId).collect(ImmutableList.toImmutableList());
-      this.profiles = this.providePackProfiles();
-      this.enabled = this.buildEnabledProfiles(list);
-   }
+	public static String listPacks(Collection<ResourcePackProfile> profiles) {
+		return profiles.stream()
+		               .map(profile -> profile.getId() + (profile.getCompatibility().isCompatible() ? ""
+		                                                                                            : " (incompatible)"
+		               ))
+		               .collect(Collectors.joining(", "));
+	}
 
-   private Map<String, ResourcePackProfile> providePackProfiles() {
-      Map<String, ResourcePackProfile> map = Maps.newTreeMap();
+	public void scanPacks() {
+		List<String>
+				list =
+				this.enabled.stream().map(ResourcePackProfile::getId).collect(ImmutableList.toImmutableList());
+		this.profiles = this.providePackProfiles();
+		this.enabled = this.buildEnabledProfiles(list);
+	}
 
-      for (ResourcePackProvider resourcePackProvider : this.providers) {
-         resourcePackProvider.register(profile -> map.put(profile.getId(), profile));
-      }
+	private Map<String, ResourcePackProfile> providePackProfiles() {
+		Map<String, ResourcePackProfile> map = Maps.newTreeMap();
 
-      return ImmutableMap.copyOf(map);
-   }
+		for (ResourcePackProvider resourcePackProvider : this.providers) {
+			resourcePackProvider.register(profile -> map.put(profile.getId(), profile));
+		}
 
-   public boolean hasOptionalProfilesEnabled() {
-      List<ResourcePackProfile> list = this.buildEnabledProfiles(List.of());
-      return !this.enabled.equals(list);
-   }
+		return ImmutableMap.copyOf(map);
+	}
 
-   public void setEnabledProfiles(Collection<String> enabled) {
-      this.enabled = this.buildEnabledProfiles(enabled);
-   }
+	public boolean hasOptionalProfilesEnabled() {
+		List<ResourcePackProfile> list = this.buildEnabledProfiles(List.of());
+		return !this.enabled.equals(list);
+	}
 
-   public boolean enable(String profile) {
-      ResourcePackProfile resourcePackProfile = this.profiles.get(profile);
-      if (resourcePackProfile != null && !this.enabled.contains(resourcePackProfile)) {
-         List<ResourcePackProfile> list = Lists.newArrayList(this.enabled);
-         list.add(resourcePackProfile);
-         this.enabled = list;
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public void setEnabledProfiles(Collection<String> enabled) {
+		this.enabled = this.buildEnabledProfiles(enabled);
+	}
 
-   public boolean disable(String profile) {
-      ResourcePackProfile resourcePackProfile = this.profiles.get(profile);
-      if (resourcePackProfile != null && this.enabled.contains(resourcePackProfile)) {
-         List<ResourcePackProfile> list = Lists.newArrayList(this.enabled);
-         list.remove(resourcePackProfile);
-         this.enabled = list;
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public boolean enable(String profile) {
+		ResourcePackProfile resourcePackProfile = this.profiles.get(profile);
+		if (resourcePackProfile != null && !this.enabled.contains(resourcePackProfile)) {
+			List<ResourcePackProfile> list = Lists.newArrayList(this.enabled);
+			list.add(resourcePackProfile);
+			this.enabled = list;
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   private List<ResourcePackProfile> buildEnabledProfiles(Collection<String> enabledNames) {
-      List<ResourcePackProfile> list = this.streamProfilesById(enabledNames).collect(Util.toArrayList());
+	public boolean disable(String profile) {
+		ResourcePackProfile resourcePackProfile = this.profiles.get(profile);
+		if (resourcePackProfile != null && this.enabled.contains(resourcePackProfile)) {
+			List<ResourcePackProfile> list = Lists.newArrayList(this.enabled);
+			list.remove(resourcePackProfile);
+			this.enabled = list;
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-      for (ResourcePackProfile resourcePackProfile : this.profiles.values()) {
-         if (resourcePackProfile.isRequired() && !list.contains(resourcePackProfile)) {
-            resourcePackProfile.getInitialPosition().insert(list, resourcePackProfile, ResourcePackProfile::getPosition, false);
-         }
-      }
+	private List<ResourcePackProfile> buildEnabledProfiles(Collection<String> enabledNames) {
+		List<ResourcePackProfile> list = this.streamProfilesById(enabledNames).collect(Util.toArrayList());
 
-      return ImmutableList.copyOf(list);
-   }
+		for (ResourcePackProfile resourcePackProfile : this.profiles.values()) {
+			if (resourcePackProfile.isRequired() && !list.contains(resourcePackProfile)) {
+				resourcePackProfile
+						.getInitialPosition()
+						.insert(list, resourcePackProfile, ResourcePackProfile::getPosition, false);
+			}
+		}
 
-   private Stream<ResourcePackProfile> streamProfilesById(Collection<String> ids) {
-      return ids.stream().map(this.profiles::get).filter(Objects::nonNull);
-   }
+		return ImmutableList.copyOf(list);
+	}
 
-   public Collection<String> getIds() {
-      return this.profiles.keySet();
-   }
+	private Stream<ResourcePackProfile> streamProfilesById(Collection<String> ids) {
+		return ids.stream().map(this.profiles::get).filter(Objects::nonNull);
+	}
 
-   public Collection<ResourcePackProfile> getProfiles() {
-      return this.profiles.values();
-   }
+	public Collection<String> getIds() {
+		return this.profiles.keySet();
+	}
 
-   public Collection<String> getEnabledIds() {
-      return this.enabled.stream().map(ResourcePackProfile::getId).collect(ImmutableSet.toImmutableSet());
-   }
+	public Collection<ResourcePackProfile> getProfiles() {
+		return this.profiles.values();
+	}
 
-   public FeatureSet getRequestedFeatures() {
-      return this.getEnabledProfiles().stream().map(ResourcePackProfile::getRequestedFeatures).reduce(FeatureSet::combine).orElse(FeatureSet.empty());
-   }
+	public Collection<String> getEnabledIds() {
+		return this.enabled.stream().map(ResourcePackProfile::getId).collect(ImmutableSet.toImmutableSet());
+	}
 
-   public Collection<ResourcePackProfile> getEnabledProfiles() {
-      return this.enabled;
-   }
+	public FeatureSet getRequestedFeatures() {
+		return this
+				.getEnabledProfiles()
+				.stream()
+				.map(ResourcePackProfile::getRequestedFeatures)
+				.reduce(FeatureSet::combine)
+				.orElse(FeatureSet.empty());
+	}
 
-   public @Nullable ResourcePackProfile getProfile(String id) {
-      return this.profiles.get(id);
-   }
+	public Collection<ResourcePackProfile> getEnabledProfiles() {
+		return this.enabled;
+	}
 
-   public boolean hasProfile(String id) {
-      return this.profiles.containsKey(id);
-   }
+	public @Nullable ResourcePackProfile getProfile(String id) {
+		return this.profiles.get(id);
+	}
 
-   public List<ResourcePack> createResourcePacks() {
-      return this.enabled.stream().map(ResourcePackProfile::createResourcePack).collect(ImmutableList.toImmutableList());
-   }
+	public boolean hasProfile(String id) {
+		return this.profiles.containsKey(id);
+	}
+
+	public List<ResourcePack> createResourcePacks() {
+		return this.enabled
+				.stream()
+				.map(ResourcePackProfile::createResourcePack)
+				.collect(ImmutableList.toImmutableList());
+	}
 }

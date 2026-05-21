@@ -10,23 +10,27 @@ import net.minecraft.client.render.entity.state.BoatEntityRenderState;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RaftEntityRenderer}.
+ */
 public class RaftEntityRenderer extends AbstractBoatEntityRenderer {
-   private final EntityModel<BoatEntityRenderState> model;
-   private final Identifier texture;
 
-   public RaftEntityRenderer(EntityRendererFactory.Context context, EntityModelLayer layer) {
-      super(context);
-      this.texture = layer.id().withPath(path -> "textures/entity/" + path + ".png");
-      this.model = new RaftEntityModel(context.getPart(layer));
-   }
+	private final EntityModel<BoatEntityRenderState> model;
+	private final Identifier texture;
 
-   @Override
-   protected EntityModel<BoatEntityRenderState> getModel() {
-      return this.model;
-   }
+	public RaftEntityRenderer(EntityRendererFactory.Context context, EntityModelLayer layer) {
+		super(context);
+		this.texture = layer.id().withPath(path -> "textures/entity/" + path + ".png");
+		this.model = new RaftEntityModel(context.getPart(layer));
+	}
 
-   @Override
-   protected RenderLayer getRenderLayer() {
-      return this.model.getLayer(this.texture);
-   }
+	@Override
+	protected EntityModel<BoatEntityRenderState> getModel() {
+		return this.model;
+	}
+
+	@Override
+	protected RenderLayer getRenderLayer() {
+		return this.model.getLayer(this.texture);
+	}
 }

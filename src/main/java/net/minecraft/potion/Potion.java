@@ -1,7 +1,6 @@
 package net.minecraft.potion;
 
 import com.mojang.serialization.Codec;
-import java.util.List;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -14,43 +13,51 @@ import net.minecraft.resource.featuretoggle.FeatureFlags;
 import net.minecraft.resource.featuretoggle.FeatureSet;
 import net.minecraft.resource.featuretoggle.ToggleableFeature;
 
+import java.util.List;
+
+/**
+ * {@code Potion}.
+ */
 public class Potion implements ToggleableFeature {
-   public static final Codec<RegistryEntry<Potion>> CODEC = Registries.POTION.getEntryCodec();
-   public static final PacketCodec<RegistryByteBuf, RegistryEntry<Potion>> PACKET_CODEC = PacketCodecs.registryEntry(RegistryKeys.POTION);
-   private final String baseName;
-   private final List<StatusEffectInstance> effects;
-   private FeatureSet requiredFeatures = FeatureFlags.VANILLA_FEATURES;
 
-   public Potion(String baseName, StatusEffectInstance... effects) {
-      this.baseName = baseName;
-      this.effects = List.of(effects);
-   }
+	public static final Codec<RegistryEntry<Potion>> CODEC = Registries.POTION.getEntryCodec();
+	public static final PacketCodec<RegistryByteBuf, RegistryEntry<Potion>>
+			PACKET_CODEC =
+			PacketCodecs.registryEntry(RegistryKeys.POTION);
+	private final String baseName;
+	private final List<StatusEffectInstance> effects;
+	private FeatureSet requiredFeatures = FeatureFlags.VANILLA_FEATURES;
 
-   public Potion requires(FeatureFlag... requiredFeatures) {
-      this.requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(requiredFeatures);
-      return this;
-   }
+	public Potion(String baseName, StatusEffectInstance... effects) {
+		this.baseName = baseName;
+		this.effects = List.of(effects);
+	}
 
-   @Override
-   public FeatureSet getRequiredFeatures() {
-      return this.requiredFeatures;
-   }
+	public Potion requires(FeatureFlag... requiredFeatures) {
+		this.requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(requiredFeatures);
+		return this;
+	}
 
-   public List<StatusEffectInstance> getEffects() {
-      return this.effects;
-   }
+	@Override
+	public FeatureSet getRequiredFeatures() {
+		return this.requiredFeatures;
+	}
 
-   public String getBaseName() {
-      return this.baseName;
-   }
+	public List<StatusEffectInstance> getEffects() {
+		return this.effects;
+	}
 
-   public boolean hasInstantEffect() {
-      for (StatusEffectInstance statusEffectInstance : this.effects) {
-         if (statusEffectInstance.getEffectType().value().isInstant()) {
-            return true;
-         }
-      }
+	public String getBaseName() {
+		return this.baseName;
+	}
 
-      return false;
-   }
+	public boolean hasInstantEffect() {
+		for (StatusEffectInstance statusEffectInstance : this.effects) {
+			if (statusEffectInstance.getEffectType().value().isInstant()) {
+				return true;
+			}
+		}
+
+		return false;
+	}
 }

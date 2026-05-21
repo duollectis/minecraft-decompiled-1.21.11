@@ -9,25 +9,29 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 
+/**
+ * {@code PillarBlockStateProvider}.
+ */
 public class PillarBlockStateProvider extends BlockStateProvider {
-   public static final MapCodec<PillarBlockStateProvider> CODEC = BlockState.CODEC
-      .fieldOf("state")
-      .xmap(AbstractBlock.AbstractBlockState::getBlock, Block::getDefaultState)
-      .xmap(PillarBlockStateProvider::new, provider -> provider.block);
-   private final Block block;
 
-   public PillarBlockStateProvider(Block block) {
-      this.block = block;
-   }
+	public static final MapCodec<PillarBlockStateProvider> CODEC = BlockState.CODEC
+			.fieldOf("state")
+			.xmap(AbstractBlock.AbstractBlockState::getBlock, Block::getDefaultState)
+			.xmap(PillarBlockStateProvider::new, provider -> provider.block);
+	private final Block block;
 
-   @Override
-   protected BlockStateProviderType<?> getType() {
-      return BlockStateProviderType.ROTATED_BLOCK_PROVIDER;
-   }
+	public PillarBlockStateProvider(Block block) {
+		this.block = block;
+	}
 
-   @Override
-   public BlockState get(Random random, BlockPos pos) {
-      Direction.Axis axis = Direction.Axis.pickRandomAxis(random);
-      return this.block.getDefaultState().withIfExists(PillarBlock.AXIS, axis);
-   }
+	@Override
+	protected BlockStateProviderType<?> getType() {
+		return BlockStateProviderType.ROTATED_BLOCK_PROVIDER;
+	}
+
+	@Override
+	public BlockState get(Random random, BlockPos pos) {
+		Direction.Axis axis = Direction.Axis.pickRandomAxis(random);
+		return this.block.getDefaultState().withIfExists(PillarBlock.AXIS, axis);
+	}
 }

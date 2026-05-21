@@ -4,83 +4,157 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.minecraft.UserApiService;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.multiplayer.SocialInteractionsScreen;
 import net.minecraft.util.Util;
 
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+
+/**
+ * Управляет социальными взаимодействиями: скрытием игроков и списком блокировок.
+ * <p>Скрытые игроки ({@link #hidePlayer}) не видны только локально в текущей сессии.
+ * Заблокированные игроки определяются через {@link UserApiService} и загружаются
+ * асинхронно при вызове {@link #loadBlockList}.
+ */
 @Environment(EnvType.CLIENT)
 public class SocialInteractionsManager {
-   private final MinecraftClient client;
-   private final Set<UUID> hiddenPlayers = Sets.newHashSet();
-   private final UserApiService userApiService;
-   private final Map<String, UUID> playerNameByUuid = Maps.newHashMap();
-   private boolean blockListLoaded;
-   private CompletableFuture<?> blockListLoader = CompletableFuture.completedFuture(null);
 
-   public SocialInteractionsManager(MinecraftClient client, UserApiService userApiService) {
-      this.client = client;
-      this.userApiService = userApiService;
-   }
+	private final MinecraftClient client;
+	private final UserApiService userApiService;
+	private final Set<UUID> hiddenPlayers = Sets.newHashSet();
+	private final Map<String, UUID> playerNameByUuid = Maps.newHashMap();
+	private boolean blockListLoaded;
+	private CompletableFuture<?> blockListLoader = CompletableFuture.completedFuture(null);
 
-   public void hidePlayer(UUID uuid) {
-      this.hiddenPlayers.add(uuid);
-   }
+	/**
+	 * Создаёт менеджер социальных взаимодействий.
+	 *
+	 * @param client         клиент Minecraft
+	 * @param userApiService сервис API пользователей для проверки блокировок
+	 */
+	public SocialInteractionsManager(MinecraftClient client, UserApiService userApiService) {
+		this.client = client;
+		this.userApiService = userApiService;
+	}
 
-   public void showPlayer(UUID uuid) {
-      this.hiddenPlayers.remove(uuid);
-   }
+	/**
+	 * Скрывает игрока локально (только в текущей сессии).
+	 *
+	 * @param uuid UUID игрока для скрытия
+	 */
+	public void hidePlayer(UUID uuid) {
+		hiddenPlayers.add(uuid);
+	}
 
-   public boolean isPlayerMuted(UUID uuid) {
-      return this.isPlayerHidden(uuid) || this.isPlayerBlocked(uuid);
-   }
+	/**
+	 * Отменяет скрытие игрока.
+	 *
+	 * @param uuid UUID игрока
+	 */
+	public void showPlayer(UUID uuid) {
+		hiddenPlayers.remove(uuid);
+	}
 
-   public boolean isPlayerHidden(UUID uuid) {
-      return this.hiddenPlayers.contains(uuid);
-   }
+	/**
+	 * Проверяет, заглушен ли игрок (скрыт или заблокирован).
+	 *
+	 * @param uuid UUID игрока
+	 * @return {@code true} если игрок скрыт или заблокирован
+	 */
+	public boolean isPlayerMuted(UUID uuid) {
+		return isPlayerHidden(uuid) || isPlayerBlocked(uuid);
+	}
 
-   public void loadBlockList() {
-      this.blockListLoaded = true;
-      this.blockListLoader = this.blockListLoader.thenRunAsync(this.userApiService::refreshBlockList, Util.getIoWorkerExecutor());
-   }
+	/**
+	 * Проверяет, скрыт ли игрок локально.
+	 *
+	 * @param uuid UUID игрока
+	 * @return {@code true} если игрок скрыт
+	 */
+	public boolean isPlayerHidden(UUID uuid) {
+		return hiddenPlayers.contains(uuid);
+	}
 
-   public void unloadBlockList() {
-      this.blockListLoaded = false;
-   }
+	/**
+	 * Асинхронно загружает список блокировок из {@link UserApiService}.
+	 */
+	public void loadBlockList() {
+		blockListLoaded = true;
+		blockListLoader = blockListLoader.thenRunAsync(
+				userApiService::refreshBlockList,
+				Util.getIoWorkerExecutor()
+		);
+	}
 
-   public boolean isPlayerBlocked(UUID uuid) {
-      if (!this.blockListLoaded) {
-         return false;
-      } else {
-         this.blockListLoader.join();
-         return this.userApiService.isBlockedPlayer(uuid);
-      }
-   }
+	/**
+	 * Помечает список блокировок как выгруженный.
+	 */
+	public void unloadBlockList() {
+		blockListLoaded = false;
+	}
 
-   public Set<UUID> getHiddenPlayers() {
-      return this.hiddenPlayers;
-   }
+	/**
+	 * Проверяет, заблокирован ли игрок через {@link UserApiService}.
+	 * Блокирует поток до завершения загрузки списка блокировок.
+	 *
+	 * @param uuid UUID игрока
+	 * @return {@code true} если игрок заблокирован
+	 */
+	public boolean isPlayerBlocked(UUID uuid) {
+		if (blockListLoaded == false) {
+			return false;
+		}
 
-   public UUID getUuid(String playerName) {
-      return this.playerNameByUuid.getOrDefault(playerName, Util.NIL_UUID);
-   }
+		blockListLoader.join();
+		return userApiService.isBlockedPlayer(uuid);
+	}
 
-   public void setPlayerOnline(PlayerListEntry player) {
-      GameProfile gameProfile = player.getProfile();
-      this.playerNameByUuid.put(gameProfile.name(), gameProfile.id());
-      if (this.client.currentScreen instanceof SocialInteractionsScreen socialInteractionsScreen) {
-         socialInteractionsScreen.setPlayerOnline(player);
-      }
-   }
+	/**
+	 * Возвращает множество UUID скрытых игроков.
+	 *
+	 * @return неизменяемое представление множества скрытых игроков
+	 */
+	public Set<UUID> getHiddenPlayers() {
+		return hiddenPlayers;
+	}
 
-   public void setPlayerOffline(UUID uuid) {
-      if (this.client.currentScreen instanceof SocialInteractionsScreen socialInteractionsScreen) {
-         socialInteractionsScreen.setPlayerOffline(uuid);
-      }
-   }
+	/**
+	 * Возвращает UUID игрока по его имени.
+	 *
+	 * @param playerName имя игрока
+	 * @return UUID или {@link Util#NIL_UUID} если игрок не найден
+	 */
+	public UUID getUuid(String playerName) {
+		return playerNameByUuid.getOrDefault(playerName, Util.NIL_UUID);
+	}
+
+	/**
+	 * Регистрирует игрока как онлайн и уведомляет экран социальных взаимодействий.
+	 *
+	 * @param player запись игрока из списка игроков
+	 */
+	public void setPlayerOnline(PlayerListEntry player) {
+		GameProfile profile = player.getProfile();
+		playerNameByUuid.put(profile.name(), profile.id());
+
+		if (client.currentScreen instanceof SocialInteractionsScreen screen) {
+			screen.setPlayerOnline(player);
+		}
+	}
+
+	/**
+	 * Уведомляет экран социальных взаимодействий об отключении игрока.
+	 *
+	 * @param uuid UUID отключившегося игрока
+	 */
+	public void setPlayerOffline(UUID uuid) {
+		if (client.currentScreen instanceof SocialInteractionsScreen screen) {
+			screen.setPlayerOffline(uuid);
+		}
+	}
 }

@@ -10,49 +10,50 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 
 public class PlayerInteractBlockC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, PlayerInteractBlockC2SPacket> CODEC = Packet.createCodec(
-      PlayerInteractBlockC2SPacket::write, PlayerInteractBlockC2SPacket::new
-   );
-   private final BlockHitResult blockHitResult;
-   private final Hand hand;
-   private final int sequence;
 
-   public PlayerInteractBlockC2SPacket(Hand hand, BlockHitResult blockHitResult, int sequence) {
-      this.hand = hand;
-      this.blockHitResult = blockHitResult;
-      this.sequence = sequence;
-   }
+	public static final PacketCodec<PacketByteBuf, PlayerInteractBlockC2SPacket> CODEC = Packet.createCodec(
+			PlayerInteractBlockC2SPacket::write, PlayerInteractBlockC2SPacket::new
+	);
+	private final BlockHitResult blockHitResult;
+	private final Hand hand;
+	private final int sequence;
 
-   private PlayerInteractBlockC2SPacket(PacketByteBuf buf) {
-      this.hand = buf.readEnumConstant(Hand.class);
-      this.blockHitResult = buf.readBlockHitResult();
-      this.sequence = buf.readVarInt();
-   }
+	public PlayerInteractBlockC2SPacket(Hand hand, BlockHitResult blockHitResult, int sequence) {
+		this.hand = hand;
+		this.blockHitResult = blockHitResult;
+		this.sequence = sequence;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeEnumConstant(this.hand);
-      buf.writeBlockHitResult(this.blockHitResult);
-      buf.writeVarInt(this.sequence);
-   }
+	private PlayerInteractBlockC2SPacket(PacketByteBuf buf) {
+		this.hand = buf.readEnumConstant(Hand.class);
+		this.blockHitResult = buf.readBlockHitResult();
+		this.sequence = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<PlayerInteractBlockC2SPacket> getPacketType() {
-      return PlayPackets.USE_ITEM_ON;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeEnumConstant(this.hand);
+		buf.writeBlockHitResult(this.blockHitResult);
+		buf.writeVarInt(this.sequence);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onPlayerInteractBlock(this);
-   }
+	@Override
+	public PacketType<PlayerInteractBlockC2SPacket> getPacketType() {
+		return PlayPackets.USE_ITEM_ON;
+	}
 
-   public Hand getHand() {
-      return this.hand;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onPlayerInteractBlock(this);
+	}
 
-   public BlockHitResult getBlockHitResult() {
-      return this.blockHitResult;
-   }
+	public Hand getHand() {
+		return this.hand;
+	}
 
-   public int getSequence() {
-      return this.sequence;
-   }
+	public BlockHitResult getBlockHitResult() {
+		return this.blockHitResult;
+	}
+
+	public int getSequence() {
+		return this.sequence;
+	}
 }

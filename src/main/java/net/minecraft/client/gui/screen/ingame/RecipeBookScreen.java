@@ -18,123 +18,149 @@ import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RecipeBookScreen}.
+ */
 public abstract class RecipeBookScreen<T extends AbstractRecipeScreenHandler> extends HandledScreen<T> implements RecipeBookProvider {
-   private final RecipeBookWidget<?> recipeBook;
-   private boolean narrow;
 
-   public RecipeBookScreen(T handler, RecipeBookWidget<?> recipeBook, PlayerInventory inventory, Text title) {
-      super(handler, inventory, title);
-      this.recipeBook = recipeBook;
-   }
+	private final RecipeBookWidget<?> recipeBook;
+	private boolean narrow;
 
-   @Override
-   protected void init() {
-      super.init();
-      this.narrow = this.width < 379;
-      this.recipeBook.initialize(this.width, this.height, this.client, this.narrow);
-      this.x = this.recipeBook.findLeftEdge(this.width, this.backgroundWidth);
-      this.addRecipeBook();
-   }
+	public RecipeBookScreen(T handler, RecipeBookWidget<?> recipeBook, PlayerInventory inventory, Text title) {
+		super(handler, inventory, title);
+		this.recipeBook = recipeBook;
+	}
 
-   protected abstract ScreenPos getRecipeBookButtonPos();
+	@Override
+	protected void init() {
+		super.init();
+		this.narrow = this.width < 379;
+		this.recipeBook.initialize(this.width, this.height, this.client, this.narrow);
+		this.x = this.recipeBook.findLeftEdge(this.width, this.backgroundWidth);
+		this.addRecipeBook();
+	}
 
-   private void addRecipeBook() {
-      ScreenPos screenPos = this.getRecipeBookButtonPos();
-      this.addDrawableChild(new TexturedButtonWidget(screenPos.x(), screenPos.y(), 20, 18, RecipeBookWidget.BUTTON_TEXTURES, button -> {
-         this.recipeBook.toggleOpen();
-         this.x = this.recipeBook.findLeftEdge(this.width, this.backgroundWidth);
-         ScreenPos screenPosx = this.getRecipeBookButtonPos();
-         button.setPosition(screenPosx.x(), screenPosx.y());
-         this.onRecipeBookToggled();
-      }));
-      this.addSelectableChild(this.recipeBook);
-   }
+	protected abstract ScreenPos getRecipeBookButtonPos();
 
-   protected void onRecipeBookToggled() {
-   }
+	private void addRecipeBook() {
+		ScreenPos screenPos = this.getRecipeBookButtonPos();
+		this.addDrawableChild(new TexturedButtonWidget(
+				screenPos.x(), screenPos.y(), 20, 18, RecipeBookWidget.BUTTON_TEXTURES, button -> {
+			this.recipeBook.toggleOpen();
+			this.x = this.recipeBook.findLeftEdge(this.width, this.backgroundWidth);
+			ScreenPos screenPosx = this.getRecipeBookButtonPos();
+			button.setPosition(screenPosx.x(), screenPosx.y());
+			this.onRecipeBookToggled();
+		}
+		));
+		this.addSelectableChild(this.recipeBook);
+	}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      if (this.recipeBook.isOpen() && this.narrow) {
-         this.renderBackground(context, mouseX, mouseY, deltaTicks);
-      } else {
-         super.renderMain(context, mouseX, mouseY, deltaTicks);
-      }
+	protected void onRecipeBookToggled() {
+	}
 
-      context.createNewRootLayer();
-      this.recipeBook.render(context, mouseX, mouseY, deltaTicks);
-      context.createNewRootLayer();
-      this.renderCursorStack(context, mouseX, mouseY);
-      this.renderLetGoTouchStack(context);
-      this.drawMouseoverTooltip(context, mouseX, mouseY);
-      this.recipeBook.drawTooltip(context, mouseX, mouseY, this.focusedSlot);
-   }
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		if (this.recipeBook.isOpen() && this.narrow) {
+			this.renderBackground(context, mouseX, mouseY, deltaTicks);
+		}
+		else {
+			super.renderMain(context, mouseX, mouseY, deltaTicks);
+		}
 
-   @Override
-   protected void drawSlots(DrawContext context, int mouseX, int mouseY) {
-      super.drawSlots(context, mouseX, mouseY);
-      this.recipeBook.drawGhostSlots(context, this.shouldAddPaddingToGhostResult());
-   }
+		context.createNewRootLayer();
+		this.recipeBook.render(context, mouseX, mouseY, deltaTicks);
+		context.createNewRootLayer();
+		this.renderCursorStack(context, mouseX, mouseY);
+		this.renderLetGoTouchStack(context);
+		this.drawMouseoverTooltip(context, mouseX, mouseY);
+		this.recipeBook.drawTooltip(context, mouseX, mouseY, this.focusedSlot);
+	}
 
-   protected boolean shouldAddPaddingToGhostResult() {
-      return true;
-   }
+	@Override
+	protected void drawSlots(DrawContext context, int mouseX, int mouseY) {
+		super.drawSlots(context, mouseX, mouseY);
+		this.recipeBook.drawGhostSlots(context, this.shouldAddPaddingToGhostResult());
+	}
 
-   @Override
-   public boolean charTyped(CharInput input) {
-      return this.recipeBook.charTyped(input) ? true : super.charTyped(input);
-   }
+	protected boolean shouldAddPaddingToGhostResult() {
+		return true;
+	}
 
-   @Override
-   public boolean keyPressed(KeyInput input) {
-      return this.recipeBook.keyPressed(input) ? true : super.keyPressed(input);
-   }
+	@Override
+	public boolean charTyped(CharInput input) {
+		return this.recipeBook.charTyped(input) ? true : super.charTyped(input);
+	}
 
-   @Override
-   public boolean mouseClicked(Click click, boolean doubled) {
-      if (this.recipeBook.mouseClicked(click, doubled)) {
-         this.setFocused(this.recipeBook);
-         return true;
-      } else {
-         return this.narrow && this.recipeBook.isOpen() ? true : super.mouseClicked(click, doubled);
-      }
-   }
+	@Override
+	public boolean keyPressed(KeyInput input) {
+		return this.recipeBook.keyPressed(input) ? true : super.keyPressed(input);
+	}
 
-   @Override
-   public boolean mouseDragged(Click click, double offsetX, double offsetY) {
-      return this.recipeBook.mouseDragged(click, offsetX, offsetY) ? true : super.mouseDragged(click, offsetX, offsetY);
-   }
+	@Override
+	public boolean mouseClicked(Click click, boolean doubled) {
+		if (this.recipeBook.mouseClicked(click, doubled)) {
+			this.setFocused(this.recipeBook);
+			return true;
+		}
+		else {
+			return this.narrow && this.recipeBook.isOpen() ? true : super.mouseClicked(click, doubled);
+		}
+	}
 
-   @Override
-   protected boolean isPointWithinBounds(int x, int y, int width, int height, double pointX, double pointY) {
-      return (!this.narrow || !this.recipeBook.isOpen()) && super.isPointWithinBounds(x, y, width, height, pointX, pointY);
-   }
+	@Override
+	public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+		return this.recipeBook.mouseDragged(click, offsetX, offsetY) ? true
+		                                                             : super.mouseDragged(click, offsetX, offsetY);
+	}
 
-   @Override
-   protected boolean isClickOutsideBounds(double mouseX, double mouseY, int left, int top) {
-      boolean bl = mouseX < left || mouseY < top || mouseX >= left + this.backgroundWidth || mouseY >= top + this.backgroundHeight;
-      return this.recipeBook.isClickOutsideBounds(mouseX, mouseY, this.x, this.y, this.backgroundWidth, this.backgroundHeight) && bl;
-   }
+	@Override
+	protected boolean isPointWithinBounds(int x, int y, int width, int height, double pointX, double pointY) {
+		return (!this.narrow || !this.recipeBook.isOpen()) && super.isPointWithinBounds(
+				x,
+				y,
+				width,
+				height,
+				pointX,
+				pointY
+		);
+	}
 
-   @Override
-   protected void onMouseClick(Slot slot, int slotId, int button, SlotActionType actionType) {
-      super.onMouseClick(slot, slotId, button, actionType);
-      this.recipeBook.onMouseClick(slot);
-   }
+	@Override
+	protected boolean isClickOutsideBounds(double mouseX, double mouseY, int left, int top) {
+		boolean
+				bl =
+				mouseX < left || mouseY < top || mouseX >= left + this.backgroundWidth
+						|| mouseY >= top + this.backgroundHeight;
+		return this.recipeBook.isClickOutsideBounds(
+				mouseX,
+				mouseY,
+				this.x,
+				this.y,
+				this.backgroundWidth,
+				this.backgroundHeight
+		) && bl;
+	}
 
-   @Override
-   public void handledScreenTick() {
-      super.handledScreenTick();
-      this.recipeBook.update();
-   }
+	@Override
+	protected void onMouseClick(Slot slot, int slotId, int button, SlotActionType actionType) {
+		super.onMouseClick(slot, slotId, button, actionType);
+		this.recipeBook.onMouseClick(slot);
+	}
 
-   @Override
-   public void refreshRecipeBook() {
-      this.recipeBook.refresh();
-   }
+	@Override
+	public void handledScreenTick() {
+		super.handledScreenTick();
+		this.recipeBook.update();
+	}
 
-   @Override
-   public void onCraftFailed(RecipeDisplay display) {
-      this.recipeBook.onCraftFailed(display);
-   }
+	@Override
+	public void refreshRecipeBook() {
+		this.recipeBook.refresh();
+	}
+
+	@Override
+	public void onCraftFailed(RecipeDisplay display) {
+		this.recipeBook.onCraftFailed(display);
+	}
 }

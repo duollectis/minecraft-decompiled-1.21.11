@@ -6,10 +6,14 @@ import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.util.math.MatrixStack;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ModelWithHead}.
+ */
 public interface ModelWithHead {
-   ModelPart getHead();
 
-   default void applyTransform(MatrixStack matrices) {
-      this.getHead().applyTransform(matrices);
-   }
+	ModelPart getHead();
+
+	default void applyTransform(MatrixStack matrices) {
+		this.getHead().applyTransform(matrices);
+	}
 }

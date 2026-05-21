@@ -8,36 +8,47 @@ import net.minecraft.block.Blocks;
 import net.minecraft.registry.Registries;
 import net.minecraft.world.dimension.DimensionType;
 
+/**
+ * {@code FlatChunkGeneratorLayer}.
+ */
 public class FlatChunkGeneratorLayer {
-   public static final Codec<FlatChunkGeneratorLayer> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            Codec.intRange(0, DimensionType.MAX_HEIGHT).fieldOf("height").forGetter(FlatChunkGeneratorLayer::getThickness),
-            Registries.BLOCK.getCodec().fieldOf("block").orElse(Blocks.AIR).forGetter(layer -> layer.getBlockState().getBlock())
-         )
-         .apply(instance, FlatChunkGeneratorLayer::new)
-   );
-   private final Block block;
-   private final int thickness;
 
-   public FlatChunkGeneratorLayer(int thickness, Block block) {
-      this.thickness = thickness;
-      this.block = block;
-   }
+	public static final Codec<FlatChunkGeneratorLayer> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    Codec
+							                    .intRange(0, DimensionType.MAX_HEIGHT)
+							                    .fieldOf("height")
+							                    .forGetter(FlatChunkGeneratorLayer::getThickness),
+					                    Registries.BLOCK
+							                    .getCodec()
+							                    .fieldOf("block")
+							                    .orElse(Blocks.AIR)
+							                    .forGetter(layer -> layer.getBlockState().getBlock())
+			                    )
+			                    .apply(instance, FlatChunkGeneratorLayer::new)
+	);
+	private final Block block;
+	private final int thickness;
 
-   public int getThickness() {
-      return this.thickness;
-   }
+	public FlatChunkGeneratorLayer(int thickness, Block block) {
+		this.thickness = thickness;
+		this.block = block;
+	}
 
-   public BlockState getBlockState() {
-      return this.block.getDefaultState();
-   }
+	public int getThickness() {
+		return this.thickness;
+	}
 
-   public FlatChunkGeneratorLayer withMaxThickness(int maxThickness) {
-      return this.thickness > maxThickness ? new FlatChunkGeneratorLayer(maxThickness, this.block) : this;
-   }
+	public BlockState getBlockState() {
+		return this.block.getDefaultState();
+	}
 
-   @Override
-   public String toString() {
-      return (this.thickness != 1 ? this.thickness + "*" : "") + Registries.BLOCK.getId(this.block);
-   }
+	public FlatChunkGeneratorLayer withMaxThickness(int maxThickness) {
+		return this.thickness > maxThickness ? new FlatChunkGeneratorLayer(maxThickness, this.block) : this;
+	}
+
+	@Override
+	public String toString() {
+		return (this.thickness != 1 ? this.thickness + "*" : "") + Registries.BLOCK.getId(this.block);
+	}
 }

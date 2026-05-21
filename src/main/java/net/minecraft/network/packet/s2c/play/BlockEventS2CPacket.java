@@ -12,55 +12,58 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.math.BlockPos;
 
 public class BlockEventS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, BlockEventS2CPacket> CODEC = Packet.createCodec(BlockEventS2CPacket::write, BlockEventS2CPacket::new);
-   private final BlockPos pos;
-   private final int type;
-   private final int data;
-   private final Block block;
 
-   public BlockEventS2CPacket(BlockPos pos, Block block, int type, int data) {
-      this.pos = pos;
-      this.block = block;
-      this.type = type;
-      this.data = data;
-   }
+	public static final PacketCodec<RegistryByteBuf, BlockEventS2CPacket>
+			CODEC =
+			Packet.createCodec(BlockEventS2CPacket::write, BlockEventS2CPacket::new);
+	private final BlockPos pos;
+	private final int type;
+	private final int data;
+	private final Block block;
 
-   private BlockEventS2CPacket(RegistryByteBuf buf) {
-      this.pos = buf.readBlockPos();
-      this.type = buf.readUnsignedByte();
-      this.data = buf.readUnsignedByte();
-      this.block = PacketCodecs.registryValue(RegistryKeys.BLOCK).decode(buf);
-   }
+	public BlockEventS2CPacket(BlockPos pos, Block block, int type, int data) {
+		this.pos = pos;
+		this.block = block;
+		this.type = type;
+		this.data = data;
+	}
 
-   private void write(RegistryByteBuf buf) {
-      buf.writeBlockPos(this.pos);
-      buf.writeByte(this.type);
-      buf.writeByte(this.data);
-      PacketCodecs.registryValue(RegistryKeys.BLOCK).encode(buf, this.block);
-   }
+	private BlockEventS2CPacket(RegistryByteBuf buf) {
+		this.pos = buf.readBlockPos();
+		this.type = buf.readUnsignedByte();
+		this.data = buf.readUnsignedByte();
+		this.block = PacketCodecs.registryValue(RegistryKeys.BLOCK).decode(buf);
+	}
 
-   @Override
-   public PacketType<BlockEventS2CPacket> getPacketType() {
-      return PlayPackets.BLOCK_EVENT;
-   }
+	private void write(RegistryByteBuf buf) {
+		buf.writeBlockPos(this.pos);
+		buf.writeByte(this.type);
+		buf.writeByte(this.data);
+		PacketCodecs.registryValue(RegistryKeys.BLOCK).encode(buf, this.block);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onBlockEvent(this);
-   }
+	@Override
+	public PacketType<BlockEventS2CPacket> getPacketType() {
+		return PlayPackets.BLOCK_EVENT;
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onBlockEvent(this);
+	}
 
-   public int getType() {
-      return this.type;
-   }
+	public BlockPos getPos() {
+		return this.pos;
+	}
 
-   public int getData() {
-      return this.data;
-   }
+	public int getType() {
+		return this.type;
+	}
 
-   public Block getBlock() {
-      return this.block;
-   }
+	public int getData() {
+		return this.data;
+	}
+
+	public Block getBlock() {
+		return this.block;
+	}
 }

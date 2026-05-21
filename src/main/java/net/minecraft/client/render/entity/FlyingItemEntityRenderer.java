@@ -14,48 +14,63 @@ import net.minecraft.item.ItemDisplayContext;
 import net.minecraft.util.math.BlockPos;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FlyingItemEntityRenderer}.
+ */
 public class FlyingItemEntityRenderer<T extends Entity & FlyingItemEntity> extends EntityRenderer<T, FlyingItemEntityRenderState> {
-   private final ItemModelManager itemModelManager;
-   private final float scale;
-   private final boolean lit;
 
-   public FlyingItemEntityRenderer(EntityRendererFactory.Context ctx, float scale, boolean lit) {
-      super(ctx);
-      this.itemModelManager = ctx.getItemModelManager();
-      this.scale = scale;
-      this.lit = lit;
-   }
+	private final ItemModelManager itemModelManager;
+	private final float scale;
+	private final boolean lit;
 
-   public FlyingItemEntityRenderer(EntityRendererFactory.Context context) {
-      this(context, 1.0F, false);
-   }
+	public FlyingItemEntityRenderer(EntityRendererFactory.Context ctx, float scale, boolean lit) {
+		super(ctx);
+		this.itemModelManager = ctx.getItemModelManager();
+		this.scale = scale;
+		this.lit = lit;
+	}
 
-   @Override
-   protected int getBlockLight(T entity, BlockPos pos) {
-      return this.lit ? 15 : super.getBlockLight(entity, pos);
-   }
+	public FlyingItemEntityRenderer(EntityRendererFactory.Context context) {
+		this(context, 1.0F, false);
+	}
 
-   public void render(
-      FlyingItemEntityRenderState flyingItemEntityRenderState,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      CameraRenderState cameraRenderState
-   ) {
-      matrixStack.push();
-      matrixStack.scale(this.scale, this.scale, this.scale);
-      matrixStack.multiply(cameraRenderState.orientation);
-      flyingItemEntityRenderState.itemRenderState
-         .render(matrixStack, orderedRenderCommandQueue, flyingItemEntityRenderState.light, OverlayTexture.DEFAULT_UV, flyingItemEntityRenderState.outlineColor);
-      matrixStack.pop();
-      super.render(flyingItemEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
-   }
+	@Override
+	protected int getBlockLight(T entity, BlockPos pos) {
+		return this.lit ? 15 : super.getBlockLight(entity, pos);
+	}
 
-   public FlyingItemEntityRenderState createRenderState() {
-      return new FlyingItemEntityRenderState();
-   }
+	public void render(
+			FlyingItemEntityRenderState flyingItemEntityRenderState,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			CameraRenderState cameraRenderState
+	) {
+		matrixStack.push();
+		matrixStack.scale(this.scale, this.scale, this.scale);
+		matrixStack.multiply(cameraRenderState.orientation);
+		flyingItemEntityRenderState.itemRenderState
+				.render(
+						matrixStack,
+						orderedRenderCommandQueue,
+						flyingItemEntityRenderState.light,
+						OverlayTexture.DEFAULT_UV,
+						flyingItemEntityRenderState.outlineColor
+				);
+		matrixStack.pop();
+		super.render(flyingItemEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
+	}
 
-   public void updateRenderState(T entity, FlyingItemEntityRenderState flyingItemEntityRenderState, float f) {
-      super.updateRenderState(entity, flyingItemEntityRenderState, f);
-      this.itemModelManager.updateForNonLivingEntity(flyingItemEntityRenderState.itemRenderState, entity.getStack(), ItemDisplayContext.GROUND, entity);
-   }
+	public FlyingItemEntityRenderState createRenderState() {
+		return new FlyingItemEntityRenderState();
+	}
+
+	public void updateRenderState(T entity, FlyingItemEntityRenderState flyingItemEntityRenderState, float f) {
+		super.updateRenderState(entity, flyingItemEntityRenderState, f);
+		this.itemModelManager.updateForNonLivingEntity(
+				flyingItemEntityRenderState.itemRenderState,
+				entity.getStack(),
+				ItemDisplayContext.GROUND,
+				entity
+		);
+	}
 }

@@ -6,6 +6,10 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.render.item.property.PropertyTester;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BooleanProperty}.
+ */
 public interface BooleanProperty extends PropertyTester {
-   MapCodec<? extends BooleanProperty> getCodec();
+
+	MapCodec<? extends BooleanProperty> getCodec();
 }

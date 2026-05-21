@@ -16,167 +16,201 @@ import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ExplosiveProjectileEntity}.
+ */
 public abstract class ExplosiveProjectileEntity extends ProjectileEntity {
-   public static final double DEFAULT_ACCELERATION_POWER = 0.1;
-   public static final double field_51892 = 0.5;
-   public double accelerationPower = 0.1;
 
-   protected ExplosiveProjectileEntity(EntityType<? extends ExplosiveProjectileEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	public static final double DEFAULT_ACCELERATION_POWER = 0.1;
+	public static final double DEFLECTION_POWER_FACTOR = 0.5;
+	public double accelerationPower = 0.1;
 
-   protected ExplosiveProjectileEntity(EntityType<? extends ExplosiveProjectileEntity> type, double x, double y, double z, World world) {
-      this(type, world);
-      this.setPosition(x, y, z);
-   }
+	protected ExplosiveProjectileEntity(EntityType<? extends ExplosiveProjectileEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public ExplosiveProjectileEntity(EntityType<? extends ExplosiveProjectileEntity> type, double x, double y, double z, Vec3d velocity, World world) {
-      this(type, world);
-      this.refreshPositionAndAngles(x, y, z, this.getYaw(), this.getPitch());
-      this.refreshPosition();
-      this.setVelocityWithAcceleration(velocity, this.accelerationPower);
-   }
+	protected ExplosiveProjectileEntity(
+			EntityType<? extends ExplosiveProjectileEntity> type,
+			double x,
+			double y,
+			double z,
+			World world
+	) {
+		this(type, world);
+		this.setPosition(x, y, z);
+	}
 
-   public ExplosiveProjectileEntity(EntityType<? extends ExplosiveProjectileEntity> type, LivingEntity owner, Vec3d velocity, World world) {
-      this(type, owner.getX(), owner.getY(), owner.getZ(), velocity, world);
-      this.setOwner(owner);
-      this.setRotation(owner.getYaw(), owner.getPitch());
-   }
+	public ExplosiveProjectileEntity(
+			EntityType<? extends ExplosiveProjectileEntity> type,
+			double x,
+			double y,
+			double z,
+			Vec3d velocity,
+			World world
+	) {
+		this(type, world);
+		this.refreshPositionAndAngles(x, y, z, this.getYaw(), this.getPitch());
+		this.refreshPosition();
+		this.setVelocityWithAcceleration(velocity, this.accelerationPower);
+	}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-   }
+	public ExplosiveProjectileEntity(
+			EntityType<? extends ExplosiveProjectileEntity> type,
+			LivingEntity owner,
+			Vec3d velocity,
+			World world
+	) {
+		this(type, owner.getX(), owner.getY(), owner.getZ(), velocity, world);
+		this.setOwner(owner);
+		this.setRotation(owner.getYaw(), owner.getPitch());
+	}
 
-   @Override
-   public boolean shouldRender(double distance) {
-      double d = this.getBoundingBox().getAverageSideLength() * 4.0;
-      if (Double.isNaN(d)) {
-         d = 4.0;
-      }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+	}
 
-      d *= 64.0;
-      return distance < d * d;
-   }
+	@Override
+	public boolean shouldRender(double distance) {
+		double d = this.getBoundingBox().getAverageSideLength() * 4.0;
+		if (Double.isNaN(d)) {
+			d = 4.0;
+		}
 
-   protected RaycastContext.ShapeType getRaycastShapeType() {
-      return RaycastContext.ShapeType.COLLIDER;
-   }
+		d *= 64.0;
+		return distance < d * d;
+	}
 
-   @Override
-   public void tick() {
-      Entity entity = this.getOwner();
-      this.applyDrag();
-      if (this.getEntityWorld().isClient() || (entity == null || !entity.isRemoved()) && this.getEntityWorld().isChunkLoaded(this.getBlockPos())) {
-         HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit, this.getRaycastShapeType());
-         Vec3d vec3d;
-         if (hitResult.getType() != HitResult.Type.MISS) {
-            vec3d = hitResult.getPos();
-         } else {
-            vec3d = this.getEntityPos().add(this.getVelocity());
-         }
+	protected RaycastContext.ShapeType getRaycastShapeType() {
+		return RaycastContext.ShapeType.COLLIDER;
+	}
 
-         ProjectileUtil.setRotationFromVelocity(this, 0.2F);
-         this.setPosition(vec3d);
-         this.tickBlockCollision();
-         super.tick();
-         if (this.isBurning()) {
-            this.setOnFireFor(1.0F);
-         }
+	@Override
+	public void tick() {
+		Entity entity = this.getOwner();
+		this.applyDrag();
+		if (this.getEntityWorld().isClient() || (entity == null || !entity.isRemoved()) && this
+				.getEntityWorld()
+				.isChunkLoaded(this.getBlockPos())) {
+			HitResult hitResult = ProjectileUtil.getCollision(this, this::canHit, this.getRaycastShapeType());
+			Vec3d vec3d;
+			if (hitResult.getType() != HitResult.Type.MISS) {
+				vec3d = hitResult.getPos();
+			}
+			else {
+				vec3d = this.getEntityPos().add(this.getVelocity());
+			}
 
-         if (hitResult.getType() != HitResult.Type.MISS && this.isAlive()) {
-            this.hitOrDeflect(hitResult);
-         }
+			ProjectileUtil.setRotationFromVelocity(this, 0.2F);
+			this.setPosition(vec3d);
+			this.tickBlockCollision();
+			super.tick();
+			if (this.isBurning()) {
+				this.setOnFireFor(1.0F);
+			}
 
-         this.addParticles();
-      } else {
-         this.discard();
-      }
-   }
+			if (hitResult.getType() != HitResult.Type.MISS && this.isAlive()) {
+				this.hitOrDeflect(hitResult);
+			}
 
-   private void applyDrag() {
-      Vec3d vec3d = this.getVelocity();
-      Vec3d vec3d2 = this.getEntityPos();
-      float g;
-      if (this.isTouchingWater()) {
-         for (int i = 0; i < 4; i++) {
-            float f = 0.25F;
-            this.getEntityWorld()
-               .addParticleClient(
-                  ParticleTypes.BUBBLE, vec3d2.x - vec3d.x * 0.25, vec3d2.y - vec3d.y * 0.25, vec3d2.z - vec3d.z * 0.25, vec3d.x, vec3d.y, vec3d.z
-               );
-         }
+			this.addParticles();
+		}
+		else {
+			this.discard();
+		}
+	}
 
-         g = this.getDragInWater();
-      } else {
-         g = this.getDrag();
-      }
+	private void applyDrag() {
+		Vec3d vec3d = this.getVelocity();
+		Vec3d vec3d2 = this.getEntityPos();
+		float g;
+		if (this.isTouchingWater()) {
+			for (int i = 0; i < 4; i++) {
+				float f = 0.25F;
+				this.getEntityWorld()
+				    .addParticleClient(
+						    ParticleTypes.BUBBLE,
+						    vec3d2.x - vec3d.x * 0.25,
+						    vec3d2.y - vec3d.y * 0.25,
+						    vec3d2.z - vec3d.z * 0.25,
+						    vec3d.x,
+						    vec3d.y,
+						    vec3d.z
+				    );
+			}
 
-      this.setVelocity(vec3d.add(vec3d.normalize().multiply(this.accelerationPower)).multiply(g));
-   }
+			g = this.getDragInWater();
+		}
+		else {
+			g = this.getDrag();
+		}
 
-   private void addParticles() {
-      ParticleEffect particleEffect = this.getParticleType();
-      Vec3d vec3d = this.getEntityPos();
-      if (particleEffect != null) {
-         this.getEntityWorld().addParticleClient(particleEffect, vec3d.x, vec3d.y + 0.5, vec3d.z, 0.0, 0.0, 0.0);
-      }
-   }
+		this.setVelocity(vec3d.add(vec3d.normalize().multiply(this.accelerationPower)).multiply(g));
+	}
 
-   @Override
-   public boolean damage(ServerWorld world, DamageSource source, float amount) {
-      return false;
-   }
+	private void addParticles() {
+		ParticleEffect particleEffect = this.getParticleType();
+		Vec3d vec3d = this.getEntityPos();
+		if (particleEffect != null) {
+			this.getEntityWorld().addParticleClient(particleEffect, vec3d.x, vec3d.y + 0.5, vec3d.z, 0.0, 0.0, 0.0);
+		}
+	}
 
-   @Override
-   protected boolean canHit(Entity entity) {
-      return super.canHit(entity) && !entity.noClip;
-   }
+	@Override
+	public boolean damage(ServerWorld world, DamageSource source, float amount) {
+		return false;
+	}
 
-   protected boolean isBurning() {
-      return true;
-   }
+	@Override
+	protected boolean canHit(Entity entity) {
+		return super.canHit(entity) && !entity.noClip;
+	}
 
-   protected @Nullable ParticleEffect getParticleType() {
-      return ParticleTypes.SMOKE;
-   }
+	protected boolean isBurning() {
+		return true;
+	}
 
-   protected float getDrag() {
-      return 0.95F;
-   }
+	protected @Nullable ParticleEffect getParticleType() {
+		return ParticleTypes.SMOKE;
+	}
 
-   protected float getDragInWater() {
-      return 0.8F;
-   }
+	protected float getDrag() {
+		return 0.95F;
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putDouble("acceleration_power", this.accelerationPower);
-   }
+	protected float getDragInWater() {
+		return 0.8F;
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.accelerationPower = view.getDouble("acceleration_power", 0.1);
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putDouble("acceleration_power", this.accelerationPower);
+	}
 
-   @Override
-   public float getBrightnessAtEyes() {
-      return 1.0F;
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.accelerationPower = view.getDouble("acceleration_power", 0.1);
+	}
 
-   private void setVelocityWithAcceleration(Vec3d velocity, double accelerationPower) {
-      this.setVelocity(velocity.normalize().multiply(accelerationPower));
-      this.velocityDirty = true;
-   }
+	@Override
+	public float getBrightnessAtEyes() {
+		return 1.0F;
+	}
 
-   @Override
-   protected void onDeflected(boolean bl) {
-      super.onDeflected(bl);
-      if (bl) {
-         this.accelerationPower = 0.1;
-      } else {
-         this.accelerationPower *= 0.5;
-      }
-   }
+	private void setVelocityWithAcceleration(Vec3d velocity, double accelerationPower) {
+		this.setVelocity(velocity.normalize().multiply(accelerationPower));
+		this.velocityDirty = true;
+	}
+
+	@Override
+	protected void onDeflected(boolean bl) {
+		super.onDeflected(bl);
+		if (bl) {
+			this.accelerationPower = 0.1;
+		}
+		else {
+			this.accelerationPower *= DEFLECTION_POWER_FACTOR;
+		}
+	}
 }

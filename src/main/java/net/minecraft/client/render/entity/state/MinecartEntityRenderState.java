@@ -8,18 +8,22 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MinecartEntityRenderState}.
+ */
 public class MinecartEntityRenderState extends EntityRenderState {
-   public float lerpedPitch;
-   public float lerpedYaw;
-   public long hash;
-   public int damageWobbleSide;
-   public float damageWobbleTicks;
-   public float damageWobbleStrength;
-   public int blockOffset;
-   public BlockState containedBlock = Blocks.AIR.getDefaultState();
-   public boolean usesExperimentalController;
-   public @Nullable Vec3d lerpedPos;
-   public @Nullable Vec3d presentPos;
-   public @Nullable Vec3d futurePos;
-   public @Nullable Vec3d pastPos;
+
+	public float lerpedPitch;
+	public float lerpedYaw;
+	public long hash;
+	public int damageWobbleSide;
+	public float damageWobbleTicks;
+	public float damageWobbleStrength;
+	public int blockOffset;
+	public BlockState containedBlock = Blocks.AIR.getDefaultState();
+	public boolean usesExperimentalController;
+	public @Nullable Vec3d lerpedPos;
+	public @Nullable Vec3d presentPos;
+	public @Nullable Vec3d futurePos;
+	public @Nullable Vec3d pastPos;
 }

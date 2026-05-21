@@ -8,22 +8,25 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public record ClientOptionsC2SPacket(SyncedClientOptions options) implements Packet<ServerCommonPacketListener> {
-   public static final PacketCodec<PacketByteBuf, ClientOptionsC2SPacket> CODEC = Packet.createCodec(ClientOptionsC2SPacket::write, ClientOptionsC2SPacket::new);
 
-   private ClientOptionsC2SPacket(PacketByteBuf buf) {
-      this(new SyncedClientOptions(buf));
-   }
+	public static final PacketCodec<PacketByteBuf, ClientOptionsC2SPacket>
+			CODEC =
+			Packet.createCodec(ClientOptionsC2SPacket::write, ClientOptionsC2SPacket::new);
 
-   private void write(PacketByteBuf buf) {
-      this.options.write(buf);
-   }
+	private ClientOptionsC2SPacket(PacketByteBuf buf) {
+		this(new SyncedClientOptions(buf));
+	}
 
-   @Override
-   public PacketType<ClientOptionsC2SPacket> getPacketType() {
-      return CommonPackets.CLIENT_INFORMATION;
-   }
+	private void write(PacketByteBuf buf) {
+		this.options.write(buf);
+	}
 
-   public void apply(ServerCommonPacketListener serverCommonPacketListener) {
-      serverCommonPacketListener.onClientOptions(this);
-   }
+	@Override
+	public PacketType<ClientOptionsC2SPacket> getPacketType() {
+		return CommonPackets.CLIENT_INFORMATION;
+	}
+
+	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
+		serverCommonPacketListener.onClientOptions(this);
+	}
 }

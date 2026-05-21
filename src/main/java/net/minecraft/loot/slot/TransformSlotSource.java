@@ -8,30 +8,34 @@ import net.minecraft.loot.LootTableReporter;
 import net.minecraft.loot.context.LootContext;
 import net.minecraft.util.ErrorReporter;
 
+/**
+ * {@code TransformSlotSource}.
+ */
 public abstract class TransformSlotSource implements SlotSource {
-   protected final SlotSource slotSource;
 
-   protected TransformSlotSource(SlotSource slotSource) {
-      this.slotSource = slotSource;
-   }
+	protected final SlotSource slotSource;
 
-   @Override
-   public abstract MapCodec<? extends TransformSlotSource> getCodec();
+	protected TransformSlotSource(SlotSource slotSource) {
+		this.slotSource = slotSource;
+	}
 
-   protected static <T extends TransformSlotSource> P1<Mu<T>, SlotSource> addSlotSourceField(Instance<T> instance) {
-      return instance.group(SlotSources.CODEC.fieldOf("slot_source").forGetter(source -> source.slotSource));
-   }
+	@Override
+	public abstract MapCodec<? extends TransformSlotSource> getCodec();
 
-   protected abstract ItemStream transform(ItemStream stream);
+	protected static <T extends TransformSlotSource> P1<Mu<T>, SlotSource> addSlotSourceField(Instance<T> instance) {
+		return instance.group(SlotSources.CODEC.fieldOf("slot_source").forGetter(source -> source.slotSource));
+	}
 
-   @Override
-   public final ItemStream stream(LootContext context) {
-      return this.transform(this.slotSource.stream(context));
-   }
+	protected abstract ItemStream transform(ItemStream stream);
 
-   @Override
-   public void validate(LootTableReporter reporter) {
-      SlotSource.super.validate(reporter);
-      this.slotSource.validate(reporter.makeChild(new ErrorReporter.MapElementContext("slot_source")));
-   }
+	@Override
+	public final ItemStream stream(LootContext context) {
+		return this.transform(this.slotSource.stream(context));
+	}
+
+	@Override
+	public void validate(LootTableReporter reporter) {
+		SlotSource.super.validate(reporter);
+		this.slotSource.validate(reporter.makeChild(new ErrorReporter.MapElementContext("slot_source")));
+	}
 }

@@ -1,7 +1,5 @@
 package net.minecraft.entity.ai.goal;
 
-import java.util.EnumSet;
-import java.util.function.Function;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ai.NoPenaltyTargeting;
 import net.minecraft.entity.damage.DamageType;
@@ -14,90 +12,107 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.BlockView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+import java.util.function.Function;
+
+/**
+ * {@code EscapeDangerGoal}.
+ */
 public class EscapeDangerGoal extends Goal {
-   public static final int RANGE_Y = 1;
-   protected final PathAwareEntity mob;
-   protected final double speed;
-   protected double targetX;
-   protected double targetY;
-   protected double targetZ;
-   protected boolean active;
-   private final Function<PathAwareEntity, TagKey<DamageType>> entityToDangerousDamageTypes;
 
-   public EscapeDangerGoal(PathAwareEntity mob, double speed) {
-      this(mob, speed, DamageTypeTags.PANIC_CAUSES);
-   }
+	public static final int RANGE_Y = 1;
+	protected final PathAwareEntity mob;
+	protected final double speed;
+	protected double targetX;
+	protected double targetY;
+	protected double targetZ;
+	protected boolean active;
+	private final Function<PathAwareEntity, TagKey<DamageType>> entityToDangerousDamageTypes;
 
-   public EscapeDangerGoal(PathAwareEntity mob, double speed, TagKey<DamageType> dangerousDamageTypes) {
-      this(mob, speed, entity -> dangerousDamageTypes);
-   }
+	public EscapeDangerGoal(PathAwareEntity mob, double speed) {
+		this(mob, speed, DamageTypeTags.PANIC_CAUSES);
+	}
 
-   public EscapeDangerGoal(PathAwareEntity mob, double speed, Function<PathAwareEntity, TagKey<DamageType>> entityToDangerousDamageTypes) {
-      this.mob = mob;
-      this.speed = speed;
-      this.entityToDangerousDamageTypes = entityToDangerousDamageTypes;
-      this.setControls(EnumSet.of(Goal.Control.MOVE));
-   }
+	public EscapeDangerGoal(PathAwareEntity mob, double speed, TagKey<DamageType> dangerousDamageTypes) {
+		this(mob, speed, entity -> dangerousDamageTypes);
+	}
 
-   @Override
-   public boolean canStart() {
-      if (!this.isInDanger()) {
-         return false;
-      } else {
-         if (this.mob.isOnFire()) {
-            BlockPos blockPos = this.locateClosestWater(this.mob.getEntityWorld(), this.mob, 5);
-            if (blockPos != null) {
-               this.targetX = blockPos.getX();
-               this.targetY = blockPos.getY();
-               this.targetZ = blockPos.getZ();
-               return true;
-            }
-         }
+	public EscapeDangerGoal(
+			PathAwareEntity mob,
+			double speed,
+			Function<PathAwareEntity, TagKey<DamageType>> entityToDangerousDamageTypes
+	) {
+		this.mob = mob;
+		this.speed = speed;
+		this.entityToDangerousDamageTypes = entityToDangerousDamageTypes;
+		this.setControls(EnumSet.of(Goal.Control.MOVE));
+	}
 
-         return this.findTarget();
-      }
-   }
+	@Override
+	public boolean canStart() {
+		if (!this.isInDanger()) {
+			return false;
+		}
+		else {
+			if (this.mob.isOnFire()) {
+				BlockPos blockPos = this.locateClosestWater(this.mob.getEntityWorld(), this.mob, 5);
+				if (blockPos != null) {
+					this.targetX = blockPos.getX();
+					this.targetY = blockPos.getY();
+					this.targetZ = blockPos.getZ();
+					return true;
+				}
+			}
 
-   protected boolean isInDanger() {
-      return this.mob.getRecentDamageSource() != null && this.mob.getRecentDamageSource().isIn(this.entityToDangerousDamageTypes.apply(this.mob));
-   }
+			return this.findTarget();
+		}
+	}
 
-   protected boolean findTarget() {
-      Vec3d vec3d = NoPenaltyTargeting.find(this.mob, 5, 4);
-      if (vec3d == null) {
-         return false;
-      } else {
-         this.targetX = vec3d.x;
-         this.targetY = vec3d.y;
-         this.targetZ = vec3d.z;
-         return true;
-      }
-   }
+	protected boolean isInDanger() {
+		return this.mob.getRecentDamageSource() != null && this.mob
+				.getRecentDamageSource()
+				.isIn(this.entityToDangerousDamageTypes.apply(this.mob));
+	}
 
-   public boolean isActive() {
-      return this.active;
-   }
+	protected boolean findTarget() {
+		Vec3d vec3d = NoPenaltyTargeting.find(this.mob, 5, 4);
+		if (vec3d == null) {
+			return false;
+		}
+		else {
+			this.targetX = vec3d.x;
+			this.targetY = vec3d.y;
+			this.targetZ = vec3d.z;
+			return true;
+		}
+	}
 
-   @Override
-   public void start() {
-      this.mob.getNavigation().startMovingTo(this.targetX, this.targetY, this.targetZ, this.speed);
-      this.active = true;
-   }
+	public boolean isActive() {
+		return this.active;
+	}
 
-   @Override
-   public void stop() {
-      this.active = false;
-   }
+	@Override
+	public void start() {
+		this.mob.getNavigation().startMovingTo(this.targetX, this.targetY, this.targetZ, this.speed);
+		this.active = true;
+	}
 
-   @Override
-   public boolean shouldContinue() {
-      return !this.mob.getNavigation().isIdle();
-   }
+	@Override
+	public void stop() {
+		this.active = false;
+	}
 
-   protected @Nullable BlockPos locateClosestWater(BlockView world, Entity entity, int rangeX) {
-      BlockPos blockPos = entity.getBlockPos();
-      return !world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty()
-         ? null
-         : BlockPos.findClosest(entity.getBlockPos(), rangeX, 1, pos -> world.getFluidState(pos).isIn(FluidTags.WATER)).orElse(null);
-   }
+	@Override
+	public boolean shouldContinue() {
+		return !this.mob.getNavigation().isIdle();
+	}
+
+	protected @Nullable BlockPos locateClosestWater(BlockView world, Entity entity, int rangeX) {
+		BlockPos blockPos = entity.getBlockPos();
+		return !world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty()
+		       ? null
+		       : BlockPos
+		         .findClosest(entity.getBlockPos(), rangeX, 1, pos -> world.getFluidState(pos).isIn(FluidTags.WATER))
+		         .orElse(null);
+	}
 }

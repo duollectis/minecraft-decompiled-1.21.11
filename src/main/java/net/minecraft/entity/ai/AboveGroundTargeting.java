@@ -5,34 +5,59 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code AboveGroundTargeting}.
+ */
 public class AboveGroundTargeting {
-   public static @Nullable Vec3d find(
-      PathAwareEntity entity, int horizontalRange, int verticalRange, double x, double z, float angle, int maxAboveSolid, int minAboveSolid
-   ) {
-      boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
-      return FuzzyPositions.guessBestPathTarget(
-         entity,
-         () -> {
-            BlockPos blockPos = FuzzyPositions.localFuzz(entity.getRandom(), 0.0, horizontalRange, verticalRange, 0, x, z, angle);
-            if (blockPos == null) {
-               return null;
-            } else {
-               BlockPos blockPos2 = FuzzyTargeting.towardTarget(entity, horizontalRange, bl, blockPos);
-               if (blockPos2 == null) {
-                  return null;
-               } else {
-                  blockPos2 = FuzzyPositions.upWhile(
-                     blockPos2,
-                     entity.getRandom().nextInt(maxAboveSolid - minAboveSolid + 1) + minAboveSolid,
-                     entity.getEntityWorld().getTopYInclusive(),
-                     pos -> NavigationConditions.isSolidAt(entity, pos)
-                  );
-                  return !NavigationConditions.isWaterAt(entity, blockPos2) && !NavigationConditions.hasPathfindingPenalty(entity, blockPos2)
-                     ? blockPos2
-                     : null;
-               }
-            }
-         }
-      );
-   }
+
+	public static @Nullable Vec3d find(
+			PathAwareEntity entity,
+			int horizontalRange,
+			int verticalRange,
+			double x,
+			double z,
+			float angle,
+			int maxAboveSolid,
+			int minAboveSolid
+	) {
+		boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
+		return FuzzyPositions.guessBestPathTarget(
+				entity,
+				() -> {
+					BlockPos
+							blockPos =
+							FuzzyPositions.localFuzz(
+									entity.getRandom(),
+									0.0,
+									horizontalRange,
+									verticalRange,
+									0,
+									x,
+									z,
+									angle
+							);
+					if (blockPos == null) {
+						return null;
+					}
+					else {
+						BlockPos blockPos2 = FuzzyTargeting.towardTarget(entity, horizontalRange, bl, blockPos);
+						if (blockPos2 == null) {
+							return null;
+						}
+						else {
+							blockPos2 = FuzzyPositions.upWhile(
+									blockPos2,
+									entity.getRandom().nextInt(maxAboveSolid - minAboveSolid + 1) + minAboveSolid,
+									entity.getEntityWorld().getTopYInclusive(),
+									pos -> NavigationConditions.isSolidAt(entity, pos)
+							);
+							return !NavigationConditions.isWaterAt(entity, blockPos2)
+									       && !NavigationConditions.hasPathfindingPenalty(entity, blockPos2)
+							       ? blockPos2
+							       : null;
+						}
+					}
+				}
+		);
+	}
 }

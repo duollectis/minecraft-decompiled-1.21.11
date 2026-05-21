@@ -5,56 +5,67 @@ import com.mojang.logging.LogUtils;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import org.slf4j.Logger;
+
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
 
+/**
+ * {@code DeprecatedLanguageData}.
+ */
 public record DeprecatedLanguageData(List<String> removed, Map<String, String> renamed) {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final DeprecatedLanguageData NONE = new DeprecatedLanguageData(List.of(), Map.of());
-   public static final Codec<DeprecatedLanguageData> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            Codec.STRING.listOf().fieldOf("removed").forGetter(DeprecatedLanguageData::removed),
-            Codec.unboundedMap(Codec.STRING, Codec.STRING).fieldOf("renamed").forGetter(DeprecatedLanguageData::renamed)
-         )
-         .apply(instance, DeprecatedLanguageData::new)
-   );
 
-   public static DeprecatedLanguageData fromInputStream(InputStream stream) {
-      JsonElement jsonElement = StrictJsonParser.parse(new InputStreamReader(stream, StandardCharsets.UTF_8));
-      return (DeprecatedLanguageData)CODEC.parse(JsonOps.INSTANCE, jsonElement)
-         .getOrThrow(error -> new IllegalStateException("Failed to parse deprecated language data: " + error));
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final DeprecatedLanguageData NONE = new DeprecatedLanguageData(List.of(), Map.of());
+	public static final Codec<DeprecatedLanguageData> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    Codec.STRING.listOf().fieldOf("removed").forGetter(DeprecatedLanguageData::removed),
+					                    Codec
+							                    .unboundedMap(Codec.STRING, Codec.STRING)
+							                    .fieldOf("renamed")
+							                    .forGetter(DeprecatedLanguageData::renamed)
+			                    )
+			                    .apply(instance, DeprecatedLanguageData::new)
+	);
 
-   public static DeprecatedLanguageData fromPath(String path) {
-      try (InputStream inputStream = Language.class.getResourceAsStream(path)) {
-         return inputStream != null ? fromInputStream(inputStream) : NONE;
-      } catch (Exception var6) {
-         LOGGER.error("Failed to read {}", path, var6);
-         return NONE;
-      }
-   }
+	public static DeprecatedLanguageData fromInputStream(InputStream stream) {
+		JsonElement jsonElement = StrictJsonParser.parse(new InputStreamReader(stream, StandardCharsets.UTF_8));
+		return (DeprecatedLanguageData) CODEC.parse(JsonOps.INSTANCE, jsonElement)
+		                                     .getOrThrow(error -> new IllegalStateException(
+				                                     "Failed to parse deprecated language data: " + error));
+	}
 
-   public static DeprecatedLanguageData create() {
-      return fromPath("/assets/minecraft/lang/deprecated.json");
-   }
+	public static DeprecatedLanguageData fromPath(String path) {
+		try (InputStream inputStream = Language.class.getResourceAsStream(path)) {
+			return inputStream != null ? fromInputStream(inputStream) : NONE;
+		}
+		catch (Exception var6) {
+			LOGGER.error("Failed to read {}", path, var6);
+			return NONE;
+		}
+	}
 
-   public void apply(Map<String, String> map) {
-      for (String string : this.removed) {
-         map.remove(string);
-      }
+	public static DeprecatedLanguageData create() {
+		return fromPath("/assets/minecraft/lang/deprecated.json");
+	}
 
-      this.renamed.forEach((oldKey, newKey) -> {
-         String stringx = map.remove(oldKey);
-         if (stringx == null) {
-            LOGGER.warn("Missing translation key for rename: {}", oldKey);
-            map.remove(newKey);
-         } else {
-            map.put(newKey, stringx);
-         }
-      });
-   }
+	public void apply(Map<String, String> map) {
+		for (String string : this.removed) {
+			map.remove(string);
+		}
+
+		this.renamed.forEach((oldKey, newKey) -> {
+			String stringx = map.remove(oldKey);
+			if (stringx == null) {
+				LOGGER.warn("Missing translation key for rename: {}", oldKey);
+				map.remove(newKey);
+			}
+			else {
+				map.put(newKey, stringx);
+			}
+		});
+	}
 }

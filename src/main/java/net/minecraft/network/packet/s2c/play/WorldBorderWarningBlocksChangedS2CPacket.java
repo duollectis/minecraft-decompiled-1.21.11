@@ -9,33 +9,34 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.border.WorldBorder;
 
 public class WorldBorderWarningBlocksChangedS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, WorldBorderWarningBlocksChangedS2CPacket> CODEC = Packet.createCodec(
-      WorldBorderWarningBlocksChangedS2CPacket::write, WorldBorderWarningBlocksChangedS2CPacket::new
-   );
-   private final int warningBlocks;
 
-   public WorldBorderWarningBlocksChangedS2CPacket(WorldBorder worldBorder) {
-      this.warningBlocks = worldBorder.getWarningBlocks();
-   }
+	public static final PacketCodec<PacketByteBuf, WorldBorderWarningBlocksChangedS2CPacket> CODEC = Packet.createCodec(
+			WorldBorderWarningBlocksChangedS2CPacket::write, WorldBorderWarningBlocksChangedS2CPacket::new
+	);
+	private final int warningBlocks;
 
-   private WorldBorderWarningBlocksChangedS2CPacket(PacketByteBuf buf) {
-      this.warningBlocks = buf.readVarInt();
-   }
+	public WorldBorderWarningBlocksChangedS2CPacket(WorldBorder worldBorder) {
+		this.warningBlocks = worldBorder.getWarningBlocks();
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.warningBlocks);
-   }
+	private WorldBorderWarningBlocksChangedS2CPacket(PacketByteBuf buf) {
+		this.warningBlocks = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<WorldBorderWarningBlocksChangedS2CPacket> getPacketType() {
-      return PlayPackets.SET_BORDER_WARNING_DISTANCE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.warningBlocks);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onWorldBorderWarningBlocksChanged(this);
-   }
+	@Override
+	public PacketType<WorldBorderWarningBlocksChangedS2CPacket> getPacketType() {
+		return PlayPackets.SET_BORDER_WARNING_DISTANCE;
+	}
 
-   public int getWarningBlocks() {
-      return this.warningBlocks;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onWorldBorderWarningBlocksChanged(this);
+	}
+
+	public int getWarningBlocks() {
+		return this.warningBlocks;
+	}
 }

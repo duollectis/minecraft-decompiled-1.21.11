@@ -8,18 +8,22 @@ import org.joml.Matrix4f;
 import org.joml.Matrix4fc;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ModelBakeSettings}.
+ */
 public interface ModelBakeSettings {
-   Matrix4fc TRANSFORM_NONE = new Matrix4f();
 
-   default AffineTransformation getRotation() {
-      return AffineTransformation.identity();
-   }
+	Matrix4fc TRANSFORM_NONE = new Matrix4f();
 
-   default Matrix4fc forward(Direction facing) {
-      return TRANSFORM_NONE;
-   }
+	default AffineTransformation getRotation() {
+		return AffineTransformation.identity();
+	}
 
-   default Matrix4fc reverse(Direction facing) {
-      return TRANSFORM_NONE;
-   }
+	default Matrix4fc forward(Direction facing) {
+		return TRANSFORM_NONE;
+	}
+
+	default Matrix4fc reverse(Direction facing) {
+		return TRANSFORM_NONE;
+	}
 }

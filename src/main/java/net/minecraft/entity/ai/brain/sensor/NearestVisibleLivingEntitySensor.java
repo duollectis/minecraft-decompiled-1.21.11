@@ -1,33 +1,40 @@
 package net.minecraft.entity.ai.brain.sensor;
 
 import com.google.common.collect.ImmutableSet;
-import java.util.Optional;
-import java.util.Set;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.brain.LivingTargetCache;
 import net.minecraft.entity.ai.brain.MemoryModuleType;
 import net.minecraft.server.world.ServerWorld;
 
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * {@code NearestVisibleLivingEntitySensor}.
+ */
 public abstract class NearestVisibleLivingEntitySensor extends Sensor<LivingEntity> {
-   protected abstract boolean matches(ServerWorld world, LivingEntity entity, LivingEntity target);
 
-   protected abstract MemoryModuleType<LivingEntity> getOutputMemoryModule();
+	protected abstract boolean matches(ServerWorld world, LivingEntity entity, LivingEntity target);
 
-   @Override
-   public Set<MemoryModuleType<?>> getOutputMemoryModules() {
-      return ImmutableSet.of(this.getOutputMemoryModule());
-   }
+	protected abstract MemoryModuleType<LivingEntity> getOutputMemoryModule();
 
-   @Override
-   protected void sense(ServerWorld world, LivingEntity entity) {
-      entity.getBrain().remember(this.getOutputMemoryModule(), this.getNearestVisibleLivingEntity(world, entity));
-   }
+	@Override
+	public Set<MemoryModuleType<?>> getOutputMemoryModules() {
+		return ImmutableSet.of(this.getOutputMemoryModule());
+	}
 
-   private Optional<LivingEntity> getNearestVisibleLivingEntity(ServerWorld world, LivingEntity entity) {
-      return this.getVisibleLivingEntities(entity).flatMap(entities -> entities.findFirst(target -> this.matches(world, entity, target)));
-   }
+	@Override
+	protected void sense(ServerWorld world, LivingEntity entity) {
+		entity.getBrain().remember(this.getOutputMemoryModule(), this.getNearestVisibleLivingEntity(world, entity));
+	}
 
-   protected Optional<LivingTargetCache> getVisibleLivingEntities(LivingEntity entity) {
-      return entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS);
-   }
+	private Optional<LivingEntity> getNearestVisibleLivingEntity(ServerWorld world, LivingEntity entity) {
+		return this
+				.getVisibleLivingEntities(entity)
+				.flatMap(entities -> entities.findFirst(target -> this.matches(world, entity, target)));
+	}
+
+	protected Optional<LivingTargetCache> getVisibleLivingEntities(LivingEntity entity) {
+		return entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS);
+	}
 }

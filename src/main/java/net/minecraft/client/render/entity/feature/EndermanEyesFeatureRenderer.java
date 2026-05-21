@@ -9,15 +9,21 @@ import net.minecraft.client.render.entity.state.EndermanEntityRenderState;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EndermanEyesFeatureRenderer}.
+ */
 public class EndermanEyesFeatureRenderer extends EyesFeatureRenderer<EndermanEntityRenderState, EndermanEntityModel<EndermanEntityRenderState>> {
-   private static final RenderLayer SKIN = RenderLayers.eyes(Identifier.ofVanilla("textures/entity/enderman/enderman_eyes.png"));
 
-   public EndermanEyesFeatureRenderer(FeatureRendererContext<EndermanEntityRenderState, EndermanEntityModel<EndermanEntityRenderState>> featureRendererContext) {
-      super(featureRendererContext);
-   }
+	private static final RenderLayer
+			SKIN =
+			RenderLayers.eyes(Identifier.ofVanilla("textures/entity/enderman/enderman_eyes.png"));
 
-   @Override
-   public RenderLayer getEyesTexture() {
-      return SKIN;
-   }
+	public EndermanEyesFeatureRenderer(FeatureRendererContext<EndermanEntityRenderState, EndermanEntityModel<EndermanEntityRenderState>> featureRendererContext) {
+		super(featureRendererContext);
+	}
+
+	@Override
+	public RenderLayer getEyesTexture() {
+		return SKIN;
+	}
 }

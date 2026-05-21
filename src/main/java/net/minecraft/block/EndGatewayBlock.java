@@ -1,7 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.Set;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
@@ -22,96 +21,134 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Set;
+
+/**
+ * {@code EndGatewayBlock}.
+ */
 public class EndGatewayBlock extends BlockWithEntity implements Portal {
-   public static final MapCodec<EndGatewayBlock> CODEC = createCodec(EndGatewayBlock::new);
 
-   @Override
-   public MapCodec<EndGatewayBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<EndGatewayBlock> CODEC = createCodec(EndGatewayBlock::new);
 
-   public EndGatewayBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<EndGatewayBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new EndGatewayBlockEntity(pos, state);
-   }
+	public EndGatewayBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return validateTicker(type, BlockEntityType.END_GATEWAY, world.isClient() ? EndGatewayBlockEntity::clientTick : EndGatewayBlockEntity::serverTick);
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new EndGatewayBlockEntity(pos, state);
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      BlockEntity blockEntity = world.getBlockEntity(pos);
-      if (blockEntity instanceof EndGatewayBlockEntity) {
-         int i = ((EndGatewayBlockEntity)blockEntity).getDrawnSidesCount();
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return validateTicker(
+				type,
+				BlockEntityType.END_GATEWAY,
+				world.isClient() ? EndGatewayBlockEntity::clientTick : EndGatewayBlockEntity::serverTick
+		);
+	}
 
-         for (int j = 0; j < i; j++) {
-            double d = pos.getX() + random.nextDouble();
-            double e = pos.getY() + random.nextDouble();
-            double f = pos.getZ() + random.nextDouble();
-            double g = (random.nextDouble() - 0.5) * 0.5;
-            double h = (random.nextDouble() - 0.5) * 0.5;
-            double k = (random.nextDouble() - 0.5) * 0.5;
-            int l = random.nextInt(2) * 2 - 1;
-            if (random.nextBoolean()) {
-               f = pos.getZ() + 0.5 + 0.25 * l;
-               k = random.nextFloat() * 2.0F * l;
-            } else {
-               d = pos.getX() + 0.5 + 0.25 * l;
-               g = random.nextFloat() * 2.0F * l;
-            }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		BlockEntity blockEntity = world.getBlockEntity(pos);
+		if (blockEntity instanceof EndGatewayBlockEntity) {
+			int i = ((EndGatewayBlockEntity) blockEntity).getDrawnSidesCount();
 
-            world.addParticleClient(ParticleTypes.PORTAL, d, e, f, g, h, k);
-         }
-      }
-   }
+			for (int j = 0; j < i; j++) {
+				double d = pos.getX() + random.nextDouble();
+				double e = pos.getY() + random.nextDouble();
+				double f = pos.getZ() + random.nextDouble();
+				double g = (random.nextDouble() - 0.5) * 0.5;
+				double h = (random.nextDouble() - 0.5) * 0.5;
+				double k = (random.nextDouble() - 0.5) * 0.5;
+				int l = random.nextInt(2) * 2 - 1;
+				if (random.nextBoolean()) {
+					f = pos.getZ() + 0.5 + 0.25 * l;
+					k = random.nextFloat() * 2.0F * l;
+				}
+				else {
+					d = pos.getX() + 0.5 + 0.25 * l;
+					g = random.nextFloat() * 2.0F * l;
+				}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return ItemStack.EMPTY;
-   }
+				world.addParticleClient(ParticleTypes.PORTAL, d, e, f, g, h, k);
+			}
+		}
+	}
 
-   @Override
-   protected boolean canBucketPlace(BlockState state, Fluid fluid) {
-      return false;
-   }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return ItemStack.EMPTY;
+	}
 
-   @Override
-   protected void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler, boolean bl) {
-      if (entity.canUsePortals(false)
-         && !world.isClient()
-         && world.getBlockEntity(pos) instanceof EndGatewayBlockEntity endGatewayBlockEntity
-         && !endGatewayBlockEntity.needsCooldownBeforeTeleporting()) {
-         entity.tryUsePortal(this, pos);
-         EndGatewayBlockEntity.startTeleportCooldown(world, pos, state, endGatewayBlockEntity);
-      }
-   }
+	@Override
+	protected boolean canBucketPlace(BlockState state, Fluid fluid) {
+		return false;
+	}
 
-   @Override
-   public @Nullable TeleportTarget createTeleportTarget(ServerWorld world, Entity entity, BlockPos pos) {
-      if (world.getBlockEntity(pos) instanceof EndGatewayBlockEntity endGatewayBlockEntity) {
-         Vec3d vec3d = endGatewayBlockEntity.getOrCreateExitPortalPos(world, pos);
-         if (vec3d == null) {
-            return null;
-         } else {
-            return entity instanceof EnderPearlEntity
-               ? new TeleportTarget(world, vec3d, Vec3d.ZERO, 0.0F, 0.0F, Set.of(), TeleportTarget.ADD_PORTAL_CHUNK_TICKET)
-               : new TeleportTarget(
-                  world, vec3d, Vec3d.ZERO, 0.0F, 0.0F, PositionFlag.combine(PositionFlag.DELTA, PositionFlag.ROT), TeleportTarget.ADD_PORTAL_CHUNK_TICKET
-               );
-         }
-      } else {
-         return null;
-      }
-   }
+	@Override
+	protected void onEntityCollision(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Entity entity,
+			EntityCollisionHandler handler,
+			boolean bl
+	) {
+		if (entity.canUsePortals(false)
+				&& !world.isClient()
+				&& world.getBlockEntity(pos) instanceof EndGatewayBlockEntity endGatewayBlockEntity
+				&& !endGatewayBlockEntity.needsCooldownBeforeTeleporting()) {
+			entity.tryUsePortal(this, pos);
+			EndGatewayBlockEntity.startTeleportCooldown(world, pos, state, endGatewayBlockEntity);
+		}
+	}
 
-   @Override
-   protected BlockRenderType getRenderType(BlockState state) {
-      return BlockRenderType.INVISIBLE;
-   }
+	@Override
+	public @Nullable TeleportTarget createTeleportTarget(ServerWorld world, Entity entity, BlockPos pos) {
+		if (world.getBlockEntity(pos) instanceof EndGatewayBlockEntity endGatewayBlockEntity) {
+			Vec3d vec3d = endGatewayBlockEntity.getOrCreateExitPortalPos(world, pos);
+			if (vec3d == null) {
+				return null;
+			}
+			else {
+				return entity instanceof EnderPearlEntity
+				       ? new TeleportTarget(
+						world,
+						vec3d,
+						Vec3d.ZERO,
+						0.0F,
+						0.0F,
+						Set.of(),
+						TeleportTarget.ADD_PORTAL_CHUNK_TICKET
+				)
+				       : new TeleportTarget(
+						       world,
+						       vec3d,
+						       Vec3d.ZERO,
+						       0.0F,
+						       0.0F,
+						       PositionFlag.combine(PositionFlag.DELTA, PositionFlag.ROT),
+						       TeleportTarget.ADD_PORTAL_CHUNK_TICKET
+				       );
+			}
+		}
+		else {
+			return null;
+		}
+	}
+
+	@Override
+	protected BlockRenderType getRenderType(BlockState state) {
+		return BlockRenderType.INVISIBLE;
+	}
 }

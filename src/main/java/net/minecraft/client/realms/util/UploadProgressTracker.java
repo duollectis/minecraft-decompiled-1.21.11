@@ -4,23 +4,27 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code UploadProgressTracker}.
+ */
 public interface UploadProgressTracker {
-   UploadProgress getUploadProgress();
 
-   void updateProgressDisplay();
+	UploadProgress getUploadProgress();
 
-   static UploadProgressTracker create() {
-      return new UploadProgressTracker() {
-         private final UploadProgress progress = new UploadProgress();
+	void updateProgressDisplay();
 
-         @Override
-         public UploadProgress getUploadProgress() {
-            return this.progress;
-         }
+	static UploadProgressTracker create() {
+		return new UploadProgressTracker() {
+			private final UploadProgress progress = new UploadProgress();
 
-         @Override
-         public void updateProgressDisplay() {
-         }
-      };
-   }
+			@Override
+			public UploadProgress getUploadProgress() {
+				return this.progress;
+			}
+
+			@Override
+			public void updateProgressDisplay() {
+			}
+		};
+	}
 }

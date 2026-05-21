@@ -9,12 +9,16 @@ import net.minecraft.client.texture.TextureSetup;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SimpleGuiElementRenderState}.
+ */
 public interface SimpleGuiElementRenderState extends GuiElementRenderState {
-   void setupVertices(VertexConsumer vertices);
 
-   RenderPipeline pipeline();
+	void setupVertices(VertexConsumer vertices);
 
-   TextureSetup textureSetup();
+	RenderPipeline pipeline();
 
-   @Nullable ScreenRect scissorArea();
+	TextureSetup textureSetup();
+
+	@Nullable ScreenRect scissorArea();
 }

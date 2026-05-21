@@ -3,20 +3,24 @@ package net.minecraft.server.dedicated.management;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 
+/**
+ * {@code RpcRemoteErrorException}.
+ */
 public class RpcRemoteErrorException extends RuntimeException {
-   private final JsonElement id;
-   private final JsonObject error;
 
-   public RpcRemoteErrorException(JsonElement id, JsonObject error) {
-      this.id = id;
-      this.error = error;
-   }
+	private final JsonElement id;
+	private final JsonObject error;
 
-   private JsonObject getError() {
-      return this.error;
-   }
+	public RpcRemoteErrorException(JsonElement id, JsonObject error) {
+		this.id = id;
+		this.error = error;
+	}
 
-   private JsonElement getId() {
-      return this.id;
-   }
+	private JsonObject getError() {
+		return this.error;
+	}
+
+	private JsonElement getId() {
+		return this.id;
+	}
 }

@@ -1,36 +1,41 @@
 package net.minecraft.command;
 
 @FunctionalInterface
+/**
+ * {@code ReturnValueConsumer}.
+ */
 public interface ReturnValueConsumer {
-   ReturnValueConsumer EMPTY = new ReturnValueConsumer() {
-      @Override
-      public void onResult(boolean bl, int i) {
-      }
 
-      @Override
-      public String toString() {
-         return "<empty>";
-      }
-   };
+	ReturnValueConsumer EMPTY = new ReturnValueConsumer() {
+		@Override
+		public void onResult(boolean bl, int i) {
+		}
 
-   void onResult(boolean successful, int returnValue);
+		@Override
+		public String toString() {
+			return "<empty>";
+		}
+	};
 
-   default void onSuccess(int successful) {
-      this.onResult(true, successful);
-   }
+	void onResult(boolean successful, int returnValue);
 
-   default void onFailure() {
-      this.onResult(false, 0);
-   }
+	default void onSuccess(int successful) {
+		this.onResult(true, successful);
+	}
 
-   static ReturnValueConsumer chain(ReturnValueConsumer a, ReturnValueConsumer b) {
-      if (a == EMPTY) {
-         return b;
-      } else {
-         return b == EMPTY ? a : (successful, returnValue) -> {
-            a.onResult(successful, returnValue);
-            b.onResult(successful, returnValue);
-         };
-      }
-   }
+	default void onFailure() {
+		this.onResult(false, 0);
+	}
+
+	static ReturnValueConsumer chain(ReturnValueConsumer a, ReturnValueConsumer b) {
+		if (a == EMPTY) {
+			return b;
+		}
+		else {
+			return b == EMPTY ? a : (successful, returnValue) -> {
+				a.onResult(successful, returnValue);
+				b.onResult(successful, returnValue);
+			};
+		}
+	}
 }

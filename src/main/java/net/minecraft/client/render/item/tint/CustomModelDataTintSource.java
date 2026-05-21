@@ -14,30 +14,34 @@ import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CustomModelDataTintSource}.
+ */
 public record CustomModelDataTintSource(int index, int defaultColor) implements TintSource {
-   public static final MapCodec<CustomModelDataTintSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codecs.NON_NEGATIVE_INT.optionalFieldOf("index", 0).forGetter(CustomModelDataTintSource::index),
-            Codecs.RGB.fieldOf("default").forGetter(CustomModelDataTintSource::defaultColor)
-         )
-         .apply(instance, CustomModelDataTintSource::new)
-   );
 
-   @Override
-   public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
-      CustomModelDataComponent customModelDataComponent = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
-      if (customModelDataComponent != null) {
-         Integer integer = customModelDataComponent.getColor(this.index);
-         if (integer != null) {
-            return ColorHelper.fullAlpha(integer);
-         }
-      }
+	public static final MapCodec<CustomModelDataTintSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codecs.NON_NEGATIVE_INT.optionalFieldOf("index", 0).forGetter(CustomModelDataTintSource::index),
+					                    Codecs.RGB.fieldOf("default").forGetter(CustomModelDataTintSource::defaultColor)
+			                    )
+			                    .apply(instance, CustomModelDataTintSource::new)
+	);
 
-      return ColorHelper.fullAlpha(this.defaultColor);
-   }
+	@Override
+	public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
+		CustomModelDataComponent customModelDataComponent = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+		if (customModelDataComponent != null) {
+			Integer integer = customModelDataComponent.getColor(this.index);
+			if (integer != null) {
+				return ColorHelper.fullAlpha(integer);
+			}
+		}
 
-   @Override
-   public MapCodec<CustomModelDataTintSource> getCodec() {
-      return CODEC;
-   }
+		return ColorHelper.fullAlpha(this.defaultColor);
+	}
+
+	@Override
+	public MapCodec<CustomModelDataTintSource> getCodec() {
+		return CODEC;
+	}
 }

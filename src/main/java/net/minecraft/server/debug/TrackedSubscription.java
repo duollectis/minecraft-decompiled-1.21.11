@@ -1,13 +1,6 @@
 package net.minecraft.server.debug;
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
-import java.util.Map.Entry;
-import java.util.function.BiConsumer;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
@@ -29,282 +22,377 @@ import net.minecraft.world.poi.PointOfInterest;
 import net.minecraft.world.poi.PointOfInterestStorage;
 import org.jspecify.annotations.Nullable;
 
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.function.BiConsumer;
+
+/**
+ * {@code TrackedSubscription}.
+ */
 public abstract class TrackedSubscription<T> {
-   protected final DebugSubscriptionType<T> type;
-   private final Set<UUID> subscribingPlayers = new ObjectOpenHashSet();
 
-   public TrackedSubscription(DebugSubscriptionType<T> type) {
-      this.type = type;
-   }
+	protected final DebugSubscriptionType<T> type;
+	private final Set<UUID> subscribingPlayers = new ObjectOpenHashSet();
 
-   public final void refreshTracking(ServerWorld world) {
-      for (ServerPlayerEntity serverPlayerEntity : world.getPlayers()) {
-         boolean bl = this.subscribingPlayers.contains(serverPlayerEntity.getUuid());
-         boolean bl2 = serverPlayerEntity.getSubscribedTypes().contains(this.type);
-         if (bl2 != bl) {
-            if (bl2) {
-               this.startTracking(serverPlayerEntity);
-            } else {
-               this.subscribingPlayers.remove(serverPlayerEntity.getUuid());
-            }
-         }
-      }
+	public TrackedSubscription(DebugSubscriptionType<T> type) {
+		this.type = type;
+	}
 
-      this.subscribingPlayers.removeIf(uuid -> world.getPlayerByUuid(uuid) == null);
-      if (!this.subscribingPlayers.isEmpty()) {
-         this.sendUpdate(world);
-      }
-   }
+	public final void refreshTracking(ServerWorld world) {
+		for (ServerPlayerEntity serverPlayerEntity : world.getPlayers()) {
+			boolean bl = this.subscribingPlayers.contains(serverPlayerEntity.getUuid());
+			boolean bl2 = serverPlayerEntity.getSubscribedTypes().contains(this.type);
+			if (bl2 != bl) {
+				if (bl2) {
+					this.startTracking(serverPlayerEntity);
+				}
+				else {
+					this.subscribingPlayers.remove(serverPlayerEntity.getUuid());
+				}
+			}
+		}
 
-   private void startTracking(ServerPlayerEntity player) {
-      this.subscribingPlayers.add(player.getUuid());
-      player.getChunkFilter().forEach(chunkPos -> {
-         if (!player.networkHandler.chunkDataSender.isInNextBatch(chunkPos.toLong())) {
-            this.sendInitialIfSubscribed(player, chunkPos);
-         }
-      });
-      player.getEntityWorld().getChunkManager().chunkLoadingManager.forEachEntityTrackedBy(player, entity -> this.sendInitialIfSubscribed(player, entity));
-   }
+		this.subscribingPlayers.removeIf(uuid -> world.getPlayerByUuid(uuid) == null);
+		if (!this.subscribingPlayers.isEmpty()) {
+			this.sendUpdate(world);
+		}
+	}
 
-   protected final void sendToTrackingPlayers(ServerWorld world, ChunkPos chunkPos, Packet<? super ClientPlayPacketListener> packet) {
-      ServerChunkLoadingManager serverChunkLoadingManager = world.getChunkManager().chunkLoadingManager;
+	private void startTracking(ServerPlayerEntity player) {
+		this.subscribingPlayers.add(player.getUuid());
+		player.getChunkFilter().forEach(chunkPos -> {
+			if (!player.networkHandler.chunkDataSender.isInNextBatch(chunkPos.toLong())) {
+				this.sendInitialIfSubscribed(player, chunkPos);
+			}
+		});
+		player.getEntityWorld().getChunkManager().chunkLoadingManager.forEachEntityTrackedBy(
+				player,
+				entity -> this.sendInitialIfSubscribed(player, entity)
+		);
+	}
 
-      for (UUID uUID : this.subscribingPlayers) {
-         if (world.getPlayerByUuid(uUID) instanceof ServerPlayerEntity serverPlayerEntity
-            && serverChunkLoadingManager.isTracked(serverPlayerEntity, chunkPos.x, chunkPos.z)) {
-            serverPlayerEntity.networkHandler.sendPacket(packet);
-         }
-      }
-   }
+	protected final void sendToTrackingPlayers(
+			ServerWorld world,
+			ChunkPos chunkPos,
+			Packet<? super ClientPlayPacketListener> packet
+	) {
+		ServerChunkLoadingManager serverChunkLoadingManager = world.getChunkManager().chunkLoadingManager;
 
-   protected final void sendToTrackingPlayers(ServerWorld world, Entity entity, Packet<? super ClientPlayPacketListener> packet) {
-      ServerChunkLoadingManager serverChunkLoadingManager = world.getChunkManager().chunkLoadingManager;
-      serverChunkLoadingManager.sendToOtherNearbyPlayersIf(entity, packet, player -> this.subscribingPlayers.contains(player.getUuid()));
-   }
+		for (UUID uUID : this.subscribingPlayers) {
+			if (world.getPlayerByUuid(uUID) instanceof ServerPlayerEntity serverPlayerEntity
+					&& serverChunkLoadingManager.isTracked(serverPlayerEntity, chunkPos.x, chunkPos.z)) {
+				serverPlayerEntity.networkHandler.sendPacket(packet);
+			}
+		}
+	}
 
-   public final void sendInitialIfSubscribed(ServerPlayerEntity player, ChunkPos chunkPos) {
-      if (this.subscribingPlayers.contains(player.getUuid())) {
-         this.sendInitial(player, chunkPos);
-      }
-   }
+	protected final void sendToTrackingPlayers(
+			ServerWorld world,
+			Entity entity,
+			Packet<? super ClientPlayPacketListener> packet
+	) {
+		ServerChunkLoadingManager serverChunkLoadingManager = world.getChunkManager().chunkLoadingManager;
+		serverChunkLoadingManager.sendToOtherNearbyPlayersIf(
+				entity,
+				packet,
+				player -> this.subscribingPlayers.contains(player.getUuid())
+		);
+	}
 
-   public final void sendInitialIfSubscribed(ServerPlayerEntity player, Entity entity) {
-      if (this.subscribingPlayers.contains(player.getUuid())) {
-         this.sendInitial(player, entity);
-      }
-   }
+	public final void sendInitialIfSubscribed(ServerPlayerEntity player, ChunkPos chunkPos) {
+		if (this.subscribingPlayers.contains(player.getUuid())) {
+			this.sendInitial(player, chunkPos);
+		}
+	}
 
-   protected void clear() {
-   }
+	public final void sendInitialIfSubscribed(ServerPlayerEntity player, Entity entity) {
+		if (this.subscribingPlayers.contains(player.getUuid())) {
+			this.sendInitial(player, entity);
+		}
+	}
 
-   protected void sendUpdate(ServerWorld world) {
-   }
+	protected void clear() {
+	}
 
-   protected void sendInitial(ServerPlayerEntity player, ChunkPos chunkPos) {
-   }
+	protected void sendUpdate(ServerWorld world) {
+	}
 
-   protected void sendInitial(ServerPlayerEntity player, Entity entity) {
-   }
+	protected void sendInitial(ServerPlayerEntity player, ChunkPos chunkPos) {
+	}
 
-   public static class TrackedPoi extends TrackedSubscription<PoiDebugData> {
-      public TrackedPoi() {
-         super(DebugSubscriptionTypes.POIS);
-      }
+	protected void sendInitial(ServerPlayerEntity player, Entity entity) {
+	}
 
-      @Override
-      protected void sendInitial(ServerPlayerEntity player, ChunkPos chunkPos) {
-         ServerWorld serverWorld = player.getEntityWorld();
-         PointOfInterestStorage pointOfInterestStorage = serverWorld.getPointOfInterestStorage();
-         pointOfInterestStorage.getInChunk(type -> true, chunkPos, PointOfInterestStorage.OccupationStatus.ANY)
-            .forEach(poi -> player.networkHandler.sendPacket(new BlockValueDebugS2CPacket(poi.getPos(), this.type.optionalValueFor(new PoiDebugData(poi)))));
-      }
+	/**
+	 * {@code TrackedPoi}.
+	 */
+	public static class TrackedPoi extends TrackedSubscription<PoiDebugData> {
 
-      public void onPoiAdded(ServerWorld world, PointOfInterest poi) {
-         this.sendToTrackingPlayers(
-            world, new ChunkPos(poi.getPos()), new BlockValueDebugS2CPacket(poi.getPos(), this.type.optionalValueFor(new PoiDebugData(poi)))
-         );
-      }
+		public TrackedPoi() {
+			super(DebugSubscriptionTypes.POIS);
+		}
 
-      public void onPoiRemoved(ServerWorld world, BlockPos pos) {
-         this.sendToTrackingPlayers(world, new ChunkPos(pos), new BlockValueDebugS2CPacket(pos, this.type.optionalValueFor()));
-      }
+		@Override
+		protected void sendInitial(ServerPlayerEntity player, ChunkPos chunkPos) {
+			ServerWorld serverWorld = player.getEntityWorld();
+			PointOfInterestStorage pointOfInterestStorage = serverWorld.getPointOfInterestStorage();
+			pointOfInterestStorage.getInChunk(type -> true, chunkPos, PointOfInterestStorage.OccupationStatus.ANY)
+			                      .forEach(poi -> player.networkHandler.sendPacket(new BlockValueDebugS2CPacket(
+					                      poi.getPos(),
+					                      this.type.optionalValueFor(new PoiDebugData(poi))
+			                      )));
+		}
 
-      public void onPoiUpdated(ServerWorld world, BlockPos pos) {
-         this.sendToTrackingPlayers(
-            world, new ChunkPos(pos), new BlockValueDebugS2CPacket(pos, this.type.optionalValueFor(world.getPointOfInterestStorage().getDebugData(pos)))
-         );
-      }
-   }
+		public void onPoiAdded(ServerWorld world, PointOfInterest poi) {
+			this.sendToTrackingPlayers(
+					world,
+					new ChunkPos(poi.getPos()),
+					new BlockValueDebugS2CPacket(poi.getPos(), this.type.optionalValueFor(new PoiDebugData(poi)))
+			);
+		}
 
-   public static class TrackedVillageSections extends TrackedSubscription<Unit> {
-      public TrackedVillageSections() {
-         super(DebugSubscriptionTypes.VILLAGE_SECTIONS);
-      }
+		public void onPoiRemoved(ServerWorld world, BlockPos pos) {
+			this.sendToTrackingPlayers(
+					world,
+					new ChunkPos(pos),
+					new BlockValueDebugS2CPacket(pos, this.type.optionalValueFor())
+			);
+		}
 
-      @Override
-      protected void sendInitial(ServerPlayerEntity player, ChunkPos chunkPos) {
-         ServerWorld serverWorld = player.getEntityWorld();
-         PointOfInterestStorage pointOfInterestStorage = serverWorld.getPointOfInterestStorage();
-         pointOfInterestStorage.getInChunk(type -> true, chunkPos, PointOfInterestStorage.OccupationStatus.ANY).forEach(poi -> {
-            ChunkSectionPos chunkSectionPos = ChunkSectionPos.from(poi.getPos());
-            forEachSurrounding(serverWorld, chunkSectionPos, (sectionPos, nearOccupiedPoi) -> {
-               BlockPos blockPos = sectionPos.getCenterPos();
-               player.networkHandler.sendPacket(new BlockValueDebugS2CPacket(blockPos, this.type.optionalValueFor(nearOccupiedPoi ? Unit.INSTANCE : null)));
-            });
-         });
-      }
+		public void onPoiUpdated(ServerWorld world, BlockPos pos) {
+			this.sendToTrackingPlayers(
+					world,
+					new ChunkPos(pos),
+					new BlockValueDebugS2CPacket(
+							pos,
+							this.type.optionalValueFor(world.getPointOfInterestStorage().getDebugData(pos))
+					)
+			);
+		}
+	}
 
-      public void onPoiAdded(ServerWorld world, PointOfInterest poi) {
-         this.handlePoiUpdate(world, poi.getPos());
-      }
+	/**
+	 * {@code TrackedVillageSections}.
+	 */
+	public static class TrackedVillageSections extends TrackedSubscription<Unit> {
 
-      public void onPoiRemoved(ServerWorld world, BlockPos pos) {
-         this.handlePoiUpdate(world, pos);
-      }
+		public TrackedVillageSections() {
+			super(DebugSubscriptionTypes.VILLAGE_SECTIONS);
+		}
 
-      private void handlePoiUpdate(ServerWorld world, BlockPos pos) {
-         forEachSurrounding(world, ChunkSectionPos.from(pos), (sectionPos, nearOccupiedPoi) -> {
-            BlockPos blockPos = sectionPos.getCenterPos();
-            if (nearOccupiedPoi) {
-               this.sendToTrackingPlayers(world, new ChunkPos(blockPos), new BlockValueDebugS2CPacket(blockPos, this.type.optionalValueFor(Unit.INSTANCE)));
-            } else {
-               this.sendToTrackingPlayers(world, new ChunkPos(blockPos), new BlockValueDebugS2CPacket(blockPos, this.type.optionalValueFor()));
-            }
-         });
-      }
+		@Override
+		protected void sendInitial(ServerPlayerEntity player, ChunkPos chunkPos) {
+			ServerWorld serverWorld = player.getEntityWorld();
+			PointOfInterestStorage pointOfInterestStorage = serverWorld.getPointOfInterestStorage();
+			pointOfInterestStorage
+					.getInChunk(type -> true, chunkPos, PointOfInterestStorage.OccupationStatus.ANY)
+					.forEach(poi -> {
+						ChunkSectionPos chunkSectionPos = ChunkSectionPos.from(poi.getPos());
+						forEachSurrounding(
+								serverWorld, chunkSectionPos, (sectionPos, nearOccupiedPoi) -> {
+									BlockPos blockPos = sectionPos.getCenterPos();
+									player.networkHandler.sendPacket(new BlockValueDebugS2CPacket(
+											blockPos,
+											this.type.optionalValueFor(nearOccupiedPoi ? Unit.INSTANCE : null)
+									));
+								}
+						);
+					});
+		}
 
-      private static void forEachSurrounding(ServerWorld world, ChunkSectionPos sectionPos, BiConsumer<ChunkSectionPos, Boolean> action) {
-         for (int i = -1; i <= 1; i++) {
-            for (int j = -1; j <= 1; j++) {
-               for (int k = -1; k <= 1; k++) {
-                  ChunkSectionPos chunkSectionPos = sectionPos.add(j, k, i);
-                  if (world.isNearOccupiedPointOfInterest(chunkSectionPos.getCenterPos())) {
-                     action.accept(chunkSectionPos, true);
-                  } else {
-                     action.accept(chunkSectionPos, false);
-                  }
-               }
-            }
-         }
-      }
-   }
+		public void onPoiAdded(ServerWorld world, PointOfInterest poi) {
+			this.handlePoiUpdate(world, poi.getPos());
+		}
 
-   static class UpdateQuerier<T> {
-      private final DebugTrackable.DebugDataSupplier<T> dataSupplier;
-      @Nullable T lastData;
+		public void onPoiRemoved(ServerWorld world, BlockPos pos) {
+			this.handlePoiUpdate(world, pos);
+		}
 
-      UpdateQuerier(DebugTrackable.DebugDataSupplier<T> dataSupplier) {
-         this.dataSupplier = dataSupplier;
-      }
+		private void handlePoiUpdate(ServerWorld world, BlockPos pos) {
+			forEachSurrounding(
+					world, ChunkSectionPos.from(pos), (sectionPos, nearOccupiedPoi) -> {
+						BlockPos blockPos = sectionPos.getCenterPos();
+						if (nearOccupiedPoi) {
+							this.sendToTrackingPlayers(
+									world,
+									new ChunkPos(blockPos),
+									new BlockValueDebugS2CPacket(blockPos, this.type.optionalValueFor(Unit.INSTANCE))
+							);
+						}
+						else {
+							this.sendToTrackingPlayers(
+									world,
+									new ChunkPos(blockPos),
+									new BlockValueDebugS2CPacket(blockPos, this.type.optionalValueFor())
+							);
+						}
+					}
+			);
+		}
 
-      public DebugSubscriptionType.@Nullable OptionalValue<T> queryUpdate(DebugSubscriptionType<T> type) {
-         T object = this.dataSupplier.get();
-         if (!Objects.equals(object, this.lastData)) {
-            this.lastData = object;
-            return type.optionalValueFor(object);
-         } else {
-            return null;
-         }
-      }
-   }
+		private static void forEachSurrounding(
+				ServerWorld world,
+				ChunkSectionPos sectionPos,
+				BiConsumer<ChunkSectionPos, Boolean> action
+		) {
+			for (int i = -1; i <= 1; i++) {
+				for (int j = -1; j <= 1; j++) {
+					for (int k = -1; k <= 1; k++) {
+						ChunkSectionPos chunkSectionPos = sectionPos.add(j, k, i);
+						if (world.isNearOccupiedPointOfInterest(chunkSectionPos.getCenterPos())) {
+							action.accept(chunkSectionPos, true);
+						}
+						else {
+							action.accept(chunkSectionPos, false);
+						}
+					}
+				}
+			}
+		}
+	}
 
-   public static class UpdateTrackedSubscription<T> extends TrackedSubscription<T> {
-      private final Map<ChunkPos, TrackedSubscription.UpdateQuerier<T>> trackedChunks = new HashMap<>();
-      private final Map<BlockPos, TrackedSubscription.UpdateQuerier<T>> trackedBlockEntities = new HashMap<>();
-      private final Map<UUID, TrackedSubscription.UpdateQuerier<T>> trackedEntities = new HashMap<>();
+	/**
+	 * {@code UpdateQuerier}.
+	 */
+	static class UpdateQuerier<T> {
 
-      public UpdateTrackedSubscription(DebugSubscriptionType<T> debugSubscriptionType) {
-         super(debugSubscriptionType);
-      }
+		private final DebugTrackable.DebugDataSupplier<T> dataSupplier;
+		@Nullable T lastData;
 
-      @Override
-      protected void clear() {
-         this.trackedChunks.clear();
-         this.trackedBlockEntities.clear();
-         this.trackedEntities.clear();
-      }
+		UpdateQuerier(DebugTrackable.DebugDataSupplier<T> dataSupplier) {
+			this.dataSupplier = dataSupplier;
+		}
 
-      @Override
-      protected void sendUpdate(ServerWorld world) {
-         for (Entry<ChunkPos, TrackedSubscription.UpdateQuerier<T>> entry : this.trackedChunks.entrySet()) {
-            DebugSubscriptionType.OptionalValue<T> optionalValue = entry.getValue().queryUpdate(this.type);
-            if (optionalValue != null) {
-               ChunkPos chunkPos = entry.getKey();
-               this.sendToTrackingPlayers(world, chunkPos, new ChunkValueDebugS2CPacket(chunkPos, optionalValue));
-            }
-         }
+		public DebugSubscriptionType.@Nullable OptionalValue<T> queryUpdate(DebugSubscriptionType<T> type) {
+			T object = this.dataSupplier.get();
+			if (!Objects.equals(object, this.lastData)) {
+				this.lastData = object;
+				return type.optionalValueFor(object);
+			}
+			else {
+				return null;
+			}
+		}
+	}
 
-         for (Entry<BlockPos, TrackedSubscription.UpdateQuerier<T>> entryx : this.trackedBlockEntities.entrySet()) {
-            DebugSubscriptionType.OptionalValue<T> optionalValue = entryx.getValue().queryUpdate(this.type);
-            if (optionalValue != null) {
-               BlockPos blockPos = entryx.getKey();
-               ChunkPos chunkPos2 = new ChunkPos(blockPos);
-               this.sendToTrackingPlayers(world, chunkPos2, new BlockValueDebugS2CPacket(blockPos, optionalValue));
-            }
-         }
+	/**
+	 * {@code UpdateTrackedSubscription}.
+	 */
+	public static class UpdateTrackedSubscription<T> extends TrackedSubscription<T> {
 
-         for (Entry<UUID, TrackedSubscription.UpdateQuerier<T>> entryxx : this.trackedEntities.entrySet()) {
-            DebugSubscriptionType.OptionalValue<T> optionalValue = entryxx.getValue().queryUpdate(this.type);
-            if (optionalValue != null) {
-               Entity entity = Objects.requireNonNull(world.getEntity(entryxx.getKey()));
-               this.sendToTrackingPlayers(world, entity, new EntityValueDebugS2CPacket(entity.getId(), optionalValue));
-            }
-         }
-      }
+		private final Map<ChunkPos, TrackedSubscription.UpdateQuerier<T>> trackedChunks = new HashMap<>();
+		private final Map<BlockPos, TrackedSubscription.UpdateQuerier<T>> trackedBlockEntities = new HashMap<>();
+		private final Map<UUID, TrackedSubscription.UpdateQuerier<T>> trackedEntities = new HashMap<>();
 
-      public void trackChunk(ChunkPos chunkPos, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
-         this.trackedChunks.put(chunkPos, new TrackedSubscription.UpdateQuerier<>(dataSupplier));
-      }
+		public UpdateTrackedSubscription(DebugSubscriptionType<T> debugSubscriptionType) {
+			super(debugSubscriptionType);
+		}
 
-      public void trackBlockEntity(BlockPos chunkPos, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
-         this.trackedBlockEntities.put(chunkPos, new TrackedSubscription.UpdateQuerier<>(dataSupplier));
-      }
+		@Override
+		protected void clear() {
+			this.trackedChunks.clear();
+			this.trackedBlockEntities.clear();
+			this.trackedEntities.clear();
+		}
 
-      public void trackEntity(UUID uuid, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
-         this.trackedEntities.put(uuid, new TrackedSubscription.UpdateQuerier<>(dataSupplier));
-      }
+		@Override
+		protected void sendUpdate(ServerWorld world) {
+			for (Entry<ChunkPos, TrackedSubscription.UpdateQuerier<T>> entry : this.trackedChunks.entrySet()) {
+				DebugSubscriptionType.OptionalValue<T> optionalValue = entry.getValue().queryUpdate(this.type);
+				if (optionalValue != null) {
+					ChunkPos chunkPos = entry.getKey();
+					this.sendToTrackingPlayers(world, chunkPos, new ChunkValueDebugS2CPacket(chunkPos, optionalValue));
+				}
+			}
 
-      public void untrackChunk(ChunkPos chunkPos) {
-         this.trackedChunks.remove(chunkPos);
-         this.trackedBlockEntities.keySet().removeIf(chunkPos::contains);
-      }
+			for (Entry<BlockPos, TrackedSubscription.UpdateQuerier<T>> entryx : this.trackedBlockEntities.entrySet()) {
+				DebugSubscriptionType.OptionalValue<T> optionalValue = entryx.getValue().queryUpdate(this.type);
+				if (optionalValue != null) {
+					BlockPos blockPos = entryx.getKey();
+					ChunkPos chunkPos2 = new ChunkPos(blockPos);
+					this.sendToTrackingPlayers(world, chunkPos2, new BlockValueDebugS2CPacket(blockPos, optionalValue));
+				}
+			}
 
-      public void untrackBlockEntity(ServerWorld world, BlockPos pos) {
-         TrackedSubscription.UpdateQuerier<T> updateQuerier = this.trackedBlockEntities.remove(pos);
-         if (updateQuerier != null) {
-            ChunkPos chunkPos = new ChunkPos(pos);
-            this.sendToTrackingPlayers(world, chunkPos, new BlockValueDebugS2CPacket(pos, this.type.optionalValueFor()));
-         }
-      }
+			for (Entry<UUID, TrackedSubscription.UpdateQuerier<T>> entryxx : this.trackedEntities.entrySet()) {
+				DebugSubscriptionType.OptionalValue<T> optionalValue = entryxx.getValue().queryUpdate(this.type);
+				if (optionalValue != null) {
+					Entity entity = Objects.requireNonNull(world.getEntity(entryxx.getKey()));
+					this.sendToTrackingPlayers(
+							world,
+							entity,
+							new EntityValueDebugS2CPacket(entity.getId(), optionalValue)
+					);
+				}
+			}
+		}
 
-      public void untrackEntity(Entity entity) {
-         this.trackedEntities.remove(entity.getUuid());
-      }
+		public void trackChunk(ChunkPos chunkPos, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
+			this.trackedChunks.put(chunkPos, new TrackedSubscription.UpdateQuerier<>(dataSupplier));
+		}
 
-      @Override
-      protected void sendInitial(ServerPlayerEntity player, ChunkPos chunkPos) {
-         TrackedSubscription.UpdateQuerier<T> updateQuerier = this.trackedChunks.get(chunkPos);
-         if (updateQuerier != null && updateQuerier.lastData != null) {
-            player.networkHandler.sendPacket(new ChunkValueDebugS2CPacket(chunkPos, this.type.optionalValueFor(updateQuerier.lastData)));
-         }
+		public void trackBlockEntity(BlockPos chunkPos, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
+			this.trackedBlockEntities.put(chunkPos, new TrackedSubscription.UpdateQuerier<>(dataSupplier));
+		}
 
-         for (Entry<BlockPos, TrackedSubscription.UpdateQuerier<T>> entry : this.trackedBlockEntities.entrySet()) {
-            T object = entry.getValue().lastData;
-            if (object != null) {
-               BlockPos blockPos = entry.getKey();
-               if (chunkPos.contains(blockPos)) {
-                  player.networkHandler.sendPacket(new BlockValueDebugS2CPacket(blockPos, this.type.optionalValueFor(object)));
-               }
-            }
-         }
-      }
+		public void trackEntity(UUID uuid, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
+			this.trackedEntities.put(uuid, new TrackedSubscription.UpdateQuerier<>(dataSupplier));
+		}
 
-      @Override
-      protected void sendInitial(ServerPlayerEntity player, Entity entity) {
-         TrackedSubscription.UpdateQuerier<T> updateQuerier = this.trackedEntities.get(entity.getUuid());
-         if (updateQuerier != null && updateQuerier.lastData != null) {
-            player.networkHandler.sendPacket(new EntityValueDebugS2CPacket(entity.getId(), this.type.optionalValueFor(updateQuerier.lastData)));
-         }
-      }
-   }
+		public void untrackChunk(ChunkPos chunkPos) {
+			this.trackedChunks.remove(chunkPos);
+			this.trackedBlockEntities.keySet().removeIf(chunkPos::contains);
+		}
+
+		public void untrackBlockEntity(ServerWorld world, BlockPos pos) {
+			TrackedSubscription.UpdateQuerier<T> updateQuerier = this.trackedBlockEntities.remove(pos);
+			if (updateQuerier != null) {
+				ChunkPos chunkPos = new ChunkPos(pos);
+				this.sendToTrackingPlayers(
+						world,
+						chunkPos,
+						new BlockValueDebugS2CPacket(pos, this.type.optionalValueFor())
+				);
+			}
+		}
+
+		public void untrackEntity(Entity entity) {
+			this.trackedEntities.remove(entity.getUuid());
+		}
+
+		@Override
+		protected void sendInitial(ServerPlayerEntity player, ChunkPos chunkPos) {
+			TrackedSubscription.UpdateQuerier<T> updateQuerier = this.trackedChunks.get(chunkPos);
+			if (updateQuerier != null && updateQuerier.lastData != null) {
+				player.networkHandler.sendPacket(new ChunkValueDebugS2CPacket(
+						chunkPos,
+						this.type.optionalValueFor(updateQuerier.lastData)
+				));
+			}
+
+			for (Entry<BlockPos, TrackedSubscription.UpdateQuerier<T>> entry : this.trackedBlockEntities.entrySet()) {
+				T object = entry.getValue().lastData;
+				if (object != null) {
+					BlockPos blockPos = entry.getKey();
+					if (chunkPos.contains(blockPos)) {
+						player.networkHandler.sendPacket(new BlockValueDebugS2CPacket(
+								blockPos,
+								this.type.optionalValueFor(object)
+						));
+					}
+				}
+			}
+		}
+
+		@Override
+		protected void sendInitial(ServerPlayerEntity player, Entity entity) {
+			TrackedSubscription.UpdateQuerier<T> updateQuerier = this.trackedEntities.get(entity.getUuid());
+			if (updateQuerier != null && updateQuerier.lastData != null) {
+				player.networkHandler.sendPacket(new EntityValueDebugS2CPacket(
+						entity.getId(),
+						this.type.optionalValueFor(updateQuerier.lastData)
+				));
+			}
+		}
+	}
 }

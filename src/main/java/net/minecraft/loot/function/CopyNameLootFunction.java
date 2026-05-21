@@ -2,8 +2,6 @@ package net.minecraft.loot.function;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.Set;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.ItemStack;
 import net.minecraft.loot.condition.LootCondition;
@@ -12,39 +10,48 @@ import net.minecraft.loot.context.LootEntityValueSource;
 import net.minecraft.util.Nameable;
 import net.minecraft.util.context.ContextParameter;
 
+import java.util.List;
+import java.util.Set;
+
+/**
+ * {@code CopyNameLootFunction}.
+ */
 public class CopyNameLootFunction extends ConditionalLootFunction {
-   public static final MapCodec<CopyNameLootFunction> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> addConditionsField(instance)
-         .and(LootEntityValueSource.ENTITY_OR_BLOCK_ENTITY_CODEC.fieldOf("source").forGetter(function -> function.source))
-         .apply(instance, CopyNameLootFunction::new)
-   );
-   private final LootEntityValueSource<Object> source;
 
-   private CopyNameLootFunction(List<LootCondition> conditions, LootEntityValueSource<?> source) {
-      super(conditions);
-      this.source = LootEntityValueSource.cast((LootEntityValueSource<? extends Object>)source);
-   }
+	public static final MapCodec<CopyNameLootFunction> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> addConditionsField(instance)
+					.and(LootEntityValueSource.ENTITY_OR_BLOCK_ENTITY_CODEC
+							.fieldOf("source")
+							.forGetter(function -> function.source))
+					.apply(instance, CopyNameLootFunction::new)
+	);
+	private final LootEntityValueSource<Object> source;
 
-   @Override
-   public LootFunctionType<CopyNameLootFunction> getType() {
-      return LootFunctionTypes.COPY_NAME;
-   }
+	private CopyNameLootFunction(List<LootCondition> conditions, LootEntityValueSource<?> source) {
+		super(conditions);
+		this.source = LootEntityValueSource.cast((LootEntityValueSource<? extends Object>) source);
+	}
 
-   @Override
-   public Set<ContextParameter<?>> getAllowedParameters() {
-      return Set.of(this.source.contextParam());
-   }
+	@Override
+	public LootFunctionType<CopyNameLootFunction> getType() {
+		return LootFunctionTypes.COPY_NAME;
+	}
 
-   @Override
-   public ItemStack process(ItemStack stack, LootContext context) {
-      if (this.source.get(context) instanceof Nameable nameable) {
-         stack.set(DataComponentTypes.CUSTOM_NAME, nameable.getCustomName());
-      }
+	@Override
+	public Set<ContextParameter<?>> getAllowedParameters() {
+		return Set.of(this.source.contextParam());
+	}
 
-      return stack;
-   }
+	@Override
+	public ItemStack process(ItemStack stack, LootContext context) {
+		if (this.source.get(context) instanceof Nameable nameable) {
+			stack.set(DataComponentTypes.CUSTOM_NAME, nameable.getCustomName());
+		}
 
-   public static ConditionalLootFunction.Builder<?> builder(LootEntityValueSource<?> source) {
-      return builder(conditions -> new CopyNameLootFunction(conditions, source));
-   }
+		return stack;
+	}
+
+	public static ConditionalLootFunction.Builder<?> builder(LootEntityValueSource<?> source) {
+		return builder(conditions -> new CopyNameLootFunction(conditions, source));
+	}
 }

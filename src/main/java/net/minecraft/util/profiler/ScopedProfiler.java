@@ -1,52 +1,57 @@
 package net.minecraft.util.profiler;
 
-import java.util.function.Supplier;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.Supplier;
+
+/**
+ * {@code ScopedProfiler}.
+ */
 public class ScopedProfiler implements AutoCloseable {
-   public static final ScopedProfiler DUMMY = new ScopedProfiler(null);
-   private final @Nullable Profiler wrapped;
 
-   ScopedProfiler(@Nullable Profiler wrapped) {
-      this.wrapped = wrapped;
-   }
+	public static final ScopedProfiler DUMMY = new ScopedProfiler(null);
+	private final @Nullable Profiler wrapped;
 
-   public ScopedProfiler addLabel(String label) {
-      if (this.wrapped != null) {
-         this.wrapped.addZoneText(label);
-      }
+	ScopedProfiler(@Nullable Profiler wrapped) {
+		this.wrapped = wrapped;
+	}
 
-      return this;
-   }
+	public ScopedProfiler addLabel(String label) {
+		if (this.wrapped != null) {
+			this.wrapped.addZoneText(label);
+		}
 
-   public ScopedProfiler addLabel(Supplier<String> labelSupplier) {
-      if (this.wrapped != null) {
-         this.wrapped.addZoneText(labelSupplier.get());
-      }
+		return this;
+	}
 
-      return this;
-   }
+	public ScopedProfiler addLabel(Supplier<String> labelSupplier) {
+		if (this.wrapped != null) {
+			this.wrapped.addZoneText(labelSupplier.get());
+		}
 
-   public ScopedProfiler addValue(long value) {
-      if (this.wrapped != null) {
-         this.wrapped.addZoneValue(value);
-      }
+		return this;
+	}
 
-      return this;
-   }
+	public ScopedProfiler addValue(long value) {
+		if (this.wrapped != null) {
+			this.wrapped.addZoneValue(value);
+		}
 
-   public ScopedProfiler setColor(int color) {
-      if (this.wrapped != null) {
-         this.wrapped.setZoneColor(color);
-      }
+		return this;
+	}
 
-      return this;
-   }
+	public ScopedProfiler setColor(int color) {
+		if (this.wrapped != null) {
+			this.wrapped.setZoneColor(color);
+		}
 
-   @Override
-   public void close() {
-      if (this.wrapped != null) {
-         this.wrapped.pop();
-      }
-   }
+		return this;
+	}
+
+	@Override
+	public void close() {
+		if (this.wrapped != null) {
+			this.wrapped.pop();
+		}
+	}
 }

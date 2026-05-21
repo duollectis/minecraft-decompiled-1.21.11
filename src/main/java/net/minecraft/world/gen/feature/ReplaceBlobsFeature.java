@@ -11,57 +11,69 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ReplaceBlobsFeature}.
+ */
 public class ReplaceBlobsFeature extends Feature<ReplaceBlobsFeatureConfig> {
-   public ReplaceBlobsFeature(Codec<ReplaceBlobsFeatureConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<ReplaceBlobsFeatureConfig> context) {
-      ReplaceBlobsFeatureConfig replaceBlobsFeatureConfig = context.getConfig();
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      Random random = context.getRandom();
-      Block block = replaceBlobsFeatureConfig.target.getBlock();
-      BlockPos blockPos = moveDownToTarget(
-         structureWorldAccess,
-         context.getOrigin().mutableCopy().clamp(Direction.Axis.Y, structureWorldAccess.getBottomY() + 1, structureWorldAccess.getTopYInclusive()),
-         block
-      );
-      if (blockPos == null) {
-         return false;
-      } else {
-         int i = replaceBlobsFeatureConfig.getRadius().get(random);
-         int j = replaceBlobsFeatureConfig.getRadius().get(random);
-         int k = replaceBlobsFeatureConfig.getRadius().get(random);
-         int l = Math.max(i, Math.max(j, k));
-         boolean bl = false;
+	public ReplaceBlobsFeature(Codec<ReplaceBlobsFeatureConfig> codec) {
+		super(codec);
+	}
 
-         for (BlockPos blockPos2 : BlockPos.iterateOutwards(blockPos, i, j, k)) {
-            if (blockPos2.getManhattanDistance(blockPos) > l) {
-               break;
-            }
+	@Override
+	public boolean generate(FeatureContext<ReplaceBlobsFeatureConfig> context) {
+		ReplaceBlobsFeatureConfig replaceBlobsFeatureConfig = context.getConfig();
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		Random random = context.getRandom();
+		Block block = replaceBlobsFeatureConfig.target.getBlock();
+		BlockPos blockPos = moveDownToTarget(
+				structureWorldAccess,
+				context
+						.getOrigin()
+						.mutableCopy()
+						.clamp(
+								Direction.Axis.Y,
+								structureWorldAccess.getBottomY() + 1,
+								structureWorldAccess.getTopYInclusive()
+						),
+				block
+		);
+		if (blockPos == null) {
+			return false;
+		}
+		else {
+			int i = replaceBlobsFeatureConfig.getRadius().get(random);
+			int j = replaceBlobsFeatureConfig.getRadius().get(random);
+			int k = replaceBlobsFeatureConfig.getRadius().get(random);
+			int l = Math.max(i, Math.max(j, k));
+			boolean bl = false;
 
-            BlockState blockState = structureWorldAccess.getBlockState(blockPos2);
-            if (blockState.isOf(block)) {
-               this.setBlockState(structureWorldAccess, blockPos2, replaceBlobsFeatureConfig.state);
-               bl = true;
-            }
-         }
+			for (BlockPos blockPos2 : BlockPos.iterateOutwards(blockPos, i, j, k)) {
+				if (blockPos2.getManhattanDistance(blockPos) > l) {
+					break;
+				}
 
-         return bl;
-      }
-   }
+				BlockState blockState = structureWorldAccess.getBlockState(blockPos2);
+				if (blockState.isOf(block)) {
+					this.setBlockState(structureWorldAccess, blockPos2, replaceBlobsFeatureConfig.state);
+					bl = true;
+				}
+			}
 
-   private static @Nullable BlockPos moveDownToTarget(WorldAccess world, BlockPos.Mutable mutablePos, Block target) {
-      while (mutablePos.getY() > world.getBottomY() + 1) {
-         BlockState blockState = world.getBlockState(mutablePos);
-         if (blockState.isOf(target)) {
-            return mutablePos;
-         }
+			return bl;
+		}
+	}
 
-         mutablePos.move(Direction.DOWN);
-      }
+	private static @Nullable BlockPos moveDownToTarget(WorldAccess world, BlockPos.Mutable mutablePos, Block target) {
+		while (mutablePos.getY() > world.getBottomY() + 1) {
+			BlockState blockState = world.getBlockState(mutablePos);
+			if (blockState.isOf(target)) {
+				return mutablePos;
+			}
 
-      return null;
-   }
+			mutablePos.move(Direction.DOWN);
+		}
+
+		return null;
+	}
 }

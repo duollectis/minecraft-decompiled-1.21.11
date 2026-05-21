@@ -8,33 +8,34 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class TeleportConfirmC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, TeleportConfirmC2SPacket> CODEC = Packet.createCodec(
-      TeleportConfirmC2SPacket::write, TeleportConfirmC2SPacket::new
-   );
-   private final int teleportId;
 
-   public TeleportConfirmC2SPacket(int teleportId) {
-      this.teleportId = teleportId;
-   }
+	public static final PacketCodec<PacketByteBuf, TeleportConfirmC2SPacket> CODEC = Packet.createCodec(
+			TeleportConfirmC2SPacket::write, TeleportConfirmC2SPacket::new
+	);
+	private final int teleportId;
 
-   private TeleportConfirmC2SPacket(PacketByteBuf buf) {
-      this.teleportId = buf.readVarInt();
-   }
+	public TeleportConfirmC2SPacket(int teleportId) {
+		this.teleportId = teleportId;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.teleportId);
-   }
+	private TeleportConfirmC2SPacket(PacketByteBuf buf) {
+		this.teleportId = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<TeleportConfirmC2SPacket> getPacketType() {
-      return PlayPackets.ACCEPT_TELEPORTATION;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.teleportId);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onTeleportConfirm(this);
-   }
+	@Override
+	public PacketType<TeleportConfirmC2SPacket> getPacketType() {
+		return PlayPackets.ACCEPT_TELEPORTATION;
+	}
 
-   public int getTeleportId() {
-      return this.teleportId;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onTeleportConfirm(this);
+	}
+
+	public int getTeleportId() {
+		return this.teleportId;
+	}
 }

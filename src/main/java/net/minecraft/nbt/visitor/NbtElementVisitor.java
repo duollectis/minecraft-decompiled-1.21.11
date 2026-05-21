@@ -1,43 +1,35 @@
 package net.minecraft.nbt.visitor;
 
-import net.minecraft.nbt.NbtByte;
-import net.minecraft.nbt.NbtByteArray;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtDouble;
-import net.minecraft.nbt.NbtEnd;
-import net.minecraft.nbt.NbtFloat;
-import net.minecraft.nbt.NbtInt;
-import net.minecraft.nbt.NbtIntArray;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.nbt.NbtLong;
-import net.minecraft.nbt.NbtLongArray;
-import net.minecraft.nbt.NbtShort;
-import net.minecraft.nbt.NbtString;
+import net.minecraft.nbt.*;
 
+/**
+ * {@code NbtElementVisitor}.
+ */
 public interface NbtElementVisitor {
-   void visitString(NbtString element);
 
-   void visitByte(NbtByte element);
+	void visitString(NbtString element);
 
-   void visitShort(NbtShort element);
+	void visitByte(NbtByte element);
 
-   void visitInt(NbtInt element);
+	void visitShort(NbtShort element);
 
-   void visitLong(NbtLong element);
+	void visitInt(NbtInt element);
 
-   void visitFloat(NbtFloat element);
+	void visitLong(NbtLong element);
 
-   void visitDouble(NbtDouble element);
+	void visitFloat(NbtFloat element);
 
-   void visitByteArray(NbtByteArray element);
+	void visitDouble(NbtDouble element);
 
-   void visitIntArray(NbtIntArray element);
+	void visitByteArray(NbtByteArray element);
 
-   void visitLongArray(NbtLongArray element);
+	void visitIntArray(NbtIntArray element);
 
-   void visitList(NbtList element);
+	void visitLongArray(NbtLongArray element);
 
-   void visitCompound(NbtCompound compound);
+	void visitList(NbtList element);
 
-   void visitEnd(NbtEnd element);
+	void visitCompound(NbtCompound compound);
+
+	void visitEnd(NbtEnd element);
 }

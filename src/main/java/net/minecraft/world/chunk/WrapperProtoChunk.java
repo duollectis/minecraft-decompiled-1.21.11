@@ -1,9 +1,6 @@
 package net.minecraft.world.chunk;
 
 import it.unimi.dsi.fastutil.longs.LongSet;
-import java.util.Map;
-import java.util.function.BiConsumer;
-import java.util.function.Predicate;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
@@ -29,253 +26,277 @@ import net.minecraft.world.tick.BasicTickScheduler;
 import net.minecraft.world.tick.EmptyTickSchedulers;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
+
+/**
+ * {@code WrapperProtoChunk}.
+ */
 public class WrapperProtoChunk extends ProtoChunk {
-   private final WorldChunk wrapped;
-   private final boolean propagateToWrapped;
 
-   public WrapperProtoChunk(WorldChunk wrapped, boolean propagateToWrapped) {
-      super(wrapped.getPos(), UpgradeData.NO_UPGRADE_DATA, wrapped.heightLimitView, wrapped.getWorld().getPalettesFactory(), wrapped.getBlendingData());
-      this.wrapped = wrapped;
-      this.propagateToWrapped = propagateToWrapped;
-   }
+	private final WorldChunk wrapped;
+	private final boolean propagateToWrapped;
 
-   @Override
-   public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
-      return this.wrapped.getBlockEntity(pos);
-   }
+	public WrapperProtoChunk(WorldChunk wrapped, boolean propagateToWrapped) {
+		super(
+				wrapped.getPos(),
+				UpgradeData.NO_UPGRADE_DATA,
+				wrapped.heightLimitView,
+				wrapped.getWorld().getPalettesFactory(),
+				wrapped.getBlendingData()
+		);
+		this.wrapped = wrapped;
+		this.propagateToWrapped = propagateToWrapped;
+	}
 
-   @Override
-   public BlockState getBlockState(BlockPos pos) {
-      return this.wrapped.getBlockState(pos);
-   }
+	@Override
+	public @Nullable BlockEntity getBlockEntity(BlockPos pos) {
+		return this.wrapped.getBlockEntity(pos);
+	}
 
-   @Override
-   public FluidState getFluidState(BlockPos pos) {
-      return this.wrapped.getFluidState(pos);
-   }
+	@Override
+	public BlockState getBlockState(BlockPos pos) {
+		return this.wrapped.getBlockState(pos);
+	}
 
-   @Override
-   public ChunkSection getSection(int yIndex) {
-      return this.propagateToWrapped ? this.wrapped.getSection(yIndex) : super.getSection(yIndex);
-   }
+	@Override
+	public FluidState getFluidState(BlockPos pos) {
+		return this.wrapped.getFluidState(pos);
+	}
 
-   @Override
-   public @Nullable BlockState setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
-      return this.propagateToWrapped ? this.wrapped.setBlockState(pos, state, flags) : null;
-   }
+	@Override
+	public ChunkSection getSection(int yIndex) {
+		return this.propagateToWrapped ? this.wrapped.getSection(yIndex) : super.getSection(yIndex);
+	}
 
-   @Override
-   public void setBlockEntity(BlockEntity blockEntity) {
-      if (this.propagateToWrapped) {
-         this.wrapped.setBlockEntity(blockEntity);
-      }
-   }
+	@Override
+	public @Nullable BlockState setBlockState(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
+		return this.propagateToWrapped ? this.wrapped.setBlockState(pos, state, flags) : null;
+	}
 
-   @Override
-   public void addEntity(Entity entity) {
-      if (this.propagateToWrapped) {
-         this.wrapped.addEntity(entity);
-      }
-   }
+	@Override
+	public void setBlockEntity(BlockEntity blockEntity) {
+		if (this.propagateToWrapped) {
+			this.wrapped.setBlockEntity(blockEntity);
+		}
+	}
 
-   @Override
-   public void setStatus(ChunkStatus status) {
-      if (this.propagateToWrapped) {
-         super.setStatus(status);
-      }
-   }
+	@Override
+	public void addEntity(Entity entity) {
+		if (this.propagateToWrapped) {
+			this.wrapped.addEntity(entity);
+		}
+	}
 
-   @Override
-   public ChunkSection[] getSectionArray() {
-      return this.wrapped.getSectionArray();
-   }
+	@Override
+	public void setStatus(ChunkStatus status) {
+		if (this.propagateToWrapped) {
+			super.setStatus(status);
+		}
+	}
 
-   @Override
-   public void setHeightmap(Heightmap.Type type, long[] heightmap) {
-   }
+	@Override
+	public ChunkSection[] getSectionArray() {
+		return this.wrapped.getSectionArray();
+	}
 
-   private Heightmap.Type transformHeightmapType(Heightmap.Type type) {
-      if (type == Heightmap.Type.WORLD_SURFACE_WG) {
-         return Heightmap.Type.WORLD_SURFACE;
-      } else {
-         return type == Heightmap.Type.OCEAN_FLOOR_WG ? Heightmap.Type.OCEAN_FLOOR : type;
-      }
-   }
+	@Override
+	public void setHeightmap(Heightmap.Type type, long[] heightmap) {
+	}
 
-   @Override
-   public Heightmap getHeightmap(Heightmap.Type type) {
-      return this.wrapped.getHeightmap(type);
-   }
+	private Heightmap.Type transformHeightmapType(Heightmap.Type type) {
+		if (type == Heightmap.Type.WORLD_SURFACE_WG) {
+			return Heightmap.Type.WORLD_SURFACE;
+		}
+		else {
+			return type == Heightmap.Type.OCEAN_FLOOR_WG ? Heightmap.Type.OCEAN_FLOOR : type;
+		}
+	}
 
-   @Override
-   public int sampleHeightmap(Heightmap.Type type, int x, int z) {
-      return this.wrapped.sampleHeightmap(this.transformHeightmapType(type), x, z);
-   }
+	@Override
+	public Heightmap getHeightmap(Heightmap.Type type) {
+		return this.wrapped.getHeightmap(type);
+	}
 
-   @Override
-   public RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
-      return this.wrapped.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
-   }
+	@Override
+	public int sampleHeightmap(Heightmap.Type type, int x, int z) {
+		return this.wrapped.sampleHeightmap(this.transformHeightmapType(type), x, z);
+	}
 
-   @Override
-   public ChunkPos getPos() {
-      return this.wrapped.getPos();
-   }
+	@Override
+	public RegistryEntry<Biome> getBiomeForNoiseGen(int biomeX, int biomeY, int biomeZ) {
+		return this.wrapped.getBiomeForNoiseGen(biomeX, biomeY, biomeZ);
+	}
 
-   @Override
-   public @Nullable StructureStart getStructureStart(Structure structure) {
-      return this.wrapped.getStructureStart(structure);
-   }
+	@Override
+	public ChunkPos getPos() {
+		return this.wrapped.getPos();
+	}
 
-   @Override
-   public void setStructureStart(Structure structure, StructureStart start) {
-   }
+	@Override
+	public @Nullable StructureStart getStructureStart(Structure structure) {
+		return this.wrapped.getStructureStart(structure);
+	}
 
-   @Override
-   public Map<Structure, StructureStart> getStructureStarts() {
-      return this.wrapped.getStructureStarts();
-   }
+	@Override
+	public void setStructureStart(Structure structure, StructureStart start) {
+	}
 
-   @Override
-   public void setStructureStarts(Map<Structure, StructureStart> structureStarts) {
-   }
+	@Override
+	public Map<Structure, StructureStart> getStructureStarts() {
+		return this.wrapped.getStructureStarts();
+	}
 
-   @Override
-   public LongSet getStructureReferences(Structure structure) {
-      return this.wrapped.getStructureReferences(structure);
-   }
+	@Override
+	public void setStructureStarts(Map<Structure, StructureStart> structureStarts) {
+	}
 
-   @Override
-   public void addStructureReference(Structure structure, long reference) {
-   }
+	@Override
+	public LongSet getStructureReferences(Structure structure) {
+		return this.wrapped.getStructureReferences(structure);
+	}
 
-   @Override
-   public Map<Structure, LongSet> getStructureReferences() {
-      return this.wrapped.getStructureReferences();
-   }
+	@Override
+	public void addStructureReference(Structure structure, long reference) {
+	}
 
-   @Override
-   public void setStructureReferences(Map<Structure, LongSet> structureReferences) {
-   }
+	@Override
+	public Map<Structure, LongSet> getStructureReferences() {
+		return this.wrapped.getStructureReferences();
+	}
 
-   @Override
-   public void markNeedsSaving() {
-      this.wrapped.markNeedsSaving();
-   }
+	@Override
+	public void setStructureReferences(Map<Structure, LongSet> structureReferences) {
+	}
 
-   @Override
-   public boolean isSerializable() {
-      return false;
-   }
+	@Override
+	public void markNeedsSaving() {
+		this.wrapped.markNeedsSaving();
+	}
 
-   @Override
-   public boolean tryMarkSaved() {
-      return false;
-   }
+	@Override
+	public boolean isSerializable() {
+		return false;
+	}
 
-   @Override
-   public boolean needsSaving() {
-      return false;
-   }
+	@Override
+	public boolean tryMarkSaved() {
+		return false;
+	}
 
-   @Override
-   public ChunkStatus getStatus() {
-      return this.wrapped.getStatus();
-   }
+	@Override
+	public boolean needsSaving() {
+		return false;
+	}
 
-   @Override
-   public void removeBlockEntity(BlockPos pos) {
-   }
+	@Override
+	public ChunkStatus getStatus() {
+		return this.wrapped.getStatus();
+	}
 
-   @Override
-   public void markBlockForPostProcessing(BlockPos pos) {
-   }
+	@Override
+	public void removeBlockEntity(BlockPos pos) {
+	}
 
-   @Override
-   public void addPendingBlockEntityNbt(NbtCompound nbt) {
-   }
+	@Override
+	public void markBlockForPostProcessing(BlockPos pos) {
+	}
 
-   @Override
-   public @Nullable NbtCompound getBlockEntityNbt(BlockPos pos) {
-      return this.wrapped.getBlockEntityNbt(pos);
-   }
+	@Override
+	public void addPendingBlockEntityNbt(NbtCompound nbt) {
+	}
 
-   @Override
-   public @Nullable NbtCompound getPackedBlockEntityNbt(BlockPos pos, RegistryWrapper.WrapperLookup registries) {
-      return this.wrapped.getPackedBlockEntityNbt(pos, registries);
-   }
+	@Override
+	public @Nullable NbtCompound getBlockEntityNbt(BlockPos pos) {
+		return this.wrapped.getBlockEntityNbt(pos);
+	}
 
-   @Override
-   public void forEachBlockMatchingPredicate(Predicate<BlockState> predicate, BiConsumer<BlockPos, BlockState> consumer) {
-      this.wrapped.forEachBlockMatchingPredicate(predicate, consumer);
-   }
+	@Override
+	public @Nullable NbtCompound getPackedBlockEntityNbt(BlockPos pos, RegistryWrapper.WrapperLookup registries) {
+		return this.wrapped.getPackedBlockEntityNbt(pos, registries);
+	}
 
-   @Override
-   public BasicTickScheduler<Block> getBlockTickScheduler() {
-      return this.propagateToWrapped ? this.wrapped.getBlockTickScheduler() : EmptyTickSchedulers.getReadOnlyTickScheduler();
-   }
+	@Override
+	public void forEachBlockMatchingPredicate(
+			Predicate<BlockState> predicate,
+			BiConsumer<BlockPos, BlockState> consumer
+	) {
+		this.wrapped.forEachBlockMatchingPredicate(predicate, consumer);
+	}
 
-   @Override
-   public BasicTickScheduler<Fluid> getFluidTickScheduler() {
-      return this.propagateToWrapped ? this.wrapped.getFluidTickScheduler() : EmptyTickSchedulers.getReadOnlyTickScheduler();
-   }
+	@Override
+	public BasicTickScheduler<Block> getBlockTickScheduler() {
+		return this.propagateToWrapped ? this.wrapped.getBlockTickScheduler()
+		                               : EmptyTickSchedulers.getReadOnlyTickScheduler();
+	}
 
-   @Override
-   public Chunk.TickSchedulers getTickSchedulers(long time) {
-      return this.wrapped.getTickSchedulers(time);
-   }
+	@Override
+	public BasicTickScheduler<Fluid> getFluidTickScheduler() {
+		return this.propagateToWrapped ? this.wrapped.getFluidTickScheduler()
+		                               : EmptyTickSchedulers.getReadOnlyTickScheduler();
+	}
 
-   @Override
-   public @Nullable BlendingData getBlendingData() {
-      return this.wrapped.getBlendingData();
-   }
+	@Override
+	public Chunk.TickSchedulers getTickSchedulers(long time) {
+		return this.wrapped.getTickSchedulers(time);
+	}
 
-   @Override
-   public CarvingMask getCarvingMask() {
-      if (this.propagateToWrapped) {
-         return super.getCarvingMask();
-      } else {
-         throw (UnsupportedOperationException)Util.getFatalOrPause(new UnsupportedOperationException("Meaningless in this context"));
-      }
-   }
+	@Override
+	public @Nullable BlendingData getBlendingData() {
+		return this.wrapped.getBlendingData();
+	}
 
-   @Override
-   public CarvingMask getOrCreateCarvingMask() {
-      if (this.propagateToWrapped) {
-         return super.getOrCreateCarvingMask();
-      } else {
-         throw (UnsupportedOperationException)Util.getFatalOrPause(new UnsupportedOperationException("Meaningless in this context"));
-      }
-   }
+	@Override
+	public CarvingMask getCarvingMask() {
+		if (this.propagateToWrapped) {
+			return super.getCarvingMask();
+		}
+		else {
+			throw (UnsupportedOperationException) Util.getFatalOrPause(new UnsupportedOperationException(
+					"Meaningless in this context"));
+		}
+	}
 
-   public WorldChunk getWrappedChunk() {
-      return this.wrapped;
-   }
+	@Override
+	public CarvingMask getOrCreateCarvingMask() {
+		if (this.propagateToWrapped) {
+			return super.getOrCreateCarvingMask();
+		}
+		else {
+			throw (UnsupportedOperationException) Util.getFatalOrPause(new UnsupportedOperationException(
+					"Meaningless in this context"));
+		}
+	}
 
-   @Override
-   public boolean isLightOn() {
-      return this.wrapped.isLightOn();
-   }
+	public WorldChunk getWrappedChunk() {
+		return this.wrapped;
+	}
 
-   @Override
-   public void setLightOn(boolean lightOn) {
-      this.wrapped.setLightOn(lightOn);
-   }
+	@Override
+	public boolean isLightOn() {
+		return this.wrapped.isLightOn();
+	}
 
-   @Override
-   public void populateBiomes(BiomeSupplier biomeSupplier, MultiNoiseUtil.MultiNoiseSampler sampler) {
-      if (this.propagateToWrapped) {
-         this.wrapped.populateBiomes(biomeSupplier, sampler);
-      }
-   }
+	@Override
+	public void setLightOn(boolean lightOn) {
+		this.wrapped.setLightOn(lightOn);
+	}
 
-   @Override
-   public void refreshSurfaceY() {
-      this.wrapped.refreshSurfaceY();
-   }
+	@Override
+	public void populateBiomes(BiomeSupplier biomeSupplier, MultiNoiseUtil.MultiNoiseSampler sampler) {
+		if (this.propagateToWrapped) {
+			this.wrapped.populateBiomes(biomeSupplier, sampler);
+		}
+	}
 
-   @Override
-   public ChunkSkyLight getChunkSkyLight() {
-      return this.wrapped.getChunkSkyLight();
-   }
+	@Override
+	public void refreshSurfaceY() {
+		this.wrapped.refreshSurfaceY();
+	}
+
+	@Override
+	public ChunkSkyLight getChunkSkyLight() {
+		return this.wrapped.getChunkSkyLight();
+	}
 }

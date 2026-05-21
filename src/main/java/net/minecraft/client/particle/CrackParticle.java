@@ -17,101 +17,191 @@ import net.minecraft.util.Atlases;
 import net.minecraft.util.math.random.Random;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CrackParticle}.
+ */
 public class CrackParticle extends BillboardParticle {
-   private final float sampleU;
-   private final float sampleV;
-   private final BillboardParticle.RenderType renderType;
 
-   CrackParticle(ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Sprite sprite) {
-      this(clientWorld, d, e, f, sprite);
-      this.velocityX *= 0.1F;
-      this.velocityY *= 0.1F;
-      this.velocityZ *= 0.1F;
-      this.velocityX += g;
-      this.velocityY += h;
-      this.velocityZ += i;
-   }
+	private final float sampleU;
+	private final float sampleV;
+	private final BillboardParticle.RenderType renderType;
 
-   protected CrackParticle(ClientWorld clientWorld, double d, double e, double f, Sprite sprite) {
-      super(clientWorld, d, e, f, 0.0, 0.0, 0.0, sprite);
-      this.gravityStrength = 1.0F;
-      this.scale /= 2.0F;
-      this.sampleU = this.random.nextFloat() * 3.0F;
-      this.sampleV = this.random.nextFloat() * 3.0F;
-      this.renderType = sprite.getAtlasId().equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)
-         ? BillboardParticle.RenderType.BLOCK_ATLAS_TRANSLUCENT
-         : BillboardParticle.RenderType.ITEM_ATLAS_TRANSLUCENT;
-   }
+	CrackParticle(ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Sprite sprite) {
+		this(clientWorld, d, e, f, sprite);
+		this.velocityX *= 0.1F;
+		this.velocityY *= 0.1F;
+		this.velocityZ *= 0.1F;
+		this.velocityX += g;
+		this.velocityY += h;
+		this.velocityZ += i;
+	}
 
-   @Override
-   protected float getMinU() {
-      return this.sprite.getFrameU((this.sampleU + 1.0F) / 4.0F);
-   }
+	protected CrackParticle(ClientWorld clientWorld, double d, double e, double f, Sprite sprite) {
+		super(clientWorld, d, e, f, 0.0, 0.0, 0.0, sprite);
+		this.gravityStrength = 1.0F;
+		this.scale /= 2.0F;
+		this.sampleU = this.random.nextFloat() * 3.0F;
+		this.sampleV = this.random.nextFloat() * 3.0F;
+		this.renderType = sprite.getAtlasId().equals(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE)
+		                  ? BillboardParticle.RenderType.BLOCK_ATLAS_TRANSLUCENT
+		                  : BillboardParticle.RenderType.ITEM_ATLAS_TRANSLUCENT;
+	}
 
-   @Override
-   protected float getMaxU() {
-      return this.sprite.getFrameU(this.sampleU / 4.0F);
-   }
+	@Override
+	protected float getMinU() {
+		return this.sprite.getFrameU((this.sampleU + 1.0F) / 4.0F);
+	}
 
-   @Override
-   protected float getMinV() {
-      return this.sprite.getFrameV(this.sampleV / 4.0F);
-   }
+	@Override
+	protected float getMaxU() {
+		return this.sprite.getFrameU(this.sampleU / 4.0F);
+	}
 
-   @Override
-   protected float getMaxV() {
-      return this.sprite.getFrameV((this.sampleV + 1.0F) / 4.0F);
-   }
+	@Override
+	protected float getMinV() {
+		return this.sprite.getFrameV(this.sampleV / 4.0F);
+	}
 
-   @Override
-   public BillboardParticle.RenderType getRenderType() {
-      return this.renderType;
-   }
+	@Override
+	protected float getMaxV() {
+		return this.sprite.getFrameV((this.sampleV + 1.0F) / 4.0F);
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static class CobwebFactory extends CrackParticle.Factory<SimpleParticleType> {
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new CrackParticle(clientWorld, d, e, f, this.getSprite(new ItemStack(Items.COBWEB), clientWorld, random));
-      }
-   }
+	@Override
+	public BillboardParticle.RenderType getRenderType() {
+		return this.renderType;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public abstract static class Factory<T extends ParticleEffect> implements ParticleFactory<T> {
-      private final ItemRenderState itemRenderState = new ItemRenderState();
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code CobwebFactory}.
+	 */
+	public static class CobwebFactory extends CrackParticle.Factory<SimpleParticleType> {
 
-      protected Sprite getSprite(ItemStack stack, ClientWorld world, Random random) {
-         MinecraftClient.getInstance().getItemModelManager().clearAndUpdate(this.itemRenderState, stack, ItemDisplayContext.GROUND, world, null, 0);
-         Sprite sprite = this.itemRenderState.getParticleSprite(random);
-         return sprite != null ? sprite : MinecraftClient.getInstance().getAtlasManager().getAtlasTexture(Atlases.ITEMS).getMissingSprite();
-      }
-   }
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new CrackParticle(
+					clientWorld,
+					d,
+					e,
+					f,
+					this.getSprite(new ItemStack(Items.COBWEB), clientWorld, random)
+			);
+		}
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static class ItemFactory extends CrackParticle.Factory<ItemStackParticleEffect> {
-      public Particle createParticle(
-         ItemStackParticleEffect itemStackParticleEffect, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new CrackParticle(clientWorld, d, e, f, g, h, i, this.getSprite(itemStackParticleEffect.getItemStack(), clientWorld, random));
-      }
-   }
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code Factory}.
+	 */
+	public abstract static class Factory<T extends ParticleEffect> implements ParticleFactory<T> {
 
-   @Environment(EnvType.CLIENT)
-   public static class SlimeballFactory extends CrackParticle.Factory<SimpleParticleType> {
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new CrackParticle(clientWorld, d, e, f, this.getSprite(new ItemStack(Items.SLIME_BALL), clientWorld, random));
-      }
-   }
+		private final ItemRenderState itemRenderState = new ItemRenderState();
 
-   @Environment(EnvType.CLIENT)
-   public static class SnowballFactory extends CrackParticle.Factory<SimpleParticleType> {
-      public Particle createParticle(
-         SimpleParticleType simpleParticleType, ClientWorld clientWorld, double d, double e, double f, double g, double h, double i, Random random
-      ) {
-         return new CrackParticle(clientWorld, d, e, f, this.getSprite(new ItemStack(Items.SNOWBALL), clientWorld, random));
-      }
-   }
+		protected Sprite getSprite(ItemStack stack, ClientWorld world, Random random) {
+			MinecraftClient
+					.getInstance()
+					.getItemModelManager()
+					.clearAndUpdate(this.itemRenderState, stack, ItemDisplayContext.GROUND, world, null, 0);
+			Sprite sprite = this.itemRenderState.getParticleSprite(random);
+			return sprite != null ? sprite : MinecraftClient
+			                                 .getInstance()
+			                                 .getAtlasManager()
+			                                 .getAtlasTexture(Atlases.ITEMS)
+			                                 .getMissingSprite();
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code ItemFactory}.
+	 */
+	public static class ItemFactory extends CrackParticle.Factory<ItemStackParticleEffect> {
+
+		public Particle createParticle(
+				ItemStackParticleEffect itemStackParticleEffect,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new CrackParticle(
+					clientWorld,
+					d,
+					e,
+					f,
+					g,
+					h,
+					i,
+					this.getSprite(itemStackParticleEffect.getItemStack(), clientWorld, random)
+			);
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code SlimeballFactory}.
+	 */
+	public static class SlimeballFactory extends CrackParticle.Factory<SimpleParticleType> {
+
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new CrackParticle(
+					clientWorld,
+					d,
+					e,
+					f,
+					this.getSprite(new ItemStack(Items.SLIME_BALL), clientWorld, random)
+			);
+		}
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code SnowballFactory}.
+	 */
+	public static class SnowballFactory extends CrackParticle.Factory<SimpleParticleType> {
+
+		public Particle createParticle(
+				SimpleParticleType simpleParticleType,
+				ClientWorld clientWorld,
+				double d,
+				double e,
+				double f,
+				double g,
+				double h,
+				double i,
+				Random random
+		) {
+			return new CrackParticle(
+					clientWorld,
+					d,
+					e,
+					f,
+					this.getSprite(new ItemStack(Items.SNOWBALL), clientWorld, random)
+			);
+		}
+	}
 }

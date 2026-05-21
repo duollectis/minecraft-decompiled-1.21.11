@@ -1,27 +1,32 @@
 package net.minecraft.world.storage;
 
-import java.util.List;
-import java.util.stream.Stream;
 import net.minecraft.util.math.ChunkPos;
 
+import java.util.List;
+import java.util.stream.Stream;
+
+/**
+ * {@code ChunkDataList}.
+ */
 public class ChunkDataList<T> {
-   private final ChunkPos pos;
-   private final List<T> backingList;
 
-   public ChunkDataList(ChunkPos pos, List<T> list) {
-      this.pos = pos;
-      this.backingList = list;
-   }
+	private final ChunkPos pos;
+	private final List<T> backingList;
 
-   public ChunkPos getChunkPos() {
-      return this.pos;
-   }
+	public ChunkDataList(ChunkPos pos, List<T> list) {
+		this.pos = pos;
+		this.backingList = list;
+	}
 
-   public Stream<T> stream() {
-      return this.backingList.stream();
-   }
+	public ChunkPos getChunkPos() {
+		return this.pos;
+	}
 
-   public boolean isEmpty() {
-      return this.backingList.isEmpty();
-   }
+	public Stream<T> stream() {
+		return this.backingList.stream();
+	}
+
+	public boolean isEmpty() {
+		return this.backingList.isEmpty();
+	}
 }

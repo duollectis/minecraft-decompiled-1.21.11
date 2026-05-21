@@ -15,43 +15,66 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code TrialSpawnerBlock}.
+ */
 public class TrialSpawnerBlock extends BlockWithEntity {
-   public static final MapCodec<TrialSpawnerBlock> CODEC = createCodec(TrialSpawnerBlock::new);
-   public static final EnumProperty<TrialSpawnerState> TRIAL_SPAWNER_STATE = Properties.TRIAL_SPAWNER_STATE;
-   public static final BooleanProperty OMINOUS = Properties.OMINOUS;
 
-   @Override
-   public MapCodec<TrialSpawnerBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<TrialSpawnerBlock> CODEC = createCodec(TrialSpawnerBlock::new);
+	public static final EnumProperty<TrialSpawnerState> TRIAL_SPAWNER_STATE = Properties.TRIAL_SPAWNER_STATE;
+	public static final BooleanProperty OMINOUS = Properties.OMINOUS;
 
-   public TrialSpawnerBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(TRIAL_SPAWNER_STATE, TrialSpawnerState.INACTIVE).with(OMINOUS, false));
-   }
+	@Override
+	public MapCodec<TrialSpawnerBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(TRIAL_SPAWNER_STATE, OMINOUS);
-   }
+	public TrialSpawnerBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(TRIAL_SPAWNER_STATE, TrialSpawnerState.INACTIVE)
+				.with(OMINOUS, false));
+	}
 
-   @Override
-   public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new TrialSpawnerBlockEntity(pos, state);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(TRIAL_SPAWNER_STATE, OMINOUS);
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      return world instanceof ServerWorld serverWorld
-         ? validateTicker(
-            type,
-            BlockEntityType.TRIAL_SPAWNER,
-            (worldx, pos, statex, blockEntity) -> blockEntity.getSpawner().tickServer(serverWorld, pos, statex.getOrEmpty(Properties.OMINOUS).orElse(false))
-         )
-         : validateTicker(
-            type,
-            BlockEntityType.TRIAL_SPAWNER,
-            (worldx, pos, statex, blockEntity) -> blockEntity.getSpawner().tickClient(worldx, pos, statex.getOrEmpty(Properties.OMINOUS).orElse(false))
-         );
-   }
+	@Override
+	public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new TrialSpawnerBlockEntity(pos, state);
+	}
+
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		return world instanceof ServerWorld serverWorld
+		       ? validateTicker(
+				type,
+				BlockEntityType.TRIAL_SPAWNER,
+				(worldx, pos, statex, blockEntity) -> blockEntity
+				                                      .getSpawner()
+				                                      .tickServer(
+						                                      serverWorld,
+						                                      pos,
+						                                      statex.getOrEmpty(Properties.OMINOUS).orElse(false)
+				                                      )
+		)
+		       : validateTicker(
+				       type,
+				       BlockEntityType.TRIAL_SPAWNER,
+				       (worldx, pos, statex, blockEntity) -> blockEntity
+				                                             .getSpawner()
+				                                             .tickClient(
+						                                             worldx,
+						                                             pos,
+						                                             statex.getOrEmpty(Properties.OMINOUS).orElse(false)
+				                                             )
+		       );
+	}
 }

@@ -9,31 +9,34 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class EndCombatS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, EndCombatS2CPacket> CODEC = Packet.createCodec(EndCombatS2CPacket::write, EndCombatS2CPacket::new);
-   private final int timeSinceLastAttack;
 
-   public EndCombatS2CPacket(DamageTracker damageTracker) {
-      this(damageTracker.getTimeSinceLastAttack());
-   }
+	public static final PacketCodec<PacketByteBuf, EndCombatS2CPacket>
+			CODEC =
+			Packet.createCodec(EndCombatS2CPacket::write, EndCombatS2CPacket::new);
+	private final int timeSinceLastAttack;
 
-   public EndCombatS2CPacket(int timeSinceLastAttack) {
-      this.timeSinceLastAttack = timeSinceLastAttack;
-   }
+	public EndCombatS2CPacket(DamageTracker damageTracker) {
+		this(damageTracker.getTimeSinceLastAttack());
+	}
 
-   private EndCombatS2CPacket(PacketByteBuf buf) {
-      this.timeSinceLastAttack = buf.readVarInt();
-   }
+	public EndCombatS2CPacket(int timeSinceLastAttack) {
+		this.timeSinceLastAttack = timeSinceLastAttack;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.timeSinceLastAttack);
-   }
+	private EndCombatS2CPacket(PacketByteBuf buf) {
+		this.timeSinceLastAttack = buf.readVarInt();
+	}
 
-   @Override
-   public PacketType<EndCombatS2CPacket> getPacketType() {
-      return PlayPackets.PLAYER_COMBAT_END;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.timeSinceLastAttack);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEndCombat(this);
-   }
+	@Override
+	public PacketType<EndCombatS2CPacket> getPacketType() {
+		return PlayPackets.PLAYER_COMBAT_END;
+	}
+
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEndCombat(this);
+	}
 }

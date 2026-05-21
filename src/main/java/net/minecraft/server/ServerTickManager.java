@@ -1,6 +1,5 @@
 package net.minecraft.server;
 
-import java.util.Locale;
 import net.minecraft.network.packet.s2c.play.TickStepS2CPacket;
 import net.minecraft.network.packet.s2c.play.UpdateTickRateS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -8,114 +7,127 @@ import net.minecraft.text.Text;
 import net.minecraft.util.TimeHelper;
 import net.minecraft.world.tick.TickManager;
 
+import java.util.Locale;
+
+/**
+ * {@code ServerTickManager}.
+ */
 public class ServerTickManager extends TickManager {
-   private long sprintTicks = 0L;
-   private long sprintStartTime = 0L;
-   private long sprintTime = 0L;
-   private long scheduledSprintTicks = 0L;
-   private boolean wasFrozen = false;
-   private final MinecraftServer server;
 
-   public ServerTickManager(MinecraftServer server) {
-      this.server = server;
-   }
+	private long sprintTicks = 0L;
+	private long sprintStartTime = 0L;
+	private long sprintTime = 0L;
+	private long scheduledSprintTicks = 0L;
+	private boolean wasFrozen = false;
+	private final MinecraftServer server;
 
-   public boolean isSprinting() {
-      return this.scheduledSprintTicks > 0L;
-   }
+	public ServerTickManager(MinecraftServer server) {
+		this.server = server;
+	}
 
-   @Override
-   public void setFrozen(boolean frozen) {
-      super.setFrozen(frozen);
-      this.sendUpdateTickRatePacket();
-   }
+	public boolean isSprinting() {
+		return this.scheduledSprintTicks > 0L;
+	}
 
-   private void sendUpdateTickRatePacket() {
-      this.server.getPlayerManager().sendToAll(UpdateTickRateS2CPacket.create(this));
-   }
+	@Override
+	public void setFrozen(boolean frozen) {
+		super.setFrozen(frozen);
+		this.sendUpdateTickRatePacket();
+	}
 
-   private void sendStepPacket() {
-      this.server.getPlayerManager().sendToAll(TickStepS2CPacket.create(this));
-   }
+	private void sendUpdateTickRatePacket() {
+		this.server.getPlayerManager().sendToAll(UpdateTickRateS2CPacket.create(this));
+	}
 
-   public boolean step(int ticks) {
-      if (!this.isFrozen()) {
-         return false;
-      } else {
-         this.stepTicks = ticks;
-         this.sendStepPacket();
-         return true;
-      }
-   }
+	private void sendStepPacket() {
+		this.server.getPlayerManager().sendToAll(TickStepS2CPacket.create(this));
+	}
 
-   public boolean stopStepping() {
-      if (this.stepTicks > 0) {
-         this.stepTicks = 0;
-         this.sendStepPacket();
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public boolean step(int ticks) {
+		if (!this.isFrozen()) {
+			return false;
+		}
+		else {
+			this.stepTicks = ticks;
+			this.sendStepPacket();
+			return true;
+		}
+	}
 
-   public boolean stopSprinting() {
-      if (this.sprintTicks > 0L) {
-         this.finishSprinting();
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public boolean stopStepping() {
+		if (this.stepTicks > 0) {
+			this.stepTicks = 0;
+			this.sendStepPacket();
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   public boolean startSprint(int ticks) {
-      boolean bl = this.sprintTicks > 0L;
-      this.sprintTime = 0L;
-      this.scheduledSprintTicks = ticks;
-      this.sprintTicks = ticks;
-      this.wasFrozen = this.isFrozen();
-      this.setFrozen(false);
-      return bl;
-   }
+	public boolean stopSprinting() {
+		if (this.sprintTicks > 0L) {
+			this.finishSprinting();
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   private void finishSprinting() {
-      long l = this.scheduledSprintTicks - this.sprintTicks;
-      double d = Math.max(1.0, (double)this.sprintTime) / TimeHelper.MILLI_IN_NANOS;
-      int i = (int)(TimeHelper.SECOND_IN_MILLIS * l / d);
-      String string = String.format(Locale.ROOT, "%.2f", l == 0L ? this.getMillisPerTick() : d / l);
-      this.scheduledSprintTicks = 0L;
-      this.sprintTime = 0L;
-      this.server.getCommandSource().sendFeedback(() -> Text.translatable("commands.tick.sprint.report", i, string), true);
-      this.sprintTicks = 0L;
-      this.setFrozen(this.wasFrozen);
-      this.server.updateAutosaveTicks();
-   }
+	public boolean startSprint(int ticks) {
+		boolean bl = this.sprintTicks > 0L;
+		this.sprintTime = 0L;
+		this.scheduledSprintTicks = ticks;
+		this.sprintTicks = ticks;
+		this.wasFrozen = this.isFrozen();
+		this.setFrozen(false);
+		return bl;
+	}
 
-   public boolean sprint() {
-      if (!this.shouldTick) {
-         return false;
-      } else if (this.sprintTicks > 0L) {
-         this.sprintStartTime = System.nanoTime();
-         this.sprintTicks--;
-         return true;
-      } else {
-         this.finishSprinting();
-         return false;
-      }
-   }
+	private void finishSprinting() {
+		long l = this.scheduledSprintTicks - this.sprintTicks;
+		double d = Math.max(1.0, (double) this.sprintTime) / TimeHelper.MILLI_IN_NANOS;
+		int i = (int) (TimeHelper.SECOND_IN_MILLIS * l / d);
+		String string = String.format(Locale.ROOT, "%.2f", l == 0L ? this.getMillisPerTick() : d / l);
+		this.scheduledSprintTicks = 0L;
+		this.sprintTime = 0L;
+		this.server
+				.getCommandSource()
+				.sendFeedback(() -> Text.translatable("commands.tick.sprint.report", i, string), true);
+		this.sprintTicks = 0L;
+		this.setFrozen(this.wasFrozen);
+		this.server.updateAutosaveTicks();
+	}
 
-   public void updateSprintTime() {
-      this.sprintTime = this.sprintTime + (System.nanoTime() - this.sprintStartTime);
-   }
+	public boolean sprint() {
+		if (!this.shouldTick) {
+			return false;
+		}
+		else if (this.sprintTicks > 0L) {
+			this.sprintStartTime = System.nanoTime();
+			this.sprintTicks--;
+			return true;
+		}
+		else {
+			this.finishSprinting();
+			return false;
+		}
+	}
 
-   @Override
-   public void setTickRate(float tickRate) {
-      super.setTickRate(tickRate);
-      this.server.updateAutosaveTicks();
-      this.sendUpdateTickRatePacket();
-   }
+	public void updateSprintTime() {
+		this.sprintTime = this.sprintTime + (System.nanoTime() - this.sprintStartTime);
+	}
 
-   public void sendPackets(ServerPlayerEntity player) {
-      player.networkHandler.sendPacket(UpdateTickRateS2CPacket.create(this));
-      player.networkHandler.sendPacket(TickStepS2CPacket.create(this));
-   }
+	@Override
+	public void setTickRate(float tickRate) {
+		super.setTickRate(tickRate);
+		this.server.updateAutosaveTicks();
+		this.sendUpdateTickRatePacket();
+	}
+
+	public void sendPackets(ServerPlayerEntity player) {
+		player.networkHandler.sendPacket(UpdateTickRateS2CPacket.create(this));
+		player.networkHandler.sendPacket(TickStepS2CPacket.create(this));
+	}
 }

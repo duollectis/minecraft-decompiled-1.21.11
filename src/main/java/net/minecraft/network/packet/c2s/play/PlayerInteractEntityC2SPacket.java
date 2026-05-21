@@ -1,6 +1,5 @@
 package net.minecraft.network.packet.c2s.play;
 
-import java.util.function.Function;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -15,173 +14,201 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.Function;
+
 public class PlayerInteractEntityC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, PlayerInteractEntityC2SPacket> CODEC = Packet.createCodec(
-      PlayerInteractEntityC2SPacket::write, PlayerInteractEntityC2SPacket::new
-   );
-   private final int entityId;
-   private final PlayerInteractEntityC2SPacket.InteractTypeHandler type;
-   private final boolean playerSneaking;
-   static final PlayerInteractEntityC2SPacket.InteractTypeHandler ATTACK = new PlayerInteractEntityC2SPacket.InteractTypeHandler() {
-      @Override
-      public PlayerInteractEntityC2SPacket.InteractType getType() {
-         return PlayerInteractEntityC2SPacket.InteractType.ATTACK;
-      }
 
-      @Override
-      public void handle(PlayerInteractEntityC2SPacket.Handler handler) {
-         handler.attack();
-      }
+	public static final PacketCodec<PacketByteBuf, PlayerInteractEntityC2SPacket> CODEC = Packet.createCodec(
+			PlayerInteractEntityC2SPacket::write, PlayerInteractEntityC2SPacket::new
+	);
+	private final int entityId;
+	private final PlayerInteractEntityC2SPacket.InteractTypeHandler type;
+	private final boolean playerSneaking;
+	static final PlayerInteractEntityC2SPacket.InteractTypeHandler
+			ATTACK =
+			new PlayerInteractEntityC2SPacket.InteractTypeHandler() {
+				@Override
+				public PlayerInteractEntityC2SPacket.InteractType getType() {
+					return PlayerInteractEntityC2SPacket.InteractType.ATTACK;
+				}
 
-      @Override
-      public void write(PacketByteBuf buf) {
-      }
-   };
+				@Override
+				public void handle(PlayerInteractEntityC2SPacket.Handler handler) {
+					handler.attack();
+				}
 
-   private PlayerInteractEntityC2SPacket(int entityId, boolean playerSneaking, PlayerInteractEntityC2SPacket.InteractTypeHandler type) {
-      this.entityId = entityId;
-      this.type = type;
-      this.playerSneaking = playerSneaking;
-   }
+				@Override
+				public void write(PacketByteBuf buf) {
+				}
+			};
 
-   public static PlayerInteractEntityC2SPacket attack(Entity entity, boolean playerSneaking) {
-      return new PlayerInteractEntityC2SPacket(entity.getId(), playerSneaking, ATTACK);
-   }
+	private PlayerInteractEntityC2SPacket(
+			int entityId,
+			boolean playerSneaking,
+			PlayerInteractEntityC2SPacket.InteractTypeHandler type
+	) {
+		this.entityId = entityId;
+		this.type = type;
+		this.playerSneaking = playerSneaking;
+	}
 
-   public static PlayerInteractEntityC2SPacket interact(Entity entity, boolean playerSneaking, Hand hand) {
-      return new PlayerInteractEntityC2SPacket(entity.getId(), playerSneaking, new PlayerInteractEntityC2SPacket.InteractHandler(hand));
-   }
+	public static PlayerInteractEntityC2SPacket attack(Entity entity, boolean playerSneaking) {
+		return new PlayerInteractEntityC2SPacket(entity.getId(), playerSneaking, ATTACK);
+	}
 
-   public static PlayerInteractEntityC2SPacket interactAt(Entity entity, boolean playerSneaking, Hand hand, Vec3d pos) {
-      return new PlayerInteractEntityC2SPacket(entity.getId(), playerSneaking, new PlayerInteractEntityC2SPacket.InteractAtHandler(hand, pos));
-   }
+	public static PlayerInteractEntityC2SPacket interact(Entity entity, boolean playerSneaking, Hand hand) {
+		return new PlayerInteractEntityC2SPacket(
+				entity.getId(),
+				playerSneaking,
+				new PlayerInteractEntityC2SPacket.InteractHandler(hand)
+		);
+	}
 
-   private PlayerInteractEntityC2SPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      PlayerInteractEntityC2SPacket.InteractType interactType = buf.readEnumConstant(PlayerInteractEntityC2SPacket.InteractType.class);
-      this.type = interactType.handlerGetter.apply(buf);
-      this.playerSneaking = buf.readBoolean();
-   }
+	public static PlayerInteractEntityC2SPacket interactAt(
+			Entity entity,
+			boolean playerSneaking,
+			Hand hand,
+			Vec3d pos
+	) {
+		return new PlayerInteractEntityC2SPacket(
+				entity.getId(),
+				playerSneaking,
+				new PlayerInteractEntityC2SPacket.InteractAtHandler(hand, pos)
+		);
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      buf.writeEnumConstant(this.type.getType());
-      this.type.write(buf);
-      buf.writeBoolean(this.playerSneaking);
-   }
+	private PlayerInteractEntityC2SPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		PlayerInteractEntityC2SPacket.InteractType
+				interactType =
+				buf.readEnumConstant(PlayerInteractEntityC2SPacket.InteractType.class);
+		this.type = interactType.handlerGetter.apply(buf);
+		this.playerSneaking = buf.readBoolean();
+	}
 
-   @Override
-   public PacketType<PlayerInteractEntityC2SPacket> getPacketType() {
-      return PlayPackets.INTERACT;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		buf.writeEnumConstant(this.type.getType());
+		this.type.write(buf);
+		buf.writeBoolean(this.playerSneaking);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onPlayerInteractEntity(this);
-   }
+	@Override
+	public PacketType<PlayerInteractEntityC2SPacket> getPacketType() {
+		return PlayPackets.INTERACT;
+	}
 
-   public @Nullable Entity getEntity(ServerWorld world) {
-      return world.getEntityOrDragonPart(this.entityId);
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onPlayerInteractEntity(this);
+	}
 
-   public boolean isPlayerSneaking() {
-      return this.playerSneaking;
-   }
+	public @Nullable Entity getEntity(ServerWorld world) {
+		return world.getEntityOrDragonPart(this.entityId);
+	}
 
-   public boolean canInteractWithEntityIn(ServerPlayerEntity player, Box box, double additionalRange) {
-      return this.type.getType() == PlayerInteractEntityC2SPacket.InteractType.ATTACK
-         ? player.canAttackEntityIn(box, additionalRange)
-         : player.canInteractWithEntityIn(box, additionalRange);
-   }
+	public boolean isPlayerSneaking() {
+		return this.playerSneaking;
+	}
 
-   public void handle(PlayerInteractEntityC2SPacket.Handler handler) {
-      this.type.handle(handler);
-   }
+	public boolean canInteractWithEntityIn(ServerPlayerEntity player, Box box, double additionalRange) {
+		return this.type.getType() == PlayerInteractEntityC2SPacket.InteractType.ATTACK
+		       ? player.canAttackEntityIn(box, additionalRange)
+		       : player.canInteractWithEntityIn(box, additionalRange);
+	}
 
-   public interface Handler {
-      void interact(Hand hand);
+	public void handle(PlayerInteractEntityC2SPacket.Handler handler) {
+		this.type.handle(handler);
+	}
 
-      void interactAt(Hand hand, Vec3d pos);
+	public interface Handler {
 
-      void attack();
-   }
+		void interact(Hand hand);
 
-   static class InteractAtHandler implements PlayerInteractEntityC2SPacket.InteractTypeHandler {
-      private final Hand hand;
-      private final Vec3d pos;
+		void interactAt(Hand hand, Vec3d pos);
 
-      InteractAtHandler(Hand hand, Vec3d pos) {
-         this.hand = hand;
-         this.pos = pos;
-      }
+		void attack();
+	}
 
-      private InteractAtHandler(PacketByteBuf buf) {
-         this.pos = new Vec3d(buf.readFloat(), buf.readFloat(), buf.readFloat());
-         this.hand = buf.readEnumConstant(Hand.class);
-      }
+	static class InteractAtHandler implements PlayerInteractEntityC2SPacket.InteractTypeHandler {
 
-      @Override
-      public PlayerInteractEntityC2SPacket.InteractType getType() {
-         return PlayerInteractEntityC2SPacket.InteractType.INTERACT_AT;
-      }
+		private final Hand hand;
+		private final Vec3d pos;
 
-      @Override
-      public void handle(PlayerInteractEntityC2SPacket.Handler handler) {
-         handler.interactAt(this.hand, this.pos);
-      }
+		InteractAtHandler(Hand hand, Vec3d pos) {
+			this.hand = hand;
+			this.pos = pos;
+		}
 
-      @Override
-      public void write(PacketByteBuf buf) {
-         buf.writeFloat((float)this.pos.x);
-         buf.writeFloat((float)this.pos.y);
-         buf.writeFloat((float)this.pos.z);
-         buf.writeEnumConstant(this.hand);
-      }
-   }
+		private InteractAtHandler(PacketByteBuf buf) {
+			this.pos = new Vec3d(buf.readFloat(), buf.readFloat(), buf.readFloat());
+			this.hand = buf.readEnumConstant(Hand.class);
+		}
 
-   static class InteractHandler implements PlayerInteractEntityC2SPacket.InteractTypeHandler {
-      private final Hand hand;
+		@Override
+		public PlayerInteractEntityC2SPacket.InteractType getType() {
+			return PlayerInteractEntityC2SPacket.InteractType.INTERACT_AT;
+		}
 
-      InteractHandler(Hand hand) {
-         this.hand = hand;
-      }
+		@Override
+		public void handle(PlayerInteractEntityC2SPacket.Handler handler) {
+			handler.interactAt(this.hand, this.pos);
+		}
 
-      private InteractHandler(PacketByteBuf buf) {
-         this.hand = buf.readEnumConstant(Hand.class);
-      }
+		@Override
+		public void write(PacketByteBuf buf) {
+			buf.writeFloat((float) this.pos.x);
+			buf.writeFloat((float) this.pos.y);
+			buf.writeFloat((float) this.pos.z);
+			buf.writeEnumConstant(this.hand);
+		}
+	}
 
-      @Override
-      public PlayerInteractEntityC2SPacket.InteractType getType() {
-         return PlayerInteractEntityC2SPacket.InteractType.INTERACT;
-      }
+	static class InteractHandler implements PlayerInteractEntityC2SPacket.InteractTypeHandler {
 
-      @Override
-      public void handle(PlayerInteractEntityC2SPacket.Handler handler) {
-         handler.interact(this.hand);
-      }
+		private final Hand hand;
 
-      @Override
-      public void write(PacketByteBuf buf) {
-         buf.writeEnumConstant(this.hand);
-      }
-   }
+		InteractHandler(Hand hand) {
+			this.hand = hand;
+		}
 
-   static enum InteractType {
-      INTERACT(PlayerInteractEntityC2SPacket.InteractHandler::new),
-      ATTACK(buf -> PlayerInteractEntityC2SPacket.ATTACK),
-      INTERACT_AT(PlayerInteractEntityC2SPacket.InteractAtHandler::new);
+		private InteractHandler(PacketByteBuf buf) {
+			this.hand = buf.readEnumConstant(Hand.class);
+		}
 
-      final Function<PacketByteBuf, PlayerInteractEntityC2SPacket.InteractTypeHandler> handlerGetter;
+		@Override
+		public PlayerInteractEntityC2SPacket.InteractType getType() {
+			return PlayerInteractEntityC2SPacket.InteractType.INTERACT;
+		}
 
-      private InteractType(final Function<PacketByteBuf, PlayerInteractEntityC2SPacket.InteractTypeHandler> handlerGetter) {
-         this.handlerGetter = handlerGetter;
-      }
-   }
+		@Override
+		public void handle(PlayerInteractEntityC2SPacket.Handler handler) {
+			handler.interact(this.hand);
+		}
 
-   interface InteractTypeHandler {
-      PlayerInteractEntityC2SPacket.InteractType getType();
+		@Override
+		public void write(PacketByteBuf buf) {
+			buf.writeEnumConstant(this.hand);
+		}
+	}
 
-      void handle(PlayerInteractEntityC2SPacket.Handler handler);
+	static enum InteractType {
+		INTERACT(PlayerInteractEntityC2SPacket.InteractHandler::new),
+		ATTACK(buf -> PlayerInteractEntityC2SPacket.ATTACK),
+		INTERACT_AT(PlayerInteractEntityC2SPacket.InteractAtHandler::new);
 
-      void write(PacketByteBuf buf);
-   }
+		final Function<PacketByteBuf, PlayerInteractEntityC2SPacket.InteractTypeHandler> handlerGetter;
+
+		private InteractType(final Function<PacketByteBuf, PlayerInteractEntityC2SPacket.InteractTypeHandler> handlerGetter) {
+			this.handlerGetter = handlerGetter;
+		}
+	}
+
+	interface InteractTypeHandler {
+
+		PlayerInteractEntityC2SPacket.InteractType getType();
+
+		void handle(PlayerInteractEntityC2SPacket.Handler handler);
+
+		void write(PacketByteBuf buf);
+	}
 }

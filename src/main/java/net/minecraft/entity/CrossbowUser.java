@@ -8,22 +8,32 @@ import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CrossbowUser}.
+ */
 public interface CrossbowUser extends RangedAttackMob {
-   void setCharging(boolean charging);
 
-   @Nullable LivingEntity getTarget();
+	void setCharging(boolean charging);
 
-   void postShoot();
+	@Nullable LivingEntity getTarget();
 
-   default void shoot(LivingEntity entity, float speed) {
-      Hand hand = ProjectileUtil.getHandPossiblyHolding(entity, Items.CROSSBOW);
-      ItemStack itemStack = entity.getStackInHand(hand);
-      if (itemStack.getItem() instanceof CrossbowItem crossbowItem) {
-         crossbowItem.shootAll(
-            entity.getEntityWorld(), entity, hand, itemStack, speed, 14 - entity.getEntityWorld().getDifficulty().getId() * 4, this.getTarget()
-         );
-      }
+	void postShoot();
 
-      this.postShoot();
-   }
+	default void shoot(LivingEntity entity, float speed) {
+		Hand hand = ProjectileUtil.getHandPossiblyHolding(entity, Items.CROSSBOW);
+		ItemStack itemStack = entity.getStackInHand(hand);
+		if (itemStack.getItem() instanceof CrossbowItem crossbowItem) {
+			crossbowItem.shootAll(
+					entity.getEntityWorld(),
+					entity,
+					hand,
+					itemStack,
+					speed,
+					14 - entity.getEntityWorld().getDifficulty().getId() * 4,
+					this.getTarget()
+			);
+		}
+
+		this.postShoot();
+	}
 }

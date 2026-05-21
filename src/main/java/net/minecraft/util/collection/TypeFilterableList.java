@@ -4,78 +4,86 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import java.util.AbstractCollection;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import net.minecraft.util.Util;
 
+import java.util.*;
+import java.util.Map.Entry;
+
+/**
+ * {@code TypeFilterableList}.
+ */
 public class TypeFilterableList<T> extends AbstractCollection<T> {
-   private final Map<Class<?>, List<T>> elementsByType = Maps.newHashMap();
-   private final Class<T> elementType;
-   private final List<T> allElements = Lists.newArrayList();
 
-   public TypeFilterableList(Class<T> elementType) {
-      this.elementType = elementType;
-      this.elementsByType.put(elementType, this.allElements);
-   }
+	private final Map<Class<?>, List<T>> elementsByType = Maps.newHashMap();
+	private final Class<T> elementType;
+	private final List<T> allElements = Lists.newArrayList();
 
-   @Override
-   public boolean add(T e) {
-      boolean bl = false;
+	public TypeFilterableList(Class<T> elementType) {
+		this.elementType = elementType;
+		this.elementsByType.put(elementType, this.allElements);
+	}
 
-      for (Entry<Class<?>, List<T>> entry : this.elementsByType.entrySet()) {
-         if (entry.getKey().isInstance(e)) {
-            bl |= entry.getValue().add(e);
-         }
-      }
+	@Override
+	public boolean add(T e) {
+		boolean bl = false;
 
-      return bl;
-   }
+		for (Entry<Class<?>, List<T>> entry : this.elementsByType.entrySet()) {
+			if (entry.getKey().isInstance(e)) {
+				bl |= entry.getValue().add(e);
+			}
+		}
 
-   @Override
-   public boolean remove(Object o) {
-      boolean bl = false;
+		return bl;
+	}
 
-      for (Entry<Class<?>, List<T>> entry : this.elementsByType.entrySet()) {
-         if (entry.getKey().isInstance(o)) {
-            List<T> list = entry.getValue();
-            bl |= list.remove(o);
-         }
-      }
+	@Override
+	public boolean remove(Object o) {
+		boolean bl = false;
 
-      return bl;
-   }
+		for (Entry<Class<?>, List<T>> entry : this.elementsByType.entrySet()) {
+			if (entry.getKey().isInstance(o)) {
+				List<T> list = entry.getValue();
+				bl |= list.remove(o);
+			}
+		}
 
-   @Override
-   public boolean contains(Object o) {
-      return this.getAllOfType(o.getClass()).contains(o);
-   }
+		return bl;
+	}
 
-   public <S> Collection<S> getAllOfType(Class<S> type) {
-      if (!this.elementType.isAssignableFrom(type)) {
-         throw new IllegalArgumentException("Don't know how to search for " + type);
-      } else {
-         List<? extends T> list = this.elementsByType
-            .computeIfAbsent(type, typeClass -> this.allElements.stream().filter(typeClass::isInstance).collect(Util.toArrayList()));
-         return (Collection<S>)Collections.unmodifiableCollection(list);
-      }
-   }
+	@Override
+	public boolean contains(Object o) {
+		return this.getAllOfType(o.getClass()).contains(o);
+	}
 
-   @Override
-   public Iterator<T> iterator() {
-      return (Iterator<T>)(this.allElements.isEmpty() ? Collections.emptyIterator() : Iterators.unmodifiableIterator(this.allElements.iterator()));
-   }
+	public <S> Collection<S> getAllOfType(Class<S> type) {
+		if (!this.elementType.isAssignableFrom(type)) {
+			throw new IllegalArgumentException("Don't know how to search for " + type);
+		}
+		else {
+			List<? extends T> list = this.elementsByType
+					.computeIfAbsent(type,
+							typeClass -> this.allElements
+									.stream()
+									.filter(typeClass::isInstance)
+									.collect(Util.toArrayList())
+					);
+			return (Collection<S>) Collections.unmodifiableCollection(list);
+		}
+	}
 
-   public List<T> copy() {
-      return ImmutableList.copyOf(this.allElements);
-   }
+	@Override
+	public Iterator<T> iterator() {
+		return (Iterator<T>) (this.allElements.isEmpty() ? Collections.emptyIterator()
+		                                                 : Iterators.unmodifiableIterator(this.allElements.iterator())
+		);
+	}
 
-   @Override
-   public int size() {
-      return this.allElements.size();
-   }
+	public List<T> copy() {
+		return ImmutableList.copyOf(this.allElements);
+	}
+
+	@Override
+	public int size() {
+		return this.allElements.size();
+	}
 }

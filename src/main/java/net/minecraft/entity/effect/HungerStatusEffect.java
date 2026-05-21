@@ -4,22 +4,26 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 
+/**
+ * {@code HungerStatusEffect}.
+ */
 class HungerStatusEffect extends StatusEffect {
-   protected HungerStatusEffect(StatusEffectCategory statusEffectCategory, int i) {
-      super(statusEffectCategory, i);
-   }
 
-   @Override
-   public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
-      if (entity instanceof PlayerEntity playerEntity) {
-         playerEntity.addExhaustion(0.005F * (amplifier + 1));
-      }
+	protected HungerStatusEffect(StatusEffectCategory statusEffectCategory, int i) {
+		super(statusEffectCategory, i);
+	}
 
-      return true;
-   }
+	@Override
+	public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
+		if (entity instanceof PlayerEntity playerEntity) {
+			playerEntity.addExhaustion(0.005F * (amplifier + 1));
+		}
 
-   @Override
-   public boolean canApplyUpdateEffect(int duration, int amplifier) {
-      return true;
-   }
+		return true;
+	}
+
+	@Override
+	public boolean canApplyUpdateEffect(int duration, int amplifier) {
+		return true;
+	}
 }

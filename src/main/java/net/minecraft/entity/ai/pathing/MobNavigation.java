@@ -4,152 +4,165 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.mob.MobEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkSectionPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.*;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 
+/**
+ * {@code MobNavigation}.
+ */
 public class MobNavigation extends EntityNavigation {
-   private boolean avoidSunlight;
-   private boolean skipRetarget;
 
-   public MobNavigation(MobEntity mobEntity, World world) {
-      super(mobEntity, world);
-   }
+	private boolean avoidSunlight;
+	private boolean skipRetarget;
 
-   @Override
-   protected PathNodeNavigator createPathNodeNavigator(int range) {
-      this.nodeMaker = new LandPathNodeMaker();
-      return new PathNodeNavigator(this.nodeMaker, range);
-   }
+	public MobNavigation(MobEntity mobEntity, World world) {
+		super(mobEntity, world);
+	}
 
-   @Override
-   protected boolean isAtValidPosition() {
-      return this.entity.isOnGround() || this.entity.isInFluid() || this.entity.hasVehicle();
-   }
+	@Override
+	protected PathNodeNavigator createPathNodeNavigator(int range) {
+		this.nodeMaker = new LandPathNodeMaker();
+		return new PathNodeNavigator(this.nodeMaker, range);
+	}
 
-   @Override
-   protected Vec3d getPos() {
-      return new Vec3d(this.entity.getX(), this.getPathfindingY(), this.entity.getZ());
-   }
+	@Override
+	protected boolean isAtValidPosition() {
+		return this.entity.isOnGround() || this.entity.isInFluid() || this.entity.hasVehicle();
+	}
 
-   @Override
-   public Path findPathTo(BlockPos target, int distance) {
-      WorldChunk worldChunk = this.world
-         .getChunkManager()
-         .getWorldChunk(ChunkSectionPos.getSectionCoord(target.getX()), ChunkSectionPos.getSectionCoord(target.getZ()));
-      if (worldChunk == null) {
-         return null;
-      } else {
-         if (!this.skipRetarget) {
-            target = this.retargetToSolidBlock(worldChunk, target, distance);
-         }
+	@Override
+	protected Vec3d getPos() {
+		return new Vec3d(this.entity.getX(), this.getPathfindingY(), this.entity.getZ());
+	}
 
-         return super.findPathTo(target, distance);
-      }
-   }
+	@Override
+	public Path findPathTo(BlockPos target, int distance) {
+		WorldChunk worldChunk = this.world
+				.getChunkManager()
+				.getWorldChunk(
+						ChunkSectionPos.getSectionCoord(target.getX()),
+						ChunkSectionPos.getSectionCoord(target.getZ())
+				);
+		if (worldChunk == null) {
+			return null;
+		}
+		else {
+			if (!this.skipRetarget) {
+				target = this.retargetToSolidBlock(worldChunk, target, distance);
+			}
 
-   final BlockPos retargetToSolidBlock(WorldChunk chunk, BlockPos pos, int distance) {
-      if (chunk.getBlockState(pos).isAir()) {
-         BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.DOWN);
+			return super.findPathTo(target, distance);
+		}
+	}
 
-         while (mutable.getY() >= this.world.getBottomY() && chunk.getBlockState(mutable).isAir()) {
-            mutable.move(Direction.DOWN);
-         }
+	final BlockPos retargetToSolidBlock(WorldChunk chunk, BlockPos pos, int distance) {
+		if (chunk.getBlockState(pos).isAir()) {
+			BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.DOWN);
 
-         if (mutable.getY() >= this.world.getBottomY()) {
-            return mutable.up();
-         }
+			while (mutable.getY() >= this.world.getBottomY() && chunk.getBlockState(mutable).isAir()) {
+				mutable.move(Direction.DOWN);
+			}
 
-         mutable.setY(pos.getY() + 1);
+			if (mutable.getY() >= this.world.getBottomY()) {
+				return mutable.up();
+			}
 
-         while (mutable.getY() <= this.world.getTopYInclusive() && chunk.getBlockState(mutable).isAir()) {
-            mutable.move(Direction.UP);
-         }
+			mutable.setY(pos.getY() + 1);
 
-         pos = mutable;
-      }
+			while (mutable.getY() <= this.world.getTopYInclusive() && chunk.getBlockState(mutable).isAir()) {
+				mutable.move(Direction.UP);
+			}
 
-      if (!chunk.getBlockState(pos).isSolid()) {
-         return pos;
-      } else {
-         BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.UP);
+			pos = mutable;
+		}
 
-         while (mutable.getY() <= this.world.getTopYInclusive() && chunk.getBlockState(mutable).isSolid()) {
-            mutable.move(Direction.UP);
-         }
+		if (!chunk.getBlockState(pos).isSolid()) {
+			return pos;
+		}
+		else {
+			BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.UP);
 
-         return mutable.toImmutable();
-      }
-   }
+			while (mutable.getY() <= this.world.getTopYInclusive() && chunk.getBlockState(mutable).isSolid()) {
+				mutable.move(Direction.UP);
+			}
 
-   @Override
-   public Path findPathTo(Entity entity, int distance) {
-      return this.findPathTo(entity.getBlockPos(), distance);
-   }
+			return mutable.toImmutable();
+		}
+	}
 
-   private int getPathfindingY() {
-      if (this.entity.isTouchingWater() && this.canSwim()) {
-         int i = this.entity.getBlockY();
-         BlockState blockState = this.world.getBlockState(BlockPos.ofFloored(this.entity.getX(), i, this.entity.getZ()));
-         int j = 0;
+	@Override
+	public Path findPathTo(Entity entity, int distance) {
+		return this.findPathTo(entity.getBlockPos(), distance);
+	}
 
-         while (blockState.isOf(Blocks.WATER)) {
-            blockState = this.world.getBlockState(BlockPos.ofFloored(this.entity.getX(), ++i, this.entity.getZ()));
-            if (++j > 16) {
-               return this.entity.getBlockY();
-            }
-         }
+	private int getPathfindingY() {
+		if (this.entity.isTouchingWater() && this.canSwim()) {
+			int i = this.entity.getBlockY();
+			BlockState
+					blockState =
+					this.world.getBlockState(BlockPos.ofFloored(this.entity.getX(), i, this.entity.getZ()));
+			int j = 0;
 
-         return i;
-      } else {
-         return MathHelper.floor(this.entity.getY() + 0.5);
-      }
-   }
+			while (blockState.isOf(Blocks.WATER)) {
+				blockState = this.world.getBlockState(BlockPos.ofFloored(this.entity.getX(), ++i, this.entity.getZ()));
+				if (++j > 16) {
+					return this.entity.getBlockY();
+				}
+			}
 
-   @Override
-   protected void adjustPath() {
-      super.adjustPath();
-      if (this.avoidSunlight) {
-         if (this.world.isSkyVisible(BlockPos.ofFloored(this.entity.getX(), this.entity.getY() + 0.5, this.entity.getZ()))) {
-            return;
-         }
+			return i;
+		}
+		else {
+			return MathHelper.floor(this.entity.getY() + 0.5);
+		}
+	}
 
-         for (int i = 0; i < this.currentPath.getLength(); i++) {
-            PathNode pathNode = this.currentPath.getNode(i);
-            if (this.world.isSkyVisible(new BlockPos(pathNode.x, pathNode.y, pathNode.z))) {
-               this.currentPath.setLength(i);
-               return;
-            }
-         }
-      }
-   }
+	@Override
+	protected void adjustPath() {
+		super.adjustPath();
+		if (this.avoidSunlight) {
+			if (this.world.isSkyVisible(BlockPos.ofFloored(
+					this.entity.getX(),
+					this.entity.getY() + 0.5,
+					this.entity.getZ()
+			))) {
+				return;
+			}
 
-   @Override
-   public boolean canControlOpeningDoors() {
-      return true;
-   }
+			for (int i = 0; i < this.currentPath.getLength(); i++) {
+				PathNode pathNode = this.currentPath.getNode(i);
+				if (this.world.isSkyVisible(new BlockPos(pathNode.x, pathNode.y, pathNode.z))) {
+					this.currentPath.setLength(i);
+					return;
+				}
+			}
+		}
+	}
 
-   protected boolean canWalkOnPath(PathNodeType pathType) {
-      if (pathType == PathNodeType.WATER) {
-         return false;
-      } else {
-         return pathType == PathNodeType.LAVA ? false : pathType != PathNodeType.OPEN;
-      }
-   }
+	@Override
+	public boolean canControlOpeningDoors() {
+		return true;
+	}
 
-   public void setAvoidSunlight(boolean avoidSunlight) {
-      this.avoidSunlight = avoidSunlight;
-   }
+	protected boolean canWalkOnPath(PathNodeType pathType) {
+		if (pathType == PathNodeType.WATER) {
+			return false;
+		}
+		else {
+			return pathType == PathNodeType.LAVA ? false : pathType != PathNodeType.OPEN;
+		}
+	}
 
-   public void setCanWalkOverFences(boolean canWalkOverFences) {
-      this.nodeMaker.setCanWalkOverFences(canWalkOverFences);
-   }
+	public void setAvoidSunlight(boolean avoidSunlight) {
+		this.avoidSunlight = avoidSunlight;
+	}
 
-   public void setSkipRetarget(boolean skipRetarget) {
-      this.skipRetarget = skipRetarget;
-   }
+	public void setCanWalkOverFences(boolean canWalkOverFences) {
+		this.nodeMaker.setCanWalkOverFences(canWalkOverFences);
+	}
+
+	public void setSkipRetarget(boolean skipRetarget) {
+		this.skipRetarget = skipRetarget;
+	}
 }

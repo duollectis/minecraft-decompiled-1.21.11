@@ -1,6 +1,5 @@
 package net.minecraft.network.packet.s2c.play;
 
-import java.util.List;
 import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
@@ -10,45 +9,52 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.recipe.RecipeDisplayEntry;
 
-public record RecipeBookAddS2CPacket(List<RecipeBookAddS2CPacket.Entry> entries, boolean replace) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, RecipeBookAddS2CPacket> CODEC = PacketCodec.tuple(
-      RecipeBookAddS2CPacket.Entry.PACKET_CODEC.collect(PacketCodecs.toList()),
-      RecipeBookAddS2CPacket::entries,
-      PacketCodecs.BOOLEAN,
-      RecipeBookAddS2CPacket::replace,
-      RecipeBookAddS2CPacket::new
-   );
+import java.util.List;
 
-   @Override
-   public PacketType<RecipeBookAddS2CPacket> getPacketType() {
-      return PlayPackets.RECIPE_BOOK_ADD;
-   }
+public record RecipeBookAddS2CPacket(
+		List<RecipeBookAddS2CPacket.Entry> entries,
+		boolean replace
+) implements Packet<ClientPlayPacketListener> {
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onRecipeBookAdd(this);
-   }
+	public static final PacketCodec<RegistryByteBuf, RecipeBookAddS2CPacket> CODEC = PacketCodec.tuple(
+			RecipeBookAddS2CPacket.Entry.PACKET_CODEC.collect(PacketCodecs.toList()),
+			RecipeBookAddS2CPacket::entries,
+			PacketCodecs.BOOLEAN,
+			RecipeBookAddS2CPacket::replace,
+			RecipeBookAddS2CPacket::new
+	);
 
-   public record Entry(RecipeDisplayEntry contents, byte flags) {
-      public static final byte SHOW_NOTIFICATION = 1;
-      public static final byte HIGHLIGHTED = 2;
-      public static final PacketCodec<RegistryByteBuf, RecipeBookAddS2CPacket.Entry> PACKET_CODEC = PacketCodec.tuple(
-         RecipeDisplayEntry.PACKET_CODEC,
-         RecipeBookAddS2CPacket.Entry::contents,
-         PacketCodecs.BYTE,
-         RecipeBookAddS2CPacket.Entry::flags,
-         RecipeBookAddS2CPacket.Entry::new
-      );
+	@Override
+	public PacketType<RecipeBookAddS2CPacket> getPacketType() {
+		return PlayPackets.RECIPE_BOOK_ADD;
+	}
 
-      public Entry(RecipeDisplayEntry display, boolean showNotification, boolean highlighted) {
-         this(display, (byte)((showNotification ? 1 : 0) | (highlighted ? 2 : 0)));
-      }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onRecipeBookAdd(this);
+	}
 
-      public boolean shouldShowNotification() {
-         return (this.flags & 1) != 0;
-      }
+	public record Entry(RecipeDisplayEntry contents, byte flags) {
 
-      public boolean isHighlighted() {
-         return (this.flags & 2) != 0;
-      }
-   }
+		public static final byte SHOW_NOTIFICATION = 1;
+		public static final byte HIGHLIGHTED = 2;
+		public static final PacketCodec<RegistryByteBuf, RecipeBookAddS2CPacket.Entry> PACKET_CODEC = PacketCodec.tuple(
+				RecipeDisplayEntry.PACKET_CODEC,
+				RecipeBookAddS2CPacket.Entry::contents,
+				PacketCodecs.BYTE,
+				RecipeBookAddS2CPacket.Entry::flags,
+				RecipeBookAddS2CPacket.Entry::new
+		);
+
+		public Entry(RecipeDisplayEntry display, boolean showNotification, boolean highlighted) {
+			this(display, (byte) ((showNotification ? 1 : 0) | (highlighted ? 2 : 0)));
+		}
+
+		public boolean shouldShowNotification() {
+			return (this.flags & 1) != 0;
+		}
+
+		public boolean isHighlighted() {
+			return (this.flags & 2) != 0;
+		}
+	}
 }

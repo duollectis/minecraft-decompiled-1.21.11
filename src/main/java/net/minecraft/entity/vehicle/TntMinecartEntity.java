@@ -26,194 +26,234 @@ import net.minecraft.world.explosion.Explosion;
 import net.minecraft.world.rule.GameRules;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code TntMinecartEntity}.
+ */
 public class TntMinecartEntity extends AbstractMinecartEntity {
-   private static final byte PRIME_TNT_STATUS = 10;
-   private static final String EXPLOSION_POWER_NBT_KEY = "explosion_power";
-   private static final String EXPLOSION_SPEED_FACTOR_NBT_KEY = "explosion_speed_factor";
-   private static final String FUSE_NBT_KEY = "fuse";
-   private static final float DEFAULT_EXPLOSION_POWER = 4.0F;
-   private static final float DEFAULT_EXPLOSION_SPEED_FACTOR = 1.0F;
-   private static final int DEFAULT_FUSE_TICKS = -1;
-   private @Nullable DamageSource damageSource;
-   private int fuseTicks = -1;
-   private float explosionPower = 4.0F;
-   private float explosionSpeedFactor = 1.0F;
 
-   public TntMinecartEntity(EntityType<? extends TntMinecartEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final byte PRIME_TNT_STATUS = 10;
+	private static final String EXPLOSION_POWER_NBT_KEY = "explosion_power";
+	private static final String EXPLOSION_SPEED_FACTOR_NBT_KEY = "explosion_speed_factor";
+	private static final String FUSE_NBT_KEY = "fuse";
+	private static final float DEFAULT_EXPLOSION_POWER = 4.0F;
+	private static final float DEFAULT_EXPLOSION_SPEED_FACTOR = 1.0F;
+	private static final int DEFAULT_FUSE_TICKS = -1;
+	private @Nullable DamageSource damageSource;
+	private int fuseTicks = -1;
+	private float explosionPower = 4.0F;
+	private float explosionSpeedFactor = 1.0F;
 
-   @Override
-   public BlockState getDefaultContainedBlock() {
-      return Blocks.TNT.getDefaultState();
-   }
+	public TntMinecartEntity(EntityType<? extends TntMinecartEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      if (this.fuseTicks > 0) {
-         this.fuseTicks--;
-         this.getEntityWorld().addParticleClient(ParticleTypes.SMOKE, this.getX(), this.getY() + 0.5, this.getZ(), 0.0, 0.0, 0.0);
-      } else if (this.fuseTicks == 0) {
-         this.explode(this.damageSource, this.getVelocity().horizontalLengthSquared());
-      }
+	@Override
+	public BlockState getDefaultContainedBlock() {
+		return Blocks.TNT.getDefaultState();
+	}
 
-      if (this.horizontalCollision) {
-         double d = this.getVelocity().horizontalLengthSquared();
-         if (d >= 0.01F) {
-            this.explode(this.damageSource, d);
-         }
-      }
-   }
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.fuseTicks > 0) {
+			this.fuseTicks--;
+			this
+					.getEntityWorld()
+					.addParticleClient(ParticleTypes.SMOKE, this.getX(), this.getY() + 0.5, this.getZ(), 0.0, 0.0, 0.0);
+		}
+		else if (this.fuseTicks == 0) {
+			this.explode(this.damageSource, this.getVelocity().horizontalLengthSquared());
+		}
 
-   @Override
-   public boolean damage(ServerWorld world, DamageSource source, float amount) {
-      if (source.getSource() instanceof PersistentProjectileEntity persistentProjectileEntity && persistentProjectileEntity.isOnFire()) {
-         DamageSource damageSource = this.getDamageSources().explosion(this, source.getAttacker());
-         this.explode(damageSource, persistentProjectileEntity.getVelocity().lengthSquared());
-      }
+		if (this.horizontalCollision) {
+			double d = this.getVelocity().horizontalLengthSquared();
+			if (d >= 0.01F) {
+				this.explode(this.damageSource, d);
+			}
+		}
+	}
 
-      return super.damage(world, source, amount);
-   }
+	@Override
+	public boolean damage(ServerWorld world, DamageSource source, float amount) {
+		if (source.getSource() instanceof PersistentProjectileEntity persistentProjectileEntity
+				&& persistentProjectileEntity.isOnFire()) {
+			DamageSource damageSource = this.getDamageSources().explosion(this, source.getAttacker());
+			this.explode(damageSource, persistentProjectileEntity.getVelocity().lengthSquared());
+		}
 
-   @Override
-   public void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
-      double d = this.getVelocity().horizontalLengthSquared();
-      if (!shouldDetonate(damageSource) && !(d >= 0.01F)) {
-         this.killAndDropItem(world, this.asItem());
-      } else {
-         if (this.fuseTicks < 0) {
-            this.prime(damageSource);
-            this.fuseTicks = this.random.nextInt(20) + this.random.nextInt(20);
-         }
-      }
-   }
+		return super.damage(world, source, amount);
+	}
 
-   @Override
-   protected Item asItem() {
-      return Items.TNT_MINECART;
-   }
+	@Override
+	public void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
+		double d = this.getVelocity().horizontalLengthSquared();
+		if (!shouldDetonate(damageSource) && !(d >= 0.01F)) {
+			this.killAndDropItem(world, this.asItem());
+		}
+		else {
+			if (this.fuseTicks < 0) {
+				this.prime(damageSource);
+				this.fuseTicks = this.random.nextInt(20) + this.random.nextInt(20);
+			}
+		}
+	}
 
-   @Override
-   public ItemStack getPickBlockStack() {
-      return new ItemStack(Items.TNT_MINECART);
-   }
+	@Override
+	protected Item asItem() {
+		return Items.TNT_MINECART;
+	}
 
-   protected void explode(@Nullable DamageSource damageSource, double power) {
-      if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         if (serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
-            double d = Math.min(Math.sqrt(power), 5.0);
-            serverWorld.createExplosion(
-               this,
-               damageSource,
-               null,
-               this.getX(),
-               this.getY(),
-               this.getZ(),
-               (float)(this.explosionPower + this.explosionSpeedFactor * this.random.nextDouble() * 1.5 * d),
-               false,
-               World.ExplosionSourceType.TNT
-            );
-            this.discard();
-         } else if (this.isPrimed()) {
-            this.discard();
-         }
-      }
-   }
+	@Override
+	public ItemStack getPickBlockStack() {
+		return new ItemStack(Items.TNT_MINECART);
+	}
 
-   @Override
-   public boolean handleFallDamage(double fallDistance, float damagePerDistance, DamageSource damageSource) {
-      if (fallDistance >= 3.0) {
-         double d = fallDistance / 10.0;
-         this.explode(this.damageSource, d * d);
-      }
+	protected void explode(@Nullable DamageSource damageSource, double power) {
+		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			if (serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
+				double d = Math.min(Math.sqrt(power), 5.0);
+				serverWorld.createExplosion(
+						this,
+						damageSource,
+						null,
+						this.getX(),
+						this.getY(),
+						this.getZ(),
+						(float) (this.explosionPower + this.explosionSpeedFactor * this.random.nextDouble() * 1.5 * d),
+						false,
+						World.ExplosionSourceType.TNT
+				);
+				this.discard();
+			}
+			else if (this.isPrimed()) {
+				this.discard();
+			}
+		}
+	}
 
-      return super.handleFallDamage(fallDistance, damagePerDistance, damageSource);
-   }
+	@Override
+	public boolean handleFallDamage(double fallDistance, float damagePerDistance, DamageSource damageSource) {
+		if (fallDistance >= 3.0) {
+			double d = fallDistance / 10.0;
+			this.explode(this.damageSource, d * d);
+		}
 
-   @Override
-   public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
-      if (bl && this.fuseTicks < 0) {
-         this.prime(null);
-      }
-   }
+		return super.handleFallDamage(fallDistance, damagePerDistance, damageSource);
+	}
 
-   @Override
-   public void handleStatus(byte status) {
-      if (status == 10) {
-         this.prime(null);
-      } else {
-         super.handleStatus(status);
-      }
-   }
+	@Override
+	public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
+		if (bl && this.fuseTicks < 0) {
+			this.prime(null);
+		}
+	}
 
-   public void prime(@Nullable DamageSource source) {
-      if (!(this.getEntityWorld() instanceof ServerWorld serverWorld && !serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES))) {
-         this.fuseTicks = 80;
-         if (!this.getEntityWorld().isClient()) {
-            if (source != null && this.damageSource == null) {
-               this.damageSource = this.getDamageSources().explosion(this, source.getAttacker());
-            }
+	@Override
+	public void handleStatus(byte status) {
+		if (status == 10) {
+			this.prime(null);
+		}
+		else {
+			super.handleStatus(status);
+		}
+	}
 
-            this.getEntityWorld().sendEntityStatus(this, (byte)10);
-            if (!this.isSilent()) {
-               this.getEntityWorld().playSound(null, this.getX(), this.getY(), this.getZ(), SoundEvents.ENTITY_TNT_PRIMED, SoundCategory.BLOCKS, 1.0F, 1.0F);
-            }
-         }
-      }
-   }
+	public void prime(@Nullable DamageSource source) {
+		if (!(this.getEntityWorld() instanceof ServerWorld serverWorld && !serverWorld
+				.getGameRules()
+				.getValue(GameRules.TNT_EXPLODES)
+		)) {
+			this.fuseTicks = 80;
+			if (!this.getEntityWorld().isClient()) {
+				if (source != null && this.damageSource == null) {
+					this.damageSource = this.getDamageSources().explosion(this, source.getAttacker());
+				}
 
-   public int getFuseTicks() {
-      return this.fuseTicks;
-   }
+				this.getEntityWorld().sendEntityStatus(this, (byte) 10);
+				if (!this.isSilent()) {
+					this
+							.getEntityWorld()
+							.playSound(
+									null,
+									this.getX(),
+									this.getY(),
+									this.getZ(),
+									SoundEvents.ENTITY_TNT_PRIMED,
+									SoundCategory.BLOCKS,
+									1.0F,
+									1.0F
+							);
+				}
+			}
+		}
+	}
 
-   public boolean isPrimed() {
-      return this.fuseTicks > -1;
-   }
+	public int getFuseTicks() {
+		return this.fuseTicks;
+	}
 
-   @Override
-   public float getEffectiveExplosionResistance(Explosion explosion, BlockView world, BlockPos pos, BlockState blockState, FluidState fluidState, float max) {
-      return !this.isPrimed() || !blockState.isIn(BlockTags.RAILS) && !world.getBlockState(pos.up()).isIn(BlockTags.RAILS)
-         ? super.getEffectiveExplosionResistance(explosion, world, pos, blockState, fluidState, max)
-         : 0.0F;
-   }
+	public boolean isPrimed() {
+		return this.fuseTicks > -1;
+	}
 
-   @Override
-   public boolean canExplosionDestroyBlock(Explosion explosion, BlockView world, BlockPos pos, BlockState state, float explosionPower) {
-      return !this.isPrimed() || !state.isIn(BlockTags.RAILS) && !world.getBlockState(pos.up()).isIn(BlockTags.RAILS)
-         ? super.canExplosionDestroyBlock(explosion, world, pos, state, explosionPower)
-         : false;
-   }
+	@Override
+	public float getEffectiveExplosionResistance(
+			Explosion explosion,
+			BlockView world,
+			BlockPos pos,
+			BlockState blockState,
+			FluidState fluidState,
+			float max
+	) {
+		return !this.isPrimed() || !blockState.isIn(BlockTags.RAILS) && !world
+				.getBlockState(pos.up())
+				.isIn(BlockTags.RAILS)
+		       ? super.getEffectiveExplosionResistance(explosion, world, pos, blockState, fluidState, max)
+		       : 0.0F;
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.fuseTicks = view.getInt("fuse", -1);
-      this.explosionPower = MathHelper.clamp(view.getFloat("explosion_power", 4.0F), 0.0F, 128.0F);
-      this.explosionSpeedFactor = MathHelper.clamp(view.getFloat("explosion_speed_factor", 1.0F), 0.0F, 128.0F);
-   }
+	@Override
+	public boolean canExplosionDestroyBlock(
+			Explosion explosion,
+			BlockView world,
+			BlockPos pos,
+			BlockState state,
+			float explosionPower
+	) {
+		return !this.isPrimed() || !state.isIn(BlockTags.RAILS) && !world.getBlockState(pos.up()).isIn(BlockTags.RAILS)
+		       ? super.canExplosionDestroyBlock(explosion, world, pos, state, explosionPower)
+		       : false;
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putInt("fuse", this.fuseTicks);
-      if (this.explosionPower != 4.0F) {
-         view.putFloat("explosion_power", this.explosionPower);
-      }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.fuseTicks = view.getInt("fuse", -1);
+		this.explosionPower = MathHelper.clamp(view.getFloat("explosion_power", 4.0F), 0.0F, 128.0F);
+		this.explosionSpeedFactor = MathHelper.clamp(view.getFloat("explosion_speed_factor", 1.0F), 0.0F, 128.0F);
+	}
 
-      if (this.explosionSpeedFactor != 1.0F) {
-         view.putFloat("explosion_speed_factor", this.explosionSpeedFactor);
-      }
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putInt("fuse", this.fuseTicks);
+		if (this.explosionPower != 4.0F) {
+			view.putFloat("explosion_power", this.explosionPower);
+		}
 
-   @Override
-   protected boolean shouldAlwaysKill(DamageSource source) {
-      return shouldDetonate(source);
-   }
+		if (this.explosionSpeedFactor != 1.0F) {
+			view.putFloat("explosion_speed_factor", this.explosionSpeedFactor);
+		}
+	}
 
-   private static boolean shouldDetonate(DamageSource source) {
-      return source.getSource() instanceof ProjectileEntity projectileEntity
-         ? projectileEntity.isOnFire()
-         : source.isIn(DamageTypeTags.IS_FIRE) || source.isIn(DamageTypeTags.IS_EXPLOSION);
-   }
+	@Override
+	protected boolean shouldAlwaysKill(DamageSource source) {
+		return shouldDetonate(source);
+	}
+
+	private static boolean shouldDetonate(DamageSource source) {
+		return source.getSource() instanceof ProjectileEntity projectileEntity
+		       ? projectileEntity.isOnFire()
+		       : source.isIn(DamageTypeTags.IS_FIRE) || source.isIn(DamageTypeTags.IS_EXPLOSION);
+	}
 }

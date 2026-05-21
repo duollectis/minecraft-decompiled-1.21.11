@@ -7,8 +7,6 @@ import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.buffers.Std140SizeCalculator;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
-import java.nio.ByteBuffer;
-import java.util.List;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.block.enums.CameraSubmersionType;
@@ -26,213 +24,268 @@ import net.minecraft.util.math.MathHelper;
 import org.joml.Vector4f;
 import org.lwjgl.system.MemoryStack;
 
+import java.nio.ByteBuffer;
+import java.util.List;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FogRenderer}.
+ */
 public class FogRenderer implements AutoCloseable {
-   public static final int FOG_UBO_SIZE = new Std140SizeCalculator().putVec4().putFloat().putFloat().putFloat().putFloat().putFloat().putFloat().get();
-   private static final List<FogModifier> FOG_MODIFIERS = Lists.newArrayList(
-      new FogModifier[]{
-         new LavaFogModifier(),
-         new PowderSnowFogModifier(),
-         new BlindnessEffectFogModifier(),
-         new DarknessEffectFogModifier(),
-         new WaterFogModifier(),
-         new AtmosphericFogModifier()
-      }
-   );
-   private static boolean fogEnabled = true;
-   private final GpuBuffer emptyBuffer;
-   private final MappableRingBuffer fogBuffer;
 
-   public FogRenderer() {
-      GpuDevice gpuDevice = RenderSystem.getDevice();
-      this.fogBuffer = new MappableRingBuffer(() -> "Fog UBO", 130, FOG_UBO_SIZE);
-      MemoryStack memoryStack = MemoryStack.stackPush();
+	public static final int
+			FOG_UBO_SIZE =
+			new Std140SizeCalculator()
+					.putVec4()
+					.putFloat()
+					.putFloat()
+					.putFloat()
+					.putFloat()
+					.putFloat()
+					.putFloat()
+					.get();
+	private static final List<FogModifier> FOG_MODIFIERS = Lists.newArrayList(
+			new FogModifier[]{
+					new LavaFogModifier(),
+					new PowderSnowFogModifier(),
+					new BlindnessEffectFogModifier(),
+					new DarknessEffectFogModifier(),
+					new WaterFogModifier(),
+					new AtmosphericFogModifier()
+			}
+	);
+	private static boolean fogEnabled = true;
+	private final GpuBuffer emptyBuffer;
+	private final MappableRingBuffer fogBuffer;
 
-      try {
-         ByteBuffer byteBuffer = memoryStack.malloc(FOG_UBO_SIZE);
-         this.applyFog(byteBuffer, 0, new Vector4f(0.0F), Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
-         this.emptyBuffer = gpuDevice.createBuffer(() -> "Empty fog", 128, byteBuffer.flip());
-      } catch (Throwable var6) {
-         if (memoryStack != null) {
-            try {
-               memoryStack.close();
-            } catch (Throwable var5) {
-               var6.addSuppressed(var5);
-            }
-         }
+	public FogRenderer() {
+		GpuDevice gpuDevice = RenderSystem.getDevice();
+		this.fogBuffer = new MappableRingBuffer(() -> "Fog UBO", 130, FOG_UBO_SIZE);
+		MemoryStack memoryStack = MemoryStack.stackPush();
 
-         throw var6;
-      }
+		try {
+			ByteBuffer byteBuffer = memoryStack.malloc(FOG_UBO_SIZE);
+			this.applyFog(
+					byteBuffer,
+					0,
+					new Vector4f(0.0F),
+					Float.MAX_VALUE,
+					Float.MAX_VALUE,
+					Float.MAX_VALUE,
+					Float.MAX_VALUE,
+					Float.MAX_VALUE,
+					Float.MAX_VALUE
+			);
+			this.emptyBuffer = gpuDevice.createBuffer(() -> "Empty fog", 128, byteBuffer.flip());
+		}
+		catch (Throwable var6) {
+			if (memoryStack != null) {
+				try {
+					memoryStack.close();
+				}
+				catch (Throwable var5) {
+					var6.addSuppressed(var5);
+				}
+			}
 
-      if (memoryStack != null) {
-         memoryStack.close();
-      }
+			throw var6;
+		}
 
-      RenderSystem.setShaderFog(this.getFogBuffer(FogRenderer.FogType.NONE));
-   }
+		if (memoryStack != null) {
+			memoryStack.close();
+		}
 
-   @Override
-   public void close() {
-      this.emptyBuffer.close();
-      this.fogBuffer.close();
-   }
+		RenderSystem.setShaderFog(this.getFogBuffer(FogRenderer.FogType.NONE));
+	}
 
-   public void rotate() {
-      this.fogBuffer.rotate();
-   }
+	@Override
+	public void close() {
+		this.emptyBuffer.close();
+		this.fogBuffer.close();
+	}
 
-   public GpuBufferSlice getFogBuffer(FogRenderer.FogType fogType) {
-      if (!fogEnabled) {
-         return this.emptyBuffer.slice(0L, FOG_UBO_SIZE);
-      } else {
-         return switch (fogType) {
-            case NONE -> this.emptyBuffer.slice(0L, FOG_UBO_SIZE);
-            case WORLD -> this.fogBuffer.getBlocking().slice(0L, FOG_UBO_SIZE);
-         };
-      }
-   }
+	public void rotate() {
+		this.fogBuffer.rotate();
+	}
 
-   private Vector4f getFogColor(Camera camera, float tickProgress, ClientWorld world, int viewDistance, float skyDarkness) {
-      CameraSubmersionType cameraSubmersionType = this.getCameraSubmersionType(camera);
-      Entity entity = camera.getFocusedEntity();
-      FogModifier fogModifier = null;
-      FogModifier fogModifier2 = null;
+	public GpuBufferSlice getFogBuffer(FogRenderer.FogType fogType) {
+		if (!fogEnabled) {
+			return this.emptyBuffer.slice(0L, FOG_UBO_SIZE);
+		}
+		else {
+			return switch (fogType) {
+				case NONE -> this.emptyBuffer.slice(0L, FOG_UBO_SIZE);
+				case WORLD -> this.fogBuffer.getBlocking().slice(0L, FOG_UBO_SIZE);
+			};
+		}
+	}
 
-      for (FogModifier fogModifier3 : FOG_MODIFIERS) {
-         if (fogModifier3.shouldApply(cameraSubmersionType, entity)) {
-            if (fogModifier == null && fogModifier3.isColorSource()) {
-               fogModifier = fogModifier3;
-            }
+	private Vector4f getFogColor(
+			Camera camera,
+			float tickProgress,
+			ClientWorld world,
+			int viewDistance,
+			float skyDarkness
+	) {
+		CameraSubmersionType cameraSubmersionType = this.getCameraSubmersionType(camera);
+		Entity entity = camera.getFocusedEntity();
+		FogModifier fogModifier = null;
+		FogModifier fogModifier2 = null;
 
-            if (fogModifier2 == null && fogModifier3.isDarknessModifier()) {
-               fogModifier2 = fogModifier3;
-            }
-         }
-      }
+		for (FogModifier fogModifier3 : FOG_MODIFIERS) {
+			if (fogModifier3.shouldApply(cameraSubmersionType, entity)) {
+				if (fogModifier == null && fogModifier3.isColorSource()) {
+					fogModifier = fogModifier3;
+				}
 
-      if (fogModifier == null) {
-         throw new IllegalStateException("No color source environment found");
-      } else {
-         int i = fogModifier.getFogColor(world, camera, viewDistance, tickProgress);
-         float f = world.getLevelProperties().getVoidDarknessRange();
-         float g = MathHelper.clamp((f + world.getBottomY() - (float)camera.getCameraPos().y) / f, 0.0F, 1.0F);
-         if (fogModifier2 != null) {
-            LivingEntity livingEntity = (LivingEntity)entity;
-            g = fogModifier2.applyDarknessModifier(livingEntity, g, tickProgress);
-         }
+				if (fogModifier2 == null && fogModifier3.isDarknessModifier()) {
+					fogModifier2 = fogModifier3;
+				}
+			}
+		}
 
-         float h = ColorHelper.getRedFloat(i);
-         float j = ColorHelper.getGreenFloat(i);
-         float k = ColorHelper.getBlueFloat(i);
-         if (g > 0.0F && cameraSubmersionType != CameraSubmersionType.LAVA && cameraSubmersionType != CameraSubmersionType.POWDER_SNOW) {
-            float l = MathHelper.square(1.0F - g);
-            h *= l;
-            j *= l;
-            k *= l;
-         }
+		if (fogModifier == null) {
+			throw new IllegalStateException("No color source environment found");
+		}
+		else {
+			int i = fogModifier.getFogColor(world, camera, viewDistance, tickProgress);
+			float f = world.getLevelProperties().getVoidDarknessRange();
+			float g = MathHelper.clamp((f + world.getBottomY() - (float) camera.getCameraPos().y) / f, 0.0F, 1.0F);
+			if (fogModifier2 != null) {
+				LivingEntity livingEntity = (LivingEntity) entity;
+				g = fogModifier2.applyDarknessModifier(livingEntity, g, tickProgress);
+			}
 
-         if (skyDarkness > 0.0F) {
-            h = MathHelper.lerp(skyDarkness, h, h * 0.7F);
-            j = MathHelper.lerp(skyDarkness, j, j * 0.6F);
-            k = MathHelper.lerp(skyDarkness, k, k * 0.6F);
-         }
+			float h = ColorHelper.getRedFloat(i);
+			float j = ColorHelper.getGreenFloat(i);
+			float k = ColorHelper.getBlueFloat(i);
+			if (g > 0.0F && cameraSubmersionType != CameraSubmersionType.LAVA
+					&& cameraSubmersionType != CameraSubmersionType.POWDER_SNOW) {
+				float l = MathHelper.square(1.0F - g);
+				h *= l;
+				j *= l;
+				k *= l;
+			}
 
-         float l;
-         if (cameraSubmersionType == CameraSubmersionType.WATER) {
-            if (entity instanceof ClientPlayerEntity) {
-               l = ((ClientPlayerEntity)entity).getUnderwaterVisibility();
-            } else {
-               l = 1.0F;
-            }
-         } else if (entity instanceof LivingEntity livingEntity2
-            && livingEntity2.hasStatusEffect(StatusEffects.NIGHT_VISION)
-            && !livingEntity2.hasStatusEffect(StatusEffects.DARKNESS)) {
-            l = GameRenderer.getNightVisionStrength(livingEntity2, tickProgress);
-         } else {
-            l = 0.0F;
-         }
+			if (skyDarkness > 0.0F) {
+				h = MathHelper.lerp(skyDarkness, h, h * 0.7F);
+				j = MathHelper.lerp(skyDarkness, j, j * 0.6F);
+				k = MathHelper.lerp(skyDarkness, k, k * 0.6F);
+			}
 
-         if (h != 0.0F && j != 0.0F && k != 0.0F) {
-            float m = 1.0F / Math.max(h, Math.max(j, k));
-            h = MathHelper.lerp(l, h, h * m);
-            j = MathHelper.lerp(l, j, j * m);
-            k = MathHelper.lerp(l, k, k * m);
-         }
+			float l;
+			if (cameraSubmersionType == CameraSubmersionType.WATER) {
+				if (entity instanceof ClientPlayerEntity) {
+					l = ((ClientPlayerEntity) entity).getUnderwaterVisibility();
+				}
+				else {
+					l = 1.0F;
+				}
+			}
+			else if (entity instanceof LivingEntity livingEntity2
+					&& livingEntity2.hasStatusEffect(StatusEffects.NIGHT_VISION)
+					&& !livingEntity2.hasStatusEffect(StatusEffects.DARKNESS)) {
+				l = GameRenderer.getNightVisionStrength(livingEntity2, tickProgress);
+			}
+			else {
+				l = 0.0F;
+			}
 
-         return new Vector4f(h, j, k, 1.0F);
-      }
-   }
+			if (h != 0.0F && j != 0.0F && k != 0.0F) {
+				float m = 1.0F / Math.max(h, Math.max(j, k));
+				h = MathHelper.lerp(l, h, h * m);
+				j = MathHelper.lerp(l, j, j * m);
+				k = MathHelper.lerp(l, k, k * m);
+			}
 
-   public static boolean toggleFog() {
-      return fogEnabled = !fogEnabled;
-   }
+			return new Vector4f(h, j, k, 1.0F);
+		}
+	}
 
-   public Vector4f applyFog(Camera camera, int viewDistance, RenderTickCounter renderTickCounter, float f, ClientWorld clientWorld) {
-      float g = renderTickCounter.getTickProgress(false);
-      Vector4f vector4f = this.getFogColor(camera, g, clientWorld, viewDistance, f);
-      float h = viewDistance * 16;
-      CameraSubmersionType cameraSubmersionType = this.getCameraSubmersionType(camera);
-      Entity entity = camera.getFocusedEntity();
-      FogData fogData = new FogData();
+	public static boolean toggleFog() {
+		return fogEnabled = !fogEnabled;
+	}
 
-      for (FogModifier fogModifier : FOG_MODIFIERS) {
-         if (fogModifier.shouldApply(cameraSubmersionType, entity)) {
-            fogModifier.applyStartEndModifier(fogData, camera, clientWorld, h, renderTickCounter);
-            break;
-         }
-      }
+	public Vector4f applyFog(
+			Camera camera,
+			int viewDistance,
+			RenderTickCounter renderTickCounter,
+			float f,
+			ClientWorld clientWorld
+	) {
+		float g = renderTickCounter.getTickProgress(false);
+		Vector4f vector4f = this.getFogColor(camera, g, clientWorld, viewDistance, f);
+		float h = viewDistance * 16;
+		CameraSubmersionType cameraSubmersionType = this.getCameraSubmersionType(camera);
+		Entity entity = camera.getFocusedEntity();
+		FogData fogData = new FogData();
 
-      float i = MathHelper.clamp(h / 10.0F, 4.0F, 64.0F);
-      fogData.renderDistanceStart = h - i;
-      fogData.renderDistanceEnd = h;
+		for (FogModifier fogModifier : FOG_MODIFIERS) {
+			if (fogModifier.shouldApply(cameraSubmersionType, entity)) {
+				fogModifier.applyStartEndModifier(fogData, camera, clientWorld, h, renderTickCounter);
+				break;
+			}
+		}
 
-      try (GpuBuffer.MappedView mappedView = RenderSystem.getDevice().createCommandEncoder().mapBuffer(this.fogBuffer.getBlocking(), false, true)) {
-         this.applyFog(
-            mappedView.data(),
-            0,
-            vector4f,
-            fogData.environmentalStart,
-            fogData.environmentalEnd,
-            fogData.renderDistanceStart,
-            fogData.renderDistanceEnd,
-            fogData.skyEnd,
-            fogData.cloudEnd
-         );
-      }
+		float i = MathHelper.clamp(h / 10.0F, 4.0F, 64.0F);
+		fogData.renderDistanceStart = h - i;
+		fogData.renderDistanceEnd = h;
 
-      return vector4f;
-   }
+		try (GpuBuffer.MappedView mappedView = RenderSystem
+				.getDevice()
+				.createCommandEncoder()
+				.mapBuffer(this.fogBuffer.getBlocking(), false, true)
+		) {
+			this.applyFog(
+					mappedView.data(),
+					0,
+					vector4f,
+					fogData.environmentalStart,
+					fogData.environmentalEnd,
+					fogData.renderDistanceStart,
+					fogData.renderDistanceEnd,
+					fogData.skyEnd,
+					fogData.cloudEnd
+			);
+		}
 
-   private CameraSubmersionType getCameraSubmersionType(Camera camera) {
-      CameraSubmersionType cameraSubmersionType = camera.getSubmersionType();
-      return cameraSubmersionType == CameraSubmersionType.NONE ? CameraSubmersionType.ATMOSPHERIC : cameraSubmersionType;
-   }
+		return vector4f;
+	}
 
-   private void applyFog(
-      ByteBuffer buffer,
-      int bufPos,
-      Vector4f fogColor,
-      float environmentalStart,
-      float environmentalEnd,
-      float renderDistanceStart,
-      float renderDistanceEnd,
-      float skyEnd,
-      float cloudEnd
-   ) {
-      buffer.position(bufPos);
-      Std140Builder.intoBuffer(buffer)
-         .putVec4(fogColor)
-         .putFloat(environmentalStart)
-         .putFloat(environmentalEnd)
-         .putFloat(renderDistanceStart)
-         .putFloat(renderDistanceEnd)
-         .putFloat(skyEnd)
-         .putFloat(cloudEnd);
-   }
+	private CameraSubmersionType getCameraSubmersionType(Camera camera) {
+		CameraSubmersionType cameraSubmersionType = camera.getSubmersionType();
+		return cameraSubmersionType == CameraSubmersionType.NONE ? CameraSubmersionType.ATMOSPHERIC
+		                                                         : cameraSubmersionType;
+	}
 
-   @Environment(EnvType.CLIENT)
-   public static enum FogType {
-      NONE,
-      WORLD;
-   }
+	private void applyFog(
+			ByteBuffer buffer,
+			int bufPos,
+			Vector4f fogColor,
+			float environmentalStart,
+			float environmentalEnd,
+			float renderDistanceStart,
+			float renderDistanceEnd,
+			float skyEnd,
+			float cloudEnd
+	) {
+		buffer.position(bufPos);
+		Std140Builder.intoBuffer(buffer)
+		             .putVec4(fogColor)
+		             .putFloat(environmentalStart)
+		             .putFloat(environmentalEnd)
+		             .putFloat(renderDistanceStart)
+		             .putFloat(renderDistanceEnd)
+		             .putFloat(skyEnd)
+		             .putFloat(cloudEnd);
+	}
+
+	@Environment(EnvType.CLIENT)
+	/**
+	 * {@code FogType}.
+	 */
+	public static enum FogType {
+		NONE,
+		WORLD;
+	}
 }

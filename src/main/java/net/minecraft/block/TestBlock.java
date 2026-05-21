@@ -24,108 +24,129 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.block.WireOrientation;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code TestBlock}.
+ */
 public class TestBlock extends BlockWithEntity implements OperatorBlock {
-   public static final MapCodec<TestBlock> CODEC = createCodec(TestBlock::new);
-   public static final EnumProperty<TestBlockMode> MODE = Properties.TEST_BLOCK_MODE;
 
-   public TestBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	public static final MapCodec<TestBlock> CODEC = createCodec(TestBlock::new);
+	public static final EnumProperty<TestBlockMode> MODE = Properties.TEST_BLOCK_MODE;
 
-   @Override
-   public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new TestBlockEntity(pos, state);
-   }
+	public TestBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      BlockStateComponent blockStateComponent = ctx.getStack().get(DataComponentTypes.BLOCK_STATE);
-      BlockState blockState = this.getDefaultState();
-      if (blockStateComponent != null) {
-         TestBlockMode testBlockMode = blockStateComponent.getValue(MODE);
-         if (testBlockMode != null) {
-            blockState = blockState.with(MODE, testBlockMode);
-         }
-      }
+	@Override
+	public @Nullable BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new TestBlockEntity(pos, state);
+	}
 
-      return blockState;
-   }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		BlockStateComponent blockStateComponent = ctx.getStack().get(DataComponentTypes.BLOCK_STATE);
+		BlockState blockState = this.getDefaultState();
+		if (blockStateComponent != null) {
+			TestBlockMode testBlockMode = blockStateComponent.getValue(MODE);
+			if (testBlockMode != null) {
+				blockState = blockState.with(MODE, testBlockMode);
+			}
+		}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(MODE);
-   }
+		return blockState;
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (world.getBlockEntity(pos) instanceof TestBlockEntity testBlockEntity) {
-         if (!player.isCreativeLevelTwoOp()) {
-            return ActionResult.PASS;
-         } else {
-            if (world.isClient()) {
-               player.openTestBlockScreen(testBlockEntity);
-            }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(MODE);
+	}
 
-            return ActionResult.SUCCESS;
-         }
-      } else {
-         return ActionResult.PASS;
-      }
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (world.getBlockEntity(pos) instanceof TestBlockEntity testBlockEntity) {
+			if (!player.isCreativeLevelTwoOp()) {
+				return ActionResult.PASS;
+			}
+			else {
+				if (world.isClient()) {
+					player.openTestBlockScreen(testBlockEntity);
+				}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      TestBlockEntity testBlockEntity = getBlockEntityOnServer(world, pos);
-      if (testBlockEntity != null) {
-         testBlockEntity.reset();
-      }
-   }
+				return ActionResult.SUCCESS;
+			}
+		}
+		else {
+			return ActionResult.PASS;
+		}
+	}
 
-   @Override
-   protected void neighborUpdate(BlockState state, World world, BlockPos pos, Block sourceBlock, @Nullable WireOrientation wireOrientation, boolean notify) {
-      TestBlockEntity testBlockEntity = getBlockEntityOnServer(world, pos);
-      if (testBlockEntity != null) {
-         if (testBlockEntity.getMode() != TestBlockMode.START) {
-            boolean bl = world.isReceivingRedstonePower(pos);
-            boolean bl2 = testBlockEntity.isPowered();
-            if (bl && !bl2) {
-               testBlockEntity.setPowered(true);
-               testBlockEntity.trigger();
-            } else if (!bl && bl2) {
-               testBlockEntity.setPowered(false);
-            }
-         }
-      }
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		TestBlockEntity testBlockEntity = getBlockEntityOnServer(world, pos);
+		if (testBlockEntity != null) {
+			testBlockEntity.reset();
+		}
+	}
 
-   private static @Nullable TestBlockEntity getBlockEntityOnServer(World world, BlockPos pos) {
-      return world instanceof ServerWorld serverWorld && serverWorld.getBlockEntity(pos) instanceof TestBlockEntity testBlockEntity ? testBlockEntity : null;
-   }
+	@Override
+	protected void neighborUpdate(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Block sourceBlock,
+			@Nullable WireOrientation wireOrientation,
+			boolean notify
+	) {
+		TestBlockEntity testBlockEntity = getBlockEntityOnServer(world, pos);
+		if (testBlockEntity != null) {
+			if (testBlockEntity.getMode() != TestBlockMode.START) {
+				boolean bl = world.isReceivingRedstonePower(pos);
+				boolean bl2 = testBlockEntity.isPowered();
+				if (bl && !bl2) {
+					testBlockEntity.setPowered(true);
+					testBlockEntity.trigger();
+				}
+				else if (!bl && bl2) {
+					testBlockEntity.setPowered(false);
+				}
+			}
+		}
+	}
 
-   @Override
-   public int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-      if (state.get(MODE) != TestBlockMode.START) {
-         return 0;
-      } else if (world.getBlockEntity(pos) instanceof TestBlockEntity testBlockEntity) {
-         return testBlockEntity.isPowered() ? 15 : 0;
-      } else {
-         return 0;
-      }
-   }
+	private static @Nullable TestBlockEntity getBlockEntityOnServer(World world, BlockPos pos) {
+		return world instanceof ServerWorld serverWorld
+				       && serverWorld.getBlockEntity(pos) instanceof TestBlockEntity testBlockEntity ? testBlockEntity
+		                                                                                             : null;
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      ItemStack itemStack = super.getPickStack(world, pos, state, includeData);
-      return applyBlockStateToStack(itemStack, state.get(MODE));
-   }
+	@Override
+	public int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
+		if (state.get(MODE) != TestBlockMode.START) {
+			return 0;
+		}
+		else if (world.getBlockEntity(pos) instanceof TestBlockEntity testBlockEntity) {
+			return testBlockEntity.isPowered() ? 15 : 0;
+		}
+		else {
+			return 0;
+		}
+	}
 
-   public static ItemStack applyBlockStateToStack(ItemStack stack, TestBlockMode mode) {
-      stack.set(DataComponentTypes.BLOCK_STATE, stack.getOrDefault(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT).with(MODE, mode));
-      return stack;
-   }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		ItemStack itemStack = super.getPickStack(world, pos, state, includeData);
+		return applyBlockStateToStack(itemStack, state.get(MODE));
+	}
 
-   @Override
-   protected MapCodec<TestBlock> getCodec() {
-      return CODEC;
-   }
+	public static ItemStack applyBlockStateToStack(ItemStack stack, TestBlockMode mode) {
+		stack.set(
+				DataComponentTypes.BLOCK_STATE,
+				stack.getOrDefault(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT).with(MODE, mode)
+		);
+		return stack;
+	}
+
+	@Override
+	protected MapCodec<TestBlock> getCodec() {
+		return CODEC;
+	}
 }

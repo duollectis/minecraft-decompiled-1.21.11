@@ -1,38 +1,47 @@
 package net.minecraft.server;
 
 import com.google.gson.JsonObject;
-import java.util.Date;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Date;
+
+/**
+ * {@code BannedPlayerEntry}.
+ */
 public class BannedPlayerEntry extends BanEntry<PlayerConfigEntry> {
-   private static final Text field_61165 = Text.translatable("commands.banlist.entry.unknown");
 
-   public BannedPlayerEntry(@Nullable PlayerConfigEntry playerConfigEntry) {
-      this(playerConfigEntry, null, null, null, null);
-   }
+	private static final Text UNKNOWN_PLAYER_TEXT = Text.translatable("commands.banlist.entry.unknown");
 
-   public BannedPlayerEntry(
-      @Nullable PlayerConfigEntry playerConfigEntry, @Nullable Date created, @Nullable String source, @Nullable Date expiry, @Nullable String reason
-   ) {
-      super(playerConfigEntry, created, source, expiry, reason);
-   }
+	public BannedPlayerEntry(@Nullable PlayerConfigEntry playerConfigEntry) {
+		this(playerConfigEntry, null, null, null, null);
+	}
 
-   public BannedPlayerEntry(JsonObject json) {
-      super(PlayerConfigEntry.read(json), json);
-   }
+	public BannedPlayerEntry(
+			@Nullable PlayerConfigEntry playerConfigEntry,
+			@Nullable Date created,
+			@Nullable String source,
+			@Nullable Date expiry,
+			@Nullable String reason
+	) {
+		super(playerConfigEntry, created, source, expiry, reason);
+	}
 
-   @Override
-   protected void write(JsonObject json) {
-      if (this.getKey() != null) {
-         this.getKey().write(json);
-         super.write(json);
-      }
-   }
+	public BannedPlayerEntry(JsonObject json) {
+		super(PlayerConfigEntry.read(json), json);
+	}
 
-   @Override
-   public Text toText() {
-      PlayerConfigEntry playerConfigEntry = this.getKey();
-      return (Text)(playerConfigEntry != null ? Text.literal(playerConfigEntry.name()) : field_61165);
-   }
+	@Override
+	protected void write(JsonObject json) {
+		if (this.getKey() != null) {
+			this.getKey().write(json);
+			super.write(json);
+		}
+	}
+
+	@Override
+	public Text toText() {
+		PlayerConfigEntry playerConfigEntry = this.getKey();
+		return (Text) (playerConfigEntry != null ? Text.literal(playerConfigEntry.name()) : UNKNOWN_PLAYER_TEXT);
+	}
 }

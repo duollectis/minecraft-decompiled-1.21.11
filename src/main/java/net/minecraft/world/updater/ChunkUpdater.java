@@ -1,19 +1,24 @@
 package net.minecraft.world.updater;
 
-import java.util.function.Supplier;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.ChunkPos;
 
+import java.util.function.Supplier;
+
 @FunctionalInterface
+/**
+ * {@code ChunkUpdater}.
+ */
 public interface ChunkUpdater {
-   Supplier<ChunkUpdater> PASSTHROUGH_FACTORY = () -> nbt -> nbt;
 
-   NbtCompound applyFix(NbtCompound chunkNbt);
+	Supplier<ChunkUpdater> PASSTHROUGH_FACTORY = () -> nbt -> nbt;
 
-   default void markChunkDone(ChunkPos chunkPos) {
-   }
+	NbtCompound applyFix(NbtCompound chunkNbt);
 
-   default int targetDataVersion() {
-      return -1;
-   }
+	default void markChunkDone(ChunkPos chunkPos) {
+	}
+
+	default int targetDataVersion() {
+		return -1;
+	}
 }

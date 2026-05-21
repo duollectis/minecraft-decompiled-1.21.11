@@ -9,46 +9,47 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
 public class EntityAnimationS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, EntityAnimationS2CPacket> CODEC = Packet.createCodec(
-      EntityAnimationS2CPacket::write, EntityAnimationS2CPacket::new
-   );
-   public static final int SWING_MAIN_HAND = 0;
-   public static final int WAKE_UP = 2;
-   public static final int SWING_OFF_HAND = 3;
-   public static final int CRIT = 4;
-   public static final int ENCHANTED_HIT = 5;
-   private final int entityId;
-   private final int animationId;
 
-   public EntityAnimationS2CPacket(Entity entity, int animationId) {
-      this.entityId = entity.getId();
-      this.animationId = animationId;
-   }
+	public static final PacketCodec<PacketByteBuf, EntityAnimationS2CPacket> CODEC = Packet.createCodec(
+			EntityAnimationS2CPacket::write, EntityAnimationS2CPacket::new
+	);
+	public static final int SWING_MAIN_HAND = 0;
+	public static final int WAKE_UP = 2;
+	public static final int SWING_OFF_HAND = 3;
+	public static final int CRIT = 4;
+	public static final int ENCHANTED_HIT = 5;
+	private final int entityId;
+	private final int animationId;
 
-   private EntityAnimationS2CPacket(PacketByteBuf buf) {
-      this.entityId = buf.readVarInt();
-      this.animationId = buf.readUnsignedByte();
-   }
+	public EntityAnimationS2CPacket(Entity entity, int animationId) {
+		this.entityId = entity.getId();
+		this.animationId = animationId;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeVarInt(this.entityId);
-      buf.writeByte(this.animationId);
-   }
+	private EntityAnimationS2CPacket(PacketByteBuf buf) {
+		this.entityId = buf.readVarInt();
+		this.animationId = buf.readUnsignedByte();
+	}
 
-   @Override
-   public PacketType<EntityAnimationS2CPacket> getPacketType() {
-      return PlayPackets.ANIMATE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeVarInt(this.entityId);
+		buf.writeByte(this.animationId);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onEntityAnimation(this);
-   }
+	@Override
+	public PacketType<EntityAnimationS2CPacket> getPacketType() {
+		return PlayPackets.ANIMATE;
+	}
 
-   public int getEntityId() {
-      return this.entityId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onEntityAnimation(this);
+	}
 
-   public int getAnimationId() {
-      return this.animationId;
-   }
+	public int getEntityId() {
+		return this.entityId;
+	}
+
+	public int getAnimationId() {
+		return this.animationId;
+	}
 }

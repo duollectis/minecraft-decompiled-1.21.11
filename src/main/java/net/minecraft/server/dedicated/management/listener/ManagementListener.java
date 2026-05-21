@@ -7,38 +7,42 @@ import net.minecraft.server.PlayerConfigEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.rule.GameRule;
 
+/**
+ * {@code ManagementListener}.
+ */
 public interface ManagementListener {
-   void onPlayerJoined(ServerPlayerEntity player);
 
-   void onPlayerLeft(ServerPlayerEntity player);
+	void onPlayerJoined(ServerPlayerEntity player);
 
-   void onServerStarted();
+	void onPlayerLeft(ServerPlayerEntity player);
 
-   void onServerStopping();
+	void onServerStarted();
 
-   void onServerSaving();
+	void onServerStopping();
 
-   void onServerSaved();
+	void onServerSaving();
 
-   void onServerActivity();
+	void onServerSaved();
 
-   void onOperatorAdded(OperatorEntry operator);
+	void onServerActivity();
 
-   void onOperatorRemoved(OperatorEntry operator);
+	void onOperatorAdded(OperatorEntry operator);
 
-   void onAllowlistAdded(PlayerConfigEntry player);
+	void onOperatorRemoved(OperatorEntry operator);
 
-   void onAllowlistRemoved(PlayerConfigEntry player);
+	void onAllowlistAdded(PlayerConfigEntry player);
 
-   void onIpBanAdded(BannedIpEntry entry);
+	void onAllowlistRemoved(PlayerConfigEntry player);
 
-   void onIpBanRemoved(String string);
+	void onIpBanAdded(BannedIpEntry entry);
 
-   void onBanAdded(BannedPlayerEntry entry);
+	void onIpBanRemoved(String string);
 
-   void onBanRemoved(PlayerConfigEntry player);
+	void onBanAdded(BannedPlayerEntry entry);
 
-   <T> void onGameRuleUpdated(GameRule<T> rule, T value);
+	void onBanRemoved(PlayerConfigEntry player);
 
-   void onServerStatusHeartbeat();
+	<T> void onGameRuleUpdated(GameRule<T> rule, T value);
+
+	void onServerStatusHeartbeat();
 }

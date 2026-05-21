@@ -4,18 +4,22 @@ import com.google.common.collect.ImmutableMap;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.server.world.ServerWorld;
 
+/**
+ * {@code DismountVehicleTask}.
+ */
 public class DismountVehicleTask extends MultiTickTask<LivingEntity> {
-   public DismountVehicleTask() {
-      super(ImmutableMap.of());
-   }
 
-   @Override
-   protected boolean shouldRun(ServerWorld world, LivingEntity entity) {
-      return entity.hasVehicle();
-   }
+	public DismountVehicleTask() {
+		super(ImmutableMap.of());
+	}
 
-   @Override
-   protected void run(ServerWorld world, LivingEntity entity, long time) {
-      entity.detach();
-   }
+	@Override
+	protected boolean shouldRun(ServerWorld world, LivingEntity entity) {
+		return entity.hasVehicle();
+	}
+
+	@Override
+	protected void run(ServerWorld world, LivingEntity entity, long time) {
+		entity.detach();
+	}
 }

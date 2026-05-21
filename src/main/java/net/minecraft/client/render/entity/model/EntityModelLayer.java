@@ -5,9 +5,13 @@ import net.fabricmc.api.Environment;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code EntityModelLayer}.
+ */
 public record EntityModelLayer(Identifier id, String name) {
-   @Override
-   public String toString() {
-      return this.id + "#" + this.name;
-   }
+
+	@Override
+	public String toString() {
+		return this.id + "#" + this.name;
+	}
 }

@@ -5,22 +5,26 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.biome.ColorResolver;
 import net.minecraft.world.chunk.light.LightingProvider;
 
+/**
+ * {@code BlockRenderView}.
+ */
 public interface BlockRenderView extends BlockView {
-   float getBrightness(Direction direction, boolean shaded);
 
-   LightingProvider getLightingProvider();
+	float getBrightness(Direction direction, boolean shaded);
 
-   int getColor(BlockPos pos, ColorResolver colorResolver);
+	LightingProvider getLightingProvider();
 
-   default int getLightLevel(LightType type, BlockPos pos) {
-      return this.getLightingProvider().get(type).getLightLevel(pos);
-   }
+	int getColor(BlockPos pos, ColorResolver colorResolver);
 
-   default int getBaseLightLevel(BlockPos pos, int ambientDarkness) {
-      return this.getLightingProvider().getLight(pos, ambientDarkness);
-   }
+	default int getLightLevel(LightType type, BlockPos pos) {
+		return this.getLightingProvider().get(type).getLightLevel(pos);
+	}
 
-   default boolean isSkyVisible(BlockPos pos) {
-      return this.getLightLevel(LightType.SKY, pos) >= 15;
-   }
+	default int getBaseLightLevel(BlockPos pos, int ambientDarkness) {
+		return this.getLightingProvider().getLight(pos, ambientDarkness);
+	}
+
+	default boolean isSkyVisible(BlockPos pos) {
+		return this.getLightLevel(LightType.SKY, pos) >= 15;
+	}
 }

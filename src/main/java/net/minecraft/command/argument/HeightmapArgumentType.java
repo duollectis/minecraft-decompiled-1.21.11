@@ -2,35 +2,43 @@ package net.minecraft.command.argument;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.serialization.Codec;
-import java.util.Arrays;
-import java.util.Locale;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.util.StringIdentifiable;
 import net.minecraft.world.Heightmap;
 
+import java.util.Arrays;
+import java.util.Locale;
+
+/**
+ * {@code HeightmapArgumentType}.
+ */
 public class HeightmapArgumentType extends EnumArgumentType<Heightmap.Type> {
-   private static final Codec<Heightmap.Type> HEIGHTMAP_CODEC = StringIdentifiable.createCodec(
-      HeightmapArgumentType::getHeightmapTypes, name -> name.toLowerCase(Locale.ROOT)
-   );
 
-   private static Heightmap.Type[] getHeightmapTypes() {
-      return Arrays.stream(Heightmap.Type.values()).filter(Heightmap.Type::isStoredServerSide).toArray(Heightmap.Type[]::new);
-   }
+	private static final Codec<Heightmap.Type> HEIGHTMAP_CODEC = StringIdentifiable.createCodec(
+			HeightmapArgumentType::getHeightmapTypes, name -> name.toLowerCase(Locale.ROOT)
+	);
 
-   private HeightmapArgumentType() {
-      super(HEIGHTMAP_CODEC, HeightmapArgumentType::getHeightmapTypes);
-   }
+	private static Heightmap.Type[] getHeightmapTypes() {
+		return Arrays
+				.stream(Heightmap.Type.values())
+				.filter(Heightmap.Type::isStoredServerSide)
+				.toArray(Heightmap.Type[]::new);
+	}
 
-   public static HeightmapArgumentType heightmap() {
-      return new HeightmapArgumentType();
-   }
+	private HeightmapArgumentType() {
+		super(HEIGHTMAP_CODEC, HeightmapArgumentType::getHeightmapTypes);
+	}
 
-   public static Heightmap.Type getHeightmap(CommandContext<ServerCommandSource> context, String id) {
-      return (Heightmap.Type)context.getArgument(id, Heightmap.Type.class);
-   }
+	public static HeightmapArgumentType heightmap() {
+		return new HeightmapArgumentType();
+	}
 
-   @Override
-   protected String transformValueName(String name) {
-      return name.toLowerCase(Locale.ROOT);
-   }
+	public static Heightmap.Type getHeightmap(CommandContext<ServerCommandSource> context, String id) {
+		return (Heightmap.Type) context.getArgument(id, Heightmap.Type.class);
+	}
+
+	@Override
+	protected String transformValueName(String name) {
+		return name.toLowerCase(Locale.ROOT);
+	}
 }

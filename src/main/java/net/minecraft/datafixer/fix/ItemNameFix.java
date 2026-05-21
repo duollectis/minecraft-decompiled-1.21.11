@@ -6,36 +6,44 @@ import com.mojang.datafixers.TypeRewriteRule;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.datafixers.types.Type;
 import com.mojang.datafixers.util.Pair;
-import java.util.Objects;
-import java.util.function.Function;
 import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 
+import java.util.Objects;
+import java.util.function.Function;
+
+/**
+ * {@code ItemNameFix}.
+ */
 public abstract class ItemNameFix extends DataFix {
-   private final String name;
 
-   public ItemNameFix(Schema outputSchema, String name) {
-      super(outputSchema, false);
-      this.name = name;
-   }
+	private final String name;
 
-   public TypeRewriteRule makeRule() {
-      Type<Pair<String, String>> type = DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType());
-      if (!Objects.equals(this.getInputSchema().getType(TypeReferences.ITEM_NAME), type)) {
-         throw new IllegalStateException("item name type is not what was expected.");
-      } else {
-         return this.fixTypeEverywhere(this.name, type, dynamicOps -> pair -> pair.mapSecond(this::rename));
-      }
-   }
+	public ItemNameFix(Schema outputSchema, String name) {
+		super(outputSchema, false);
+		this.name = name;
+	}
 
-   protected abstract String rename(String input);
+	public TypeRewriteRule makeRule() {
+		Type<Pair<String, String>>
+				type =
+				DSL.named(TypeReferences.ITEM_NAME.typeName(), IdentifierNormalizingSchema.getIdentifierType());
+		if (!Objects.equals(this.getInputSchema().getType(TypeReferences.ITEM_NAME), type)) {
+			throw new IllegalStateException("item name type is not what was expected.");
+		}
+		else {
+			return this.fixTypeEverywhere(this.name, type, dynamicOps -> pair -> pair.mapSecond(this::rename));
+		}
+	}
 
-   public static DataFix create(Schema outputSchema, String name, Function<String, String> rename) {
-      return new ItemNameFix(outputSchema, name) {
-         @Override
-         protected String rename(String input) {
-            return rename.apply(input);
-         }
-      };
-   }
+	protected abstract String rename(String input);
+
+	public static DataFix create(Schema outputSchema, String name, Function<String, String> rename) {
+		return new ItemNameFix(outputSchema, name) {
+			@Override
+			protected String rename(String input) {
+				return rename.apply(input);
+			}
+		};
+	}
 }

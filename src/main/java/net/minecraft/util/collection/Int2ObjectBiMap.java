@@ -2,179 +2,188 @@ package net.minecraft.util.collection;
 
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterators;
-import java.util.Arrays;
-import java.util.Iterator;
 import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Arrays;
+import java.util.Iterator;
+
+/**
+ * {@code Int2ObjectBiMap}.
+ */
 public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
-   private static final int ABSENT = -1;
-   private static final Object EMPTY = null;
-   private static final float LOAD_FACTOR = 0.8F;
-   private @Nullable K[] values;
-   private int[] ids;
-   private @Nullable K[] idToValues;
-   private int nextId;
-   private int size;
 
-   private Int2ObjectBiMap(int size) {
-      this.values = (K[])(new Object[size]);
-      this.ids = new int[size];
-      this.idToValues = (K[])(new Object[size]);
-   }
+	private static final int ABSENT = -1;
+	private static final Object EMPTY = null;
+	private static final float LOAD_FACTOR = 0.8F;
+	private @Nullable K[] values;
+	private int[] ids;
+	private @Nullable K[] idToValues;
+	private int nextId;
+	private int size;
 
-   private Int2ObjectBiMap(K[] values, int[] ids, K[] idToValues, int nextId, int size) {
-      this.values = values;
-      this.ids = ids;
-      this.idToValues = idToValues;
-      this.nextId = nextId;
-      this.size = size;
-   }
+	private Int2ObjectBiMap(int size) {
+		this.values = (K[]) (new Object[size]);
+		this.ids = new int[size];
+		this.idToValues = (K[]) (new Object[size]);
+	}
 
-   public static <A> Int2ObjectBiMap<A> create(int expectedSize) {
-      return new Int2ObjectBiMap((int)(expectedSize / 0.8F));
-   }
+	private Int2ObjectBiMap(K[] values, int[] ids, K[] idToValues, int nextId, int size) {
+		this.values = values;
+		this.ids = ids;
+		this.idToValues = idToValues;
+		this.nextId = nextId;
+		this.size = size;
+	}
 
-   @Override
-   public int getRawId(@Nullable K value) {
-      return this.getIdFromIndex(this.findIndex(value, this.getIdealIndex(value)));
-   }
+	public static <A> Int2ObjectBiMap<A> create(int expectedSize) {
+		return new Int2ObjectBiMap((int) (expectedSize / 0.8F));
+	}
 
-   @Override
-   public @Nullable K get(int index) {
-      return index >= 0 && index < this.idToValues.length ? this.idToValues[index] : null;
-   }
+	@Override
+	public int getRawId(@Nullable K value) {
+		return this.getIdFromIndex(this.findIndex(value, this.getIdealIndex(value)));
+	}
 
-   private int getIdFromIndex(int index) {
-      return index == -1 ? -1 : this.ids[index];
-   }
+	@Override
+	public @Nullable K get(int index) {
+		return index >= 0 && index < this.idToValues.length ? this.idToValues[index] : null;
+	}
 
-   public boolean contains(K value) {
-      return this.getRawId(value) != -1;
-   }
+	private int getIdFromIndex(int index) {
+		return index == -1 ? -1 : this.ids[index];
+	}
 
-   public boolean containsKey(int index) {
-      return this.get(index) != null;
-   }
+	public boolean contains(K value) {
+		return this.getRawId(value) != -1;
+	}
 
-   public int add(K value) {
-      int i = this.nextId();
-      this.put(value, i);
-      return i;
-   }
+	public boolean containsKey(int index) {
+		return this.get(index) != null;
+	}
 
-   private int nextId() {
-      while (this.nextId < this.idToValues.length && this.idToValues[this.nextId] != null) {
-         this.nextId++;
-      }
+	public int add(K value) {
+		int i = this.nextId();
+		this.put(value, i);
+		return i;
+	}
 
-      return this.nextId;
-   }
+	private int nextId() {
+		while (this.nextId < this.idToValues.length && this.idToValues[this.nextId] != null) {
+			this.nextId++;
+		}
 
-   private void resize(int newSize) {
-      K[] objects = this.values;
-      int[] is = this.ids;
-      Int2ObjectBiMap<K> int2ObjectBiMap = new Int2ObjectBiMap<>(newSize);
+		return this.nextId;
+	}
 
-      for (int i = 0; i < objects.length; i++) {
-         if (objects[i] != null) {
-            int2ObjectBiMap.put(objects[i], is[i]);
-         }
-      }
+	private void resize(int newSize) {
+		K[] objects = this.values;
+		int[] is = this.ids;
+		Int2ObjectBiMap<K> int2ObjectBiMap = new Int2ObjectBiMap<>(newSize);
 
-      this.values = int2ObjectBiMap.values;
-      this.ids = int2ObjectBiMap.ids;
-      this.idToValues = int2ObjectBiMap.idToValues;
-      this.nextId = int2ObjectBiMap.nextId;
-      this.size = int2ObjectBiMap.size;
-   }
+		for (int i = 0; i < objects.length; i++) {
+			if (objects[i] != null) {
+				int2ObjectBiMap.put(objects[i], is[i]);
+			}
+		}
 
-   public void put(K value, int id) {
-      int i = Math.max(id, this.size + 1);
-      if (i >= this.values.length * 0.8F) {
-         int j = this.values.length << 1;
+		this.values = int2ObjectBiMap.values;
+		this.ids = int2ObjectBiMap.ids;
+		this.idToValues = int2ObjectBiMap.idToValues;
+		this.nextId = int2ObjectBiMap.nextId;
+		this.size = int2ObjectBiMap.size;
+	}
 
-         while (j < id) {
-            j <<= 1;
-         }
+	public void put(K value, int id) {
+		int i = Math.max(id, this.size + 1);
+		if (i >= this.values.length * 0.8F) {
+			int j = this.values.length << 1;
 
-         this.resize(j);
-      }
+			while (j < id) {
+				j <<= 1;
+			}
 
-      int j = this.findFree(this.getIdealIndex(value));
-      this.values[j] = value;
-      this.ids[j] = id;
-      this.idToValues[id] = value;
-      this.size++;
-      if (id == this.nextId) {
-         this.nextId++;
-      }
-   }
+			this.resize(j);
+		}
 
-   private int getIdealIndex(@Nullable K value) {
-      return (MathHelper.idealHash(System.identityHashCode(value)) & 2147483647) % this.values.length;
-   }
+		int j = this.findFree(this.getIdealIndex(value));
+		this.values[j] = value;
+		this.ids[j] = id;
+		this.idToValues[id] = value;
+		this.size++;
+		if (id == this.nextId) {
+			this.nextId++;
+		}
+	}
 
-   private int findIndex(@Nullable K value, int id) {
-      for (int i = id; i < this.values.length; i++) {
-         if (this.values[i] == value) {
-            return i;
-         }
+	private int getIdealIndex(@Nullable K value) {
+		return (MathHelper.idealHash(System.identityHashCode(value)) & 2147483647) % this.values.length;
+	}
 
-         if (this.values[i] == EMPTY) {
-            return -1;
-         }
-      }
+	private int findIndex(@Nullable K value, int id) {
+		for (int i = id; i < this.values.length; i++) {
+			if (this.values[i] == value) {
+				return i;
+			}
 
-      for (int i = 0; i < id; i++) {
-         if (this.values[i] == value) {
-            return i;
-         }
+			if (this.values[i] == EMPTY) {
+				return -1;
+			}
+		}
 
-         if (this.values[i] == EMPTY) {
-            return -1;
-         }
-      }
+		for (int i = 0; i < id; i++) {
+			if (this.values[i] == value) {
+				return i;
+			}
 
-      return -1;
-   }
+			if (this.values[i] == EMPTY) {
+				return -1;
+			}
+		}
 
-   private int findFree(int size) {
-      for (int i = size; i < this.values.length; i++) {
-         if (this.values[i] == EMPTY) {
-            return i;
-         }
-      }
+		return -1;
+	}
 
-      for (int ix = 0; ix < size; ix++) {
-         if (this.values[ix] == EMPTY) {
-            return ix;
-         }
-      }
+	private int findFree(int size) {
+		for (int i = size; i < this.values.length; i++) {
+			if (this.values[i] == EMPTY) {
+				return i;
+			}
+		}
 
-      throw new RuntimeException("Overflowed :(");
-   }
+		for (int ix = 0; ix < size; ix++) {
+			if (this.values[ix] == EMPTY) {
+				return ix;
+			}
+		}
 
-   @Override
-   public Iterator<K> iterator() {
-      return Iterators.filter(Iterators.forArray(this.idToValues), Predicates.notNull());
-   }
+		throw new RuntimeException("Overflowed :(");
+	}
 
-   public void clear() {
-      Arrays.fill(this.values, null);
-      Arrays.fill(this.idToValues, null);
-      this.nextId = 0;
-      this.size = 0;
-   }
+	@Override
+	public Iterator<K> iterator() {
+		return Iterators.filter(Iterators.forArray(this.idToValues), Predicates.notNull());
+	}
 
-   @Override
-   public int size() {
-      return this.size;
-   }
+	public void clear() {
+		Arrays.fill(this.values, null);
+		Arrays.fill(this.idToValues, null);
+		this.nextId = 0;
+		this.size = 0;
+	}
 
-   public Int2ObjectBiMap<K> copy() {
-      return new Int2ObjectBiMap<>(
-         (K[])((Object[])this.values.clone()), (int[])this.ids.clone(), (K[])((Object[])this.idToValues.clone()), this.nextId, this.size
-      );
-   }
+	@Override
+	public int size() {
+		return this.size;
+	}
+
+	public Int2ObjectBiMap<K> copy() {
+		return new Int2ObjectBiMap<>(
+				(K[]) ((Object[]) this.values.clone()),
+				(int[]) this.ids.clone(),
+				(K[]) ((Object[]) this.idToValues.clone()),
+				this.nextId,
+				this.size
+		);
+	}
 }

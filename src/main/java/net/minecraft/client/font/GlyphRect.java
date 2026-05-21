@@ -5,14 +5,18 @@ import net.fabricmc.api.Environment;
 import net.minecraft.text.Style;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GlyphRect}.
+ */
 public interface GlyphRect {
-   Style style();
 
-   float getLeft();
+	Style style();
 
-   float getTop();
+	float getLeft();
 
-   float getRight();
+	float getTop();
 
-   float getBottom();
+	float getRight();
+
+	float getBottom();
 }

@@ -3,6 +3,10 @@ package net.minecraft.server.filter;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.mojang.authlib.GameProfile;
+import net.minecraft.network.message.FilterMask;
+import net.minecraft.util.JsonHelper;
+import org.jspecify.annotations.Nullable;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -12,162 +16,201 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import net.minecraft.network.message.FilterMask;
-import net.minecraft.util.JsonHelper;
-import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code V0TextFilterer}.
+ */
 public class V0TextFilterer extends AbstractTextFilterer {
-   private static final String CHAT_ENDPOINT = "v1/chat";
-   final URL joinEndpoint;
-   final V0TextFilterer.ProfileEncoder joinEncoder;
-   final URL leaveEndpoint;
-   final V0TextFilterer.ProfileEncoder leaveEncoder;
-   private final String apiKey;
 
-   private V0TextFilterer(
-      URL chatEndpoint,
-      AbstractTextFilterer.MessageEncoder messageEncoder,
-      URL joinEndpoint,
-      V0TextFilterer.ProfileEncoder joinEncoder,
-      URL leaveEndpoint,
-      V0TextFilterer.ProfileEncoder leaveEncoder,
-      String apiKey,
-      AbstractTextFilterer.HashIgnorer ignorer,
-      ExecutorService threadPool
-   ) {
-      super(chatEndpoint, messageEncoder, ignorer, threadPool);
-      this.joinEndpoint = joinEndpoint;
-      this.joinEncoder = joinEncoder;
-      this.leaveEndpoint = leaveEndpoint;
-      this.leaveEncoder = leaveEncoder;
-      this.apiKey = apiKey;
-   }
+	private static final String CHAT_ENDPOINT = "v1/chat";
+	final URL joinEndpoint;
+	final V0TextFilterer.ProfileEncoder joinEncoder;
+	final URL leaveEndpoint;
+	final V0TextFilterer.ProfileEncoder leaveEncoder;
+	private final String apiKey;
 
-   public static @Nullable AbstractTextFilterer load(String config) {
-      try {
-         JsonObject jsonObject = JsonHelper.deserialize(config);
-         URI uRI = new URI(JsonHelper.getString(jsonObject, "apiServer"));
-         String string = JsonHelper.getString(jsonObject, "apiKey");
-         if (string.isEmpty()) {
-            throw new IllegalArgumentException("Missing API key");
-         } else {
-            int i = JsonHelper.getInt(jsonObject, "ruleId", 1);
-            String string2 = JsonHelper.getString(jsonObject, "serverId", "");
-            String string3 = JsonHelper.getString(jsonObject, "roomId", "Java:Chat");
-            int j = JsonHelper.getInt(jsonObject, "hashesToDrop", -1);
-            int k = JsonHelper.getInt(jsonObject, "maxConcurrentRequests", 7);
-            JsonObject jsonObject2 = JsonHelper.getObject(jsonObject, "endpoints", null);
-            String string4 = getEndpointPath(jsonObject2, "chat", "v1/chat");
-            boolean bl = string4.equals("v1/chat");
-            URL uRL = uRI.resolve("/" + string4).toURL();
-            URL uRL2 = resolveEndpoint(uRI, jsonObject2, "join", "v1/join");
-            URL uRL3 = resolveEndpoint(uRI, jsonObject2, "leave", "v1/leave");
-            V0TextFilterer.ProfileEncoder profileEncoder = profile -> {
-               JsonObject jsonObjectx = new JsonObject();
-               jsonObjectx.addProperty("server", string2);
-               jsonObjectx.addProperty("room", string3);
-               jsonObjectx.addProperty("user_id", profile.id().toString());
-               jsonObjectx.addProperty("user_display_name", profile.name());
-               return jsonObjectx;
-            };
-            AbstractTextFilterer.MessageEncoder messageEncoder;
-            if (bl) {
-               messageEncoder = (profile, message) -> {
-                  JsonObject jsonObjectx = new JsonObject();
-                  jsonObjectx.addProperty("rule", i);
-                  jsonObjectx.addProperty("server", string2);
-                  jsonObjectx.addProperty("room", string3);
-                  jsonObjectx.addProperty("player", profile.id().toString());
-                  jsonObjectx.addProperty("player_display_name", profile.name());
-                  jsonObjectx.addProperty("text", message);
-                  jsonObjectx.addProperty("language", "*");
-                  return jsonObjectx;
-               };
-            } else {
-               String string5 = String.valueOf(i);
-               messageEncoder = (profile, message) -> {
-                  JsonObject jsonObjectx = new JsonObject();
-                  jsonObjectx.addProperty("rule_id", string5);
-                  jsonObjectx.addProperty("category", string2);
-                  jsonObjectx.addProperty("subcategory", string3);
-                  jsonObjectx.addProperty("user_id", profile.id().toString());
-                  jsonObjectx.addProperty("user_display_name", profile.name());
-                  jsonObjectx.addProperty("text", message);
-                  jsonObjectx.addProperty("language", "*");
-                  return jsonObjectx;
-               };
-            }
+	private V0TextFilterer(
+			URL chatEndpoint,
+			AbstractTextFilterer.MessageEncoder messageEncoder,
+			URL joinEndpoint,
+			V0TextFilterer.ProfileEncoder joinEncoder,
+			URL leaveEndpoint,
+			V0TextFilterer.ProfileEncoder leaveEncoder,
+			String apiKey,
+			AbstractTextFilterer.HashIgnorer ignorer,
+			ExecutorService threadPool
+	) {
+		super(chatEndpoint, messageEncoder, ignorer, threadPool);
+		this.joinEndpoint = joinEndpoint;
+		this.joinEncoder = joinEncoder;
+		this.leaveEndpoint = leaveEndpoint;
+		this.leaveEncoder = leaveEncoder;
+		this.apiKey = apiKey;
+	}
 
-            AbstractTextFilterer.HashIgnorer hashIgnorer = AbstractTextFilterer.HashIgnorer.dropHashes(j);
-            ExecutorService executorService = newThreadPool(k);
-            String string6 = Base64.getEncoder().encodeToString(string.getBytes(StandardCharsets.US_ASCII));
-            return new V0TextFilterer(uRL, messageEncoder, uRL2, profileEncoder, uRL3, profileEncoder, string6, hashIgnorer, executorService);
-         }
-      } catch (Exception var20) {
-         LOGGER.warn("Failed to parse chat filter config {}", config, var20);
-         return null;
-      }
-   }
+	public static @Nullable AbstractTextFilterer load(String config) {
+		try {
+			JsonObject jsonObject = JsonHelper.deserialize(config);
+			URI uRI = new URI(JsonHelper.getString(jsonObject, "apiServer"));
+			String string = JsonHelper.getString(jsonObject, "apiKey");
+			if (string.isEmpty()) {
+				throw new IllegalArgumentException("Missing API key");
+			}
+			else {
+				int i = JsonHelper.getInt(jsonObject, "ruleId", 1);
+				String string2 = JsonHelper.getString(jsonObject, "serverId", "");
+				String string3 = JsonHelper.getString(jsonObject, "roomId", "Java:Chat");
+				int j = JsonHelper.getInt(jsonObject, "hashesToDrop", -1);
+				int k = JsonHelper.getInt(jsonObject, "maxConcurrentRequests", 7);
+				JsonObject jsonObject2 = JsonHelper.getObject(jsonObject, "endpoints", null);
+				String string4 = getEndpointPath(jsonObject2, "chat", "v1/chat");
+				boolean bl = string4.equals("v1/chat");
+				URL uRL = uRI.resolve("/" + string4).toURL();
+				URL uRL2 = resolveEndpoint(uRI, jsonObject2, "join", "v1/join");
+				URL uRL3 = resolveEndpoint(uRI, jsonObject2, "leave", "v1/leave");
+				V0TextFilterer.ProfileEncoder profileEncoder = profile -> {
+					JsonObject jsonObjectx = new JsonObject();
+					jsonObjectx.addProperty("server", string2);
+					jsonObjectx.addProperty("room", string3);
+					jsonObjectx.addProperty("user_id", profile.id().toString());
+					jsonObjectx.addProperty("user_display_name", profile.name());
+					return jsonObjectx;
+				};
+				AbstractTextFilterer.MessageEncoder messageEncoder;
+				if (bl) {
+					messageEncoder = (profile, message) -> {
+						JsonObject jsonObjectx = new JsonObject();
+						jsonObjectx.addProperty("rule", i);
+						jsonObjectx.addProperty("server", string2);
+						jsonObjectx.addProperty("room", string3);
+						jsonObjectx.addProperty("player", profile.id().toString());
+						jsonObjectx.addProperty("player_display_name", profile.name());
+						jsonObjectx.addProperty("text", message);
+						jsonObjectx.addProperty("language", "*");
+						return jsonObjectx;
+					};
+				}
+				else {
+					String string5 = String.valueOf(i);
+					messageEncoder = (profile, message) -> {
+						JsonObject jsonObjectx = new JsonObject();
+						jsonObjectx.addProperty("rule_id", string5);
+						jsonObjectx.addProperty("category", string2);
+						jsonObjectx.addProperty("subcategory", string3);
+						jsonObjectx.addProperty("user_id", profile.id().toString());
+						jsonObjectx.addProperty("user_display_name", profile.name());
+						jsonObjectx.addProperty("text", message);
+						jsonObjectx.addProperty("language", "*");
+						return jsonObjectx;
+					};
+				}
 
-   @Override
-   public TextStream createFilterer(GameProfile profile) {
-      return new AbstractTextFilterer.StreamImpl(profile) {
-         @Override
-         public void onConnect() {
-            V0TextFilterer.this.sendJoinOrLeaveRequest(this.gameProfile, V0TextFilterer.this.joinEndpoint, V0TextFilterer.this.joinEncoder, this.executor);
-         }
+				AbstractTextFilterer.HashIgnorer hashIgnorer = AbstractTextFilterer.HashIgnorer.dropHashes(j);
+				ExecutorService executorService = newThreadPool(k);
+				String string6 = Base64.getEncoder().encodeToString(string.getBytes(StandardCharsets.US_ASCII));
+				return new V0TextFilterer(
+						uRL,
+						messageEncoder,
+						uRL2,
+						profileEncoder,
+						uRL3,
+						profileEncoder,
+						string6,
+						hashIgnorer,
+						executorService
+				);
+			}
+		}
+		catch (Exception var20) {
+			LOGGER.warn("Failed to parse chat filter config {}", config, var20);
+			return null;
+		}
+	}
 
-         @Override
-         public void onDisconnect() {
-            V0TextFilterer.this.sendJoinOrLeaveRequest(this.gameProfile, V0TextFilterer.this.leaveEndpoint, V0TextFilterer.this.leaveEncoder, this.executor);
-         }
-      };
-   }
+	@Override
+	public TextStream createFilterer(GameProfile profile) {
+		return new AbstractTextFilterer.StreamImpl(profile) {
+			@Override
+			public void onConnect() {
+				V0TextFilterer.this.sendJoinOrLeaveRequest(
+						this.gameProfile,
+						V0TextFilterer.this.joinEndpoint,
+						V0TextFilterer.this.joinEncoder,
+						this.executor
+				);
+			}
 
-   void sendJoinOrLeaveRequest(GameProfile gameProfile, URL endpoint, V0TextFilterer.ProfileEncoder profileEncoder, Executor executor) {
-      executor.execute(() -> {
-         JsonObject jsonObject = profileEncoder.encode(gameProfile);
+			@Override
+			public void onDisconnect() {
+				V0TextFilterer.this.sendJoinOrLeaveRequest(
+						this.gameProfile,
+						V0TextFilterer.this.leaveEndpoint,
+						V0TextFilterer.this.leaveEncoder,
+						this.executor
+				);
+			}
+		};
+	}
 
-         try {
-            this.sendRequest(jsonObject, endpoint);
-         } catch (Exception var6) {
-            LOGGER.warn("Failed to send join/leave packet to {} for player {}", new Object[]{endpoint, gameProfile, var6});
-         }
-      });
-   }
+	void sendJoinOrLeaveRequest(
+			GameProfile gameProfile,
+			URL endpoint,
+			V0TextFilterer.ProfileEncoder profileEncoder,
+			Executor executor
+	) {
+		executor.execute(() -> {
+			JsonObject jsonObject = profileEncoder.encode(gameProfile);
 
-   private void sendRequest(JsonObject payload, URL endpoint) throws IOException {
-      HttpURLConnection httpURLConnection = this.openConnection(payload, endpoint);
+			try {
+				this.sendRequest(jsonObject, endpoint);
+			}
+			catch (Exception var6) {
+				LOGGER.warn(
+						"Failed to send join/leave packet to {} for player {}",
+						new Object[]{endpoint, gameProfile, var6}
+				);
+			}
+		});
+	}
 
-      try (InputStream inputStream = httpURLConnection.getInputStream()) {
-         this.discardRestOfInput(inputStream);
-      }
-   }
+	private void sendRequest(JsonObject payload, URL endpoint) throws IOException {
+		HttpURLConnection httpURLConnection = this.openConnection(payload, endpoint);
 
-   @Override
-   protected void addAuthentication(HttpURLConnection connection) {
-      connection.setRequestProperty("Authorization", "Basic " + this.apiKey);
-   }
+		try (InputStream inputStream = httpURLConnection.getInputStream()) {
+			this.discardRestOfInput(inputStream);
+		}
+	}
 
-   @Override
-   protected FilteredMessage filter(String raw, AbstractTextFilterer.HashIgnorer hashIgnorer, JsonObject response) {
-      boolean bl = JsonHelper.getBoolean(response, "response", false);
-      if (bl) {
-         return FilteredMessage.permitted(raw);
-      } else {
-         String string = JsonHelper.getString(response, "hashed", null);
-         if (string == null) {
-            return FilteredMessage.censored(raw);
-         } else {
-            JsonArray jsonArray = JsonHelper.getArray(response, "hashes");
-            FilterMask filterMask = this.createFilterMask(raw, jsonArray, hashIgnorer);
-            return new FilteredMessage(raw, filterMask);
-         }
-      }
-   }
+	@Override
+	protected void addAuthentication(HttpURLConnection connection) {
+		connection.setRequestProperty("Authorization", "Basic " + this.apiKey);
+	}
 
-   @FunctionalInterface
-   interface ProfileEncoder {
-      JsonObject encode(GameProfile gameProfile);
-   }
+	@Override
+	protected FilteredMessage filter(String raw, AbstractTextFilterer.HashIgnorer hashIgnorer, JsonObject response) {
+		boolean bl = JsonHelper.getBoolean(response, "response", false);
+		if (bl) {
+			return FilteredMessage.permitted(raw);
+		}
+		else {
+			String string = JsonHelper.getString(response, "hashed", null);
+			if (string == null) {
+				return FilteredMessage.censored(raw);
+			}
+			else {
+				JsonArray jsonArray = JsonHelper.getArray(response, "hashes");
+				FilterMask filterMask = this.createFilterMask(raw, jsonArray, hashIgnorer);
+				return new FilteredMessage(raw, filterMask);
+			}
+		}
+	}
+
+	@FunctionalInterface
+	/**
+	 * {@code ProfileEncoder}.
+	 */
+	interface ProfileEncoder {
+
+		JsonObject encode(GameProfile gameProfile);
+	}
 }

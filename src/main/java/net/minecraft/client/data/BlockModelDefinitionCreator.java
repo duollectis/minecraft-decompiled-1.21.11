@@ -6,8 +6,12 @@ import net.minecraft.block.Block;
 import net.minecraft.client.render.model.json.BlockModelDefinition;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BlockModelDefinitionCreator}.
+ */
 public interface BlockModelDefinitionCreator {
-   Block getBlock();
 
-   BlockModelDefinition createBlockModelDefinition();
+	Block getBlock();
+
+	BlockModelDefinition createBlockModelDefinition();
 }

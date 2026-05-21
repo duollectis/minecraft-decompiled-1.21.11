@@ -8,16 +8,20 @@ import net.minecraft.util.shape.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code OutlineRenderState}.
+ */
 public record OutlineRenderState(
-   BlockPos pos,
-   boolean isTranslucent,
-   boolean highContrast,
-   VoxelShape shape,
-   @Nullable VoxelShape collisionShape,
-   @Nullable VoxelShape occlusionShape,
-   @Nullable VoxelShape interactionShape
+		BlockPos pos,
+		boolean isTranslucent,
+		boolean highContrast,
+		VoxelShape shape,
+		@Nullable VoxelShape collisionShape,
+		@Nullable VoxelShape occlusionShape,
+		@Nullable VoxelShape interactionShape
 ) implements FabricRenderState {
-   public OutlineRenderState(BlockPos pos, boolean isTranslucent, boolean highContrast, VoxelShape shape) {
-      this(pos, isTranslucent, highContrast, shape, null, null, null);
-   }
+
+	public OutlineRenderState(BlockPos pos, boolean isTranslucent, boolean highContrast, VoxelShape shape) {
+		this(pos, isTranslucent, highContrast, shape, null, null, null);
+	}
 }

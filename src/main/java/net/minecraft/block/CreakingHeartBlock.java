@@ -1,7 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.function.BiConsumer;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
@@ -32,169 +31,221 @@ import net.minecraft.world.explosion.ExplosionImpl;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.function.BiConsumer;
+
+/**
+ * {@code CreakingHeartBlock}.
+ */
 public class CreakingHeartBlock extends BlockWithEntity {
-   public static final MapCodec<CreakingHeartBlock> CODEC = createCodec(CreakingHeartBlock::new);
-   public static final EnumProperty<Direction.Axis> AXIS = Properties.AXIS;
-   public static final EnumProperty<CreakingHeartState> ACTIVE = Properties.CREAKING_HEART_STATE;
-   public static final BooleanProperty NATURAL = Properties.NATURAL;
 
-   @Override
-   public MapCodec<CreakingHeartBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<CreakingHeartBlock> CODEC = createCodec(CreakingHeartBlock::new);
+	public static final EnumProperty<Direction.Axis> AXIS = Properties.AXIS;
+	public static final EnumProperty<CreakingHeartState> ACTIVE = Properties.CREAKING_HEART_STATE;
+	public static final BooleanProperty NATURAL = Properties.NATURAL;
 
-   public CreakingHeartBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.getDefaultState().with(AXIS, Direction.Axis.Y).with(ACTIVE, CreakingHeartState.UPROOTED).with(NATURAL, false));
-   }
+	@Override
+	public MapCodec<CreakingHeartBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new CreakingHeartBlockEntity(pos, state);
-   }
+	public CreakingHeartBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this
+				.getDefaultState()
+				.with(AXIS, Direction.Axis.Y)
+				.with(ACTIVE, CreakingHeartState.UPROOTED)
+				.with(NATURAL, false));
+	}
 
-   @Override
-   public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(World world, BlockState state, BlockEntityType<T> type) {
-      if (world.isClient()) {
-         return null;
-      } else {
-         return state.get(ACTIVE) != CreakingHeartState.UPROOTED ? validateTicker(type, BlockEntityType.CREAKING_HEART, CreakingHeartBlockEntity::tick) : null;
-      }
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new CreakingHeartBlockEntity(pos, state);
+	}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      if (world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos)) {
-         if (state.get(ACTIVE) != CreakingHeartState.UPROOTED) {
-            if (random.nextInt(16) == 0 && isSurroundedByPaleOakLogs(world, pos)) {
-               world.playSoundClient(pos.getX(), pos.getY(), pos.getZ(), SoundEvents.BLOCK_CREAKING_HEART_IDLE, SoundCategory.BLOCKS, 1.0F, 1.0F, false);
-            }
-         }
-      }
-   }
+	@Override
+	public <T extends BlockEntity> @Nullable BlockEntityTicker<T> getTicker(
+			World world,
+			BlockState state,
+			BlockEntityType<T> type
+	) {
+		if (world.isClient()) {
+			return null;
+		}
+		else {
+			return state.get(ACTIVE) != CreakingHeartState.UPROOTED ? validateTicker(
+					type,
+					BlockEntityType.CREAKING_HEART,
+					CreakingHeartBlockEntity::tick
+			) : null;
+		}
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      tickView.scheduleBlockTick(pos, this, 1);
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		if (world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos)) {
+			if (state.get(ACTIVE) != CreakingHeartState.UPROOTED) {
+				if (random.nextInt(16) == 0 && isSurroundedByPaleOakLogs(world, pos)) {
+					world.playSoundClient(
+							pos.getX(),
+							pos.getY(),
+							pos.getZ(),
+							SoundEvents.BLOCK_CREAKING_HEART_IDLE,
+							SoundCategory.BLOCKS,
+							1.0F,
+							1.0F,
+							false
+					);
+				}
+			}
+		}
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      BlockState blockState = enableIfValid(state, world, pos);
-      if (blockState != state) {
-         world.setBlockState(pos, blockState, 3);
-      }
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		tickView.scheduleBlockTick(pos, this, 1);
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   private static BlockState enableIfValid(BlockState state, World world, BlockPos pos) {
-      boolean bl = shouldBeEnabled(state, world, pos);
-      boolean bl2 = state.get(ACTIVE) == CreakingHeartState.UPROOTED;
-      return bl && bl2
-         ? state.with(
-            ACTIVE,
-            world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos)
-               ? CreakingHeartState.AWAKE
-               : CreakingHeartState.DORMANT
-         )
-         : state;
-   }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		BlockState blockState = enableIfValid(state, world, pos);
+		if (blockState != state) {
+			world.setBlockState(pos, blockState, 3);
+		}
+	}
 
-   public static boolean shouldBeEnabled(BlockState state, WorldView world, BlockPos pos) {
-      Direction.Axis axis = state.get(AXIS);
+	private static BlockState enableIfValid(BlockState state, World world, BlockPos pos) {
+		boolean bl = shouldBeEnabled(state, world, pos);
+		boolean bl2 = state.get(ACTIVE) == CreakingHeartState.UPROOTED;
+		return bl && bl2
+		       ? state.with(
+				ACTIVE,
+				world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.CREAKING_ACTIVE_GAMEPLAY, pos)
+				? CreakingHeartState.AWAKE
+				: CreakingHeartState.DORMANT
+		)
+		       : state;
+	}
 
-      for (Direction direction : axis.getDirections()) {
-         BlockState blockState = world.getBlockState(pos.offset(direction));
-         if (!blockState.isIn(BlockTags.PALE_OAK_LOGS) || blockState.get(AXIS) != axis) {
-            return false;
-         }
-      }
+	public static boolean shouldBeEnabled(BlockState state, WorldView world, BlockPos pos) {
+		Direction.Axis axis = state.get(AXIS);
 
-      return true;
-   }
+		for (Direction direction : axis.getDirections()) {
+			BlockState blockState = world.getBlockState(pos.offset(direction));
+			if (!blockState.isIn(BlockTags.PALE_OAK_LOGS) || blockState.get(AXIS) != axis) {
+				return false;
+			}
+		}
 
-   private static boolean isSurroundedByPaleOakLogs(WorldAccess world, BlockPos pos) {
-      for (Direction direction : Direction.values()) {
-         BlockPos blockPos = pos.offset(direction);
-         BlockState blockState = world.getBlockState(blockPos);
-         if (!blockState.isIn(BlockTags.PALE_OAK_LOGS)) {
-            return false;
-         }
-      }
+		return true;
+	}
 
-      return true;
-   }
+	private static boolean isSurroundedByPaleOakLogs(WorldAccess world, BlockPos pos) {
+		for (Direction direction : Direction.values()) {
+			BlockPos blockPos = pos.offset(direction);
+			BlockState blockState = world.getBlockState(blockPos);
+			if (!blockState.isIn(BlockTags.PALE_OAK_LOGS)) {
+				return false;
+			}
+		}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      return enableIfValid(this.getDefaultState().with(AXIS, ctx.getSide().getAxis()), ctx.getWorld(), ctx.getBlockPos());
-   }
+		return true;
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return PillarBlock.changeRotation(state, rotation);
-   }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		return enableIfValid(
+				this.getDefaultState().with(AXIS, ctx.getSide().getAxis()),
+				ctx.getWorld(),
+				ctx.getBlockPos()
+		);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(AXIS, ACTIVE, NATURAL);
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return PillarBlock.changeRotation(state, rotation);
+	}
 
-   @Override
-   protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
-      ItemScatterer.onStateReplaced(state, world, pos);
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(AXIS, ACTIVE, NATURAL);
+	}
 
-   @Override
-   protected void onExploded(BlockState state, ServerWorld world, BlockPos pos, Explosion explosion, BiConsumer<ItemStack, BlockPos> stackMerger) {
-      if (world.getBlockEntity(pos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity
-         && explosion instanceof ExplosionImpl explosionImpl
-         && explosion.getDestructionType().destroysBlocks()) {
-         creakingHeartBlockEntity.killPuppet(explosionImpl.getDamageSource());
-         if (explosion.getCausingEntity() instanceof PlayerEntity playerEntity && explosion.getDestructionType().destroysBlocks()) {
-            this.dropExperienceOnBreak(playerEntity, state, world, pos);
-         }
-      }
+	@Override
+	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
+		ItemScatterer.onStateReplaced(state, world, pos);
+	}
 
-      super.onExploded(state, world, pos, explosion, stackMerger);
-   }
+	@Override
+	protected void onExploded(
+			BlockState state,
+			ServerWorld world,
+			BlockPos pos,
+			Explosion explosion,
+			BiConsumer<ItemStack, BlockPos> stackMerger
+	) {
+		if (world.getBlockEntity(pos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity
+				&& explosion instanceof ExplosionImpl explosionImpl
+				&& explosion.getDestructionType().destroysBlocks()) {
+			creakingHeartBlockEntity.killPuppet(explosionImpl.getDamageSource());
+			if (explosion.getCausingEntity() instanceof PlayerEntity playerEntity && explosion
+					.getDestructionType()
+					.destroysBlocks()) {
+				this.dropExperienceOnBreak(playerEntity, state, world, pos);
+			}
+		}
 
-   @Override
-   public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
-      if (world.getBlockEntity(pos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity) {
-         creakingHeartBlockEntity.killPuppet(player.getDamageSources().playerAttack(player));
-         this.dropExperienceOnBreak(player, state, world, pos);
-      }
+		super.onExploded(state, world, pos, explosion, stackMerger);
+	}
 
-      return super.onBreak(world, pos, state, player);
-   }
+	@Override
+	public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
+		if (world.getBlockEntity(pos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity) {
+			creakingHeartBlockEntity.killPuppet(player.getDamageSources().playerAttack(player));
+			this.dropExperienceOnBreak(player, state, world, pos);
+		}
 
-   private void dropExperienceOnBreak(PlayerEntity player, BlockState state, World world, BlockPos pos) {
-      if (!player.shouldSkipBlockDrops() && !player.isSpectator() && state.get(NATURAL) && world instanceof ServerWorld serverWorld) {
-         this.dropExperience(serverWorld, pos, world.random.nextBetween(20, 24));
-      }
-   }
+		return super.onBreak(world, pos, state, player);
+	}
 
-   @Override
-   protected boolean hasComparatorOutput(BlockState state) {
-      return true;
-   }
+	private void dropExperienceOnBreak(PlayerEntity player, BlockState state, World world, BlockPos pos) {
+		if (!player.shouldSkipBlockDrops() && !player.isSpectator() && state.get(NATURAL)
+				&& world instanceof ServerWorld serverWorld) {
+			this.dropExperience(serverWorld, pos, world.random.nextBetween(20, 24));
+		}
+	}
 
-   @Override
-   protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
-      if (state.get(ACTIVE) == CreakingHeartState.UPROOTED) {
-         return 0;
-      } else {
-         return world.getBlockEntity(pos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity ? creakingHeartBlockEntity.getComparatorOutput() : 0;
-      }
-   }
+	@Override
+	protected boolean hasComparatorOutput(BlockState state) {
+		return true;
+	}
+
+	@Override
+	protected int getComparatorOutput(BlockState state, World world, BlockPos pos, Direction direction) {
+		if (state.get(ACTIVE) == CreakingHeartState.UPROOTED) {
+			return 0;
+		}
+		else {
+			return world.getBlockEntity(pos) instanceof CreakingHeartBlockEntity creakingHeartBlockEntity
+			       ? creakingHeartBlockEntity.getComparatorOutput() : 0;
+		}
+	}
 }

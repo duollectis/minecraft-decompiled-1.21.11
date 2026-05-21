@@ -5,14 +5,18 @@ import net.minecraft.registry.ServerDynamicRegistryType;
 import net.minecraft.resource.LifecycledResourceManager;
 import net.minecraft.world.SaveProperties;
 
+/**
+ * {@code SaveLoader}.
+ */
 public record SaveLoader(
-   LifecycledResourceManager resourceManager,
-   DataPackContents dataPackContents,
-   CombinedDynamicRegistries<ServerDynamicRegistryType> combinedDynamicRegistries,
-   SaveProperties saveProperties
+		LifecycledResourceManager resourceManager,
+		DataPackContents dataPackContents,
+		CombinedDynamicRegistries<ServerDynamicRegistryType> combinedDynamicRegistries,
+		SaveProperties saveProperties
 ) implements AutoCloseable {
-   @Override
-   public void close() {
-      this.resourceManager.close();
-   }
+
+	@Override
+	public void close() {
+		this.resourceManager.close();
+	}
 }

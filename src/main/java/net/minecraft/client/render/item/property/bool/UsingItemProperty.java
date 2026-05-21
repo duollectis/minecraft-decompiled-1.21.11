@@ -10,16 +10,26 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code UsingItemProperty}.
+ */
 public record UsingItemProperty() implements BooleanProperty {
-   public static final MapCodec<UsingItemProperty> CODEC = MapCodec.unit(new UsingItemProperty());
 
-   @Override
-   public boolean test(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity entity, int seed, ItemDisplayContext displayContext) {
-      return entity == null ? false : entity.isUsingItem() && entity.getActiveItem() == stack;
-   }
+	public static final MapCodec<UsingItemProperty> CODEC = MapCodec.unit(new UsingItemProperty());
 
-   @Override
-   public MapCodec<UsingItemProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public boolean test(
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity entity,
+			int seed,
+			ItemDisplayContext displayContext
+	) {
+		return entity == null ? false : entity.isUsingItem() && entity.getActiveItem() == stack;
+	}
+
+	@Override
+	public MapCodec<UsingItemProperty> getCodec() {
+		return CODEC;
+	}
 }

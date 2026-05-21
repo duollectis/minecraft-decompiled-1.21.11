@@ -21,60 +21,77 @@ import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code VaultBlockEntityRenderer}.
+ */
 public class VaultBlockEntityRenderer implements BlockEntityRenderer<VaultBlockEntity, VaultBlockEntityRenderState> {
-   private final ItemModelManager itemModelManager;
-   private final Random random = Random.create();
 
-   public VaultBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
-      this.itemModelManager = context.itemModelManager();
-   }
+	private final ItemModelManager itemModelManager;
+	private final Random random = Random.create();
 
-   public VaultBlockEntityRenderState createRenderState() {
-      return new VaultBlockEntityRenderState();
-   }
+	public VaultBlockEntityRenderer(BlockEntityRendererFactory.Context context) {
+		this.itemModelManager = context.itemModelManager();
+	}
 
-   public void updateRenderState(
-      VaultBlockEntity vaultBlockEntity,
-      VaultBlockEntityRenderState vaultBlockEntityRenderState,
-      float f,
-      Vec3d vec3d,
-      ModelCommandRenderer.@Nullable CrumblingOverlayCommand crumblingOverlayCommand
-   ) {
-      BlockEntityRenderer.super.updateRenderState(vaultBlockEntity, vaultBlockEntityRenderState, f, vec3d, crumblingOverlayCommand);
-      ItemStack itemStack = vaultBlockEntity.getSharedData().getDisplayItem();
-      if (VaultBlockEntity.Client.hasDisplayItem(vaultBlockEntity.getSharedData()) && !itemStack.isEmpty() && vaultBlockEntity.getWorld() != null) {
-         vaultBlockEntityRenderState.displayItemStackState = new ItemStackEntityRenderState();
-         this.itemModelManager
-            .clearAndUpdate(
-               vaultBlockEntityRenderState.displayItemStackState.itemRenderState, itemStack, ItemDisplayContext.GROUND, vaultBlockEntity.getWorld(), null, 0
-            );
-         vaultBlockEntityRenderState.displayItemStackState.renderedAmount = ItemStackEntityRenderState.getRenderedAmount(itemStack.getCount());
-         vaultBlockEntityRenderState.displayItemStackState.seed = ItemStackEntityRenderState.getSeed(itemStack);
-         VaultClientData vaultClientData = vaultBlockEntity.getClientData();
-         vaultBlockEntityRenderState.displayRotationDegrees = MathHelper.lerpAngleDegrees(
-            f, vaultClientData.getLastDisplayRotation(), vaultClientData.getDisplayRotation()
-         );
-      }
-   }
+	public VaultBlockEntityRenderState createRenderState() {
+		return new VaultBlockEntityRenderState();
+	}
 
-   public void render(
-      VaultBlockEntityRenderState vaultBlockEntityRenderState,
-      MatrixStack matrixStack,
-      OrderedRenderCommandQueue orderedRenderCommandQueue,
-      CameraRenderState cameraRenderState
-   ) {
-      if (vaultBlockEntityRenderState.displayItemStackState != null) {
-         matrixStack.push();
-         matrixStack.translate(0.5F, 0.4F, 0.5F);
-         matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(vaultBlockEntityRenderState.displayRotationDegrees));
-         ItemEntityRenderer.renderStack(
-            matrixStack,
-            orderedRenderCommandQueue,
-            vaultBlockEntityRenderState.lightmapCoordinates,
-            vaultBlockEntityRenderState.displayItemStackState,
-            this.random
-         );
-         matrixStack.pop();
-      }
-   }
+	public void updateRenderState(
+			VaultBlockEntity vaultBlockEntity,
+			VaultBlockEntityRenderState vaultBlockEntityRenderState,
+			float f,
+			Vec3d vec3d,
+			ModelCommandRenderer.@Nullable CrumblingOverlayCommand crumblingOverlayCommand
+	) {
+		BlockEntityRenderer.super.updateRenderState(
+				vaultBlockEntity,
+				vaultBlockEntityRenderState,
+				f,
+				vec3d,
+				crumblingOverlayCommand
+		);
+		ItemStack itemStack = vaultBlockEntity.getSharedData().getDisplayItem();
+		if (VaultBlockEntity.Client.hasDisplayItem(vaultBlockEntity.getSharedData()) && !itemStack.isEmpty()
+				&& vaultBlockEntity.getWorld() != null) {
+			vaultBlockEntityRenderState.displayItemStackState = new ItemStackEntityRenderState();
+			this.itemModelManager
+					.clearAndUpdate(
+							vaultBlockEntityRenderState.displayItemStackState.itemRenderState,
+							itemStack,
+							ItemDisplayContext.GROUND,
+							vaultBlockEntity.getWorld(),
+							null,
+							0
+					);
+			vaultBlockEntityRenderState.displayItemStackState.renderedAmount =
+					ItemStackEntityRenderState.getRenderedAmount(itemStack.getCount());
+			vaultBlockEntityRenderState.displayItemStackState.seed = ItemStackEntityRenderState.getSeed(itemStack);
+			VaultClientData vaultClientData = vaultBlockEntity.getClientData();
+			vaultBlockEntityRenderState.displayRotationDegrees = MathHelper.lerpAngleDegrees(
+					f, vaultClientData.getLastDisplayRotation(), vaultClientData.getDisplayRotation()
+			);
+		}
+	}
+
+	public void render(
+			VaultBlockEntityRenderState vaultBlockEntityRenderState,
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			CameraRenderState cameraRenderState
+	) {
+		if (vaultBlockEntityRenderState.displayItemStackState != null) {
+			matrixStack.push();
+			matrixStack.translate(0.5F, 0.4F, 0.5F);
+			matrixStack.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(vaultBlockEntityRenderState.displayRotationDegrees));
+			ItemEntityRenderer.renderStack(
+					matrixStack,
+					orderedRenderCommandQueue,
+					vaultBlockEntityRenderState.lightmapCoordinates,
+					vaultBlockEntityRenderState.displayItemStackState,
+					this.random
+			);
+			matrixStack.pop();
+		}
+	}
 }

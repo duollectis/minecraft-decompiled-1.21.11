@@ -14,25 +14,31 @@ import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code PotionTintSource}.
+ */
 public record PotionTintSource(int defaultColor) implements TintSource {
-   public static final MapCodec<PotionTintSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(Codecs.RGB.fieldOf("default").forGetter(PotionTintSource::defaultColor)).apply(instance, PotionTintSource::new)
-   );
 
-   public PotionTintSource() {
-      this(-13083194);
-   }
+	public static final MapCodec<PotionTintSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(Codecs.RGB.fieldOf("default").forGetter(PotionTintSource::defaultColor))
+					.apply(instance, PotionTintSource::new)
+	);
 
-   @Override
-   public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
-      PotionContentsComponent potionContentsComponent = stack.get(DataComponentTypes.POTION_CONTENTS);
-      return potionContentsComponent != null
-         ? ColorHelper.fullAlpha(potionContentsComponent.getColor(this.defaultColor))
-         : ColorHelper.fullAlpha(this.defaultColor);
-   }
+	public PotionTintSource() {
+		this(-13083194);
+	}
 
-   @Override
-   public MapCodec<PotionTintSource> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public int getTint(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity user) {
+		PotionContentsComponent potionContentsComponent = stack.get(DataComponentTypes.POTION_CONTENTS);
+		return potionContentsComponent != null
+		       ? ColorHelper.fullAlpha(potionContentsComponent.getColor(this.defaultColor))
+		       : ColorHelper.fullAlpha(this.defaultColor);
+	}
+
+	@Override
+	public MapCodec<PotionTintSource> getCodec() {
+		return CODEC;
+	}
 }

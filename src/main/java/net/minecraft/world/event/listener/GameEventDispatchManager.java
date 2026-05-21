@@ -1,8 +1,5 @@
 package net.minecraft.world.event.listener;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -13,60 +10,73 @@ import net.minecraft.world.debug.DebugSubscriptionTypes;
 import net.minecraft.world.debug.data.GameEventDebugData;
 import net.minecraft.world.event.GameEvent;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * {@code GameEventDispatchManager}.
+ */
 public class GameEventDispatchManager {
-   private final ServerWorld world;
 
-   public GameEventDispatchManager(ServerWorld world) {
-      this.world = world;
-   }
+	private final ServerWorld world;
 
-   public void dispatch(RegistryEntry<GameEvent> event, Vec3d emitterPos, GameEvent.Emitter emitter) {
-      int i = event.value().notificationRadius();
-      BlockPos blockPos = BlockPos.ofFloored(emitterPos);
-      int j = ChunkSectionPos.getSectionCoord(blockPos.getX() - i);
-      int k = ChunkSectionPos.getSectionCoord(blockPos.getY() - i);
-      int l = ChunkSectionPos.getSectionCoord(blockPos.getZ() - i);
-      int m = ChunkSectionPos.getSectionCoord(blockPos.getX() + i);
-      int n = ChunkSectionPos.getSectionCoord(blockPos.getY() + i);
-      int o = ChunkSectionPos.getSectionCoord(blockPos.getZ() + i);
-      List<GameEvent.Message> list = new ArrayList<>();
-      GameEventDispatcher.DispatchCallback dispatchCallback = (listener, listenerPos) -> {
-         if (listener.getTriggerOrder() == GameEventListener.TriggerOrder.BY_DISTANCE) {
-            list.add(new GameEvent.Message(event, emitterPos, emitter, listener, listenerPos));
-         } else {
-            listener.listen(this.world, event, emitter, emitterPos);
-         }
-      };
-      boolean bl = false;
+	public GameEventDispatchManager(ServerWorld world) {
+		this.world = world;
+	}
 
-      for (int p = j; p <= m; p++) {
-         for (int q = l; q <= o; q++) {
-            Chunk chunk = this.world.getChunkManager().getWorldChunk(p, q);
-            if (chunk != null) {
-               for (int r = k; r <= n; r++) {
-                  bl |= chunk.getGameEventDispatcher(r).dispatch(event, emitterPos, emitter, dispatchCallback);
-               }
-            }
-         }
-      }
+	public void dispatch(RegistryEntry<GameEvent> event, Vec3d emitterPos, GameEvent.Emitter emitter) {
+		int i = event.value().notificationRadius();
+		BlockPos blockPos = BlockPos.ofFloored(emitterPos);
+		int j = ChunkSectionPos.getSectionCoord(blockPos.getX() - i);
+		int k = ChunkSectionPos.getSectionCoord(blockPos.getY() - i);
+		int l = ChunkSectionPos.getSectionCoord(blockPos.getZ() - i);
+		int m = ChunkSectionPos.getSectionCoord(blockPos.getX() + i);
+		int n = ChunkSectionPos.getSectionCoord(blockPos.getY() + i);
+		int o = ChunkSectionPos.getSectionCoord(blockPos.getZ() + i);
+		List<GameEvent.Message> list = new ArrayList<>();
+		GameEventDispatcher.DispatchCallback dispatchCallback = (listener, listenerPos) -> {
+			if (listener.getTriggerOrder() == GameEventListener.TriggerOrder.BY_DISTANCE) {
+				list.add(new GameEvent.Message(event, emitterPos, emitter, listener, listenerPos));
+			}
+			else {
+				listener.listen(this.world, event, emitter, emitterPos);
+			}
+		};
+		boolean bl = false;
 
-      if (!list.isEmpty()) {
-         this.dispatchListenersByDistance(list);
-      }
+		for (int p = j; p <= m; p++) {
+			for (int q = l; q <= o; q++) {
+				Chunk chunk = this.world.getChunkManager().getWorldChunk(p, q);
+				if (chunk != null) {
+					for (int r = k; r <= n; r++) {
+						bl |= chunk.getGameEventDispatcher(r).dispatch(event, emitterPos, emitter, dispatchCallback);
+					}
+				}
+			}
+		}
 
-      if (bl) {
-         this.world
-            .getSubscriptionTracker()
-            .sendEventDebugData(BlockPos.ofFloored(emitterPos), DebugSubscriptionTypes.GAME_EVENTS, new GameEventDebugData(event, emitterPos));
-      }
-   }
+		if (!list.isEmpty()) {
+			this.dispatchListenersByDistance(list);
+		}
 
-   private void dispatchListenersByDistance(List<GameEvent.Message> messages) {
-      Collections.sort(messages);
+		if (bl) {
+			this.world
+					.getSubscriptionTracker()
+					.sendEventDebugData(
+							BlockPos.ofFloored(emitterPos),
+							DebugSubscriptionTypes.GAME_EVENTS,
+							new GameEventDebugData(event, emitterPos)
+					);
+		}
+	}
 
-      for (GameEvent.Message message : messages) {
-         GameEventListener gameEventListener = message.getListener();
-         gameEventListener.listen(this.world, message.getEvent(), message.getEmitter(), message.getEmitterPos());
-      }
-   }
+	private void dispatchListenersByDistance(List<GameEvent.Message> messages) {
+		Collections.sort(messages);
+
+		for (GameEvent.Message message : messages) {
+			GameEventListener gameEventListener = message.getListener();
+			gameEventListener.listen(this.world, message.getEvent(), message.getEmitter(), message.getEmitterPos());
+		}
+	}
 }

@@ -1,24 +1,29 @@
 package net.minecraft.test;
 
+import net.minecraft.registry.Registry;
+import net.minecraft.registry.RegistryKey;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
 
+/**
+ * {@code TestFunctionProvider}.
+ */
 public abstract class TestFunctionProvider {
-   private static final List<TestFunctionProvider> PROVIDERS = new ArrayList<>();
 
-   public static void addProvider(TestFunctionProvider provider) {
-      PROVIDERS.add(provider);
-   }
+	private static final List<TestFunctionProvider> PROVIDERS = new ArrayList<>();
 
-   public static void registerAll(Registry<Consumer<TestContext>> registry) {
-      for (TestFunctionProvider testFunctionProvider : PROVIDERS) {
-         testFunctionProvider.register((key, value) -> Registry.register(registry, key, value));
-      }
-   }
+	public static void addProvider(TestFunctionProvider provider) {
+		PROVIDERS.add(provider);
+	}
 
-   public abstract void register(BiConsumer<RegistryKey<Consumer<TestContext>>, Consumer<TestContext>> registry);
+	public static void registerAll(Registry<Consumer<TestContext>> registry) {
+		for (TestFunctionProvider testFunctionProvider : PROVIDERS) {
+			testFunctionProvider.register((key, value) -> Registry.register(registry, key, value));
+		}
+	}
+
+	public abstract void register(BiConsumer<RegistryKey<Consumer<TestContext>>, Consumer<TestContext>> registry);
 }

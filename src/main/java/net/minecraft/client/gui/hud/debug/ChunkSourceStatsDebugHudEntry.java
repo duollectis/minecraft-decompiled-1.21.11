@@ -8,21 +8,30 @@ import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ChunkSourceStatsDebugHudEntry}.
+ */
 public class ChunkSourceStatsDebugHudEntry implements DebugHudEntry {
-   @Override
-   public void render(DebugHudLines lines, @Nullable World world, @Nullable WorldChunk clientChunk, @Nullable WorldChunk chunk) {
-      MinecraftClient minecraftClient = MinecraftClient.getInstance();
-      if (minecraftClient.world != null) {
-         lines.addLine(minecraftClient.world.asString());
-      }
 
-      if (world != null && world != minecraftClient.world) {
-         lines.addLine(world.asString());
-      }
-   }
+	@Override
+	public void render(
+			DebugHudLines lines,
+			@Nullable World world,
+			@Nullable WorldChunk clientChunk,
+			@Nullable WorldChunk chunk
+	) {
+		MinecraftClient minecraftClient = MinecraftClient.getInstance();
+		if (minecraftClient.world != null) {
+			lines.addLine(minecraftClient.world.asString());
+		}
 
-   @Override
-   public boolean canShow(boolean reducedDebugInfo) {
-      return true;
-   }
+		if (world != null && world != minecraftClient.world) {
+			lines.addLine(world.asString());
+		}
+	}
+
+	@Override
+	public boolean canShow(boolean reducedDebugInfo) {
+		return true;
+	}
 }

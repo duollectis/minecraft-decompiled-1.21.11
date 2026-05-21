@@ -9,19 +9,23 @@ import net.minecraft.entity.passive.TadpoleEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TadpoleEntityRenderer}.
+ */
 public class TadpoleEntityRenderer extends MobEntityRenderer<TadpoleEntity, LivingEntityRenderState, TadpoleEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/tadpole/tadpole.png");
 
-   public TadpoleEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, new TadpoleEntityModel(context.getPart(EntityModelLayers.TADPOLE)), 0.14F);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/tadpole/tadpole.png");
 
-   @Override
-   public Identifier getTexture(LivingEntityRenderState state) {
-      return TEXTURE;
-   }
+	public TadpoleEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, new TadpoleEntityModel(context.getPart(EntityModelLayers.TADPOLE)), 0.14F);
+	}
 
-   public LivingEntityRenderState createRenderState() {
-      return new LivingEntityRenderState();
-   }
+	@Override
+	public Identifier getTexture(LivingEntityRenderState state) {
+		return TEXTURE;
+	}
+
+	public LivingEntityRenderState createRenderState() {
+		return new LivingEntityRenderState();
+	}
 }

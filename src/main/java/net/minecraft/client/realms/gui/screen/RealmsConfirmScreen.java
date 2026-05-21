@@ -10,30 +10,40 @@ import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RealmsConfirmScreen}.
+ */
 public class RealmsConfirmScreen extends RealmsScreen {
-   protected BooleanConsumer callback;
-   private final Text title1;
-   private final Text title2;
 
-   public RealmsConfirmScreen(BooleanConsumer callback, Text title1, Text title2) {
-      super(NarratorManager.EMPTY);
-      this.callback = callback;
-      this.title1 = title1;
-      this.title2 = title2;
-   }
+	protected BooleanConsumer callback;
+	private final Text title1;
+	private final Text title2;
 
-   @Override
-   public void init() {
-      this.addDrawableChild(
-         ButtonWidget.builder(ScreenTexts.YES, button -> this.callback.accept(true)).dimensions(this.width / 2 - 105, row(9), 100, 20).build()
-      );
-      this.addDrawableChild(ButtonWidget.builder(ScreenTexts.NO, button -> this.callback.accept(false)).dimensions(this.width / 2 + 5, row(9), 100, 20).build());
-   }
+	public RealmsConfirmScreen(BooleanConsumer callback, Text title1, Text title2) {
+		super(NarratorManager.EMPTY);
+		this.callback = callback;
+		this.title1 = title1;
+		this.title2 = title2;
+	}
 
-   @Override
-   public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-      super.render(context, mouseX, mouseY, deltaTicks);
-      context.drawCenteredTextWithShadow(this.textRenderer, this.title1, this.width / 2, row(3), -1);
-      context.drawCenteredTextWithShadow(this.textRenderer, this.title2, this.width / 2, row(5), -1);
-   }
+	@Override
+	public void init() {
+		this.addDrawableChild(
+				ButtonWidget
+						.builder(ScreenTexts.YES, button -> this.callback.accept(true))
+						.dimensions(this.width / 2 - 105, row(9), 100, 20)
+						.build()
+		);
+		this.addDrawableChild(ButtonWidget
+				.builder(ScreenTexts.NO, button -> this.callback.accept(false))
+				.dimensions(this.width / 2 + 5, row(9), 100, 20)
+				.build());
+	}
+
+	@Override
+	public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+		super.render(context, mouseX, mouseY, deltaTicks);
+		context.drawCenteredTextWithShadow(this.textRenderer, this.title1, this.width / 2, row(3), -1);
+		context.drawCenteredTextWithShadow(this.textRenderer, this.title2, this.width / 2, row(5), -1);
+	}
 }

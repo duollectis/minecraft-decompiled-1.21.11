@@ -1,164 +1,175 @@
 package net.minecraft.screen.slot;
 
-import java.util.Optional;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+
+/**
+ * {@code Slot}.
+ */
 public class Slot {
-   private final int index;
-   public final Inventory inventory;
-   public int id;
-   public final int x;
-   public final int y;
 
-   public Slot(Inventory inventory, int index, int x, int y) {
-      this.inventory = inventory;
-      this.index = index;
-      this.x = x;
-      this.y = y;
-   }
+	private final int index;
+	public final Inventory inventory;
+	public int id;
+	public final int x;
+	public final int y;
 
-   public void onQuickTransfer(ItemStack newItem, ItemStack original) {
-      int i = original.getCount() - newItem.getCount();
-      if (i > 0) {
-         this.onCrafted(original, i);
-      }
-   }
+	public Slot(Inventory inventory, int index, int x, int y) {
+		this.inventory = inventory;
+		this.index = index;
+		this.x = x;
+		this.y = y;
+	}
 
-   protected void onCrafted(ItemStack stack, int amount) {
-   }
+	public void onQuickTransfer(ItemStack newItem, ItemStack original) {
+		int i = original.getCount() - newItem.getCount();
+		if (i > 0) {
+			this.onCrafted(original, i);
+		}
+	}
 
-   public void onTake(int amount) {
-   }
+	protected void onCrafted(ItemStack stack, int amount) {
+	}
 
-   protected void onCrafted(ItemStack stack) {
-   }
+	public void onTake(int amount) {
+	}
 
-   public void onTakeItem(PlayerEntity player, ItemStack stack) {
-      this.markDirty();
-   }
+	protected void onCrafted(ItemStack stack) {
+	}
 
-   public boolean canInsert(ItemStack stack) {
-      return true;
-   }
+	public void onTakeItem(PlayerEntity player, ItemStack stack) {
+		this.markDirty();
+	}
 
-   public ItemStack getStack() {
-      return this.inventory.getStack(this.index);
-   }
+	public boolean canInsert(ItemStack stack) {
+		return true;
+	}
 
-   public boolean hasStack() {
-      return !this.getStack().isEmpty();
-   }
+	public ItemStack getStack() {
+		return this.inventory.getStack(this.index);
+	}
 
-   public void setStack(ItemStack stack) {
-      this.setStack(stack, this.getStack());
-   }
+	public boolean hasStack() {
+		return !this.getStack().isEmpty();
+	}
 
-   public void setStack(ItemStack stack, ItemStack previousStack) {
-      this.setStackNoCallbacks(stack);
-   }
+	public void setStack(ItemStack stack) {
+		this.setStack(stack, this.getStack());
+	}
 
-   public void setStackNoCallbacks(ItemStack stack) {
-      this.inventory.setStack(this.index, stack);
-      this.markDirty();
-   }
+	public void setStack(ItemStack stack, ItemStack previousStack) {
+		this.setStackNoCallbacks(stack);
+	}
 
-   public void markDirty() {
-      this.inventory.markDirty();
-   }
+	public void setStackNoCallbacks(ItemStack stack) {
+		this.inventory.setStack(this.index, stack);
+		this.markDirty();
+	}
 
-   public int getMaxItemCount() {
-      return this.inventory.getMaxCountPerStack();
-   }
+	public void markDirty() {
+		this.inventory.markDirty();
+	}
 
-   public int getMaxItemCount(ItemStack stack) {
-      return Math.min(this.getMaxItemCount(), stack.getMaxCount());
-   }
+	public int getMaxItemCount() {
+		return this.inventory.getMaxCountPerStack();
+	}
 
-   public @Nullable Identifier getBackgroundSprite() {
-      return null;
-   }
+	public int getMaxItemCount(ItemStack stack) {
+		return Math.min(this.getMaxItemCount(), stack.getMaxCount());
+	}
 
-   public ItemStack takeStack(int amount) {
-      return this.inventory.removeStack(this.index, amount);
-   }
+	public @Nullable Identifier getBackgroundSprite() {
+		return null;
+	}
 
-   public boolean canTakeItems(PlayerEntity playerEntity) {
-      return true;
-   }
+	public ItemStack takeStack(int amount) {
+		return this.inventory.removeStack(this.index, amount);
+	}
 
-   public boolean isEnabled() {
-      return true;
-   }
+	public boolean canTakeItems(PlayerEntity playerEntity) {
+		return true;
+	}
 
-   public Optional<ItemStack> tryTakeStackRange(int min, int max, PlayerEntity player) {
-      if (!this.canTakeItems(player)) {
-         return Optional.empty();
-      } else if (!this.canTakePartial(player) && max < this.getStack().getCount()) {
-         return Optional.empty();
-      } else {
-         min = Math.min(min, max);
-         ItemStack itemStack = this.takeStack(min);
-         if (itemStack.isEmpty()) {
-            return Optional.empty();
-         } else {
-            if (this.getStack().isEmpty()) {
-               this.setStack(ItemStack.EMPTY, itemStack);
-            }
+	public boolean isEnabled() {
+		return true;
+	}
 
-            return Optional.of(itemStack);
-         }
-      }
-   }
+	public Optional<ItemStack> tryTakeStackRange(int min, int max, PlayerEntity player) {
+		if (!this.canTakeItems(player)) {
+			return Optional.empty();
+		}
+		else if (!this.canTakePartial(player) && max < this.getStack().getCount()) {
+			return Optional.empty();
+		}
+		else {
+			min = Math.min(min, max);
+			ItemStack itemStack = this.takeStack(min);
+			if (itemStack.isEmpty()) {
+				return Optional.empty();
+			}
+			else {
+				if (this.getStack().isEmpty()) {
+					this.setStack(ItemStack.EMPTY, itemStack);
+				}
 
-   public ItemStack takeStackRange(int min, int max, PlayerEntity player) {
-      Optional<ItemStack> optional = this.tryTakeStackRange(min, max, player);
-      optional.ifPresent(stack -> this.onTakeItem(player, stack));
-      return optional.orElse(ItemStack.EMPTY);
-   }
+				return Optional.of(itemStack);
+			}
+		}
+	}
 
-   public ItemStack insertStack(ItemStack stack) {
-      return this.insertStack(stack, stack.getCount());
-   }
+	public ItemStack takeStackRange(int min, int max, PlayerEntity player) {
+		Optional<ItemStack> optional = this.tryTakeStackRange(min, max, player);
+		optional.ifPresent(stack -> this.onTakeItem(player, stack));
+		return optional.orElse(ItemStack.EMPTY);
+	}
 
-   public ItemStack insertStack(ItemStack stack, int count) {
-      if (!stack.isEmpty() && this.canInsert(stack)) {
-         ItemStack itemStack = this.getStack();
-         int i = Math.min(Math.min(count, stack.getCount()), this.getMaxItemCount(stack) - itemStack.getCount());
-         if (i <= 0) {
-            return stack;
-         } else {
-            if (itemStack.isEmpty()) {
-               this.setStack(stack.split(i));
-            } else if (ItemStack.areItemsAndComponentsEqual(itemStack, stack)) {
-               stack.decrement(i);
-               itemStack.increment(i);
-               this.setStack(itemStack);
-            }
+	public ItemStack insertStack(ItemStack stack) {
+		return this.insertStack(stack, stack.getCount());
+	}
 
-            return stack;
-         }
-      } else {
-         return stack;
-      }
-   }
+	public ItemStack insertStack(ItemStack stack, int count) {
+		if (!stack.isEmpty() && this.canInsert(stack)) {
+			ItemStack itemStack = this.getStack();
+			int i = Math.min(Math.min(count, stack.getCount()), this.getMaxItemCount(stack) - itemStack.getCount());
+			if (i <= 0) {
+				return stack;
+			}
+			else {
+				if (itemStack.isEmpty()) {
+					this.setStack(stack.split(i));
+				}
+				else if (ItemStack.areItemsAndComponentsEqual(itemStack, stack)) {
+					stack.decrement(i);
+					itemStack.increment(i);
+					this.setStack(itemStack);
+				}
 
-   public boolean canTakePartial(PlayerEntity player) {
-      return this.canTakeItems(player) && this.canInsert(this.getStack());
-   }
+				return stack;
+			}
+		}
+		else {
+			return stack;
+		}
+	}
 
-   public int getIndex() {
-      return this.index;
-   }
+	public boolean canTakePartial(PlayerEntity player) {
+		return this.canTakeItems(player) && this.canInsert(this.getStack());
+	}
 
-   public boolean canBeHighlighted() {
-      return true;
-   }
+	public int getIndex() {
+		return this.index;
+	}
 
-   public boolean disablesDynamicDisplay() {
-      return false;
-   }
+	public boolean canBeHighlighted() {
+		return true;
+	}
+
+	public boolean disablesDynamicDisplay() {
+		return false;
+	}
 }

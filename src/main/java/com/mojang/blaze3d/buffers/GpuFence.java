@@ -6,9 +6,13 @@ import net.minecraft.util.annotation.DeobfuscateClass;
 
 @Environment(EnvType.CLIENT)
 @DeobfuscateClass
+/**
+ * {@code GpuFence}.
+ */
 public interface GpuFence extends AutoCloseable {
-   @Override
-   void close();
 
-   boolean awaitCompletion(long timeoutNanos);
+	@Override
+	void close();
+
+	boolean awaitCompletion(long timeoutNanos);
 }

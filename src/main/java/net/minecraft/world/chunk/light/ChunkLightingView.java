@@ -6,48 +6,55 @@ import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.world.chunk.ChunkNibbleArray;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ChunkLightingView}.
+ */
 public interface ChunkLightingView extends LightingView {
-   @Nullable ChunkNibbleArray getLightSection(ChunkSectionPos pos);
 
-   int getLightLevel(BlockPos pos);
+	@Nullable ChunkNibbleArray getLightSection(ChunkSectionPos pos);
 
-   public static enum Empty implements ChunkLightingView {
-      INSTANCE;
+	int getLightLevel(BlockPos pos);
 
-      @Override
-      public @Nullable ChunkNibbleArray getLightSection(ChunkSectionPos pos) {
-         return null;
-      }
+	/**
+	 * {@code Empty}.
+	 */
+	public static enum Empty implements ChunkLightingView {
+		INSTANCE;
 
-      @Override
-      public int getLightLevel(BlockPos pos) {
-         return 0;
-      }
+		@Override
+		public @Nullable ChunkNibbleArray getLightSection(ChunkSectionPos pos) {
+			return null;
+		}
 
-      @Override
-      public void checkBlock(BlockPos pos) {
-      }
+		@Override
+		public int getLightLevel(BlockPos pos) {
+			return 0;
+		}
 
-      @Override
-      public boolean hasUpdates() {
-         return false;
-      }
+		@Override
+		public void checkBlock(BlockPos pos) {
+		}
 
-      @Override
-      public int doLightUpdates() {
-         return 0;
-      }
+		@Override
+		public boolean hasUpdates() {
+			return false;
+		}
 
-      @Override
-      public void setSectionStatus(ChunkSectionPos pos, boolean notReady) {
-      }
+		@Override
+		public int doLightUpdates() {
+			return 0;
+		}
 
-      @Override
-      public void setColumnEnabled(ChunkPos pos, boolean retainData) {
-      }
+		@Override
+		public void setSectionStatus(ChunkSectionPos pos, boolean notReady) {
+		}
 
-      @Override
-      public void propagateLight(ChunkPos chunkPos) {
-      }
-   }
+		@Override
+		public void setColumnEnabled(ChunkPos pos, boolean retainData) {
+		}
+
+		@Override
+		public void propagateLight(ChunkPos chunkPos) {
+		}
+	}
 }

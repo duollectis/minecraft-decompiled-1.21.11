@@ -10,20 +10,28 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GlowSquidEntityRenderer}.
+ */
 public class GlowSquidEntityRenderer extends SquidEntityRenderer<GlowSquidEntity> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/squid/glow_squid.png");
 
-   public GlowSquidEntityRenderer(EntityRendererFactory.Context context, SquidEntityModel squidEntityModel, SquidEntityModel squidEntityModel2) {
-      super(context, squidEntityModel, squidEntityModel2);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/squid/glow_squid.png");
 
-   @Override
-   public Identifier getTexture(SquidEntityRenderState squidEntityRenderState) {
-      return TEXTURE;
-   }
+	public GlowSquidEntityRenderer(
+			EntityRendererFactory.Context context,
+			SquidEntityModel squidEntityModel,
+			SquidEntityModel squidEntityModel2
+	) {
+		super(context, squidEntityModel, squidEntityModel2);
+	}
 
-   protected int getBlockLight(GlowSquidEntity glowSquidEntity, BlockPos blockPos) {
-      int i = (int)MathHelper.clampedLerp(1.0F - glowSquidEntity.getDarkTicksRemaining() / 10.0F, 0.0F, 15.0F);
-      return i == 15 ? 15 : Math.max(i, super.getBlockLight(glowSquidEntity, blockPos));
-   }
+	@Override
+	public Identifier getTexture(SquidEntityRenderState squidEntityRenderState) {
+		return TEXTURE;
+	}
+
+	protected int getBlockLight(GlowSquidEntity glowSquidEntity, BlockPos blockPos) {
+		int i = (int) MathHelper.clampedLerp(1.0F - glowSquidEntity.getDarkTicksRemaining() / 10.0F, 0.0F, 15.0F);
+		return i == 15 ? 15 : Math.max(i, super.getBlockLight(glowSquidEntity, blockPos));
+	}
 }

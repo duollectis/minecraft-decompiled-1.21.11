@@ -3,12 +3,6 @@ package net.minecraft.network.packet.s2c.play;
 import com.google.common.collect.Lists;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.Consumer;
-import java.util.stream.Collectors;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.nbt.NbtCompound;
@@ -24,140 +18,165 @@ import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.chunk.WorldChunk;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
+
 public class ChunkData {
-   private static final PacketCodec<ByteBuf, Map<Heightmap.Type, long[]>> HEIGHTMAPS_PACKET_CODEC = PacketCodecs.map(
-      size -> new EnumMap<>(Heightmap.Type.class), Heightmap.Type.PACKET_CODEC, PacketCodecs.LONG_ARRAY
-   );
-   private static final int MAX_SECTIONS_DATA_SIZE = 2097152;
-   private final Map<Heightmap.Type, long[]> heightmap;
-   private final byte[] sectionsData;
-   private final List<ChunkData.BlockEntityData> blockEntities;
 
-   public ChunkData(WorldChunk chunk) {
-      this.heightmap = chunk.getHeightmaps()
-         .stream()
-         .filter(entryx -> ((Heightmap.Type)entryx.getKey()).shouldSendToClient())
-         .collect(Collectors.toMap(Entry::getKey, entryx -> (long[])((Heightmap)entryx.getValue()).asLongArray().clone()));
-      this.sectionsData = new byte[getSectionsPacketSize(chunk)];
-      writeSections(new PacketByteBuf(this.getWritableSectionsDataBuf()), chunk);
-      this.blockEntities = Lists.newArrayList();
+	private static final PacketCodec<ByteBuf, Map<Heightmap.Type, long[]>> HEIGHTMAPS_PACKET_CODEC = PacketCodecs.map(
+			size -> new EnumMap<>(Heightmap.Type.class), Heightmap.Type.PACKET_CODEC, PacketCodecs.LONG_ARRAY
+	);
+	private static final int MAX_SECTIONS_DATA_SIZE = 2097152;
+	private final Map<Heightmap.Type, long[]> heightmap;
+	private final byte[] sectionsData;
+	private final List<ChunkData.BlockEntityData> blockEntities;
 
-      for (Entry<BlockPos, BlockEntity> entry : chunk.getBlockEntities().entrySet()) {
-         this.blockEntities.add(ChunkData.BlockEntityData.of(entry.getValue()));
-      }
-   }
+	public ChunkData(WorldChunk chunk) {
+		this.heightmap = chunk.getHeightmaps()
+		                      .stream()
+		                      .filter(entryx -> ((Heightmap.Type) entryx.getKey()).shouldSendToClient())
+		                      .collect(Collectors.toMap(
+				                      Entry::getKey,
+				                      entryx -> (long[]) ((Heightmap) entryx.getValue()).asLongArray().clone()
+		                      ));
+		this.sectionsData = new byte[getSectionsPacketSize(chunk)];
+		writeSections(new PacketByteBuf(this.getWritableSectionsDataBuf()), chunk);
+		this.blockEntities = Lists.newArrayList();
 
-   public ChunkData(RegistryByteBuf buf, int x, int z) {
-      this.heightmap = HEIGHTMAPS_PACKET_CODEC.decode(buf);
-      int i = buf.readVarInt();
-      if (i > 2097152) {
-         throw new RuntimeException("Chunk Packet trying to allocate too much memory on read.");
-      } else {
-         this.sectionsData = new byte[i];
-         buf.readBytes(this.sectionsData);
-         this.blockEntities = ChunkData.BlockEntityData.LIST_PACKET_CODEC.decode(buf);
-      }
-   }
+		for (Entry<BlockPos, BlockEntity> entry : chunk.getBlockEntities().entrySet()) {
+			this.blockEntities.add(ChunkData.BlockEntityData.of(entry.getValue()));
+		}
+	}
 
-   public void write(RegistryByteBuf buf) {
-      HEIGHTMAPS_PACKET_CODEC.encode(buf, this.heightmap);
-      buf.writeVarInt(this.sectionsData.length);
-      buf.writeBytes(this.sectionsData);
-      ChunkData.BlockEntityData.LIST_PACKET_CODEC.encode(buf, this.blockEntities);
-   }
+	public ChunkData(RegistryByteBuf buf, int x, int z) {
+		this.heightmap = HEIGHTMAPS_PACKET_CODEC.decode(buf);
+		int i = buf.readVarInt();
+		if (i > 2097152) {
+			throw new RuntimeException("Chunk Packet trying to allocate too much memory on read.");
+		}
+		else {
+			this.sectionsData = new byte[i];
+			buf.readBytes(this.sectionsData);
+			this.blockEntities = ChunkData.BlockEntityData.LIST_PACKET_CODEC.decode(buf);
+		}
+	}
 
-   private static int getSectionsPacketSize(WorldChunk chunk) {
-      int i = 0;
+	public void write(RegistryByteBuf buf) {
+		HEIGHTMAPS_PACKET_CODEC.encode(buf, this.heightmap);
+		buf.writeVarInt(this.sectionsData.length);
+		buf.writeBytes(this.sectionsData);
+		ChunkData.BlockEntityData.LIST_PACKET_CODEC.encode(buf, this.blockEntities);
+	}
 
-      for (ChunkSection chunkSection : chunk.getSectionArray()) {
-         i += chunkSection.getPacketSize();
-      }
+	private static int getSectionsPacketSize(WorldChunk chunk) {
+		int i = 0;
 
-      return i;
-   }
+		for (ChunkSection chunkSection : chunk.getSectionArray()) {
+			i += chunkSection.getPacketSize();
+		}
 
-   private ByteBuf getWritableSectionsDataBuf() {
-      ByteBuf byteBuf = Unpooled.wrappedBuffer(this.sectionsData);
-      byteBuf.writerIndex(0);
-      return byteBuf;
-   }
+		return i;
+	}
 
-   public static void writeSections(PacketByteBuf buf, WorldChunk chunk) {
-      for (ChunkSection chunkSection : chunk.getSectionArray()) {
-         chunkSection.toPacket(buf);
-      }
+	private ByteBuf getWritableSectionsDataBuf() {
+		ByteBuf byteBuf = Unpooled.wrappedBuffer(this.sectionsData);
+		byteBuf.writerIndex(0);
+		return byteBuf;
+	}
 
-      if (buf.writerIndex() != buf.capacity()) {
-         throw new IllegalStateException("Didn't fill chunk buffer: expected " + buf.capacity() + " bytes, got " + buf.writerIndex());
-      }
-   }
+	public static void writeSections(PacketByteBuf buf, WorldChunk chunk) {
+		for (ChunkSection chunkSection : chunk.getSectionArray()) {
+			chunkSection.toPacket(buf);
+		}
 
-   public Consumer<ChunkData.BlockEntityVisitor> getBlockEntities(int x, int z) {
-      return visitor -> this.iterateBlockEntities(visitor, x, z);
-   }
+		if (buf.writerIndex() != buf.capacity()) {
+			throw new IllegalStateException(
+					"Didn't fill chunk buffer: expected " + buf.capacity() + " bytes, got " + buf.writerIndex());
+		}
+	}
 
-   private void iterateBlockEntities(ChunkData.BlockEntityVisitor consumer, int x, int z) {
-      int i = 16 * x;
-      int j = 16 * z;
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
+	public Consumer<ChunkData.BlockEntityVisitor> getBlockEntities(int x, int z) {
+		return visitor -> this.iterateBlockEntities(visitor, x, z);
+	}
 
-      for (ChunkData.BlockEntityData blockEntityData : this.blockEntities) {
-         int k = i + ChunkSectionPos.getLocalCoord(blockEntityData.localXz >> 4);
-         int l = j + ChunkSectionPos.getLocalCoord(blockEntityData.localXz);
-         mutable.set(k, blockEntityData.y, l);
-         consumer.accept(mutable, blockEntityData.type, blockEntityData.nbt);
-      }
-   }
+	private void iterateBlockEntities(ChunkData.BlockEntityVisitor consumer, int x, int z) {
+		int i = 16 * x;
+		int j = 16 * z;
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-   public PacketByteBuf getSectionsDataBuf() {
-      return new PacketByteBuf(Unpooled.wrappedBuffer(this.sectionsData));
-   }
+		for (ChunkData.BlockEntityData blockEntityData : this.blockEntities) {
+			int k = i + ChunkSectionPos.getLocalCoord(blockEntityData.localXz >> 4);
+			int l = j + ChunkSectionPos.getLocalCoord(blockEntityData.localXz);
+			mutable.set(k, blockEntityData.y, l);
+			consumer.accept(mutable, blockEntityData.type, blockEntityData.nbt);
+		}
+	}
 
-   public Map<Heightmap.Type, long[]> getHeightmap() {
-      return this.heightmap;
-   }
+	public PacketByteBuf getSectionsDataBuf() {
+		return new PacketByteBuf(Unpooled.wrappedBuffer(this.sectionsData));
+	}
 
-   static class BlockEntityData {
-      public static final PacketCodec<RegistryByteBuf, ChunkData.BlockEntityData> PACKET_CODEC = PacketCodec.of(
-         ChunkData.BlockEntityData::write, ChunkData.BlockEntityData::new
-      );
-      public static final PacketCodec<RegistryByteBuf, List<ChunkData.BlockEntityData>> LIST_PACKET_CODEC = PACKET_CODEC.collect(PacketCodecs.toList());
-      final int localXz;
-      final int y;
-      final BlockEntityType<?> type;
-      final @Nullable NbtCompound nbt;
+	public Map<Heightmap.Type, long[]> getHeightmap() {
+		return this.heightmap;
+	}
 
-      private BlockEntityData(int localXz, int y, BlockEntityType<?> type, @Nullable NbtCompound nbt) {
-         this.localXz = localXz;
-         this.y = y;
-         this.type = type;
-         this.nbt = nbt;
-      }
+	static class BlockEntityData {
 
-      private BlockEntityData(RegistryByteBuf buf) {
-         this.localXz = buf.readByte();
-         this.y = buf.readShort();
-         this.type = PacketCodecs.registryValue(RegistryKeys.BLOCK_ENTITY_TYPE).decode(buf);
-         this.nbt = buf.readNbt();
-      }
+		public static final PacketCodec<RegistryByteBuf, ChunkData.BlockEntityData> PACKET_CODEC = PacketCodec.of(
+				ChunkData.BlockEntityData::write, ChunkData.BlockEntityData::new
+		);
+		public static final PacketCodec<RegistryByteBuf, List<ChunkData.BlockEntityData>>
+				LIST_PACKET_CODEC =
+				PACKET_CODEC.collect(PacketCodecs.toList());
+		final int localXz;
+		final int y;
+		final BlockEntityType<?> type;
+		final @Nullable NbtCompound nbt;
 
-      private void write(RegistryByteBuf buf) {
-         buf.writeByte(this.localXz);
-         buf.writeShort(this.y);
-         PacketCodecs.registryValue(RegistryKeys.BLOCK_ENTITY_TYPE).encode(buf, this.type);
-         buf.writeNbt(this.nbt);
-      }
+		private BlockEntityData(int localXz, int y, BlockEntityType<?> type, @Nullable NbtCompound nbt) {
+			this.localXz = localXz;
+			this.y = y;
+			this.type = type;
+			this.nbt = nbt;
+		}
 
-      static ChunkData.BlockEntityData of(BlockEntity blockEntity) {
-         NbtCompound nbtCompound = blockEntity.toInitialChunkDataNbt(blockEntity.getWorld().getRegistryManager());
-         BlockPos blockPos = blockEntity.getPos();
-         int i = ChunkSectionPos.getLocalCoord(blockPos.getX()) << 4 | ChunkSectionPos.getLocalCoord(blockPos.getZ());
-         return new ChunkData.BlockEntityData(i, blockPos.getY(), blockEntity.getType(), nbtCompound.isEmpty() ? null : nbtCompound);
-      }
-   }
+		private BlockEntityData(RegistryByteBuf buf) {
+			this.localXz = buf.readByte();
+			this.y = buf.readShort();
+			this.type = PacketCodecs.registryValue(RegistryKeys.BLOCK_ENTITY_TYPE).decode(buf);
+			this.nbt = buf.readNbt();
+		}
 
-   @FunctionalInterface
-   public interface BlockEntityVisitor {
-      void accept(BlockPos pos, BlockEntityType<?> type, @Nullable NbtCompound nbt);
-   }
+		private void write(RegistryByteBuf buf) {
+			buf.writeByte(this.localXz);
+			buf.writeShort(this.y);
+			PacketCodecs.registryValue(RegistryKeys.BLOCK_ENTITY_TYPE).encode(buf, this.type);
+			buf.writeNbt(this.nbt);
+		}
+
+		static ChunkData.BlockEntityData of(BlockEntity blockEntity) {
+			NbtCompound nbtCompound = blockEntity.toInitialChunkDataNbt(blockEntity.getWorld().getRegistryManager());
+			BlockPos blockPos = blockEntity.getPos();
+			int
+					i =
+					ChunkSectionPos.getLocalCoord(blockPos.getX()) << 4
+							| ChunkSectionPos.getLocalCoord(blockPos.getZ());
+			return new ChunkData.BlockEntityData(
+					i,
+					blockPos.getY(),
+					blockEntity.getType(),
+					nbtCompound.isEmpty() ? null : nbtCompound
+			);
+		}
+	}
+
+	@FunctionalInterface
+	public interface BlockEntityVisitor {
+
+		void accept(BlockPos pos, BlockEntityType<?> type, @Nullable NbtCompound nbt);
+	}
 }

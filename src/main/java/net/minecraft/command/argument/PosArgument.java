@@ -5,18 +5,22 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * {@code PosArgument}.
+ */
 public interface PosArgument {
-   Vec3d getPos(ServerCommandSource source);
 
-   Vec2f getRotation(ServerCommandSource source);
+	Vec3d getPos(ServerCommandSource source);
 
-   default BlockPos toAbsoluteBlockPos(ServerCommandSource source) {
-      return BlockPos.ofFloored(this.getPos(source));
-   }
+	Vec2f getRotation(ServerCommandSource source);
 
-   boolean isXRelative();
+	default BlockPos toAbsoluteBlockPos(ServerCommandSource source) {
+		return BlockPos.ofFloored(this.getPos(source));
+	}
 
-   boolean isYRelative();
+	boolean isXRelative();
 
-   boolean isZRelative();
+	boolean isYRelative();
+
+	boolean isZRelative();
 }

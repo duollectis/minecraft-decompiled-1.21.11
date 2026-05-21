@@ -4,13 +4,17 @@ import net.minecraft.entity.decoration.painting.PaintingVariant;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
 
+/**
+ * {@code PaintingVariantTags}.
+ */
 public class PaintingVariantTags {
-   public static final TagKey<PaintingVariant> PLACEABLE = of("placeable");
 
-   private PaintingVariantTags() {
-   }
+	public static final TagKey<PaintingVariant> PLACEABLE = of("placeable");
 
-   private static TagKey<PaintingVariant> of(String id) {
-      return TagKey.of(RegistryKeys.PAINTING_VARIANT, Identifier.ofVanilla(id));
-   }
+	private PaintingVariantTags() {
+	}
+
+	private static TagKey<PaintingVariant> of(String id) {
+		return TagKey.of(RegistryKeys.PAINTING_VARIANT, Identifier.ofVanilla(id));
+	}
 }

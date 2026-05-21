@@ -11,25 +11,26 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
 public record DeathMessageS2CPacket(int playerId, Text message) implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, DeathMessageS2CPacket> CODEC = PacketCodec.tuple(
-      PacketCodecs.VAR_INT,
-      DeathMessageS2CPacket::playerId,
-      TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
-      DeathMessageS2CPacket::message,
-      DeathMessageS2CPacket::new
-   );
 
-   @Override
-   public PacketType<DeathMessageS2CPacket> getPacketType() {
-      return PlayPackets.PLAYER_COMBAT_KILL;
-   }
+	public static final PacketCodec<RegistryByteBuf, DeathMessageS2CPacket> CODEC = PacketCodec.tuple(
+			PacketCodecs.VAR_INT,
+			DeathMessageS2CPacket::playerId,
+			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC,
+			DeathMessageS2CPacket::message,
+			DeathMessageS2CPacket::new
+	);
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onDeathMessage(this);
-   }
+	@Override
+	public PacketType<DeathMessageS2CPacket> getPacketType() {
+		return PlayPackets.PLAYER_COMBAT_KILL;
+	}
 
-   @Override
-   public boolean isWritingErrorSkippable() {
-      return true;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onDeathMessage(this);
+	}
+
+	@Override
+	public boolean isWritingErrorSkippable() {
+		return true;
+	}
 }

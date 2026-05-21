@@ -15,65 +15,80 @@ import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code CoralBlockBlock}.
+ */
 public class CoralBlockBlock extends Block {
-   public static final MapCodec<Block> DEAD_FIELD = Registries.BLOCK.getCodec().fieldOf("dead");
-   public static final MapCodec<CoralBlockBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(DEAD_FIELD.forGetter(block -> block.deadCoralBlock), createSettingsCodec()).apply(instance, CoralBlockBlock::new)
-   );
-   private final Block deadCoralBlock;
 
-   public CoralBlockBlock(Block deadCoralBlock, AbstractBlock.Settings settings) {
-      super(settings);
-      this.deadCoralBlock = deadCoralBlock;
-   }
+	public static final MapCodec<Block> DEAD_FIELD = Registries.BLOCK.getCodec().fieldOf("dead");
+	public static final MapCodec<CoralBlockBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(DEAD_FIELD.forGetter(block -> block.deadCoralBlock), createSettingsCodec())
+					.apply(instance, CoralBlockBlock::new)
+	);
+	private final Block deadCoralBlock;
 
-   @Override
-   public MapCodec<CoralBlockBlock> getCodec() {
-      return CODEC;
-   }
+	public CoralBlockBlock(Block deadCoralBlock, AbstractBlock.Settings settings) {
+		super(settings);
+		this.deadCoralBlock = deadCoralBlock;
+	}
 
-   @Override
-   protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (!this.isInWater(world, pos)) {
-         world.setBlockState(pos, this.deadCoralBlock.getDefaultState(), 2);
-      }
-   }
+	@Override
+	public MapCodec<CoralBlockBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (!this.isInWater(world, pos)) {
-         tickView.scheduleBlockTick(pos, this, 60 + random.nextInt(40));
-      }
+	@Override
+	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (!this.isInWater(world, pos)) {
+			world.setBlockState(pos, this.deadCoralBlock.getDefaultState(), 2);
+		}
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (!this.isInWater(world, pos)) {
+			tickView.scheduleBlockTick(pos, this, 60 + random.nextInt(40));
+		}
 
-   protected boolean isInWater(BlockView world, BlockPos pos) {
-      for (Direction direction : Direction.values()) {
-         FluidState fluidState = world.getFluidState(pos.offset(direction));
-         if (fluidState.isIn(FluidTags.WATER)) {
-            return true;
-         }
-      }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-      return false;
-   }
+	protected boolean isInWater(BlockView world, BlockPos pos) {
+		for (Direction direction : Direction.values()) {
+			FluidState fluidState = world.getFluidState(pos.offset(direction));
+			if (fluidState.isIn(FluidTags.WATER)) {
+				return true;
+			}
+		}
 
-   @Override
-   public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
-      if (!this.isInWater(ctx.getWorld(), ctx.getBlockPos())) {
-         ctx.getWorld().scheduleBlockTick(ctx.getBlockPos(), this, 60 + ctx.getWorld().getRandom().nextInt(40));
-      }
+		return false;
+	}
 
-      return this.getDefaultState();
-   }
+	@Override
+	public @Nullable BlockState getPlacementState(ItemPlacementContext ctx) {
+		if (!this.isInWater(ctx.getWorld(), ctx.getBlockPos())) {
+			ctx.getWorld().scheduleBlockTick(ctx.getBlockPos(), this, 60 + ctx.getWorld().getRandom().nextInt(40));
+		}
+
+		return this.getDefaultState();
+	}
 }

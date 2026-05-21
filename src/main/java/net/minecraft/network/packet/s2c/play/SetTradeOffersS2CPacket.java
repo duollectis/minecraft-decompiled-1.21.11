@@ -9,73 +9,81 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.village.TradeOfferList;
 
 public class SetTradeOffersS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, SetTradeOffersS2CPacket> CODEC = Packet.createCodec(
-      SetTradeOffersS2CPacket::write, SetTradeOffersS2CPacket::new
-   );
-   private final int syncId;
-   private final TradeOfferList offers;
-   private final int levelProgress;
-   private final int experience;
-   private final boolean leveled;
-   private final boolean refreshable;
 
-   public SetTradeOffersS2CPacket(int syncId, TradeOfferList offers, int levelProgress, int experience, boolean leveled, boolean refreshable) {
-      this.syncId = syncId;
-      this.offers = offers.copy();
-      this.levelProgress = levelProgress;
-      this.experience = experience;
-      this.leveled = leveled;
-      this.refreshable = refreshable;
-   }
+	public static final PacketCodec<RegistryByteBuf, SetTradeOffersS2CPacket> CODEC = Packet.createCodec(
+			SetTradeOffersS2CPacket::write, SetTradeOffersS2CPacket::new
+	);
+	private final int syncId;
+	private final TradeOfferList offers;
+	private final int levelProgress;
+	private final int experience;
+	private final boolean leveled;
+	private final boolean refreshable;
 
-   private SetTradeOffersS2CPacket(RegistryByteBuf buf) {
-      this.syncId = buf.readSyncId();
-      this.offers = TradeOfferList.PACKET_CODEC.decode(buf);
-      this.levelProgress = buf.readVarInt();
-      this.experience = buf.readVarInt();
-      this.leveled = buf.readBoolean();
-      this.refreshable = buf.readBoolean();
-   }
+	public SetTradeOffersS2CPacket(
+			int syncId,
+			TradeOfferList offers,
+			int levelProgress,
+			int experience,
+			boolean leveled,
+			boolean refreshable
+	) {
+		this.syncId = syncId;
+		this.offers = offers.copy();
+		this.levelProgress = levelProgress;
+		this.experience = experience;
+		this.leveled = leveled;
+		this.refreshable = refreshable;
+	}
 
-   private void write(RegistryByteBuf buf) {
-      buf.writeSyncId(this.syncId);
-      TradeOfferList.PACKET_CODEC.encode(buf, this.offers);
-      buf.writeVarInt(this.levelProgress);
-      buf.writeVarInt(this.experience);
-      buf.writeBoolean(this.leveled);
-      buf.writeBoolean(this.refreshable);
-   }
+	private SetTradeOffersS2CPacket(RegistryByteBuf buf) {
+		this.syncId = buf.readSyncId();
+		this.offers = TradeOfferList.PACKET_CODEC.decode(buf);
+		this.levelProgress = buf.readVarInt();
+		this.experience = buf.readVarInt();
+		this.leveled = buf.readBoolean();
+		this.refreshable = buf.readBoolean();
+	}
 
-   @Override
-   public PacketType<SetTradeOffersS2CPacket> getPacketType() {
-      return PlayPackets.MERCHANT_OFFERS;
-   }
+	private void write(RegistryByteBuf buf) {
+		buf.writeSyncId(this.syncId);
+		TradeOfferList.PACKET_CODEC.encode(buf, this.offers);
+		buf.writeVarInt(this.levelProgress);
+		buf.writeVarInt(this.experience);
+		buf.writeBoolean(this.leveled);
+		buf.writeBoolean(this.refreshable);
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onSetTradeOffers(this);
-   }
+	@Override
+	public PacketType<SetTradeOffersS2CPacket> getPacketType() {
+		return PlayPackets.MERCHANT_OFFERS;
+	}
 
-   public int getSyncId() {
-      return this.syncId;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onSetTradeOffers(this);
+	}
 
-   public TradeOfferList getOffers() {
-      return this.offers;
-   }
+	public int getSyncId() {
+		return this.syncId;
+	}
 
-   public int getLevelProgress() {
-      return this.levelProgress;
-   }
+	public TradeOfferList getOffers() {
+		return this.offers;
+	}
 
-   public int getExperience() {
-      return this.experience;
-   }
+	public int getLevelProgress() {
+		return this.levelProgress;
+	}
 
-   public boolean isLeveled() {
-      return this.leveled;
-   }
+	public int getExperience() {
+		return this.experience;
+	}
 
-   public boolean isRefreshable() {
-      return this.refreshable;
-   }
+	public boolean isLeveled() {
+		return this.leveled;
+	}
+
+	public boolean isRefreshable() {
+		return this.refreshable;
+	}
 }

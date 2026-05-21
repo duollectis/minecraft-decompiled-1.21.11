@@ -7,35 +7,39 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code RootedDirtBlock}.
+ */
 public class RootedDirtBlock extends Block implements Fertilizable {
-   public static final MapCodec<RootedDirtBlock> CODEC = createCodec(RootedDirtBlock::new);
 
-   @Override
-   public MapCodec<RootedDirtBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<RootedDirtBlock> CODEC = createCodec(RootedDirtBlock::new);
 
-   public RootedDirtBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<RootedDirtBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return world.getBlockState(pos.down()).isAir();
-   }
+	public RootedDirtBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return world.getBlockState(pos.down()).isAir();
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      world.setBlockState(pos.down(), Blocks.HANGING_ROOTS.getDefaultState());
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
 
-   @Override
-   public BlockPos getFertilizeParticlePos(BlockPos pos) {
-      return pos.down();
-   }
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		world.setBlockState(pos.down(), Blocks.HANGING_ROOTS.getDefaultState());
+	}
+
+	@Override
+	public BlockPos getFertilizeParticlePos(BlockPos pos) {
+		return pos.down();
+	}
 }

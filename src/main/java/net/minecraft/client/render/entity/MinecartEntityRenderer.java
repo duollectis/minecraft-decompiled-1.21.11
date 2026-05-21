@@ -7,12 +7,16 @@ import net.minecraft.client.render.entity.state.MinecartEntityRenderState;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MinecartEntityRenderer}.
+ */
 public class MinecartEntityRenderer extends AbstractMinecartEntityRenderer<AbstractMinecartEntity, MinecartEntityRenderState> {
-   public MinecartEntityRenderer(EntityRendererFactory.Context context, EntityModelLayer entityModelLayer) {
-      super(context, entityModelLayer);
-   }
 
-   public MinecartEntityRenderState createRenderState() {
-      return new MinecartEntityRenderState();
-   }
+	public MinecartEntityRenderer(EntityRendererFactory.Context context, EntityModelLayer entityModelLayer) {
+		super(context, entityModelLayer);
+	}
+
+	public MinecartEntityRenderState createRenderState() {
+		return new MinecartEntityRenderState();
+	}
 }

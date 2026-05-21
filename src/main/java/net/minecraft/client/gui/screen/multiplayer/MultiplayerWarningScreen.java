@@ -12,35 +12,41 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code MultiplayerWarningScreen}.
+ */
 public class MultiplayerWarningScreen extends WarningScreen {
-   private static final Text HEADER = Text.translatable("multiplayerWarning.header").formatted(Formatting.BOLD);
-   private static final Text MESSAGE = Text.translatable("multiplayerWarning.message");
-   private static final Text CHECK_MESSAGE = Text.translatable("multiplayerWarning.check").withColor(-2039584);
-   private static final Text NARRATED_TEXT = HEADER.copy().append("\n").append(MESSAGE);
-   private final Screen parent;
 
-   public MultiplayerWarningScreen(Screen parent) {
-      super(HEADER, MESSAGE, CHECK_MESSAGE, NARRATED_TEXT);
-      this.parent = parent;
-   }
+	private static final Text HEADER = Text.translatable("multiplayerWarning.header").formatted(Formatting.BOLD);
+	private static final Text MESSAGE = Text.translatable("multiplayerWarning.message");
+	private static final Text CHECK_MESSAGE = Text.translatable("multiplayerWarning.check").withColor(-2039584);
+	private static final Text NARRATED_TEXT = HEADER.copy().append("\n").append(MESSAGE);
+	private final Screen parent;
 
-   @Override
-   protected LayoutWidget getLayout() {
-      DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(8);
-      directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.PROCEED, button -> {
-         if (this.checkbox.isChecked()) {
-            this.client.options.skipMultiplayerWarning = true;
-            this.client.options.write();
-         }
+	public MultiplayerWarningScreen(Screen parent) {
+		super(HEADER, MESSAGE, CHECK_MESSAGE, NARRATED_TEXT);
+		this.parent = parent;
+	}
 
-         this.client.setScreen(new MultiplayerScreen(this.parent));
-      }).build());
-      directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).build());
-      return directionalLayoutWidget;
-   }
+	@Override
+	protected LayoutWidget getLayout() {
+		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(8);
+		directionalLayoutWidget.add(ButtonWidget.builder(
+				ScreenTexts.PROCEED, button -> {
+					if (this.checkbox.isChecked()) {
+						this.client.options.skipMultiplayerWarning = true;
+						this.client.options.write();
+					}
 
-   @Override
-   public void close() {
-      this.client.setScreen(this.parent);
-   }
+					this.client.setScreen(new MultiplayerScreen(this.parent));
+				}
+		).build());
+		directionalLayoutWidget.add(ButtonWidget.builder(ScreenTexts.BACK, button -> this.close()).build());
+		return directionalLayoutWidget;
+	}
+
+	@Override
+	public void close() {
+		this.client.setScreen(this.parent);
+	}
 }

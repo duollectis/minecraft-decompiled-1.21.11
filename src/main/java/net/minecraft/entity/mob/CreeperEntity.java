@@ -1,20 +1,7 @@
 package net.minecraft.entity.mob;
 
-import java.util.Collection;
-import net.minecraft.entity.AreaEffectCloudEntity;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.LightningEntity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.ai.goal.ActiveTargetGoal;
-import net.minecraft.entity.ai.goal.CreeperIgniteGoal;
-import net.minecraft.entity.ai.goal.FleeEntityGoal;
-import net.minecraft.entity.ai.goal.LookAroundGoal;
-import net.minecraft.entity.ai.goal.LookAtEntityGoal;
-import net.minecraft.entity.ai.goal.MeleeAttackGoal;
-import net.minecraft.entity.ai.goal.RevengeGoal;
-import net.minecraft.entity.ai.goal.SwimGoal;
-import net.minecraft.entity.ai.goal.WanderAroundFarGoal;
+import net.minecraft.entity.*;
+import net.minecraft.entity.ai.goal.*;
 import net.minecraft.entity.attribute.DefaultAttributeContainer;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageSource;
@@ -42,227 +29,268 @@ import net.minecraft.world.World;
 import net.minecraft.world.event.GameEvent;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collection;
+
+/**
+ * {@code CreeperEntity}.
+ */
 public class CreeperEntity extends HostileEntity {
-   private static final TrackedData<Integer> FUSE_SPEED = DataTracker.registerData(CreeperEntity.class, TrackedDataHandlerRegistry.INTEGER);
-   private static final TrackedData<Boolean> CHARGED = DataTracker.registerData(CreeperEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final TrackedData<Boolean> IGNITED = DataTracker.registerData(CreeperEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
-   private static final boolean DEFAULT_CHARGED = false;
-   private static final boolean DEFAULT_IGNITED = false;
-   private static final short DEFAULT_FUSE = 30;
-   private static final byte DEFAULT_EXPLOSION_RADIUS = 3;
-   private int lastFuseTime;
-   private int currentFuseTime;
-   private int fuseTime = 30;
-   private int explosionRadius = 3;
-   private boolean headsDropped;
 
-   public CreeperEntity(EntityType<? extends CreeperEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final TrackedData<Integer>
+			FUSE_SPEED =
+			DataTracker.registerData(CreeperEntity.class, TrackedDataHandlerRegistry.INTEGER);
+	private static final TrackedData<Boolean>
+			CHARGED =
+			DataTracker.registerData(CreeperEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final TrackedData<Boolean>
+			IGNITED =
+			DataTracker.registerData(CreeperEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+	private static final boolean DEFAULT_CHARGED = false;
+	private static final boolean DEFAULT_IGNITED = false;
+	private static final short DEFAULT_FUSE = 30;
+	private static final byte DEFAULT_EXPLOSION_RADIUS = 3;
+	private int lastFuseTime;
+	private int currentFuseTime;
+	private int fuseTime = 30;
+	private int explosionRadius = 3;
+	private boolean headsDropped;
 
-   @Override
-   protected void initGoals() {
-      this.goalSelector.add(1, new SwimGoal(this));
-      this.goalSelector.add(2, new CreeperIgniteGoal(this));
-      this.goalSelector.add(3, new FleeEntityGoal<>(this, OcelotEntity.class, 6.0F, 1.0, 1.2));
-      this.goalSelector.add(3, new FleeEntityGoal<>(this, CatEntity.class, 6.0F, 1.0, 1.2));
-      this.goalSelector.add(4, new MeleeAttackGoal(this, 1.0, false));
-      this.goalSelector.add(5, new WanderAroundFarGoal(this, 0.8));
-      this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
-      this.goalSelector.add(6, new LookAroundGoal(this));
-      this.targetSelector.add(1, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
-      this.targetSelector.add(2, new RevengeGoal(this));
-   }
+	public CreeperEntity(EntityType<? extends CreeperEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public static DefaultAttributeContainer.Builder createCreeperAttributes() {
-      return HostileEntity.createHostileAttributes().add(EntityAttributes.MOVEMENT_SPEED, 0.25);
-   }
+	@Override
+	protected void initGoals() {
+		this.goalSelector.add(1, new SwimGoal(this));
+		this.goalSelector.add(2, new CreeperIgniteGoal(this));
+		this.goalSelector.add(3, new FleeEntityGoal<>(this, OcelotEntity.class, 6.0F, 1.0, 1.2));
+		this.goalSelector.add(3, new FleeEntityGoal<>(this, CatEntity.class, 6.0F, 1.0, 1.2));
+		this.goalSelector.add(4, new MeleeAttackGoal(this, 1.0, false));
+		this.goalSelector.add(5, new WanderAroundFarGoal(this, 0.8));
+		this.goalSelector.add(6, new LookAtEntityGoal(this, PlayerEntity.class, 8.0F));
+		this.goalSelector.add(6, new LookAroundGoal(this));
+		this.targetSelector.add(1, new ActiveTargetGoal<>(this, PlayerEntity.class, true));
+		this.targetSelector.add(2, new RevengeGoal(this));
+	}
 
-   @Override
-   public int getSafeFallDistance() {
-      return this.getTarget() == null ? this.getSafeFallDistance(0.0F) : this.getSafeFallDistance(this.getHealth() - 1.0F);
-   }
+	public static DefaultAttributeContainer.Builder createCreeperAttributes() {
+		return HostileEntity.createHostileAttributes().add(EntityAttributes.MOVEMENT_SPEED, 0.25);
+	}
 
-   @Override
-   public boolean handleFallDamage(double fallDistance, float damagePerDistance, DamageSource damageSource) {
-      boolean bl = super.handleFallDamage(fallDistance, damagePerDistance, damageSource);
-      this.currentFuseTime += (int)(fallDistance * 1.5);
-      if (this.currentFuseTime > this.fuseTime - 5) {
-         this.currentFuseTime = this.fuseTime - 5;
-      }
+	@Override
+	public int getSafeFallDistance() {
+		return this.getTarget() == null ? this.getSafeFallDistance(0.0F)
+		                                : this.getSafeFallDistance(this.getHealth() - 1.0F);
+	}
 
-      return bl;
-   }
+	@Override
+	public boolean handleFallDamage(double fallDistance, float damagePerDistance, DamageSource damageSource) {
+		boolean bl = super.handleFallDamage(fallDistance, damagePerDistance, damageSource);
+		this.currentFuseTime += (int) (fallDistance * 1.5);
+		if (this.currentFuseTime > this.fuseTime - 5) {
+			this.currentFuseTime = this.fuseTime - 5;
+		}
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(FUSE_SPEED, -1);
-      builder.add(CHARGED, false);
-      builder.add(IGNITED, false);
-   }
+		return bl;
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putBoolean("powered", this.isCharged());
-      view.putShort("Fuse", (short)this.fuseTime);
-      view.putByte("ExplosionRadius", (byte)this.explosionRadius);
-      view.putBoolean("ignited", this.isIgnited());
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(FUSE_SPEED, -1);
+		builder.add(CHARGED, false);
+		builder.add(IGNITED, false);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.dataTracker.set(CHARGED, view.getBoolean("powered", false));
-      this.fuseTime = view.getShort("Fuse", (short)30);
-      this.explosionRadius = view.getByte("ExplosionRadius", (byte)3);
-      if (view.getBoolean("ignited", false)) {
-         this.ignite();
-      }
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putBoolean("powered", this.isCharged());
+		view.putShort("Fuse", (short) this.fuseTime);
+		view.putByte("ExplosionRadius", (byte) this.explosionRadius);
+		view.putBoolean("ignited", this.isIgnited());
+	}
 
-   @Override
-   public void tick() {
-      if (this.isAlive()) {
-         this.lastFuseTime = this.currentFuseTime;
-         if (this.isIgnited()) {
-            this.setFuseSpeed(1);
-         }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.dataTracker.set(CHARGED, view.getBoolean("powered", false));
+		this.fuseTime = view.getShort("Fuse", (short) 30);
+		this.explosionRadius = view.getByte("ExplosionRadius", (byte) 3);
+		if (view.getBoolean("ignited", false)) {
+			this.ignite();
+		}
+	}
 
-         int i = this.getFuseSpeed();
-         if (i > 0 && this.currentFuseTime == 0) {
-            this.playSound(SoundEvents.ENTITY_CREEPER_PRIMED, 1.0F, 0.5F);
-            this.emitGameEvent(GameEvent.PRIME_FUSE);
-         }
+	@Override
+	public void tick() {
+		if (this.isAlive()) {
+			this.lastFuseTime = this.currentFuseTime;
+			if (this.isIgnited()) {
+				this.setFuseSpeed(1);
+			}
 
-         this.currentFuseTime += i;
-         if (this.currentFuseTime < 0) {
-            this.currentFuseTime = 0;
-         }
+			int i = this.getFuseSpeed();
+			if (i > 0 && this.currentFuseTime == 0) {
+				this.playSound(SoundEvents.ENTITY_CREEPER_PRIMED, 1.0F, 0.5F);
+				this.emitGameEvent(GameEvent.PRIME_FUSE);
+			}
 
-         if (this.currentFuseTime >= this.fuseTime) {
-            this.currentFuseTime = this.fuseTime;
-            this.explode();
-         }
-      }
+			this.currentFuseTime += i;
+			if (this.currentFuseTime < 0) {
+				this.currentFuseTime = 0;
+			}
 
-      super.tick();
-   }
+			if (this.currentFuseTime >= this.fuseTime) {
+				this.currentFuseTime = this.fuseTime;
+				this.explode();
+			}
+		}
 
-   @Override
-   public void setTarget(@Nullable LivingEntity target) {
-      if (!(target instanceof GoatEntity)) {
-         super.setTarget(target);
-      }
-   }
+		super.tick();
+	}
 
-   @Override
-   protected SoundEvent getHurtSound(DamageSource source) {
-      return SoundEvents.ENTITY_CREEPER_HURT;
-   }
+	@Override
+	public void setTarget(@Nullable LivingEntity target) {
+		if (!(target instanceof GoatEntity)) {
+			super.setTarget(target);
+		}
+	}
 
-   @Override
-   protected SoundEvent getDeathSound() {
-      return SoundEvents.ENTITY_CREEPER_DEATH;
-   }
+	@Override
+	protected SoundEvent getHurtSound(DamageSource source) {
+		return SoundEvents.ENTITY_CREEPER_HURT;
+	}
 
-   @Override
-   public boolean onKilledOther(ServerWorld world, LivingEntity other, DamageSource damageSource) {
-      if (this.shouldDropLoot(world) && this.isCharged() && !this.headsDropped) {
-         other.generateLoot(world, damageSource, false, LootTables.ROOT_CHARGED_CREEPER, stack -> {
-            other.dropStack(world, stack);
-            this.headsDropped = true;
-         });
-      }
+	@Override
+	protected SoundEvent getDeathSound() {
+		return SoundEvents.ENTITY_CREEPER_DEATH;
+	}
 
-      return super.onKilledOther(world, other, damageSource);
-   }
+	@Override
+	public boolean onKilledOther(ServerWorld world, LivingEntity other, DamageSource damageSource) {
+		if (this.shouldDropLoot(world) && this.isCharged() && !this.headsDropped) {
+			other.generateLoot(
+					world, damageSource, false, LootTables.ROOT_CHARGED_CREEPER, stack -> {
+						other.dropStack(world, stack);
+						this.headsDropped = true;
+					}
+			);
+		}
 
-   @Override
-   public boolean tryAttack(ServerWorld world, Entity target) {
-      return true;
-   }
+		return super.onKilledOther(world, other, damageSource);
+	}
 
-   public boolean isCharged() {
-      return this.dataTracker.get(CHARGED);
-   }
+	@Override
+	public boolean tryAttack(ServerWorld world, Entity target) {
+		return true;
+	}
 
-   public float getLerpedFuseTime(float tickProgress) {
-      return MathHelper.lerp(tickProgress, (float)this.lastFuseTime, (float)this.currentFuseTime) / (this.fuseTime - 2);
-   }
+	public boolean isCharged() {
+		return this.dataTracker.get(CHARGED);
+	}
 
-   public int getFuseSpeed() {
-      return this.dataTracker.get(FUSE_SPEED);
-   }
+	public float getLerpedFuseTime(float tickProgress) {
+		return MathHelper.lerp(tickProgress, (float) this.lastFuseTime, (float) this.currentFuseTime) / (this.fuseTime
+				- 2
+		);
+	}
 
-   public void setFuseSpeed(int fuseSpeed) {
-      this.dataTracker.set(FUSE_SPEED, fuseSpeed);
-   }
+	public int getFuseSpeed() {
+		return this.dataTracker.get(FUSE_SPEED);
+	}
 
-   @Override
-   public void onStruckByLightning(ServerWorld world, LightningEntity lightning) {
-      super.onStruckByLightning(world, lightning);
-      this.dataTracker.set(CHARGED, true);
-   }
+	public void setFuseSpeed(int fuseSpeed) {
+		this.dataTracker.set(FUSE_SPEED, fuseSpeed);
+	}
 
-   @Override
-   protected ActionResult interactMob(PlayerEntity player, Hand hand) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if (itemStack.isIn(ItemTags.CREEPER_IGNITERS)) {
-         SoundEvent soundEvent = itemStack.isOf(Items.FIRE_CHARGE) ? SoundEvents.ITEM_FIRECHARGE_USE : SoundEvents.ITEM_FLINTANDSTEEL_USE;
-         this.getEntityWorld()
-            .playSound(player, this.getX(), this.getY(), this.getZ(), soundEvent, this.getSoundCategory(), 1.0F, this.random.nextFloat() * 0.4F + 0.8F);
-         if (!this.getEntityWorld().isClient()) {
-            this.ignite();
-            if (!itemStack.isDamageable()) {
-               itemStack.decrement(1);
-            } else {
-               itemStack.damage(1, player, hand.getEquipmentSlot());
-            }
-         }
+	@Override
+	public void onStruckByLightning(ServerWorld world, LightningEntity lightning) {
+		super.onStruckByLightning(world, lightning);
+		this.dataTracker.set(CHARGED, true);
+	}
 
-         return ActionResult.SUCCESS;
-      } else {
-         return super.interactMob(player, hand);
-      }
-   }
+	@Override
+	protected ActionResult interactMob(PlayerEntity player, Hand hand) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if (itemStack.isIn(ItemTags.CREEPER_IGNITERS)) {
+			SoundEvent
+					soundEvent =
+					itemStack.isOf(Items.FIRE_CHARGE) ? SoundEvents.ITEM_FIRECHARGE_USE
+					                                  : SoundEvents.ITEM_FLINTANDSTEEL_USE;
+			this.getEntityWorld()
+			    .playSound(
+					    player,
+					    this.getX(),
+					    this.getY(),
+					    this.getZ(),
+					    soundEvent,
+					    this.getSoundCategory(),
+					    1.0F,
+					    this.random.nextFloat() * 0.4F + 0.8F
+			    );
+			if (!this.getEntityWorld().isClient()) {
+				this.ignite();
+				if (!itemStack.isDamageable()) {
+					itemStack.decrement(1);
+				}
+				else {
+					itemStack.damage(1, player, hand.getEquipmentSlot());
+				}
+			}
 
-   private void explode() {
-      if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
-         float f = this.isCharged() ? 2.0F : 1.0F;
-         this.dead = true;
-         serverWorld.createExplosion(this, this.getX(), this.getY(), this.getZ(), this.explosionRadius * f, World.ExplosionSourceType.MOB);
-         this.spawnEffectsCloud();
-         this.onRemoval(serverWorld, Entity.RemovalReason.KILLED);
-         this.discard();
-      }
-   }
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return super.interactMob(player, hand);
+		}
+	}
 
-   private void spawnEffectsCloud() {
-      Collection<StatusEffectInstance> collection = this.getStatusEffects();
-      if (!collection.isEmpty()) {
-         AreaEffectCloudEntity areaEffectCloudEntity = new AreaEffectCloudEntity(this.getEntityWorld(), this.getX(), this.getY(), this.getZ());
-         areaEffectCloudEntity.setRadius(2.5F);
-         areaEffectCloudEntity.setRadiusOnUse(-0.5F);
-         areaEffectCloudEntity.setWaitTime(10);
-         areaEffectCloudEntity.setDuration(300);
-         areaEffectCloudEntity.setPotionDurationScale(0.25F);
-         areaEffectCloudEntity.setRadiusGrowth(-areaEffectCloudEntity.getRadius() / areaEffectCloudEntity.getDuration());
+	private void explode() {
+		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
+			float f = this.isCharged() ? 2.0F : 1.0F;
+			this.dead = true;
+			serverWorld.createExplosion(
+					this,
+					this.getX(),
+					this.getY(),
+					this.getZ(),
+					this.explosionRadius * f,
+					World.ExplosionSourceType.MOB
+			);
+			this.spawnEffectsCloud();
+			this.onRemoval(serverWorld, Entity.RemovalReason.KILLED);
+			this.discard();
+		}
+	}
 
-         for (StatusEffectInstance statusEffectInstance : collection) {
-            areaEffectCloudEntity.addEffect(new StatusEffectInstance(statusEffectInstance));
-         }
+	private void spawnEffectsCloud() {
+		Collection<StatusEffectInstance> collection = this.getStatusEffects();
+		if (!collection.isEmpty()) {
+			AreaEffectCloudEntity
+					areaEffectCloudEntity =
+					new AreaEffectCloudEntity(this.getEntityWorld(), this.getX(), this.getY(), this.getZ());
+			areaEffectCloudEntity.setRadius(2.5F);
+			areaEffectCloudEntity.setRadiusOnUse(-0.5F);
+			areaEffectCloudEntity.setWaitTime(10);
+			areaEffectCloudEntity.setDuration(300);
+			areaEffectCloudEntity.setPotionDurationScale(0.25F);
+			areaEffectCloudEntity.setRadiusGrowth(
+					-areaEffectCloudEntity.getRadius() / areaEffectCloudEntity.getDuration());
 
-         this.getEntityWorld().spawnEntity(areaEffectCloudEntity);
-      }
-   }
+			for (StatusEffectInstance statusEffectInstance : collection) {
+				areaEffectCloudEntity.addEffect(new StatusEffectInstance(statusEffectInstance));
+			}
 
-   public boolean isIgnited() {
-      return this.dataTracker.get(IGNITED);
-   }
+			this.getEntityWorld().spawnEntity(areaEffectCloudEntity);
+		}
+	}
 
-   public void ignite() {
-      this.dataTracker.set(IGNITED, true);
-   }
+	public boolean isIgnited() {
+		return this.dataTracker.get(IGNITED);
+	}
+
+	public void ignite() {
+		this.dataTracker.set(IGNITED, true);
+	}
 }

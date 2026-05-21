@@ -6,26 +6,38 @@ import com.mojang.datafixers.TypeRewriteRule;
 import com.mojang.datafixers.schemas.Schema;
 import net.minecraft.datafixer.TypeReferences;
 
+/**
+ * {@code PlayerUuidFix}.
+ */
 public class PlayerUuidFix extends AbstractUuidFix {
-   public PlayerUuidFix(Schema outputSchema) {
-      super(outputSchema, TypeReferences.PLAYER);
-   }
 
-   protected TypeRewriteRule makeRule() {
-      return this.fixTypeEverywhereTyped(
-         "PlayerUUIDFix",
-         this.getInputSchema().getType(this.typeReference),
-         playerTyped -> {
-            OpticFinder<?> opticFinder = playerTyped.getType().findField("RootVehicle");
-            return playerTyped.updateTyped(
-                  opticFinder,
-                  opticFinder.type(),
-                  rootVehicleTyped -> rootVehicleTyped.update(
-                     DSL.remainderFinder(), rootVehicleDynamic -> updateRegularMostLeast(rootVehicleDynamic, "Attach", "Attach").orElse(rootVehicleDynamic)
-                  )
-               )
-               .update(DSL.remainderFinder(), playerDynamic -> EntityUuidFix.updateSelfUuid(EntityUuidFix.updateLiving(playerDynamic)));
-         }
-      );
-   }
+	public PlayerUuidFix(Schema outputSchema) {
+		super(outputSchema, TypeReferences.PLAYER);
+	}
+
+	protected TypeRewriteRule makeRule() {
+		return this.fixTypeEverywhereTyped(
+				"PlayerUUIDFix",
+				this.getInputSchema().getType(this.typeReference),
+				playerTyped -> {
+					OpticFinder<?> opticFinder = playerTyped.getType().findField("RootVehicle");
+					return playerTyped.updateTyped(
+							                  opticFinder,
+							                  opticFinder.type(),
+							                  rootVehicleTyped -> rootVehicleTyped.update(
+									                  DSL.remainderFinder(),
+									                  rootVehicleDynamic -> updateRegularMostLeast(
+											                  rootVehicleDynamic,
+											                  "Attach",
+											                  "Attach"
+									                  ).orElse(rootVehicleDynamic)
+							                  )
+					                  )
+					                  .update(DSL.remainderFinder(),
+							                  playerDynamic -> EntityUuidFix.updateSelfUuid(EntityUuidFix.updateLiving(
+									                  playerDynamic))
+					                  );
+				}
+		);
+	}
 }

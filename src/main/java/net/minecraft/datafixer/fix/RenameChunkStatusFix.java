@@ -6,34 +6,51 @@ import com.mojang.datafixers.DataFixUtils;
 import com.mojang.datafixers.TypeRewriteRule;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Dynamic;
-import java.util.Optional;
-import java.util.function.UnaryOperator;
 import net.minecraft.datafixer.TypeReferences;
 import net.minecraft.datafixer.schema.IdentifierNormalizingSchema;
 
+import java.util.Optional;
+import java.util.function.UnaryOperator;
+
+/**
+ * {@code RenameChunkStatusFix}.
+ */
 public class RenameChunkStatusFix extends DataFix {
-   private final String name;
-   private final UnaryOperator<String> mapper;
 
-   public RenameChunkStatusFix(Schema outputSchema, String name, UnaryOperator<String> mapper) {
-      super(outputSchema, false);
-      this.name = name;
-      this.mapper = mapper;
-   }
+	private final String name;
+	private final UnaryOperator<String> mapper;
 
-   protected TypeRewriteRule makeRule() {
-      return this.fixTypeEverywhereTyped(
-         this.name,
-         this.getInputSchema().getType(TypeReferences.CHUNK),
-         typed -> typed.update(
-            DSL.remainderFinder(),
-            chunk -> chunk.update("Status", this::updateStatus).update("below_zero_retrogen", dynamic -> dynamic.update("target_status", this::updateStatus))
-         )
-      );
-   }
+	public RenameChunkStatusFix(Schema outputSchema, String name, UnaryOperator<String> mapper) {
+		super(outputSchema, false);
+		this.name = name;
+		this.mapper = mapper;
+	}
 
-   private <T> Dynamic<T> updateStatus(Dynamic<T> status) {
-      Optional<Dynamic<T>> optional = status.asString().result().map(IdentifierNormalizingSchema::normalize).map(this.mapper).map(status::createString);
-      return (Dynamic<T>)DataFixUtils.orElse(optional, status);
-   }
+	protected TypeRewriteRule makeRule() {
+		return this.fixTypeEverywhereTyped(
+				this.name,
+				this.getInputSchema().getType(TypeReferences.CHUNK),
+				typed -> typed.update(
+						DSL.remainderFinder(),
+						chunk -> chunk
+								.update("Status", this::updateStatus)
+								.update(
+										"below_zero_retrogen",
+										dynamic -> dynamic.update("target_status", this::updateStatus)
+								)
+				)
+		);
+	}
+
+	private <T> Dynamic<T> updateStatus(Dynamic<T> status) {
+		Optional<Dynamic<T>>
+				optional =
+				status
+						.asString()
+						.result()
+						.map(IdentifierNormalizingSchema::normalize)
+						.map(this.mapper)
+						.map(status::createString);
+		return (Dynamic<T>) DataFixUtils.orElse(optional, status);
+	}
 }

@@ -18,43 +18,65 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DrownedEntityRenderer}.
+ */
 public class DrownedEntityRenderer extends ZombieBaseEntityRenderer<DrownedEntity, ZombieEntityRenderState, DrownedEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/zombie/drowned.png");
 
-   public DrownedEntityRenderer(EntityRendererFactory.Context context) {
-      super(
-         context,
-         new DrownedEntityModel(context.getPart(EntityModelLayers.DROWNED)),
-         new DrownedEntityModel(context.getPart(EntityModelLayers.DROWNED_BABY)),
-         EquipmentModelData.mapToEntityModel(EntityModelLayers.DROWNED_EQUIPMENT, context.getEntityModels(), DrownedEntityModel::new),
-         EquipmentModelData.mapToEntityModel(EntityModelLayers.DROWNED_BABY_EQUIPMENT, context.getEntityModels(), DrownedEntityModel::new)
-      );
-      this.addFeature(new DrownedOverlayFeatureRenderer(this, context.getEntityModels()));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/zombie/drowned.png");
 
-   public ZombieEntityRenderState createRenderState() {
-      return new ZombieEntityRenderState();
-   }
+	public DrownedEntityRenderer(EntityRendererFactory.Context context) {
+		super(
+				context,
+				new DrownedEntityModel(context.getPart(EntityModelLayers.DROWNED)),
+				new DrownedEntityModel(context.getPart(EntityModelLayers.DROWNED_BABY)),
+				EquipmentModelData.mapToEntityModel(
+						EntityModelLayers.DROWNED_EQUIPMENT,
+						context.getEntityModels(),
+						DrownedEntityModel::new
+				),
+				EquipmentModelData.mapToEntityModel(
+						EntityModelLayers.DROWNED_BABY_EQUIPMENT,
+						context.getEntityModels(),
+						DrownedEntityModel::new
+				)
+		);
+		this.addFeature(new DrownedOverlayFeatureRenderer(this, context.getEntityModels()));
+	}
 
-   @Override
-   public Identifier getTexture(ZombieEntityRenderState zombieEntityRenderState) {
-      return TEXTURE;
-   }
+	public ZombieEntityRenderState createRenderState() {
+		return new ZombieEntityRenderState();
+	}
 
-   protected void setupTransforms(ZombieEntityRenderState zombieEntityRenderState, MatrixStack matrixStack, float f, float g) {
-      super.setupTransforms(zombieEntityRenderState, matrixStack, f, g);
-      float h = zombieEntityRenderState.leaningPitch;
-      if (h > 0.0F) {
-         float i = -10.0F - zombieEntityRenderState.pitch;
-         float j = MathHelper.lerp(h, 0.0F, i);
-         matrixStack.multiply(RotationAxis.POSITIVE_X.rotationDegrees(j), 0.0F, zombieEntityRenderState.height / 2.0F / g, 0.0F);
-      }
-   }
+	@Override
+	public Identifier getTexture(ZombieEntityRenderState zombieEntityRenderState) {
+		return TEXTURE;
+	}
 
-   protected BipedEntityModel.ArmPose getArmPose(DrownedEntity drownedEntity, Arm arm) {
-      ItemStack itemStack = drownedEntity.getStackInArm(arm);
-      return drownedEntity.getMainArm() == arm && drownedEntity.isAttacking() && itemStack.isOf(Items.TRIDENT)
-         ? BipedEntityModel.ArmPose.THROW_TRIDENT
-         : super.getArmPose(drownedEntity, arm);
-   }
+	protected void setupTransforms(
+			ZombieEntityRenderState zombieEntityRenderState,
+			MatrixStack matrixStack,
+			float f,
+			float g
+	) {
+		super.setupTransforms(zombieEntityRenderState, matrixStack, f, g);
+		float h = zombieEntityRenderState.leaningPitch;
+		if (h > 0.0F) {
+			float i = -10.0F - zombieEntityRenderState.pitch;
+			float j = MathHelper.lerp(h, 0.0F, i);
+			matrixStack.multiply(
+					RotationAxis.POSITIVE_X.rotationDegrees(j),
+					0.0F,
+					zombieEntityRenderState.height / 2.0F / g,
+					0.0F
+			);
+		}
+	}
+
+	protected BipedEntityModel.ArmPose getArmPose(DrownedEntity drownedEntity, Arm arm) {
+		ItemStack itemStack = drownedEntity.getStackInArm(arm);
+		return drownedEntity.getMainArm() == arm && drownedEntity.isAttacking() && itemStack.isOf(Items.TRIDENT)
+		       ? BipedEntityModel.ArmPose.THROW_TRIDENT
+		       : super.getArmPose(drownedEntity, arm);
+	}
 }

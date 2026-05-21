@@ -1,147 +1,162 @@
 package net.minecraft.recipe.input;
 
-import java.util.ArrayList;
-import java.util.List;
 import net.minecraft.item.ItemStack;
 import net.minecraft.recipe.RecipeFinder;
 
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * {@code CraftingRecipeInput}.
+ */
 public class CraftingRecipeInput implements RecipeInput {
-   public static final CraftingRecipeInput EMPTY = new CraftingRecipeInput(0, 0, List.of());
-   private final int width;
-   private final int height;
-   private final List<ItemStack> stacks;
-   private final RecipeFinder matcher = new RecipeFinder();
-   private final int stackCount;
 
-   private CraftingRecipeInput(int width, int height, List<ItemStack> stacks) {
-      this.width = width;
-      this.height = height;
-      this.stacks = stacks;
-      int i = 0;
+	public static final CraftingRecipeInput EMPTY = new CraftingRecipeInput(0, 0, List.of());
+	private final int width;
+	private final int height;
+	private final List<ItemStack> stacks;
+	private final RecipeFinder matcher = new RecipeFinder();
+	private final int stackCount;
 
-      for (ItemStack itemStack : stacks) {
-         if (!itemStack.isEmpty()) {
-            i++;
-            this.matcher.addInput(itemStack, 1);
-         }
-      }
+	private CraftingRecipeInput(int width, int height, List<ItemStack> stacks) {
+		this.width = width;
+		this.height = height;
+		this.stacks = stacks;
+		int i = 0;
 
-      this.stackCount = i;
-   }
+		for (ItemStack itemStack : stacks) {
+			if (!itemStack.isEmpty()) {
+				i++;
+				this.matcher.addInput(itemStack, 1);
+			}
+		}
 
-   public static CraftingRecipeInput create(int width, int height, List<ItemStack> stacks) {
-      return createPositioned(width, height, stacks).input();
-   }
+		this.stackCount = i;
+	}
 
-   public static CraftingRecipeInput.Positioned createPositioned(int width, int height, List<ItemStack> stacks) {
-      if (width != 0 && height != 0) {
-         int i = width - 1;
-         int j = 0;
-         int k = height - 1;
-         int l = 0;
+	public static CraftingRecipeInput create(int width, int height, List<ItemStack> stacks) {
+		return createPositioned(width, height, stacks).input();
+	}
 
-         for (int m = 0; m < height; m++) {
-            boolean bl = true;
+	public static CraftingRecipeInput.Positioned createPositioned(int width, int height, List<ItemStack> stacks) {
+		if (width != 0 && height != 0) {
+			int i = width - 1;
+			int j = 0;
+			int k = height - 1;
+			int l = 0;
 
-            for (int n = 0; n < width; n++) {
-               ItemStack itemStack = stacks.get(n + m * width);
-               if (!itemStack.isEmpty()) {
-                  i = Math.min(i, n);
-                  j = Math.max(j, n);
-                  bl = false;
-               }
-            }
+			for (int m = 0; m < height; m++) {
+				boolean bl = true;
 
-            if (!bl) {
-               k = Math.min(k, m);
-               l = Math.max(l, m);
-            }
-         }
+				for (int n = 0; n < width; n++) {
+					ItemStack itemStack = stacks.get(n + m * width);
+					if (!itemStack.isEmpty()) {
+						i = Math.min(i, n);
+						j = Math.max(j, n);
+						bl = false;
+					}
+				}
 
-         int m = j - i + 1;
-         int o = l - k + 1;
-         if (m <= 0 || o <= 0) {
-            return CraftingRecipeInput.Positioned.EMPTY;
-         } else if (m == width && o == height) {
-            return new CraftingRecipeInput.Positioned(new CraftingRecipeInput(width, height, stacks), i, k);
-         } else {
-            List<ItemStack> list = new ArrayList<>(m * o);
+				if (!bl) {
+					k = Math.min(k, m);
+					l = Math.max(l, m);
+				}
+			}
 
-            for (int p = 0; p < o; p++) {
-               for (int q = 0; q < m; q++) {
-                  int r = q + i + (p + k) * width;
-                  list.add(stacks.get(r));
-               }
-            }
+			int m = j - i + 1;
+			int o = l - k + 1;
+			if (m <= 0 || o <= 0) {
+				return CraftingRecipeInput.Positioned.EMPTY;
+			}
+			else if (m == width && o == height) {
+				return new CraftingRecipeInput.Positioned(new CraftingRecipeInput(width, height, stacks), i, k);
+			}
+			else {
+				List<ItemStack> list = new ArrayList<>(m * o);
 
-            return new CraftingRecipeInput.Positioned(new CraftingRecipeInput(m, o, list), i, k);
-         }
-      } else {
-         return CraftingRecipeInput.Positioned.EMPTY;
-      }
-   }
+				for (int p = 0; p < o; p++) {
+					for (int q = 0; q < m; q++) {
+						int r = q + i + (p + k) * width;
+						list.add(stacks.get(r));
+					}
+				}
 
-   @Override
-   public ItemStack getStackInSlot(int slot) {
-      return this.stacks.get(slot);
-   }
+				return new CraftingRecipeInput.Positioned(new CraftingRecipeInput(m, o, list), i, k);
+			}
+		}
+		else {
+			return CraftingRecipeInput.Positioned.EMPTY;
+		}
+	}
 
-   public ItemStack getStackInSlot(int x, int y) {
-      return this.stacks.get(x + y * this.width);
-   }
+	@Override
+	public ItemStack getStackInSlot(int slot) {
+		return this.stacks.get(slot);
+	}
 
-   @Override
-   public int size() {
-      return this.stacks.size();
-   }
+	public ItemStack getStackInSlot(int x, int y) {
+		return this.stacks.get(x + y * this.width);
+	}
 
-   @Override
-   public boolean isEmpty() {
-      return this.stackCount == 0;
-   }
+	@Override
+	public int size() {
+		return this.stacks.size();
+	}
 
-   public RecipeFinder getRecipeMatcher() {
-      return this.matcher;
-   }
+	@Override
+	public boolean isEmpty() {
+		return this.stackCount == 0;
+	}
 
-   public List<ItemStack> getStacks() {
-      return this.stacks;
-   }
+	public RecipeFinder getRecipeMatcher() {
+		return this.matcher;
+	}
 
-   public int getStackCount() {
-      return this.stackCount;
-   }
+	public List<ItemStack> getStacks() {
+		return this.stacks;
+	}
 
-   public int getWidth() {
-      return this.width;
-   }
+	public int getStackCount() {
+		return this.stackCount;
+	}
 
-   public int getHeight() {
-      return this.height;
-   }
+	public int getWidth() {
+		return this.width;
+	}
 
-   @Override
-   public boolean equals(Object o) {
-      if (o == this) {
-         return true;
-      } else {
-         return !(o instanceof CraftingRecipeInput craftingRecipeInput)
-            ? false
-            : this.width == craftingRecipeInput.width
-               && this.height == craftingRecipeInput.height
-               && this.stackCount == craftingRecipeInput.stackCount
-               && ItemStack.stacksEqual(this.stacks, craftingRecipeInput.stacks);
-      }
-   }
+	public int getHeight() {
+		return this.height;
+	}
 
-   @Override
-   public int hashCode() {
-      int i = ItemStack.listHashCode(this.stacks);
-      i = 31 * i + this.width;
-      return 31 * i + this.height;
-   }
+	@Override
+	public boolean equals(Object o) {
+		if (o == this) {
+			return true;
+		}
+		else {
+			return !(o instanceof CraftingRecipeInput craftingRecipeInput)
+			       ? false
+			       : this.width == craftingRecipeInput.width
+			         && this.height == craftingRecipeInput.height
+			         && this.stackCount == craftingRecipeInput.stackCount
+			         && ItemStack.stacksEqual(this.stacks, craftingRecipeInput.stacks);
+		}
+	}
 
-   public record Positioned(CraftingRecipeInput input, int left, int top) {
-      public static final CraftingRecipeInput.Positioned EMPTY = new CraftingRecipeInput.Positioned(CraftingRecipeInput.EMPTY, 0, 0);
-   }
+	@Override
+	public int hashCode() {
+		int i = ItemStack.listHashCode(this.stacks);
+		i = 31 * i + this.width;
+		return 31 * i + this.height;
+	}
+
+	/**
+	 * {@code Positioned}.
+	 */
+	public record Positioned(CraftingRecipeInput input, int left, int top) {
+
+		public static final CraftingRecipeInput.Positioned
+				EMPTY =
+				new CraftingRecipeInput.Positioned(CraftingRecipeInput.EMPTY, 0, 0);
+	}
 }

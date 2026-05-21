@@ -15,77 +15,91 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+/**
+ * {@code BambooShootBlock}.
+ */
 public class BambooShootBlock extends Block implements Fertilizable {
-   public static final MapCodec<BambooShootBlock> CODEC = createCodec(BambooShootBlock::new);
-   private static final VoxelShape SHAPE = Block.createColumnShape(8.0, 0.0, 12.0);
 
-   @Override
-   public MapCodec<BambooShootBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<BambooShootBlock> CODEC = createCodec(BambooShootBlock::new);
+	private static final VoxelShape SHAPE = Block.createColumnShape(8.0, 0.0, 12.0);
 
-   public BambooShootBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<BambooShootBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE.offset(state.getModelOffset(pos));
-   }
+	public BambooShootBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
-      if (random.nextInt(3) == 0 && world.isAir(pos.up()) && world.getBaseLightLevel(pos.up(), 0) >= 9) {
-         this.grow(world, pos);
-      }
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE.offset(state.getModelOffset(pos));
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      return world.getBlockState(pos.down()).isIn(BlockTags.BAMBOO_PLANTABLE_ON);
-   }
+	@Override
+	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
+		if (random.nextInt(3) == 0 && world.isAir(pos.up()) && world.getBaseLightLevel(pos.up(), 0) >= 9) {
+			this.grow(world, pos);
+		}
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (!state.canPlaceAt(world, pos)) {
-         return Blocks.AIR.getDefaultState();
-      } else {
-         return direction == Direction.UP && neighborState.isOf(Blocks.BAMBOO)
-            ? Blocks.BAMBOO.getDefaultState()
-            : super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-      }
-   }
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		return world.getBlockState(pos.down()).isIn(BlockTags.BAMBOO_PLANTABLE_ON);
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return new ItemStack(Items.BAMBOO);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (!state.canPlaceAt(world, pos)) {
+			return Blocks.AIR.getDefaultState();
+		}
+		else {
+			return direction == Direction.UP && neighborState.isOf(Blocks.BAMBOO)
+			       ? Blocks.BAMBOO.getDefaultState()
+			       : super.getStateForNeighborUpdate(
+					       state,
+					       world,
+					       tickView,
+					       pos,
+					       direction,
+					       neighborPos,
+					       neighborState,
+					       random
+			       );
+		}
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return world.getBlockState(pos.up()).isAir();
-   }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return new ItemStack(Items.BAMBOO);
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return world.getBlockState(pos.up()).isAir();
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      this.grow(world, pos);
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
 
-   protected void grow(World world, BlockPos pos) {
-      world.setBlockState(pos.up(), Blocks.BAMBOO.getDefaultState().with(BambooBlock.LEAVES, BambooLeaves.SMALL), 3);
-   }
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		this.grow(world, pos);
+	}
+
+	protected void grow(World world, BlockPos pos) {
+		world.setBlockState(pos.up(), Blocks.BAMBOO.getDefaultState().with(BambooBlock.LEAVES, BambooLeaves.SMALL), 3);
+	}
 }

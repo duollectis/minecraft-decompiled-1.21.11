@@ -5,8 +5,16 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 
+/**
+ * {@code EntityPathDebugData}.
+ */
 public record EntityPathDebugData(Path path, float maxNodeDistance) {
-   public static final PacketCodec<PacketByteBuf, EntityPathDebugData> PACKET_CODEC = PacketCodec.tuple(
-      Path.PACKET_CODEC, EntityPathDebugData::path, PacketCodecs.FLOAT, EntityPathDebugData::maxNodeDistance, EntityPathDebugData::new
-   );
+
+	public static final PacketCodec<PacketByteBuf, EntityPathDebugData> PACKET_CODEC = PacketCodec.tuple(
+			Path.PACKET_CODEC,
+			EntityPathDebugData::path,
+			PacketCodecs.FLOAT,
+			EntityPathDebugData::maxNodeDistance,
+			EntityPathDebugData::new
+	);
 }

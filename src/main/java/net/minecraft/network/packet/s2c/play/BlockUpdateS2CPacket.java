@@ -13,35 +13,40 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockView;
 
 public class BlockUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
-   public static final PacketCodec<RegistryByteBuf, BlockUpdateS2CPacket> CODEC = PacketCodec.tuple(
-      BlockPos.PACKET_CODEC, BlockUpdateS2CPacket::getPos, PacketCodecs.entryOf(Block.STATE_IDS), BlockUpdateS2CPacket::getState, BlockUpdateS2CPacket::new
-   );
-   private final BlockPos pos;
-   private final BlockState state;
 
-   public BlockUpdateS2CPacket(BlockPos pos, BlockState state) {
-      this.pos = pos;
-      this.state = state;
-   }
+	public static final PacketCodec<RegistryByteBuf, BlockUpdateS2CPacket> CODEC = PacketCodec.tuple(
+			BlockPos.PACKET_CODEC,
+			BlockUpdateS2CPacket::getPos,
+			PacketCodecs.entryOf(Block.STATE_IDS),
+			BlockUpdateS2CPacket::getState,
+			BlockUpdateS2CPacket::new
+	);
+	private final BlockPos pos;
+	private final BlockState state;
 
-   public BlockUpdateS2CPacket(BlockView world, BlockPos pos) {
-      this(pos, world.getBlockState(pos));
-   }
+	public BlockUpdateS2CPacket(BlockPos pos, BlockState state) {
+		this.pos = pos;
+		this.state = state;
+	}
 
-   @Override
-   public PacketType<BlockUpdateS2CPacket> getPacketType() {
-      return PlayPackets.BLOCK_UPDATE;
-   }
+	public BlockUpdateS2CPacket(BlockView world, BlockPos pos) {
+		this(pos, world.getBlockState(pos));
+	}
 
-   public void apply(ClientPlayPacketListener clientPlayPacketListener) {
-      clientPlayPacketListener.onBlockUpdate(this);
-   }
+	@Override
+	public PacketType<BlockUpdateS2CPacket> getPacketType() {
+		return PlayPackets.BLOCK_UPDATE;
+	}
 
-   public BlockState getState() {
-      return this.state;
-   }
+	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
+		clientPlayPacketListener.onBlockUpdate(this);
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public BlockState getState() {
+		return this.state;
+	}
+
+	public BlockPos getPos() {
+		return this.pos;
+	}
 }

@@ -1,52 +1,71 @@
 package net.minecraft.world.gen.structure;
 
 import com.mojang.serialization.MapCodec;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
 import net.minecraft.structure.StrongholdGenerator;
 import net.minecraft.structure.StructurePiece;
 import net.minecraft.structure.StructurePiecesCollector;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+/**
+ * {@code StrongholdStructure}.
+ */
 public class StrongholdStructure extends Structure {
-   public static final MapCodec<StrongholdStructure> CODEC = createCodec(StrongholdStructure::new);
 
-   public StrongholdStructure(Structure.Config config) {
-      super(config);
-   }
+	public static final MapCodec<StrongholdStructure> CODEC = createCodec(StrongholdStructure::new);
 
-   @Override
-   public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
-      return Optional.of(
-         new Structure.StructurePosition(context.chunkPos().getStartPos(), (Consumer<StructurePiecesCollector>)(collector -> addPieces(collector, context)))
-      );
-   }
+	public StrongholdStructure(Structure.Config config) {
+		super(config);
+	}
 
-   private static void addPieces(StructurePiecesCollector collector, Structure.Context context) {
-      int i = 0;
+	@Override
+	public Optional<Structure.StructurePosition> getStructurePosition(Structure.Context context) {
+		return Optional.of(
+				new Structure.StructurePosition(
+						context.chunkPos().getStartPos(),
+						(Consumer<StructurePiecesCollector>) (collector -> addPieces(collector, context))
+				)
+		);
+	}
 
-      StrongholdGenerator.Start start;
-      do {
-         collector.clear();
-         context.random().setCarverSeed(context.seed() + i++, context.chunkPos().x, context.chunkPos().z);
-         StrongholdGenerator.init();
-         start = new StrongholdGenerator.Start(context.random(), context.chunkPos().getOffsetX(2), context.chunkPos().getOffsetZ(2));
-         collector.addPiece(start);
-         start.fillOpenings(start, collector, context.random());
-         List<StructurePiece> list = start.pieces;
+	private static void addPieces(StructurePiecesCollector collector, Structure.Context context) {
+		int i = 0;
 
-         while (!list.isEmpty()) {
-            int j = context.random().nextInt(list.size());
-            StructurePiece structurePiece = list.remove(j);
-            structurePiece.fillOpenings(start, collector, context.random());
-         }
+		StrongholdGenerator.Start start;
+		do {
+			collector.clear();
+			context.random().setCarverSeed(context.seed() + i++, context.chunkPos().x, context.chunkPos().z);
+			StrongholdGenerator.init();
+			start =
+					new StrongholdGenerator.Start(
+							context.random(),
+							context.chunkPos().getOffsetX(2),
+							context.chunkPos().getOffsetZ(2)
+					);
+			collector.addPiece(start);
+			start.fillOpenings(start, collector, context.random());
+			List<StructurePiece> list = start.pieces;
 
-         collector.shiftInto(context.chunkGenerator().getSeaLevel(), context.chunkGenerator().getMinimumY(), context.random(), 10);
-      } while (collector.isEmpty() || start.portalRoom == null);
-   }
+			while (!list.isEmpty()) {
+				int j = context.random().nextInt(list.size());
+				StructurePiece structurePiece = list.remove(j);
+				structurePiece.fillOpenings(start, collector, context.random());
+			}
 
-   @Override
-   public StructureType<?> getType() {
-      return StructureType.STRONGHOLD;
-   }
+			collector.shiftInto(
+					context.chunkGenerator().getSeaLevel(),
+					context.chunkGenerator().getMinimumY(),
+					context.random(),
+					10
+			);
+		}
+		while (collector.isEmpty() || start.portalRoom == null);
+	}
+
+	@Override
+	public StructureType<?> getType() {
+		return StructureType.STRONGHOLD;
+	}
 }

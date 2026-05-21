@@ -1,8 +1,5 @@
 package net.minecraft.client.texture;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.resource.metadata.TextureResourceMetadata;
@@ -11,34 +8,44 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStream;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code TextureContents}.
+ */
 public record TextureContents(NativeImage image, @Nullable TextureResourceMetadata metadata) implements Closeable {
-   public static TextureContents load(ResourceManager resourceManager, Identifier textureId) throws IOException {
-      Resource resource = resourceManager.getResourceOrThrow(textureId);
 
-      NativeImage nativeImage;
-      try (InputStream inputStream = resource.getInputStream()) {
-         nativeImage = NativeImage.read(inputStream);
-      }
+	public static TextureContents load(ResourceManager resourceManager, Identifier textureId) throws IOException {
+		Resource resource = resourceManager.getResourceOrThrow(textureId);
 
-      TextureResourceMetadata textureResourceMetadata = resource.getMetadata().decode(TextureResourceMetadata.SERIALIZER).orElse(null);
-      return new TextureContents(nativeImage, textureResourceMetadata);
-   }
+		NativeImage nativeImage;
+		try (InputStream inputStream = resource.getInputStream()) {
+			nativeImage = NativeImage.read(inputStream);
+		}
 
-   public static TextureContents createMissing() {
-      return new TextureContents(MissingSprite.createImage(), null);
-   }
+		TextureResourceMetadata
+				textureResourceMetadata =
+				resource.getMetadata().decode(TextureResourceMetadata.SERIALIZER).orElse(null);
+		return new TextureContents(nativeImage, textureResourceMetadata);
+	}
 
-   public boolean blur() {
-      return this.metadata != null ? this.metadata.blur() : false;
-   }
+	public static TextureContents createMissing() {
+		return new TextureContents(MissingSprite.createImage(), null);
+	}
 
-   public boolean clamp() {
-      return this.metadata != null ? this.metadata.clamp() : false;
-   }
+	public boolean blur() {
+		return this.metadata != null ? this.metadata.blur() : false;
+	}
 
-   @Override
-   public void close() {
-      this.image.close();
-   }
+	public boolean clamp() {
+		return this.metadata != null ? this.metadata.clamp() : false;
+	}
+
+	@Override
+	public void close() {
+		this.image.close();
+	}
 }

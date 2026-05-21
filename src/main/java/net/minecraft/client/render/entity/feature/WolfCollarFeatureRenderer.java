@@ -12,32 +12,41 @@ import net.minecraft.util.DyeColor;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WolfCollarFeatureRenderer}.
+ */
 public class WolfCollarFeatureRenderer extends FeatureRenderer<WolfEntityRenderState, WolfEntityModel> {
-   private static final Identifier SKIN = Identifier.ofVanilla("textures/entity/wolf/wolf_collar.png");
 
-   public WolfCollarFeatureRenderer(FeatureRendererContext<WolfEntityRenderState, WolfEntityModel> featureRendererContext) {
-      super(featureRendererContext);
-   }
+	private static final Identifier SKIN = Identifier.ofVanilla("textures/entity/wolf/wolf_collar.png");
 
-   public void render(
-      MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, WolfEntityRenderState wolfEntityRenderState, float f, float g
-   ) {
-      DyeColor dyeColor = wolfEntityRenderState.collarColor;
-      if (dyeColor != null && !wolfEntityRenderState.invisible) {
-         int j = dyeColor.getEntityColor();
-         orderedRenderCommandQueue.getBatchingQueue(1)
-            .submitModel(
-               this.getContextModel(),
-               wolfEntityRenderState,
-               matrixStack,
-               RenderLayers.entityCutoutNoCull(SKIN),
-               i,
-               OverlayTexture.DEFAULT_UV,
-               j,
-               null,
-               wolfEntityRenderState.outlineColor,
-               null
-            );
-      }
-   }
+	public WolfCollarFeatureRenderer(FeatureRendererContext<WolfEntityRenderState, WolfEntityModel> featureRendererContext) {
+		super(featureRendererContext);
+	}
+
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			WolfEntityRenderState wolfEntityRenderState,
+			float f,
+			float g
+	) {
+		DyeColor dyeColor = wolfEntityRenderState.collarColor;
+		if (dyeColor != null && !wolfEntityRenderState.invisible) {
+			int j = dyeColor.getEntityColor();
+			orderedRenderCommandQueue.getBatchingQueue(1)
+			                         .submitModel(
+					                         this.getContextModel(),
+					                         wolfEntityRenderState,
+					                         matrixStack,
+					                         RenderLayers.entityCutoutNoCull(SKIN),
+					                         i,
+					                         OverlayTexture.DEFAULT_UV,
+					                         j,
+					                         null,
+					                         wolfEntityRenderState.outlineColor,
+					                         null
+			                         );
+		}
+	}
 }

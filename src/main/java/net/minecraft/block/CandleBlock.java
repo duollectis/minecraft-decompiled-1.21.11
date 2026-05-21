@@ -3,8 +3,6 @@ package net.minecraft.block;
 import com.mojang.serialization.MapCodec;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import java.util.List;
-import java.util.function.ToIntFunction;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.fluid.Fluids;
@@ -30,146 +28,190 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.WorldView;
 import net.minecraft.world.tick.ScheduledTickView;
 
+import java.util.List;
+import java.util.function.ToIntFunction;
+
+/**
+ * {@code CandleBlock}.
+ */
 public class CandleBlock extends AbstractCandleBlock implements Waterloggable {
-   public static final MapCodec<CandleBlock> CODEC = createCodec(CandleBlock::new);
-   public static final int field_31050 = 1;
-   public static final int MAX_CANDLE_AMOUNT = 4;
-   public static final IntProperty CANDLES = Properties.CANDLES;
-   public static final BooleanProperty LIT = AbstractCandleBlock.LIT;
-   public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
-   public static final ToIntFunction<BlockState> STATE_TO_LUMINANCE = state -> state.get(LIT) ? 3 * state.get(CANDLES) : 0;
-   private static final Int2ObjectMap<List<Vec3d>> CANDLES_TO_PARTICLE_OFFSETS = Util.make(
-      new Int2ObjectOpenHashMap(4),
-      int2ObjectOpenHashMap -> {
-         float f = 0.0625F;
-         int2ObjectOpenHashMap.put(1, List.of(new Vec3d(8.0, 8.0, 8.0).multiply(0.0625)));
-         int2ObjectOpenHashMap.put(2, List.of(new Vec3d(6.0, 7.0, 8.0).multiply(0.0625), new Vec3d(10.0, 8.0, 7.0).multiply(0.0625)));
-         int2ObjectOpenHashMap.put(
-            3, List.of(new Vec3d(8.0, 5.0, 10.0).multiply(0.0625), new Vec3d(6.0, 7.0, 8.0).multiply(0.0625), new Vec3d(9.0, 8.0, 7.0).multiply(0.0625))
-         );
-         int2ObjectOpenHashMap.put(
-            4,
-            List.of(
-               new Vec3d(7.0, 5.0, 9.0).multiply(0.0625),
-               new Vec3d(10.0, 7.0, 9.0).multiply(0.0625),
-               new Vec3d(6.0, 7.0, 6.0).multiply(0.0625),
-               new Vec3d(9.0, 8.0, 6.0).multiply(0.0625)
-            )
-         );
-      }
-   );
-   private static final VoxelShape[] SHAPES_BY_CANDLES = new VoxelShape[]{
-      Block.createColumnShape(2.0, 0.0, 6.0),
-      Block.createCuboidShape(5.0, 0.0, 6.0, 11.0, 6.0, 9.0),
-      Block.createCuboidShape(5.0, 0.0, 6.0, 10.0, 6.0, 11.0),
-      Block.createCuboidShape(5.0, 0.0, 5.0, 11.0, 6.0, 10.0)
-   };
 
-   @Override
-   public MapCodec<CandleBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<CandleBlock> CODEC = createCodec(CandleBlock::new);
+	public static final int MIN_CANDLE_AMOUNT = 1;
+	public static final int MAX_CANDLE_AMOUNT = 4;
+	public static final IntProperty CANDLES = Properties.CANDLES;
+	public static final BooleanProperty LIT = AbstractCandleBlock.LIT;
+	public static final BooleanProperty WATERLOGGED = Properties.WATERLOGGED;
+	public static final ToIntFunction<BlockState>
+			STATE_TO_LUMINANCE =
+			state -> state.get(LIT) ? 3 * state.get(CANDLES) : 0;
+	private static final Int2ObjectMap<List<Vec3d>> CANDLES_TO_PARTICLE_OFFSETS = Util.make(
+			new Int2ObjectOpenHashMap(4),
+			int2ObjectOpenHashMap -> {
+				float f = 0.0625F;
+				int2ObjectOpenHashMap.put(1, List.of(new Vec3d(8.0, 8.0, 8.0).multiply(0.0625)));
+				int2ObjectOpenHashMap.put(
+						2,
+						List.of(new Vec3d(6.0, 7.0, 8.0).multiply(0.0625), new Vec3d(10.0, 8.0, 7.0).multiply(0.0625))
+				);
+				int2ObjectOpenHashMap.put(
+						3,
+						List.of(
+								new Vec3d(8.0, 5.0, 10.0).multiply(0.0625),
+								new Vec3d(6.0, 7.0, 8.0).multiply(0.0625),
+								new Vec3d(9.0, 8.0, 7.0).multiply(0.0625)
+						)
+				);
+				int2ObjectOpenHashMap.put(
+						4,
+						List.of(
+								new Vec3d(7.0, 5.0, 9.0).multiply(0.0625),
+								new Vec3d(10.0, 7.0, 9.0).multiply(0.0625),
+								new Vec3d(6.0, 7.0, 6.0).multiply(0.0625),
+								new Vec3d(9.0, 8.0, 6.0).multiply(0.0625)
+						)
+				);
+			}
+	);
+	private static final VoxelShape[] SHAPES_BY_CANDLES = new VoxelShape[]{
+			Block.createColumnShape(2.0, 0.0, 6.0),
+			Block.createCuboidShape(5.0, 0.0, 6.0, 11.0, 6.0, 9.0),
+			Block.createCuboidShape(5.0, 0.0, 6.0, 10.0, 6.0, 11.0),
+			Block.createCuboidShape(5.0, 0.0, 5.0, 11.0, 6.0, 10.0)
+	};
 
-   public CandleBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(CANDLES, 1).with(LIT, false).with(WATERLOGGED, false));
-   }
+	@Override
+	public MapCodec<CandleBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   protected ActionResult onUseWithItem(ItemStack stack, BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
-      if (stack.isEmpty() && player.getAbilities().allowModifyWorld && state.get(LIT)) {
-         extinguish(player, state, world, pos);
-         return ActionResult.SUCCESS;
-      } else {
-         return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
-      }
-   }
+	public CandleBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager
+				.getDefaultState()
+				.with(CANDLES, 1)
+				.with(LIT, false)
+				.with(WATERLOGGED, false));
+	}
 
-   @Override
-   protected boolean canReplace(BlockState state, ItemPlacementContext context) {
-      return !context.shouldCancelInteraction() && context.getStack().getItem() == this.asItem() && state.get(CANDLES) < 4
-         ? true
-         : super.canReplace(state, context);
-   }
+	@Override
+	protected ActionResult onUseWithItem(
+			ItemStack stack,
+			BlockState state,
+			World world,
+			BlockPos pos,
+			PlayerEntity player,
+			Hand hand,
+			BlockHitResult hit
+	) {
+		if (stack.isEmpty() && player.getAbilities().allowModifyWorld && state.get(LIT)) {
+			extinguish(player, state, world, pos);
+			return ActionResult.SUCCESS;
+		}
+		else {
+			return super.onUseWithItem(stack, state, world, pos, player, hand, hit);
+		}
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos());
-      if (blockState.isOf(this)) {
-         return blockState.cycle(CANDLES);
-      } else {
-         FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
-         boolean bl = fluidState.getFluid() == Fluids.WATER;
-         return super.getPlacementState(ctx).with(WATERLOGGED, bl);
-      }
-   }
+	@Override
+	protected boolean canReplace(BlockState state, ItemPlacementContext context) {
+		return !context.shouldCancelInteraction() && context.getStack().getItem() == this.asItem()
+				       && state.get(CANDLES) < 4
+		       ? true
+		       : super.canReplace(state, context);
+	}
 
-   @Override
-   protected BlockState getStateForNeighborUpdate(
-      BlockState state,
-      WorldView world,
-      ScheduledTickView tickView,
-      BlockPos pos,
-      Direction direction,
-      BlockPos neighborPos,
-      BlockState neighborState,
-      Random random
-   ) {
-      if (state.get(WATERLOGGED)) {
-         tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
-      }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		BlockState blockState = ctx.getWorld().getBlockState(ctx.getBlockPos());
+		if (blockState.isOf(this)) {
+			return blockState.cycle(CANDLES);
+		}
+		else {
+			FluidState fluidState = ctx.getWorld().getFluidState(ctx.getBlockPos());
+			boolean bl = fluidState.getFluid() == Fluids.WATER;
+			return super.getPlacementState(ctx).with(WATERLOGGED, bl);
+		}
+	}
 
-      return super.getStateForNeighborUpdate(state, world, tickView, pos, direction, neighborPos, neighborState, random);
-   }
+	@Override
+	protected BlockState getStateForNeighborUpdate(
+			BlockState state,
+			WorldView world,
+			ScheduledTickView tickView,
+			BlockPos pos,
+			Direction direction,
+			BlockPos neighborPos,
+			BlockState neighborState,
+			Random random
+	) {
+		if (state.get(WATERLOGGED)) {
+			tickView.scheduleFluidTick(pos, Fluids.WATER, Fluids.WATER.getTickRate(world));
+		}
 
-   @Override
-   protected FluidState getFluidState(BlockState state) {
-      return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
-   }
+		return super.getStateForNeighborUpdate(
+				state,
+				world,
+				tickView,
+				pos,
+				direction,
+				neighborPos,
+				neighborState,
+				random
+		);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPES_BY_CANDLES[state.get(CANDLES) - 1];
-   }
+	@Override
+	protected FluidState getFluidState(BlockState state) {
+		return state.get(WATERLOGGED) ? Fluids.WATER.getStill(false) : super.getFluidState(state);
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(CANDLES, LIT, WATERLOGGED);
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPES_BY_CANDLES[state.get(CANDLES) - 1];
+	}
 
-   @Override
-   public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
-      if (!state.get(WATERLOGGED) && fluidState.getFluid() == Fluids.WATER) {
-         BlockState blockState = state.with(WATERLOGGED, true);
-         if (state.get(LIT)) {
-            extinguish(null, blockState, world, pos);
-         } else {
-            world.setBlockState(pos, blockState, 3);
-         }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(CANDLES, LIT, WATERLOGGED);
+	}
 
-         world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
-         return true;
-      } else {
-         return false;
-      }
-   }
+	@Override
+	public boolean tryFillWithFluid(WorldAccess world, BlockPos pos, BlockState state, FluidState fluidState) {
+		if (!state.get(WATERLOGGED) && fluidState.getFluid() == Fluids.WATER) {
+			BlockState blockState = state.with(WATERLOGGED, true);
+			if (state.get(LIT)) {
+				extinguish(null, blockState, world, pos);
+			}
+			else {
+				world.setBlockState(pos, blockState, 3);
+			}
 
-   public static boolean canBeLit(BlockState state) {
-      return state.isIn(BlockTags.CANDLES, statex -> statex.contains(LIT) && statex.contains(WATERLOGGED)) && !state.get(LIT) && !state.get(WATERLOGGED);
-   }
+			world.scheduleFluidTick(pos, fluidState.getFluid(), fluidState.getFluid().getTickRate(world));
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Override
-   protected Iterable<Vec3d> getParticleOffsets(BlockState state) {
-      return (Iterable<Vec3d>)CANDLES_TO_PARTICLE_OFFSETS.get(state.get(CANDLES));
-   }
+	public static boolean canBeLit(BlockState state) {
+		return state.isIn(BlockTags.CANDLES, statex -> statex.contains(LIT) && statex.contains(WATERLOGGED))
+				&& !state.get(LIT) && !state.get(WATERLOGGED);
+	}
 
-   @Override
-   protected boolean isNotLit(BlockState state) {
-      return !state.get(WATERLOGGED) && super.isNotLit(state);
-   }
+	@Override
+	protected Iterable<Vec3d> getParticleOffsets(BlockState state) {
+		return (Iterable<Vec3d>) CANDLES_TO_PARTICLE_OFFSETS.get(state.get(CANDLES));
+	}
 
-   @Override
-   protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
-      return Block.sideCoversSmallSquare(world, pos.down(), Direction.UP);
-   }
+	@Override
+	protected boolean isNotLit(BlockState state) {
+		return !state.get(WATERLOGGED) && super.isNotLit(state);
+	}
+
+	@Override
+	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
+		return Block.sideCoversSmallSquare(world, pos.down(), Direction.UP);
+	}
 }

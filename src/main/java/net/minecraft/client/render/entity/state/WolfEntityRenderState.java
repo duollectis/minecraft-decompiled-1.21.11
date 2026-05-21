@@ -9,26 +9,32 @@ import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code WolfEntityRenderState}.
+ */
 public class WolfEntityRenderState extends LivingEntityRenderState {
-   private static final Identifier DEFAULT_TEXTURE = Identifier.ofVanilla("textures/entity/wolf/wolf.png");
-   public boolean angerTime;
-   public boolean inSittingPose;
-   public float tailAngle = (float) (Math.PI / 5);
-   public float begAnimationProgress;
-   public float shakeProgress;
-   public float furWetBrightnessMultiplier = 1.0F;
-   public Identifier texture = DEFAULT_TEXTURE;
-   public @Nullable DyeColor collarColor;
-   public ItemStack bodyArmor = ItemStack.EMPTY;
 
-   public float getRoll(float shakeOffset) {
-      float f = (this.shakeProgress + shakeOffset) / 1.8F;
-      if (f < 0.0F) {
-         f = 0.0F;
-      } else if (f > 1.0F) {
-         f = 1.0F;
-      }
+	private static final Identifier DEFAULT_TEXTURE = Identifier.ofVanilla("textures/entity/wolf/wolf.png");
+	public boolean angerTime;
+	public boolean inSittingPose;
+	public float tailAngle = (float) (Math.PI / 5);
+	public float begAnimationProgress;
+	public float shakeProgress;
+	public float furWetBrightnessMultiplier = 1.0F;
+	public Identifier texture = DEFAULT_TEXTURE;
+	public @Nullable DyeColor collarColor;
+	public ItemStack bodyArmor = ItemStack.EMPTY;
 
-      return MathHelper.sin(f * (float) Math.PI) * MathHelper.sin(f * (float) Math.PI * 11.0F) * 0.15F * (float) Math.PI;
-   }
+	public float getRoll(float shakeOffset) {
+		float f = (this.shakeProgress + shakeOffset) / 1.8F;
+		if (f < 0.0F) {
+			f = 0.0F;
+		}
+		else if (f > 1.0F) {
+			f = 1.0F;
+		}
+
+		return MathHelper.sin(f * (float) Math.PI) * MathHelper.sin(f * (float) Math.PI * 11.0F) * 0.15F
+				* (float) Math.PI;
+	}
 }

@@ -1,7 +1,5 @@
 package net.minecraft.world;
 
-import java.util.List;
-import java.util.Optional;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.entity.Entity;
@@ -10,24 +8,31 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.shape.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * {@code RegistryWorldView}.
+ */
 public interface RegistryWorldView extends EntityView, WorldView, ModifiableTestableWorld {
-   @Override
-   default <T extends BlockEntity> Optional<T> getBlockEntity(BlockPos pos, BlockEntityType<T> type) {
-      return WorldView.super.getBlockEntity(pos, type);
-   }
 
-   @Override
-   default List<VoxelShape> getEntityCollisions(@Nullable Entity entity, Box box) {
-      return EntityView.super.getEntityCollisions(entity, box);
-   }
+	@Override
+	default <T extends BlockEntity> Optional<T> getBlockEntity(BlockPos pos, BlockEntityType<T> type) {
+		return WorldView.super.getBlockEntity(pos, type);
+	}
 
-   @Override
-   default boolean doesNotIntersectEntities(@Nullable Entity except, VoxelShape shape) {
-      return EntityView.super.doesNotIntersectEntities(except, shape);
-   }
+	@Override
+	default List<VoxelShape> getEntityCollisions(@Nullable Entity entity, Box box) {
+		return EntityView.super.getEntityCollisions(entity, box);
+	}
 
-   @Override
-   default BlockPos getTopPosition(Heightmap.Type heightmap, BlockPos pos) {
-      return WorldView.super.getTopPosition(heightmap, pos);
-   }
+	@Override
+	default boolean doesNotIntersectEntities(@Nullable Entity except, VoxelShape shape) {
+		return EntityView.super.doesNotIntersectEntities(except, shape);
+	}
+
+	@Override
+	default BlockPos getTopPosition(Heightmap.Type heightmap, BlockPos pos) {
+		return WorldView.super.getTopPosition(heightmap, pos);
+	}
 }

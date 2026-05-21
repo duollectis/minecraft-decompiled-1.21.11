@@ -12,21 +12,28 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.Unit;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code StuckStingersFeatureRenderer}.
+ */
 public class StuckStingersFeatureRenderer<M extends PlayerEntityModel> extends StuckObjectsFeatureRenderer<M, Unit> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/bee/bee_stinger.png");
 
-   public StuckStingersFeatureRenderer(LivingEntityRenderer<?, PlayerEntityRenderState, M> entityRenderer, EntityRendererFactory.Context context) {
-      super(
-         entityRenderer,
-         new StingerModel(context.getPart(EntityModelLayers.BEE_STINGER)),
-         Unit.INSTANCE,
-         TEXTURE,
-         StuckObjectsFeatureRenderer.RenderPosition.ON_SURFACE
-      );
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/bee/bee_stinger.png");
 
-   @Override
-   protected int getObjectCount(PlayerEntityRenderState playerRenderState) {
-      return playerRenderState.stingerCount;
-   }
+	public StuckStingersFeatureRenderer(
+			LivingEntityRenderer<?, PlayerEntityRenderState, M> entityRenderer,
+			EntityRendererFactory.Context context
+	) {
+		super(
+				entityRenderer,
+				new StingerModel(context.getPart(EntityModelLayers.BEE_STINGER)),
+				Unit.INSTANCE,
+				TEXTURE,
+				StuckObjectsFeatureRenderer.RenderPosition.ON_SURFACE
+		);
+	}
+
+	@Override
+	protected int getObjectCount(PlayerEntityRenderState playerRenderState) {
+		return playerRenderState.stingerCount;
+	}
 }

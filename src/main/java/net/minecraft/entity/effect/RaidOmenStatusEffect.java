@@ -6,27 +6,31 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code RaidOmenStatusEffect}.
+ */
 class RaidOmenStatusEffect extends StatusEffect {
-   protected RaidOmenStatusEffect(StatusEffectCategory statusEffectCategory, int i, ParticleEffect particleEffect) {
-      super(statusEffectCategory, i, particleEffect);
-   }
 
-   @Override
-   public boolean canApplyUpdateEffect(int duration, int amplifier) {
-      return duration == 1;
-   }
+	protected RaidOmenStatusEffect(StatusEffectCategory statusEffectCategory, int i, ParticleEffect particleEffect) {
+		super(statusEffectCategory, i, particleEffect);
+	}
 
-   @Override
-   public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
-      if (entity instanceof ServerPlayerEntity serverPlayerEntity && !entity.isSpectator()) {
-         BlockPos blockPos = serverPlayerEntity.getStartRaidPos();
-         if (blockPos != null) {
-            world.getRaidManager().startRaid(serverPlayerEntity, blockPos);
-            serverPlayerEntity.clearStartRaidPos();
-            return false;
-         }
-      }
+	@Override
+	public boolean canApplyUpdateEffect(int duration, int amplifier) {
+		return duration == 1;
+	}
 
-      return true;
-   }
+	@Override
+	public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
+		if (entity instanceof ServerPlayerEntity serverPlayerEntity && !entity.isSpectator()) {
+			BlockPos blockPos = serverPlayerEntity.getStartRaidPos();
+			if (blockPos != null) {
+				world.getRaidManager().startRaid(serverPlayerEntity, blockPos);
+				serverPlayerEntity.clearStartRaidPos();
+				return false;
+			}
+		}
+
+		return true;
+	}
 }

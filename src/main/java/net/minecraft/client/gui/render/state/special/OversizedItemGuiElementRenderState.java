@@ -8,25 +8,35 @@ import org.joml.Matrix3x2f;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
-public record OversizedItemGuiElementRenderState(ItemGuiElementRenderState guiItemRenderState, int x1, int y1, int x2, int y2)
-   implements SpecialGuiElementRenderState {
-   @Override
-   public float scale() {
-      return 16.0F;
-   }
+/**
+ * {@code OversizedItemGuiElementRenderState}.
+ */
+public record OversizedItemGuiElementRenderState(
+		ItemGuiElementRenderState guiItemRenderState,
+		int x1,
+		int y1,
+		int x2,
+		int y2
+)
+		implements SpecialGuiElementRenderState {
 
-   @Override
-   public Matrix3x2f pose() {
-      return this.guiItemRenderState.pose();
-   }
+	@Override
+	public float scale() {
+		return 16.0F;
+	}
 
-   @Override
-   public @Nullable ScreenRect scissorArea() {
-      return this.guiItemRenderState.scissorArea();
-   }
+	@Override
+	public Matrix3x2f pose() {
+		return this.guiItemRenderState.pose();
+	}
 
-   @Override
-   public @Nullable ScreenRect bounds() {
-      return this.guiItemRenderState.bounds();
-   }
+	@Override
+	public @Nullable ScreenRect scissorArea() {
+		return this.guiItemRenderState.scissorArea();
+	}
+
+	@Override
+	public @Nullable ScreenRect bounds() {
+		return this.guiItemRenderState.bounds();
+	}
 }

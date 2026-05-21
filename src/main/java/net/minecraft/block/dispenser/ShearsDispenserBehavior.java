@@ -17,50 +17,64 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.event.GameEvent;
 
+/**
+ * {@code ShearsDispenserBehavior}.
+ */
 public class ShearsDispenserBehavior extends FallibleItemDispenserBehavior {
-   @Override
-   protected ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
-      ServerWorld serverWorld = pointer.world();
-      if (!serverWorld.isClient()) {
-         BlockPos blockPos = pointer.pos().offset(pointer.state().get(DispenserBlock.FACING));
-         this.setSuccess(tryShearBlock(serverWorld, stack, blockPos) || tryShearEntity(serverWorld, blockPos, stack));
-         if (this.isSuccess()) {
-            stack.damage(1, serverWorld, null, item -> {});
-         }
-      }
 
-      return stack;
-   }
+	@Override
+	protected ItemStack dispenseSilently(BlockPointer pointer, ItemStack stack) {
+		ServerWorld serverWorld = pointer.world();
+		if (!serverWorld.isClient()) {
+			BlockPos blockPos = pointer.pos().offset(pointer.state().get(DispenserBlock.FACING));
+			this.setSuccess(
+					tryShearBlock(serverWorld, stack, blockPos) || tryShearEntity(serverWorld, blockPos, stack));
+			if (this.isSuccess()) {
+				stack.damage(1, serverWorld, null, item -> {});
+			}
+		}
 
-   private static boolean tryShearBlock(ServerWorld world, ItemStack tool, BlockPos pos) {
-      BlockState blockState = world.getBlockState(pos);
-      if (blockState.isIn(BlockTags.BEEHIVES, state -> state.contains(BeehiveBlock.HONEY_LEVEL) && state.getBlock() instanceof BeehiveBlock)) {
-         int i = blockState.get(BeehiveBlock.HONEY_LEVEL);
-         if (i >= 5) {
-            world.playSound(null, pos, SoundEvents.BLOCK_BEEHIVE_SHEAR, SoundCategory.BLOCKS, 1.0F, 1.0F);
-            BeehiveBlock.dropHoneycomb(world, tool, blockState, world.getBlockEntity(pos), null, pos);
-            ((BeehiveBlock)blockState.getBlock()).takeHoney(world, blockState, pos, null, BeehiveBlockEntity.BeeState.BEE_RELEASED);
-            world.emitGameEvent(null, GameEvent.SHEAR, pos);
-            return true;
-         }
-      }
+		return stack;
+	}
 
-      return false;
-   }
+	private static boolean tryShearBlock(ServerWorld world, ItemStack tool, BlockPos pos) {
+		BlockState blockState = world.getBlockState(pos);
+		if (blockState.isIn(
+				BlockTags.BEEHIVES,
+				state -> state.contains(BeehiveBlock.HONEY_LEVEL) && state.getBlock() instanceof BeehiveBlock
+		)) {
+			int i = blockState.get(BeehiveBlock.HONEY_LEVEL);
+			if (i >= 5) {
+				world.playSound(null, pos, SoundEvents.BLOCK_BEEHIVE_SHEAR, SoundCategory.BLOCKS, 1.0F, 1.0F);
+				BeehiveBlock.dropHoneycomb(world, tool, blockState, world.getBlockEntity(pos), null, pos);
+				((BeehiveBlock) blockState.getBlock()).takeHoney(
+						world,
+						blockState,
+						pos,
+						null,
+						BeehiveBlockEntity.BeeState.BEE_RELEASED
+				);
+				world.emitGameEvent(null, GameEvent.SHEAR, pos);
+				return true;
+			}
+		}
 
-   private static boolean tryShearEntity(ServerWorld world, BlockPos pos, ItemStack shears) {
-      for (Entity entity : world.getEntitiesByClass(Entity.class, new Box(pos), EntityPredicates.EXCEPT_SPECTATOR)) {
-         if (entity.snipAllHeldLeashes(null)) {
-            return true;
-         }
+		return false;
+	}
 
-         if (entity instanceof Shearable shearable && shearable.isShearable()) {
-            shearable.sheared(world, SoundCategory.BLOCKS, shears);
-            world.emitGameEvent(null, GameEvent.SHEAR, pos);
-            return true;
-         }
-      }
+	private static boolean tryShearEntity(ServerWorld world, BlockPos pos, ItemStack shears) {
+		for (Entity entity : world.getEntitiesByClass(Entity.class, new Box(pos), EntityPredicates.EXCEPT_SPECTATOR)) {
+			if (entity.snipAllHeldLeashes(null)) {
+				return true;
+			}
 
-      return false;
-   }
+			if (entity instanceof Shearable shearable && shearable.isShearable()) {
+				shearable.sheared(world, SoundCategory.BLOCKS, shears);
+				world.emitGameEvent(null, GameEvent.SHEAR, pos);
+				return true;
+			}
+		}
+
+		return false;
+	}
 }

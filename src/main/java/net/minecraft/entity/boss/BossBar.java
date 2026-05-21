@@ -1,145 +1,156 @@
 package net.minecraft.entity.boss;
 
 import com.mojang.serialization.Codec;
-import java.util.UUID;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.StringIdentifiable;
 
+import java.util.UUID;
+
+/**
+ * {@code BossBar}.
+ */
 public abstract class BossBar {
-   private final UUID uuid;
-   protected Text name;
-   protected float percent;
-   protected BossBar.Color color;
-   protected BossBar.Style style;
-   protected boolean darkenSky;
-   protected boolean dragonMusic;
-   protected boolean thickenFog;
 
-   public BossBar(UUID uuid, Text name, BossBar.Color color, BossBar.Style style) {
-      this.uuid = uuid;
-      this.name = name;
-      this.color = color;
-      this.style = style;
-      this.percent = 1.0F;
-   }
+	private final UUID uuid;
+	protected Text name;
+	protected float percent;
+	protected BossBar.Color color;
+	protected BossBar.Style style;
+	protected boolean darkenSky;
+	protected boolean dragonMusic;
+	protected boolean thickenFog;
 
-   public UUID getUuid() {
-      return this.uuid;
-   }
+	public BossBar(UUID uuid, Text name, BossBar.Color color, BossBar.Style style) {
+		this.uuid = uuid;
+		this.name = name;
+		this.color = color;
+		this.style = style;
+		this.percent = 1.0F;
+	}
 
-   public Text getName() {
-      return this.name;
-   }
+	public UUID getUuid() {
+		return this.uuid;
+	}
 
-   public void setName(Text name) {
-      this.name = name;
-   }
+	public Text getName() {
+		return this.name;
+	}
 
-   public float getPercent() {
-      return this.percent;
-   }
+	public void setName(Text name) {
+		this.name = name;
+	}
 
-   public void setPercent(float percent) {
-      this.percent = percent;
-   }
+	public float getPercent() {
+		return this.percent;
+	}
 
-   public BossBar.Color getColor() {
-      return this.color;
-   }
+	public void setPercent(float percent) {
+		this.percent = percent;
+	}
 
-   public void setColor(BossBar.Color color) {
-      this.color = color;
-   }
+	public BossBar.Color getColor() {
+		return this.color;
+	}
 
-   public BossBar.Style getStyle() {
-      return this.style;
-   }
+	public void setColor(BossBar.Color color) {
+		this.color = color;
+	}
 
-   public void setStyle(BossBar.Style style) {
-      this.style = style;
-   }
+	public BossBar.Style getStyle() {
+		return this.style;
+	}
 
-   public boolean shouldDarkenSky() {
-      return this.darkenSky;
-   }
+	public void setStyle(BossBar.Style style) {
+		this.style = style;
+	}
 
-   public BossBar setDarkenSky(boolean darkenSky) {
-      this.darkenSky = darkenSky;
-      return this;
-   }
+	public boolean shouldDarkenSky() {
+		return this.darkenSky;
+	}
 
-   public boolean hasDragonMusic() {
-      return this.dragonMusic;
-   }
+	public BossBar setDarkenSky(boolean darkenSky) {
+		this.darkenSky = darkenSky;
+		return this;
+	}
 
-   public BossBar setDragonMusic(boolean dragonMusic) {
-      this.dragonMusic = dragonMusic;
-      return this;
-   }
+	public boolean hasDragonMusic() {
+		return this.dragonMusic;
+	}
 
-   public BossBar setThickenFog(boolean thickenFog) {
-      this.thickenFog = thickenFog;
-      return this;
-   }
+	public BossBar setDragonMusic(boolean dragonMusic) {
+		this.dragonMusic = dragonMusic;
+		return this;
+	}
 
-   public boolean shouldThickenFog() {
-      return this.thickenFog;
-   }
+	public BossBar setThickenFog(boolean thickenFog) {
+		this.thickenFog = thickenFog;
+		return this;
+	}
 
-   public static enum Color implements StringIdentifiable {
-      PINK("pink", Formatting.RED),
-      BLUE("blue", Formatting.BLUE),
-      RED("red", Formatting.DARK_RED),
-      GREEN("green", Formatting.GREEN),
-      YELLOW("yellow", Formatting.YELLOW),
-      PURPLE("purple", Formatting.DARK_BLUE),
-      WHITE("white", Formatting.WHITE);
+	public boolean shouldThickenFog() {
+		return this.thickenFog;
+	}
 
-      public static final Codec<BossBar.Color> CODEC = StringIdentifiable.createCodec(BossBar.Color::values);
-      private final String name;
-      private final Formatting format;
+	/**
+	 * {@code Color}.
+	 */
+	public static enum Color implements StringIdentifiable {
+		PINK("pink", Formatting.RED),
+		BLUE("blue", Formatting.BLUE),
+		RED("red", Formatting.DARK_RED),
+		GREEN("green", Formatting.GREEN),
+		YELLOW("yellow", Formatting.YELLOW),
+		PURPLE("purple", Formatting.DARK_BLUE),
+		WHITE("white", Formatting.WHITE);
 
-      private Color(final String name, final Formatting format) {
-         this.name = name;
-         this.format = format;
-      }
+		public static final Codec<BossBar.Color> CODEC = StringIdentifiable.createCodec(BossBar.Color::values);
+		private final String name;
+		private final Formatting format;
 
-      public Formatting getTextFormat() {
-         return this.format;
-      }
+		private Color(final String name, final Formatting format) {
+			this.name = name;
+			this.format = format;
+		}
 
-      public String getName() {
-         return this.name;
-      }
+		public Formatting getTextFormat() {
+			return this.format;
+		}
 
-      @Override
-      public String asString() {
-         return this.name;
-      }
-   }
+		public String getName() {
+			return this.name;
+		}
 
-   public static enum Style implements StringIdentifiable {
-      PROGRESS("progress"),
-      NOTCHED_6("notched_6"),
-      NOTCHED_10("notched_10"),
-      NOTCHED_12("notched_12"),
-      NOTCHED_20("notched_20");
+		@Override
+		public String asString() {
+			return this.name;
+		}
+	}
 
-      public static final Codec<BossBar.Style> CODEC = StringIdentifiable.createCodec(BossBar.Style::values);
-      private final String name;
+	/**
+	 * {@code Style}.
+	 */
+	public static enum Style implements StringIdentifiable {
+		PROGRESS("progress"),
+		NOTCHED_6("notched_6"),
+		NOTCHED_10("notched_10"),
+		NOTCHED_12("notched_12"),
+		NOTCHED_20("notched_20");
 
-      private Style(final String name) {
-         this.name = name;
-      }
+		public static final Codec<BossBar.Style> CODEC = StringIdentifiable.createCodec(BossBar.Style::values);
+		private final String name;
 
-      public String getName() {
-         return this.name;
-      }
+		private Style(final String name) {
+			this.name = name;
+		}
 
-      @Override
-      public String asString() {
-         return this.name;
-      }
-   }
+		public String getName() {
+			return this.name;
+		}
+
+		@Override
+		public String asString() {
+			return this.name;
+		}
+	}
 }

@@ -3,62 +3,66 @@ package net.minecraft.world;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
 
+/**
+ * {@code HeightLimitView}.
+ */
 public interface HeightLimitView {
-   int getHeight();
 
-   int getBottomY();
+	int getHeight();
 
-   default int getTopYInclusive() {
-      return this.getBottomY() + this.getHeight() - 1;
-   }
+	int getBottomY();
 
-   default int countVerticalSections() {
-      return this.getTopSectionCoord() - this.getBottomSectionCoord() + 1;
-   }
+	default int getTopYInclusive() {
+		return this.getBottomY() + this.getHeight() - 1;
+	}
 
-   default int getBottomSectionCoord() {
-      return ChunkSectionPos.getSectionCoord(this.getBottomY());
-   }
+	default int countVerticalSections() {
+		return this.getTopSectionCoord() - this.getBottomSectionCoord() + 1;
+	}
 
-   default int getTopSectionCoord() {
-      return ChunkSectionPos.getSectionCoord(this.getTopYInclusive());
-   }
+	default int getBottomSectionCoord() {
+		return ChunkSectionPos.getSectionCoord(this.getBottomY());
+	}
 
-   default boolean isInHeightLimit(int y) {
-      return y >= this.getBottomY() && y <= this.getTopYInclusive();
-   }
+	default int getTopSectionCoord() {
+		return ChunkSectionPos.getSectionCoord(this.getTopYInclusive());
+	}
 
-   default boolean isOutOfHeightLimit(BlockPos pos) {
-      return this.isOutOfHeightLimit(pos.getY());
-   }
+	default boolean isInHeightLimit(int y) {
+		return y >= this.getBottomY() && y <= this.getTopYInclusive();
+	}
 
-   default boolean isOutOfHeightLimit(int y) {
-      return y < this.getBottomY() || y > this.getTopYInclusive();
-   }
+	default boolean isOutOfHeightLimit(BlockPos pos) {
+		return this.isOutOfHeightLimit(pos.getY());
+	}
 
-   default int getSectionIndex(int y) {
-      return this.sectionCoordToIndex(ChunkSectionPos.getSectionCoord(y));
-   }
+	default boolean isOutOfHeightLimit(int y) {
+		return y < this.getBottomY() || y > this.getTopYInclusive();
+	}
 
-   default int sectionCoordToIndex(int coord) {
-      return coord - this.getBottomSectionCoord();
-   }
+	default int getSectionIndex(int y) {
+		return this.sectionCoordToIndex(ChunkSectionPos.getSectionCoord(y));
+	}
 
-   default int sectionIndexToCoord(int index) {
-      return index + this.getBottomSectionCoord();
-   }
+	default int sectionCoordToIndex(int coord) {
+		return coord - this.getBottomSectionCoord();
+	}
 
-   static HeightLimitView create(int bottomY, int height) {
-      return new HeightLimitView() {
-         @Override
-         public int getHeight() {
-            return height;
-         }
+	default int sectionIndexToCoord(int index) {
+		return index + this.getBottomSectionCoord();
+	}
 
-         @Override
-         public int getBottomY() {
-            return bottomY;
-         }
-      };
-   }
+	static HeightLimitView create(int bottomY, int height) {
+		return new HeightLimitView() {
+			@Override
+			public int getHeight() {
+				return height;
+			}
+
+			@Override
+			public int getBottomY() {
+				return bottomY;
+			}
+		};
+	}
 }

@@ -1,10 +1,5 @@
 package net.minecraft.client.gui.screen.dialog;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.gui.tooltip.Tooltip;
@@ -16,45 +11,58 @@ import net.minecraft.dialog.action.DialogAction;
 import net.minecraft.dialog.type.DialogInput;
 import net.minecraft.text.ClickEvent;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DialogControls}.
+ */
 public class DialogControls {
-   public static final Supplier<Optional<ClickEvent>> EMPTY_ACTION_CLICK_EVENT = Optional::empty;
-   private final DialogScreen<?> screen;
-   private final Map<String, DialogAction.ValueGetter> valueGetters = new HashMap<>();
 
-   public DialogControls(DialogScreen<?> screen) {
-      this.screen = screen;
-   }
+	public static final Supplier<Optional<ClickEvent>> EMPTY_ACTION_CLICK_EVENT = Optional::empty;
+	private final DialogScreen<?> screen;
+	private final Map<String, DialogAction.ValueGetter> valueGetters = new HashMap<>();
 
-   public void addInput(DialogInput input, Consumer<Widget> widgetConsumer) {
-      String string = input.key();
-      InputControlHandlers.addControl(input.control(), this.screen, (widget, valueGetter) -> {
-         this.valueGetters.put(string, valueGetter);
-         widgetConsumer.accept(widget);
-      });
-   }
+	public DialogControls(DialogScreen<?> screen) {
+		this.screen = screen;
+	}
 
-   private static ButtonWidget.Builder createButton(DialogButtonData data, ButtonWidget.PressAction pressAction) {
-      ButtonWidget.Builder builder = ButtonWidget.builder(data.label(), pressAction);
-      builder.width(data.width());
-      if (data.tooltip().isPresent()) {
-         builder = builder.tooltip(Tooltip.of(data.tooltip().get()));
-      }
+	public void addInput(DialogInput input, Consumer<Widget> widgetConsumer) {
+		String string = input.key();
+		InputControlHandlers.addControl(
+				input.control(), this.screen, (widget, valueGetter) -> {
+					this.valueGetters.put(string, valueGetter);
+					widgetConsumer.accept(widget);
+				}
+		);
+	}
 
-      return builder;
-   }
+	private static ButtonWidget.Builder createButton(DialogButtonData data, ButtonWidget.PressAction pressAction) {
+		ButtonWidget.Builder builder = ButtonWidget.builder(data.label(), pressAction);
+		builder.width(data.width());
+		if (data.tooltip().isPresent()) {
+			builder = builder.tooltip(Tooltip.of(data.tooltip().get()));
+		}
 
-   public Supplier<Optional<ClickEvent>> createClickEvent(Optional<DialogAction> action) {
-      if (action.isPresent()) {
-         DialogAction dialogAction = action.get();
-         return () -> dialogAction.createClickEvent(this.valueGetters);
-      } else {
-         return EMPTY_ACTION_CLICK_EVENT;
-      }
-   }
+		return builder;
+	}
 
-   public ButtonWidget.Builder createButton(DialogActionButtonData actionButtonData) {
-      Supplier<Optional<ClickEvent>> supplier = this.createClickEvent(actionButtonData.action());
-      return createButton(actionButtonData.data(), button -> this.screen.runAction(supplier.get()));
-   }
+	public Supplier<Optional<ClickEvent>> createClickEvent(Optional<DialogAction> action) {
+		if (action.isPresent()) {
+			DialogAction dialogAction = action.get();
+			return () -> dialogAction.createClickEvent(this.valueGetters);
+		}
+		else {
+			return EMPTY_ACTION_CLICK_EVENT;
+		}
+	}
+
+	public ButtonWidget.Builder createButton(DialogActionButtonData actionButtonData) {
+		Supplier<Optional<ClickEvent>> supplier = this.createClickEvent(actionButtonData.action());
+		return createButton(actionButtonData.data(), button -> this.screen.runAction(supplier.get()));
+	}
 }

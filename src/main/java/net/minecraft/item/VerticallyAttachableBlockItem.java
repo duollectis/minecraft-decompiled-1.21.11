@@ -1,6 +1,5 @@
 package net.minecraft.item;
 
-import java.util.Map;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.ShapeContext;
@@ -9,43 +8,58 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Map;
+
+/**
+ * {@code VerticallyAttachableBlockItem}.
+ */
 public class VerticallyAttachableBlockItem extends BlockItem {
-   protected final Block wallBlock;
-   private final Direction verticalAttachmentDirection;
 
-   public VerticallyAttachableBlockItem(Block standingBlock, Block wallBlock, Direction verticalAttachmentDirection, Item.Settings settings) {
-      super(standingBlock, settings);
-      this.wallBlock = wallBlock;
-      this.verticalAttachmentDirection = verticalAttachmentDirection;
-   }
+	protected final Block wallBlock;
+	private final Direction verticalAttachmentDirection;
 
-   protected boolean canPlaceAt(WorldView world, BlockState state, BlockPos pos) {
-      return state.canPlaceAt(world, pos);
-   }
+	public VerticallyAttachableBlockItem(
+			Block standingBlock,
+			Block wallBlock,
+			Direction verticalAttachmentDirection,
+			Item.Settings settings
+	) {
+		super(standingBlock, settings);
+		this.wallBlock = wallBlock;
+		this.verticalAttachmentDirection = verticalAttachmentDirection;
+	}
 
-   @Override
-   protected @Nullable BlockState getPlacementState(ItemPlacementContext context) {
-      BlockState blockState = this.wallBlock.getPlacementState(context);
-      BlockState blockState2 = null;
-      WorldView worldView = context.getWorld();
-      BlockPos blockPos = context.getBlockPos();
+	protected boolean canPlaceAt(WorldView world, BlockState state, BlockPos pos) {
+		return state.canPlaceAt(world, pos);
+	}
 
-      for (Direction direction : context.getPlacementDirections()) {
-         if (direction != this.verticalAttachmentDirection.getOpposite()) {
-            BlockState blockState3 = direction == this.verticalAttachmentDirection ? this.getBlock().getPlacementState(context) : blockState;
-            if (blockState3 != null && this.canPlaceAt(worldView, blockState3, blockPos)) {
-               blockState2 = blockState3;
-               break;
-            }
-         }
-      }
+	@Override
+	protected @Nullable BlockState getPlacementState(ItemPlacementContext context) {
+		BlockState blockState = this.wallBlock.getPlacementState(context);
+		BlockState blockState2 = null;
+		WorldView worldView = context.getWorld();
+		BlockPos blockPos = context.getBlockPos();
 
-      return blockState2 != null && worldView.canPlace(blockState2, blockPos, ShapeContext.absent()) ? blockState2 : null;
-   }
+		for (Direction direction : context.getPlacementDirections()) {
+			if (direction != this.verticalAttachmentDirection.getOpposite()) {
+				BlockState
+						blockState3 =
+						direction == this.verticalAttachmentDirection ? this.getBlock().getPlacementState(context)
+						                                              : blockState;
+				if (blockState3 != null && this.canPlaceAt(worldView, blockState3, blockPos)) {
+					blockState2 = blockState3;
+					break;
+				}
+			}
+		}
 
-   @Override
-   public void appendBlocks(Map<Block, Item> map, Item item) {
-      super.appendBlocks(map, item);
-      map.put(this.wallBlock, item);
-   }
+		return blockState2 != null && worldView.canPlace(blockState2, blockPos, ShapeContext.absent()) ? blockState2
+		                                                                                               : null;
+	}
+
+	@Override
+	public void appendBlocks(Map<Block, Item> map, Item item) {
+		super.appendBlocks(map, item);
+		map.put(this.wallBlock, item);
+	}
 }

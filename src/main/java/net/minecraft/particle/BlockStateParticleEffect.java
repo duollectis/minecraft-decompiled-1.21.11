@@ -10,30 +10,40 @@ import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.registry.Registries;
 
+/**
+ * {@code BlockStateParticleEffect}.
+ */
 public class BlockStateParticleEffect implements ParticleEffect, FabricBlockStateParticleEffect {
-   private static final Codec<BlockState> BLOCK_STATE_CODEC = Codec.withAlternative(BlockState.CODEC, Registries.BLOCK.getCodec(), Block::getDefaultState);
-   private final ParticleType<BlockStateParticleEffect> type;
-   private final BlockState blockState;
 
-   public static MapCodec<BlockStateParticleEffect> createCodec(ParticleType<BlockStateParticleEffect> type) {
-      return BLOCK_STATE_CODEC.xmap(state -> new BlockStateParticleEffect(type, state), effect -> effect.blockState).fieldOf("block_state");
-   }
+	private static final Codec<BlockState>
+			BLOCK_STATE_CODEC =
+			Codec.withAlternative(BlockState.CODEC, Registries.BLOCK.getCodec(), Block::getDefaultState);
+	private final ParticleType<BlockStateParticleEffect> type;
+	private final BlockState blockState;
 
-   public static PacketCodec<? super RegistryByteBuf, BlockStateParticleEffect> createPacketCodec(ParticleType<BlockStateParticleEffect> type) {
-      return PacketCodecs.entryOf(Block.STATE_IDS).xmap(state -> new BlockStateParticleEffect(type, state), effect -> effect.blockState);
-   }
+	public static MapCodec<BlockStateParticleEffect> createCodec(ParticleType<BlockStateParticleEffect> type) {
+		return BLOCK_STATE_CODEC
+				.xmap(state -> new BlockStateParticleEffect(type, state), effect -> effect.blockState)
+				.fieldOf("block_state");
+	}
 
-   public BlockStateParticleEffect(ParticleType<BlockStateParticleEffect> type, BlockState blockState) {
-      this.type = type;
-      this.blockState = blockState;
-   }
+	public static PacketCodec<? super RegistryByteBuf, BlockStateParticleEffect> createPacketCodec(ParticleType<BlockStateParticleEffect> type) {
+		return PacketCodecs
+				.entryOf(Block.STATE_IDS)
+				.xmap(state -> new BlockStateParticleEffect(type, state), effect -> effect.blockState);
+	}
 
-   @Override
-   public ParticleType<BlockStateParticleEffect> getType() {
-      return this.type;
-   }
+	public BlockStateParticleEffect(ParticleType<BlockStateParticleEffect> type, BlockState blockState) {
+		this.type = type;
+		this.blockState = blockState;
+	}
 
-   public BlockState getBlockState() {
-      return this.blockState;
-   }
+	@Override
+	public ParticleType<BlockStateParticleEffect> getType() {
+		return this.type;
+	}
+
+	public BlockState getBlockState() {
+		return this.blockState;
+	}
 }

@@ -7,19 +7,23 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvents;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code AggressiveBeeSoundInstance}.
+ */
 public class AggressiveBeeSoundInstance extends AbstractBeeSoundInstance {
-   public AggressiveBeeSoundInstance(BeeEntity entity) {
-      super(entity, SoundEvents.ENTITY_BEE_LOOP_AGGRESSIVE, SoundCategory.NEUTRAL);
-      this.repeatDelay = 0;
-   }
 
-   @Override
-   protected MovingSoundInstance getReplacement() {
-      return new PassiveBeeSoundInstance(this.bee);
-   }
+	public AggressiveBeeSoundInstance(BeeEntity entity) {
+		super(entity, SoundEvents.ENTITY_BEE_LOOP_AGGRESSIVE, SoundCategory.NEUTRAL);
+		this.repeatDelay = 0;
+	}
 
-   @Override
-   protected boolean shouldReplace() {
-      return !this.bee.hasAngerTime();
-   }
+	@Override
+	protected MovingSoundInstance getReplacement() {
+		return new PassiveBeeSoundInstance(this.bee);
+	}
+
+	@Override
+	protected boolean shouldReplace() {
+		return !this.bee.hasAngerTime();
+	}
 }

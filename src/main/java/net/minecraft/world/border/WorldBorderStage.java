@@ -1,17 +1,20 @@
 package net.minecraft.world.border;
 
+/**
+ * {@code WorldBorderStage}.
+ */
 public enum WorldBorderStage {
-   GROWING(4259712),
-   SHRINKING(16724016),
-   STATIONARY(2138367);
+	GROWING(4259712),
+	SHRINKING(16724016),
+	STATIONARY(2138367);
 
-   private final int color;
+	private final int color;
 
-   private WorldBorderStage(final int color) {
-      this.color = color;
-   }
+	private WorldBorderStage(final int color) {
+		this.color = color;
+	}
 
-   public int getColor() {
-      return this.color;
-   }
+	public int getColor() {
+		return this.color;
+	}
 }

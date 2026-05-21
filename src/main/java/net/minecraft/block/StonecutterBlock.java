@@ -23,71 +23,83 @@ import net.minecraft.world.BlockView;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code StonecutterBlock}.
+ */
 public class StonecutterBlock extends Block {
-   public static final MapCodec<StonecutterBlock> CODEC = createCodec(StonecutterBlock::new);
-   private static final Text TITLE = Text.translatable("container.stonecutter");
-   public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
-   private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 9.0);
 
-   @Override
-   public MapCodec<StonecutterBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<StonecutterBlock> CODEC = createCodec(StonecutterBlock::new);
+	private static final Text TITLE = Text.translatable("container.stonecutter");
+	public static final EnumProperty<Direction> FACING = HorizontalFacingBlock.FACING;
+	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 0.0, 9.0);
 
-   public StonecutterBlock(AbstractBlock.Settings settings) {
-      super(settings);
-      this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH));
-   }
+	@Override
+	public MapCodec<StonecutterBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public BlockState getPlacementState(ItemPlacementContext ctx) {
-      return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
-   }
+	public StonecutterBlock(AbstractBlock.Settings settings) {
+		super(settings);
+		this.setDefaultState(this.stateManager.getDefaultState().with(FACING, Direction.NORTH));
+	}
 
-   @Override
-   protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
-      if (!world.isClient()) {
-         player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
-         player.incrementStat(Stats.INTERACT_WITH_STONECUTTER);
-      }
+	@Override
+	public BlockState getPlacementState(ItemPlacementContext ctx) {
+		return this.getDefaultState().with(FACING, ctx.getHorizontalPlayerFacing().getOpposite());
+	}
 
-      return ActionResult.SUCCESS;
-   }
+	@Override
+	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
+		if (!world.isClient()) {
+			player.openHandledScreen(state.createScreenHandlerFactory(world, pos));
+			player.incrementStat(Stats.INTERACT_WITH_STONECUTTER);
+		}
 
-   @Override
-   protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(BlockState state, World world, BlockPos pos) {
-      return new SimpleNamedScreenHandlerFactory(
-         (syncId, playerInventory, player) -> new StonecutterScreenHandler(syncId, playerInventory, ScreenHandlerContext.create(world, pos)), TITLE
-      );
-   }
+		return ActionResult.SUCCESS;
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	@Override
+	protected @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(
+			BlockState state,
+			World world,
+			BlockPos pos
+	) {
+		return new SimpleNamedScreenHandlerFactory(
+				(syncId, playerInventory, player) -> new StonecutterScreenHandler(
+						syncId,
+						playerInventory,
+						ScreenHandlerContext.create(world, pos)
+				), TITLE
+		);
+	}
 
-   @Override
-   protected boolean hasSidedTransparency(BlockState state) {
-      return true;
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   @Override
-   protected BlockState rotate(BlockState state, BlockRotation rotation) {
-      return state.with(FACING, rotation.rotate(state.get(FACING)));
-   }
+	@Override
+	protected boolean hasSidedTransparency(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected BlockState mirror(BlockState state, BlockMirror mirror) {
-      return state.rotate(mirror.getRotation(state.get(FACING)));
-   }
+	@Override
+	protected BlockState rotate(BlockState state, BlockRotation rotation) {
+		return state.with(FACING, rotation.rotate(state.get(FACING)));
+	}
 
-   @Override
-   protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-      builder.add(FACING);
-   }
+	@Override
+	protected BlockState mirror(BlockState state, BlockMirror mirror) {
+		return state.rotate(mirror.getRotation(state.get(FACING)));
+	}
 
-   @Override
-   protected boolean canPathfindThrough(BlockState state, NavigationType type) {
-      return false;
-   }
+	@Override
+	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
+		builder.add(FACING);
+	}
+
+	@Override
+	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
+		return false;
+	}
 }

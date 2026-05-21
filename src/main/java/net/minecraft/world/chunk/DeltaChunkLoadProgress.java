@@ -5,86 +5,91 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 
+/**
+ * {@code DeltaChunkLoadProgress}.
+ */
 public class DeltaChunkLoadProgress implements ChunkLoadProgress {
-   private static final int INITIAL_CHUNKS = 10;
-   private static final int PLAYER_CHUNKS = MathHelper.square(7);
-   private final boolean player;
-   private int totalChunks;
-   private int previousLoadedChunks;
-   private int chunks;
-   private float fullyLoadedChunksRatio;
-   private volatile float loadProgress;
 
-   public DeltaChunkLoadProgress(boolean player) {
-      this.player = player;
-   }
+	private static final int INITIAL_CHUNKS = 10;
+	private static final int PLAYER_CHUNKS = MathHelper.square(7);
+	private final boolean player;
+	private int totalChunks;
+	private int previousLoadedChunks;
+	private int chunks;
+	private float fullyLoadedChunksRatio;
+	private volatile float loadProgress;
 
-   @Override
-   public void init(ChunkLoadProgress.Stage stage, int chunks) {
-      if (this.shouldLoad(stage)) {
-         switch (stage) {
-            case LOAD_INITIAL_CHUNKS:
-               int i = this.player ? PLAYER_CHUNKS : 0;
-               this.totalChunks = 10 + chunks + i;
-               this.init(10);
-               this.finish();
-               this.init(chunks);
-               break;
-            case LOAD_PLAYER_CHUNKS:
-               this.init(PLAYER_CHUNKS);
-         }
-      }
-   }
+	public DeltaChunkLoadProgress(boolean player) {
+		this.player = player;
+	}
 
-   private void init(int chunks) {
-      this.chunks = chunks;
-      this.fullyLoadedChunksRatio = 0.0F;
-      this.recalculateLoadProgress();
-   }
+	@Override
+	public void init(ChunkLoadProgress.Stage stage, int chunks) {
+		if (this.shouldLoad(stage)) {
+			switch (stage) {
+				case LOAD_INITIAL_CHUNKS:
+					int i = this.player ? PLAYER_CHUNKS : 0;
+					this.totalChunks = 10 + chunks + i;
+					this.init(10);
+					this.finish();
+					this.init(chunks);
+					break;
+				case LOAD_PLAYER_CHUNKS:
+					this.init(PLAYER_CHUNKS);
+			}
+		}
+	}
 
-   @Override
-   public void progress(ChunkLoadProgress.Stage stage, int fullChunks, int totalChunks) {
-      if (this.shouldLoad(stage)) {
-         this.fullyLoadedChunksRatio = totalChunks == 0 ? 0.0F : (float)fullChunks / totalChunks;
-         this.recalculateLoadProgress();
-      }
-   }
+	private void init(int chunks) {
+		this.chunks = chunks;
+		this.fullyLoadedChunksRatio = 0.0F;
+		this.recalculateLoadProgress();
+	}
 
-   @Override
-   public void finish(ChunkLoadProgress.Stage stage) {
-      if (this.shouldLoad(stage)) {
-         this.finish();
-      }
-   }
+	@Override
+	public void progress(ChunkLoadProgress.Stage stage, int fullChunks, int totalChunks) {
+		if (this.shouldLoad(stage)) {
+			this.fullyLoadedChunksRatio = totalChunks == 0 ? 0.0F : (float) fullChunks / totalChunks;
+			this.recalculateLoadProgress();
+		}
+	}
 
-   private void finish() {
-      this.previousLoadedChunks = this.previousLoadedChunks + this.chunks;
-      this.chunks = 0;
-      this.recalculateLoadProgress();
-   }
+	@Override
+	public void finish(ChunkLoadProgress.Stage stage) {
+		if (this.shouldLoad(stage)) {
+			this.finish();
+		}
+	}
 
-   private boolean shouldLoad(ChunkLoadProgress.Stage stage) {
-      return switch (stage) {
-         case LOAD_INITIAL_CHUNKS -> true;
-         case LOAD_PLAYER_CHUNKS -> this.player;
-         default -> false;
-      };
-   }
+	private void finish() {
+		this.previousLoadedChunks = this.previousLoadedChunks + this.chunks;
+		this.chunks = 0;
+		this.recalculateLoadProgress();
+	}
 
-   private void recalculateLoadProgress() {
-      if (this.totalChunks == 0) {
-         this.loadProgress = 0.0F;
-      } else {
-         float f = this.previousLoadedChunks + this.fullyLoadedChunksRatio * this.chunks;
-         this.loadProgress = f / this.totalChunks;
-      }
-   }
+	private boolean shouldLoad(ChunkLoadProgress.Stage stage) {
+		return switch (stage) {
+			case LOAD_INITIAL_CHUNKS -> true;
+			case LOAD_PLAYER_CHUNKS -> this.player;
+			default -> false;
+		};
+	}
 
-   public float getLoadProgress() {
-      return this.loadProgress;
-   }
+	private void recalculateLoadProgress() {
+		if (this.totalChunks == 0) {
+			this.loadProgress = 0.0F;
+		}
+		else {
+			float f = this.previousLoadedChunks + this.fullyLoadedChunksRatio * this.chunks;
+			this.loadProgress = f / this.totalChunks;
+		}
+	}
 
-   @Override
-   public void initSpawnPos(RegistryKey<World> worldKey, ChunkPos spawnChunk) {
-   }
+	public float getLoadProgress() {
+		return this.loadProgress;
+	}
+
+	@Override
+	public void initSpawnPos(RegistryKey<World> worldKey, ChunkPos spawnChunk) {
+	}
 }

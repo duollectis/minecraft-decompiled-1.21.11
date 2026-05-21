@@ -2,51 +2,61 @@ package net.minecraft.nbt.scanner;
 
 import net.minecraft.nbt.NbtType;
 
+/**
+ * {@code NbtScanner}.
+ */
 public interface NbtScanner {
-   NbtScanner.Result visitEnd();
 
-   NbtScanner.Result visitString(String value);
+	NbtScanner.Result visitEnd();
 
-   NbtScanner.Result visitByte(byte value);
+	NbtScanner.Result visitString(String value);
 
-   NbtScanner.Result visitShort(short value);
+	NbtScanner.Result visitByte(byte value);
 
-   NbtScanner.Result visitInt(int value);
+	NbtScanner.Result visitShort(short value);
 
-   NbtScanner.Result visitLong(long value);
+	NbtScanner.Result visitInt(int value);
 
-   NbtScanner.Result visitFloat(float value);
+	NbtScanner.Result visitLong(long value);
 
-   NbtScanner.Result visitDouble(double value);
+	NbtScanner.Result visitFloat(float value);
 
-   NbtScanner.Result visitByteArray(byte[] value);
+	NbtScanner.Result visitDouble(double value);
 
-   NbtScanner.Result visitIntArray(int[] value);
+	NbtScanner.Result visitByteArray(byte[] value);
 
-   NbtScanner.Result visitLongArray(long[] value);
+	NbtScanner.Result visitIntArray(int[] value);
 
-   NbtScanner.Result visitListMeta(NbtType<?> entryType, int length);
+	NbtScanner.Result visitLongArray(long[] value);
 
-   NbtScanner.NestedResult visitSubNbtType(NbtType<?> type);
+	NbtScanner.Result visitListMeta(NbtType<?> entryType, int length);
 
-   NbtScanner.NestedResult startSubNbt(NbtType<?> type, String key);
+	NbtScanner.NestedResult visitSubNbtType(NbtType<?> type);
 
-   NbtScanner.NestedResult startListItem(NbtType<?> type, int index);
+	NbtScanner.NestedResult startSubNbt(NbtType<?> type, String key);
 
-   NbtScanner.Result endNested();
+	NbtScanner.NestedResult startListItem(NbtType<?> type, int index);
 
-   NbtScanner.Result start(NbtType<?> rootType);
+	NbtScanner.Result endNested();
 
-   public static enum NestedResult {
-      ENTER,
-      SKIP,
-      BREAK,
-      HALT;
-   }
+	NbtScanner.Result start(NbtType<?> rootType);
 
-   public static enum Result {
-      CONTINUE,
-      BREAK,
-      HALT;
-   }
+	/**
+	 * {@code NestedResult}.
+	 */
+	public static enum NestedResult {
+		ENTER,
+		SKIP,
+		BREAK,
+		HALT;
+	}
+
+	/**
+	 * {@code Result}.
+	 */
+	public static enum Result {
+		CONTINUE,
+		BREAK,
+		HALT;
+	}
 }

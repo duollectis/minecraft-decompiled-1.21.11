@@ -6,20 +6,24 @@ import net.fabricmc.api.Environment;
 import net.minecraft.text.Text;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code NarrationMessageBuilder}.
+ */
 public interface NarrationMessageBuilder {
-   default void put(NarrationPart part, Text text) {
-      this.put(part, Narration.string(text.getString()));
-   }
 
-   default void put(NarrationPart part, String string) {
-      this.put(part, Narration.string(string));
-   }
+	default void put(NarrationPart part, Text text) {
+		this.put(part, Narration.string(text.getString()));
+	}
 
-   default void put(NarrationPart part, Text... texts) {
-      this.put(part, Narration.texts(ImmutableList.copyOf(texts)));
-   }
+	default void put(NarrationPart part, String string) {
+		this.put(part, Narration.string(string));
+	}
 
-   void put(NarrationPart part, Narration<?> narration);
+	default void put(NarrationPart part, Text... texts) {
+		this.put(part, Narration.texts(ImmutableList.copyOf(texts)));
+	}
 
-   NarrationMessageBuilder nextMessage();
+	void put(NarrationPart part, Narration<?> narration);
+
+	NarrationMessageBuilder nextMessage();
 }

@@ -12,38 +12,57 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
+/**
+ * {@code PardonIpCommand}.
+ */
 public class PardonIpCommand {
-   private static final SimpleCommandExceptionType INVALID_IP_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.pardonip.invalid"));
-   private static final SimpleCommandExceptionType ALREADY_UNBANNED_EXCEPTION = new SimpleCommandExceptionType(Text.translatable("commands.pardonip.failed"));
 
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("pardon-ip")
-               .requires(CommandManager.requirePermissionLevel(CommandManager.ADMINS_CHECK)))
-            .then(
-               CommandManager.argument("target", StringArgumentType.word())
-                  .suggests(
-                     (context, builder) -> CommandSource.suggestMatching(
-                        ((ServerCommandSource)context.getSource()).getServer().getPlayerManager().getIpBanList().getNames(), builder
-                     )
-                  )
-                  .executes(context -> pardonIp((ServerCommandSource)context.getSource(), StringArgumentType.getString(context, "target")))
-            )
-      );
-   }
+	private static final SimpleCommandExceptionType
+			INVALID_IP_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.pardonip.invalid"));
+	private static final SimpleCommandExceptionType
+			ALREADY_UNBANNED_EXCEPTION =
+			new SimpleCommandExceptionType(Text.translatable("commands.pardonip.failed"));
 
-   private static int pardonIp(ServerCommandSource source, String target) throws CommandSyntaxException {
-      if (!InetAddresses.isInetAddress(target)) {
-         throw INVALID_IP_EXCEPTION.create();
-      } else {
-         BannedIpList bannedIpList = source.getServer().getPlayerManager().getIpBanList();
-         if (!bannedIpList.isBanned(target)) {
-            throw ALREADY_UNBANNED_EXCEPTION.create();
-         } else {
-            bannedIpList.remove(target);
-            source.sendFeedback(() -> Text.translatable("commands.pardonip.success", target), true);
-            return 1;
-         }
-      }
-   }
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("pardon-ip")
+				                                                                 .requires(CommandManager.requirePermissionLevel(
+						                                                                 CommandManager.ADMINS_CHECK))
+				)
+						.then(
+								CommandManager.argument("target", StringArgumentType.word())
+								              .suggests(
+										              (context, builder) -> CommandSource.suggestMatching(
+												              ((ServerCommandSource) context.getSource())
+														              .getServer()
+														              .getPlayerManager()
+														              .getIpBanList()
+														              .getNames(), builder
+										              )
+								              )
+								              .executes(context -> pardonIp(
+										              (ServerCommandSource) context.getSource(),
+										              StringArgumentType.getString(context, "target")
+								              ))
+						)
+		);
+	}
+
+	private static int pardonIp(ServerCommandSource source, String target) throws CommandSyntaxException {
+		if (!InetAddresses.isInetAddress(target)) {
+			throw INVALID_IP_EXCEPTION.create();
+		}
+		else {
+			BannedIpList bannedIpList = source.getServer().getPlayerManager().getIpBanList();
+			if (!bannedIpList.isBanned(target)) {
+				throw ALREADY_UNBANNED_EXCEPTION.create();
+			}
+			else {
+				bannedIpList.remove(target);
+				source.sendFeedback(() -> Text.translatable("commands.pardonip.success", target), true);
+				return 1;
+			}
+		}
+	}
 }

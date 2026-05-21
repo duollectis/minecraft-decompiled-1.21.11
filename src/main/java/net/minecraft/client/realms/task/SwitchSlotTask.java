@@ -9,52 +9,58 @@ import net.minecraft.text.Text;
 import org.slf4j.Logger;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SwitchSlotTask}.
+ */
 public class SwitchSlotTask extends LongRunningTask {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private static final Text TITLE = Text.translatable("mco.minigame.world.slot.screen.title");
-   private final long worldId;
-   private final int slot;
-   private final Runnable callback;
 
-   public SwitchSlotTask(long worldId, int slot, Runnable callback) {
-      this.worldId = worldId;
-      this.slot = slot;
-      this.callback = callback;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	private static final Text TITLE = Text.translatable("mco.minigame.world.slot.screen.title");
+	private final long worldId;
+	private final int slot;
+	private final Runnable callback;
 
-   @Override
-   public void run() {
-      RealmsClient realmsClient = RealmsClient.create();
+	public SwitchSlotTask(long worldId, int slot, Runnable callback) {
+		this.worldId = worldId;
+		this.slot = slot;
+		this.callback = callback;
+	}
 
-      for (int i = 0; i < 25; i++) {
-         try {
-            if (this.aborted()) {
-               return;
-            }
+	@Override
+	public void run() {
+		RealmsClient realmsClient = RealmsClient.create();
 
-            if (realmsClient.switchSlot(this.worldId, this.slot)) {
-               this.callback.run();
-               break;
-            }
-         } catch (RetryCallException var4) {
-            if (this.aborted()) {
-               return;
-            }
+		for (int i = 0; i < 25; i++) {
+			try {
+				if (this.aborted()) {
+					return;
+				}
 
-            pause(var4.delaySeconds);
-         } catch (Exception var5) {
-            if (this.aborted()) {
-               return;
-            }
+				if (realmsClient.switchSlot(this.worldId, this.slot)) {
+					this.callback.run();
+					break;
+				}
+			}
+			catch (RetryCallException var4) {
+				if (this.aborted()) {
+					return;
+				}
 
-            LOGGER.error("Couldn't switch world!");
-            this.error(var5);
-         }
-      }
-   }
+				pause(var4.delaySeconds);
+			}
+			catch (Exception var5) {
+				if (this.aborted()) {
+					return;
+				}
 
-   @Override
-   public Text getTitle() {
-      return TITLE;
-   }
+				LOGGER.error("Couldn't switch world!");
+				this.error(var5);
+			}
+		}
+	}
+
+	@Override
+	public Text getTitle() {
+		return TITLE;
+	}
 }

@@ -1,73 +1,80 @@
 package net.minecraft.entity;
 
 import com.mojang.serialization.Codec;
-import java.util.EnumMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Map.Entry;
 import net.minecraft.item.ItemStack;
 
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+
+/**
+ * {@code EntityEquipment}.
+ */
 public class EntityEquipment {
-   public static final Codec<EntityEquipment> CODEC = Codec.unboundedMap(EquipmentSlot.CODEC, ItemStack.CODEC).xmap(map -> {
-      EnumMap<EquipmentSlot, ItemStack> enumMap = new EnumMap<>(EquipmentSlot.class);
-      enumMap.putAll(map);
-      return new EntityEquipment(enumMap);
-   }, equipment -> {
-      Map<EquipmentSlot, ItemStack> map = new EnumMap<>(equipment.map);
-      map.values().removeIf(ItemStack::isEmpty);
-      return map;
-   });
-   private final EnumMap<EquipmentSlot, ItemStack> map;
 
-   private EntityEquipment(EnumMap<EquipmentSlot, ItemStack> map) {
-      this.map = map;
-   }
+	public static final Codec<EntityEquipment> CODEC = Codec.unboundedMap(EquipmentSlot.CODEC, ItemStack.CODEC).xmap(
+			map -> {
+				EnumMap<EquipmentSlot, ItemStack> enumMap = new EnumMap<>(EquipmentSlot.class);
+				enumMap.putAll(map);
+				return new EntityEquipment(enumMap);
+			}, equipment -> {
+				Map<EquipmentSlot, ItemStack> map = new EnumMap<>(equipment.map);
+				map.values().removeIf(ItemStack::isEmpty);
+				return map;
+			}
+	);
+	private final EnumMap<EquipmentSlot, ItemStack> map;
 
-   public EntityEquipment() {
-      this(new EnumMap<>(EquipmentSlot.class));
-   }
+	private EntityEquipment(EnumMap<EquipmentSlot, ItemStack> map) {
+		this.map = map;
+	}
 
-   public ItemStack put(EquipmentSlot slot, ItemStack itemStack) {
-      return Objects.requireNonNullElse(this.map.put(slot, itemStack), ItemStack.EMPTY);
-   }
+	public EntityEquipment() {
+		this(new EnumMap<>(EquipmentSlot.class));
+	}
 
-   public ItemStack get(EquipmentSlot slot) {
-      return this.map.getOrDefault(slot, ItemStack.EMPTY);
-   }
+	public ItemStack put(EquipmentSlot slot, ItemStack itemStack) {
+		return Objects.requireNonNullElse(this.map.put(slot, itemStack), ItemStack.EMPTY);
+	}
 
-   public boolean isEmpty() {
-      for (ItemStack itemStack : this.map.values()) {
-         if (!itemStack.isEmpty()) {
-            return false;
-         }
-      }
+	public ItemStack get(EquipmentSlot slot) {
+		return this.map.getOrDefault(slot, ItemStack.EMPTY);
+	}
 
-      return true;
-   }
+	public boolean isEmpty() {
+		for (ItemStack itemStack : this.map.values()) {
+			if (!itemStack.isEmpty()) {
+				return false;
+			}
+		}
 
-   public void tick(Entity entity) {
-      for (Entry<EquipmentSlot, ItemStack> entry : this.map.entrySet()) {
-         ItemStack itemStack = entry.getValue();
-         if (!itemStack.isEmpty()) {
-            itemStack.inventoryTick(entity.getEntityWorld(), entity, entry.getKey());
-         }
-      }
-   }
+		return true;
+	}
 
-   public void copyFrom(EntityEquipment equipment) {
-      this.map.clear();
-      this.map.putAll(equipment.map);
-   }
+	public void tick(Entity entity) {
+		for (Entry<EquipmentSlot, ItemStack> entry : this.map.entrySet()) {
+			ItemStack itemStack = entry.getValue();
+			if (!itemStack.isEmpty()) {
+				itemStack.inventoryTick(entity.getEntityWorld(), entity, entry.getKey());
+			}
+		}
+	}
 
-   public void dropAll(LivingEntity entity) {
-      for (ItemStack itemStack : this.map.values()) {
-         entity.dropItem(itemStack, true, false);
-      }
+	public void copyFrom(EntityEquipment equipment) {
+		this.map.clear();
+		this.map.putAll(equipment.map);
+	}
 
-      this.clear();
-   }
+	public void dropAll(LivingEntity entity) {
+		for (ItemStack itemStack : this.map.values()) {
+			entity.dropItem(itemStack, true, false);
+		}
 
-   public void clear() {
-      this.map.replaceAll((slot, stack) -> ItemStack.EMPTY);
-   }
+		this.clear();
+	}
+
+	public void clear() {
+		this.map.replaceAll((slot, stack) -> ItemStack.EMPTY);
+	}
 }

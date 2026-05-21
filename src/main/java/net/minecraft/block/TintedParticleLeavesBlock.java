@@ -10,29 +10,35 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
+/**
+ * {@code TintedParticleLeavesBlock}.
+ */
 public class TintedParticleLeavesBlock extends LeavesBlock {
-   public static final MapCodec<TintedParticleLeavesBlock> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codecs.rangedInclusiveFloat(0.0F, 1.0F)
-               .fieldOf("leaf_particle_chance")
-               .forGetter(tintedParticleLeavesBlock -> tintedParticleLeavesBlock.leafParticleChance),
-            createSettingsCodec()
-         )
-         .apply(instance, TintedParticleLeavesBlock::new)
-   );
 
-   public TintedParticleLeavesBlock(float f, AbstractBlock.Settings settings) {
-      super(f, settings);
-   }
+	public static final MapCodec<TintedParticleLeavesBlock> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codecs.rangedInclusiveFloat(0.0F, 1.0F)
+					                          .fieldOf("leaf_particle_chance")
+					                          .forGetter(tintedParticleLeavesBlock -> tintedParticleLeavesBlock.leafParticleChance),
+					                    createSettingsCodec()
+			                    )
+			                    .apply(instance, TintedParticleLeavesBlock::new)
+	);
 
-   @Override
-   protected void spawnLeafParticle(World world, BlockPos pos, Random random) {
-      TintedParticleEffect tintedParticleEffect = TintedParticleEffect.create(ParticleTypes.TINTED_LEAVES, world.getBlockColor(pos));
-      ParticleUtil.spawnParticle(world, pos, random, tintedParticleEffect);
-   }
+	public TintedParticleLeavesBlock(float f, AbstractBlock.Settings settings) {
+		super(f, settings);
+	}
 
-   @Override
-   public MapCodec<? extends TintedParticleLeavesBlock> getCodec() {
-      return CODEC;
-   }
+	@Override
+	protected void spawnLeafParticle(World world, BlockPos pos, Random random) {
+		TintedParticleEffect
+				tintedParticleEffect =
+				TintedParticleEffect.create(ParticleTypes.TINTED_LEAVES, world.getBlockColor(pos));
+		ParticleUtil.spawnParticle(world, pos, random, tintedParticleEffect);
+	}
+
+	@Override
+	public MapCodec<? extends TintedParticleLeavesBlock> getCodec() {
+		return CODEC;
+	}
 }

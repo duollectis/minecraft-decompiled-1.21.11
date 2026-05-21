@@ -8,31 +8,34 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
 public class KeepAliveC2SPacket implements Packet<ServerCommonPacketListener> {
-   public static final PacketCodec<PacketByteBuf, KeepAliveC2SPacket> CODEC = Packet.createCodec(KeepAliveC2SPacket::write, KeepAliveC2SPacket::new);
-   private final long id;
 
-   public KeepAliveC2SPacket(long id) {
-      this.id = id;
-   }
+	public static final PacketCodec<PacketByteBuf, KeepAliveC2SPacket>
+			CODEC =
+			Packet.createCodec(KeepAliveC2SPacket::write, KeepAliveC2SPacket::new);
+	private final long id;
 
-   private KeepAliveC2SPacket(PacketByteBuf buf) {
-      this.id = buf.readLong();
-   }
+	public KeepAliveC2SPacket(long id) {
+		this.id = id;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeLong(this.id);
-   }
+	private KeepAliveC2SPacket(PacketByteBuf buf) {
+		this.id = buf.readLong();
+	}
 
-   @Override
-   public PacketType<KeepAliveC2SPacket> getPacketType() {
-      return CommonPackets.KEEP_ALIVE_C2S;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeLong(this.id);
+	}
 
-   public void apply(ServerCommonPacketListener serverCommonPacketListener) {
-      serverCommonPacketListener.onKeepAlive(this);
-   }
+	@Override
+	public PacketType<KeepAliveC2SPacket> getPacketType() {
+		return CommonPackets.KEEP_ALIVE_C2S;
+	}
 
-   public long getId() {
-      return this.id;
-   }
+	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
+		serverCommonPacketListener.onKeepAlive(this);
+	}
+
+	public long getId() {
+		return this.id;
+	}
 }

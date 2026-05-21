@@ -12,80 +12,107 @@ import net.minecraft.world.StructureWorldAccess;
 import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.feature.util.FeatureContext;
 
+/**
+ * {@code TwistingVinesFeature}.
+ */
 public class TwistingVinesFeature extends Feature<TwistingVinesFeatureConfig> {
-   public TwistingVinesFeature(Codec<TwistingVinesFeatureConfig> codec) {
-      super(codec);
-   }
 
-   @Override
-   public boolean generate(FeatureContext<TwistingVinesFeatureConfig> context) {
-      StructureWorldAccess structureWorldAccess = context.getWorld();
-      BlockPos blockPos = context.getOrigin();
-      if (isNotSuitable(structureWorldAccess, blockPos)) {
-         return false;
-      } else {
-         Random random = context.getRandom();
-         TwistingVinesFeatureConfig twistingVinesFeatureConfig = context.getConfig();
-         int i = twistingVinesFeatureConfig.spreadWidth();
-         int j = twistingVinesFeatureConfig.spreadHeight();
-         int k = twistingVinesFeatureConfig.maxHeight();
-         BlockPos.Mutable mutable = new BlockPos.Mutable();
+	public TwistingVinesFeature(Codec<TwistingVinesFeatureConfig> codec) {
+		super(codec);
+	}
 
-         for (int l = 0; l < i * i; l++) {
-            mutable.set(blockPos).move(MathHelper.nextInt(random, -i, i), MathHelper.nextInt(random, -j, j), MathHelper.nextInt(random, -i, i));
-            if (canGenerate(structureWorldAccess, mutable) && !isNotSuitable(structureWorldAccess, mutable)) {
-               int m = MathHelper.nextInt(random, 1, k);
-               if (random.nextInt(6) == 0) {
-                  m *= 2;
-               }
+	@Override
+	public boolean generate(FeatureContext<TwistingVinesFeatureConfig> context) {
+		StructureWorldAccess structureWorldAccess = context.getWorld();
+		BlockPos blockPos = context.getOrigin();
+		if (isNotSuitable(structureWorldAccess, blockPos)) {
+			return false;
+		}
+		else {
+			Random random = context.getRandom();
+			TwistingVinesFeatureConfig twistingVinesFeatureConfig = context.getConfig();
+			int i = twistingVinesFeatureConfig.spreadWidth();
+			int j = twistingVinesFeatureConfig.spreadHeight();
+			int k = twistingVinesFeatureConfig.maxHeight();
+			BlockPos.Mutable mutable = new BlockPos.Mutable();
 
-               if (random.nextInt(5) == 0) {
-                  m = 1;
-               }
+			for (int l = 0; l < i * i; l++) {
+				mutable
+						.set(blockPos)
+						.move(
+								MathHelper.nextInt(random, -i, i),
+								MathHelper.nextInt(random, -j, j),
+								MathHelper.nextInt(random, -i, i)
+						);
+				if (canGenerate(structureWorldAccess, mutable) && !isNotSuitable(structureWorldAccess, mutable)) {
+					int m = MathHelper.nextInt(random, 1, k);
+					if (random.nextInt(6) == 0) {
+						m *= 2;
+					}
 
-               int n = 17;
-               int o = 25;
-               generateVineColumn(structureWorldAccess, random, mutable, m, 17, 25);
-            }
-         }
+					if (random.nextInt(5) == 0) {
+						m = 1;
+					}
 
-         return true;
-      }
-   }
+					int n = 17;
+					int o = 25;
+					generateVineColumn(structureWorldAccess, random, mutable, m, 17, 25);
+				}
+			}
 
-   private static boolean canGenerate(WorldAccess world, BlockPos.Mutable pos) {
-      do {
-         pos.move(0, -1, 0);
-         if (world.isOutOfHeightLimit(pos)) {
-            return false;
-         }
-      } while (world.getBlockState(pos).isAir());
+			return true;
+		}
+	}
 
-      pos.move(0, 1, 0);
-      return true;
-   }
+	private static boolean canGenerate(WorldAccess world, BlockPos.Mutable pos) {
+		do {
+			pos.move(0, -1, 0);
+			if (world.isOutOfHeightLimit(pos)) {
+				return false;
+			}
+		}
+		while (world.getBlockState(pos).isAir());
 
-   public static void generateVineColumn(WorldAccess world, Random random, BlockPos.Mutable pos, int maxLength, int minAge, int maxAge) {
-      for (int i = 1; i <= maxLength; i++) {
-         if (world.isAir(pos)) {
-            if (i == maxLength || !world.isAir(pos.up())) {
-               world.setBlockState(pos, Blocks.TWISTING_VINES.getDefaultState().with(AbstractPlantStemBlock.AGE, MathHelper.nextInt(random, minAge, maxAge)), 2);
-               break;
-            }
+		pos.move(0, 1, 0);
+		return true;
+	}
 
-            world.setBlockState(pos, Blocks.TWISTING_VINES_PLANT.getDefaultState(), 2);
-         }
+	public static void generateVineColumn(
+			WorldAccess world,
+			Random random,
+			BlockPos.Mutable pos,
+			int maxLength,
+			int minAge,
+			int maxAge
+	) {
+		for (int i = 1; i <= maxLength; i++) {
+			if (world.isAir(pos)) {
+				if (i == maxLength || !world.isAir(pos.up())) {
+					world.setBlockState(
+							pos,
+							Blocks.TWISTING_VINES
+									.getDefaultState()
+									.with(AbstractPlantStemBlock.AGE, MathHelper.nextInt(random, minAge, maxAge)),
+							2
+					);
+					break;
+				}
 
-         pos.move(Direction.UP);
-      }
-   }
+				world.setBlockState(pos, Blocks.TWISTING_VINES_PLANT.getDefaultState(), 2);
+			}
 
-   private static boolean isNotSuitable(WorldAccess world, BlockPos pos) {
-      if (!world.isAir(pos)) {
-         return true;
-      } else {
-         BlockState blockState = world.getBlockState(pos.down());
-         return !blockState.isOf(Blocks.NETHERRACK) && !blockState.isOf(Blocks.WARPED_NYLIUM) && !blockState.isOf(Blocks.WARPED_WART_BLOCK);
-      }
-   }
+			pos.move(Direction.UP);
+		}
+	}
+
+	private static boolean isNotSuitable(WorldAccess world, BlockPos pos) {
+		if (!world.isAir(pos)) {
+			return true;
+		}
+		else {
+			BlockState blockState = world.getBlockState(pos.down());
+			return !blockState.isOf(Blocks.NETHERRACK) && !blockState.isOf(Blocks.WARPED_NYLIUM) && !blockState.isOf(
+					Blocks.WARPED_WART_BLOCK);
+		}
+	}
 }

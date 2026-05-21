@@ -1,7 +1,5 @@
 package net.minecraft.entity.mob;
 
-import java.util.EnumSet;
-import java.util.function.IntFunction;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.goal.Goal;
@@ -19,207 +17,252 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+import java.util.function.IntFunction;
+
+/**
+ * {@code SpellcastingIllagerEntity}.
+ */
 public abstract class SpellcastingIllagerEntity extends IllagerEntity {
-   private static final TrackedData<Byte> SPELL = DataTracker.registerData(SpellcastingIllagerEntity.class, TrackedDataHandlerRegistry.BYTE);
-   private static final int DEFAULT_SPELL_TICKS = 0;
-   protected int spellTicks = 0;
-   private SpellcastingIllagerEntity.Spell spell = SpellcastingIllagerEntity.Spell.NONE;
 
-   protected SpellcastingIllagerEntity(EntityType<? extends SpellcastingIllagerEntity> entityType, World world) {
-      super(entityType, world);
-   }
+	private static final TrackedData<Byte>
+			SPELL =
+			DataTracker.registerData(SpellcastingIllagerEntity.class, TrackedDataHandlerRegistry.BYTE);
+	private static final int DEFAULT_SPELL_TICKS = 0;
+	protected int spellTicks = 0;
+	private SpellcastingIllagerEntity.Spell spell = SpellcastingIllagerEntity.Spell.NONE;
 
-   @Override
-   protected void initDataTracker(DataTracker.Builder builder) {
-      super.initDataTracker(builder);
-      builder.add(SPELL, (byte)0);
-   }
+	protected SpellcastingIllagerEntity(EntityType<? extends SpellcastingIllagerEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   @Override
-   protected void readCustomData(ReadView view) {
-      super.readCustomData(view);
-      this.spellTicks = view.getInt("SpellTicks", 0);
-   }
+	@Override
+	protected void initDataTracker(DataTracker.Builder builder) {
+		super.initDataTracker(builder);
+		builder.add(SPELL, (byte) 0);
+	}
 
-   @Override
-   protected void writeCustomData(WriteView view) {
-      super.writeCustomData(view);
-      view.putInt("SpellTicks", this.spellTicks);
-   }
+	@Override
+	protected void readCustomData(ReadView view) {
+		super.readCustomData(view);
+		this.spellTicks = view.getInt("SpellTicks", 0);
+	}
 
-   @Override
-   public IllagerEntity.State getState() {
-      if (this.isSpellcasting()) {
-         return IllagerEntity.State.SPELLCASTING;
-      } else {
-         return this.isCelebrating() ? IllagerEntity.State.CELEBRATING : IllagerEntity.State.CROSSED;
-      }
-   }
+	@Override
+	protected void writeCustomData(WriteView view) {
+		super.writeCustomData(view);
+		view.putInt("SpellTicks", this.spellTicks);
+	}
 
-   public boolean isSpellcasting() {
-      return this.getEntityWorld().isClient() ? this.dataTracker.get(SPELL) > 0 : this.spellTicks > 0;
-   }
+	@Override
+	public IllagerEntity.State getState() {
+		if (this.isSpellcasting()) {
+			return IllagerEntity.State.SPELLCASTING;
+		}
+		else {
+			return this.isCelebrating() ? IllagerEntity.State.CELEBRATING : IllagerEntity.State.CROSSED;
+		}
+	}
 
-   public void setSpell(SpellcastingIllagerEntity.Spell spell) {
-      this.spell = spell;
-      this.dataTracker.set(SPELL, (byte)spell.id);
-   }
+	public boolean isSpellcasting() {
+		return this.getEntityWorld().isClient() ? this.dataTracker.get(SPELL) > 0 : this.spellTicks > 0;
+	}
 
-   protected SpellcastingIllagerEntity.Spell getSpell() {
-      return !this.getEntityWorld().isClient() ? this.spell : SpellcastingIllagerEntity.Spell.byId(this.dataTracker.get(SPELL));
-   }
+	public void setSpell(SpellcastingIllagerEntity.Spell spell) {
+		this.spell = spell;
+		this.dataTracker.set(SPELL, (byte) spell.id);
+	}
 
-   @Override
-   protected void mobTick(ServerWorld world) {
-      super.mobTick(world);
-      if (this.spellTicks > 0) {
-         this.spellTicks--;
-      }
-   }
+	protected SpellcastingIllagerEntity.Spell getSpell() {
+		return !this.getEntityWorld().isClient() ? this.spell
+		                                         : SpellcastingIllagerEntity.Spell.byId(this.dataTracker.get(SPELL));
+	}
 
-   @Override
-   public void tick() {
-      super.tick();
-      if (this.getEntityWorld().isClient() && this.isSpellcasting()) {
-         SpellcastingIllagerEntity.Spell spell = this.getSpell();
-         float f = (float)spell.particleVelocity[0];
-         float g = (float)spell.particleVelocity[1];
-         float h = (float)spell.particleVelocity[2];
-         float i = this.bodyYaw * (float) (Math.PI / 180.0) + MathHelper.cos(this.age * 0.6662F) * 0.25F;
-         float j = MathHelper.cos(i);
-         float k = MathHelper.sin(i);
-         double d = 0.6 * this.getScale();
-         double e = 1.8 * this.getScale();
-         this.getEntityWorld()
-            .addParticleClient(
-               TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, f, g, h), this.getX() + j * d, this.getY() + e, this.getZ() + k * d, 0.0, 0.0, 0.0
-            );
-         this.getEntityWorld()
-            .addParticleClient(
-               TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, f, g, h), this.getX() - j * d, this.getY() + e, this.getZ() - k * d, 0.0, 0.0, 0.0
-            );
-      }
-   }
+	@Override
+	protected void mobTick(ServerWorld world) {
+		super.mobTick(world);
+		if (this.spellTicks > 0) {
+			this.spellTicks--;
+		}
+	}
 
-   protected int getSpellTicks() {
-      return this.spellTicks;
-   }
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.getEntityWorld().isClient() && this.isSpellcasting()) {
+			SpellcastingIllagerEntity.Spell spell = this.getSpell();
+			float f = (float) spell.particleVelocity[0];
+			float g = (float) spell.particleVelocity[1];
+			float h = (float) spell.particleVelocity[2];
+			float i = this.bodyYaw * (float) (Math.PI / 180.0) + MathHelper.cos(this.age * 0.6662F) * 0.25F;
+			float j = MathHelper.cos(i);
+			float k = MathHelper.sin(i);
+			double d = 0.6 * this.getScale();
+			double e = 1.8 * this.getScale();
+			this.getEntityWorld()
+			    .addParticleClient(
+					    TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, f, g, h),
+					    this.getX() + j * d,
+					    this.getY() + e,
+					    this.getZ() + k * d,
+					    0.0,
+					    0.0,
+					    0.0
+			    );
+			this.getEntityWorld()
+			    .addParticleClient(
+					    TintedParticleEffect.create(ParticleTypes.ENTITY_EFFECT, f, g, h),
+					    this.getX() - j * d,
+					    this.getY() + e,
+					    this.getZ() - k * d,
+					    0.0,
+					    0.0,
+					    0.0
+			    );
+		}
+	}
 
-   protected abstract SoundEvent getCastSpellSound();
+	protected int getSpellTicks() {
+		return this.spellTicks;
+	}
 
-   protected abstract class CastSpellGoal extends Goal {
-      protected int spellCooldown;
-      protected int startTime;
+	protected abstract SoundEvent getCastSpellSound();
 
-      @Override
-      public boolean canStart() {
-         LivingEntity livingEntity = SpellcastingIllagerEntity.this.getTarget();
-         if (livingEntity == null || !livingEntity.isAlive()) {
-            return false;
-         } else {
-            return SpellcastingIllagerEntity.this.isSpellcasting() ? false : SpellcastingIllagerEntity.this.age >= this.startTime;
-         }
-      }
+	/**
+	 * {@code CastSpellGoal}.
+	 */
+	protected abstract class CastSpellGoal extends Goal {
 
-      @Override
-      public boolean shouldContinue() {
-         LivingEntity livingEntity = SpellcastingIllagerEntity.this.getTarget();
-         return livingEntity != null && livingEntity.isAlive() && this.spellCooldown > 0;
-      }
+		protected int spellCooldown;
+		protected int startTime;
 
-      @Override
-      public void start() {
-         this.spellCooldown = this.getTickCount(this.getInitialCooldown());
-         SpellcastingIllagerEntity.this.spellTicks = this.getSpellTicks();
-         this.startTime = SpellcastingIllagerEntity.this.age + this.startTimeDelay();
-         SoundEvent soundEvent = this.getSoundPrepare();
-         if (soundEvent != null) {
-            SpellcastingIllagerEntity.this.playSound(soundEvent, 1.0F, 1.0F);
-         }
+		@Override
+		public boolean canStart() {
+			LivingEntity livingEntity = SpellcastingIllagerEntity.this.getTarget();
+			if (livingEntity == null || !livingEntity.isAlive()) {
+				return false;
+			}
+			else {
+				return SpellcastingIllagerEntity.this.isSpellcasting() ? false : SpellcastingIllagerEntity.this.age
+				                                                                 >= this.startTime;
+			}
+		}
 
-         SpellcastingIllagerEntity.this.setSpell(this.getSpell());
-      }
+		@Override
+		public boolean shouldContinue() {
+			LivingEntity livingEntity = SpellcastingIllagerEntity.this.getTarget();
+			return livingEntity != null && livingEntity.isAlive() && this.spellCooldown > 0;
+		}
 
-      @Override
-      public void tick() {
-         this.spellCooldown--;
-         if (this.spellCooldown == 0) {
-            this.castSpell();
-            SpellcastingIllagerEntity.this.playSound(SpellcastingIllagerEntity.this.getCastSpellSound(), 1.0F, 1.0F);
-         }
-      }
+		@Override
+		public void start() {
+			this.spellCooldown = this.getTickCount(this.getInitialCooldown());
+			SpellcastingIllagerEntity.this.spellTicks = this.getSpellTicks();
+			this.startTime = SpellcastingIllagerEntity.this.age + this.startTimeDelay();
+			SoundEvent soundEvent = this.getSoundPrepare();
+			if (soundEvent != null) {
+				SpellcastingIllagerEntity.this.playSound(soundEvent, 1.0F, 1.0F);
+			}
 
-      protected abstract void castSpell();
+			SpellcastingIllagerEntity.this.setSpell(this.getSpell());
+		}
 
-      protected int getInitialCooldown() {
-         return 20;
-      }
+		@Override
+		public void tick() {
+			this.spellCooldown--;
+			if (this.spellCooldown == 0) {
+				this.castSpell();
+				SpellcastingIllagerEntity.this.playSound(
+						SpellcastingIllagerEntity.this.getCastSpellSound(),
+						1.0F,
+						1.0F
+				);
+			}
+		}
 
-      protected abstract int getSpellTicks();
+		protected abstract void castSpell();
 
-      protected abstract int startTimeDelay();
+		protected int getInitialCooldown() {
+			return 20;
+		}
 
-      protected abstract @Nullable SoundEvent getSoundPrepare();
+		protected abstract int getSpellTicks();
 
-      protected abstract SpellcastingIllagerEntity.Spell getSpell();
-   }
+		protected abstract int startTimeDelay();
 
-   protected class LookAtTargetGoal extends Goal {
-      public LookAtTargetGoal() {
-         this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
-      }
+		protected abstract @Nullable SoundEvent getSoundPrepare();
 
-      @Override
-      public boolean canStart() {
-         return SpellcastingIllagerEntity.this.getSpellTicks() > 0;
-      }
+		protected abstract SpellcastingIllagerEntity.Spell getSpell();
+	}
 
-      @Override
-      public void start() {
-         super.start();
-         SpellcastingIllagerEntity.this.navigation.stop();
-      }
+	/**
+	 * {@code LookAtTargetGoal}.
+	 */
+	protected class LookAtTargetGoal extends Goal {
 
-      @Override
-      public void stop() {
-         super.stop();
-         SpellcastingIllagerEntity.this.setSpell(SpellcastingIllagerEntity.Spell.NONE);
-      }
+		public LookAtTargetGoal() {
+			this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		}
 
-      @Override
-      public void tick() {
-         if (SpellcastingIllagerEntity.this.getTarget() != null) {
-            SpellcastingIllagerEntity.this.getLookControl()
-               .lookAt(
-                  SpellcastingIllagerEntity.this.getTarget(),
-                  SpellcastingIllagerEntity.this.getMaxHeadRotation(),
-                  SpellcastingIllagerEntity.this.getMaxLookPitchChange()
-               );
-         }
-      }
-   }
+		@Override
+		public boolean canStart() {
+			return SpellcastingIllagerEntity.this.getSpellTicks() > 0;
+		}
 
-   protected static enum Spell {
-      NONE(0, 0.0, 0.0, 0.0),
-      SUMMON_VEX(1, 0.7, 0.7, 0.8),
-      FANGS(2, 0.4, 0.3, 0.35),
-      WOLOLO(3, 0.7, 0.5, 0.2),
-      DISAPPEAR(4, 0.3, 0.3, 0.8),
-      BLINDNESS(5, 0.1, 0.1, 0.2);
+		@Override
+		public void start() {
+			super.start();
+			SpellcastingIllagerEntity.this.navigation.stop();
+		}
 
-      private static final IntFunction<SpellcastingIllagerEntity.Spell> BY_ID = ValueLists.createIndexToValueFunction(
-         (SpellcastingIllagerEntity.Spell spell) -> spell.id, values(), ValueLists.OutOfBoundsHandling.ZERO
-      );
-      final int id;
-      final double[] particleVelocity;
+		@Override
+		public void stop() {
+			super.stop();
+			SpellcastingIllagerEntity.this.setSpell(SpellcastingIllagerEntity.Spell.NONE);
+		}
 
-      private Spell(final int id, final double particleVelocityX, final double particleVelocityY, final double particleVelocityZ) {
-         this.id = id;
-         this.particleVelocity = new double[]{particleVelocityX, particleVelocityY, particleVelocityZ};
-      }
+		@Override
+		public void tick() {
+			if (SpellcastingIllagerEntity.this.getTarget() != null) {
+				SpellcastingIllagerEntity.this.getLookControl()
+				                              .lookAt(
+						                              SpellcastingIllagerEntity.this.getTarget(),
+						                              SpellcastingIllagerEntity.this.getMaxHeadRotation(),
+						                              SpellcastingIllagerEntity.this.getMaxLookPitchChange()
+				                              );
+			}
+		}
+	}
 
-      public static SpellcastingIllagerEntity.Spell byId(int id) {
-         return BY_ID.apply(id);
-      }
-   }
+	/**
+	 * {@code Spell}.
+	 */
+	protected static enum Spell {
+		NONE(0, 0.0, 0.0, 0.0),
+		SUMMON_VEX(1, 0.7, 0.7, 0.8),
+		FANGS(2, 0.4, 0.3, 0.35),
+		WOLOLO(3, 0.7, 0.5, 0.2),
+		DISAPPEAR(4, 0.3, 0.3, 0.8),
+		BLINDNESS(5, 0.1, 0.1, 0.2);
+
+		private static final IntFunction<SpellcastingIllagerEntity.Spell> BY_ID = ValueLists.createIndexToValueFunction(
+				(SpellcastingIllagerEntity.Spell spell) -> spell.id, values(), ValueLists.OutOfBoundsHandling.ZERO
+		);
+		final int id;
+		final double[] particleVelocity;
+
+		private Spell(
+				final int id,
+				final double particleVelocityX,
+				final double particleVelocityY,
+				final double particleVelocityZ
+		) {
+			this.id = id;
+			this.particleVelocity = new double[]{particleVelocityX, particleVelocityY, particleVelocityZ};
+		}
+
+		public static SpellcastingIllagerEntity.Spell byId(int id) {
+			return BY_ID.apply(id);
+		}
+	}
 }

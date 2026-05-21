@@ -1,6 +1,5 @@
 package net.minecraft.entity;
 
-import java.util.Optional;
 import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
@@ -16,74 +15,87 @@ import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 
+import java.util.Optional;
+
+/**
+ * {@code Bucketable}.
+ */
 public interface Bucketable {
-   boolean isFromBucket();
 
-   void setFromBucket(boolean fromBucket);
+	boolean isFromBucket();
 
-   void copyDataToStack(ItemStack stack);
+	void setFromBucket(boolean fromBucket);
 
-   void copyDataFromNbt(NbtCompound nbt);
+	void copyDataToStack(ItemStack stack);
 
-   ItemStack getBucketItem();
+	void copyDataFromNbt(NbtCompound nbt);
 
-   SoundEvent getBucketFillSound();
+	ItemStack getBucketItem();
 
-   @Deprecated
-   static void copyDataToStack(MobEntity entity, ItemStack stack) {
-      stack.copy(DataComponentTypes.CUSTOM_NAME, entity);
-      NbtComponent.set(DataComponentTypes.BUCKET_ENTITY_DATA, stack, nbtCompound -> {
-         if (entity.isAiDisabled()) {
-            nbtCompound.putBoolean("NoAI", entity.isAiDisabled());
-         }
+	SoundEvent getBucketFillSound();
 
-         if (entity.isSilent()) {
-            nbtCompound.putBoolean("Silent", entity.isSilent());
-         }
+	@Deprecated
+	static void copyDataToStack(MobEntity entity, ItemStack stack) {
+		stack.copy(DataComponentTypes.CUSTOM_NAME, entity);
+		NbtComponent.set(
+				DataComponentTypes.BUCKET_ENTITY_DATA, stack, nbtCompound -> {
+					if (entity.isAiDisabled()) {
+						nbtCompound.putBoolean("NoAI", entity.isAiDisabled());
+					}
 
-         if (entity.hasNoGravity()) {
-            nbtCompound.putBoolean("NoGravity", entity.hasNoGravity());
-         }
+					if (entity.isSilent()) {
+						nbtCompound.putBoolean("Silent", entity.isSilent());
+					}
 
-         if (entity.isGlowingLocal()) {
-            nbtCompound.putBoolean("Glowing", entity.isGlowingLocal());
-         }
+					if (entity.hasNoGravity()) {
+						nbtCompound.putBoolean("NoGravity", entity.hasNoGravity());
+					}
 
-         if (entity.isInvulnerable()) {
-            nbtCompound.putBoolean("Invulnerable", entity.isInvulnerable());
-         }
+					if (entity.isGlowingLocal()) {
+						nbtCompound.putBoolean("Glowing", entity.isGlowingLocal());
+					}
 
-         nbtCompound.putFloat("Health", entity.getHealth());
-      });
-   }
+					if (entity.isInvulnerable()) {
+						nbtCompound.putBoolean("Invulnerable", entity.isInvulnerable());
+					}
 
-   @Deprecated
-   static void copyDataFromNbt(MobEntity entity, NbtCompound nbt) {
-      nbt.getBoolean("NoAI").ifPresent(entity::setAiDisabled);
-      nbt.getBoolean("Silent").ifPresent(entity::setSilent);
-      nbt.getBoolean("NoGravity").ifPresent(entity::setNoGravity);
-      nbt.getBoolean("Glowing").ifPresent(entity::setGlowing);
-      nbt.getBoolean("Invulnerable").ifPresent(entity::setInvulnerable);
-      nbt.getFloat("Health").ifPresent(entity::setHealth);
-   }
+					nbtCompound.putFloat("Health", entity.getHealth());
+				}
+		);
+	}
 
-   static <T extends LivingEntity & Bucketable> Optional<ActionResult> tryBucket(PlayerEntity player, Hand hand, T entity) {
-      ItemStack itemStack = player.getStackInHand(hand);
-      if (itemStack.getItem() == Items.WATER_BUCKET && entity.isAlive()) {
-         entity.playSound(entity.getBucketFillSound(), 1.0F, 1.0F);
-         ItemStack itemStack2 = entity.getBucketItem();
-         entity.copyDataToStack(itemStack2);
-         ItemStack itemStack3 = ItemUsage.exchangeStack(itemStack, player, itemStack2, false);
-         player.setStackInHand(hand, itemStack3);
-         World world = entity.getEntityWorld();
-         if (!world.isClient()) {
-            Criteria.FILLED_BUCKET.trigger((ServerPlayerEntity)player, itemStack2);
-         }
+	@Deprecated
+	static void copyDataFromNbt(MobEntity entity, NbtCompound nbt) {
+		nbt.getBoolean("NoAI").ifPresent(entity::setAiDisabled);
+		nbt.getBoolean("Silent").ifPresent(entity::setSilent);
+		nbt.getBoolean("NoGravity").ifPresent(entity::setNoGravity);
+		nbt.getBoolean("Glowing").ifPresent(entity::setGlowing);
+		nbt.getBoolean("Invulnerable").ifPresent(entity::setInvulnerable);
+		nbt.getFloat("Health").ifPresent(entity::setHealth);
+	}
 
-         entity.discard();
-         return Optional.of(ActionResult.SUCCESS);
-      } else {
-         return Optional.empty();
-      }
-   }
+	static <T extends LivingEntity & Bucketable> Optional<ActionResult> tryBucket(
+			PlayerEntity player,
+			Hand hand,
+			T entity
+	) {
+		ItemStack itemStack = player.getStackInHand(hand);
+		if (itemStack.getItem() == Items.WATER_BUCKET && entity.isAlive()) {
+			entity.playSound(entity.getBucketFillSound(), 1.0F, 1.0F);
+			ItemStack itemStack2 = entity.getBucketItem();
+			entity.copyDataToStack(itemStack2);
+			ItemStack itemStack3 = ItemUsage.exchangeStack(itemStack, player, itemStack2, false);
+			player.setStackInHand(hand, itemStack3);
+			World world = entity.getEntityWorld();
+			if (!world.isClient()) {
+				Criteria.FILLED_BUCKET.trigger((ServerPlayerEntity) player, itemStack2);
+			}
+
+			entity.discard();
+			return Optional.of(ActionResult.SUCCESS);
+		}
+		else {
+			return Optional.empty();
+		}
+	}
 }

@@ -1,6 +1,5 @@
 package net.minecraft.world.chunk;
 
-import java.util.function.Predicate;
 import net.minecraft.block.BlockState;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.network.PacketByteBuf;
@@ -9,194 +8,214 @@ import net.minecraft.world.biome.Biome;
 import net.minecraft.world.biome.source.BiomeSupplier;
 import net.minecraft.world.biome.source.util.MultiNoiseUtil;
 
+import java.util.function.Predicate;
+
+/**
+ * {@code ChunkSection}.
+ */
 public class ChunkSection {
-   public static final int field_31406 = 16;
-   public static final int field_31407 = 16;
-   public static final int field_31408 = 4096;
-   public static final int field_34555 = 2;
-   private short nonEmptyBlockCount;
-   private short randomTickableBlockCount;
-   private short nonEmptyFluidCount;
-   private final PalettedContainer<BlockState> blockStateContainer;
-   private ReadableContainer<RegistryEntry<Biome>> biomeContainer;
 
-   private ChunkSection(ChunkSection section) {
-      this.nonEmptyBlockCount = section.nonEmptyBlockCount;
-      this.randomTickableBlockCount = section.randomTickableBlockCount;
-      this.nonEmptyFluidCount = section.nonEmptyFluidCount;
-      this.blockStateContainer = section.blockStateContainer.copy();
-      this.biomeContainer = section.biomeContainer.copy();
-   }
+	public static final int SIZE = 16;
+	public static final int SIZE_BITS = 16;
+	public static final int BLOCK_COUNT = 4096;
+	public static final int BIOME_COORD_BITS = 2;
+	private short nonEmptyBlockCount;
+	private short randomTickableBlockCount;
+	private short nonEmptyFluidCount;
+	private final PalettedContainer<BlockState> blockStateContainer;
+	private ReadableContainer<RegistryEntry<Biome>> biomeContainer;
 
-   public ChunkSection(PalettedContainer<BlockState> blockStateContainer, ReadableContainer<RegistryEntry<Biome>> biomeContainer) {
-      this.blockStateContainer = blockStateContainer;
-      this.biomeContainer = biomeContainer;
-      this.calculateCounts();
-   }
+	private ChunkSection(ChunkSection section) {
+		this.nonEmptyBlockCount = section.nonEmptyBlockCount;
+		this.randomTickableBlockCount = section.randomTickableBlockCount;
+		this.nonEmptyFluidCount = section.nonEmptyFluidCount;
+		this.blockStateContainer = section.blockStateContainer.copy();
+		this.biomeContainer = section.biomeContainer.copy();
+	}
 
-   public ChunkSection(PalettesFactory palettesFactory) {
-      this.blockStateContainer = palettesFactory.getBlockStateContainer();
-      this.biomeContainer = palettesFactory.getBiomeContainer();
-   }
+	public ChunkSection(
+			PalettedContainer<BlockState> blockStateContainer,
+			ReadableContainer<RegistryEntry<Biome>> biomeContainer
+	) {
+		this.blockStateContainer = blockStateContainer;
+		this.biomeContainer = biomeContainer;
+		this.calculateCounts();
+	}
 
-   public BlockState getBlockState(int x, int y, int z) {
-      return this.blockStateContainer.get(x, y, z);
-   }
+	public ChunkSection(PalettesFactory palettesFactory) {
+		this.blockStateContainer = palettesFactory.getBlockStateContainer();
+		this.biomeContainer = palettesFactory.getBiomeContainer();
+	}
 
-   public FluidState getFluidState(int x, int y, int z) {
-      return this.blockStateContainer.get(x, y, z).getFluidState();
-   }
+	public BlockState getBlockState(int x, int y, int z) {
+		return this.blockStateContainer.get(x, y, z);
+	}
 
-   public void lock() {
-      this.blockStateContainer.lock();
-   }
+	public FluidState getFluidState(int x, int y, int z) {
+		return this.blockStateContainer.get(x, y, z).getFluidState();
+	}
 
-   public void unlock() {
-      this.blockStateContainer.unlock();
-   }
+	public void lock() {
+		this.blockStateContainer.lock();
+	}
 
-   public BlockState setBlockState(int x, int y, int z, BlockState state) {
-      return this.setBlockState(x, y, z, state, true);
-   }
+	public void unlock() {
+		this.blockStateContainer.unlock();
+	}
 
-   public BlockState setBlockState(int x, int y, int z, BlockState state, boolean lock) {
-      BlockState blockState;
-      if (lock) {
-         blockState = this.blockStateContainer.swap(x, y, z, state);
-      } else {
-         blockState = this.blockStateContainer.swapUnsafe(x, y, z, state);
-      }
+	public BlockState setBlockState(int x, int y, int z, BlockState state) {
+		return this.setBlockState(x, y, z, state, true);
+	}
 
-      FluidState fluidState = blockState.getFluidState();
-      FluidState fluidState2 = state.getFluidState();
-      if (!blockState.isAir()) {
-         this.nonEmptyBlockCount--;
-         if (blockState.hasRandomTicks()) {
-            this.randomTickableBlockCount--;
-         }
-      }
+	public BlockState setBlockState(int x, int y, int z, BlockState state, boolean lock) {
+		BlockState blockState;
+		if (lock) {
+			blockState = this.blockStateContainer.swap(x, y, z, state);
+		}
+		else {
+			blockState = this.blockStateContainer.swapUnsafe(x, y, z, state);
+		}
 
-      if (!fluidState.isEmpty()) {
-         this.nonEmptyFluidCount--;
-      }
+		FluidState fluidState = blockState.getFluidState();
+		FluidState fluidState2 = state.getFluidState();
+		if (!blockState.isAir()) {
+			this.nonEmptyBlockCount--;
+			if (blockState.hasRandomTicks()) {
+				this.randomTickableBlockCount--;
+			}
+		}
 
-      if (!state.isAir()) {
-         this.nonEmptyBlockCount++;
-         if (state.hasRandomTicks()) {
-            this.randomTickableBlockCount++;
-         }
-      }
+		if (!fluidState.isEmpty()) {
+			this.nonEmptyFluidCount--;
+		}
 
-      if (!fluidState2.isEmpty()) {
-         this.nonEmptyFluidCount++;
-      }
+		if (!state.isAir()) {
+			this.nonEmptyBlockCount++;
+			if (state.hasRandomTicks()) {
+				this.randomTickableBlockCount++;
+			}
+		}
 
-      return blockState;
-   }
+		if (!fluidState2.isEmpty()) {
+			this.nonEmptyFluidCount++;
+		}
 
-   public boolean isEmpty() {
-      return this.nonEmptyBlockCount == 0;
-   }
+		return blockState;
+	}
 
-   public boolean hasRandomTicks() {
-      return this.hasRandomBlockTicks() || this.hasRandomFluidTicks();
-   }
+	public boolean isEmpty() {
+		return this.nonEmptyBlockCount == 0;
+	}
 
-   public boolean hasRandomBlockTicks() {
-      return this.randomTickableBlockCount > 0;
-   }
+	public boolean hasRandomTicks() {
+		return this.hasRandomBlockTicks() || this.hasRandomFluidTicks();
+	}
 
-   public boolean hasRandomFluidTicks() {
-      return this.nonEmptyFluidCount > 0;
-   }
+	public boolean hasRandomBlockTicks() {
+		return this.randomTickableBlockCount > 0;
+	}
 
-   public void calculateCounts() {
-      class BlockStateCounter implements PalettedContainer.Counter<BlockState> {
-         public int nonEmptyBlockCount;
-         public int randomTickableBlockCount;
-         public int nonEmptyFluidCount;
+	public boolean hasRandomFluidTicks() {
+		return this.nonEmptyFluidCount > 0;
+	}
 
-         public void accept(BlockState blockState, int i) {
-            FluidState fluidState = blockState.getFluidState();
-            if (!blockState.isAir()) {
-               this.nonEmptyBlockCount += i;
-               if (blockState.hasRandomTicks()) {
-                  this.randomTickableBlockCount += i;
-               }
-            }
+	public void calculateCounts() {
+		/**
+		 * {@code BlockStateCounter}.
+		 */
+		class BlockStateCounter implements PalettedContainer.Counter<BlockState> {
 
-            if (!fluidState.isEmpty()) {
-               this.nonEmptyBlockCount += i;
-               if (fluidState.hasRandomTicks()) {
-                  this.nonEmptyFluidCount += i;
-               }
-            }
-         }
-      }
+			public int nonEmptyBlockCount;
+			public int randomTickableBlockCount;
+			public int nonEmptyFluidCount;
 
-      BlockStateCounter blockStateCounter = new BlockStateCounter();
-      this.blockStateContainer.count(blockStateCounter);
-      this.nonEmptyBlockCount = (short)blockStateCounter.nonEmptyBlockCount;
-      this.randomTickableBlockCount = (short)blockStateCounter.randomTickableBlockCount;
-      this.nonEmptyFluidCount = (short)blockStateCounter.nonEmptyFluidCount;
-   }
+			public void accept(BlockState blockState, int i) {
+				FluidState fluidState = blockState.getFluidState();
+				if (!blockState.isAir()) {
+					this.nonEmptyBlockCount += i;
+					if (blockState.hasRandomTicks()) {
+						this.randomTickableBlockCount += i;
+					}
+				}
 
-   public PalettedContainer<BlockState> getBlockStateContainer() {
-      return this.blockStateContainer;
-   }
+				if (!fluidState.isEmpty()) {
+					this.nonEmptyBlockCount += i;
+					if (fluidState.hasRandomTicks()) {
+						this.nonEmptyFluidCount += i;
+					}
+				}
+			}
+		}
 
-   public ReadableContainer<RegistryEntry<Biome>> getBiomeContainer() {
-      return this.biomeContainer;
-   }
+		BlockStateCounter blockStateCounter = new BlockStateCounter();
+		this.blockStateContainer.count(blockStateCounter);
+		this.nonEmptyBlockCount = (short) blockStateCounter.nonEmptyBlockCount;
+		this.randomTickableBlockCount = (short) blockStateCounter.randomTickableBlockCount;
+		this.nonEmptyFluidCount = (short) blockStateCounter.nonEmptyFluidCount;
+	}
 
-   public void readDataPacket(PacketByteBuf buf) {
-      this.nonEmptyBlockCount = buf.readShort();
-      this.blockStateContainer.readPacket(buf);
-      PalettedContainer<RegistryEntry<Biome>> palettedContainer = this.biomeContainer.slice();
-      palettedContainer.readPacket(buf);
-      this.biomeContainer = palettedContainer;
-   }
+	public PalettedContainer<BlockState> getBlockStateContainer() {
+		return this.blockStateContainer;
+	}
 
-   public void readBiomePacket(PacketByteBuf buf) {
-      PalettedContainer<RegistryEntry<Biome>> palettedContainer = this.biomeContainer.slice();
-      palettedContainer.readPacket(buf);
-      this.biomeContainer = palettedContainer;
-   }
+	public ReadableContainer<RegistryEntry<Biome>> getBiomeContainer() {
+		return this.biomeContainer;
+	}
 
-   public void toPacket(PacketByteBuf buf) {
-      buf.writeShort(this.nonEmptyBlockCount);
-      this.blockStateContainer.writePacket(buf);
-      this.biomeContainer.writePacket(buf);
-   }
+	public void readDataPacket(PacketByteBuf buf) {
+		this.nonEmptyBlockCount = buf.readShort();
+		this.blockStateContainer.readPacket(buf);
+		PalettedContainer<RegistryEntry<Biome>> palettedContainer = this.biomeContainer.slice();
+		palettedContainer.readPacket(buf);
+		this.biomeContainer = palettedContainer;
+	}
 
-   public int getPacketSize() {
-      return 2 + this.blockStateContainer.getPacketSize() + this.biomeContainer.getPacketSize();
-   }
+	public void readBiomePacket(PacketByteBuf buf) {
+		PalettedContainer<RegistryEntry<Biome>> palettedContainer = this.biomeContainer.slice();
+		palettedContainer.readPacket(buf);
+		this.biomeContainer = palettedContainer;
+	}
 
-   public boolean hasAny(Predicate<BlockState> predicate) {
-      return this.blockStateContainer.hasAny(predicate);
-   }
+	public void toPacket(PacketByteBuf buf) {
+		buf.writeShort(this.nonEmptyBlockCount);
+		this.blockStateContainer.writePacket(buf);
+		this.biomeContainer.writePacket(buf);
+	}
 
-   public RegistryEntry<Biome> getBiome(int x, int y, int z) {
-      return this.biomeContainer.get(x, y, z);
-   }
+	public int getPacketSize() {
+		return 2 + this.blockStateContainer.getPacketSize() + this.biomeContainer.getPacketSize();
+	}
 
-   public void populateBiomes(BiomeSupplier biomeSupplier, MultiNoiseUtil.MultiNoiseSampler sampler, int x, int y, int z) {
-      PalettedContainer<RegistryEntry<Biome>> palettedContainer = this.biomeContainer.slice();
-      int i = 4;
+	public boolean hasAny(Predicate<BlockState> predicate) {
+		return this.blockStateContainer.hasAny(predicate);
+	}
 
-      for (int j = 0; j < 4; j++) {
-         for (int k = 0; k < 4; k++) {
-            for (int l = 0; l < 4; l++) {
-               palettedContainer.swapUnsafe(j, k, l, biomeSupplier.getBiome(x + j, y + k, z + l, sampler));
-            }
-         }
-      }
+	public RegistryEntry<Biome> getBiome(int x, int y, int z) {
+		return this.biomeContainer.get(x, y, z);
+	}
 
-      this.biomeContainer = palettedContainer;
-   }
+	public void populateBiomes(
+			BiomeSupplier biomeSupplier,
+			MultiNoiseUtil.MultiNoiseSampler sampler,
+			int x,
+			int y,
+			int z
+	) {
+		PalettedContainer<RegistryEntry<Biome>> palettedContainer = this.biomeContainer.slice();
+		int i = 4;
 
-   public ChunkSection copy() {
-      return new ChunkSection(this);
-   }
+		for (int j = 0; j < 4; j++) {
+			for (int k = 0; k < 4; k++) {
+				for (int l = 0; l < 4; l++) {
+					palettedContainer.swapUnsafe(j, k, l, biomeSupplier.getBiome(x + j, y + k, z + l, sampler));
+				}
+			}
+		}
+
+		this.biomeContainer = palettedContainer;
+	}
+
+	public ChunkSection copy() {
+		return new ChunkSection(this);
+	}
 }

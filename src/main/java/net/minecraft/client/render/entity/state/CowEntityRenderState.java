@@ -6,6 +6,10 @@ import net.minecraft.entity.passive.CowVariant;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code CowEntityRenderState}.
+ */
 public class CowEntityRenderState extends LivingEntityRenderState {
-   public @Nullable CowVariant variant;
+
+	public @Nullable CowVariant variant;
 }

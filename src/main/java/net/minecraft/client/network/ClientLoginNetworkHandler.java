@@ -1,24 +1,8 @@
 package net.minecraft.client.network;
 
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.exceptions.AuthenticationException;
-import com.mojang.authlib.exceptions.AuthenticationUnavailableException;
-import com.mojang.authlib.exceptions.ForcedUsernameChangeException;
-import com.mojang.authlib.exceptions.InsufficientPrivilegesException;
-import com.mojang.authlib.exceptions.InvalidCredentialsException;
-import com.mojang.authlib.exceptions.UserBannedException;
+import com.mojang.authlib.exceptions.*;
 import com.mojang.logging.LogUtils;
-import java.math.BigInteger;
-import java.security.PublicKey;
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.ClientBrandRetriever;
@@ -39,11 +23,7 @@ import net.minecraft.network.packet.c2s.login.EnterConfigurationC2SPacket;
 import net.minecraft.network.packet.c2s.login.LoginKeyC2SPacket;
 import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.network.packet.s2c.common.CookieRequestS2CPacket;
-import net.minecraft.network.packet.s2c.login.LoginCompressionS2CPacket;
-import net.minecraft.network.packet.s2c.login.LoginDisconnectS2CPacket;
-import net.minecraft.network.packet.s2c.login.LoginHelloS2CPacket;
-import net.minecraft.network.packet.s2c.login.LoginQueryRequestS2CPacket;
-import net.minecraft.network.packet.s2c.login.LoginSuccessS2CPacket;
+import net.minecraft.network.packet.s2c.login.*;
 import net.minecraft.network.state.ConfigurationStates;
 import net.minecraft.resource.featuretoggle.FeatureFlags;
 import net.minecraft.screen.ScreenTexts;
@@ -56,220 +36,297 @@ import net.minecraft.util.crash.CrashReportSection;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import java.math.BigInteger;
+import java.security.PublicKey;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+
+/**
+ * Обработчик пакетов фазы логина на стороне клиента.
+ * Управляет аутентификацией, шифрованием и переходом в фазу конфигурации.
+ */
 @Environment(EnvType.CLIENT)
 public class ClientLoginNetworkHandler implements ClientLoginPacketListener {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   private final MinecraftClient client;
-   private final @Nullable ServerInfo serverInfo;
-   private final @Nullable Screen parentScreen;
-   private final Consumer<Text> statusConsumer;
-   private final ClientConnection connection;
-   private final boolean newWorld;
-   private final @Nullable Duration worldLoadTime;
-   private @Nullable String minigameName;
-   private final ClientChunkLoadProgress clientChunkLoadProgress;
-   private final Map<Identifier, byte[]> serverCookies;
-   private final boolean hasCookies;
-   private final Map<UUID, PlayerListEntry> playersByUuid;
-   private final boolean seenInsecureChatWarning;
-   private final AtomicReference<ClientLoginNetworkHandler.State> state = new AtomicReference<>(ClientLoginNetworkHandler.State.CONNECTING);
 
-   public ClientLoginNetworkHandler(
-      ClientConnection connection,
-      MinecraftClient client,
-      @Nullable ServerInfo serverInfo,
-      @Nullable Screen parentScreen,
-      boolean newWorld,
-      @Nullable Duration worldLoadTime,
-      Consumer<Text> statusConsumer,
-      ClientChunkLoadProgress clientChunkLoadProgress,
-      @Nullable CookieStorage cookieStorage
-   ) {
-      this.connection = connection;
-      this.client = client;
-      this.serverInfo = serverInfo;
-      this.parentScreen = parentScreen;
-      this.statusConsumer = statusConsumer;
-      this.newWorld = newWorld;
-      this.worldLoadTime = worldLoadTime;
-      this.clientChunkLoadProgress = clientChunkLoadProgress;
-      this.serverCookies = cookieStorage != null ? new HashMap<>(cookieStorage.cookies()) : new HashMap<>();
-      this.playersByUuid = cookieStorage != null ? cookieStorage.seenPlayers() : Map.of();
-      this.seenInsecureChatWarning = cookieStorage != null ? cookieStorage.seenInsecureChatWarning() : false;
-      this.hasCookies = cookieStorage != null;
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
 
-   private void switchTo(ClientLoginNetworkHandler.State state) {
-      ClientLoginNetworkHandler.State state2 = this.state.updateAndGet(currentState -> {
-         if (!state.prevStates.contains(currentState)) {
-            throw new IllegalStateException("Tried to switch to " + state + " from " + currentState + ", but expected one of " + state.prevStates);
-         } else {
-            return state;
-         }
-      });
-      this.statusConsumer.accept(state2.name);
-   }
+	private final MinecraftClient client;
+	private final @Nullable ServerInfo serverInfo;
+	private final @Nullable Screen parentScreen;
+	private final Consumer<Text> statusConsumer;
+	private final ClientConnection connection;
+	private final boolean newWorld;
+	private final @Nullable Duration worldLoadTime;
+	private @Nullable String minigameName;
+	private final ClientChunkLoadProgress clientChunkLoadProgress;
+	private final Map<Identifier, byte[]> serverCookies;
+	private final boolean hasCookies;
+	private final Map<UUID, PlayerListEntry> playersByUuid;
+	private final boolean seenInsecureChatWarning;
+	private final AtomicReference<ClientLoginNetworkHandler.State> state =
+			new AtomicReference<>(ClientLoginNetworkHandler.State.CONNECTING);
 
-   @Override
-   public void onHello(LoginHelloS2CPacket packet) {
-      this.switchTo(ClientLoginNetworkHandler.State.AUTHORIZING);
+	/**
+	 * @param connection              сетевое соединение
+	 * @param client                  клиент Minecraft
+	 * @param serverInfo              информация о сервере или {@code null}
+	 * @param parentScreen            экран для возврата при отключении
+	 * @param newWorld                {@code true} если это новый мир
+	 * @param worldLoadTime           время загрузки мира для телеметрии
+	 * @param statusConsumer          колбэк для отображения статуса подключения
+	 * @param clientChunkLoadProgress прогресс загрузки чанков
+	 * @param cookieStorage           хранилище куки от предыдущего соединения или {@code null}
+	 */
+	public ClientLoginNetworkHandler(
+			ClientConnection connection,
+			MinecraftClient client,
+			@Nullable ServerInfo serverInfo,
+			@Nullable Screen parentScreen,
+			boolean newWorld,
+			@Nullable Duration worldLoadTime,
+			Consumer<Text> statusConsumer,
+			ClientChunkLoadProgress clientChunkLoadProgress,
+			@Nullable CookieStorage cookieStorage
+	) {
+		this.connection = connection;
+		this.client = client;
+		this.serverInfo = serverInfo;
+		this.parentScreen = parentScreen;
+		this.statusConsumer = statusConsumer;
+		this.newWorld = newWorld;
+		this.worldLoadTime = worldLoadTime;
+		this.clientChunkLoadProgress = clientChunkLoadProgress;
+		serverCookies = cookieStorage != null ? new HashMap<>(cookieStorage.cookies()) : new HashMap<>();
+		playersByUuid = cookieStorage != null ? cookieStorage.seenPlayers() : Map.of();
+		seenInsecureChatWarning = cookieStorage != null && cookieStorage.seenInsecureChatWarning();
+		hasCookies = cookieStorage != null;
+	}
 
-      Cipher cipher;
-      Cipher cipher2;
-      String string;
-      LoginKeyC2SPacket loginKeyC2SPacket;
-      try {
-         SecretKey secretKey = NetworkEncryptionUtils.generateSecretKey();
-         PublicKey publicKey = packet.getPublicKey();
-         string = new BigInteger(NetworkEncryptionUtils.computeServerId(packet.getServerId(), publicKey, secretKey)).toString(16);
-         cipher = NetworkEncryptionUtils.cipherFromKey(2, secretKey);
-         cipher2 = NetworkEncryptionUtils.cipherFromKey(1, secretKey);
-         byte[] bs = packet.getNonce();
-         loginKeyC2SPacket = new LoginKeyC2SPacket(secretKey, publicKey, bs);
-      } catch (Exception var9) {
-         throw new IllegalStateException("Protocol error", var9);
-      }
+	@Override
+	public void onHello(LoginHelloS2CPacket packet) {
+		switchTo(ClientLoginNetworkHandler.State.AUTHORIZING);
 
-      if (packet.needsAuthentication()) {
-         Util.getIoWorkerExecutor().execute(() -> {
-            Text text = this.joinServerSession(string);
-            if (text != null) {
-               if (this.serverInfo == null || !this.serverInfo.isLocal()) {
-                  this.connection.disconnect(text);
-                  return;
-               }
+		Cipher decryptionCipher;
+		Cipher encryptionCipher;
+		String serverId;
+		LoginKeyC2SPacket keyPacket;
 
-               LOGGER.warn(text.getString());
-            }
+		try {
+			SecretKey secretKey = NetworkEncryptionUtils.generateSecretKey();
+			PublicKey publicKey = packet.getPublicKey();
+			serverId = new BigInteger(
+					NetworkEncryptionUtils.computeServerId(packet.getServerId(), publicKey, secretKey)
+			).toString(16);
+			decryptionCipher = NetworkEncryptionUtils.cipherFromKey(2, secretKey);
+			encryptionCipher = NetworkEncryptionUtils.cipherFromKey(1, secretKey);
+			keyPacket = new LoginKeyC2SPacket(secretKey, publicKey, packet.getNonce());
+		}
+		catch (Exception e) {
+			throw new IllegalStateException("Protocol error", e);
+		}
 
-            this.setupEncryption(loginKeyC2SPacket, cipher, cipher2);
-         });
-      } else {
-         this.setupEncryption(loginKeyC2SPacket, cipher, cipher2);
-      }
-   }
+		if (packet.needsAuthentication() == false) {
+			setupEncryption(keyPacket, decryptionCipher, encryptionCipher);
+			return;
+		}
 
-   private void setupEncryption(LoginKeyC2SPacket keyPacket, Cipher decryptionCipher, Cipher encryptionCipher) {
-      this.switchTo(ClientLoginNetworkHandler.State.ENCRYPTING);
-      this.connection.send(keyPacket, PacketCallbacks.always(() -> this.connection.setupEncryption(decryptionCipher, encryptionCipher)));
-   }
+		final Cipher finalDecryption = decryptionCipher;
+		final Cipher finalEncryption = encryptionCipher;
+		final LoginKeyC2SPacket finalKeyPacket = keyPacket;
+		final String finalServerId = serverId;
 
-   private @Nullable Text joinServerSession(String serverId) {
-      try {
-         this.client
-            .getApiServices()
-            .sessionService()
-            .joinServer(this.client.getSession().getUuidOrNull(), this.client.getSession().getAccessToken(), serverId);
-         return null;
-      } catch (AuthenticationUnavailableException var3) {
-         return Text.translatable("disconnect.loginFailedInfo", Text.translatable("disconnect.loginFailedInfo.serversUnavailable"));
-      } catch (InvalidCredentialsException var4) {
-         return Text.translatable("disconnect.loginFailedInfo", Text.translatable("disconnect.loginFailedInfo.invalidSession"));
-      } catch (InsufficientPrivilegesException var5) {
-         return Text.translatable("disconnect.loginFailedInfo", Text.translatable("disconnect.loginFailedInfo.insufficientPrivileges"));
-      } catch (ForcedUsernameChangeException | UserBannedException var6) {
-         return Text.translatable("disconnect.loginFailedInfo", Text.translatable("disconnect.loginFailedInfo.userBanned"));
-      } catch (AuthenticationException var7) {
-         return Text.translatable("disconnect.loginFailedInfo", var7.getMessage());
-      }
-   }
+		Util.getIoWorkerExecutor().execute(() -> {
+			Text error = joinServerSession(finalServerId);
 
-   @Override
-   public void onSuccess(LoginSuccessS2CPacket packet) {
-      this.switchTo(ClientLoginNetworkHandler.State.JOINING);
-      GameProfile gameProfile = packet.profile();
-      this.connection
-         .transitionInbound(
-            ConfigurationStates.S2C,
-            new ClientConfigurationNetworkHandler(
-               this.client,
-               this.connection,
-               new ClientConnectionState(
-                  this.clientChunkLoadProgress,
-                  gameProfile,
-                  this.client.getTelemetryManager().createWorldSession(this.newWorld, this.worldLoadTime, this.minigameName),
-                  ClientDynamicRegistryType.createCombinedDynamicRegistries().getCombinedRegistryManager(),
-                  FeatureFlags.DEFAULT_ENABLED_FEATURES,
-                  null,
-                  this.serverInfo,
-                  this.parentScreen,
-                  this.serverCookies,
-                  null,
-                  Map.of(),
-                  ServerLinks.EMPTY,
-                  this.playersByUuid,
-                  false
-               )
-            )
-         );
-      this.connection.send(EnterConfigurationC2SPacket.INSTANCE);
-      this.connection.transitionOutbound(ConfigurationStates.C2S);
-      this.connection.send(new CustomPayloadC2SPacket(new BrandCustomPayload(ClientBrandRetriever.getClientModName())));
-      this.connection.send(new ClientOptionsC2SPacket(this.client.options.getSyncedOptions()));
-   }
+			if (error != null) {
+				if (serverInfo == null || serverInfo.isLocal() == false) {
+					connection.disconnect(error);
+					return;
+				}
 
-   @Override
-   public void onDisconnected(DisconnectionInfo info) {
-      Text text = this.hasCookies ? ScreenTexts.CONNECT_FAILED_TRANSFER : ScreenTexts.CONNECT_FAILED;
-      if (this.serverInfo != null && this.serverInfo.isRealm()) {
-         this.client.setScreen(new DisconnectedScreen(this.parentScreen, text, info.reason(), ScreenTexts.BACK));
-      } else {
-         this.client.setScreen(new DisconnectedScreen(this.parentScreen, text, info));
-      }
-   }
+				LOGGER.warn(error.getString());
+			}
 
-   @Override
-   public boolean isConnectionOpen() {
-      return this.connection.isOpen();
-   }
+			setupEncryption(finalKeyPacket, finalDecryption, finalEncryption);
+		});
+	}
 
-   @Override
-   public void onDisconnect(LoginDisconnectS2CPacket packet) {
-      this.connection.disconnect(packet.reason());
-   }
+	@Override
+	public void onSuccess(LoginSuccessS2CPacket packet) {
+		switchTo(ClientLoginNetworkHandler.State.JOINING);
+		GameProfile profile = packet.profile();
 
-   @Override
-   public void onCompression(LoginCompressionS2CPacket packet) {
-      if (!this.connection.isLocal()) {
-         this.connection.setCompressionThreshold(packet.getCompressionThreshold(), false);
-      }
-   }
+		connection.transitionInbound(
+				ConfigurationStates.S2C,
+				new ClientConfigurationNetworkHandler(
+						client,
+						connection,
+						new ClientConnectionState(
+								clientChunkLoadProgress,
+								profile,
+								client.getTelemetryManager().createWorldSession(newWorld, worldLoadTime, minigameName),
+								ClientDynamicRegistryType
+										.createCombinedDynamicRegistries()
+										.getCombinedRegistryManager(),
+								FeatureFlags.DEFAULT_ENABLED_FEATURES,
+								null,
+								serverInfo,
+								parentScreen,
+								serverCookies,
+								null,
+								Map.of(),
+								ServerLinks.EMPTY,
+								playersByUuid,
+								false
+						)
+				)
+		);
 
-   @Override
-   public void onQueryRequest(LoginQueryRequestS2CPacket packet) {
-      this.statusConsumer.accept(Text.translatable("connect.negotiating"));
-      this.connection.send(new LoginQueryResponseC2SPacket(packet.queryId(), null));
-   }
+		connection.send(EnterConfigurationC2SPacket.INSTANCE);
+		connection.transitionOutbound(ConfigurationStates.C2S);
+		connection.send(new CustomPayloadC2SPacket(new BrandCustomPayload(ClientBrandRetriever.getClientModName())));
+		connection.send(new ClientOptionsC2SPacket(client.options.getSyncedOptions()));
+	}
 
-   public void setMinigameName(@Nullable String minigameName) {
-      this.minigameName = minigameName;
-   }
+	@Override
+	public void onDisconnected(DisconnectionInfo info) {
+		Text title = hasCookies ? ScreenTexts.CONNECT_FAILED_TRANSFER : ScreenTexts.CONNECT_FAILED;
 
-   @Override
-   public void onCookieRequest(CookieRequestS2CPacket packet) {
-      this.connection.send(new CookieResponseC2SPacket(packet.key(), this.serverCookies.get(packet.key())));
-   }
+		if (serverInfo != null && serverInfo.isRealm()) {
+			client.setScreen(new DisconnectedScreen(parentScreen, title, info.reason(), ScreenTexts.BACK));
+		}
+		else {
+			client.setScreen(new DisconnectedScreen(parentScreen, title, info));
+		}
+	}
 
-   @Override
-   public void addCustomCrashReportInfo(CrashReport report, CrashReportSection section) {
-      section.add("Server type", () -> this.serverInfo != null ? this.serverInfo.getServerType().toString() : "<unknown>");
-      section.add("Login phase", () -> this.state.get().toString());
-      section.add("Is Local", () -> String.valueOf(this.connection.isLocal()));
-   }
+	@Override
+	public boolean isConnectionOpen() {
+		return connection.isOpen();
+	}
 
-   @Environment(EnvType.CLIENT)
-   static enum State {
-      CONNECTING(Text.translatable("connect.connecting"), Set.of()),
-      AUTHORIZING(Text.translatable("connect.authorizing"), Set.of(CONNECTING)),
-      ENCRYPTING(Text.translatable("connect.encrypting"), Set.of(AUTHORIZING)),
-      JOINING(Text.translatable("connect.joining"), Set.of(ENCRYPTING, CONNECTING));
+	@Override
+	public void onDisconnect(LoginDisconnectS2CPacket packet) {
+		connection.disconnect(packet.reason());
+	}
 
-      final Text name;
-      final Set<ClientLoginNetworkHandler.State> prevStates;
+	@Override
+	public void onCompression(LoginCompressionS2CPacket packet) {
+		if (connection.isLocal()) {
+			return;
+		}
 
-      private State(final Text name, final Set<ClientLoginNetworkHandler.State> prevStates) {
-         this.name = name;
-         this.prevStates = prevStates;
-      }
-   }
+		connection.setCompressionThreshold(packet.getCompressionThreshold(), false);
+	}
+
+	@Override
+	public void onQueryRequest(LoginQueryRequestS2CPacket packet) {
+		statusConsumer.accept(Text.translatable("connect.negotiating"));
+		connection.send(new LoginQueryResponseC2SPacket(packet.queryId(), null));
+	}
+
+	/**
+	 * Устанавливает имя мини-игры для телеметрии.
+	 *
+	 * @param minigameName название мини-игры или {@code null}
+	 */
+	public void setMinigameName(@Nullable String minigameName) {
+		this.minigameName = minigameName;
+	}
+
+	@Override
+	public void onCookieRequest(CookieRequestS2CPacket packet) {
+		connection.send(new CookieResponseC2SPacket(packet.key(), serverCookies.get(packet.key())));
+	}
+
+	@Override
+	public void addCustomCrashReportInfo(CrashReport report, CrashReportSection section) {
+		section.add("Server type", () -> serverInfo != null ? serverInfo.getServerType().toString() : "<unknown>");
+		section.add("Login phase", () -> state.get().toString());
+		section.add("Is Local", () -> String.valueOf(connection.isLocal()));
+	}
+
+	private void switchTo(ClientLoginNetworkHandler.State newState) {
+		ClientLoginNetworkHandler.State updated = state.updateAndGet(current -> {
+			if (newState.prevStates.contains(current) == false) {
+				throw new IllegalStateException(
+						"Tried to switch to " + newState + " from " + current
+								+ ", but expected one of " + newState.prevStates
+				);
+			}
+
+			return newState;
+		});
+		statusConsumer.accept(updated.name);
+	}
+
+	private void setupEncryption(LoginKeyC2SPacket keyPacket, Cipher decryptionCipher, Cipher encryptionCipher) {
+		switchTo(ClientLoginNetworkHandler.State.ENCRYPTING);
+		connection.send(
+				keyPacket,
+				PacketCallbacks.always(() -> connection.setupEncryption(decryptionCipher, encryptionCipher))
+		);
+	}
+
+	private @Nullable Text joinServerSession(String serverId) {
+		try {
+			client.getApiServices()
+			      .sessionService()
+			      .joinServer(client.getSession().getUuidOrNull(), client.getSession().getAccessToken(), serverId);
+			return null;
+		}
+		catch (AuthenticationUnavailableException e) {
+			return Text.translatable(
+					"disconnect.loginFailedInfo",
+					Text.translatable("disconnect.loginFailedInfo.serversUnavailable")
+			);
+		}
+		catch (InvalidCredentialsException e) {
+			return Text.translatable(
+					"disconnect.loginFailedInfo",
+					Text.translatable("disconnect.loginFailedInfo.invalidSession")
+			);
+		}
+		catch (InsufficientPrivilegesException e) {
+			return Text.translatable(
+					"disconnect.loginFailedInfo",
+					Text.translatable("disconnect.loginFailedInfo.insufficientPrivileges")
+			);
+		}
+		catch (ForcedUsernameChangeException | UserBannedException e) {
+			return Text.translatable(
+					"disconnect.loginFailedInfo",
+					Text.translatable("disconnect.loginFailedInfo.userBanned")
+			);
+		}
+		catch (AuthenticationException e) {
+			return Text.translatable("disconnect.loginFailedInfo", e.getMessage());
+		}
+	}
+
+	/**
+	 * Состояния процесса логина.
+	 */
+	@Environment(EnvType.CLIENT)
+	enum State {
+		CONNECTING(Text.translatable("connect.connecting"), Set.of()),
+		AUTHORIZING(Text.translatable("connect.authorizing"), Set.of(CONNECTING)),
+		ENCRYPTING(Text.translatable("connect.encrypting"), Set.of(AUTHORIZING)),
+		JOINING(Text.translatable("connect.joining"), Set.of(ENCRYPTING, CONNECTING));
+
+		final Text name;
+		final Set<ClientLoginNetworkHandler.State> prevStates;
+
+		State(final Text name, final Set<ClientLoginNetworkHandler.State> prevStates) {
+			this.name = name;
+			this.prevStates = prevStates;
+		}
+	}
 }

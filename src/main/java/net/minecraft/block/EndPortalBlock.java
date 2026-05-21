@@ -1,7 +1,6 @@
 package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
-import java.util.Set;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.EndPortalBlockEntity;
 import net.minecraft.entity.Entity;
@@ -18,116 +17,134 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.util.shape.VoxelShape;
-import net.minecraft.world.BlockView;
-import net.minecraft.world.TeleportTarget;
-import net.minecraft.world.World;
-import net.minecraft.world.WorldProperties;
-import net.minecraft.world.WorldView;
+import net.minecraft.world.*;
 import net.minecraft.world.gen.feature.EndPlatformFeature;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Set;
+
+/**
+ * {@code EndPortalBlock}.
+ */
 public class EndPortalBlock extends BlockWithEntity implements Portal {
-   public static final MapCodec<EndPortalBlock> CODEC = createCodec(EndPortalBlock::new);
-   private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 6.0, 12.0);
 
-   @Override
-   public MapCodec<EndPortalBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<EndPortalBlock> CODEC = createCodec(EndPortalBlock::new);
+	private static final VoxelShape SHAPE = Block.createColumnShape(16.0, 6.0, 12.0);
 
-   public EndPortalBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<EndPortalBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new EndPortalBlockEntity(pos, state);
-   }
+	public EndPortalBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-      return SHAPE;
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new EndPortalBlockEntity(pos, state);
+	}
 
-   @Override
-   protected VoxelShape getInsideCollisionShape(BlockState state, BlockView world, BlockPos pos, Entity entity) {
-      return state.getOutlineShape(world, pos);
-   }
+	@Override
+	protected VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
+		return SHAPE;
+	}
 
-   @Override
-   protected void onEntityCollision(BlockState state, World world, BlockPos pos, Entity entity, EntityCollisionHandler handler, boolean bl) {
-      if (entity.canUsePortals(false)) {
-         if (!world.isClient()
-            && world.getRegistryKey() == World.END
-            && entity instanceof ServerPlayerEntity serverPlayerEntity
-            && !serverPlayerEntity.seenCredits) {
-            serverPlayerEntity.detachForDimensionChange();
-         } else {
-            entity.tryUsePortal(this, pos);
-         }
-      }
-   }
+	@Override
+	protected VoxelShape getInsideCollisionShape(BlockState state, BlockView world, BlockPos pos, Entity entity) {
+		return state.getOutlineShape(world, pos);
+	}
 
-   @Override
-   public @Nullable TeleportTarget createTeleportTarget(ServerWorld world, Entity entity, BlockPos pos) {
-      WorldProperties.SpawnPoint spawnPoint = world.getSpawnPoint();
-      RegistryKey<World> registryKey = world.getRegistryKey();
-      boolean bl = registryKey == World.END;
-      RegistryKey<World> registryKey2 = bl ? spawnPoint.getDimension() : World.END;
-      BlockPos blockPos = bl ? spawnPoint.getPos() : ServerWorld.END_SPAWN_POS;
-      ServerWorld serverWorld = world.getServer().getWorld(registryKey2);
-      if (serverWorld == null) {
-         return null;
-      } else {
-         Vec3d vec3d = blockPos.toBottomCenterPos();
-         float f;
-         float g;
-         Set<PositionFlag> set;
-         if (!bl) {
-            EndPlatformFeature.generate(serverWorld, BlockPos.ofFloored(vec3d).down(), true);
-            f = Direction.WEST.getPositiveHorizontalDegrees();
-            g = 0.0F;
-            set = PositionFlag.combine(PositionFlag.DELTA, Set.of(PositionFlag.X_ROT));
-            if (entity instanceof ServerPlayerEntity) {
-               vec3d = vec3d.subtract(0.0, 1.0, 0.0);
-            }
-         } else {
-            f = spawnPoint.yaw();
-            g = spawnPoint.pitch();
-            set = PositionFlag.combine(PositionFlag.DELTA, PositionFlag.ROT);
-            if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
-               return serverPlayerEntity.getRespawnTarget(false, TeleportTarget.NO_OP);
-            }
+	@Override
+	protected void onEntityCollision(
+			BlockState state,
+			World world,
+			BlockPos pos,
+			Entity entity,
+			EntityCollisionHandler handler,
+			boolean bl
+	) {
+		if (entity.canUsePortals(false)) {
+			if (!world.isClient()
+					&& world.getRegistryKey() == World.END
+					&& entity instanceof ServerPlayerEntity serverPlayerEntity
+					&& !serverPlayerEntity.seenCredits) {
+				serverPlayerEntity.detachForDimensionChange();
+			}
+			else {
+				entity.tryUsePortal(this, pos);
+			}
+		}
+	}
 
-            vec3d = entity.getWorldSpawnPos(serverWorld, blockPos).toBottomCenterPos();
-         }
+	@Override
+	public @Nullable TeleportTarget createTeleportTarget(ServerWorld world, Entity entity, BlockPos pos) {
+		WorldProperties.SpawnPoint spawnPoint = world.getSpawnPoint();
+		RegistryKey<World> registryKey = world.getRegistryKey();
+		boolean bl = registryKey == World.END;
+		RegistryKey<World> registryKey2 = bl ? spawnPoint.getDimension() : World.END;
+		BlockPos blockPos = bl ? spawnPoint.getPos() : ServerWorld.END_SPAWN_POS;
+		ServerWorld serverWorld = world.getServer().getWorld(registryKey2);
+		if (serverWorld == null) {
+			return null;
+		}
+		else {
+			Vec3d vec3d = blockPos.toBottomCenterPos();
+			float f;
+			float g;
+			Set<PositionFlag> set;
+			if (!bl) {
+				EndPlatformFeature.generate(serverWorld, BlockPos.ofFloored(vec3d).down(), true);
+				f = Direction.WEST.getPositiveHorizontalDegrees();
+				g = 0.0F;
+				set = PositionFlag.combine(PositionFlag.DELTA, Set.of(PositionFlag.X_ROT));
+				if (entity instanceof ServerPlayerEntity) {
+					vec3d = vec3d.subtract(0.0, 1.0, 0.0);
+				}
+			}
+			else {
+				f = spawnPoint.yaw();
+				g = spawnPoint.pitch();
+				set = PositionFlag.combine(PositionFlag.DELTA, PositionFlag.ROT);
+				if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
+					return serverPlayerEntity.getRespawnTarget(false, TeleportTarget.NO_OP);
+				}
 
-         return new TeleportTarget(
-            serverWorld, vec3d, Vec3d.ZERO, f, g, set, TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET.then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)
-         );
-      }
-   }
+				vec3d = entity.getWorldSpawnPos(serverWorld, blockPos).toBottomCenterPos();
+			}
 
-   @Override
-   public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
-      double d = pos.getX() + random.nextDouble();
-      double e = pos.getY() + 0.8;
-      double f = pos.getZ() + random.nextDouble();
-      world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
-   }
+			return new TeleportTarget(
+					serverWorld,
+					vec3d,
+					Vec3d.ZERO,
+					f,
+					g,
+					set,
+					TeleportTarget.SEND_TRAVEL_THROUGH_PORTAL_PACKET.then(TeleportTarget.ADD_PORTAL_CHUNK_TICKET)
+			);
+		}
+	}
 
-   @Override
-   protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
-      return ItemStack.EMPTY;
-   }
+	@Override
+	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
+		double d = pos.getX() + random.nextDouble();
+		double e = pos.getY() + 0.8;
+		double f = pos.getZ() + random.nextDouble();
+		world.addParticleClient(ParticleTypes.SMOKE, d, e, f, 0.0, 0.0, 0.0);
+	}
 
-   @Override
-   protected boolean canBucketPlace(BlockState state, Fluid fluid) {
-      return false;
-   }
+	@Override
+	protected ItemStack getPickStack(WorldView world, BlockPos pos, BlockState state, boolean includeData) {
+		return ItemStack.EMPTY;
+	}
 
-   @Override
-   protected BlockRenderType getRenderType(BlockState state) {
-      return BlockRenderType.INVISIBLE;
-   }
+	@Override
+	protected boolean canBucketPlace(BlockState state, Fluid fluid) {
+		return false;
+	}
+
+	@Override
+	protected BlockRenderType getRenderType(BlockState state) {
+		return BlockRenderType.INVISIBLE;
+	}
 }

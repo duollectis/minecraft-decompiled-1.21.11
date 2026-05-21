@@ -5,9 +5,13 @@ import net.fabricmc.api.Environment;
 import net.minecraft.entity.AnimationState;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ArmadilloEntityRenderState}.
+ */
 public class ArmadilloEntityRenderState extends LivingEntityRenderState {
-   public boolean rolledUp;
-   public final AnimationState unrollingAnimationState = new AnimationState();
-   public final AnimationState rollingAnimationState = new AnimationState();
-   public final AnimationState scaredAnimationState = new AnimationState();
+
+	public boolean rolledUp;
+	public final AnimationState unrollingAnimationState = new AnimationState();
+	public final AnimationState rollingAnimationState = new AnimationState();
+	public final AnimationState scaredAnimationState = new AnimationState();
 }

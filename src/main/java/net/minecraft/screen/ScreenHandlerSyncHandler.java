@@ -1,17 +1,22 @@
 package net.minecraft.screen;
 
-import java.util.List;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.sync.TrackedSlot;
 
+import java.util.List;
+
+/**
+ * {@code ScreenHandlerSyncHandler}.
+ */
 public interface ScreenHandlerSyncHandler {
-   void updateState(ScreenHandler handler, List<ItemStack> stacks, ItemStack cursorStack, int[] properties);
 
-   void updateSlot(ScreenHandler handler, int slot, ItemStack stack);
+	void updateState(ScreenHandler handler, List<ItemStack> stacks, ItemStack cursorStack, int[] properties);
 
-   void updateCursorStack(ScreenHandler handler, ItemStack stack);
+	void updateSlot(ScreenHandler handler, int slot, ItemStack stack);
 
-   void updateProperty(ScreenHandler handler, int property, int value);
+	void updateCursorStack(ScreenHandler handler, ItemStack stack);
 
-   TrackedSlot createTrackedSlot();
+	void updateProperty(ScreenHandler handler, int property, int value);
+
+	TrackedSlot createTrackedSlot();
 }

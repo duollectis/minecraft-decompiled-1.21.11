@@ -14,28 +14,49 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BreezeWindFeatureRenderer}.
+ */
 public class BreezeWindFeatureRenderer extends FeatureRenderer<BreezeEntityRenderState, BreezeEntityModel> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/breeze/breeze_wind.png");
-   private final BreezeEntityModel model;
 
-   public BreezeWindFeatureRenderer(
-      FeatureRendererContext<BreezeEntityRenderState, BreezeEntityModel> featureRendererContext, LoadedEntityModels loadedEntityModels
-   ) {
-      super(featureRendererContext);
-      this.model = new BreezeEntityModel(loadedEntityModels.getModelPart(EntityModelLayers.BREEZE_WIND));
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/breeze/breeze_wind.png");
+	private final BreezeEntityModel model;
 
-   public void render(
-      MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, BreezeEntityRenderState breezeEntityRenderState, float f, float g
-   ) {
-      RenderLayer renderLayer = RenderLayers.breezeWind(TEXTURE, this.getXOffset(breezeEntityRenderState.age) % 1.0F, 0.0F);
-      orderedRenderCommandQueue.getBatchingQueue(1)
-         .submitModel(
-            this.model, breezeEntityRenderState, matrixStack, renderLayer, i, OverlayTexture.DEFAULT_UV, -1, null, breezeEntityRenderState.outlineColor, null
-         );
-   }
+	public BreezeWindFeatureRenderer(
+			FeatureRendererContext<BreezeEntityRenderState, BreezeEntityModel> featureRendererContext,
+			LoadedEntityModels loadedEntityModels
+	) {
+		super(featureRendererContext);
+		this.model = new BreezeEntityModel(loadedEntityModels.getModelPart(EntityModelLayers.BREEZE_WIND));
+	}
 
-   private float getXOffset(float tickProgress) {
-      return tickProgress * 0.02F;
-   }
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			BreezeEntityRenderState breezeEntityRenderState,
+			float f,
+			float g
+	) {
+		RenderLayer
+				renderLayer =
+				RenderLayers.breezeWind(TEXTURE, this.getXOffset(breezeEntityRenderState.age) % 1.0F, 0.0F);
+		orderedRenderCommandQueue.getBatchingQueue(1)
+		                         .submitModel(
+				                         this.model,
+				                         breezeEntityRenderState,
+				                         matrixStack,
+				                         renderLayer,
+				                         i,
+				                         OverlayTexture.DEFAULT_UV,
+				                         -1,
+				                         null,
+				                         breezeEntityRenderState.outlineColor,
+				                         null
+		                         );
+	}
+
+	private float getXOffset(float tickProgress) {
+		return tickProgress * 0.02F;
+	}
 }

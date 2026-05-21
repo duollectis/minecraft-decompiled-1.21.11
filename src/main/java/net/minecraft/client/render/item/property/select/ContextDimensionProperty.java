@@ -14,25 +14,35 @@ import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ContextDimensionProperty}.
+ */
 public record ContextDimensionProperty() implements SelectProperty<RegistryKey<World>> {
-   public static final Codec<RegistryKey<World>> VALUE_CODEC = RegistryKey.createCodec(RegistryKeys.WORLD);
-   public static final SelectProperty.Type<ContextDimensionProperty, RegistryKey<World>> TYPE = SelectProperty.Type.create(
-      MapCodec.unit(new ContextDimensionProperty()), VALUE_CODEC
-   );
 
-   public @Nullable RegistryKey<World> getValue(
-      ItemStack itemStack, @Nullable ClientWorld clientWorld, @Nullable LivingEntity livingEntity, int i, ItemDisplayContext itemDisplayContext
-   ) {
-      return clientWorld != null ? clientWorld.getRegistryKey() : null;
-   }
+	public static final Codec<RegistryKey<World>> VALUE_CODEC = RegistryKey.createCodec(RegistryKeys.WORLD);
+	public static final SelectProperty.Type<ContextDimensionProperty, RegistryKey<World>>
+			TYPE =
+			SelectProperty.Type.create(
+					MapCodec.unit(new ContextDimensionProperty()), VALUE_CODEC
+			);
 
-   @Override
-   public SelectProperty.Type<ContextDimensionProperty, RegistryKey<World>> getType() {
-      return TYPE;
-   }
+	public @Nullable RegistryKey<World> getValue(
+			ItemStack itemStack,
+			@Nullable ClientWorld clientWorld,
+			@Nullable LivingEntity livingEntity,
+			int i,
+			ItemDisplayContext itemDisplayContext
+	) {
+		return clientWorld != null ? clientWorld.getRegistryKey() : null;
+	}
 
-   @Override
-   public Codec<RegistryKey<World>> valueCodec() {
-      return VALUE_CODEC;
-   }
+	@Override
+	public SelectProperty.Type<ContextDimensionProperty, RegistryKey<World>> getType() {
+		return TYPE;
+	}
+
+	@Override
+	public Codec<RegistryKey<World>> valueCodec() {
+		return VALUE_CODEC;
+	}
 }

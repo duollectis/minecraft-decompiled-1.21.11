@@ -8,47 +8,55 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.MathHelper;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ElytraSoundInstance}.
+ */
 public class ElytraSoundInstance extends MovingSoundInstance {
-   public static final int field_32996 = 20;
-   private final ClientPlayerEntity player;
-   private int tickCount;
 
-   public ElytraSoundInstance(ClientPlayerEntity player) {
-      super(SoundEvents.ITEM_ELYTRA_FLYING, SoundCategory.PLAYERS, SoundInstance.createRandom());
-      this.player = player;
-      this.repeat = true;
-      this.repeatDelay = 0;
-      this.volume = 0.1F;
-   }
+	public static final int FADE_TICKS = 20;
+	private final ClientPlayerEntity player;
+	private int tickCount;
 
-   @Override
-   public void tick() {
-      this.tickCount++;
-      if (!this.player.isRemoved() && (this.tickCount <= 20 || this.player.isGliding())) {
-         this.x = (float)this.player.getX();
-         this.y = (float)this.player.getY();
-         this.z = (float)this.player.getZ();
-         float f = (float)this.player.getVelocity().lengthSquared();
-         if (f >= 1.0E-7) {
-            this.volume = MathHelper.clamp(f / 4.0F, 0.0F, 1.0F);
-         } else {
-            this.volume = 0.0F;
-         }
+	public ElytraSoundInstance(ClientPlayerEntity player) {
+		super(SoundEvents.ITEM_ELYTRA_FLYING, SoundCategory.PLAYERS, SoundInstance.createRandom());
+		this.player = player;
+		this.repeat = true;
+		this.repeatDelay = 0;
+		this.volume = 0.1F;
+	}
 
-         if (this.tickCount < 20) {
-            this.volume = 0.0F;
-         } else if (this.tickCount < 40) {
-            this.volume = this.volume * ((this.tickCount - 20) / 20.0F);
-         }
+	@Override
+	public void tick() {
+		this.tickCount++;
+		if (!this.player.isRemoved() && (this.tickCount <= 20 || this.player.isGliding())) {
+			this.x = (float) this.player.getX();
+			this.y = (float) this.player.getY();
+			this.z = (float) this.player.getZ();
+			float f = (float) this.player.getVelocity().lengthSquared();
+			if (f >= 1.0E-7) {
+				this.volume = MathHelper.clamp(f / 4.0F, 0.0F, 1.0F);
+			}
+			else {
+				this.volume = 0.0F;
+			}
 
-         float g = 0.8F;
-         if (this.volume > 0.8F) {
-            this.pitch = 1.0F + (this.volume - 0.8F);
-         } else {
-            this.pitch = 1.0F;
-         }
-      } else {
-         this.setDone();
-      }
-   }
+			if (this.tickCount < 20) {
+				this.volume = 0.0F;
+			}
+			else if (this.tickCount < 40) {
+				this.volume = this.volume * ((this.tickCount - 20) / 20.0F);
+			}
+
+			float g = 0.8F;
+			if (this.volume > 0.8F) {
+				this.pitch = 1.0F + (this.volume - 0.8F);
+			}
+			else {
+				this.pitch = 1.0F;
+			}
+		}
+		else {
+			this.setDone();
+		}
+	}
 }

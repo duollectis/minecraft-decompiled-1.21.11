@@ -8,69 +8,76 @@ import net.minecraft.recipe.input.CraftingRecipeInput;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.world.World;
 
+/**
+ * {@code MapCloningRecipe}.
+ */
 public class MapCloningRecipe extends SpecialCraftingRecipe {
-   public MapCloningRecipe(CraftingRecipeCategory craftingRecipeCategory) {
-      super(craftingRecipeCategory);
-   }
 
-   public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
-      if (craftingRecipeInput.getStackCount() < 2) {
-         return false;
-      } else {
-         boolean bl = false;
-         boolean bl2 = false;
+	public MapCloningRecipe(CraftingRecipeCategory craftingRecipeCategory) {
+		super(craftingRecipeCategory);
+	}
 
-         for (int i = 0; i < craftingRecipeInput.size(); i++) {
-            ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
-            if (!itemStack.isEmpty()) {
-               if (itemStack.contains(DataComponentTypes.MAP_ID)) {
-                  if (bl2) {
-                     return false;
-                  }
+	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
+		if (craftingRecipeInput.getStackCount() < 2) {
+			return false;
+		}
+		else {
+			boolean bl = false;
+			boolean bl2 = false;
 
-                  bl2 = true;
-               } else {
-                  if (!itemStack.isOf(Items.MAP)) {
-                     return false;
-                  }
+			for (int i = 0; i < craftingRecipeInput.size(); i++) {
+				ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);
+				if (!itemStack.isEmpty()) {
+					if (itemStack.contains(DataComponentTypes.MAP_ID)) {
+						if (bl2) {
+							return false;
+						}
 
-                  bl = true;
-               }
-            }
-         }
+						bl2 = true;
+					}
+					else {
+						if (!itemStack.isOf(Items.MAP)) {
+							return false;
+						}
 
-         return bl2 && bl;
-      }
-   }
+						bl = true;
+					}
+				}
+			}
 
-   public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-      int i = 0;
-      ItemStack itemStack = ItemStack.EMPTY;
+			return bl2 && bl;
+		}
+	}
 
-      for (int j = 0; j < craftingRecipeInput.size(); j++) {
-         ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(j);
-         if (!itemStack2.isEmpty()) {
-            if (itemStack2.contains(DataComponentTypes.MAP_ID)) {
-               if (!itemStack.isEmpty()) {
-                  return ItemStack.EMPTY;
-               }
+	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
+		int i = 0;
+		ItemStack itemStack = ItemStack.EMPTY;
 
-               itemStack = itemStack2;
-            } else {
-               if (!itemStack2.isOf(Items.MAP)) {
-                  return ItemStack.EMPTY;
-               }
+		for (int j = 0; j < craftingRecipeInput.size(); j++) {
+			ItemStack itemStack2 = craftingRecipeInput.getStackInSlot(j);
+			if (!itemStack2.isEmpty()) {
+				if (itemStack2.contains(DataComponentTypes.MAP_ID)) {
+					if (!itemStack.isEmpty()) {
+						return ItemStack.EMPTY;
+					}
 
-               i++;
-            }
-         }
-      }
+					itemStack = itemStack2;
+				}
+				else {
+					if (!itemStack2.isOf(Items.MAP)) {
+						return ItemStack.EMPTY;
+					}
 
-      return !itemStack.isEmpty() && i >= 1 ? itemStack.copyWithCount(i + 1) : ItemStack.EMPTY;
-   }
+					i++;
+				}
+			}
+		}
 
-   @Override
-   public RecipeSerializer<MapCloningRecipe> getSerializer() {
-      return RecipeSerializer.MAP_CLONING;
-   }
+		return !itemStack.isEmpty() && i >= 1 ? itemStack.copyWithCount(i + 1) : ItemStack.EMPTY;
+	}
+
+	@Override
+	public RecipeSerializer<MapCloningRecipe> getSerializer() {
+		return RecipeSerializer.MAP_CLONING;
+	}
 }

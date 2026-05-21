@@ -15,47 +15,65 @@ import net.minecraft.world.WorldView;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
+/**
+ * {@code JigsawReplacementStructureProcessor}.
+ */
 public class JigsawReplacementStructureProcessor extends StructureProcessor {
-   private static final Logger LOGGER = LogUtils.getLogger();
-   public static final MapCodec<JigsawReplacementStructureProcessor> CODEC = MapCodec.unit(() -> JigsawReplacementStructureProcessor.INSTANCE);
-   public static final JigsawReplacementStructureProcessor INSTANCE = new JigsawReplacementStructureProcessor();
 
-   private JigsawReplacementStructureProcessor() {
-   }
+	private static final Logger LOGGER = LogUtils.getLogger();
+	public static final MapCodec<JigsawReplacementStructureProcessor>
+			CODEC =
+			MapCodec.unit(() -> JigsawReplacementStructureProcessor.INSTANCE);
+	public static final JigsawReplacementStructureProcessor INSTANCE = new JigsawReplacementStructureProcessor();
 
-   @Override
-   public StructureTemplate.@Nullable StructureBlockInfo process(
-      WorldView world,
-      BlockPos pos,
-      BlockPos pivot,
-      StructureTemplate.StructureBlockInfo originalBlockInfo,
-      StructureTemplate.StructureBlockInfo currentBlockInfo,
-      StructurePlacementData data
-   ) {
-      BlockState blockState = currentBlockInfo.state();
-      if (!blockState.isOf(Blocks.JIGSAW) || SharedConstants.KEEP_JIGSAW_BLOCKS_DURING_STRUCTURE_GEN) {
-         return currentBlockInfo;
-      } else if (currentBlockInfo.nbt() == null) {
-         LOGGER.warn("Jigsaw block at {} is missing nbt, will not replace", pos);
-         return currentBlockInfo;
-      } else {
-         String string = currentBlockInfo.nbt().getString("final_state", "minecraft:air");
+	private JigsawReplacementStructureProcessor() {
+	}
 
-         BlockState blockState2;
-         try {
-            BlockArgumentParser.BlockResult blockResult = BlockArgumentParser.block(world.createCommandRegistryWrapper(RegistryKeys.BLOCK), string, true);
-            blockState2 = blockResult.blockState();
-         } catch (CommandSyntaxException var11) {
-            LOGGER.error("Failed to parse jigsaw replacement state '{}' at {}: {}", new Object[]{string, pos, var11.getMessage()});
-            return null;
-         }
+	@Override
+	public StructureTemplate.@Nullable StructureBlockInfo process(
+			WorldView world,
+			BlockPos pos,
+			BlockPos pivot,
+			StructureTemplate.StructureBlockInfo originalBlockInfo,
+			StructureTemplate.StructureBlockInfo currentBlockInfo,
+			StructurePlacementData data
+	) {
+		BlockState blockState = currentBlockInfo.state();
+		if (!blockState.isOf(Blocks.JIGSAW) || SharedConstants.KEEP_JIGSAW_BLOCKS_DURING_STRUCTURE_GEN) {
+			return currentBlockInfo;
+		}
+		else if (currentBlockInfo.nbt() == null) {
+			LOGGER.warn("Jigsaw block at {} is missing nbt, will not replace", pos);
+			return currentBlockInfo;
+		}
+		else {
+			String string = currentBlockInfo.nbt().getString("final_state", "minecraft:air");
 
-         return blockState2.isOf(Blocks.STRUCTURE_VOID) ? null : new StructureTemplate.StructureBlockInfo(currentBlockInfo.pos(), blockState2, null);
-      }
-   }
+			BlockState blockState2;
+			try {
+				BlockArgumentParser.BlockResult
+						blockResult =
+						BlockArgumentParser.block(world.createCommandRegistryWrapper(RegistryKeys.BLOCK), string, true);
+				blockState2 = blockResult.blockState();
+			}
+			catch (CommandSyntaxException var11) {
+				LOGGER.error(
+						"Failed to parse jigsaw replacement state '{}' at {}: {}",
+						new Object[]{string, pos, var11.getMessage()}
+				);
+				return null;
+			}
 
-   @Override
-   protected StructureProcessorType<?> getType() {
-      return StructureProcessorType.JIGSAW_REPLACEMENT;
-   }
+			return blockState2.isOf(Blocks.STRUCTURE_VOID) ? null : new StructureTemplate.StructureBlockInfo(
+					currentBlockInfo.pos(),
+					blockState2,
+					null
+			);
+		}
+	}
+
+	@Override
+	protected StructureProcessorType<?> getType() {
+		return StructureProcessorType.JIGSAW_REPLACEMENT;
+	}
 }

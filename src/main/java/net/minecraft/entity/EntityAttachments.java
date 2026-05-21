@@ -1,105 +1,121 @@
 package net.minecraft.entity;
 
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * {@code EntityAttachments}.
+ */
 public class EntityAttachments {
-   private final Map<EntityAttachmentType, List<Vec3d>> points;
 
-   EntityAttachments(Map<EntityAttachmentType, List<Vec3d>> points) {
-      this.points = points;
-   }
+	private final Map<EntityAttachmentType, List<Vec3d>> points;
 
-   public static EntityAttachments of(float width, float height) {
-      return builder().build(width, height);
-   }
+	EntityAttachments(Map<EntityAttachmentType, List<Vec3d>> points) {
+		this.points = points;
+	}
 
-   public static EntityAttachments.Builder builder() {
-      return new EntityAttachments.Builder();
-   }
+	public static EntityAttachments of(float width, float height) {
+		return builder().build(width, height);
+	}
 
-   public EntityAttachments scale(float xScale, float yScale, float zScale) {
-      return new EntityAttachments(Util.mapEnum(EntityAttachmentType.class, type -> {
-         List<Vec3d> list = new ArrayList<>();
+	public static EntityAttachments.Builder builder() {
+		return new EntityAttachments.Builder();
+	}
 
-         for (Vec3d vec3d : this.points.get(type)) {
-            list.add(vec3d.multiply(xScale, yScale, zScale));
-         }
+	public EntityAttachments scale(float xScale, float yScale, float zScale) {
+		return new EntityAttachments(Util.mapEnum(
+				EntityAttachmentType.class, type -> {
+					List<Vec3d> list = new ArrayList<>();
 
-         return list;
-      }));
-   }
+					for (Vec3d vec3d : this.points.get(type)) {
+						list.add(vec3d.multiply(xScale, yScale, zScale));
+					}
 
-   public @Nullable Vec3d getPointNullable(EntityAttachmentType type, int index, float yaw) {
-      List<Vec3d> list = this.points.get(type);
-      return index >= 0 && index < list.size() ? rotatePoint(list.get(index), yaw) : null;
-   }
+					return list;
+				}
+		));
+	}
 
-   public Vec3d getPoint(EntityAttachmentType type, int index, float yaw) {
-      Vec3d vec3d = this.getPointNullable(type, index, yaw);
-      if (vec3d == null) {
-         throw new IllegalStateException("Had no attachment point of type: " + type + " for index: " + index);
-      } else {
-         return vec3d;
-      }
-   }
+	public @Nullable Vec3d getPointNullable(EntityAttachmentType type, int index, float yaw) {
+		List<Vec3d> list = this.points.get(type);
+		return index >= 0 && index < list.size() ? rotatePoint(list.get(index), yaw) : null;
+	}
 
-   public Vec3d getPointOrDefault(EntityAttachmentType type) {
-      List<Vec3d> list = this.points.get(type);
-      if (list != null && !list.isEmpty()) {
-         Vec3d vec3d = Vec3d.ZERO;
+	public Vec3d getPoint(EntityAttachmentType type, int index, float yaw) {
+		Vec3d vec3d = this.getPointNullable(type, index, yaw);
+		if (vec3d == null) {
+			throw new IllegalStateException("Had no attachment point of type: " + type + " for index: " + index);
+		}
+		else {
+			return vec3d;
+		}
+	}
 
-         for (Vec3d vec3d2 : list) {
-            vec3d = vec3d.add(vec3d2);
-         }
+	public Vec3d getPointOrDefault(EntityAttachmentType type) {
+		List<Vec3d> list = this.points.get(type);
+		if (list != null && !list.isEmpty()) {
+			Vec3d vec3d = Vec3d.ZERO;
 
-         return vec3d.multiply(1.0F / list.size());
-      } else {
-         throw new IllegalStateException("No attachment points of type: PASSENGER");
-      }
-   }
+			for (Vec3d vec3d2 : list) {
+				vec3d = vec3d.add(vec3d2);
+			}
 
-   public Vec3d getPointOrDefault(EntityAttachmentType type, int index, float yaw) {
-      List<Vec3d> list = this.points.get(type);
-      if (list.isEmpty()) {
-         throw new IllegalStateException("Had no attachment points of type: " + type);
-      } else {
-         Vec3d vec3d = list.get(MathHelper.clamp(index, 0, list.size() - 1));
-         return rotatePoint(vec3d, yaw);
-      }
-   }
+			return vec3d.multiply(1.0F / list.size());
+		}
+		else {
+			throw new IllegalStateException("No attachment points of type: PASSENGER");
+		}
+	}
 
-   private static Vec3d rotatePoint(Vec3d point, float yaw) {
-      return point.rotateY(-yaw * (float) (Math.PI / 180.0));
-   }
+	public Vec3d getPointOrDefault(EntityAttachmentType type, int index, float yaw) {
+		List<Vec3d> list = this.points.get(type);
+		if (list.isEmpty()) {
+			throw new IllegalStateException("Had no attachment points of type: " + type);
+		}
+		else {
+			Vec3d vec3d = list.get(MathHelper.clamp(index, 0, list.size() - 1));
+			return rotatePoint(vec3d, yaw);
+		}
+	}
 
-   public static class Builder {
-      private final Map<EntityAttachmentType, List<Vec3d>> points = new EnumMap<>(EntityAttachmentType.class);
+	private static Vec3d rotatePoint(Vec3d point, float yaw) {
+		return point.rotateY(-yaw * (float) (Math.PI / 180.0));
+	}
 
-      Builder() {
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder {
 
-      public EntityAttachments.Builder add(EntityAttachmentType type, float x, float y, float z) {
-         return this.add(type, new Vec3d(x, y, z));
-      }
+		private final Map<EntityAttachmentType, List<Vec3d>> points = new EnumMap<>(EntityAttachmentType.class);
 
-      public EntityAttachments.Builder add(EntityAttachmentType type, Vec3d point) {
-         this.points.computeIfAbsent(type, list -> new ArrayList<>(1)).add(point);
-         return this;
-      }
+		Builder() {
+		}
 
-      public EntityAttachments build(float width, float height) {
-         Map<EntityAttachmentType, List<Vec3d>> map = Util.mapEnum(EntityAttachmentType.class, type -> {
-            List<Vec3d> list = this.points.get(type);
-            return list == null ? type.createPoint(width, height) : List.copyOf(list);
-         });
-         return new EntityAttachments(map);
-      }
-   }
+		public EntityAttachments.Builder add(EntityAttachmentType type, float x, float y, float z) {
+			return this.add(type, new Vec3d(x, y, z));
+		}
+
+		public EntityAttachments.Builder add(EntityAttachmentType type, Vec3d point) {
+			this.points.computeIfAbsent(type, list -> new ArrayList<>(1)).add(point);
+			return this;
+		}
+
+		public EntityAttachments build(float width, float height) {
+			Map<EntityAttachmentType, List<Vec3d>> map = Util.mapEnum(
+					EntityAttachmentType.class, type -> {
+						List<Vec3d> list = this.points.get(type);
+						return list == null ? type.createPoint(width, height) : List.copyOf(list);
+					}
+			);
+			return new EntityAttachments(map);
+		}
+	}
 }

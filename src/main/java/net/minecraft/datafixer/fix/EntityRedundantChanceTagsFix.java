@@ -6,36 +6,47 @@ import com.mojang.datafixers.TypeRewriteRule;
 import com.mojang.datafixers.schemas.Schema;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.OptionalDynamic;
-import java.util.List;
 import net.minecraft.datafixer.TypeReferences;
 
+import java.util.List;
+
+/**
+ * {@code EntityRedundantChanceTagsFix}.
+ */
 public class EntityRedundantChanceTagsFix extends DataFix {
-   private static final Codec<List<Float>> FLOAT_LIST_CODEC = Codec.FLOAT.listOf();
 
-   public EntityRedundantChanceTagsFix(Schema schema, boolean bl) {
-      super(schema, bl);
-   }
+	private static final Codec<List<Float>> FLOAT_LIST_CODEC = Codec.FLOAT.listOf();
 
-   public TypeRewriteRule makeRule() {
-      return this.fixTypeEverywhereTyped(
-         "EntityRedundantChanceTagsFix", this.getInputSchema().getType(TypeReferences.ENTITY), typed -> typed.update(DSL.remainderFinder(), entityTyped -> {
-            if (hasZeroDropChance(entityTyped.get("HandDropChances"), 2)) {
-               entityTyped = entityTyped.remove("HandDropChances");
-            }
+	public EntityRedundantChanceTagsFix(Schema schema, boolean bl) {
+		super(schema, bl);
+	}
 
-            if (hasZeroDropChance(entityTyped.get("ArmorDropChances"), 4)) {
-               entityTyped = entityTyped.remove("ArmorDropChances");
-            }
+	public TypeRewriteRule makeRule() {
+		return this.fixTypeEverywhereTyped(
+				"EntityRedundantChanceTagsFix",
+				this.getInputSchema().getType(TypeReferences.ENTITY),
+				typed -> typed.update(
+						DSL.remainderFinder(), entityTyped -> {
+							if (hasZeroDropChance(entityTyped.get("HandDropChances"), 2)) {
+								entityTyped = entityTyped.remove("HandDropChances");
+							}
 
-            return entityTyped;
-         })
-      );
-   }
+							if (hasZeroDropChance(entityTyped.get("ArmorDropChances"), 4)) {
+								entityTyped = entityTyped.remove("ArmorDropChances");
+							}
 
-   private static boolean hasZeroDropChance(OptionalDynamic<?> listTag, int expectedLength) {
-      return listTag.flatMap(FLOAT_LIST_CODEC::parse)
-         .map(chances -> chances.size() == expectedLength && chances.stream().allMatch(chance -> chance == 0.0F))
-         .result()
-         .orElse(false);
-   }
+							return entityTyped;
+						}
+				)
+		);
+	}
+
+	private static boolean hasZeroDropChance(OptionalDynamic<?> listTag, int expectedLength) {
+		return listTag.flatMap(FLOAT_LIST_CODEC::parse)
+		              .map(chances -> chances.size() == expectedLength && chances
+				              .stream()
+				              .allMatch(chance -> chance == 0.0F))
+		              .result()
+		              .orElse(false);
+	}
 }

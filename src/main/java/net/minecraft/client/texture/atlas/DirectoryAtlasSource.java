@@ -10,26 +10,30 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code DirectoryAtlasSource}.
+ */
 public record DirectoryAtlasSource(String sourcePath, String idPrefix) implements AtlasSource {
-   public static final MapCodec<DirectoryAtlasSource> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-            Codec.STRING.fieldOf("source").forGetter(DirectoryAtlasSource::sourcePath),
-            Codec.STRING.fieldOf("prefix").forGetter(DirectoryAtlasSource::idPrefix)
-         )
-         .apply(instance, DirectoryAtlasSource::new)
-   );
 
-   @Override
-   public void load(ResourceManager resourceManager, AtlasSource.SpriteRegions regions) {
-      ResourceFinder resourceFinder = new ResourceFinder("textures/" + this.sourcePath, ".png");
-      resourceFinder.findResources(resourceManager).forEach((id, resource) -> {
-         Identifier identifier = resourceFinder.toResourceId(id).withPrefixedPath(this.idPrefix);
-         regions.add(identifier, resource);
-      });
-   }
+	public static final MapCodec<DirectoryAtlasSource> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance.group(
+					                    Codec.STRING.fieldOf("source").forGetter(DirectoryAtlasSource::sourcePath),
+					                    Codec.STRING.fieldOf("prefix").forGetter(DirectoryAtlasSource::idPrefix)
+			                    )
+			                    .apply(instance, DirectoryAtlasSource::new)
+	);
 
-   @Override
-   public MapCodec<DirectoryAtlasSource> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public void load(ResourceManager resourceManager, AtlasSource.SpriteRegions regions) {
+		ResourceFinder resourceFinder = new ResourceFinder("textures/" + this.sourcePath, ".png");
+		resourceFinder.findResources(resourceManager).forEach((id, resource) -> {
+			Identifier identifier = resourceFinder.toResourceId(id).withPrefixedPath(this.idPrefix);
+			regions.add(identifier, resource);
+		});
+	}
+
+	@Override
+	public MapCodec<DirectoryAtlasSource> getCodec() {
+		return CODEC;
+	}
 }

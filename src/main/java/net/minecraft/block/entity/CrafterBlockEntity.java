@@ -22,246 +22,256 @@ import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
+/**
+ * {@code CrafterBlockEntity}.
+ */
 public class CrafterBlockEntity extends LootableContainerBlockEntity implements RecipeInputInventory {
-   public static final int GRID_WIDTH = 3;
-   public static final int GRID_HEIGHT = 3;
-   public static final int GRID_SIZE = 9;
-   public static final int SLOT_DISABLED = 1;
-   public static final int SLOT_ENABLED = 0;
-   public static final int TRIGGERED_PROPERTY = 9;
-   public static final int PROPERTIES_COUNT = 10;
-   private static final int DEFAULT_CRAFTING_TICKS_REMAINING = 0;
-   private static final int DEFAULT_TRIGGERED = 0;
-   private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.crafter");
-   private DefaultedList<ItemStack> inputStacks = DefaultedList.ofSize(9, ItemStack.EMPTY);
-   private int craftingTicksRemaining = 0;
-   protected final PropertyDelegate propertyDelegate = new PropertyDelegate() {
-      private final int[] disabledSlots = new int[9];
-      private int triggered = 0;
 
-      @Override
-      public int get(int index) {
-         return index == 9 ? this.triggered : this.disabledSlots[index];
-      }
+	public static final int GRID_WIDTH = 3;
+	public static final int GRID_HEIGHT = 3;
+	public static final int GRID_SIZE = 9;
+	public static final int SLOT_DISABLED = 1;
+	public static final int SLOT_ENABLED = 0;
+	public static final int TRIGGERED_PROPERTY = 9;
+	public static final int PROPERTIES_COUNT = 10;
+	private static final int DEFAULT_CRAFTING_TICKS_REMAINING = 0;
+	private static final int DEFAULT_TRIGGERED = 0;
+	private static final Text CONTAINER_NAME_TEXT = Text.translatable("container.crafter");
+	private DefaultedList<ItemStack> inputStacks = DefaultedList.ofSize(9, ItemStack.EMPTY);
+	private int craftingTicksRemaining = 0;
+	protected final PropertyDelegate propertyDelegate = new PropertyDelegate() {
+		private final int[] disabledSlots = new int[9];
+		private int triggered = 0;
 
-      @Override
-      public void set(int index, int value) {
-         if (index == 9) {
-            this.triggered = value;
-         } else {
-            this.disabledSlots[index] = value;
-         }
-      }
+		@Override
+		public int get(int index) {
+			return index == 9 ? this.triggered : this.disabledSlots[index];
+		}
 
-      @Override
-      public int size() {
-         return 10;
-      }
-   };
+		@Override
+		public void set(int index, int value) {
+			if (index == 9) {
+				this.triggered = value;
+			}
+			else {
+				this.disabledSlots[index] = value;
+			}
+		}
 
-   public CrafterBlockEntity(BlockPos pos, BlockState state) {
-      super(BlockEntityType.CRAFTER, pos, state);
-   }
+		@Override
+		public int size() {
+			return 10;
+		}
+	};
 
-   @Override
-   protected Text getContainerName() {
-      return CONTAINER_NAME_TEXT;
-   }
+	public CrafterBlockEntity(BlockPos pos, BlockState state) {
+		super(BlockEntityType.CRAFTER, pos, state);
+	}
 
-   @Override
-   protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
-      return new CrafterScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
-   }
+	@Override
+	protected Text getContainerName() {
+		return CONTAINER_NAME_TEXT;
+	}
 
-   public void setSlotEnabled(int slot, boolean enabled) {
-      if (this.canToggleSlot(slot)) {
-         this.propertyDelegate.set(slot, enabled ? 0 : 1);
-         this.markDirty();
-      }
-   }
+	@Override
+	protected ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory) {
+		return new CrafterScreenHandler(syncId, playerInventory, this, this.propertyDelegate);
+	}
 
-   public boolean isSlotDisabled(int slot) {
-      return slot >= 0 && slot < 9 ? this.propertyDelegate.get(slot) == 1 : false;
-   }
+	public void setSlotEnabled(int slot, boolean enabled) {
+		if (this.canToggleSlot(slot)) {
+			this.propertyDelegate.set(slot, enabled ? 0 : 1);
+			this.markDirty();
+		}
+	}
 
-   @Override
-   public boolean isValid(int slot, ItemStack stack) {
-      if (this.propertyDelegate.get(slot) == 1) {
-         return false;
-      } else {
-         ItemStack itemStack = this.inputStacks.get(slot);
-         int i = itemStack.getCount();
-         if (i >= itemStack.getMaxCount()) {
-            return false;
-         } else {
-            return itemStack.isEmpty() ? true : !this.betterSlotExists(i, itemStack, slot);
-         }
-      }
-   }
+	public boolean isSlotDisabled(int slot) {
+		return slot >= 0 && slot < 9 ? this.propertyDelegate.get(slot) == 1 : false;
+	}
 
-   private boolean betterSlotExists(int count, ItemStack stack, int slot) {
-      for (int i = slot + 1; i < 9; i++) {
-         if (!this.isSlotDisabled(i)) {
-            ItemStack itemStack = this.getStack(i);
-            if (itemStack.isEmpty() || itemStack.getCount() < count && ItemStack.areItemsAndComponentsEqual(itemStack, stack)) {
-               return true;
-            }
-         }
-      }
+	@Override
+	public boolean isValid(int slot, ItemStack stack) {
+		if (this.propertyDelegate.get(slot) == 1) {
+			return false;
+		}
+		else {
+			ItemStack itemStack = this.inputStacks.get(slot);
+			int i = itemStack.getCount();
+			if (i >= itemStack.getMaxCount()) {
+				return false;
+			}
+			else {
+				return itemStack.isEmpty() ? true : !this.betterSlotExists(i, itemStack, slot);
+			}
+		}
+	}
 
-      return false;
-   }
+	private boolean betterSlotExists(int count, ItemStack stack, int slot) {
+		for (int i = slot + 1; i < 9; i++) {
+			if (!this.isSlotDisabled(i)) {
+				ItemStack itemStack = this.getStack(i);
+				if (itemStack.isEmpty() || itemStack.getCount() < count && ItemStack.areItemsAndComponentsEqual(
+						itemStack,
+						stack
+				)) {
+					return true;
+				}
+			}
+		}
 
-   @Override
-   protected void readData(ReadView view) {
-      super.readData(view);
-      this.craftingTicksRemaining = view.getInt("crafting_ticks_remaining", 0);
-      this.inputStacks = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
-      if (!this.readLootTable(view)) {
-         Inventories.readData(view, this.inputStacks);
-      }
+		return false;
+	}
 
-      for (int i = 0; i < 9; i++) {
-         this.propertyDelegate.set(i, 0);
-      }
+	@Override
+	protected void readData(ReadView view) {
+		super.readData(view);
+		this.craftingTicksRemaining = view.getInt("crafting_ticks_remaining", 0);
+		this.inputStacks = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
+		if (!this.readLootTable(view)) {
+			Inventories.readData(view, this.inputStacks);
+		}
 
-      view.getOptionalIntArray("disabled_slots").ifPresent(slots -> {
-         for (int ix : slots) {
-            if (this.canToggleSlot(ix)) {
-               this.propertyDelegate.set(ix, 1);
-            }
-         }
-      });
-      this.propertyDelegate.set(9, view.getInt("triggered", 0));
-   }
+		for (int i = 0; i < 9; i++) {
+			this.propertyDelegate.set(i, 0);
+		}
 
-   @Override
-   protected void writeData(WriteView view) {
-      super.writeData(view);
-      view.putInt("crafting_ticks_remaining", this.craftingTicksRemaining);
-      if (!this.writeLootTable(view)) {
-         Inventories.writeData(view, this.inputStacks);
-      }
+		view.getOptionalIntArray("disabled_slots").ifPresent(slots -> {
+			for (int ix : slots) {
+				if (this.canToggleSlot(ix)) {
+					this.propertyDelegate.set(ix, 1);
+				}
+			}
+		});
+		this.propertyDelegate.set(9, view.getInt("triggered", 0));
+	}
 
-      this.putDisabledSlots(view);
-      this.putTriggered(view);
-   }
+	@Override
+	protected void writeData(WriteView view) {
+		super.writeData(view);
+		view.putInt("crafting_ticks_remaining", this.craftingTicksRemaining);
+		if (!this.writeLootTable(view)) {
+			Inventories.writeData(view, this.inputStacks);
+		}
 
-   @Override
-   public int size() {
-      return 9;
-   }
+		this.putDisabledSlots(view);
+		this.putTriggered(view);
+	}
 
-   @Override
-   public boolean isEmpty() {
-      for (ItemStack itemStack : this.inputStacks) {
-         if (!itemStack.isEmpty()) {
-            return false;
-         }
-      }
+	@Override
+	public int size() {
+		return 9;
+	}
 
-      return true;
-   }
+	@Override
+	public boolean isEmpty() {
+		for (ItemStack itemStack : this.inputStacks) {
+			if (!itemStack.isEmpty()) {
+				return false;
+			}
+		}
 
-   @Override
-   public ItemStack getStack(int slot) {
-      return this.inputStacks.get(slot);
-   }
+		return true;
+	}
 
-   @Override
-   public void setStack(int slot, ItemStack stack) {
-      if (this.isSlotDisabled(slot)) {
-         this.setSlotEnabled(slot, true);
-      }
+	@Override
+	public ItemStack getStack(int slot) {
+		return this.inputStacks.get(slot);
+	}
 
-      super.setStack(slot, stack);
-   }
+	@Override
+	public void setStack(int slot, ItemStack stack) {
+		if (this.isSlotDisabled(slot)) {
+			this.setSlotEnabled(slot, true);
+		}
 
-   @Override
-   public boolean canPlayerUse(PlayerEntity player) {
-      return Inventory.canPlayerUse(this, player);
-   }
+		super.setStack(slot, stack);
+	}
 
-   @Override
-   public DefaultedList<ItemStack> getHeldStacks() {
-      return this.inputStacks;
-   }
+	@Override
+	public boolean canPlayerUse(PlayerEntity player) {
+		return Inventory.canPlayerUse(this, player);
+	}
 
-   @Override
-   protected void setHeldStacks(DefaultedList<ItemStack> inventory) {
-      this.inputStacks = inventory;
-   }
+	@Override
+	public DefaultedList<ItemStack> getHeldStacks() {
+		return this.inputStacks;
+	}
 
-   @Override
-   public int getWidth() {
-      return 3;
-   }
+	@Override
+	protected void setHeldStacks(DefaultedList<ItemStack> inventory) {
+		this.inputStacks = inventory;
+	}
 
-   @Override
-   public int getHeight() {
-      return 3;
-   }
+	@Override
+	public int getWidth() {
+		return 3;
+	}
 
-   @Override
-   public void provideRecipeInputs(RecipeFinder finder) {
-      for (ItemStack itemStack : this.inputStacks) {
-         finder.addInputIfUsable(itemStack);
-      }
-   }
+	@Override
+	public int getHeight() {
+		return 3;
+	}
 
-   private void putDisabledSlots(WriteView view) {
-      IntList intList = new IntArrayList();
+	@Override
+	public void provideRecipeInputs(RecipeFinder finder) {
+		for (ItemStack itemStack : this.inputStacks) {
+			finder.addInputIfUsable(itemStack);
+		}
+	}
 
-      for (int i = 0; i < 9; i++) {
-         if (this.isSlotDisabled(i)) {
-            intList.add(i);
-         }
-      }
+	private void putDisabledSlots(WriteView view) {
+		IntList intList = new IntArrayList();
 
-      view.putIntArray("disabled_slots", intList.toIntArray());
-   }
+		for (int i = 0; i < 9; i++) {
+			if (this.isSlotDisabled(i)) {
+				intList.add(i);
+			}
+		}
 
-   private void putTriggered(WriteView view) {
-      view.putInt("triggered", this.propertyDelegate.get(9));
-   }
+		view.putIntArray("disabled_slots", intList.toIntArray());
+	}
 
-   public void setTriggered(boolean triggered) {
-      this.propertyDelegate.set(9, triggered ? 1 : 0);
-   }
+	private void putTriggered(WriteView view) {
+		view.putInt("triggered", this.propertyDelegate.get(9));
+	}
 
-   @VisibleForTesting
-   public boolean isTriggered() {
-      return this.propertyDelegate.get(9) == 1;
-   }
+	public void setTriggered(boolean triggered) {
+		this.propertyDelegate.set(9, triggered ? 1 : 0);
+	}
 
-   public static void tickCrafting(World world, BlockPos pos, BlockState state, CrafterBlockEntity blockEntity) {
-      int i = blockEntity.craftingTicksRemaining - 1;
-      if (i >= 0) {
-         blockEntity.craftingTicksRemaining = i;
-         if (i == 0) {
-            world.setBlockState(pos, state.with(CrafterBlock.CRAFTING, false), 3);
-         }
-      }
-   }
+	@VisibleForTesting
+	public boolean isTriggered() {
+		return this.propertyDelegate.get(9) == 1;
+	}
 
-   public void setCraftingTicksRemaining(int craftingTicksRemaining) {
-      this.craftingTicksRemaining = craftingTicksRemaining;
-   }
+	public static void tickCrafting(World world, BlockPos pos, BlockState state, CrafterBlockEntity blockEntity) {
+		int i = blockEntity.craftingTicksRemaining - 1;
+		if (i >= 0) {
+			blockEntity.craftingTicksRemaining = i;
+			if (i == 0) {
+				world.setBlockState(pos, state.with(CrafterBlock.CRAFTING, false), 3);
+			}
+		}
+	}
 
-   public int getComparatorOutput() {
-      int i = 0;
+	public void setCraftingTicksRemaining(int craftingTicksRemaining) {
+		this.craftingTicksRemaining = craftingTicksRemaining;
+	}
 
-      for (int j = 0; j < this.size(); j++) {
-         ItemStack itemStack = this.getStack(j);
-         if (!itemStack.isEmpty() || this.isSlotDisabled(j)) {
-            i++;
-         }
-      }
+	public int getComparatorOutput() {
+		int i = 0;
 
-      return i;
-   }
+		for (int j = 0; j < this.size(); j++) {
+			ItemStack itemStack = this.getStack(j);
+			if (!itemStack.isEmpty() || this.isSlotDisabled(j)) {
+				i++;
+			}
+		}
 
-   private boolean canToggleSlot(int slot) {
-      return slot > -1 && slot < 9 && this.inputStacks.get(slot).isEmpty();
-   }
+		return i;
+	}
+
+	private boolean canToggleSlot(int slot) {
+		return slot > -1 && slot < 9 && this.inputStacks.get(slot).isEmpty();
+	}
 }

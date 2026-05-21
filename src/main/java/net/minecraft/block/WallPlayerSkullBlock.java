@@ -2,15 +2,19 @@ package net.minecraft.block;
 
 import com.mojang.serialization.MapCodec;
 
+/**
+ * {@code WallPlayerSkullBlock}.
+ */
 public class WallPlayerSkullBlock extends WallSkullBlock {
-   public static final MapCodec<WallPlayerSkullBlock> CODEC = createCodec(WallPlayerSkullBlock::new);
 
-   @Override
-   public MapCodec<WallPlayerSkullBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<WallPlayerSkullBlock> CODEC = createCodec(WallPlayerSkullBlock::new);
 
-   public WallPlayerSkullBlock(AbstractBlock.Settings settings) {
-      super(SkullBlock.Type.PLAYER, settings);
-   }
+	@Override
+	public MapCodec<WallPlayerSkullBlock> getCodec() {
+		return CODEC;
+	}
+
+	public WallPlayerSkullBlock(AbstractBlock.Settings settings) {
+		super(SkullBlock.Type.PLAYER, settings);
+	}
 }

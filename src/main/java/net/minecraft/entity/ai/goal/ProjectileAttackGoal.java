@@ -1,101 +1,122 @@
 package net.minecraft.entity.ai.goal;
 
-import java.util.EnumSet;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.ai.RangedAttackMob;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.util.math.MathHelper;
 import org.jspecify.annotations.Nullable;
 
+import java.util.EnumSet;
+
+/**
+ * {@code ProjectileAttackGoal}.
+ */
 public class ProjectileAttackGoal extends Goal {
-   private final MobEntity mob;
-   private final RangedAttackMob owner;
-   private @Nullable LivingEntity target;
-   private int updateCountdownTicks = -1;
-   private final double mobSpeed;
-   private int seenTargetTicks;
-   private final int minIntervalTicks;
-   private final int maxIntervalTicks;
-   private final float maxShootRange;
-   private final float squaredMaxShootRange;
 
-   public ProjectileAttackGoal(RangedAttackMob mob, double mobSpeed, int intervalTicks, float maxShootRange) {
-      this(mob, mobSpeed, intervalTicks, intervalTicks, maxShootRange);
-   }
+	private final MobEntity mob;
+	private final RangedAttackMob owner;
+	private @Nullable LivingEntity target;
+	private int updateCountdownTicks = -1;
+	private final double mobSpeed;
+	private int seenTargetTicks;
+	private final int minIntervalTicks;
+	private final int maxIntervalTicks;
+	private final float maxShootRange;
+	private final float squaredMaxShootRange;
 
-   public ProjectileAttackGoal(RangedAttackMob mob, double mobSpeed, int minIntervalTicks, int maxIntervalTicks, float maxShootRange) {
-      if (!(mob instanceof LivingEntity)) {
-         throw new IllegalArgumentException("ArrowAttackGoal requires Mob implements RangedAttackMob");
-      } else {
-         this.owner = mob;
-         this.mob = (MobEntity)mob;
-         this.mobSpeed = mobSpeed;
-         this.minIntervalTicks = minIntervalTicks;
-         this.maxIntervalTicks = maxIntervalTicks;
-         this.maxShootRange = maxShootRange;
-         this.squaredMaxShootRange = maxShootRange * maxShootRange;
-         this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
-      }
-   }
+	public ProjectileAttackGoal(RangedAttackMob mob, double mobSpeed, int intervalTicks, float maxShootRange) {
+		this(mob, mobSpeed, intervalTicks, intervalTicks, maxShootRange);
+	}
 
-   @Override
-   public boolean canStart() {
-      LivingEntity livingEntity = this.mob.getTarget();
-      if (livingEntity != null && livingEntity.isAlive()) {
-         this.target = livingEntity;
-         return true;
-      } else {
-         return false;
-      }
-   }
+	public ProjectileAttackGoal(
+			RangedAttackMob mob,
+			double mobSpeed,
+			int minIntervalTicks,
+			int maxIntervalTicks,
+			float maxShootRange
+	) {
+		if (!(mob instanceof LivingEntity)) {
+			throw new IllegalArgumentException("ArrowAttackGoal requires Mob implements RangedAttackMob");
+		}
+		else {
+			this.owner = mob;
+			this.mob = (MobEntity) mob;
+			this.mobSpeed = mobSpeed;
+			this.minIntervalTicks = minIntervalTicks;
+			this.maxIntervalTicks = maxIntervalTicks;
+			this.maxShootRange = maxShootRange;
+			this.squaredMaxShootRange = maxShootRange * maxShootRange;
+			this.setControls(EnumSet.of(Goal.Control.MOVE, Goal.Control.LOOK));
+		}
+	}
 
-   @Override
-   public boolean shouldContinue() {
-      return this.canStart() || this.target.isAlive() && !this.mob.getNavigation().isIdle();
-   }
+	@Override
+	public boolean canStart() {
+		LivingEntity livingEntity = this.mob.getTarget();
+		if (livingEntity != null && livingEntity.isAlive()) {
+			this.target = livingEntity;
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
 
-   @Override
-   public void stop() {
-      this.target = null;
-      this.seenTargetTicks = 0;
-      this.updateCountdownTicks = -1;
-   }
+	@Override
+	public boolean shouldContinue() {
+		return this.canStart() || this.target.isAlive() && !this.mob.getNavigation().isIdle();
+	}
 
-   @Override
-   public boolean shouldRunEveryTick() {
-      return true;
-   }
+	@Override
+	public void stop() {
+		this.target = null;
+		this.seenTargetTicks = 0;
+		this.updateCountdownTicks = -1;
+	}
 
-   @Override
-   public void tick() {
-      double d = this.mob.squaredDistanceTo(this.target.getX(), this.target.getY(), this.target.getZ());
-      boolean bl = this.mob.getVisibilityCache().canSee(this.target);
-      if (bl) {
-         this.seenTargetTicks++;
-      } else {
-         this.seenTargetTicks = 0;
-      }
+	@Override
+	public boolean shouldRunEveryTick() {
+		return true;
+	}
 
-      if (!(d > this.squaredMaxShootRange) && this.seenTargetTicks >= 5) {
-         this.mob.getNavigation().stop();
-      } else {
-         this.mob.getNavigation().startMovingTo(this.target, this.mobSpeed);
-      }
+	@Override
+	public void tick() {
+		double d = this.mob.squaredDistanceTo(this.target.getX(), this.target.getY(), this.target.getZ());
+		boolean bl = this.mob.getVisibilityCache().canSee(this.target);
+		if (bl) {
+			this.seenTargetTicks++;
+		}
+		else {
+			this.seenTargetTicks = 0;
+		}
 
-      this.mob.getLookControl().lookAt(this.target, 30.0F, 30.0F);
-      if (--this.updateCountdownTicks == 0) {
-         if (!bl) {
-            return;
-         }
+		if (!(d > this.squaredMaxShootRange) && this.seenTargetTicks >= 5) {
+			this.mob.getNavigation().stop();
+		}
+		else {
+			this.mob.getNavigation().startMovingTo(this.target, this.mobSpeed);
+		}
 
-         float f = (float)Math.sqrt(d) / this.maxShootRange;
-         float g = MathHelper.clamp(f, 0.1F, 1.0F);
-         this.owner.shootAt(this.target, g);
-         this.updateCountdownTicks = MathHelper.floor(f * (this.maxIntervalTicks - this.minIntervalTicks) + this.minIntervalTicks);
-      } else if (this.updateCountdownTicks < 0) {
-         this.updateCountdownTicks = MathHelper.floor(
-            MathHelper.lerp(Math.sqrt(d) / this.maxShootRange, (double)this.minIntervalTicks, (double)this.maxIntervalTicks)
-         );
-      }
-   }
+		this.mob.getLookControl().lookAt(this.target, 30.0F, 30.0F);
+		if (--this.updateCountdownTicks == 0) {
+			if (!bl) {
+				return;
+			}
+
+			float f = (float) Math.sqrt(d) / this.maxShootRange;
+			float g = MathHelper.clamp(f, 0.1F, 1.0F);
+			this.owner.shootAt(this.target, g);
+			this.updateCountdownTicks =
+					MathHelper.floor(f * (this.maxIntervalTicks - this.minIntervalTicks) + this.minIntervalTicks);
+		}
+		else if (this.updateCountdownTicks < 0) {
+			this.updateCountdownTicks = MathHelper.floor(
+					MathHelper.lerp(
+							Math.sqrt(d) / this.maxShootRange,
+							(double) this.minIntervalTicks,
+							(double) this.maxIntervalTicks
+					)
+			);
+		}
+	}
 }

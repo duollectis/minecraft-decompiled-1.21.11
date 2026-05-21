@@ -9,19 +9,30 @@ import net.minecraft.util.math.Position;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ArrowItem}.
+ */
 public class ArrowItem extends Item implements ProjectileItem {
-   public ArrowItem(Item.Settings settings) {
-      super(settings);
-   }
 
-   public PersistentProjectileEntity createArrow(World world, ItemStack stack, LivingEntity shooter, @Nullable ItemStack shotFrom) {
-      return new ArrowEntity(world, shooter, stack.copyWithCount(1), shotFrom);
-   }
+	public ArrowItem(Item.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
-      ArrowEntity arrowEntity = new ArrowEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack.copyWithCount(1), null);
-      arrowEntity.pickupType = PersistentProjectileEntity.PickupPermission.ALLOWED;
-      return arrowEntity;
-   }
+	public PersistentProjectileEntity createArrow(
+			World world,
+			ItemStack stack,
+			LivingEntity shooter,
+			@Nullable ItemStack shotFrom
+	) {
+		return new ArrowEntity(world, shooter, stack.copyWithCount(1), shotFrom);
+	}
+
+	@Override
+	public ProjectileEntity createEntity(World world, Position pos, ItemStack stack, Direction direction) {
+		ArrowEntity
+				arrowEntity =
+				new ArrowEntity(world, pos.getX(), pos.getY(), pos.getZ(), stack.copyWithCount(1), null);
+		arrowEntity.pickupType = PersistentProjectileEntity.PickupPermission.ALLOWED;
+		return arrowEntity;
+	}
 }

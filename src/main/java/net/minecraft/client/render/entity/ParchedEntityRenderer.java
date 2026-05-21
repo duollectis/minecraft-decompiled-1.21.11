@@ -8,18 +8,22 @@ import net.minecraft.entity.mob.ParchedEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code ParchedEntityRenderer}.
+ */
 public class ParchedEntityRenderer extends AbstractSkeletonEntityRenderer<ParchedEntity, SkeletonEntityRenderState> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/parched.png");
 
-   public ParchedEntityRenderer(EntityRendererFactory.Context context) {
-      super(context, EntityModelLayers.PARCHED, EntityModelLayers.PARCHED_EQUIPMENT);
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/skeleton/parched.png");
 
-   public Identifier getTexture(SkeletonEntityRenderState skeletonEntityRenderState) {
-      return TEXTURE;
-   }
+	public ParchedEntityRenderer(EntityRendererFactory.Context context) {
+		super(context, EntityModelLayers.PARCHED, EntityModelLayers.PARCHED_EQUIPMENT);
+	}
 
-   public SkeletonEntityRenderState createRenderState() {
-      return new SkeletonEntityRenderState();
-   }
+	public Identifier getTexture(SkeletonEntityRenderState skeletonEntityRenderState) {
+		return TEXTURE;
+	}
+
+	public SkeletonEntityRenderState createRenderState() {
+		return new SkeletonEntityRenderState();
+	}
 }

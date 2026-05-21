@@ -7,28 +7,39 @@ import net.minecraft.recipe.book.CookingRecipeCategory;
 import net.minecraft.recipe.book.RecipeBookCategories;
 import net.minecraft.recipe.book.RecipeBookCategory;
 
+/**
+ * {@code SmokingRecipe}.
+ */
 public class SmokingRecipe extends AbstractCookingRecipe {
-   public SmokingRecipe(String string, CookingRecipeCategory cookingRecipeCategory, Ingredient ingredient, ItemStack itemStack, float f, int i) {
-      super(string, cookingRecipeCategory, ingredient, itemStack, f, i);
-   }
 
-   @Override
-   protected Item getCookerItem() {
-      return Items.SMOKER;
-   }
+	public SmokingRecipe(
+			String string,
+			CookingRecipeCategory cookingRecipeCategory,
+			Ingredient ingredient,
+			ItemStack itemStack,
+			float f,
+			int i
+	) {
+		super(string, cookingRecipeCategory, ingredient, itemStack, f, i);
+	}
 
-   @Override
-   public RecipeType<SmokingRecipe> getType() {
-      return RecipeType.SMOKING;
-   }
+	@Override
+	protected Item getCookerItem() {
+		return Items.SMOKER;
+	}
 
-   @Override
-   public RecipeSerializer<SmokingRecipe> getSerializer() {
-      return RecipeSerializer.SMOKING;
-   }
+	@Override
+	public RecipeType<SmokingRecipe> getType() {
+		return RecipeType.SMOKING;
+	}
 
-   @Override
-   public RecipeBookCategory getRecipeBookCategory() {
-      return RecipeBookCategories.SMOKER_FOOD;
-   }
+	@Override
+	public RecipeSerializer<SmokingRecipe> getSerializer() {
+		return RecipeSerializer.SMOKING;
+	}
+
+	@Override
+	public RecipeBookCategory getRecipeBookCategory() {
+		return RecipeBookCategories.SMOKER_FOOD;
+	}
 }

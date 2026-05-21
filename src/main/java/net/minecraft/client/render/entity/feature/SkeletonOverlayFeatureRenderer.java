@@ -12,17 +12,33 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SkeletonOverlayFeatureRenderer}.
+ */
 public class SkeletonOverlayFeatureRenderer<S extends SkeletonEntityRenderState, M extends EntityModel<S>> extends FeatureRenderer<S, M> {
-   private final SkeletonEntityModel<S> model;
-   private final Identifier texture;
 
-   public SkeletonOverlayFeatureRenderer(FeatureRendererContext<S, M> context, LoadedEntityModels loader, EntityModelLayer layer, Identifier texture) {
-      super(context);
-      this.texture = texture;
-      this.model = new SkeletonEntityModel<>(loader.getModelPart(layer));
-   }
+	private final SkeletonEntityModel<S> model;
+	private final Identifier texture;
 
-   public void render(MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, S skeletonEntityRenderState, float f, float g) {
-      render(this.model, this.texture, matrixStack, orderedRenderCommandQueue, i, skeletonEntityRenderState, -1, 1);
-   }
+	public SkeletonOverlayFeatureRenderer(
+			FeatureRendererContext<S, M> context,
+			LoadedEntityModels loader,
+			EntityModelLayer layer,
+			Identifier texture
+	) {
+		super(context);
+		this.texture = texture;
+		this.model = new SkeletonEntityModel<>(loader.getModelPart(layer));
+	}
+
+	public void render(
+			MatrixStack matrixStack,
+			OrderedRenderCommandQueue orderedRenderCommandQueue,
+			int i,
+			S skeletonEntityRenderState,
+			float f,
+			float g
+	) {
+		render(this.model, this.texture, matrixStack, orderedRenderCommandQueue, i, skeletonEntityRenderState, -1, 1);
+	}
 }

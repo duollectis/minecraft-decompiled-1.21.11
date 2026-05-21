@@ -7,26 +7,36 @@ import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.text.Text;
 
+/**
+ * {@code SetIdleTimeoutCommand}.
+ */
 public class SetIdleTimeoutCommand {
-   public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-      dispatcher.register(
-         (LiteralArgumentBuilder)((LiteralArgumentBuilder)CommandManager.literal("setidletimeout")
-               .requires(CommandManager.requirePermissionLevel(CommandManager.ADMINS_CHECK)))
-            .then(
-               CommandManager.argument("minutes", IntegerArgumentType.integer(0))
-                  .executes(context -> execute((ServerCommandSource)context.getSource(), IntegerArgumentType.getInteger(context, "minutes")))
-            )
-      );
-   }
 
-   private static int execute(ServerCommandSource source, int minutes) {
-      source.getServer().setPlayerIdleTimeout(minutes);
-      if (minutes > 0) {
-         source.sendFeedback(() -> Text.translatable("commands.setidletimeout.success", minutes), true);
-      } else {
-         source.sendFeedback(() -> Text.translatable("commands.setidletimeout.success.disabled"), true);
-      }
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register(
+				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("setidletimeout")
+				                                                                 .requires(CommandManager.requirePermissionLevel(
+						                                                                 CommandManager.ADMINS_CHECK))
+				)
+						.then(
+								CommandManager.argument("minutes", IntegerArgumentType.integer(0))
+								              .executes(context -> execute(
+										              (ServerCommandSource) context.getSource(),
+										              IntegerArgumentType.getInteger(context, "minutes")
+								              ))
+						)
+		);
+	}
 
-      return minutes;
-   }
+	private static int execute(ServerCommandSource source, int minutes) {
+		source.getServer().setPlayerIdleTimeout(minutes);
+		if (minutes > 0) {
+			source.sendFeedback(() -> Text.translatable("commands.setidletimeout.success", minutes), true);
+		}
+		else {
+			source.sendFeedback(() -> Text.translatable("commands.setidletimeout.success.disabled"), true);
+		}
+
+		return minutes;
+	}
 }

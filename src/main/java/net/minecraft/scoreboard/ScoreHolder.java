@@ -5,54 +5,62 @@ import net.minecraft.text.HoverEvent;
 import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code ScoreHolder}.
+ */
 public interface ScoreHolder {
-   String WILDCARD_NAME = "*";
-   ScoreHolder WILDCARD = new ScoreHolder() {
-      @Override
-      public String getNameForScoreboard() {
-         return "*";
-      }
-   };
 
-   String getNameForScoreboard();
+	String WILDCARD_NAME = "*";
 
-   default @Nullable Text getDisplayName() {
-      return null;
-   }
+	ScoreHolder WILDCARD = new ScoreHolder() {
+		@Override
+		public String getNameForScoreboard() {
+			return "*";
+		}
+	};
 
-   default Text getStyledDisplayName() {
-      Text text = this.getDisplayName();
-      return text != null
-         ? text.copy().styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.literal(this.getNameForScoreboard()))))
-         : Text.literal(this.getNameForScoreboard());
-   }
+	String getNameForScoreboard();
 
-   static ScoreHolder fromName(String name) {
-      if (name.equals("*")) {
-         return WILDCARD;
-      } else {
-         final Text text = Text.literal(name);
-         return new ScoreHolder() {
-            @Override
-            public String getNameForScoreboard() {
-               return name;
-            }
+	default @Nullable Text getDisplayName() {
+		return null;
+	}
 
-            @Override
-            public Text getStyledDisplayName() {
-               return text;
-            }
-         };
-      }
-   }
+	default Text getStyledDisplayName() {
+		Text text = this.getDisplayName();
+		return text != null
+		       ? text
+		         .copy()
+		         .styled(style -> style.withHoverEvent(new HoverEvent.ShowText(Text.literal(this.getNameForScoreboard()))))
+		       : Text.literal(this.getNameForScoreboard());
+	}
 
-   static ScoreHolder fromProfile(GameProfile gameProfile) {
-      final String string = gameProfile.name();
-      return new ScoreHolder() {
-         @Override
-         public String getNameForScoreboard() {
-            return string;
-         }
-      };
-   }
+	static ScoreHolder fromName(String name) {
+		if (name.equals("*")) {
+			return WILDCARD;
+		}
+		else {
+			final Text text = Text.literal(name);
+			return new ScoreHolder() {
+				@Override
+				public String getNameForScoreboard() {
+					return name;
+				}
+
+				@Override
+				public Text getStyledDisplayName() {
+					return text;
+				}
+			};
+		}
+	}
+
+	static ScoreHolder fromProfile(GameProfile gameProfile) {
+		final String string = gameProfile.name();
+		return new ScoreHolder() {
+			@Override
+			public String getNameForScoreboard() {
+				return string;
+			}
+		};
+	}
 }

@@ -12,26 +12,34 @@ import net.minecraft.util.math.Vec3d;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BlockEntityRenderer}.
+ */
 public interface BlockEntityRenderer<T extends BlockEntity, S extends BlockEntityRenderState> {
-   S createRenderState();
 
-   default void updateRenderState(
-      T blockEntity, S state, float tickProgress, Vec3d cameraPos, ModelCommandRenderer.@Nullable CrumblingOverlayCommand crumblingOverlay
-   ) {
-      BlockEntityRenderState.updateBlockEntityRenderState(blockEntity, state, crumblingOverlay);
-   }
+	S createRenderState();
 
-   void render(S state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState);
+	default void updateRenderState(
+			T blockEntity,
+			S state,
+			float tickProgress,
+			Vec3d cameraPos,
+			ModelCommandRenderer.@Nullable CrumblingOverlayCommand crumblingOverlay
+	) {
+		BlockEntityRenderState.updateBlockEntityRenderState(blockEntity, state, crumblingOverlay);
+	}
 
-   default boolean rendersOutsideBoundingBox() {
-      return false;
-   }
+	void render(S state, MatrixStack matrices, OrderedRenderCommandQueue queue, CameraRenderState cameraState);
 
-   default int getRenderDistance() {
-      return 64;
-   }
+	default boolean rendersOutsideBoundingBox() {
+		return false;
+	}
 
-   default boolean isInRenderDistance(T blockEntity, Vec3d pos) {
-      return Vec3d.ofCenter(blockEntity.getPos()).isInRange(pos, this.getRenderDistance());
-   }
+	default int getRenderDistance() {
+		return 64;
+	}
+
+	default boolean isInRenderDistance(T blockEntity, Vec3d pos) {
+		return Vec3d.ofCenter(blockEntity.getPos()).isInRange(pos, this.getRenderDistance());
+	}
 }

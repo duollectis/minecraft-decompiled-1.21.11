@@ -14,54 +14,62 @@ import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.world.World;
 
+/**
+ * {@code SnowballEntity}.
+ */
 public class SnowballEntity extends ThrownItemEntity {
-   public SnowballEntity(EntityType<? extends SnowballEntity> entityType, World world) {
-      super(entityType, world);
-   }
 
-   public SnowballEntity(World world, LivingEntity owner, ItemStack stack) {
-      super(EntityType.SNOWBALL, owner, world, stack);
-   }
+	public SnowballEntity(EntityType<? extends SnowballEntity> entityType, World world) {
+		super(entityType, world);
+	}
 
-   public SnowballEntity(World world, double x, double y, double z, ItemStack stack) {
-      super(EntityType.SNOWBALL, x, y, z, world, stack);
-   }
+	public SnowballEntity(World world, LivingEntity owner, ItemStack stack) {
+		super(EntityType.SNOWBALL, owner, world, stack);
+	}
 
-   @Override
-   protected Item getDefaultItem() {
-      return Items.SNOWBALL;
-   }
+	public SnowballEntity(World world, double x, double y, double z, ItemStack stack) {
+		super(EntityType.SNOWBALL, x, y, z, world, stack);
+	}
 
-   private ParticleEffect getParticleParameters() {
-      ItemStack itemStack = this.getStack();
-      return (ParticleEffect)(itemStack.isEmpty() ? ParticleTypes.ITEM_SNOWBALL : new ItemStackParticleEffect(ParticleTypes.ITEM, itemStack));
-   }
+	@Override
+	protected Item getDefaultItem() {
+		return Items.SNOWBALL;
+	}
 
-   @Override
-   public void handleStatus(byte status) {
-      if (status == 3) {
-         ParticleEffect particleEffect = this.getParticleParameters();
+	private ParticleEffect getParticleParameters() {
+		ItemStack itemStack = this.getStack();
+		return (ParticleEffect) (itemStack.isEmpty() ? ParticleTypes.ITEM_SNOWBALL
+		                                             : new ItemStackParticleEffect(ParticleTypes.ITEM, itemStack)
+		);
+	}
 
-         for (int i = 0; i < 8; i++) {
-            this.getEntityWorld().addParticleClient(particleEffect, this.getX(), this.getY(), this.getZ(), 0.0, 0.0, 0.0);
-         }
-      }
-   }
+	@Override
+	public void handleStatus(byte status) {
+		if (status == 3) {
+			ParticleEffect particleEffect = this.getParticleParameters();
 
-   @Override
-   protected void onEntityHit(EntityHitResult entityHitResult) {
-      super.onEntityHit(entityHitResult);
-      Entity entity = entityHitResult.getEntity();
-      int i = entity instanceof BlazeEntity ? 3 : 0;
-      entity.serverDamage(this.getDamageSources().thrown(this, this.getOwner()), i);
-   }
+			for (int i = 0; i < 8; i++) {
+				this
+						.getEntityWorld()
+						.addParticleClient(particleEffect, this.getX(), this.getY(), this.getZ(), 0.0, 0.0, 0.0);
+			}
+		}
+	}
 
-   @Override
-   protected void onCollision(HitResult hitResult) {
-      super.onCollision(hitResult);
-      if (!this.getEntityWorld().isClient()) {
-         this.getEntityWorld().sendEntityStatus(this, (byte)3);
-         this.discard();
-      }
-   }
+	@Override
+	protected void onEntityHit(EntityHitResult entityHitResult) {
+		super.onEntityHit(entityHitResult);
+		Entity entity = entityHitResult.getEntity();
+		int i = entity instanceof BlazeEntity ? 3 : 0;
+		entity.serverDamage(this.getDamageSources().thrown(this, this.getOwner()), i);
+	}
+
+	@Override
+	protected void onCollision(HitResult hitResult) {
+		super.onCollision(hitResult);
+		if (!this.getEntityWorld().isClient()) {
+			this.getEntityWorld().sendEntityStatus(this, (byte) 3);
+			this.discard();
+		}
+	}
 }

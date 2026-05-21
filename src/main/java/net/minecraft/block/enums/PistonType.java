@@ -2,23 +2,26 @@ package net.minecraft.block.enums;
 
 import net.minecraft.util.StringIdentifiable;
 
+/**
+ * {@code PistonType}.
+ */
 public enum PistonType implements StringIdentifiable {
-   DEFAULT("normal"),
-   STICKY("sticky");
+	DEFAULT("normal"),
+	STICKY("sticky");
 
-   private final String name;
+	private final String name;
 
-   private PistonType(final String name) {
-      this.name = name;
-   }
+	private PistonType(final String name) {
+		this.name = name;
+	}
 
-   @Override
-   public String toString() {
-      return this.name;
-   }
+	@Override
+	public String toString() {
+		return this.name;
+	}
 
-   @Override
-   public String asString() {
-      return this.name;
-   }
+	@Override
+	public String asString() {
+		return this.name;
+	}
 }

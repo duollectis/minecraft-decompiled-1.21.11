@@ -1,108 +1,130 @@
 package net.minecraft.nbt;
 
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.Optional;
 import net.minecraft.nbt.scanner.NbtScanner;
 import net.minecraft.nbt.visitor.NbtElementVisitor;
 
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.Optional;
+
+/**
+ * {@code NbtElement}.
+ */
 public sealed interface NbtElement permits NbtCompound, AbstractNbtList, NbtPrimitive, NbtEnd {
-   int field_33246 = 8;
-   int field_33247 = 12;
-   int field_33248 = 4;
-   int field_33249 = 28;
-   byte END_TYPE = 0;
-   byte BYTE_TYPE = 1;
-   byte SHORT_TYPE = 2;
-   byte INT_TYPE = 3;
-   byte LONG_TYPE = 4;
-   byte FLOAT_TYPE = 5;
-   byte DOUBLE_TYPE = 6;
-   byte BYTE_ARRAY_TYPE = 7;
-   byte STRING_TYPE = 8;
-   byte LIST_TYPE = 9;
-   byte COMPOUND_TYPE = 10;
-   byte INT_ARRAY_TYPE = 11;
-   byte LONG_ARRAY_TYPE = 12;
-   int MAX_DEPTH = 512;
 
-   void write(DataOutput output) throws IOException;
+	int STRING_SIZE_BYTES = 8;
 
-   @Override
-   String toString();
+	int LIST_SIZE_BYTES = 12;
 
-   byte getType();
+	int NUMBER_SIZE_BYTES = 4;
 
-   NbtType<?> getNbtType();
+	int COMPOUND_SIZE_BYTES = 28;
 
-   NbtElement copy();
+	byte END_TYPE = 0;
 
-   int getSizeInBytes();
+	byte BYTE_TYPE = 1;
 
-   void accept(NbtElementVisitor visitor);
+	byte SHORT_TYPE = 2;
 
-   NbtScanner.Result doAccept(NbtScanner visitor);
+	byte INT_TYPE = 3;
 
-   default void accept(NbtScanner visitor) {
-      NbtScanner.Result result = visitor.start(this.getNbtType());
-      if (result == NbtScanner.Result.CONTINUE) {
-         this.doAccept(visitor);
-      }
-   }
+	byte LONG_TYPE = 4;
 
-   default Optional<String> asString() {
-      return Optional.empty();
-   }
+	byte FLOAT_TYPE = 5;
 
-   default Optional<Number> asNumber() {
-      return Optional.empty();
-   }
+	byte DOUBLE_TYPE = 6;
 
-   default Optional<Byte> asByte() {
-      return this.asNumber().map(Number::byteValue);
-   }
+	byte BYTE_ARRAY_TYPE = 7;
 
-   default Optional<Short> asShort() {
-      return this.asNumber().map(Number::shortValue);
-   }
+	byte STRING_TYPE = 8;
 
-   default Optional<Integer> asInt() {
-      return this.asNumber().map(Number::intValue);
-   }
+	byte LIST_TYPE = 9;
 
-   default Optional<Long> asLong() {
-      return this.asNumber().map(Number::longValue);
-   }
+	byte COMPOUND_TYPE = 10;
 
-   default Optional<Float> asFloat() {
-      return this.asNumber().map(Number::floatValue);
-   }
+	byte INT_ARRAY_TYPE = 11;
 
-   default Optional<Double> asDouble() {
-      return this.asNumber().map(Number::doubleValue);
-   }
+	byte LONG_ARRAY_TYPE = 12;
 
-   default Optional<Boolean> asBoolean() {
-      return this.asByte().map(b -> b != 0);
-   }
+	int MAX_DEPTH = 512;
 
-   default Optional<byte[]> asByteArray() {
-      return Optional.empty();
-   }
+	void write(DataOutput output) throws IOException;
 
-   default Optional<int[]> asIntArray() {
-      return Optional.empty();
-   }
+	@Override
+	String toString();
 
-   default Optional<long[]> asLongArray() {
-      return Optional.empty();
-   }
+	byte getType();
 
-   default Optional<NbtCompound> asCompound() {
-      return Optional.empty();
-   }
+	NbtType<?> getNbtType();
 
-   default Optional<NbtList> asNbtList() {
-      return Optional.empty();
-   }
+	NbtElement copy();
+
+	int getSizeInBytes();
+
+	void accept(NbtElementVisitor visitor);
+
+	NbtScanner.Result doAccept(NbtScanner visitor);
+
+	default void accept(NbtScanner visitor) {
+		NbtScanner.Result result = visitor.start(this.getNbtType());
+		if (result == NbtScanner.Result.CONTINUE) {
+			this.doAccept(visitor);
+		}
+	}
+
+	default Optional<String> asString() {
+		return Optional.empty();
+	}
+
+	default Optional<Number> asNumber() {
+		return Optional.empty();
+	}
+
+	default Optional<Byte> asByte() {
+		return this.asNumber().map(Number::byteValue);
+	}
+
+	default Optional<Short> asShort() {
+		return this.asNumber().map(Number::shortValue);
+	}
+
+	default Optional<Integer> asInt() {
+		return this.asNumber().map(Number::intValue);
+	}
+
+	default Optional<Long> asLong() {
+		return this.asNumber().map(Number::longValue);
+	}
+
+	default Optional<Float> asFloat() {
+		return this.asNumber().map(Number::floatValue);
+	}
+
+	default Optional<Double> asDouble() {
+		return this.asNumber().map(Number::doubleValue);
+	}
+
+	default Optional<Boolean> asBoolean() {
+		return this.asByte().map(b -> b != 0);
+	}
+
+	default Optional<byte[]> asByteArray() {
+		return Optional.empty();
+	}
+
+	default Optional<int[]> asIntArray() {
+		return Optional.empty();
+	}
+
+	default Optional<long[]> asLongArray() {
+		return Optional.empty();
+	}
+
+	default Optional<NbtCompound> asCompound() {
+		return Optional.empty();
+	}
+
+	default Optional<NbtList> asNbtList() {
+		return Optional.empty();
+	}
 }

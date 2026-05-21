@@ -1,55 +1,61 @@
 package net.minecraft.client.session.telemetry;
 
-import java.time.Duration;
-import java.time.Instant;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import org.jspecify.annotations.Nullable;
 
+import java.time.Duration;
+import java.time.Instant;
+
 @Environment(EnvType.CLIENT)
+/**
+ * {@code SampleEvent}.
+ */
 public abstract class SampleEvent {
-   private static final int INTERVAL_IN_MILLIS = 60000;
-   private static final int BATCH_SIZE = 10;
-   private int sampleCount;
-   private boolean enabled = false;
-   private @Nullable Instant lastSampleTime;
 
-   public void start() {
-      this.enabled = true;
-      this.lastSampleTime = Instant.now();
-      this.sampleCount = 0;
-   }
+	private static final int INTERVAL_IN_MILLIS = 60000;
+	private static final int BATCH_SIZE = 10;
+	private int sampleCount;
+	private boolean enabled = false;
+	private @Nullable Instant lastSampleTime;
 
-   public void tick(TelemetrySender sender) {
-      if (this.shouldSample()) {
-         this.sample();
-         this.sampleCount++;
-         this.lastSampleTime = Instant.now();
-      }
+	public void start() {
+		this.enabled = true;
+		this.lastSampleTime = Instant.now();
+		this.sampleCount = 0;
+	}
 
-      if (this.shouldSend()) {
-         this.send(sender);
-         this.sampleCount = 0;
-      }
-   }
+	public void tick(TelemetrySender sender) {
+		if (this.shouldSample()) {
+			this.sample();
+			this.sampleCount++;
+			this.lastSampleTime = Instant.now();
+		}
 
-   public boolean shouldSample() {
-      return this.enabled && this.lastSampleTime != null && Duration.between(this.lastSampleTime, Instant.now()).toMillis() > 60000L;
-   }
+		if (this.shouldSend()) {
+			this.send(sender);
+			this.sampleCount = 0;
+		}
+	}
 
-   public boolean shouldSend() {
-      return this.sampleCount >= 10;
-   }
+	public boolean shouldSample() {
+		return this.enabled && this.lastSampleTime != null
+				&& Duration.between(this.lastSampleTime, Instant.now()).toMillis() > 60000L;
+	}
 
-   public void disableSampling() {
-      this.enabled = false;
-   }
+	public boolean shouldSend() {
+		return this.sampleCount >= 10;
+	}
 
-   protected int getSampleCount() {
-      return this.sampleCount;
-   }
+	public void disableSampling() {
+		this.enabled = false;
+	}
 
-   public abstract void sample();
+	protected int getSampleCount() {
+		return this.sampleCount;
+	}
 
-   public abstract void send(TelemetrySender sender);
+	public abstract void sample();
+
+	public abstract void send(TelemetrySender sender);
 }

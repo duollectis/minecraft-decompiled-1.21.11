@@ -4,23 +4,12 @@ import com.google.common.collect.Lists;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.LeavesBlock;
-import net.minecraft.block.VineBlock;
+import net.minecraft.block.*;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.state.property.BooleanProperty;
-import net.minecraft.structure.processor.BlackstoneReplacementStructureProcessor;
-import net.minecraft.structure.processor.BlockAgeStructureProcessor;
-import net.minecraft.structure.processor.BlockIgnoreStructureProcessor;
-import net.minecraft.structure.processor.LavaSubmergedBlockStructureProcessor;
-import net.minecraft.structure.processor.ProtectedBlocksStructureProcessor;
-import net.minecraft.structure.processor.RuleStructureProcessor;
-import net.minecraft.structure.processor.StructureProcessorRule;
+import net.minecraft.structure.processor.*;
 import net.minecraft.structure.rule.AlwaysTrueRuleTest;
 import net.minecraft.structure.rule.BlockMatchRuleTest;
 import net.minecraft.structure.rule.RandomBlockMatchRuleTest;
@@ -40,307 +29,385 @@ import net.minecraft.world.WorldAccess;
 import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.ChunkGenerator;
 
+import java.util.List;
+
+/**
+ * {@code RuinedPortalStructurePiece}.
+ */
 public class RuinedPortalStructurePiece extends SimpleStructurePiece {
-   private static final float field_31620 = 0.3F;
-   private static final float field_31621 = 0.07F;
-   private static final float field_31622 = 0.2F;
-   private final RuinedPortalStructurePiece.VerticalPlacement verticalPlacement;
-   private final RuinedPortalStructurePiece.Properties properties;
 
-   public RuinedPortalStructurePiece(
-      StructureTemplateManager manager,
-      BlockPos pos,
-      RuinedPortalStructurePiece.VerticalPlacement verticalPlacement,
-      RuinedPortalStructurePiece.Properties properties,
-      Identifier id,
-      StructureTemplate template,
-      BlockRotation rotation,
-      BlockMirror mirror,
-      BlockPos blockPos
-   ) {
-      super(
-         StructurePieceType.RUINED_PORTAL, 0, manager, id, id.toString(), createPlacementData(mirror, rotation, verticalPlacement, blockPos, properties), pos
-      );
-      this.verticalPlacement = verticalPlacement;
-      this.properties = properties;
-   }
+	private static final float GOLD_BLOCK_REPLACEMENT_CHANCE = 0.3F;
+	private static final float NETHERRACK_MAGMA_CHANCE = 0.07F;
+	private static final float LAVA_MAGMA_CHANCE = 0.2F;
+	private final RuinedPortalStructurePiece.VerticalPlacement verticalPlacement;
+	private final RuinedPortalStructurePiece.Properties properties;
 
-   public RuinedPortalStructurePiece(StructureTemplateManager manager, NbtCompound nbt) {
-      super(StructurePieceType.RUINED_PORTAL, nbt, manager, id -> createPlacementData(manager, nbt, id));
-      this.verticalPlacement = nbt.<RuinedPortalStructurePiece.VerticalPlacement>get("VerticalPlacement", RuinedPortalStructurePiece.VerticalPlacement.CODEC)
-         .orElseThrow();
-      this.properties = nbt.<RuinedPortalStructurePiece.Properties>get("Properties", RuinedPortalStructurePiece.Properties.CODEC).orElseThrow();
-   }
+	public RuinedPortalStructurePiece(
+			StructureTemplateManager manager,
+			BlockPos pos,
+			RuinedPortalStructurePiece.VerticalPlacement verticalPlacement,
+			RuinedPortalStructurePiece.Properties properties,
+			Identifier id,
+			StructureTemplate template,
+			BlockRotation rotation,
+			BlockMirror mirror,
+			BlockPos blockPos
+	) {
+		super(
+				StructurePieceType.RUINED_PORTAL,
+				0,
+				manager,
+				id,
+				id.toString(),
+				createPlacementData(mirror, rotation, verticalPlacement, blockPos, properties),
+				pos
+		);
+		this.verticalPlacement = verticalPlacement;
+		this.properties = properties;
+	}
 
-   @Override
-   protected void writeNbt(StructureContext context, NbtCompound nbt) {
-      super.writeNbt(context, nbt);
-      nbt.put("Rotation", BlockRotation.ENUM_NAME_CODEC, this.placementData.getRotation());
-      nbt.put("Mirror", BlockMirror.ENUM_NAME_CODEC, this.placementData.getMirror());
-      nbt.put("VerticalPlacement", RuinedPortalStructurePiece.VerticalPlacement.CODEC, this.verticalPlacement);
-      nbt.put("Properties", RuinedPortalStructurePiece.Properties.CODEC, this.properties);
-   }
+	public RuinedPortalStructurePiece(StructureTemplateManager manager, NbtCompound nbt) {
+		super(StructurePieceType.RUINED_PORTAL, nbt, manager, id -> createPlacementData(manager, nbt, id));
+		this.verticalPlacement =
+				nbt
+						.<RuinedPortalStructurePiece.VerticalPlacement>get(
+								"VerticalPlacement",
+								RuinedPortalStructurePiece.VerticalPlacement.CODEC
+						)
+						.orElseThrow();
+		this.properties =
+				nbt
+						.<RuinedPortalStructurePiece.Properties>get(
+								"Properties",
+								RuinedPortalStructurePiece.Properties.CODEC
+						)
+						.orElseThrow();
+	}
 
-   private static StructurePlacementData createPlacementData(StructureTemplateManager manager, NbtCompound nbt, Identifier id) {
-      StructureTemplate structureTemplate = manager.getTemplateOrBlank(id);
-      BlockPos blockPos = new BlockPos(structureTemplate.getSize().getX() / 2, 0, structureTemplate.getSize().getZ() / 2);
-      return createPlacementData(
-         nbt.<BlockMirror>get("Mirror", BlockMirror.ENUM_NAME_CODEC).orElseThrow(),
-         nbt.<BlockRotation>get("Rotation", BlockRotation.ENUM_NAME_CODEC).orElseThrow(),
-         nbt.<RuinedPortalStructurePiece.VerticalPlacement>get("VerticalPlacement", RuinedPortalStructurePiece.VerticalPlacement.CODEC).orElseThrow(),
-         blockPos,
-         (RuinedPortalStructurePiece.Properties)RuinedPortalStructurePiece.Properties.CODEC
-            .parse(new Dynamic(NbtOps.INSTANCE, nbt.get("Properties")))
-            .getPartialOrThrow()
-      );
-   }
+	@Override
+	protected void writeNbt(StructureContext context, NbtCompound nbt) {
+		super.writeNbt(context, nbt);
+		nbt.put("Rotation", BlockRotation.ENUM_NAME_CODEC, this.placementData.getRotation());
+		nbt.put("Mirror", BlockMirror.ENUM_NAME_CODEC, this.placementData.getMirror());
+		nbt.put("VerticalPlacement", RuinedPortalStructurePiece.VerticalPlacement.CODEC, this.verticalPlacement);
+		nbt.put("Properties", RuinedPortalStructurePiece.Properties.CODEC, this.properties);
+	}
 
-   private static StructurePlacementData createPlacementData(
-      BlockMirror mirror,
-      BlockRotation rotation,
-      RuinedPortalStructurePiece.VerticalPlacement verticalPlacement,
-      BlockPos pos,
-      RuinedPortalStructurePiece.Properties properties
-   ) {
-      BlockIgnoreStructureProcessor blockIgnoreStructureProcessor = properties.airPocket
-         ? BlockIgnoreStructureProcessor.IGNORE_STRUCTURE_BLOCKS
-         : BlockIgnoreStructureProcessor.IGNORE_AIR_AND_STRUCTURE_BLOCKS;
-      List<StructureProcessorRule> list = Lists.newArrayList();
-      list.add(createReplacementRule(Blocks.GOLD_BLOCK, 0.3F, Blocks.AIR));
-      list.add(createLavaReplacementRule(verticalPlacement, properties));
-      if (!properties.cold) {
-         list.add(createReplacementRule(Blocks.NETHERRACK, 0.07F, Blocks.MAGMA_BLOCK));
-      }
+	private static StructurePlacementData createPlacementData(
+			StructureTemplateManager manager,
+			NbtCompound nbt,
+			Identifier id
+	) {
+		StructureTemplate structureTemplate = manager.getTemplateOrBlank(id);
+		BlockPos
+				blockPos =
+				new BlockPos(structureTemplate.getSize().getX() / 2, 0, structureTemplate.getSize().getZ() / 2);
+		return createPlacementData(
+				nbt.<BlockMirror>get("Mirror", BlockMirror.ENUM_NAME_CODEC).orElseThrow(),
+				nbt.<BlockRotation>get("Rotation", BlockRotation.ENUM_NAME_CODEC).orElseThrow(),
+				nbt
+						.<RuinedPortalStructurePiece.VerticalPlacement>get(
+								"VerticalPlacement",
+								RuinedPortalStructurePiece.VerticalPlacement.CODEC
+						)
+						.orElseThrow(),
+				blockPos,
+				(RuinedPortalStructurePiece.Properties) RuinedPortalStructurePiece.Properties.CODEC
+						.parse(new Dynamic(NbtOps.INSTANCE, nbt.get("Properties")))
+						.getPartialOrThrow()
+		);
+	}
 
-      StructurePlacementData structurePlacementData = new StructurePlacementData()
-         .setRotation(rotation)
-         .setMirror(mirror)
-         .setPosition(pos)
-         .addProcessor(blockIgnoreStructureProcessor)
-         .addProcessor(new RuleStructureProcessor(list))
-         .addProcessor(new BlockAgeStructureProcessor(properties.mossiness))
-         .addProcessor(new ProtectedBlocksStructureProcessor(BlockTags.FEATURES_CANNOT_REPLACE))
-         .addProcessor(new LavaSubmergedBlockStructureProcessor());
-      if (properties.replaceWithBlackstone) {
-         structurePlacementData.addProcessor(BlackstoneReplacementStructureProcessor.INSTANCE);
-      }
+	private static StructurePlacementData createPlacementData(
+			BlockMirror mirror,
+			BlockRotation rotation,
+			RuinedPortalStructurePiece.VerticalPlacement verticalPlacement,
+			BlockPos pos,
+			RuinedPortalStructurePiece.Properties properties
+	) {
+		BlockIgnoreStructureProcessor blockIgnoreStructureProcessor = properties.airPocket
+		                                                              ? BlockIgnoreStructureProcessor.IGNORE_STRUCTURE_BLOCKS
+		                                                              : BlockIgnoreStructureProcessor.IGNORE_AIR_AND_STRUCTURE_BLOCKS;
+		List<StructureProcessorRule> list = Lists.newArrayList();
+		list.add(createReplacementRule(Blocks.GOLD_BLOCK, GOLD_BLOCK_REPLACEMENT_CHANCE, Blocks.AIR));
+		list.add(createLavaReplacementRule(verticalPlacement, properties));
+		if (!properties.cold) {
+			list.add(createReplacementRule(Blocks.NETHERRACK, NETHERRACK_MAGMA_CHANCE, Blocks.MAGMA_BLOCK));
+		}
 
-      return structurePlacementData;
-   }
+		StructurePlacementData structurePlacementData = new StructurePlacementData()
+				.setRotation(rotation)
+				.setMirror(mirror)
+				.setPosition(pos)
+				.addProcessor(blockIgnoreStructureProcessor)
+				.addProcessor(new RuleStructureProcessor(list))
+				.addProcessor(new BlockAgeStructureProcessor(properties.mossiness))
+				.addProcessor(new ProtectedBlocksStructureProcessor(BlockTags.FEATURES_CANNOT_REPLACE))
+				.addProcessor(new LavaSubmergedBlockStructureProcessor());
+		if (properties.replaceWithBlackstone) {
+			structurePlacementData.addProcessor(BlackstoneReplacementStructureProcessor.INSTANCE);
+		}
 
-   private static StructureProcessorRule createLavaReplacementRule(
-      RuinedPortalStructurePiece.VerticalPlacement verticalPlacement, RuinedPortalStructurePiece.Properties properties
-   ) {
-      if (verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR) {
-         return createReplacementRule(Blocks.LAVA, Blocks.MAGMA_BLOCK);
-      } else {
-         return properties.cold ? createReplacementRule(Blocks.LAVA, Blocks.NETHERRACK) : createReplacementRule(Blocks.LAVA, 0.2F, Blocks.MAGMA_BLOCK);
-      }
-   }
+		return structurePlacementData;
+	}
 
-   @Override
-   public void generate(
-      StructureWorldAccess world,
-      StructureAccessor structureAccessor,
-      ChunkGenerator chunkGenerator,
-      Random random,
-      BlockBox chunkBox,
-      ChunkPos chunkPos,
-      BlockPos pivot
-   ) {
-      BlockBox blockBox = this.template.calculateBoundingBox(this.placementData, this.pos);
-      if (chunkBox.contains(blockBox.getCenter())) {
-         chunkBox.encompass(blockBox);
-         super.generate(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
-         this.placeNetherrackBase(random, world);
-         this.updateNetherracksInBound(random, world);
-         if (this.properties.vines || this.properties.overgrown) {
-            BlockPos.stream(this.getBoundingBox()).forEach(pos -> {
-               if (this.properties.vines) {
-                  this.generateVines(random, world, pos);
-               }
+	private static StructureProcessorRule createLavaReplacementRule(
+			RuinedPortalStructurePiece.VerticalPlacement verticalPlacement,
+			RuinedPortalStructurePiece.Properties properties
+	) {
+		if (verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR) {
+			return createReplacementRule(Blocks.LAVA, Blocks.MAGMA_BLOCK);
+		}
+		else {
+			return properties.cold ? createReplacementRule(Blocks.LAVA, Blocks.NETHERRACK)
+			                       : createReplacementRule(Blocks.LAVA, LAVA_MAGMA_CHANCE, Blocks.MAGMA_BLOCK);
+		}
+	}
 
-               if (this.properties.overgrown) {
-                  this.generateOvergrownLeaves(random, world, pos);
-               }
-            });
-         }
-      }
-   }
+	@Override
+	public void generate(
+			StructureWorldAccess world,
+			StructureAccessor structureAccessor,
+			ChunkGenerator chunkGenerator,
+			Random random,
+			BlockBox chunkBox,
+			ChunkPos chunkPos,
+			BlockPos pivot
+	) {
+		BlockBox blockBox = this.template.calculateBoundingBox(this.placementData, this.pos);
+		if (chunkBox.contains(blockBox.getCenter())) {
+			chunkBox.encompass(blockBox);
+			super.generate(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
+			this.placeNetherrackBase(random, world);
+			this.updateNetherracksInBound(random, world);
+			if (this.properties.vines || this.properties.overgrown) {
+				BlockPos.stream(this.getBoundingBox()).forEach(pos -> {
+					if (this.properties.vines) {
+						this.generateVines(random, world, pos);
+					}
 
-   @Override
-   protected void handleMetadata(String metadata, BlockPos pos, ServerWorldAccess world, Random random, BlockBox boundingBox) {
-   }
+					if (this.properties.overgrown) {
+						this.generateOvergrownLeaves(random, world, pos);
+					}
+				});
+			}
+		}
+	}
 
-   private void generateVines(Random random, WorldAccess world, BlockPos pos) {
-      BlockState blockState = world.getBlockState(pos);
-      if (!blockState.isAir() && !blockState.isOf(Blocks.VINE)) {
-         Direction direction = getRandomHorizontalDirection(random);
-         BlockPos blockPos = pos.offset(direction);
-         BlockState blockState2 = world.getBlockState(blockPos);
-         if (blockState2.isAir()) {
-            if (Block.isFaceFullSquare(blockState.getCollisionShape(world, pos), direction)) {
-               BooleanProperty booleanProperty = VineBlock.getFacingProperty(direction.getOpposite());
-               world.setBlockState(blockPos, Blocks.VINE.getDefaultState().with(booleanProperty, true), 3);
-            }
-         }
-      }
-   }
+	@Override
+	protected void handleMetadata(
+			String metadata,
+			BlockPos pos,
+			ServerWorldAccess world,
+			Random random,
+			BlockBox boundingBox
+	) {
+	}
 
-   private void generateOvergrownLeaves(Random random, WorldAccess world, BlockPos pos) {
-      if (random.nextFloat() < 0.5F && world.getBlockState(pos).isOf(Blocks.NETHERRACK) && world.getBlockState(pos.up()).isAir()) {
-         world.setBlockState(pos.up(), Blocks.JUNGLE_LEAVES.getDefaultState().with(LeavesBlock.PERSISTENT, true), 3);
-      }
-   }
+	private void generateVines(Random random, WorldAccess world, BlockPos pos) {
+		BlockState blockState = world.getBlockState(pos);
+		if (!blockState.isAir() && !blockState.isOf(Blocks.VINE)) {
+			Direction direction = getRandomHorizontalDirection(random);
+			BlockPos blockPos = pos.offset(direction);
+			BlockState blockState2 = world.getBlockState(blockPos);
+			if (blockState2.isAir()) {
+				if (Block.isFaceFullSquare(blockState.getCollisionShape(world, pos), direction)) {
+					BooleanProperty booleanProperty = VineBlock.getFacingProperty(direction.getOpposite());
+					world.setBlockState(blockPos, Blocks.VINE.getDefaultState().with(booleanProperty, true), 3);
+				}
+			}
+		}
+	}
 
-   private void updateNetherracksInBound(Random random, WorldAccess world) {
-      for (int i = this.boundingBox.getMinX() + 1; i < this.boundingBox.getMaxX(); i++) {
-         for (int j = this.boundingBox.getMinZ() + 1; j < this.boundingBox.getMaxZ(); j++) {
-            BlockPos blockPos = new BlockPos(i, this.boundingBox.getMinY(), j);
-            if (world.getBlockState(blockPos).isOf(Blocks.NETHERRACK)) {
-               this.updateNetherracks(random, world, blockPos.down());
-            }
-         }
-      }
-   }
+	private void generateOvergrownLeaves(Random random, WorldAccess world, BlockPos pos) {
+		if (random.nextFloat() < 0.5F && world.getBlockState(pos).isOf(Blocks.NETHERRACK) && world
+				.getBlockState(pos.up())
+				.isAir()) {
+			world.setBlockState(pos.up(), Blocks.JUNGLE_LEAVES.getDefaultState().with(LeavesBlock.PERSISTENT, true), 3);
+		}
+	}
 
-   private void updateNetherracks(Random random, WorldAccess world, BlockPos pos) {
-      BlockPos.Mutable mutable = pos.mutableCopy();
-      this.placeNetherrackBottom(random, world, mutable);
-      int i = 8;
+	private void updateNetherracksInBound(Random random, WorldAccess world) {
+		for (int i = this.boundingBox.getMinX() + 1; i < this.boundingBox.getMaxX(); i++) {
+			for (int j = this.boundingBox.getMinZ() + 1; j < this.boundingBox.getMaxZ(); j++) {
+				BlockPos blockPos = new BlockPos(i, this.boundingBox.getMinY(), j);
+				if (world.getBlockState(blockPos).isOf(Blocks.NETHERRACK)) {
+					this.updateNetherracks(random, world, blockPos.down());
+				}
+			}
+		}
+	}
 
-      while (i > 0 && random.nextFloat() < 0.5F) {
-         mutable.move(Direction.DOWN);
-         i--;
-         this.placeNetherrackBottom(random, world, mutable);
-      }
-   }
+	private void updateNetherracks(Random random, WorldAccess world, BlockPos pos) {
+		BlockPos.Mutable mutable = pos.mutableCopy();
+		this.placeNetherrackBottom(random, world, mutable);
+		int i = 8;
 
-   private void placeNetherrackBase(Random random, WorldAccess world) {
-      boolean bl = this.verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_LAND_SURFACE
-         || this.verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR;
-      BlockPos blockPos = this.boundingBox.getCenter();
-      int i = blockPos.getX();
-      int j = blockPos.getZ();
-      float[] fs = new float[]{1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 0.9F, 0.9F, 0.8F, 0.7F, 0.6F, 0.4F, 0.2F};
-      int k = fs.length;
-      int l = (this.boundingBox.getBlockCountX() + this.boundingBox.getBlockCountZ()) / 2;
-      int m = random.nextInt(Math.max(1, 8 - l / 2));
-      int n = 3;
-      BlockPos.Mutable mutable = BlockPos.ORIGIN.mutableCopy();
+		while (i > 0 && random.nextFloat() < 0.5F) {
+			mutable.move(Direction.DOWN);
+			i--;
+			this.placeNetherrackBottom(random, world, mutable);
+		}
+	}
 
-      for (int o = i - k; o <= i + k; o++) {
-         for (int p = j - k; p <= j + k; p++) {
-            int q = Math.abs(o - i) + Math.abs(p - j);
-            int r = Math.max(0, q + m);
-            if (r < k) {
-               float f = fs[r];
-               if (random.nextDouble() < f) {
-                  int s = getBaseHeight(world, o, p, this.verticalPlacement);
-                  int t = bl ? s : Math.min(this.boundingBox.getMinY(), s);
-                  mutable.set(o, t, p);
-                  if (Math.abs(t - this.boundingBox.getMinY()) <= 3 && this.canFillNetherrack(world, mutable)) {
-                     this.placeNetherrackBottom(random, world, mutable);
-                     if (this.properties.overgrown) {
-                        this.generateOvergrownLeaves(random, world, mutable);
-                     }
+	private void placeNetherrackBase(Random random, WorldAccess world) {
+		boolean bl = this.verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_LAND_SURFACE
+				|| this.verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR;
+		BlockPos blockPos = this.boundingBox.getCenter();
+		int i = blockPos.getX();
+		int j = blockPos.getZ();
+		float[] fs = new float[]{1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F, 0.9F, 0.9F, 0.8F, 0.7F, 0.6F, 0.4F, 0.2F};
+		int k = fs.length;
+		int l = (this.boundingBox.getBlockCountX() + this.boundingBox.getBlockCountZ()) / 2;
+		int m = random.nextInt(Math.max(1, 8 - l / 2));
+		int n = 3;
+		BlockPos.Mutable mutable = BlockPos.ORIGIN.mutableCopy();
 
-                     this.updateNetherracks(random, world, mutable.down());
-                  }
-               }
-            }
-         }
-      }
-   }
+		for (int o = i - k; o <= i + k; o++) {
+			for (int p = j - k; p <= j + k; p++) {
+				int q = Math.abs(o - i) + Math.abs(p - j);
+				int r = Math.max(0, q + m);
+				if (r < k) {
+					float f = fs[r];
+					if (random.nextDouble() < f) {
+						int s = getBaseHeight(world, o, p, this.verticalPlacement);
+						int t = bl ? s : Math.min(this.boundingBox.getMinY(), s);
+						mutable.set(o, t, p);
+						if (Math.abs(t - this.boundingBox.getMinY()) <= 3 && this.canFillNetherrack(world, mutable)) {
+							this.placeNetherrackBottom(random, world, mutable);
+							if (this.properties.overgrown) {
+								this.generateOvergrownLeaves(random, world, mutable);
+							}
 
-   private boolean canFillNetherrack(WorldAccess world, BlockPos pos) {
-      BlockState blockState = world.getBlockState(pos);
-      return !blockState.isOf(Blocks.AIR)
-         && !blockState.isOf(Blocks.OBSIDIAN)
-         && !blockState.isIn(BlockTags.FEATURES_CANNOT_REPLACE)
-         && (this.verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.IN_NETHER || !blockState.isOf(Blocks.LAVA));
-   }
+							this.updateNetherracks(random, world, mutable.down());
+						}
+					}
+				}
+			}
+		}
+	}
 
-   private void placeNetherrackBottom(Random random, WorldAccess world, BlockPos pos) {
-      if (!this.properties.cold && random.nextFloat() < 0.07F) {
-         world.setBlockState(pos, Blocks.MAGMA_BLOCK.getDefaultState(), 3);
-      } else {
-         world.setBlockState(pos, Blocks.NETHERRACK.getDefaultState(), 3);
-      }
-   }
+	private boolean canFillNetherrack(WorldAccess world, BlockPos pos) {
+		BlockState blockState = world.getBlockState(pos);
+		return !blockState.isOf(Blocks.AIR)
+				&& !blockState.isOf(Blocks.OBSIDIAN)
+				&& !blockState.isIn(BlockTags.FEATURES_CANNOT_REPLACE)
+				&& (this.verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.IN_NETHER
+				|| !blockState.isOf(Blocks.LAVA)
+		);
+	}
 
-   private static int getBaseHeight(WorldAccess world, int x, int y, RuinedPortalStructurePiece.VerticalPlacement verticalPlacement) {
-      return world.getTopY(getHeightmapType(verticalPlacement), x, y) - 1;
-   }
+	private void placeNetherrackBottom(Random random, WorldAccess world, BlockPos pos) {
+		if (!this.properties.cold && random.nextFloat() < 0.07F) {
+			world.setBlockState(pos, Blocks.MAGMA_BLOCK.getDefaultState(), 3);
+		}
+		else {
+			world.setBlockState(pos, Blocks.NETHERRACK.getDefaultState(), 3);
+		}
+	}
 
-   public static Heightmap.Type getHeightmapType(RuinedPortalStructurePiece.VerticalPlacement verticalPlacement) {
-      return verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR ? Heightmap.Type.OCEAN_FLOOR_WG : Heightmap.Type.WORLD_SURFACE_WG;
-   }
+	private static int getBaseHeight(
+			WorldAccess world,
+			int x,
+			int y,
+			RuinedPortalStructurePiece.VerticalPlacement verticalPlacement
+	) {
+		return world.getTopY(getHeightmapType(verticalPlacement), x, y) - 1;
+	}
 
-   private static StructureProcessorRule createReplacementRule(Block old, float chance, Block updated) {
-      return new StructureProcessorRule(new RandomBlockMatchRuleTest(old, chance), AlwaysTrueRuleTest.INSTANCE, updated.getDefaultState());
-   }
+	public static Heightmap.Type getHeightmapType(RuinedPortalStructurePiece.VerticalPlacement verticalPlacement) {
+		return verticalPlacement == RuinedPortalStructurePiece.VerticalPlacement.ON_OCEAN_FLOOR
+		       ? Heightmap.Type.OCEAN_FLOOR_WG : Heightmap.Type.WORLD_SURFACE_WG;
+	}
 
-   private static StructureProcessorRule createReplacementRule(Block old, Block updated) {
-      return new StructureProcessorRule(new BlockMatchRuleTest(old), AlwaysTrueRuleTest.INSTANCE, updated.getDefaultState());
-   }
+	private static StructureProcessorRule createReplacementRule(Block old, float chance, Block updated) {
+		return new StructureProcessorRule(
+				new RandomBlockMatchRuleTest(old, chance),
+				AlwaysTrueRuleTest.INSTANCE,
+				updated.getDefaultState()
+		);
+	}
 
-   public static class Properties {
-      public static final Codec<RuinedPortalStructurePiece.Properties> CODEC = RecordCodecBuilder.create(
-         instance -> instance.group(
-               Codec.BOOL.fieldOf("cold").forGetter(properties -> properties.cold),
-               Codec.FLOAT.fieldOf("mossiness").forGetter(properties -> properties.mossiness),
-               Codec.BOOL.fieldOf("air_pocket").forGetter(properties -> properties.airPocket),
-               Codec.BOOL.fieldOf("overgrown").forGetter(properties -> properties.overgrown),
-               Codec.BOOL.fieldOf("vines").forGetter(properties -> properties.vines),
-               Codec.BOOL.fieldOf("replace_with_blackstone").forGetter(properties -> properties.replaceWithBlackstone)
-            )
-            .apply(instance, RuinedPortalStructurePiece.Properties::new)
-      );
-      public boolean cold;
-      public float mossiness;
-      public boolean airPocket;
-      public boolean overgrown;
-      public boolean vines;
-      public boolean replaceWithBlackstone;
+	private static StructureProcessorRule createReplacementRule(Block old, Block updated) {
+		return new StructureProcessorRule(
+				new BlockMatchRuleTest(old),
+				AlwaysTrueRuleTest.INSTANCE,
+				updated.getDefaultState()
+		);
+	}
 
-      public Properties() {
-      }
+	/**
+	 * {@code Properties}.
+	 */
+	public static class Properties {
 
-      public Properties(boolean cold, float mossiness, boolean airPocket, boolean overgrown, boolean vines, boolean replaceWithBlackstone) {
-         this.cold = cold;
-         this.mossiness = mossiness;
-         this.airPocket = airPocket;
-         this.overgrown = overgrown;
-         this.vines = vines;
-         this.replaceWithBlackstone = replaceWithBlackstone;
-      }
-   }
+		public static final Codec<RuinedPortalStructurePiece.Properties> CODEC = RecordCodecBuilder.create(
+				instance -> instance.group(
+						                    Codec.BOOL.fieldOf("cold").forGetter(properties -> properties.cold),
+						                    Codec.FLOAT.fieldOf("mossiness").forGetter(properties -> properties.mossiness),
+						                    Codec.BOOL.fieldOf("air_pocket").forGetter(properties -> properties.airPocket),
+						                    Codec.BOOL.fieldOf("overgrown").forGetter(properties -> properties.overgrown),
+						                    Codec.BOOL.fieldOf("vines").forGetter(properties -> properties.vines),
+						                    Codec.BOOL
+								                    .fieldOf("replace_with_blackstone")
+								                    .forGetter(properties -> properties.replaceWithBlackstone)
+				                    )
+				                    .apply(instance, RuinedPortalStructurePiece.Properties::new)
+		);
+		public boolean cold;
+		public float mossiness;
+		public boolean airPocket;
+		public boolean overgrown;
+		public boolean vines;
+		public boolean replaceWithBlackstone;
 
-   public static enum VerticalPlacement implements StringIdentifiable {
-      ON_LAND_SURFACE("on_land_surface"),
-      PARTLY_BURIED("partly_buried"),
-      ON_OCEAN_FLOOR("on_ocean_floor"),
-      IN_MOUNTAIN("in_mountain"),
-      UNDERGROUND("underground"),
-      IN_NETHER("in_nether");
+		public Properties() {
+		}
 
-      public static final Codec<RuinedPortalStructurePiece.VerticalPlacement> CODEC = StringIdentifiable.createCodec(
-         RuinedPortalStructurePiece.VerticalPlacement::values
-      );
-      private final String id;
+		public Properties(
+				boolean cold,
+				float mossiness,
+				boolean airPocket,
+				boolean overgrown,
+				boolean vines,
+				boolean replaceWithBlackstone
+		) {
+			this.cold = cold;
+			this.mossiness = mossiness;
+			this.airPocket = airPocket;
+			this.overgrown = overgrown;
+			this.vines = vines;
+			this.replaceWithBlackstone = replaceWithBlackstone;
+		}
+	}
 
-      private VerticalPlacement(final String id) {
-         this.id = id;
-      }
+	/**
+	 * {@code VerticalPlacement}.
+	 */
+	public static enum VerticalPlacement implements StringIdentifiable {
+		ON_LAND_SURFACE("on_land_surface"),
+		PARTLY_BURIED("partly_buried"),
+		ON_OCEAN_FLOOR("on_ocean_floor"),
+		IN_MOUNTAIN("in_mountain"),
+		UNDERGROUND("underground"),
+		IN_NETHER("in_nether");
 
-      public String getId() {
-         return this.id;
-      }
+		public static final Codec<RuinedPortalStructurePiece.VerticalPlacement> CODEC = StringIdentifiable.createCodec(
+				RuinedPortalStructurePiece.VerticalPlacement::values
+		);
+		private final String id;
 
-      @Override
-      public String asString() {
-         return this.id;
-      }
-   }
+		private VerticalPlacement(final String id) {
+			this.id = id;
+		}
+
+		public String getId() {
+			return this.id;
+		}
+
+		@Override
+		public String asString() {
+			return this.id;
+		}
+	}
 }

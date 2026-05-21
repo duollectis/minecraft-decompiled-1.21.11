@@ -1,9 +1,6 @@
 package net.minecraft.loot.context;
 
 import com.google.common.collect.Sets;
-import java.util.Optional;
-import java.util.Set;
-import java.util.function.Consumer;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemStack;
@@ -20,188 +17,224 @@ import net.minecraft.util.context.ContextParameter;
 import net.minecraft.util.math.random.Random;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Optional;
+import java.util.Set;
+import java.util.function.Consumer;
+
+/**
+ * {@code LootContext}.
+ */
 public class LootContext {
-   private final LootWorldContext worldContext;
-   private final Random random;
-   private final RegistryEntryLookup.RegistryLookup lookup;
-   private final Set<LootContext.Entry<?>> activeEntries = Sets.newLinkedHashSet();
 
-   LootContext(LootWorldContext worldContext, Random random, RegistryEntryLookup.RegistryLookup lookup) {
-      this.worldContext = worldContext;
-      this.random = random;
-      this.lookup = lookup;
-   }
+	private final LootWorldContext worldContext;
+	private final Random random;
+	private final RegistryEntryLookup.RegistryLookup lookup;
+	private final Set<LootContext.Entry<?>> activeEntries = Sets.newLinkedHashSet();
 
-   public boolean hasParameter(ContextParameter<?> parameter) {
-      return this.worldContext.getParameters().contains(parameter);
-   }
+	LootContext(LootWorldContext worldContext, Random random, RegistryEntryLookup.RegistryLookup lookup) {
+		this.worldContext = worldContext;
+		this.random = random;
+		this.lookup = lookup;
+	}
 
-   public <T> T getOrThrow(ContextParameter<T> parameter) {
-      return this.worldContext.getParameters().getOrThrow(parameter);
-   }
+	public boolean hasParameter(ContextParameter<?> parameter) {
+		return this.worldContext.getParameters().contains(parameter);
+	}
 
-   public <T> @Nullable T get(ContextParameter<T> parameter) {
-      return this.worldContext.getParameters().getNullable(parameter);
-   }
+	public <T> T getOrThrow(ContextParameter<T> parameter) {
+		return this.worldContext.getParameters().getOrThrow(parameter);
+	}
 
-   public void drop(Identifier id, Consumer<ItemStack> lootConsumer) {
-      this.worldContext.addDynamicDrops(id, lootConsumer);
-   }
+	public <T> @Nullable T get(ContextParameter<T> parameter) {
+		return this.worldContext.getParameters().getNullable(parameter);
+	}
 
-   public boolean isActive(LootContext.Entry<?> entry) {
-      return this.activeEntries.contains(entry);
-   }
+	public void drop(Identifier id, Consumer<ItemStack> lootConsumer) {
+		this.worldContext.addDynamicDrops(id, lootConsumer);
+	}
 
-   public boolean markActive(LootContext.Entry<?> entry) {
-      return this.activeEntries.add(entry);
-   }
+	public boolean isActive(LootContext.Entry<?> entry) {
+		return this.activeEntries.contains(entry);
+	}
 
-   public void markInactive(LootContext.Entry<?> entry) {
-      this.activeEntries.remove(entry);
-   }
+	public boolean markActive(LootContext.Entry<?> entry) {
+		return this.activeEntries.add(entry);
+	}
 
-   public RegistryEntryLookup.RegistryLookup getLookup() {
-      return this.lookup;
-   }
+	public void markInactive(LootContext.Entry<?> entry) {
+		this.activeEntries.remove(entry);
+	}
 
-   public Random getRandom() {
-      return this.random;
-   }
+	public RegistryEntryLookup.RegistryLookup getLookup() {
+		return this.lookup;
+	}
 
-   public float getLuck() {
-      return this.worldContext.getLuck();
-   }
+	public Random getRandom() {
+		return this.random;
+	}
 
-   public ServerWorld getWorld() {
-      return this.worldContext.getWorld();
-   }
+	public float getLuck() {
+		return this.worldContext.getLuck();
+	}
 
-   public static LootContext.Entry<LootTable> table(LootTable table) {
-      return new LootContext.Entry<>(LootDataType.LOOT_TABLES, table);
-   }
+	public ServerWorld getWorld() {
+		return this.worldContext.getWorld();
+	}
 
-   public static LootContext.Entry<LootCondition> predicate(LootCondition predicate) {
-      return new LootContext.Entry<>(LootDataType.PREDICATES, predicate);
-   }
+	public static LootContext.Entry<LootTable> table(LootTable table) {
+		return new LootContext.Entry<>(LootDataType.LOOT_TABLES, table);
+	}
 
-   public static LootContext.Entry<LootFunction> itemModifier(LootFunction itemModifier) {
-      return new LootContext.Entry<>(LootDataType.ITEM_MODIFIERS, itemModifier);
-   }
+	public static LootContext.Entry<LootCondition> predicate(LootCondition predicate) {
+		return new LootContext.Entry<>(LootDataType.PREDICATES, predicate);
+	}
 
-   public static enum BlockEntityReference implements StringIdentifiable, LootEntityValueSource.ContextBased<BlockEntity> {
-      BLOCK_ENTITY("block_entity", LootContextParameters.BLOCK_ENTITY);
+	public static LootContext.Entry<LootFunction> itemModifier(LootFunction itemModifier) {
+		return new LootContext.Entry<>(LootDataType.ITEM_MODIFIERS, itemModifier);
+	}
 
-      private final String id;
-      private final ContextParameter<? extends BlockEntity> parameter;
+	/**
+	 * {@code BlockEntityReference}.
+	 */
+	public static enum BlockEntityReference implements StringIdentifiable, LootEntityValueSource.ContextBased<BlockEntity> {
+		BLOCK_ENTITY("block_entity", LootContextParameters.BLOCK_ENTITY);
 
-      private BlockEntityReference(final String id, final ContextParameter<? extends BlockEntity> parameter) {
-         this.id = id;
-         this.parameter = parameter;
-      }
+		private final String id;
+		private final ContextParameter<? extends BlockEntity> parameter;
 
-      @Override
-      public ContextParameter<? extends BlockEntity> contextParam() {
-         return this.parameter;
-      }
+		private BlockEntityReference(final String id, final ContextParameter<? extends BlockEntity> parameter) {
+			this.id = id;
+			this.parameter = parameter;
+		}
 
-      @Override
-      public String asString() {
-         return this.id;
-      }
-   }
+		@Override
+		public ContextParameter<? extends BlockEntity> contextParam() {
+			return this.parameter;
+		}
 
-   public static class Builder {
-      private final LootWorldContext worldContext;
-      private @Nullable Random random;
+		@Override
+		public String asString() {
+			return this.id;
+		}
+	}
 
-      public Builder(LootWorldContext worldContext) {
-         this.worldContext = worldContext;
-      }
+	/**
+	 * {@code Builder}.
+	 */
+	public static class Builder {
 
-      public LootContext.Builder random(long seed) {
-         if (seed != 0L) {
-            this.random = Random.create(seed);
-         }
+		private final LootWorldContext worldContext;
+		private @Nullable Random random;
 
-         return this;
-      }
+		public Builder(LootWorldContext worldContext) {
+			this.worldContext = worldContext;
+		}
 
-      public LootContext.Builder random(Random random) {
-         this.random = random;
-         return this;
-      }
+		public LootContext.Builder random(long seed) {
+			if (seed != 0L) {
+				this.random = Random.create(seed);
+			}
 
-      public ServerWorld getWorld() {
-         return this.worldContext.getWorld();
-      }
+			return this;
+		}
 
-      public LootContext build(Optional<Identifier> randomId) {
-         ServerWorld serverWorld = this.getWorld();
-         MinecraftServer minecraftServer = serverWorld.getServer();
-         Random random = Optional.ofNullable(this.random).or(() -> randomId.map(serverWorld::getOrCreateRandom)).orElseGet(serverWorld::getRandom);
-         return new LootContext(this.worldContext, random, minecraftServer.getReloadableRegistries().createRegistryLookup());
-      }
-   }
+		public LootContext.Builder random(Random random) {
+			this.random = random;
+			return this;
+		}
 
-   public static enum EntityReference implements StringIdentifiable, LootEntityValueSource.ContextBased<Entity> {
-      THIS("this", LootContextParameters.THIS_ENTITY),
-      ATTACKER("attacker", LootContextParameters.ATTACKING_ENTITY),
-      DIRECT_ATTACKER("direct_attacker", LootContextParameters.DIRECT_ATTACKING_ENTITY),
-      ATTACKING_PLAYER("attacking_player", LootContextParameters.LAST_DAMAGE_PLAYER),
-      TARGET_ENTITY("target_entity", LootContextParameters.TARGET_ENTITY),
-      INTERACTING_ENTITY("interacting_entity", LootContextParameters.INTERACTING_ENTITY);
+		public ServerWorld getWorld() {
+			return this.worldContext.getWorld();
+		}
 
-      public static final StringIdentifiable.EnumCodec<LootContext.EntityReference> CODEC = StringIdentifiable.createCodec(LootContext.EntityReference::values);
-      private final String type;
-      private final ContextParameter<? extends Entity> parameter;
+		public LootContext build(Optional<Identifier> randomId) {
+			ServerWorld serverWorld = this.getWorld();
+			MinecraftServer minecraftServer = serverWorld.getServer();
+			Random
+					random =
+					Optional
+							.ofNullable(this.random)
+							.or(() -> randomId.map(serverWorld::getOrCreateRandom))
+							.orElseGet(serverWorld::getRandom);
+			return new LootContext(
+					this.worldContext,
+					random,
+					minecraftServer.getReloadableRegistries().createRegistryLookup()
+			);
+		}
+	}
 
-      private EntityReference(final String type, final ContextParameter<? extends Entity> parameter) {
-         this.type = type;
-         this.parameter = parameter;
-      }
+	/**
+	 * {@code EntityReference}.
+	 */
+	public static enum EntityReference implements StringIdentifiable, LootEntityValueSource.ContextBased<Entity> {
+		THIS("this", LootContextParameters.THIS_ENTITY),
+		ATTACKER("attacker", LootContextParameters.ATTACKING_ENTITY),
+		DIRECT_ATTACKER("direct_attacker", LootContextParameters.DIRECT_ATTACKING_ENTITY),
+		ATTACKING_PLAYER("attacking_player", LootContextParameters.LAST_DAMAGE_PLAYER),
+		TARGET_ENTITY("target_entity", LootContextParameters.TARGET_ENTITY),
+		INTERACTING_ENTITY("interacting_entity", LootContextParameters.INTERACTING_ENTITY);
 
-      @Override
-      public ContextParameter<? extends Entity> contextParam() {
-         return this.parameter;
-      }
+		public static final StringIdentifiable.EnumCodec<LootContext.EntityReference>
+				CODEC =
+				StringIdentifiable.createCodec(LootContext.EntityReference::values);
+		private final String type;
+		private final ContextParameter<? extends Entity> parameter;
 
-      public static LootContext.EntityReference fromString(String type) {
-         LootContext.EntityReference entityReference = CODEC.byId(type);
-         if (entityReference != null) {
-            return entityReference;
-         } else {
-            throw new IllegalArgumentException("Invalid entity target " + type);
-         }
-      }
+		private EntityReference(final String type, final ContextParameter<? extends Entity> parameter) {
+			this.type = type;
+			this.parameter = parameter;
+		}
 
-      @Override
-      public String asString() {
-         return this.type;
-      }
-   }
+		@Override
+		public ContextParameter<? extends Entity> contextParam() {
+			return this.parameter;
+		}
 
-   public record Entry<T>(LootDataType<T> type, T value) {
-   }
+		public static LootContext.EntityReference fromString(String type) {
+			LootContext.EntityReference entityReference = CODEC.byId(type);
+			if (entityReference != null) {
+				return entityReference;
+			}
+			else {
+				throw new IllegalArgumentException("Invalid entity target " + type);
+			}
+		}
 
-   public static enum ItemStackReference implements StringIdentifiable, LootEntityValueSource.ContextBased<ItemStack> {
-      TOOL("tool", LootContextParameters.TOOL);
+		@Override
+		public String asString() {
+			return this.type;
+		}
+	}
 
-      private final String id;
-      private final ContextParameter<? extends ItemStack> parameter;
+	/**
+	 * {@code Entry}.
+	 */
+	public record Entry<T>(LootDataType<T> type, T value) {
+	}
 
-      private ItemStackReference(final String id, final ContextParameter<? extends ItemStack> parameter) {
-         this.id = id;
-         this.parameter = parameter;
-      }
+	/**
+	 * {@code ItemStackReference}.
+	 */
+	public static enum ItemStackReference implements StringIdentifiable, LootEntityValueSource.ContextBased<ItemStack> {
+		TOOL("tool", LootContextParameters.TOOL);
 
-      @Override
-      public ContextParameter<? extends ItemStack> contextParam() {
-         return this.parameter;
-      }
+		private final String id;
+		private final ContextParameter<? extends ItemStack> parameter;
 
-      @Override
-      public String asString() {
-         return this.id;
-      }
-   }
+		private ItemStackReference(final String id, final ContextParameter<? extends ItemStack> parameter) {
+			this.id = id;
+			this.parameter = parameter;
+		}
+
+		@Override
+		public ContextParameter<? extends ItemStack> contextParam() {
+			return this.parameter;
+		}
+
+		@Override
+		public String asString() {
+			return this.id;
+		}
+	}
 }

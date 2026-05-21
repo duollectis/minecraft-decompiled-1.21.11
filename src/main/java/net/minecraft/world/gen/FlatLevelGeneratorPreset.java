@@ -8,13 +8,19 @@ import net.minecraft.registry.entry.RegistryElementCodec;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.world.gen.chunk.FlatChunkGeneratorConfig;
 
+/**
+ * {@code FlatLevelGeneratorPreset}.
+ */
 public record FlatLevelGeneratorPreset(RegistryEntry<Item> displayItem, FlatChunkGeneratorConfig settings) {
-   public static final Codec<FlatLevelGeneratorPreset> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            Item.ENTRY_CODEC.fieldOf("display").forGetter(preset -> preset.displayItem),
-            FlatChunkGeneratorConfig.CODEC.fieldOf("settings").forGetter(preset -> preset.settings)
-         )
-         .apply(instance, FlatLevelGeneratorPreset::new)
-   );
-   public static final Codec<RegistryEntry<FlatLevelGeneratorPreset>> ENTRY_CODEC = RegistryElementCodec.of(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, CODEC);
+
+	public static final Codec<FlatLevelGeneratorPreset> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    Item.ENTRY_CODEC.fieldOf("display").forGetter(preset -> preset.displayItem),
+					                    FlatChunkGeneratorConfig.CODEC.fieldOf("settings").forGetter(preset -> preset.settings)
+			                    )
+			                    .apply(instance, FlatLevelGeneratorPreset::new)
+	);
+	public static final Codec<RegistryEntry<FlatLevelGeneratorPreset>>
+			ENTRY_CODEC =
+			RegistryElementCodec.of(RegistryKeys.FLAT_LEVEL_GENERATOR_PRESET, CODEC);
 }

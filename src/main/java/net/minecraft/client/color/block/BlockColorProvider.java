@@ -8,6 +8,10 @@ import net.minecraft.world.BlockRenderView;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BlockColorProvider}.
+ */
 public interface BlockColorProvider {
-   int getColor(BlockState state, @Nullable BlockRenderView world, @Nullable BlockPos pos, int tintIndex);
+
+	int getColor(BlockState state, @Nullable BlockRenderView world, @Nullable BlockPos pos, int tintIndex);
 }

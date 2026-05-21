@@ -13,93 +13,106 @@ import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
+/**
+ * {@code TestInstance}.
+ */
 public abstract class TestInstance {
-   public static final Codec<TestInstance> CODEC = Registries.TEST_INSTANCE_TYPE.getCodec().dispatch(TestInstance::getCodec, codec -> codec);
-   private final TestData<RegistryEntry<TestEnvironmentDefinition>> data;
 
-   public static MapCodec<? extends TestInstance> registerAndGetDefault(Registry<MapCodec<? extends TestInstance>> registry) {
-      register(registry, "block_based", BlockBasedTestInstance.CODEC);
-      return register(registry, "function", FunctionTestInstance.CODEC);
-   }
+	public static final Codec<TestInstance>
+			CODEC =
+			Registries.TEST_INSTANCE_TYPE.getCodec().dispatch(TestInstance::getCodec, codec -> codec);
+	private final TestData<RegistryEntry<TestEnvironmentDefinition>> data;
 
-   private static MapCodec<? extends TestInstance> register(
-      Registry<MapCodec<? extends TestInstance>> registry, String id, MapCodec<? extends TestInstance> codec
-   ) {
-      return Registry.register(registry, RegistryKey.of(RegistryKeys.TEST_INSTANCE_TYPE, Identifier.ofVanilla(id)), codec);
-   }
+	public static MapCodec<? extends TestInstance> registerAndGetDefault(Registry<MapCodec<? extends TestInstance>> registry) {
+		register(registry, "block_based", BlockBasedTestInstance.CODEC);
+		return register(registry, "function", FunctionTestInstance.CODEC);
+	}
 
-   protected TestInstance(TestData<RegistryEntry<TestEnvironmentDefinition>> data) {
-      this.data = data;
-   }
+	private static MapCodec<? extends TestInstance> register(
+			Registry<MapCodec<? extends TestInstance>> registry, String id, MapCodec<? extends TestInstance> codec
+	) {
+		return Registry.register(
+				registry,
+				RegistryKey.of(RegistryKeys.TEST_INSTANCE_TYPE, Identifier.ofVanilla(id)),
+				codec
+		);
+	}
 
-   public abstract void start(TestContext context);
+	protected TestInstance(TestData<RegistryEntry<TestEnvironmentDefinition>> data) {
+		this.data = data;
+	}
 
-   public abstract MapCodec<? extends TestInstance> getCodec();
+	public abstract void start(TestContext context);
 
-   public RegistryEntry<TestEnvironmentDefinition> getEnvironment() {
-      return this.data.environment();
-   }
+	public abstract MapCodec<? extends TestInstance> getCodec();
 
-   public Identifier getStructure() {
-      return this.data.structure();
-   }
+	public RegistryEntry<TestEnvironmentDefinition> getEnvironment() {
+		return this.data.environment();
+	}
 
-   public int getMaxTicks() {
-      return this.data.maxTicks();
-   }
+	public Identifier getStructure() {
+		return this.data.structure();
+	}
 
-   public int getSetupTicks() {
-      return this.data.setupTicks();
-   }
+	public int getMaxTicks() {
+		return this.data.maxTicks();
+	}
 
-   public boolean isRequired() {
-      return this.data.required();
-   }
+	public int getSetupTicks() {
+		return this.data.setupTicks();
+	}
 
-   public boolean isManualOnly() {
-      return this.data.manualOnly();
-   }
+	public boolean isRequired() {
+		return this.data.required();
+	}
 
-   public int getMaxAttempts() {
-      return this.data.maxAttempts();
-   }
+	public boolean isManualOnly() {
+		return this.data.manualOnly();
+	}
 
-   public int getRequiredSuccesses() {
-      return this.data.requiredSuccesses();
-   }
+	public int getMaxAttempts() {
+		return this.data.maxAttempts();
+	}
 
-   public boolean requiresSkyAccess() {
-      return this.data.skyAccess();
-   }
+	public int getRequiredSuccesses() {
+		return this.data.requiredSuccesses();
+	}
 
-   public BlockRotation getRotation() {
-      return this.data.rotation();
-   }
+	public boolean requiresSkyAccess() {
+		return this.data.skyAccess();
+	}
 
-   protected TestData<RegistryEntry<TestEnvironmentDefinition>> getData() {
-      return this.data;
-   }
+	public BlockRotation getRotation() {
+		return this.data.rotation();
+	}
 
-   protected abstract MutableText getTypeDescription();
+	protected TestData<RegistryEntry<TestEnvironmentDefinition>> getData() {
+		return this.data;
+	}
 
-   public Text getDescription() {
-      return this.getFormattedTypeDescription().append(this.getStructureAndBatchDescription());
-   }
+	protected abstract MutableText getTypeDescription();
 
-   protected MutableText getFormattedTypeDescription() {
-      return this.getFormattedDescription("test_instance.description.type", this.getTypeDescription());
-   }
+	public Text getDescription() {
+		return this.getFormattedTypeDescription().append(this.getStructureAndBatchDescription());
+	}
 
-   protected Text getStructureAndBatchDescription() {
-      return this.getFormattedDescription("test_instance.description.structure", this.data.structure().toString())
-         .append(this.getFormattedDescription("test_instance.description.batch", this.data.environment().getIdAsString()));
-   }
+	protected MutableText getFormattedTypeDescription() {
+		return this.getFormattedDescription("test_instance.description.type", this.getTypeDescription());
+	}
 
-   protected MutableText getFormattedDescription(String key, String description) {
-      return this.getFormattedDescription(key, Text.literal(description));
-   }
+	protected Text getStructureAndBatchDescription() {
+		return this.getFormattedDescription("test_instance.description.structure", this.data.structure().toString())
+		           .append(this.getFormattedDescription(
+				           "test_instance.description.batch",
+				           this.data.environment().getIdAsString()
+		           ));
+	}
 
-   protected MutableText getFormattedDescription(String key, MutableText description) {
-      return Text.translatable(key, description.formatted(Formatting.BLUE)).append(Text.literal("\n"));
-   }
+	protected MutableText getFormattedDescription(String key, String description) {
+		return this.getFormattedDescription(key, Text.literal(description));
+	}
+
+	protected MutableText getFormattedDescription(String key, MutableText description) {
+		return Text.translatable(key, description.formatted(Formatting.BLUE)).append(Text.literal("\n"));
+	}
 }

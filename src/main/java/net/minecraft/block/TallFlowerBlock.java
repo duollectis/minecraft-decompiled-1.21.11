@@ -8,30 +8,34 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldView;
 
+/**
+ * {@code TallFlowerBlock}.
+ */
 public class TallFlowerBlock extends TallPlantBlock implements Fertilizable {
-   public static final MapCodec<TallFlowerBlock> CODEC = createCodec(TallFlowerBlock::new);
 
-   @Override
-   public MapCodec<TallFlowerBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<TallFlowerBlock> CODEC = createCodec(TallFlowerBlock::new);
 
-   public TallFlowerBlock(AbstractBlock.Settings settings) {
-      super(settings);
-   }
+	@Override
+	public MapCodec<TallFlowerBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
-      return true;
-   }
+	public TallFlowerBlock(AbstractBlock.Settings settings) {
+		super(settings);
+	}
 
-   @Override
-   public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
-      return true;
-   }
+	@Override
+	public boolean isFertilizable(WorldView world, BlockPos pos, BlockState state) {
+		return true;
+	}
 
-   @Override
-   public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
-      dropStack(world, pos, new ItemStack(this));
-   }
+	@Override
+	public boolean canGrow(World world, Random random, BlockPos pos, BlockState state) {
+		return true;
+	}
+
+	@Override
+	public void grow(ServerWorld world, Random random, BlockPos pos, BlockState state) {
+		dropStack(world, pos, new ItemStack(this));
+	}
 }

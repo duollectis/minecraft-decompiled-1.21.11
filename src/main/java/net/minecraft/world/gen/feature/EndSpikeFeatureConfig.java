@@ -2,43 +2,61 @@ package net.minecraft.world.gen.feature;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.Optional;
 import net.minecraft.util.math.BlockPos;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * {@code EndSpikeFeatureConfig}.
+ */
 public class EndSpikeFeatureConfig implements FeatureConfig {
-   public static final Codec<EndSpikeFeatureConfig> CODEC = RecordCodecBuilder.create(
-      instance -> instance.group(
-            Codec.BOOL.fieldOf("crystal_invulnerable").orElse(false).forGetter(config -> config.crystalInvulnerable),
-            EndSpikeFeature.Spike.CODEC.listOf().fieldOf("spikes").forGetter(config -> config.spikes),
-            BlockPos.CODEC.optionalFieldOf("crystal_beam_target").forGetter(config -> Optional.ofNullable(config.crystalBeamTarget))
-         )
-         .apply(instance, EndSpikeFeatureConfig::new)
-   );
-   private final boolean crystalInvulnerable;
-   private final List<EndSpikeFeature.Spike> spikes;
-   private final @Nullable BlockPos crystalBeamTarget;
 
-   public EndSpikeFeatureConfig(boolean crystalInvulnerable, List<EndSpikeFeature.Spike> spikes, @Nullable BlockPos crystalBeamTarget) {
-      this(crystalInvulnerable, spikes, Optional.ofNullable(crystalBeamTarget));
-   }
+	public static final Codec<EndSpikeFeatureConfig> CODEC = RecordCodecBuilder.create(
+			instance -> instance.group(
+					                    Codec.BOOL
+							                    .fieldOf("crystal_invulnerable")
+							                    .orElse(false)
+							                    .forGetter(config -> config.crystalInvulnerable),
+					                    EndSpikeFeature.Spike.CODEC.listOf().fieldOf("spikes").forGetter(config -> config.spikes),
+					                    BlockPos.CODEC
+							                    .optionalFieldOf("crystal_beam_target")
+							                    .forGetter(config -> Optional.ofNullable(config.crystalBeamTarget))
+			                    )
+			                    .apply(instance, EndSpikeFeatureConfig::new)
+	);
+	private final boolean crystalInvulnerable;
+	private final List<EndSpikeFeature.Spike> spikes;
+	private final @Nullable BlockPos crystalBeamTarget;
 
-   private EndSpikeFeatureConfig(boolean crystalInvulnerable, List<EndSpikeFeature.Spike> spikes, Optional<BlockPos> crystalBeamTarget) {
-      this.crystalInvulnerable = crystalInvulnerable;
-      this.spikes = spikes;
-      this.crystalBeamTarget = crystalBeamTarget.orElse(null);
-   }
+	public EndSpikeFeatureConfig(
+			boolean crystalInvulnerable,
+			List<EndSpikeFeature.Spike> spikes,
+			@Nullable BlockPos crystalBeamTarget
+	) {
+		this(crystalInvulnerable, spikes, Optional.ofNullable(crystalBeamTarget));
+	}
 
-   public boolean isCrystalInvulnerable() {
-      return this.crystalInvulnerable;
-   }
+	private EndSpikeFeatureConfig(
+			boolean crystalInvulnerable,
+			List<EndSpikeFeature.Spike> spikes,
+			Optional<BlockPos> crystalBeamTarget
+	) {
+		this.crystalInvulnerable = crystalInvulnerable;
+		this.spikes = spikes;
+		this.crystalBeamTarget = crystalBeamTarget.orElse(null);
+	}
 
-   public List<EndSpikeFeature.Spike> getSpikes() {
-      return this.spikes;
-   }
+	public boolean isCrystalInvulnerable() {
+		return this.crystalInvulnerable;
+	}
 
-   public @Nullable BlockPos getPos() {
-      return this.crystalBeamTarget;
-   }
+	public List<EndSpikeFeature.Spike> getSpikes() {
+		return this.spikes;
+	}
+
+	public @Nullable BlockPos getPos() {
+		return this.crystalBeamTarget;
+	}
 }

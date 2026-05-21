@@ -4,48 +4,82 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.util.ReferenceCounted;
 
+/**
+ * Обёртка над {@link ByteBuf} с подсчётом ссылок для безопасной передачи через Netty-пайплайн.
+ * <p>Используется для упаковки сырых буферов в типобезопасный контейнер,
+ * который корректно управляет временем жизни буфера через {@link ReferenceCounted}.
+ *
+ * @param contents содержимое буфера
+ */
 public record OpaqueByteBufHolder(ByteBuf contents) implements ReferenceCounted {
-   public OpaqueByteBufHolder(final ByteBuf contents) {
-      this.contents = ByteBufUtil.ensureAccessible(contents);
-   }
 
-   public static Object pack(Object buf) {
-      return buf instanceof ByteBuf byteBuf ? new OpaqueByteBufHolder(byteBuf) : buf;
-   }
+	/**
+	 * Создаёт держатель, проверяя доступность буфера.
+	 *
+	 * @param contents буфер для хранения
+	 */
+	public OpaqueByteBufHolder(ByteBuf contents) {
+		this.contents = ByteBufUtil.ensureAccessible(contents);
+	}
 
-   public static Object unpack(Object holder) {
-      return holder instanceof OpaqueByteBufHolder opaqueByteBufHolder ? ByteBufUtil.ensureAccessible(opaqueByteBufHolder.contents) : holder;
-   }
+	/**
+	 * Упаковывает объект в {@link OpaqueByteBufHolder}, если он является {@link ByteBuf}.
+	 *
+	 * @param buf объект для упаковки
+	 * @return {@link OpaqueByteBufHolder} или исходный объект без изменений
+	 */
+	public static Object pack(Object buf) {
+		return buf instanceof ByteBuf byteBuf ? new OpaqueByteBufHolder(byteBuf) : buf;
+	}
 
-   public int refCnt() {
-      return this.contents.refCnt();
-   }
+	/**
+	 * Распаковывает {@link OpaqueByteBufHolder} обратно в {@link ByteBuf}.
+	 *
+	 * @param holder объект для распаковки
+	 * @return {@link ByteBuf} или исходный объект без изменений
+	 */
+	public static Object unpack(Object holder) {
+		return holder instanceof OpaqueByteBufHolder opaque
+		       ? ByteBufUtil.ensureAccessible(opaque.contents)
+		       : holder;
+	}
 
-   public OpaqueByteBufHolder retain() {
-      this.contents.retain();
-      return this;
-   }
+	@Override
+	public int refCnt() {
+		return contents.refCnt();
+	}
 
-   public OpaqueByteBufHolder retain(int i) {
-      this.contents.retain(i);
-      return this;
-   }
+	@Override
+	public OpaqueByteBufHolder retain() {
+		contents.retain();
+		return this;
+	}
 
-   public OpaqueByteBufHolder touch() {
-      this.contents.touch();
-      return this;
-   }
+	@Override
+	public OpaqueByteBufHolder retain(int increment) {
+		contents.retain(increment);
+		return this;
+	}
 
-   public OpaqueByteBufHolder touch(Object object) {
-      this.contents.touch(object);
-      return this;
-   }
+	@Override
+	public OpaqueByteBufHolder touch() {
+		contents.touch();
+		return this;
+	}
 
-   public boolean release() {
-      return this.contents.release();
-   }
+	@Override
+	public OpaqueByteBufHolder touch(Object hint) {
+		contents.touch(hint);
+		return this;
+	}
 
-   public boolean release(int count) {
-      return this.contents.release(count);
-   }
+	@Override
+	public boolean release() {
+		return contents.release();
+	}
+
+	@Override
+	public boolean release(int decrement) {
+		return contents.release(decrement);
+	}
 }

@@ -10,78 +10,90 @@ import net.minecraft.world.Heightmap;
 import net.minecraft.world.gen.feature.EndPortalFeature;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code TakeoffPhase}.
+ */
 public class TakeoffPhase extends AbstractPhase {
-   private boolean shouldFindNewPath;
-   private @Nullable Path path;
-   private @Nullable Vec3d pathTarget;
 
-   public TakeoffPhase(EnderDragonEntity enderDragonEntity) {
-      super(enderDragonEntity);
-   }
+	private boolean shouldFindNewPath;
+	private @Nullable Path path;
+	private @Nullable Vec3d pathTarget;
 
-   @Override
-   public void serverTick(ServerWorld world) {
-      if (!this.shouldFindNewPath && this.path != null) {
-         BlockPos blockPos = world.getTopPosition(Heightmap.Type.MOTION_BLOCKING_NO_LEAVES, EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin()));
-         if (!blockPos.isWithinDistance(this.dragon.getEntityPos(), 10.0)) {
-            this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
-         }
-      } else {
-         this.shouldFindNewPath = false;
-         this.updatePath();
-      }
-   }
+	public TakeoffPhase(EnderDragonEntity enderDragonEntity) {
+		super(enderDragonEntity);
+	}
 
-   @Override
-   public void beginPhase() {
-      this.shouldFindNewPath = true;
-      this.path = null;
-      this.pathTarget = null;
-   }
+	@Override
+	public void serverTick(ServerWorld world) {
+		if (!this.shouldFindNewPath && this.path != null) {
+			BlockPos
+					blockPos =
+					world.getTopPosition(
+							Heightmap.Type.MOTION_BLOCKING_NO_LEAVES,
+							EndPortalFeature.offsetOrigin(this.dragon.getFightOrigin())
+					);
+			if (!blockPos.isWithinDistance(this.dragon.getEntityPos(), 10.0)) {
+				this.dragon.getPhaseManager().setPhase(PhaseType.HOLDING_PATTERN);
+			}
+		}
+		else {
+			this.shouldFindNewPath = false;
+			this.updatePath();
+		}
+	}
 
-   private void updatePath() {
-      int i = this.dragon.getNearestPathNodeIndex();
-      Vec3d vec3d = this.dragon.getRotationVectorFromPhase(1.0F);
-      int j = this.dragon.getNearestPathNodeIndex(-vec3d.x * 40.0, 105.0, -vec3d.z * 40.0);
-      if (this.dragon.getFight() != null && this.dragon.getFight().getAliveEndCrystals() > 0) {
-         j %= 12;
-         if (j < 0) {
-            j += 12;
-         }
-      } else {
-         j -= 12;
-         j &= 7;
-         j += 12;
-      }
+	@Override
+	public void beginPhase() {
+		this.shouldFindNewPath = true;
+		this.path = null;
+		this.pathTarget = null;
+	}
 
-      this.path = this.dragon.findPath(i, j, null);
-      this.followPath();
-   }
+	private void updatePath() {
+		int i = this.dragon.getNearestPathNodeIndex();
+		Vec3d vec3d = this.dragon.getRotationVectorFromPhase(1.0F);
+		int j = this.dragon.getNearestPathNodeIndex(-vec3d.x * 40.0, 105.0, -vec3d.z * 40.0);
+		if (this.dragon.getFight() != null && this.dragon.getFight().getAliveEndCrystals() > 0) {
+			j %= 12;
+			if (j < 0) {
+				j += 12;
+			}
+		}
+		else {
+			j -= 12;
+			j &= 7;
+			j += 12;
+		}
 
-   private void followPath() {
-      if (this.path != null) {
-         this.path.next();
-         if (!this.path.isFinished()) {
-            Vec3i vec3i = this.path.getCurrentNodePos();
-            this.path.next();
+		this.path = this.dragon.findPath(i, j, null);
+		this.followPath();
+	}
 
-            double d;
-            do {
-               d = vec3i.getY() + this.dragon.getRandom().nextFloat() * 20.0F;
-            } while (d < vec3i.getY());
+	private void followPath() {
+		if (this.path != null) {
+			this.path.next();
+			if (!this.path.isFinished()) {
+				Vec3i vec3i = this.path.getCurrentNodePos();
+				this.path.next();
 
-            this.pathTarget = new Vec3d(vec3i.getX(), d, vec3i.getZ());
-         }
-      }
-   }
+				double d;
+				do {
+					d = vec3i.getY() + this.dragon.getRandom().nextFloat() * 20.0F;
+				}
+				while (d < vec3i.getY());
 
-   @Override
-   public @Nullable Vec3d getPathTarget() {
-      return this.pathTarget;
-   }
+				this.pathTarget = new Vec3d(vec3i.getX(), d, vec3i.getZ());
+			}
+		}
+	}
 
-   @Override
-   public PhaseType<TakeoffPhase> getType() {
-      return PhaseType.TAKEOFF;
-   }
+	@Override
+	public @Nullable Vec3d getPathTarget() {
+		return this.pathTarget;
+	}
+
+	@Override
+	public PhaseType<TakeoffPhase> getType() {
+		return PhaseType.TAKEOFF;
+	}
 }

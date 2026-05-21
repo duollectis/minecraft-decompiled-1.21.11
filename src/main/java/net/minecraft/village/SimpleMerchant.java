@@ -6,70 +6,74 @@ import net.minecraft.sound.SoundEvent;
 import net.minecraft.sound.SoundEvents;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * {@code SimpleMerchant}.
+ */
 public class SimpleMerchant implements Merchant {
-   private final PlayerEntity player;
-   private TradeOfferList offers = new TradeOfferList();
-   private int experience;
 
-   public SimpleMerchant(PlayerEntity player) {
-      this.player = player;
-   }
+	private final PlayerEntity player;
+	private TradeOfferList offers = new TradeOfferList();
+	private int experience;
 
-   @Override
-   public PlayerEntity getCustomer() {
-      return this.player;
-   }
+	public SimpleMerchant(PlayerEntity player) {
+		this.player = player;
+	}
 
-   @Override
-   public void setCustomer(@Nullable PlayerEntity customer) {
-   }
+	@Override
+	public PlayerEntity getCustomer() {
+		return this.player;
+	}
 
-   @Override
-   public TradeOfferList getOffers() {
-      return this.offers;
-   }
+	@Override
+	public void setCustomer(@Nullable PlayerEntity customer) {
+	}
 
-   @Override
-   public void setOffersFromServer(TradeOfferList offers) {
-      this.offers = offers;
-   }
+	@Override
+	public TradeOfferList getOffers() {
+		return this.offers;
+	}
 
-   @Override
-   public void trade(TradeOffer offer) {
-      offer.use();
-   }
+	@Override
+	public void setOffersFromServer(TradeOfferList offers) {
+		this.offers = offers;
+	}
 
-   @Override
-   public void onSellingItem(ItemStack stack) {
-   }
+	@Override
+	public void trade(TradeOffer offer) {
+		offer.use();
+	}
 
-   @Override
-   public boolean isClient() {
-      return this.player.getEntityWorld().isClient();
-   }
+	@Override
+	public void onSellingItem(ItemStack stack) {
+	}
 
-   @Override
-   public boolean canInteract(PlayerEntity player) {
-      return this.player == player;
-   }
+	@Override
+	public boolean isClient() {
+		return this.player.getEntityWorld().isClient();
+	}
 
-   @Override
-   public int getExperience() {
-      return this.experience;
-   }
+	@Override
+	public boolean canInteract(PlayerEntity player) {
+		return this.player == player;
+	}
 
-   @Override
-   public void setExperienceFromServer(int experience) {
-      this.experience = experience;
-   }
+	@Override
+	public int getExperience() {
+		return this.experience;
+	}
 
-   @Override
-   public boolean isLeveledMerchant() {
-      return true;
-   }
+	@Override
+	public void setExperienceFromServer(int experience) {
+		this.experience = experience;
+	}
 
-   @Override
-   public SoundEvent getYesSound() {
-      return SoundEvents.ENTITY_VILLAGER_YES;
-   }
+	@Override
+	public boolean isLeveledMerchant() {
+		return true;
+	}
+
+	@Override
+	public SoundEvent getYesSound() {
+		return SoundEvents.ENTITY_VILLAGER_YES;
+	}
 }

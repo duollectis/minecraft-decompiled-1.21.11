@@ -5,6 +5,10 @@ import net.minecraft.entity.player.PlayerInventory;
 import org.jspecify.annotations.Nullable;
 
 @FunctionalInterface
+/**
+ * {@code ScreenHandlerFactory}.
+ */
 public interface ScreenHandlerFactory {
-   @Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player);
+
+	@Nullable ScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity player);
 }

@@ -9,49 +9,50 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
 public class JigsawGeneratingC2SPacket implements Packet<ServerPlayPacketListener> {
-   public static final PacketCodec<PacketByteBuf, JigsawGeneratingC2SPacket> CODEC = Packet.createCodec(
-      JigsawGeneratingC2SPacket::write, JigsawGeneratingC2SPacket::new
-   );
-   private final BlockPos pos;
-   private final int maxDepth;
-   private final boolean keepJigsaws;
 
-   public JigsawGeneratingC2SPacket(BlockPos pos, int maxDepth, boolean keepJigsaws) {
-      this.pos = pos;
-      this.maxDepth = maxDepth;
-      this.keepJigsaws = keepJigsaws;
-   }
+	public static final PacketCodec<PacketByteBuf, JigsawGeneratingC2SPacket> CODEC = Packet.createCodec(
+			JigsawGeneratingC2SPacket::write, JigsawGeneratingC2SPacket::new
+	);
+	private final BlockPos pos;
+	private final int maxDepth;
+	private final boolean keepJigsaws;
 
-   private JigsawGeneratingC2SPacket(PacketByteBuf buf) {
-      this.pos = buf.readBlockPos();
-      this.maxDepth = buf.readVarInt();
-      this.keepJigsaws = buf.readBoolean();
-   }
+	public JigsawGeneratingC2SPacket(BlockPos pos, int maxDepth, boolean keepJigsaws) {
+		this.pos = pos;
+		this.maxDepth = maxDepth;
+		this.keepJigsaws = keepJigsaws;
+	}
 
-   private void write(PacketByteBuf buf) {
-      buf.writeBlockPos(this.pos);
-      buf.writeVarInt(this.maxDepth);
-      buf.writeBoolean(this.keepJigsaws);
-   }
+	private JigsawGeneratingC2SPacket(PacketByteBuf buf) {
+		this.pos = buf.readBlockPos();
+		this.maxDepth = buf.readVarInt();
+		this.keepJigsaws = buf.readBoolean();
+	}
 
-   @Override
-   public PacketType<JigsawGeneratingC2SPacket> getPacketType() {
-      return PlayPackets.JIGSAW_GENERATE;
-   }
+	private void write(PacketByteBuf buf) {
+		buf.writeBlockPos(this.pos);
+		buf.writeVarInt(this.maxDepth);
+		buf.writeBoolean(this.keepJigsaws);
+	}
 
-   public void apply(ServerPlayPacketListener serverPlayPacketListener) {
-      serverPlayPacketListener.onJigsawGenerating(this);
-   }
+	@Override
+	public PacketType<JigsawGeneratingC2SPacket> getPacketType() {
+		return PlayPackets.JIGSAW_GENERATE;
+	}
 
-   public BlockPos getPos() {
-      return this.pos;
-   }
+	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
+		serverPlayPacketListener.onJigsawGenerating(this);
+	}
 
-   public int getMaxDepth() {
-      return this.maxDepth;
-   }
+	public BlockPos getPos() {
+		return this.pos;
+	}
 
-   public boolean shouldKeepJigsaws() {
-      return this.keepJigsaws;
-   }
+	public int getMaxDepth() {
+		return this.maxDepth;
+	}
+
+	public boolean shouldKeepJigsaws() {
+		return this.keepJigsaws;
+	}
 }

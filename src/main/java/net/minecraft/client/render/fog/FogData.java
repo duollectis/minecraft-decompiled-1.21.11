@@ -4,11 +4,15 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code FogData}.
+ */
 public class FogData {
-   public float environmentalStart;
-   public float renderDistanceStart;
-   public float environmentalEnd;
-   public float renderDistanceEnd;
-   public float skyEnd;
-   public float cloudEnd;
+
+	public float environmentalStart;
+	public float renderDistanceStart;
+	public float environmentalEnd;
+	public float renderDistanceEnd;
+	public float skyEnd;
+	public float cloudEnd;
 }

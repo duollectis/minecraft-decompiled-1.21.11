@@ -2,9 +2,6 @@ package net.minecraft.world.gen.chunk;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.RegistryWrapper;
@@ -23,123 +20,146 @@ import net.minecraft.world.gen.StructureAccessor;
 import net.minecraft.world.gen.chunk.placement.StructurePlacementCalculator;
 import net.minecraft.world.gen.noise.NoiseConfig;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
+
+/**
+ * {@code FlatChunkGenerator}.
+ */
 public class FlatChunkGenerator extends ChunkGenerator {
-   public static final MapCodec<FlatChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(FlatChunkGeneratorConfig.CODEC.fieldOf("settings").forGetter(FlatChunkGenerator::getConfig))
-         .apply(instance, instance.stable(FlatChunkGenerator::new))
-   );
-   private final FlatChunkGeneratorConfig config;
 
-   public FlatChunkGenerator(FlatChunkGeneratorConfig config) {
-      super(new FixedBiomeSource(config.getBiome()), Util.memoize(config::createGenerationSettings));
-      this.config = config;
-   }
+	public static final MapCodec<FlatChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(FlatChunkGeneratorConfig.CODEC.fieldOf("settings").forGetter(FlatChunkGenerator::getConfig))
+					.apply(instance, instance.stable(FlatChunkGenerator::new))
+	);
+	private final FlatChunkGeneratorConfig config;
 
-   @Override
-   public StructurePlacementCalculator createStructurePlacementCalculator(
-      RegistryWrapper<StructureSet> structureSetRegistry, NoiseConfig noiseConfig, long seed
-   ) {
-      Stream<RegistryEntry<StructureSet>> stream = this.config
-         .getStructureOverrides()
-         .map(RegistryEntryList::stream)
-         .orElseGet(() -> structureSetRegistry.streamEntries().map(structureEntry -> (RegistryEntry<StructureSet>)structureEntry));
-      return StructurePlacementCalculator.create(noiseConfig, seed, this.biomeSource, stream);
-   }
+	public FlatChunkGenerator(FlatChunkGeneratorConfig config) {
+		super(new FixedBiomeSource(config.getBiome()), Util.memoize(config::createGenerationSettings));
+		this.config = config;
+	}
 
-   @Override
-   protected MapCodec<? extends ChunkGenerator> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public StructurePlacementCalculator createStructurePlacementCalculator(
+			RegistryWrapper<StructureSet> structureSetRegistry, NoiseConfig noiseConfig, long seed
+	) {
+		Stream<RegistryEntry<StructureSet>> stream = this.config
+				.getStructureOverrides()
+				.map(RegistryEntryList::stream)
+				.orElseGet(() -> structureSetRegistry
+						.streamEntries()
+						.map(structureEntry -> (RegistryEntry<StructureSet>) structureEntry));
+		return StructurePlacementCalculator.create(noiseConfig, seed, this.biomeSource, stream);
+	}
 
-   public FlatChunkGeneratorConfig getConfig() {
-      return this.config;
-   }
+	@Override
+	protected MapCodec<? extends ChunkGenerator> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public void buildSurface(ChunkRegion region, StructureAccessor structures, NoiseConfig noiseConfig, Chunk chunk) {
-   }
+	public FlatChunkGeneratorConfig getConfig() {
+		return this.config;
+	}
 
-   @Override
-   public int getSpawnHeight(HeightLimitView world) {
-      return world.getBottomY() + Math.min(world.getHeight(), this.config.getLayerBlocks().size());
-   }
+	@Override
+	public void buildSurface(ChunkRegion region, StructureAccessor structures, NoiseConfig noiseConfig, Chunk chunk) {
+	}
 
-   @Override
-   public CompletableFuture<Chunk> populateNoise(Blender blender, NoiseConfig noiseConfig, StructureAccessor structureAccessor, Chunk chunk) {
-      List<BlockState> list = this.config.getLayerBlocks();
-      BlockPos.Mutable mutable = new BlockPos.Mutable();
-      Heightmap heightmap = chunk.getHeightmap(Heightmap.Type.OCEAN_FLOOR_WG);
-      Heightmap heightmap2 = chunk.getHeightmap(Heightmap.Type.WORLD_SURFACE_WG);
+	@Override
+	public int getSpawnHeight(HeightLimitView world) {
+		return world.getBottomY() + Math.min(world.getHeight(), this.config.getLayerBlocks().size());
+	}
 
-      for (int i = 0; i < Math.min(chunk.getHeight(), list.size()); i++) {
-         BlockState blockState = list.get(i);
-         if (blockState != null) {
-            int j = chunk.getBottomY() + i;
+	@Override
+	public CompletableFuture<Chunk> populateNoise(
+			Blender blender,
+			NoiseConfig noiseConfig,
+			StructureAccessor structureAccessor,
+			Chunk chunk
+	) {
+		List<BlockState> list = this.config.getLayerBlocks();
+		BlockPos.Mutable mutable = new BlockPos.Mutable();
+		Heightmap heightmap = chunk.getHeightmap(Heightmap.Type.OCEAN_FLOOR_WG);
+		Heightmap heightmap2 = chunk.getHeightmap(Heightmap.Type.WORLD_SURFACE_WG);
 
-            for (int k = 0; k < 16; k++) {
-               for (int l = 0; l < 16; l++) {
-                  chunk.setBlockState(mutable.set(k, j, l), blockState);
-                  heightmap.trackUpdate(k, j, l, blockState);
-                  heightmap2.trackUpdate(k, j, l, blockState);
-               }
-            }
-         }
-      }
+		for (int i = 0; i < Math.min(chunk.getHeight(), list.size()); i++) {
+			BlockState blockState = list.get(i);
+			if (blockState != null) {
+				int j = chunk.getBottomY() + i;
 
-      return CompletableFuture.completedFuture(chunk);
-   }
+				for (int k = 0; k < 16; k++) {
+					for (int l = 0; l < 16; l++) {
+						chunk.setBlockState(mutable.set(k, j, l), blockState);
+						heightmap.trackUpdate(k, j, l, blockState);
+						heightmap2.trackUpdate(k, j, l, blockState);
+					}
+				}
+			}
+		}
 
-   @Override
-   public int getHeight(int x, int z, Heightmap.Type heightmap, HeightLimitView world, NoiseConfig noiseConfig) {
-      List<BlockState> list = this.config.getLayerBlocks();
+		return CompletableFuture.completedFuture(chunk);
+	}
 
-      for (int i = Math.min(list.size() - 1, world.getTopYInclusive()); i >= 0; i--) {
-         BlockState blockState = list.get(i);
-         if (blockState != null && heightmap.getBlockPredicate().test(blockState)) {
-            return world.getBottomY() + i + 1;
-         }
-      }
+	@Override
+	public int getHeight(int x, int z, Heightmap.Type heightmap, HeightLimitView world, NoiseConfig noiseConfig) {
+		List<BlockState> list = this.config.getLayerBlocks();
 
-      return world.getBottomY();
-   }
+		for (int i = Math.min(list.size() - 1, world.getTopYInclusive()); i >= 0; i--) {
+			BlockState blockState = list.get(i);
+			if (blockState != null && heightmap.getBlockPredicate().test(blockState)) {
+				return world.getBottomY() + i + 1;
+			}
+		}
 
-   @Override
-   public VerticalBlockSample getColumnSample(int x, int z, HeightLimitView world, NoiseConfig noiseConfig) {
-      return new VerticalBlockSample(
-         world.getBottomY(),
-         this.config
-            .getLayerBlocks()
-            .stream()
-            .limit(world.getHeight())
-            .map(state -> state == null ? Blocks.AIR.getDefaultState() : state)
-            .toArray(BlockState[]::new)
-      );
-   }
+		return world.getBottomY();
+	}
 
-   @Override
-   public void appendDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
-   }
+	@Override
+	public VerticalBlockSample getColumnSample(int x, int z, HeightLimitView world, NoiseConfig noiseConfig) {
+		return new VerticalBlockSample(
+				world.getBottomY(),
+				this.config
+						.getLayerBlocks()
+						.stream()
+						.limit(world.getHeight())
+						.map(state -> state == null ? Blocks.AIR.getDefaultState() : state)
+						.toArray(BlockState[]::new)
+		);
+	}
 
-   @Override
-   public void carve(ChunkRegion chunkRegion, long seed, NoiseConfig noiseConfig, BiomeAccess biomeAccess, StructureAccessor structureAccessor, Chunk chunk) {
-   }
+	@Override
+	public void appendDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos) {
+	}
 
-   @Override
-   public void populateEntities(ChunkRegion region) {
-   }
+	@Override
+	public void carve(
+			ChunkRegion chunkRegion,
+			long seed,
+			NoiseConfig noiseConfig,
+			BiomeAccess biomeAccess,
+			StructureAccessor structureAccessor,
+			Chunk chunk
+	) {
+	}
 
-   @Override
-   public int getMinimumY() {
-      return 0;
-   }
+	@Override
+	public void populateEntities(ChunkRegion region) {
+	}
 
-   @Override
-   public int getWorldHeight() {
-      return 384;
-   }
+	@Override
+	public int getMinimumY() {
+		return 0;
+	}
 
-   @Override
-   public int getSeaLevel() {
-      return -63;
-   }
+	@Override
+	public int getWorldHeight() {
+		return 384;
+	}
+
+	@Override
+	public int getSeaLevel() {
+		return -63;
+	}
 }

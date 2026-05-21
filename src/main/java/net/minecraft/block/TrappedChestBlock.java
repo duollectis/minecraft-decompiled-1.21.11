@@ -14,40 +14,49 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.BlockView;
 
+/**
+ * {@code TrappedChestBlock}.
+ */
 public class TrappedChestBlock extends ChestBlock {
-   public static final MapCodec<TrappedChestBlock> CODEC = createCodec(TrappedChestBlock::new);
 
-   @Override
-   public MapCodec<TrappedChestBlock> getCodec() {
-      return CODEC;
-   }
+	public static final MapCodec<TrappedChestBlock> CODEC = createCodec(TrappedChestBlock::new);
 
-   public TrappedChestBlock(AbstractBlock.Settings settings) {
-      super(() -> BlockEntityType.TRAPPED_CHEST, SoundEvents.BLOCK_CHEST_OPEN, SoundEvents.BLOCK_CHEST_CLOSE, settings);
-   }
+	@Override
+	public MapCodec<TrappedChestBlock> getCodec() {
+		return CODEC;
+	}
 
-   @Override
-   public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
-      return new TrappedChestBlockEntity(pos, state);
-   }
+	public TrappedChestBlock(AbstractBlock.Settings settings) {
+		super(
+				() -> BlockEntityType.TRAPPED_CHEST,
+				SoundEvents.BLOCK_CHEST_OPEN,
+				SoundEvents.BLOCK_CHEST_CLOSE,
+				settings
+		);
+	}
 
-   @Override
-   protected Stat<Identifier> getOpenStat() {
-      return Stats.CUSTOM.getOrCreateStat(Stats.TRIGGER_TRAPPED_CHEST);
-   }
+	@Override
+	public BlockEntity createBlockEntity(BlockPos pos, BlockState state) {
+		return new TrappedChestBlockEntity(pos, state);
+	}
 
-   @Override
-   protected boolean emitsRedstonePower(BlockState state) {
-      return true;
-   }
+	@Override
+	protected Stat<Identifier> getOpenStat() {
+		return Stats.CUSTOM.getOrCreateStat(Stats.TRIGGER_TRAPPED_CHEST);
+	}
 
-   @Override
-   protected int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-      return MathHelper.clamp(ChestBlockEntity.getPlayersLookingInChestCount(world, pos), 0, 15);
-   }
+	@Override
+	protected boolean emitsRedstonePower(BlockState state) {
+		return true;
+	}
 
-   @Override
-   protected int getStrongRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
-      return direction == Direction.UP ? state.getWeakRedstonePower(world, pos, direction) : 0;
-   }
+	@Override
+	protected int getWeakRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
+		return MathHelper.clamp(ChestBlockEntity.getPlayersLookingInChestCount(world, pos), 0, 15);
+	}
+
+	@Override
+	protected int getStrongRedstonePower(BlockState state, BlockView world, BlockPos pos, Direction direction) {
+		return direction == Direction.UP ? state.getWeakRedstonePower(world, pos, direction) : 0;
+	}
 }

@@ -1,8 +1,6 @@
 package net.minecraft.world.gen.placementmodifier;
 
 import com.mojang.serialization.MapCodec;
-import java.util.stream.Stream;
-import java.util.stream.Stream.Builder;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
@@ -12,79 +10,89 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.gen.feature.FeaturePlacementContext;
 
+import java.util.stream.Stream;
+import java.util.stream.Stream.Builder;
+
 @Deprecated
+/**
+ * {@code CountMultilayerPlacementModifier}.
+ */
 public class CountMultilayerPlacementModifier extends PlacementModifier {
-   public static final MapCodec<CountMultilayerPlacementModifier> MODIFIER_CODEC = IntProvider.createValidatingCodec(0, 256)
-      .fieldOf("count")
-      .xmap(CountMultilayerPlacementModifier::new, placementModifier -> placementModifier.count);
-   private final IntProvider count;
 
-   private CountMultilayerPlacementModifier(IntProvider count) {
-      this.count = count;
-   }
+	public static final MapCodec<CountMultilayerPlacementModifier>
+			MODIFIER_CODEC =
+			IntProvider.createValidatingCodec(0, 256)
+			           .fieldOf("count")
+			           .xmap(CountMultilayerPlacementModifier::new, placementModifier -> placementModifier.count);
+	private final IntProvider count;
 
-   public static CountMultilayerPlacementModifier of(IntProvider count) {
-      return new CountMultilayerPlacementModifier(count);
-   }
+	private CountMultilayerPlacementModifier(IntProvider count) {
+		this.count = count;
+	}
 
-   public static CountMultilayerPlacementModifier of(int count) {
-      return of(ConstantIntProvider.create(count));
-   }
+	public static CountMultilayerPlacementModifier of(IntProvider count) {
+		return new CountMultilayerPlacementModifier(count);
+	}
 
-   @Override
-   public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
-      Builder<BlockPos> builder = Stream.builder();
-      int i = 0;
+	public static CountMultilayerPlacementModifier of(int count) {
+		return of(ConstantIntProvider.create(count));
+	}
 
-      boolean bl;
-      do {
-         bl = false;
+	@Override
+	public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
+		Builder<BlockPos> builder = Stream.builder();
+		int i = 0;
 
-         for (int j = 0; j < this.count.get(random); j++) {
-            int k = random.nextInt(16) + pos.getX();
-            int l = random.nextInt(16) + pos.getZ();
-            int m = context.getTopY(Heightmap.Type.MOTION_BLOCKING, k, l);
-            int n = findPos(context, k, m, l, i);
-            if (n != Integer.MAX_VALUE) {
-               builder.add(new BlockPos(k, n, l));
-               bl = true;
-            }
-         }
+		boolean bl;
+		do {
+			bl = false;
 
-         i++;
-      } while (bl);
+			for (int j = 0; j < this.count.get(random); j++) {
+				int k = random.nextInt(16) + pos.getX();
+				int l = random.nextInt(16) + pos.getZ();
+				int m = context.getTopY(Heightmap.Type.MOTION_BLOCKING, k, l);
+				int n = findPos(context, k, m, l, i);
+				if (n != Integer.MAX_VALUE) {
+					builder.add(new BlockPos(k, n, l));
+					bl = true;
+				}
+			}
 
-      return builder.build();
-   }
+			i++;
+		}
+		while (bl);
 
-   @Override
-   public PlacementModifierType<?> getType() {
-      return PlacementModifierType.COUNT_ON_EVERY_LAYER;
-   }
+		return builder.build();
+	}
 
-   private static int findPos(FeaturePlacementContext context, int x, int y, int z, int targetY) {
-      BlockPos.Mutable mutable = new BlockPos.Mutable(x, y, z);
-      int i = 0;
-      BlockState blockState = context.getBlockState(mutable);
+	@Override
+	public PlacementModifierType<?> getType() {
+		return PlacementModifierType.COUNT_ON_EVERY_LAYER;
+	}
 
-      for (int j = y; j >= context.getBottomY() + 1; j--) {
-         mutable.setY(j - 1);
-         BlockState blockState2 = context.getBlockState(mutable);
-         if (!blocksSpawn(blockState2) && blocksSpawn(blockState) && !blockState2.isOf(Blocks.BEDROCK)) {
-            if (i == targetY) {
-               return mutable.getY() + 1;
-            }
+	private static int findPos(FeaturePlacementContext context, int x, int y, int z, int targetY) {
+		BlockPos.Mutable mutable = new BlockPos.Mutable(x, y, z);
+		int i = 0;
+		BlockState blockState = context.getBlockState(mutable);
 
-            i++;
-         }
+		for (int j = y; j >= context.getBottomY() + 1; j--) {
+			mutable.setY(j - 1);
+			BlockState blockState2 = context.getBlockState(mutable);
+			if (!blocksSpawn(blockState2) && blocksSpawn(blockState) && !blockState2.isOf(Blocks.BEDROCK)) {
+				if (i == targetY) {
+					return mutable.getY() + 1;
+				}
 
-         blockState = blockState2;
-      }
+				i++;
+			}
 
-      return Integer.MAX_VALUE;
-   }
+			blockState = blockState2;
+		}
 
-   private static boolean blocksSpawn(BlockState state) {
-      return state.isAir() || state.isOf(Blocks.WATER) || state.isOf(Blocks.LAVA);
-   }
+		return Integer.MAX_VALUE;
+	}
+
+	private static boolean blocksSpawn(BlockState state) {
+		return state.isAir() || state.isOf(Blocks.WATER) || state.isOf(Blocks.LAVA);
+	}
 }

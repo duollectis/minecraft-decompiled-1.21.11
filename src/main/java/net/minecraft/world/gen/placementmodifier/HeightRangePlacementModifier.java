@@ -2,7 +2,6 @@ package net.minecraft.world.gen.placementmodifier;
 
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import java.util.stream.Stream;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.gen.YOffset;
@@ -11,36 +10,45 @@ import net.minecraft.world.gen.heightprovider.HeightProvider;
 import net.minecraft.world.gen.heightprovider.TrapezoidHeightProvider;
 import net.minecraft.world.gen.heightprovider.UniformHeightProvider;
 
+import java.util.stream.Stream;
+
+/**
+ * {@code HeightRangePlacementModifier}.
+ */
 public class HeightRangePlacementModifier extends PlacementModifier {
-   public static final MapCodec<HeightRangePlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(HeightProvider.CODEC.fieldOf("height").forGetter(placementModifier -> placementModifier.height))
-         .apply(instance, HeightRangePlacementModifier::new)
-   );
-   private final HeightProvider height;
 
-   private HeightRangePlacementModifier(HeightProvider height) {
-      this.height = height;
-   }
+	public static final MapCodec<HeightRangePlacementModifier> MODIFIER_CODEC = RecordCodecBuilder.mapCodec(
+			instance -> instance
+					.group(HeightProvider.CODEC
+							.fieldOf("height")
+							.forGetter(placementModifier -> placementModifier.height))
+					.apply(instance, HeightRangePlacementModifier::new)
+	);
+	private final HeightProvider height;
 
-   public static HeightRangePlacementModifier of(HeightProvider height) {
-      return new HeightRangePlacementModifier(height);
-   }
+	private HeightRangePlacementModifier(HeightProvider height) {
+		this.height = height;
+	}
 
-   public static HeightRangePlacementModifier uniform(YOffset minOffset, YOffset maxOffset) {
-      return of(UniformHeightProvider.create(minOffset, maxOffset));
-   }
+	public static HeightRangePlacementModifier of(HeightProvider height) {
+		return new HeightRangePlacementModifier(height);
+	}
 
-   public static HeightRangePlacementModifier trapezoid(YOffset minOffset, YOffset maxOffset) {
-      return of(TrapezoidHeightProvider.create(minOffset, maxOffset));
-   }
+	public static HeightRangePlacementModifier uniform(YOffset minOffset, YOffset maxOffset) {
+		return of(UniformHeightProvider.create(minOffset, maxOffset));
+	}
 
-   @Override
-   public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
-      return Stream.of(pos.withY(this.height.get(random, context)));
-   }
+	public static HeightRangePlacementModifier trapezoid(YOffset minOffset, YOffset maxOffset) {
+		return of(TrapezoidHeightProvider.create(minOffset, maxOffset));
+	}
 
-   @Override
-   public PlacementModifierType<?> getType() {
-      return PlacementModifierType.HEIGHT_RANGE;
-   }
+	@Override
+	public Stream<BlockPos> getPositions(FeaturePlacementContext context, Random random, BlockPos pos) {
+		return Stream.of(pos.withY(this.height.get(random, context)));
+	}
+
+	@Override
+	public PlacementModifierType<?> getType() {
+		return PlacementModifierType.HEIGHT_RANGE;
+	}
 }

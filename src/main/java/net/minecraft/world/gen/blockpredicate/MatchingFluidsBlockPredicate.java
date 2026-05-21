@@ -9,26 +9,33 @@ import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.util.math.Vec3i;
 
+/**
+ * {@code MatchingFluidsBlockPredicate}.
+ */
 class MatchingFluidsBlockPredicate extends OffsetPredicate {
-   private final RegistryEntryList<Fluid> fluids;
-   public static final MapCodec<MatchingFluidsBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> registerOffsetField(instance)
-         .and(RegistryCodecs.entryList(RegistryKeys.FLUID).fieldOf("fluids").forGetter(predicate -> predicate.fluids))
-         .apply(instance, MatchingFluidsBlockPredicate::new)
-   );
 
-   public MatchingFluidsBlockPredicate(Vec3i offset, RegistryEntryList<Fluid> fluids) {
-      super(offset);
-      this.fluids = fluids;
-   }
+	private final RegistryEntryList<Fluid> fluids;
+	public static final MapCodec<MatchingFluidsBlockPredicate> CODEC = RecordCodecBuilder.mapCodec(
+			instance -> registerOffsetField(instance)
+					.and(RegistryCodecs
+							.entryList(RegistryKeys.FLUID)
+							.fieldOf("fluids")
+							.forGetter(predicate -> predicate.fluids))
+					.apply(instance, MatchingFluidsBlockPredicate::new)
+	);
 
-   @Override
-   protected boolean test(BlockState state) {
-      return state.getFluidState().isIn(this.fluids);
-   }
+	public MatchingFluidsBlockPredicate(Vec3i offset, RegistryEntryList<Fluid> fluids) {
+		super(offset);
+		this.fluids = fluids;
+	}
 
-   @Override
-   public BlockPredicateType<?> getType() {
-      return BlockPredicateType.MATCHING_FLUIDS;
-   }
+	@Override
+	protected boolean test(BlockState state) {
+		return state.getFluidState().isIn(this.fluids);
+	}
+
+	@Override
+	public BlockPredicateType<?> getType() {
+		return BlockPredicateType.MATCHING_FLUIDS;
+	}
 }

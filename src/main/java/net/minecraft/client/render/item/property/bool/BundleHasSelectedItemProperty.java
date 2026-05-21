@@ -11,16 +11,28 @@ import net.minecraft.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code BundleHasSelectedItemProperty}.
+ */
 public record BundleHasSelectedItemProperty() implements BooleanProperty {
-   public static final MapCodec<BundleHasSelectedItemProperty> CODEC = MapCodec.unit(new BundleHasSelectedItemProperty());
 
-   @Override
-   public boolean test(ItemStack stack, @Nullable ClientWorld world, @Nullable LivingEntity entity, int seed, ItemDisplayContext displayContext) {
-      return BundleItem.hasSelectedStack(stack);
-   }
+	public static final MapCodec<BundleHasSelectedItemProperty>
+			CODEC =
+			MapCodec.unit(new BundleHasSelectedItemProperty());
 
-   @Override
-   public MapCodec<BundleHasSelectedItemProperty> getCodec() {
-      return CODEC;
-   }
+	@Override
+	public boolean test(
+			ItemStack stack,
+			@Nullable ClientWorld world,
+			@Nullable LivingEntity entity,
+			int seed,
+			ItemDisplayContext displayContext
+	) {
+		return BundleItem.hasSelectedStack(stack);
+	}
+
+	@Override
+	public MapCodec<BundleHasSelectedItemProperty> getCodec() {
+		return CODEC;
+	}
 }

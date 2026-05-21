@@ -7,15 +7,19 @@ import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.Submittable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code NoRenderParticleRenderer}.
+ */
 public class NoRenderParticleRenderer extends ParticleRenderer<NoRenderParticle> {
-   private static final Submittable EMPTY = (queue, cameraRenderState) -> {};
 
-   public NoRenderParticleRenderer(ParticleManager particleManager) {
-      super(particleManager);
-   }
+	private static final Submittable EMPTY = (queue, cameraRenderState) -> {};
 
-   @Override
-   public Submittable render(Frustum frustum, Camera camera, float tickProgress) {
-      return EMPTY;
-   }
+	public NoRenderParticleRenderer(ParticleManager particleManager) {
+		super(particleManager);
+	}
+
+	@Override
+	public Submittable render(Frustum frustum, Camera camera, float tickProgress) {
+		return EMPTY;
+	}
 }

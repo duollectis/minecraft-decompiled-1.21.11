@@ -13,31 +13,39 @@ import net.minecraft.entity.mob.GiantEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code GiantEntityRenderer}.
+ */
 public class GiantEntityRenderer extends MobEntityRenderer<GiantEntity, ZombieEntityRenderState, BipedEntityModel<ZombieEntityRenderState>> {
-   private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/zombie/zombie.png");
 
-   public GiantEntityRenderer(EntityRendererFactory.Context ctx, float scale) {
-      super(ctx, new GiantEntityModel(ctx.getPart(EntityModelLayers.GIANT)), 0.5F * scale);
-      this.addFeature(new HeldItemFeatureRenderer<>(this));
-      this.addFeature(
-         new ArmorFeatureRenderer<>(
-            this,
-            EquipmentModelData.mapToEntityModel(EntityModelLayers.GIANT_EQUIPMENT, ctx.getEntityModels(), GiantEntityModel::new),
-            ctx.getEquipmentRenderer()
-         )
-      );
-   }
+	private static final Identifier TEXTURE = Identifier.ofVanilla("textures/entity/zombie/zombie.png");
 
-   public Identifier getTexture(ZombieEntityRenderState zombieEntityRenderState) {
-      return TEXTURE;
-   }
+	public GiantEntityRenderer(EntityRendererFactory.Context ctx, float scale) {
+		super(ctx, new GiantEntityModel(ctx.getPart(EntityModelLayers.GIANT)), 0.5F * scale);
+		this.addFeature(new HeldItemFeatureRenderer<>(this));
+		this.addFeature(
+				new ArmorFeatureRenderer<>(
+						this,
+						EquipmentModelData.mapToEntityModel(
+								EntityModelLayers.GIANT_EQUIPMENT,
+								ctx.getEntityModels(),
+								GiantEntityModel::new
+						),
+						ctx.getEquipmentRenderer()
+				)
+		);
+	}
 
-   public ZombieEntityRenderState createRenderState() {
-      return new ZombieEntityRenderState();
-   }
+	public Identifier getTexture(ZombieEntityRenderState zombieEntityRenderState) {
+		return TEXTURE;
+	}
 
-   public void updateRenderState(GiantEntity giantEntity, ZombieEntityRenderState zombieEntityRenderState, float f) {
-      super.updateRenderState(giantEntity, zombieEntityRenderState, f);
-      BipedEntityRenderer.updateBipedRenderState(giantEntity, zombieEntityRenderState, f, this.itemModelResolver);
-   }
+	public ZombieEntityRenderState createRenderState() {
+		return new ZombieEntityRenderState();
+	}
+
+	public void updateRenderState(GiantEntity giantEntity, ZombieEntityRenderState zombieEntityRenderState, float f) {
+		super.updateRenderState(giantEntity, zombieEntityRenderState, f);
+		BipedEntityRenderer.updateBipedRenderState(giantEntity, zombieEntityRenderState, f, this.itemModelResolver);
+	}
 }

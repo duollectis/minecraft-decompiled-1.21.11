@@ -4,8 +4,12 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 
 @Environment(EnvType.CLIENT)
+/**
+ * {@code RavagerEntityRenderState}.
+ */
 public class RavagerEntityRenderState extends LivingEntityRenderState {
-   public float stunTick;
-   public float attackTick;
-   public float roarTick;
+
+	public float stunTick;
+	public float attackTick;
+	public float roarTick;
 }

@@ -1,47 +1,52 @@
 package net.minecraft.advancement.criterion;
 
-import java.time.Instant;
 import net.minecraft.network.PacketByteBuf;
 import org.jspecify.annotations.Nullable;
 
+import java.time.Instant;
+
+/**
+ * {@code CriterionProgress}.
+ */
 public class CriterionProgress {
-   private @Nullable Instant obtainedTime;
 
-   public CriterionProgress() {
-   }
+	private @Nullable Instant obtainedTime;
 
-   public CriterionProgress(Instant obtainedTime) {
-      this.obtainedTime = obtainedTime;
-   }
+	public CriterionProgress() {
+	}
 
-   public boolean isObtained() {
-      return this.obtainedTime != null;
-   }
+	public CriterionProgress(Instant obtainedTime) {
+		this.obtainedTime = obtainedTime;
+	}
 
-   public void obtain() {
-      this.obtainedTime = Instant.now();
-   }
+	public boolean isObtained() {
+		return this.obtainedTime != null;
+	}
 
-   public void reset() {
-      this.obtainedTime = null;
-   }
+	public void obtain() {
+		this.obtainedTime = Instant.now();
+	}
 
-   public @Nullable Instant getObtainedTime() {
-      return this.obtainedTime;
-   }
+	public void reset() {
+		this.obtainedTime = null;
+	}
 
-   @Override
-   public String toString() {
-      return "CriterionProgress{obtained=" + (this.obtainedTime == null ? "false" : this.obtainedTime) + "}";
-   }
+	public @Nullable Instant getObtainedTime() {
+		return this.obtainedTime;
+	}
 
-   public void toPacket(PacketByteBuf buf) {
-      buf.writeNullable(this.obtainedTime, PacketByteBuf::writeInstant);
-   }
+	@Override
+	public String toString() {
+		return "CriterionProgress{obtained=" + (this.obtainedTime == null ? "false" : this.obtainedTime) + "}";
+	}
 
-   public static CriterionProgress fromPacket(PacketByteBuf buf) {
-      CriterionProgress criterionProgress = new CriterionProgress();
-      criterionProgress.obtainedTime = buf.readNullable(PacketByteBuf::readInstant);
-      return criterionProgress;
-   }
+	public void toPacket(PacketByteBuf buf) {
+		buf.writeNullable(this.obtainedTime, PacketByteBuf::writeInstant);
+	}
+
+	public static CriterionProgress fromPacket(PacketByteBuf buf) {
+		CriterionProgress criterionProgress = new CriterionProgress();
+		criterionProgress.obtainedTime = buf.readNullable(PacketByteBuf::readInstant);
+		return criterionProgress;
+	}
 }

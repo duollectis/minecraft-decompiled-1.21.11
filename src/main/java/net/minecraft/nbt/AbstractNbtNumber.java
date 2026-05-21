@@ -2,58 +2,62 @@ package net.minecraft.nbt;
 
 import java.util.Optional;
 
+/**
+ * {@code AbstractNbtNumber}.
+ */
 public sealed interface AbstractNbtNumber extends NbtPrimitive permits NbtByte, NbtShort, NbtInt, NbtLong, NbtFloat, NbtDouble {
-   byte byteValue();
 
-   short shortValue();
+	byte byteValue();
 
-   int intValue();
+	short shortValue();
 
-   long longValue();
+	int intValue();
 
-   float floatValue();
+	long longValue();
 
-   double doubleValue();
+	float floatValue();
 
-   Number numberValue();
+	double doubleValue();
 
-   @Override
-   default Optional<Number> asNumber() {
-      return Optional.of(this.numberValue());
-   }
+	Number numberValue();
 
-   @Override
-   default Optional<Byte> asByte() {
-      return Optional.of(this.byteValue());
-   }
+	@Override
+	default Optional<Number> asNumber() {
+		return Optional.of(this.numberValue());
+	}
 
-   @Override
-   default Optional<Short> asShort() {
-      return Optional.of(this.shortValue());
-   }
+	@Override
+	default Optional<Byte> asByte() {
+		return Optional.of(this.byteValue());
+	}
 
-   @Override
-   default Optional<Integer> asInt() {
-      return Optional.of(this.intValue());
-   }
+	@Override
+	default Optional<Short> asShort() {
+		return Optional.of(this.shortValue());
+	}
 
-   @Override
-   default Optional<Long> asLong() {
-      return Optional.of(this.longValue());
-   }
+	@Override
+	default Optional<Integer> asInt() {
+		return Optional.of(this.intValue());
+	}
 
-   @Override
-   default Optional<Float> asFloat() {
-      return Optional.of(this.floatValue());
-   }
+	@Override
+	default Optional<Long> asLong() {
+		return Optional.of(this.longValue());
+	}
 
-   @Override
-   default Optional<Double> asDouble() {
-      return Optional.of(this.doubleValue());
-   }
+	@Override
+	default Optional<Float> asFloat() {
+		return Optional.of(this.floatValue());
+	}
 
-   @Override
-   default Optional<Boolean> asBoolean() {
-      return Optional.of(this.byteValue() != 0);
-   }
+	@Override
+	default Optional<Double> asDouble() {
+		return Optional.of(this.doubleValue());
+	}
+
+	@Override
+	default Optional<Boolean> asBoolean() {
+		return Optional.of(this.byteValue() != 0);
+	}
 }

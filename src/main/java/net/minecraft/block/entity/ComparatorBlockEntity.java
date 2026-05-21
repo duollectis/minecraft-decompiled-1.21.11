@@ -5,31 +5,35 @@ import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * {@code ComparatorBlockEntity}.
+ */
 public class ComparatorBlockEntity extends BlockEntity {
-   private static final int DEFAULT_OUTPUT_SIGNAL = 0;
-   private int outputSignal = 0;
 
-   public ComparatorBlockEntity(BlockPos pos, BlockState state) {
-      super(BlockEntityType.COMPARATOR, pos, state);
-   }
+	private static final int DEFAULT_OUTPUT_SIGNAL = 0;
+	private int outputSignal = 0;
 
-   @Override
-   protected void writeData(WriteView view) {
-      super.writeData(view);
-      view.putInt("OutputSignal", this.outputSignal);
-   }
+	public ComparatorBlockEntity(BlockPos pos, BlockState state) {
+		super(BlockEntityType.COMPARATOR, pos, state);
+	}
 
-   @Override
-   protected void readData(ReadView view) {
-      super.readData(view);
-      this.outputSignal = view.getInt("OutputSignal", 0);
-   }
+	@Override
+	protected void writeData(WriteView view) {
+		super.writeData(view);
+		view.putInt("OutputSignal", this.outputSignal);
+	}
 
-   public int getOutputSignal() {
-      return this.outputSignal;
-   }
+	@Override
+	protected void readData(ReadView view) {
+		super.readData(view);
+		this.outputSignal = view.getInt("OutputSignal", 0);
+	}
 
-   public void setOutputSignal(int outputSignal) {
-      this.outputSignal = outputSignal;
-   }
+	public int getOutputSignal() {
+		return this.outputSignal;
+	}
+
+	public void setOutputSignal(int outputSignal) {
+		this.outputSignal = outputSignal;
+	}
 }
