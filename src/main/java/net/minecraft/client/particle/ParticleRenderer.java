@@ -31,6 +31,9 @@ public abstract class ParticleRenderer<P extends Particle> {
 		return this.particles.isEmpty();
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (!this.particles.isEmpty()) {
 			Iterator<P> iterator = this.particles.iterator();
@@ -59,14 +62,33 @@ public abstract class ParticleRenderer<P extends Particle> {
 		}
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param particle particle
+	 */
 	public void add(Particle particle) {
 		this.particles.add((P) particle);
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.particles.size();
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param frustum frustum
+	 * @param camera camera
+	 * @param tickProgress tick progress
+	 *
+	 * @return Submittable — результат операции
+	 */
 	public abstract Submittable render(Frustum frustum, Camera camera, float tickProgress);
 
 	public Queue<P> getParticles() {

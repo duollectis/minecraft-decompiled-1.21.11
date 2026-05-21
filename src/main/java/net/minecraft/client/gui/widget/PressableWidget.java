@@ -35,6 +35,11 @@ public abstract class PressableWidget extends ClickableWidget.InactivityIndicati
 		super(i, j, k, l, text);
 	}
 
+	/**
+	 * Обрабатывает событие press.
+	 *
+	 * @param input input
+	 */
 	public abstract void onPress(AbstractInput input);
 
 	@Override
@@ -43,12 +48,30 @@ public abstract class PressableWidget extends ClickableWidget.InactivityIndicati
 		this.setCursor(context);
 	}
 
+	/**
+	 * Draw icon.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param deltaTicks delta ticks
+	 */
 	protected abstract void drawIcon(DrawContext context, int mouseX, int mouseY, float deltaTicks);
 
+	/**
+	 * Draw label.
+	 *
+	 * @param drawer drawer
+	 */
 	protected void drawLabel(DrawnTextConsumer drawer) {
 		this.drawTextWithMargin(drawer, this.getMessage(), 2);
 	}
 
+	/**
+	 * Draw button.
+	 *
+	 * @param context context
+	 */
 	protected final void drawButton(DrawContext context) {
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,

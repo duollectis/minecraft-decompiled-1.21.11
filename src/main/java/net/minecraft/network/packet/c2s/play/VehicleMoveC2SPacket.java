@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * Запись vehicle move c2 s packet.
+ */
 public record VehicleMoveC2SPacket(
 		Vec3d position,
 		float yaw,
@@ -29,6 +32,13 @@ public record VehicleMoveC2SPacket(
 			VehicleMoveC2SPacket::new
 	);
 
+	/**
+	 * From vehicle.
+	 *
+	 * @param vehicle vehicle
+	 *
+	 * @return VehicleMoveC2SPacket — результат операции
+	 */
 	public static VehicleMoveC2SPacket fromVehicle(Entity vehicle) {
 		return vehicle.isInterpolating()
 		       ? new VehicleMoveC2SPacket(
@@ -50,6 +60,11 @@ public record VehicleMoveC2SPacket(
 		return PlayPackets.MOVE_VEHICLE_C2S;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onVehicleMove(this);
 	}

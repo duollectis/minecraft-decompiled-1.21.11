@@ -21,6 +21,13 @@ public record LongRunningSampleStatistics<T extends LongRunningSample>(
 		Duration totalDuration
 ) {
 
+	/**
+	 * From samples.
+	 *
+	 * @param samples samples
+	 *
+	 * @return Optional> — результат операции
+	 */
 	public static <T extends LongRunningSample> Optional<LongRunningSampleStatistics<T>> fromSamples(List<T> samples) {
 		if (samples.isEmpty()) {
 			return Optional.empty();

@@ -28,6 +28,11 @@ public record RpcKickReason(
 			                    .apply(instance, RpcKickReason::new)
 	);
 
+	/**
+	 * To text.
+	 *
+	 * @return Optional — результат операции
+	 */
 	public Optional<Text> toText() {
 		if (this.translatable.isPresent()) {
 			String string = this.translatable.get();

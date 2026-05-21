@@ -21,6 +21,11 @@ import java.util.Collection;
  */
 public class StopSoundCommand {
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		RequiredArgumentBuilder<ServerCommandSource, EntitySelector>
 				requiredArgumentBuilder =

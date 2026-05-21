@@ -28,6 +28,15 @@ public class TaskScreen extends Screen {
 	private ButtonWidget button;
 	private int buttonCooldown;
 
+	/**
+	 * Создаёт running screen.
+	 *
+	 * @param title title
+	 * @param closeButtonText close button text
+	 * @param closeCallback close callback
+	 *
+	 * @return TaskScreen — результат операции
+	 */
 	public static TaskScreen createRunningScreen(Text title, Text closeButtonText, Runnable closeCallback) {
 		return new TaskScreen(title, null, closeButtonText, closeCallback, 0);
 	}

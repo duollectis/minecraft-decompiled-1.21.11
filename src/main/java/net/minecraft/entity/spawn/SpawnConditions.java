@@ -8,6 +8,13 @@ import net.minecraft.registry.Registry;
  */
 public class SpawnConditions {
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static MapCodec<? extends SpawnCondition> registerAndGetDefault(Registry<MapCodec<? extends SpawnCondition>> registry) {
 		Registry.register(registry, "structure", StructureSpawnCondition.CODEC);
 		Registry.register(registry, "moon_brightness", MoonBrightnessSpawnCondition.CODEC);

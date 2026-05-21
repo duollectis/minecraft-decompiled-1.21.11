@@ -22,6 +22,9 @@ public class VaultClientData {
 		return this.lastDisplayRotation;
 	}
 
+	/**
+	 * Rotate display.
+	 */
 	public void rotateDisplay() {
 		this.lastDisplayRotation = this.displayRotation;
 		this.displayRotation = MathHelper.wrapDegrees(this.displayRotation + 10.0F);

@@ -16,15 +16,37 @@ public abstract class BlockStateProvider {
 			.getCodec()
 			.dispatch(BlockStateProvider::getType, BlockStateProviderType::getCodec);
 
+	/**
+	 * Of.
+	 *
+	 * @param state state
+	 *
+	 * @return SimpleBlockStateProvider — результат операции
+	 */
 	public static SimpleBlockStateProvider of(BlockState state) {
 		return new SimpleBlockStateProvider(state);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param block block
+	 *
+	 * @return SimpleBlockStateProvider — результат операции
+	 */
 	public static SimpleBlockStateProvider of(Block block) {
 		return new SimpleBlockStateProvider(block.getDefaultState());
 	}
 
 	protected abstract BlockStateProviderType<?> getType();
 
+	/**
+	 * Get.
+	 *
+	 * @param random random
+	 * @param pos pos
+	 *
+	 * @return BlockState — 
+	 */
 	public abstract BlockState get(Random random, BlockPos pos);
 }

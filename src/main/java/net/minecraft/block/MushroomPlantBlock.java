@@ -99,6 +99,16 @@ public class MushroomPlantBlock extends PlantBlock implements Fertilizable {
 		);
 	}
 
+	/**
+	 * Try spawning big mushroom.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param random random
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean trySpawningBigMushroom(ServerWorld world, BlockPos pos, BlockState state, Random random) {
 		Optional<? extends RegistryEntry<ConfiguredFeature<?, ?>>> optional = world.getRegistryManager()
 		                                                                           .getOrThrow(RegistryKeys.CONFIGURED_FEATURE)

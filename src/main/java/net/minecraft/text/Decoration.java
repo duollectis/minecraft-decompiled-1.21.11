@@ -38,6 +38,13 @@ public record Decoration(String translationKey, List<Decoration.Parameter> param
 			Decoration::new
 	);
 
+	/**
+	 * Of chat.
+	 *
+	 * @param translationKey translation key
+	 *
+	 * @return Decoration — результат операции
+	 */
 	public static Decoration ofChat(String translationKey) {
 		return new Decoration(
 				translationKey,
@@ -46,6 +53,13 @@ public record Decoration(String translationKey, List<Decoration.Parameter> param
 		);
 	}
 
+	/**
+	 * Of incoming message.
+	 *
+	 * @param translationKey translation key
+	 *
+	 * @return Decoration — результат операции
+	 */
 	public static Decoration ofIncomingMessage(String translationKey) {
 		Style style = Style.EMPTY.withColor(Formatting.GRAY).withItalic(true);
 		return new Decoration(
@@ -55,6 +69,13 @@ public record Decoration(String translationKey, List<Decoration.Parameter> param
 		);
 	}
 
+	/**
+	 * Of outgoing message.
+	 *
+	 * @param translationKey translation key
+	 *
+	 * @return Decoration — результат операции
+	 */
 	public static Decoration ofOutgoingMessage(String translationKey) {
 		Style style = Style.EMPTY.withColor(Formatting.GRAY).withItalic(true);
 		return new Decoration(
@@ -64,6 +85,13 @@ public record Decoration(String translationKey, List<Decoration.Parameter> param
 		);
 	}
 
+	/**
+	 * Of team message.
+	 *
+	 * @param translationKey translation key
+	 *
+	 * @return Decoration — результат операции
+	 */
 	public static Decoration ofTeamMessage(String translationKey) {
 		return new Decoration(
 				translationKey,
@@ -72,6 +100,14 @@ public record Decoration(String translationKey, List<Decoration.Parameter> param
 		);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param content content
+	 * @param params params
+	 *
+	 * @return Text — результат операции
+	 */
 	public Text apply(Text content, MessageType.Parameters params) {
 		Object[] objects = this.collectArguments(content, params);
 		return Text.translatable(this.translationKey, objects).fillStyle(this.style);
@@ -115,6 +151,14 @@ public record Decoration(String translationKey, List<Decoration.Parameter> param
 			this.selector = selector;
 		}
 
+		/**
+		 * Apply.
+		 *
+		 * @param content content
+		 * @param params params
+		 *
+		 * @return Text — результат операции
+		 */
 		public Text apply(Text content, MessageType.Parameters params) {
 			return this.selector.select(content, params);
 		}

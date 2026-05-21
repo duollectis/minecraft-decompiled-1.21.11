@@ -37,6 +37,13 @@ public record ValueCheckLootCondition(
 		return Sets.union(this.value.getAllowedParameters(), this.range.getRequiredParameters());
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		return this.range.test(lootContext, this.value.nextInt(lootContext));
 	}

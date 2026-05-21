@@ -154,6 +154,13 @@ public class Brain<E extends LivingEntity> {
 		}
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param ops ops
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public <T> DataResult<T> encode(DynamicOps<T> ops) {
 		return this.codecSupplier.get().encodeStart(ops, this);
 	}
@@ -166,22 +173,57 @@ public class Brain<E extends LivingEntity> {
 		return this.isMemoryInState(type, MemoryModuleState.VALUE_PRESENT);
 	}
 
+	/**
+	 * Forget all.
+	 */
 	public void forgetAll() {
 		this.memories.keySet().forEach(type -> this.memories.put((MemoryModuleType<?>) type, Optional.empty()));
 	}
 
+	/**
+	 * Forget.
+	 *
+	 * @param type type
+	 *
+	 * @return void — результат операции
+	 */
 	public <U> void forget(MemoryModuleType<U> type) {
 		this.remember(type, Optional.empty());
 	}
 
+	/**
+	 * Remember.
+	 *
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <U> void remember(MemoryModuleType<U> type, @Nullable U value) {
 		this.remember(type, Optional.ofNullable(value));
 	}
 
+	/**
+	 * Remember.
+	 *
+	 * @param type type
+	 * @param value value
+	 * @param expiry expiry
+	 *
+	 * @return void — результат операции
+	 */
 	public <U> void remember(MemoryModuleType<U> type, U value, long expiry) {
 		this.setMemory(type, Optional.of(Memory.timed(value, expiry)));
 	}
 
+	/**
+	 * Remember.
+	 *
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <U> void remember(MemoryModuleType<U> type, Optional<? extends U> value) {
 		this.setMemory(type, value.map(Memory::permanent));
 	}
@@ -271,6 +313,9 @@ public class Brain<E extends LivingEntity> {
 		return list;
 	}
 
+	/**
+	 * Сбрасывает possible activities.
+	 */
 	public void resetPossibleActivities() {
 		this.resetPossibleActivities(this.defaultActivity);
 	}
@@ -285,6 +330,11 @@ public class Brain<E extends LivingEntity> {
 		return Optional.empty();
 	}
 
+	/**
+	 * Do exclusively.
+	 *
+	 * @param activity activity
+	 */
 	public void doExclusively(Activity activity) {
 		if (this.canDoActivity(activity)) {
 			this.resetPossibleActivities(activity);
@@ -316,6 +366,13 @@ public class Brain<E extends LivingEntity> {
 		}
 	}
 
+	/**
+	 * Refresh activities.
+	 *
+	 * @param attributeAccess attribute access
+	 * @param time time
+	 * @param pos pos
+	 */
 	public void refreshActivities(WorldEnvironmentAttributeAccess attributeAccess, long time, Vec3d pos) {
 		if (time - this.activityStartTime > 20L) {
 			this.activityStartTime = time;
@@ -328,6 +385,11 @@ public class Brain<E extends LivingEntity> {
 		}
 	}
 
+	/**
+	 * Сбрасывает possible activities.
+	 *
+	 * @param activities activities
+	 */
 	public void resetPossibleActivities(List<Activity> activities) {
 		for (Activity activity : activities) {
 			if (this.canDoActivity(activity)) {
@@ -405,6 +467,9 @@ public class Brain<E extends LivingEntity> {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.tasks.clear();
 	}
@@ -413,6 +478,11 @@ public class Brain<E extends LivingEntity> {
 		return this.possibleActivities.contains(activity);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return Brain — результат операции
+	 */
 	public Brain<E> copy() {
 		Brain<E>
 				brain =
@@ -428,6 +498,12 @@ public class Brain<E extends LivingEntity> {
 		return brain;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 */
 	public void tick(ServerWorld world, E entity) {
 		this.tickMemories();
 		this.tickSensors(world, entity);
@@ -454,6 +530,12 @@ public class Brain<E extends LivingEntity> {
 		}
 	}
 
+	/**
+	 * Останавливает all tasks.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 */
 	public void stopAllTasks(ServerWorld world, E entity) {
 		long l = entity.getEntityWorld().getTime();
 
@@ -549,6 +631,14 @@ public class Brain<E extends LivingEntity> {
 			brain.setMemory(this.type, this.data);
 		}
 
+		/**
+		 * Serialize.
+		 *
+		 * @param ops ops
+		 * @param builder builder
+		 *
+		 * @return void — результат операции
+		 */
 		public <T> void serialize(DynamicOps<T> ops, RecordBuilder<T> builder) {
 			this.type
 					.getCodec()
@@ -581,6 +671,13 @@ public class Brain<E extends LivingEntity> {
 			this.codec = Brain.createBrainCodec(memoryModules, sensors);
 		}
 
+		/**
+		 * Deserialize.
+		 *
+		 * @param data data
+		 *
+		 * @return Brain — результат операции
+		 */
 		public Brain<E> deserialize(Dynamic<?> data) {
 			return this.codec
 					.parse(data)

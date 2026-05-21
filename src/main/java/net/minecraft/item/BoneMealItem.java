@@ -65,6 +65,15 @@ public class BoneMealItem extends Item {
 		}
 	}
 
+	/**
+	 * Использует on fertilizable.
+	 *
+	 * @param stack stack
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean useOnFertilizable(ItemStack stack, World world, BlockPos pos) {
 		BlockState blockState = world.getBlockState(pos);
 		if (blockState.getBlock() instanceof Fertilizable fertilizable && fertilizable.isFertilizable(
@@ -87,6 +96,16 @@ public class BoneMealItem extends Item {
 		}
 	}
 
+	/**
+	 * Использует on ground.
+	 *
+	 * @param stack stack
+	 * @param world world
+	 * @param blockPos block pos
+	 * @param facing facing
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean useOnGround(ItemStack stack, World world, BlockPos blockPos, @Nullable Direction facing) {
 		if (world.getBlockState(blockPos).isOf(Blocks.WATER) && world.getFluidState(blockPos).getLevel() == 8) {
 			if (!(world instanceof ServerWorld)) {
@@ -163,6 +182,13 @@ public class BoneMealItem extends Item {
 		}
 	}
 
+	/**
+	 * Создаёт particles.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param count count
+	 */
 	public static void createParticles(WorldAccess world, BlockPos pos, int count) {
 		BlockState blockState = world.getBlockState(pos);
 		if (blockState.getBlock() instanceof Fertilizable fertilizable) {

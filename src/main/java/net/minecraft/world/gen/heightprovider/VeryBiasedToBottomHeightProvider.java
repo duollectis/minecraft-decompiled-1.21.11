@@ -37,6 +37,15 @@ public class VeryBiasedToBottomHeightProvider extends HeightProvider {
 		this.inner = inner;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param minOffset min offset
+	 * @param maxOffset max offset
+	 * @param inner inner
+	 *
+	 * @return VeryBiasedToBottomHeightProvider — результат операции
+	 */
 	public static VeryBiasedToBottomHeightProvider create(YOffset minOffset, YOffset maxOffset, int inner) {
 		return new VeryBiasedToBottomHeightProvider(minOffset, maxOffset, inner);
 	}

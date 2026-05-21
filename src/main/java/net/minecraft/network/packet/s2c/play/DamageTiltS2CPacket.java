@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись damage tilt s2 c packet.
+ */
 public record DamageTiltS2CPacket(int id, float yaw) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, DamageTiltS2CPacket>
@@ -32,6 +35,11 @@ public record DamageTiltS2CPacket(int id, float yaw) implements Packet<ClientPla
 		return PlayPackets.HURT_ANIMATION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onDamageTilt(this);
 	}

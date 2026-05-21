@@ -18,6 +18,14 @@ public final class NbtByteArray implements AbstractNbtList {
 
 	private static final int SIZE = 24;
 	public static final NbtType<NbtByteArray> TYPE = new NbtType.OfVariableSize<NbtByteArray>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtByteArray — результат операции
+		 */
 		public NbtByteArray read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 			return new NbtByteArray(readByteArray(dataInput, nbtSizeTracker));
 		}
@@ -117,6 +125,13 @@ public final class NbtByteArray implements AbstractNbtList {
 		return this.value.length;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param i i
+	 *
+	 * @return NbtByte — 
+	 */
 	public NbtByte get(int i) {
 		return NbtByte.of(this.value[i]);
 	}
@@ -143,6 +158,13 @@ public final class NbtByteArray implements AbstractNbtList {
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param i i
+	 *
+	 * @return NbtByte — результат операции
+	 */
 	public NbtByte remove(int i) {
 		byte b = this.value[i];
 		this.value = ArrayUtils.remove(this.value, i);

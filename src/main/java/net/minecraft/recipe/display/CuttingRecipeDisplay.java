@@ -16,6 +16,11 @@ import java.util.Optional;
  */
 public record CuttingRecipeDisplay<T extends Recipe<?>>(SlotDisplay optionDisplay, Optional<RecipeEntry<T>> recipe) {
 
+	/**
+	 * Codec.
+	 *
+	 * @return > PacketCodec> — результат операции
+	 */
 	public static <T extends Recipe<?>> PacketCodec<RegistryByteBuf, CuttingRecipeDisplay<T>> codec() {
 		return PacketCodec.tuple(
 				SlotDisplay.PACKET_CODEC,
@@ -57,6 +62,13 @@ public record CuttingRecipeDisplay<T extends Recipe<?>>(SlotDisplay optionDispla
 			);
 		}
 
+		/**
+		 * Contains.
+		 *
+		 * @param stack stack
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean contains(ItemStack stack) {
 			return this.entries.stream().anyMatch(entry -> entry.input.test(stack));
 		}
@@ -72,6 +84,11 @@ public record CuttingRecipeDisplay<T extends Recipe<?>>(SlotDisplay optionDispla
 			return this.entries.isEmpty();
 		}
 
+		/**
+		 * Size.
+		 *
+		 * @return int — результат операции
+		 */
 		public int size() {
 			return this.entries.size();
 		}

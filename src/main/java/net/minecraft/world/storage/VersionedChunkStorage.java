@@ -55,6 +55,14 @@ public class VersionedChunkStorage implements AutoCloseable {
 		this.updaterFactory = Suppliers.memoize(updaterFactory::get);
 	}
 
+	/**
+	 * Needs blending.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param checkRadius check radius
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsBlending(ChunkPos chunkPos, int checkRadius) {
 		return this.worker.needsBlending(chunkPos, checkRadius);
 	}
@@ -67,11 +75,28 @@ public class VersionedChunkStorage implements AutoCloseable {
 		return this.set(chunkPos, () -> chunkTag);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param chunkTagFactory chunk tag factory
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Void> set(ChunkPos chunkPos, Supplier<NbtCompound> chunkTagFactory) {
 		this.markChunkDone(chunkPos);
 		return this.worker.setResult(chunkPos, chunkTagFactory);
 	}
 
+	/**
+	 * Обновляет chunk nbt.
+	 *
+	 * @param chunkNbt chunk nbt
+	 * @param fallbackVersion fallback version
+	 * @param context context
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound updateChunkNbt(NbtCompound chunkNbt, int fallbackVersion, @Nullable NbtCompound context) {
 		int i = NbtHelper.getDataVersion(chunkNbt, fallbackVersion);
 		if (i == SharedConstants.getGameVersion().dataVersion().id()) {
@@ -100,10 +125,26 @@ public class VersionedChunkStorage implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Обновляет chunk nbt.
+	 *
+	 * @param chunkNbt chunk nbt
+	 * @param fallbackVersion fallback version
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound updateChunkNbt(NbtCompound chunkNbt, int fallbackVersion) {
 		return this.updateChunkNbt(chunkNbt, fallbackVersion, null);
 	}
 
+	/**
+	 * Обновляет chunk nbt.
+	 *
+	 * @param chunkNbt chunk nbt
+	 * @param fallbackVersion fallback version
+	 *
+	 * @return Dynamic — результат операции
+	 */
 	public Dynamic<NbtElement> updateChunkNbt(Dynamic<NbtElement> chunkNbt, int fallbackVersion) {
 		return new Dynamic(
 				chunkNbt.getOps(),
@@ -111,6 +152,12 @@ public class VersionedChunkStorage implements AutoCloseable {
 		);
 	}
 
+	/**
+	 * Сохраняет context to nbt.
+	 *
+	 * @param nbt nbt
+	 * @param context context
+	 */
 	public static void saveContextToNbt(NbtCompound nbt, @Nullable NbtCompound context) {
 		if (context != null) {
 			nbt.put("__context", context);
@@ -121,10 +168,22 @@ public class VersionedChunkStorage implements AutoCloseable {
 		nbt.remove("__context");
 	}
 
+	/**
+	 * Mark chunk done.
+	 *
+	 * @param chunkPos chunk pos
+	 */
 	protected void markChunkDone(ChunkPos chunkPos) {
 		this.updaterFactory.get().markChunkDone(chunkPos);
 	}
 
+	/**
+	 * Complete all.
+	 *
+	 * @param sync sync
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Void> completeAll(boolean sync) {
 		return this.worker.completeAll(sync);
 	}

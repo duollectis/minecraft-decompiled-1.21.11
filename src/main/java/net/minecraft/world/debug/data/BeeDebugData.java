@@ -30,6 +30,13 @@ public record BeeDebugData(
 			BeeDebugData::new
 	);
 
+	/**
+	 * Hive pos equals.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean hivePosEquals(BlockPos pos) {
 		return this.hivePos.isPresent() && pos.equals(this.hivePos.get());
 	}

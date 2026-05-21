@@ -33,6 +33,13 @@ public class AffineTransformations {
 			Util.transformMapValues(DIRECTION_ROTATIONS, AffineTransformation::invert)
 	);
 
+	/**
+	 * Устанавливает up uv lock.
+	 *
+	 * @param transformation transformation
+	 *
+	 * @return AffineTransformation — результат операции
+	 */
 	public static AffineTransformation setupUvLock(AffineTransformation transformation) {
 		Matrix4f matrix4f = new Matrix4f().translation(0.5F, 0.5F, 0.5F);
 		matrix4f.mul(transformation.getMatrix());
@@ -40,6 +47,13 @@ public class AffineTransformations {
 		return new AffineTransformation(matrix4f);
 	}
 
+	/**
+	 * Устанавливает up block transform.
+	 *
+	 * @param transformation transformation
+	 *
+	 * @return AffineTransformation — результат операции
+	 */
 	public static AffineTransformation setupBlockTransform(AffineTransformation transformation) {
 		Matrix4f matrix4f = new Matrix4f().translation(-0.5F, -0.5F, -0.5F);
 		matrix4f.mul(transformation.getMatrix());

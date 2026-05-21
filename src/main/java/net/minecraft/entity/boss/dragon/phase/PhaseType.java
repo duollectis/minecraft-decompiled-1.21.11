@@ -44,6 +44,13 @@ public class PhaseType<T extends Phase> {
 		this.name = name;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param dragon dragon
+	 *
+	 * @return Phase — результат операции
+	 */
 	public Phase create(EnderDragonEntity dragon) {
 		try {
 			Constructor<? extends Phase> constructor = this.getConstructor();
@@ -71,6 +78,11 @@ public class PhaseType<T extends Phase> {
 		return id >= 0 && id < types.length ? types[id] : HOLDING_PATTERN;
 	}
 
+	/**
+	 * Count.
+	 *
+	 * @return int — результат операции
+	 */
 	public static int count() {
 		return types.length;
 	}

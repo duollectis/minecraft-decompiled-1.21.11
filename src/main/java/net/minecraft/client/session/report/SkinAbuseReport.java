@@ -34,6 +34,11 @@ public class SkinAbuseReport extends AbuseReport {
 		return this.skinSupplier;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return SkinAbuseReport — результат операции
+	 */
 	public SkinAbuseReport copy() {
 		SkinAbuseReport
 				skinAbuseReport =

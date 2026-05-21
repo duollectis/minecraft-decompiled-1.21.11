@@ -98,6 +98,11 @@ public interface ErrorReporter {
 			return this.errors.isEmpty();
 		}
 
+		/**
+		 * Apply.
+		 *
+		 * @param consumer consumer
+		 */
 		public void apply(BiConsumer<String, ErrorReporter.Error> consumer) {
 			List<ErrorReporter.Context> list = new ArrayList<>();
 			StringBuilder stringBuilder = new StringBuilder();

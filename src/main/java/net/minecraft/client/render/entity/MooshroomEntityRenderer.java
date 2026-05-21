@@ -40,6 +40,11 @@ public class MooshroomEntityRenderer extends AgeableMobEntityRenderer<MooshroomE
 		return TEXTURES.get(mooshroomEntityRenderState.type);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return MooshroomEntityRenderState — результат операции
+	 */
 	public MooshroomEntityRenderState createRenderState() {
 		return new MooshroomEntityRenderState();
 	}

@@ -295,10 +295,20 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 		return list;
 	}
 
+	/**
+	 * Создаёт text renderer.
+	 *
+	 * @return TextRenderer — результат операции
+	 */
 	public TextRenderer createTextRenderer() {
 		return new TextRenderer(this.anyFonts);
 	}
 
+	/**
+	 * Создаёт advance validating text renderer.
+	 *
+	 * @return TextRenderer — результат операции
+	 */
 	public TextRenderer createAdvanceValidatingTextRenderer() {
 		return new TextRenderer(this.advanceValidatedFonts);
 	}
@@ -448,6 +458,9 @@ public class FontManager implements ResourceReloader, AutoCloseable {
 			this.advanceValidating = advanceValidating;
 		}
 
+		/**
+		 * Clear.
+		 */
 		public void clear() {
 			this.cached = null;
 			this.rectangle = null;

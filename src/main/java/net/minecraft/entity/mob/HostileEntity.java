@@ -44,6 +44,9 @@ public abstract class HostileEntity extends PathAwareEntity implements Monster {
 		super.tickMovement();
 	}
 
+	/**
+	 * Обновляет despawn counter.
+	 */
 	protected void updateDespawnCounter() {
 		float f = this.getBrightnessAtEyes();
 		if (f > 0.5F) {

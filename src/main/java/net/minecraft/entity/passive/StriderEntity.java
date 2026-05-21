@@ -378,6 +378,14 @@ public class StriderEntity extends AnimalEntity implements ItemSteerable {
 		}
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable StriderEntity — результат операции
+	 */
 	public @Nullable StriderEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		return EntityType.STRIDER.create(serverWorld, SpawnReason.BREEDING);
 	}

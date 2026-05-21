@@ -27,6 +27,13 @@ public abstract class TokenParsingRule implements ParsingRule<StringReader, Stri
 		this.tooShortException = tooShortException;
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param parsingState parsing state
+	 *
+	 * @return @Nullable String — результат операции
+	 */
 	public @Nullable String parse(ParsingState<StringReader> parsingState) {
 		StringReader stringReader = parsingState.getReader();
 		String string = stringReader.getString();

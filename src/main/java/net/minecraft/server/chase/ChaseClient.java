@@ -45,6 +45,9 @@ public class ChaseClient {
 		this.minecraftServer = minecraftServer;
 	}
 
+	/**
+	 * Start.
+	 */
 	public void start() {
 		if (this.thread != null && this.thread.isAlive()) {
 			LOGGER.warn("Remote control client was asked to start, but it is already running. Will ignore.");
@@ -56,6 +59,9 @@ public class ChaseClient {
 		this.thread.start();
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		this.running = false;
 		IOUtils.closeQuietly(this.socket);
@@ -63,6 +69,9 @@ public class ChaseClient {
 		this.thread = null;
 	}
 
+	/**
+	 * Run.
+	 */
 	public void run() {
 		String string = this.ip + ":" + this.port;
 

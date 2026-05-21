@@ -15,6 +15,11 @@ public class MeetVillagerTask {
 
 	private static final float WALK_SPEED = 0.3F;
 
+	/**
+	 * Create.
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(

@@ -101,6 +101,11 @@ public class TextFieldWidget extends ClickableWidget {
 		this.changedListener = changedListener;
 	}
 
+	/**
+	 * Добавляет formatter.
+	 *
+	 * @param formatter formatter
+	 */
 	public void addFormatter(TextFieldWidget.Formatter formatter) {
 		this.formatters.add(formatter);
 	}
@@ -152,6 +157,11 @@ public class TextFieldWidget extends ClickableWidget {
 		this.textPredicate = textPredicate;
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param text text
+	 */
 	public void write(String text) {
 		int i = Math.min(this.selectionStart, this.selectionEnd);
 		int j = Math.max(this.selectionStart, this.selectionEnd);
@@ -195,6 +205,11 @@ public class TextFieldWidget extends ClickableWidget {
 		}
 	}
 
+	/**
+	 * Erase words.
+	 *
+	 * @param wordOffset word offset
+	 */
 	public void eraseWords(int wordOffset) {
 		if (!this.text.isEmpty()) {
 			if (this.selectionEnd != this.selectionStart) {
@@ -206,10 +221,20 @@ public class TextFieldWidget extends ClickableWidget {
 		}
 	}
 
+	/**
+	 * Erase characters.
+	 *
+	 * @param characterOffset character offset
+	 */
 	public void eraseCharacters(int characterOffset) {
 		this.eraseCharactersTo(this.getCursorPosWithOffset(characterOffset));
 	}
 
+	/**
+	 * Erase characters to.
+	 *
+	 * @param position position
+	 */
 	public void eraseCharactersTo(int position) {
 		if (!this.text.isEmpty()) {
 			if (this.selectionEnd != this.selectionStart) {
@@ -269,6 +294,12 @@ public class TextFieldWidget extends ClickableWidget {
 		return i;
 	}
 
+	/**
+	 * Перемещает cursor.
+	 *
+	 * @param offset offset
+	 * @param shiftKeyPressed shift key pressed
+	 */
 	public void moveCursor(int offset, boolean shiftKeyPressed) {
 		this.setCursor(this.getCursorPosWithOffset(offset), shiftKeyPressed);
 	}
@@ -562,6 +593,11 @@ public class TextFieldWidget extends ClickableWidget {
 		return this.selectionStart;
 	}
 
+	/**
+	 * Draws background.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean drawsBackground() {
 		return this.drawsBackground;
 	}

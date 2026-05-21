@@ -8,6 +8,9 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Интерфейс client player like entity.
+ */
 public interface ClientPlayerLikeEntity {
 
 	ClientPlayerLikeState getState();

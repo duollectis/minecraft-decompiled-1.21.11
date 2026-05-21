@@ -201,6 +201,11 @@ public abstract class ElementListWidget<E extends ElementListWidget.Entry<E>> ex
 			return ParentElement.super.getNavigationPath(navigation);
 		}
 
+		/**
+		 * Selectable children.
+		 *
+		 * @return List — результат операции
+		 */
 		public abstract List<? extends Selectable> selectableChildren();
 
 		void appendNarrations(NarrationMessageBuilder builder) {

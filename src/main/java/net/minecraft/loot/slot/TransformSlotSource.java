@@ -26,6 +26,13 @@ public abstract class TransformSlotSource implements SlotSource {
 		return instance.group(SlotSources.CODEC.fieldOf("slot_source").forGetter(source -> source.slotSource));
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param stream stream
+	 *
+	 * @return ItemStream — результат операции
+	 */
 	protected abstract ItemStream transform(ItemStream stream);
 
 	@Override

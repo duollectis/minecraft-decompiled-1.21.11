@@ -85,6 +85,13 @@ public class MapState extends PersistentState {
 	private final Map<String, MapFrameMarker> frames = Maps.newHashMap();
 	private int decorationCount;
 
+	/**
+	 * Создаёт state type.
+	 *
+	 * @param mapId map id
+	 *
+	 * @return PersistentStateType — результат операции
+	 */
 	public static PersistentStateType<MapState> createStateType(MapIdComponent mapId) {
 		return new PersistentStateType<>(
 				mapId.asString(), () -> {
@@ -179,10 +186,24 @@ public class MapState extends PersistentState {
 		return new MapState(l, m, scale, showDecorations, unlimitedTracking, false, dimension);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param scale scale
+	 * @param locked locked
+	 * @param dimension dimension
+	 *
+	 * @return MapState — результат операции
+	 */
 	public static MapState of(byte scale, boolean locked, RegistryKey<World> dimension) {
 		return new MapState(0, 0, scale, false, false, locked, dimension);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return MapState — результат операции
+	 */
 	public MapState copy() {
 		MapState
 				mapState =
@@ -202,6 +223,11 @@ public class MapState extends PersistentState {
 		return mapState;
 	}
 
+	/**
+	 * Zoom out.
+	 *
+	 * @return MapState — результат операции
+	 */
 	public MapState zoomOut() {
 		return of(
 				this.centerX,
@@ -221,6 +247,12 @@ public class MapState extends PersistentState {
 		);
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param player player
+	 * @param stack stack
+	 */
 	public void update(PlayerEntity player, ItemStack stack) {
 		if (!this.updateTrackersByPlayer.containsKey(player)) {
 			MapState.PlayerUpdateTracker playerUpdateTracker = new MapState.PlayerUpdateTracker(player);
@@ -493,6 +525,14 @@ public class MapState extends PersistentState {
 		return playerUpdateTracker;
 	}
 
+	/**
+	 * Добавляет banner.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean addBanner(WorldAccess world, BlockPos pos) {
 		double d = pos.getX() + 0.5;
 		double e = pos.getZ() + 0.5;
@@ -531,6 +571,13 @@ public class MapState extends PersistentState {
 		return false;
 	}
 
+	/**
+	 * Удаляет banner.
+	 *
+	 * @param world world
+	 * @param x x
+	 * @param z z
+	 */
 	public void removeBanner(BlockView world, int x, int z) {
 		Iterator<MapBannerMarker> iterator = this.banners.values().iterator();
 
@@ -551,12 +598,27 @@ public class MapState extends PersistentState {
 		return this.banners.values();
 	}
 
+	/**
+	 * Удаляет frame.
+	 *
+	 * @param pos pos
+	 * @param id id
+	 */
 	public void removeFrame(BlockPos pos, int id) {
 		this.removeDecoration(getFrameDecorationKey(id));
 		this.frames.remove(MapFrameMarker.getKey(pos));
 		this.markDirty();
 	}
 
+	/**
+	 * Put color.
+	 *
+	 * @param x x
+	 * @param z z
+	 * @param color color
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean putColor(int x, int z, byte color) {
 		byte b = this.colors[x + z * 128];
 		if (b != color) {
@@ -583,6 +645,11 @@ public class MapState extends PersistentState {
 		return false;
 	}
 
+	/**
+	 * Replace decorations.
+	 *
+	 * @param decorations decorations
+	 */
 	public void replaceDecorations(List<MapDecoration> decorations) {
 		this.decorations.clear();
 		this.decorationCount = 0;
@@ -600,6 +667,13 @@ public class MapState extends PersistentState {
 		return this.decorations.values();
 	}
 
+	/**
+	 * Decoration count not less than.
+	 *
+	 * @param decorationCount decoration count
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean decorationCountNotLessThan(int decorationCount) {
 		return this.decorationCount >= decorationCount;
 	}

@@ -149,6 +149,11 @@ public class Timeline {
 			return this.entry(attribute, EnvironmentAttributeModifier.override(), builderCallback);
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return Timeline — результат операции
+		 */
 		public Timeline build() {
 			return new Timeline(this.periodTicks, this.entries.build());
 		}

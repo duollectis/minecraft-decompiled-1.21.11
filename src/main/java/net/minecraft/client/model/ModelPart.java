@@ -54,6 +54,9 @@ public final class ModelPart {
 		this.defaultTransform = transform;
 	}
 
+	/**
+	 * Сбрасывает transform.
+	 */
 	public void resetTransform() {
 		this.setTransform(this.defaultTransform);
 	}
@@ -96,10 +99,27 @@ public final class ModelPart {
 		this.roll = roll;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param matrices matrices
+	 * @param vertices vertices
+	 * @param light light
+	 * @param overlay overlay
+	 */
 	public void render(MatrixStack matrices, VertexConsumer vertices, int light, int overlay) {
 		this.render(matrices, vertices, light, overlay, -1);
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param matrices matrices
+	 * @param vertices vertices
+	 * @param light light
+	 * @param overlay overlay
+	 * @param color color
+	 */
 	public void render(MatrixStack matrices, VertexConsumer vertices, int light, int overlay, int color) {
 		if (this.visible) {
 			if (!this.cuboids.isEmpty() || !this.children.isEmpty()) {
@@ -118,6 +138,11 @@ public final class ModelPart {
 		}
 	}
 
+	/**
+	 * Rotate.
+	 *
+	 * @param quaternion quaternion
+	 */
 	public void rotate(Quaternionf quaternion) {
 		Matrix3f matrix3f = new Matrix3f().rotationZYX(this.roll, this.yaw, this.pitch);
 		Matrix3f matrix3f2 = matrix3f.rotate(quaternion);
@@ -125,6 +150,12 @@ public final class ModelPart {
 		this.setAngles(vector3f.x, vector3f.y, vector3f.z);
 	}
 
+	/**
+	 * Collect vertices.
+	 *
+	 * @param matrices matrices
+	 * @param collector collector
+	 */
 	public void collectVertices(MatrixStack matrices, Consumer<Vector3fc> collector) {
 		this.forEachCuboid(
 				matrices, (matrix, path, index, cuboid) -> {
@@ -141,6 +172,12 @@ public final class ModelPart {
 		);
 	}
 
+	/**
+	 * For each cuboid.
+	 *
+	 * @param matrices matrices
+	 * @param consumer consumer
+	 */
 	public void forEachCuboid(MatrixStack matrices, ModelPart.CuboidConsumer consumer) {
 		this.forEachCuboid(matrices, consumer, "");
 	}
@@ -161,6 +198,11 @@ public final class ModelPart {
 		}
 	}
 
+	/**
+	 * Применяет transform.
+	 *
+	 * @param matrices matrices
+	 */
 	public void applyTransform(MatrixStack matrices) {
 		matrices.translate(this.originX / 16.0F, this.originY / 16.0F, this.originZ / 16.0F);
 		if (this.pitch != 0.0F || this.yaw != 0.0F || this.roll != 0.0F) {
@@ -192,24 +234,44 @@ public final class ModelPart {
 		return this.cuboids.isEmpty();
 	}
 
+	/**
+	 * Перемещает origin.
+	 *
+	 * @param vec3f vec3f
+	 */
 	public void moveOrigin(Vector3f vec3f) {
 		this.originX = this.originX + vec3f.x();
 		this.originY = this.originY + vec3f.y();
 		this.originZ = this.originZ + vec3f.z();
 	}
 
+	/**
+	 * Rotate.
+	 *
+	 * @param vec3f vec3f
+	 */
 	public void rotate(Vector3f vec3f) {
 		this.pitch = this.pitch + vec3f.x();
 		this.yaw = this.yaw + vec3f.y();
 		this.roll = this.roll + vec3f.z();
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param vec3f vec3f
+	 */
 	public void scale(Vector3f vec3f) {
 		this.xScale = this.xScale + vec3f.x();
 		this.yScale = this.yScale + vec3f.y();
 		this.zScale = this.zScale + vec3f.z();
 	}
 
+	/**
+	 * Traverse.
+	 *
+	 * @return List — результат операции
+	 */
 	public List<ModelPart> traverse() {
 		List<ModelPart> list = new ArrayList<>();
 		list.add(this);
@@ -217,6 +279,11 @@ public final class ModelPart {
 		return List.copyOf(list);
 	}
 
+	/**
+	 * Создаёт part getter.
+	 *
+	 * @return Function — результат операции
+	 */
 	public Function<String, @Nullable ModelPart> createPartGetter() {
 		Map<String, ModelPart> map = new HashMap<>();
 		map.put("root", this);
@@ -491,14 +558,29 @@ public final class ModelPart {
 			return new ModelPart.Vertex(this.x, this.y, this.z, u, v);
 		}
 
+		/**
+		 * World x.
+		 *
+		 * @return float — результат операции
+		 */
 		public float worldX() {
 			return this.x / 16.0F;
 		}
 
+		/**
+		 * World y.
+		 *
+		 * @return float — результат операции
+		 */
 		public float worldY() {
 			return this.y / 16.0F;
 		}
 
+		/**
+		 * World z.
+		 *
+		 * @return float — результат операции
+		 */
 		public float worldZ() {
 			return this.z / 16.0F;
 		}

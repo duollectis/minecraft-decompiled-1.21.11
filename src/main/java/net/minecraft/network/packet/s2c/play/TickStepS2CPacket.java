@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.tick.TickManager;
 
+/**
+ * Запись tick step s2 c packet.
+ */
 public record TickStepS2CPacket(int tickSteps) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, TickStepS2CPacket>
@@ -18,6 +21,13 @@ public record TickStepS2CPacket(int tickSteps) implements Packet<ClientPlayPacke
 		this(buf.readVarInt());
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param tickManager tick manager
+	 *
+	 * @return TickStepS2CPacket — результат операции
+	 */
 	public static TickStepS2CPacket create(TickManager tickManager) {
 		return new TickStepS2CPacket(tickManager.getStepTicks());
 	}
@@ -31,6 +41,11 @@ public record TickStepS2CPacket(int tickSteps) implements Packet<ClientPlayPacke
 		return PlayPackets.TICKING_STEP;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onTickStep(this);
 	}

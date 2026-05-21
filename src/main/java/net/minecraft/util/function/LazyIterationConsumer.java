@@ -24,6 +24,11 @@ public interface LazyIterationConsumer<T> {
 		CONTINUE,
 		ABORT;
 
+		/**
+		 * Определяет, следует ли abort.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldAbort() {
 			return this == ABORT;
 		}

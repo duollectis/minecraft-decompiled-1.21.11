@@ -29,6 +29,11 @@ public class OpenDoorsTask {
 	private static final double PATHING_DISTANCE = 3.0;
 	private static final double REACH_DISTANCE = 2.0;
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create() {
 		MutableObject<PathNode> mutableObject = new MutableObject();
 		MutableInt mutableInt = new MutableInt(0);

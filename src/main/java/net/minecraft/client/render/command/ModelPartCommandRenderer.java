@@ -120,10 +120,19 @@ public class ModelPartCommandRenderer {
 				new HashMap<>();
 		private final Set<RenderLayer> modelPartLayers = new ObjectOpenHashSet();
 
+		/**
+		 * Add.
+		 *
+		 * @param renderLayer render layer
+		 * @param command command
+		 */
 		public void add(RenderLayer renderLayer, OrderedRenderCommandQueueImpl.ModelPartCommand command) {
 			this.modelPartCommands.computeIfAbsent(renderLayer, renderLayerx -> new ArrayList<>()).add(command);
 		}
 
+		/**
+		 * Clear.
+		 */
 		public void clear() {
 			for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.ModelPartCommand>> entry : this.modelPartCommands.entrySet()) {
 				if (!entry.getValue().isEmpty()) {
@@ -133,6 +142,9 @@ public class ModelPartCommandRenderer {
 			}
 		}
 
+		/**
+		 * Next frame.
+		 */
 		public void nextFrame() {
 			this.modelPartCommands.keySet().removeIf(renderLayer -> !this.modelPartLayers.contains(renderLayer));
 			this.modelPartLayers.clear();

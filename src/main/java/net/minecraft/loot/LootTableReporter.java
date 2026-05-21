@@ -46,6 +46,13 @@ public class LootTableReporter {
 		this.referenceStack = referenceStack;
 	}
 
+	/**
+	 * Make child.
+	 *
+	 * @param context context
+	 *
+	 * @return LootTableReporter — результат операции
+	 */
 	public LootTableReporter makeChild(ErrorReporter.Context context) {
 		return new LootTableReporter(
 				this.errorReporter.makeChild(context),
@@ -55,6 +62,14 @@ public class LootTableReporter {
 		);
 	}
 
+	/**
+	 * Make child.
+	 *
+	 * @param context context
+	 * @param key key
+	 *
+	 * @return LootTableReporter — результат операции
+	 */
 	public LootTableReporter makeChild(ErrorReporter.Context context, RegistryKey<?> key) {
 		Set<RegistryKey<?>> set = ImmutableSet.<RegistryKey<?>>builder().addAll(this.referenceStack).add(key).build();
 		return new LootTableReporter(this.errorReporter.makeChild(context), this.contextType, this.dataLookup, set);
@@ -64,10 +79,20 @@ public class LootTableReporter {
 		return this.referenceStack.contains(key);
 	}
 
+	/**
+	 * Report.
+	 *
+	 * @param error error
+	 */
 	public void report(ErrorReporter.Error error) {
 		this.errorReporter.report(error);
 	}
 
+	/**
+	 * Валидирует context.
+	 *
+	 * @param contextAware context aware
+	 */
 	public void validateContext(LootContextAware contextAware) {
 		Set<ContextParameter<?>> set = contextAware.getAllowedParameters();
 		Set<ContextParameter<?>> set2 = Sets.difference(set, this.contextType.getAllowed());
@@ -80,10 +105,22 @@ public class LootTableReporter {
 		return this.dataLookup.orElseThrow(() -> new UnsupportedOperationException("References not allowed"));
 	}
 
+	/**
+	 * Проверяет возможность use references.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canUseReferences() {
 		return this.dataLookup.isPresent();
 	}
 
+	/**
+	 * With context type.
+	 *
+	 * @param contextType context type
+	 *
+	 * @return LootTableReporter — результат операции
+	 */
 	public LootTableReporter withContextType(ContextType contextType) {
 		return new LootTableReporter(this.errorReporter, contextType, this.dataLookup, this.referenceStack);
 	}

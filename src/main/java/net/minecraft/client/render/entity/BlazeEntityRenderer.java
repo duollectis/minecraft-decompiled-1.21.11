@@ -30,6 +30,11 @@ public class BlazeEntityRenderer extends MobEntityRenderer<BlazeEntity, LivingEn
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return LivingEntityRenderState — результат операции
+	 */
 	public LivingEntityRenderState createRenderState() {
 		return new LivingEntityRenderState();
 	}

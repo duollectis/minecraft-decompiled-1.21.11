@@ -18,14 +18,31 @@ public enum EntityTrackingStatus {
 		this.tick = tick;
 	}
 
+	/**
+	 * Определяет, следует ли tick.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTick() {
 		return this.tick;
 	}
 
+	/**
+	 * Определяет, следует ли track.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTrack() {
 		return this.tracked;
 	}
 
+	/**
+	 * From level type.
+	 *
+	 * @param levelType level type
+	 *
+	 * @return EntityTrackingStatus — результат операции
+	 */
 	public static EntityTrackingStatus fromLevelType(ChunkLevelType levelType) {
 		if (levelType.isAfter(ChunkLevelType.ENTITY_TICKING)) {
 			return TICKING;

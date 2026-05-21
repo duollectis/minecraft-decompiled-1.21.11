@@ -221,6 +221,9 @@ public class OcelotEntity extends AnimalEntity {
 		}
 	}
 
+	/**
+	 * Обновляет fleeing.
+	 */
 	protected void updateFleeing() {
 		if (this.fleeGoal == null) {
 			this.fleeGoal = new OcelotEntity.FleeGoal<>(this, PlayerEntity.class, 16.0F, 0.8, 1.33);
@@ -232,6 +235,14 @@ public class OcelotEntity extends AnimalEntity {
 		}
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable OcelotEntity — результат операции
+	 */
 	public @Nullable OcelotEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		return EntityType.OCELOT.create(serverWorld, SpawnReason.BREEDING);
 	}

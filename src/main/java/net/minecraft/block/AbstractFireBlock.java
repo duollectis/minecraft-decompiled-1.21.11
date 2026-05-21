@@ -148,6 +148,11 @@ public abstract class AbstractFireBlock extends Block {
 		);
 	}
 
+	/**
+	 * Ignite entity.
+	 *
+	 * @param entity entity
+	 */
 	public static void igniteEntity(Entity entity) {
 		if (!entity.isFireImmune()) {
 			if (entity.getFireTicks() < 0) {
@@ -198,6 +203,15 @@ public abstract class AbstractFireBlock extends Block {
 		return super.onBreak(world, pos, state, player);
 	}
 
+	/**
+	 * Проверяет возможность place at.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canPlaceAt(World world, BlockPos pos, Direction direction) {
 		BlockState blockState = world.getBlockState(pos);
 		return !blockState.isAir() ? false : getState(world, pos).canPlaceAt(world, pos) || shouldLightPortalAt(

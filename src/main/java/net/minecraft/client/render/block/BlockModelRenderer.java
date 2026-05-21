@@ -451,10 +451,16 @@ public class BlockModelRenderer implements FabricBlockModelRenderer {
 		}
 	}
 
+	/**
+	 * Включает brightness cache.
+	 */
 	public static void enableBrightnessCache() {
 		BRIGHTNESS_CACHE.get().enable();
 	}
 
+	/**
+	 * Отключает brightness cache.
+	 */
 	public static void disableBrightnessCache() {
 		BRIGHTNESS_CACHE.get().disable();
 	}
@@ -470,6 +476,15 @@ public class BlockModelRenderer implements FabricBlockModelRenderer {
 		public AmbientOcclusionCalculator() {
 		}
 
+		/**
+		 * Apply.
+		 *
+		 * @param world world
+		 * @param state state
+		 * @param pos pos
+		 * @param direction direction
+		 * @param bl bl
+		 */
 		public void apply(BlockRenderView world, BlockState state, BlockPos pos, Direction direction, boolean bl) {
 			BlockPos blockPos = this.isFaceOffset ? pos.offset(direction) : pos;
 			BlockModelRenderer.NeighborData neighborData = BlockModelRenderer.NeighborData.getData(direction);
@@ -700,6 +715,11 @@ public class BlockModelRenderer implements FabricBlockModelRenderer {
 		private boolean enabled;
 		private final Long2IntLinkedOpenHashMap intCache = Util.make(() -> {
 			Long2IntLinkedOpenHashMap long2IntLinkedOpenHashMap = new Long2IntLinkedOpenHashMap(100, 0.25F) {
+				/**
+				 * Rehash.
+				 *
+				 * @param newN new n
+				 */
 				protected void rehash(int newN) {
 				}
 			};
@@ -708,6 +728,11 @@ public class BlockModelRenderer implements FabricBlockModelRenderer {
 		});
 		private final Long2FloatLinkedOpenHashMap floatCache = Util.make(() -> {
 			Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(100, 0.25F) {
+				/**
+				 * Rehash.
+				 *
+				 * @param newN new n
+				 */
 				protected void rehash(int newN) {
 				}
 			};
@@ -734,10 +759,16 @@ public class BlockModelRenderer implements FabricBlockModelRenderer {
 		private BrightnessCache() {
 		}
 
+		/**
+		 * Enable.
+		 */
 		public void enable() {
 			this.enabled = true;
 		}
 
+		/**
+		 * Disable.
+		 */
 		public void disable() {
 			this.enabled = false;
 			this.intCache.clear();

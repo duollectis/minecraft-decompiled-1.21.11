@@ -80,6 +80,13 @@ public abstract class Particle {
 		this.velocityZ = this.velocityZ / e * d * 0.4F;
 	}
 
+	/**
+	 * Move.
+	 *
+	 * @param speed speed
+	 *
+	 * @return Particle — результат операции
+	 */
 	public Particle move(float speed) {
 		this.velocityX *= speed;
 		this.velocityY = (this.velocityY - 0.1F) * speed + 0.1F;
@@ -93,6 +100,13 @@ public abstract class Particle {
 		this.velocityZ = velocityZ;
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param scale scale
+	 *
+	 * @return Particle — результат операции
+	 */
 	public Particle scale(float scale) {
 		this.setBoundingBoxSpacing(0.2F * scale, 0.2F * scale);
 		return this;
@@ -106,6 +120,9 @@ public abstract class Particle {
 		return this.maxAge;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.lastX = this.x;
 		this.lastY = this.y;
@@ -131,6 +148,11 @@ public abstract class Particle {
 		}
 	}
 
+	/**
+	 * Texture sheet.
+	 *
+	 * @return ParticleTextureSheet — результат операции
+	 */
 	public abstract ParticleTextureSheet textureSheet();
 
 	@Override
@@ -139,6 +161,9 @@ public abstract class Particle {
 				+ this.age;
 	}
 
+	/**
+	 * Mark dead.
+	 */
 	public void markDead() {
 		this.dead = true;
 	}
@@ -170,6 +195,13 @@ public abstract class Particle {
 		this.setBoundingBox(new Box(x - f, y, z - f, x + f, y + g, z + f));
 	}
 
+	/**
+	 * Move.
+	 *
+	 * @param dx dx
+	 * @param dy dy
+	 * @param dz dz
+	 */
 	public void move(double dx, double dy, double dz) {
 		if (!this.stopped) {
 			double d = dx;
@@ -211,6 +243,9 @@ public abstract class Particle {
 		}
 	}
 
+	/**
+	 * Reposition from bounding box.
+	 */
 	protected void repositionFromBoundingBox() {
 		Box box = this.getBoundingBox();
 		this.x = (box.minX + box.maxX) / 2.0;

@@ -119,6 +119,13 @@ public class ChatInputSuggestor {
 		this.canLeave = canLeave;
 	}
 
+	/**
+	 * Key pressed.
+	 *
+	 * @param input input
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean keyPressed(KeyInput input) {
 		boolean bl = this.window != null;
 		if (bl && this.window.keyPressed(input)) {
@@ -133,14 +140,33 @@ public class ChatInputSuggestor {
 		}
 	}
 
+	/**
+	 * Mouse scrolled.
+	 *
+	 * @param amount amount
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean mouseScrolled(double amount) {
 		return this.window != null && this.window.mouseScrolled(MathHelper.clamp(amount, -1.0, 1.0));
 	}
 
+	/**
+	 * Mouse clicked.
+	 *
+	 * @param click click
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean mouseClicked(Click click) {
 		return this.window != null && this.window.mouseClicked((int) click.x(), (int) click.y());
 	}
 
+	/**
+	 * Show.
+	 *
+	 * @param narrateFirstSuggestion narrate first suggestion
+	 */
 	public void show(boolean narrateFirstSuggestion) {
 		if (this.pendingSuggestions != null && this.pendingSuggestions.isDone()) {
 			Suggestions suggestions = this.pendingSuggestions.join();
@@ -184,6 +210,9 @@ public class ChatInputSuggestor {
 		}
 	}
 
+	/**
+	 * Очищает window.
+	 */
 	public void clearWindow() {
 		this.window = null;
 	}
@@ -208,6 +237,9 @@ public class ChatInputSuggestor {
 		return list;
 	}
 
+	/**
+	 * Refresh.
+	 */
 	public void refresh() {
 		String string = this.textField.getText();
 		if (this.parse != null && !this.parse.getReader().getString().equals(string)) {
@@ -413,12 +445,28 @@ public class ChatInputSuggestor {
 		return OrderedText.concat(list);
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	public void render(DrawContext context, int mouseX, int mouseY) {
 		if (!this.tryRenderWindow(context, mouseX, mouseY)) {
 			this.renderMessages(context);
 		}
 	}
 
+	/**
+	 * Try render window.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean tryRenderWindow(DrawContext context, int mouseX, int mouseY) {
 		if (this.window != null) {
 			this.window.render(context, mouseX, mouseY);
@@ -429,6 +477,11 @@ public class ChatInputSuggestor {
 		}
 	}
 
+	/**
+	 * Отрисовывает messages.
+	 *
+	 * @param context context
+	 */
 	public void renderMessages(DrawContext context) {
 		int i = 0;
 
@@ -485,6 +538,13 @@ public class ChatInputSuggestor {
 			this.select(0);
 		}
 
+		/**
+		 * Render.
+		 *
+		 * @param context context
+		 * @param mouseX mouse x
+		 * @param mouseY mouse y
+		 */
 		public void render(DrawContext context, int mouseX, int mouseY) {
 			int i = Math.min(this.suggestions.size(), ChatInputSuggestor.this.maxSuggestionSize);
 			int j = -5592406;
@@ -583,6 +643,14 @@ public class ChatInputSuggestor {
 			}
 		}
 
+		/**
+		 * Mouse clicked.
+		 *
+		 * @param x x
+		 * @param y y
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean mouseClicked(int x, int y) {
 			if (!this.area.contains(x, y)) {
 				return false;
@@ -598,6 +666,13 @@ public class ChatInputSuggestor {
 			}
 		}
 
+		/**
+		 * Mouse scrolled.
+		 *
+		 * @param amount amount
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean mouseScrolled(double amount) {
 			int i = (int) ChatInputSuggestor.this.client.mouse.getScaledX(ChatInputSuggestor.this.client.getWindow());
 			int j = (int) ChatInputSuggestor.this.client.mouse.getScaledY(ChatInputSuggestor.this.client.getWindow());
@@ -614,6 +689,13 @@ public class ChatInputSuggestor {
 			}
 		}
 
+		/**
+		 * Key pressed.
+		 *
+		 * @param input input
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean keyPressed(KeyInput input) {
 			if (input.isUp()) {
 				this.scroll(-1);
@@ -643,6 +725,11 @@ public class ChatInputSuggestor {
 			}
 		}
 
+		/**
+		 * Scroll.
+		 *
+		 * @param offset offset
+		 */
 		public void scroll(int offset) {
 			this.select(this.selection + offset);
 			int i = this.inWindowIndex;
@@ -665,6 +752,11 @@ public class ChatInputSuggestor {
 			}
 		}
 
+		/**
+		 * Select.
+		 *
+		 * @param index index
+		 */
 		public void select(int index) {
 			this.selection = index;
 			if (this.selection < 0) {
@@ -686,6 +778,9 @@ public class ChatInputSuggestor {
 			}
 		}
 
+		/**
+		 * Complete.
+		 */
 		public void complete() {
 			Suggestion suggestion = this.suggestions.get(this.selection);
 			ChatInputSuggestor.this.completingSuggestions = true;

@@ -79,6 +79,11 @@ public class SpriteAtlasTexture extends AbstractTexture implements DynamicTextur
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param stitchResult stitch result
+	 */
 	public void create(SpriteLoader.StitchResult stitchResult) {
 		this.createTexture(stitchResult.width(), stitchResult.height(), stitchResult.mipLevel());
 		this.clear();
@@ -251,6 +256,9 @@ public class SpriteAtlasTexture extends AbstractTexture implements DynamicTextur
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для animated sprites.
+	 */
 	public void tickAnimatedSprites() {
 		if (this.glTexture != null) {
 			for (SpriteContents.Animator animator : this.animators) {
@@ -301,6 +309,9 @@ public class SpriteAtlasTexture extends AbstractTexture implements DynamicTextur
 		return Objects.requireNonNull(this.missingSprite, "Atlas not initialized");
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.spritesToLoad.forEach(Sprite::close);
 		this.spritesToLoad = List.of();

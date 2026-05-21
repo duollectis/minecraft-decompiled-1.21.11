@@ -42,10 +42,24 @@ public record WritableBookContentComponent(List<RawFilteredPair<String>> pages) 
 		}
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param shouldFilter should filter
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<String> stream(boolean shouldFilter) {
 		return this.pages.stream().map(page -> page.get(shouldFilter));
 	}
 
+	/**
+	 * With pages.
+	 *
+	 * @param list list
+	 *
+	 * @return WritableBookContentComponent — результат операции
+	 */
 	public WritableBookContentComponent withPages(List<RawFilteredPair<String>> list) {
 		return new WritableBookContentComponent(list);
 	}

@@ -19,6 +19,14 @@ public enum EntityAttachmentType {
 		this.point = point;
 	}
 
+	/**
+	 * Создаёт point.
+	 *
+	 * @param width width
+	 * @param height height
+	 *
+	 * @return List — результат операции
+	 */
 	public List<Vec3d> createPoint(float width, float height) {
 		return this.point.create(width, height);
 	}

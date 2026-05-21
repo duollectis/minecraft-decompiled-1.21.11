@@ -10,6 +10,9 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс stop sound s2 c packet.
+ */
 public class StopSoundS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, StopSoundS2CPacket>
@@ -68,6 +71,11 @@ public class StopSoundS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.STOP_SOUND;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onStopSound(this);
 	}

@@ -46,6 +46,11 @@ public class ThrottledChunkTaskScheduler extends ChunkTaskScheduler {
 	}
 
 	@VisibleForTesting
+	/**
+	 * To dump string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toDumpString() {
 		return this.name
 				+ "=["

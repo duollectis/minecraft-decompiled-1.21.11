@@ -29,6 +29,11 @@ public class PolarBearEntityRenderer extends AgeableMobEntityRenderer<PolarBearE
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return PolarBearEntityRenderState — результат операции
+	 */
 	public PolarBearEntityRenderState createRenderState() {
 		return new PolarBearEntityRenderState();
 	}

@@ -64,6 +64,13 @@ public record JukeboxSong(
 		return MathHelper.ceil(this.lengthInSeconds * 20.0F);
 	}
 
+	/**
+	 * Определяет, следует ли stop playing.
+	 *
+	 * @param ticksSinceSongStarted ticks since song started
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldStopPlaying(long ticksSinceSongStarted) {
 		return ticksSinceSongStarted >= this.getLengthInTicks() + 20;
 	}

@@ -29,6 +29,11 @@ public class IdentifierSearchableIterator<T> extends AbstractIterator<T> {
 		this.lastIndexComparator = lastIndexComparator;
 	}
 
+	/**
+	 * Вычисляет next.
+	 *
+	 * @return T — результат операции
+	 */
 	protected T computeNext() {
 		while (this.namespacesIterator.hasNext() && this.pathsIterator.hasNext()) {
 			int i = this.lastIndexComparator.compare((T) this.namespacesIterator.peek(), (T) this.pathsIterator.peek());

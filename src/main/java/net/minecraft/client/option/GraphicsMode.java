@@ -42,6 +42,11 @@ public enum GraphicsMode implements StringIdentifiable {
 		return this.translationKey;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param client client
+	 */
 	public void apply(MinecraftClient client) {
 		GameOptionsScreen
 				gameOptionsScreen =

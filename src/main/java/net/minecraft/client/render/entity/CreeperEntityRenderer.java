@@ -24,6 +24,12 @@ public class CreeperEntityRenderer extends MobEntityRenderer<CreeperEntity, Cree
 		this.addFeature(new CreeperChargeFeatureRenderer(this, context.getEntityModels()));
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param creeperEntityRenderState creeper entity render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void scale(CreeperEntityRenderState creeperEntityRenderState, MatrixStack matrixStack) {
 		float f = creeperEntityRenderState.fuseTime;
 		float g = 1.0F + MathHelper.sin(f * 100.0F) * f * 0.01F;
@@ -44,6 +50,11 @@ public class CreeperEntityRenderer extends MobEntityRenderer<CreeperEntity, Cree
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return CreeperEntityRenderState — результат операции
+	 */
 	public CreeperEntityRenderState createRenderState() {
 		return new CreeperEntityRenderState();
 	}

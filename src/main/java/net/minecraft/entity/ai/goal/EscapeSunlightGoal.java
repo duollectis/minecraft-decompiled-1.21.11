@@ -48,6 +48,11 @@ public class EscapeSunlightGoal extends Goal {
 		}
 	}
 
+	/**
+	 * Target shaded pos.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean targetShadedPos() {
 		Vec3d vec3d = this.locateShadedPos();
 		if (vec3d == null) {
@@ -71,6 +76,11 @@ public class EscapeSunlightGoal extends Goal {
 		this.mob.getNavigation().startMovingTo(this.targetX, this.targetY, this.targetZ, this.speed);
 	}
 
+	/**
+	 * Locate shaded pos.
+	 *
+	 * @return @Nullable Vec3d — результат операции
+	 */
 	protected @Nullable Vec3d locateShadedPos() {
 		Random random = this.mob.getRandom();
 		BlockPos blockPos = this.mob.getBlockPos();

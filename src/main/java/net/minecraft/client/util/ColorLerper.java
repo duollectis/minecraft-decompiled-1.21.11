@@ -32,6 +32,14 @@ public class ColorLerper {
 			DyeColor.MAGENTA
 	};
 
+	/**
+	 * Lerp color.
+	 *
+	 * @param type type
+	 * @param step step
+	 *
+	 * @return int — результат операции
+	 */
 	public static int lerpColor(ColorLerper.Type type, float step) {
 		int i = MathHelper.floor(step);
 		int j = i / type.colorDuration;

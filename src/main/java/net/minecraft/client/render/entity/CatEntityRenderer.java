@@ -32,10 +32,22 @@ public class CatEntityRenderer extends AgeableMobEntityRenderer<CatEntity, CatEn
 		return catEntityRenderState.texture;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return CatEntityRenderState — результат операции
+	 */
 	public CatEntityRenderState createRenderState() {
 		return new CatEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param catEntity cat entity
+	 * @param catEntityRenderState cat entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(CatEntity catEntity, CatEntityRenderState catEntityRenderState, float f) {
 		super.updateRenderState(catEntity, catEntityRenderState, f);
 		catEntityRenderState.texture = catEntity.getVariant().value().assetInfo().texturePath();

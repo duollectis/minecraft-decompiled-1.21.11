@@ -63,6 +63,11 @@ public class SplashOverlay extends Overlay {
 		this.reloading = reloading;
 	}
 
+	/**
+	 * Init.
+	 *
+	 * @param textureManager texture manager
+	 */
 	public static void init(TextureManager textureManager) {
 		textureManager.registerTexture(LOGO, (ReloadableTexture) (new SplashOverlay.LogoTexture()));
 	}

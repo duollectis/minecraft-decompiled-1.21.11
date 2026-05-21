@@ -147,6 +147,14 @@ public class PathfindingDebugRenderer implements DebugRenderer.Renderer {
 		}
 	}
 
+	/**
+	 * Draw path lines.
+	 *
+	 * @param path path
+	 * @param cameraX camera x
+	 * @param cameraY camera y
+	 * @param cameraZ camera z
+	 */
 	public static void drawPathLines(Path path, double cameraX, double cameraY, double cameraZ) {
 		if (path.getLength() >= 2) {
 			Vec3d vec3d = path.getNode(0).getPos();

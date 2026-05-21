@@ -51,10 +51,24 @@ public record LazyRegistryEntryReference<T>(Either<RegistryEntry<T>, RegistryKey
 		);
 	}
 
+	/**
+	 * Resolve value.
+	 *
+	 * @param registry registry
+	 *
+	 * @return Optional — результат операции
+	 */
 	public Optional<T> resolveValue(Registry<T> registry) {
 		return (Optional<T>) this.contents.map(entry -> Optional.of(entry.value()), registry::getOptionalValue);
 	}
 
+	/**
+	 * Resolve entry.
+	 *
+	 * @param registries registries
+	 *
+	 * @return Optional> — результат операции
+	 */
 	public Optional<RegistryEntry<T>> resolveEntry(RegistryWrapper.WrapperLookup registries) {
 		return (Optional<RegistryEntry<T>>) this.contents.map(
 				Optional::of,

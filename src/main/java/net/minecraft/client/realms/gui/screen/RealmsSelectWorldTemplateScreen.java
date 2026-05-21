@@ -314,6 +314,11 @@ public class RealmsSelectWorldTemplateScreen extends RealmsScreen {
 			templates.forEach(this::addEntry);
 		}
 
+		/**
+		 * Добавляет entry.
+		 *
+		 * @param template template
+		 */
 		public void addEntry(WorldTemplate template) {
 			this.addEntry(RealmsSelectWorldTemplateScreen.this.new WorldTemplateObjectSelectionListEntry(template));
 		}

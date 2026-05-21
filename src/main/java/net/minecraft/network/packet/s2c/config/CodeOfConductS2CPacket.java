@@ -8,6 +8,9 @@ import net.minecraft.network.packet.ConfigPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Запись code of conduct s2 c packet.
+ */
 public record CodeOfConductS2CPacket(String codeOfConduct) implements Packet<ClientConfigurationPacketListener> {
 
 	public static final PacketCodec<ByteBuf, CodeOfConductS2CPacket> CODEC = PacketCodec.tuple(
@@ -19,6 +22,11 @@ public record CodeOfConductS2CPacket(String codeOfConduct) implements Packet<Cli
 		return ConfigPackets.CODE_OF_CONDUCT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientConfigurationPacketListener client configuration packet listener
+	 */
 	public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
 		clientConfigurationPacketListener.onCodeOfConduct(this);
 	}

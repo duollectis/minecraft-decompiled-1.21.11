@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.border.WorldBorder;
 
+/**
+ * Класс world border warning blocks changed s2 c packet.
+ */
 public class WorldBorderWarningBlocksChangedS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, WorldBorderWarningBlocksChangedS2CPacket> CODEC = Packet.createCodec(
@@ -32,6 +35,11 @@ public class WorldBorderWarningBlocksChangedS2CPacket implements Packet<ClientPl
 		return PlayPackets.SET_BORDER_WARNING_DISTANCE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onWorldBorderWarningBlocksChanged(this);
 	}

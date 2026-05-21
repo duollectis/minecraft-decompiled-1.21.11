@@ -19,6 +19,9 @@ public class BodyControl implements Control {
 		this.entity = entity;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.isMoving()) {
 			this.entity.bodyYaw = this.entity.getYaw();

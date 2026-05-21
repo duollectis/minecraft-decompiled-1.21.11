@@ -39,6 +39,11 @@ public record UploadResult(int statusCode, @Nullable String errorMessage) {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return UploadResult — результат операции
+		 */
 		public UploadResult build() {
 			return new UploadResult(this.statusCode, this.errorMessage);
 		}

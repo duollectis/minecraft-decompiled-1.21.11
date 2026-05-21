@@ -51,6 +51,14 @@ public class FarmerVillagerTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		if (!serverWorld.getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
 			return false;
@@ -92,6 +100,13 @@ public class FarmerVillagerTask extends MultiTickTask<VillagerEntity> {
 				|| blockState.isAir() && block2 instanceof FarmlandBlock;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		if (l > this.nextResponseTime && this.currentTarget != null) {
 			villagerEntity
@@ -106,6 +121,13 @@ public class FarmerVillagerTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		villagerEntity.getBrain().forget(MemoryModuleType.LOOK_TARGET);
 		villagerEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
@@ -113,6 +135,13 @@ public class FarmerVillagerTask extends MultiTickTask<VillagerEntity> {
 		this.nextResponseTime = l + 40L;
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		if (this.currentTarget == null || this.currentTarget.isWithinDistance(villagerEntity.getEntityPos(), 1.0)) {
 			if (this.currentTarget != null && l > this.nextResponseTime) {
@@ -183,6 +212,15 @@ public class FarmerVillagerTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		return this.ticksRan < 200;
 	}

@@ -53,6 +53,11 @@ public class TrialSpawnerBlockEntity extends BlockEntity implements Spawner, Tri
 		this.logic.writeData(view);
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}

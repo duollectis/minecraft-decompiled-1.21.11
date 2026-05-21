@@ -83,10 +83,22 @@ public class PigEntityRenderer extends MobEntityRenderer<PigEntity, PigEntityRen
 		                                                                                   .texturePath();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return PigEntityRenderState — результат операции
+	 */
 	public PigEntityRenderState createRenderState() {
 		return new PigEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param pigEntity pig entity
+	 * @param pigEntityRenderState pig entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(PigEntity pigEntity, PigEntityRenderState pigEntityRenderState, float f) {
 		super.updateRenderState(pigEntity, pigEntityRenderState, f);
 		pigEntityRenderState.saddleStack = pigEntity.getEquippedStack(EquipmentSlot.SADDLE).copy();

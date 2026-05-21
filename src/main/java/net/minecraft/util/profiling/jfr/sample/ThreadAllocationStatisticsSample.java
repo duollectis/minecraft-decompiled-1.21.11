@@ -18,6 +18,13 @@ public record ThreadAllocationStatisticsSample(Instant time, String threadName, 
 
 	private static final String UNKNOWN = "unknown";
 
+	/**
+	 * From event.
+	 *
+	 * @param event event
+	 *
+	 * @return ThreadAllocationStatisticsSample — результат операции
+	 */
 	public static ThreadAllocationStatisticsSample fromEvent(RecordedEvent event) {
 		RecordedThread recordedThread = event.getThread("thread");
 		String

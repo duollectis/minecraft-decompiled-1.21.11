@@ -29,6 +29,15 @@ public class VerticallyAttachableBlockItem extends BlockItem {
 		this.verticalAttachmentDirection = verticalAttachmentDirection;
 	}
 
+	/**
+	 * Проверяет возможность place at.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canPlaceAt(WorldView world, BlockState state, BlockPos pos) {
 		return state.canPlaceAt(world, pos);
 	}

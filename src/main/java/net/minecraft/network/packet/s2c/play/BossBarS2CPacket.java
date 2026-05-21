@@ -13,6 +13,9 @@ import net.minecraft.text.TextCodecs;
 
 import java.util.UUID;
 
+/**
+ * Класс boss bar s2 c packet.
+ */
 public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, BossBarS2CPacket>
@@ -50,22 +53,57 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		this.action = type.parser.decode(buf);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param bar bar
+	 *
+	 * @return BossBarS2CPacket — результат операции
+	 */
 	public static BossBarS2CPacket add(BossBar bar) {
 		return new BossBarS2CPacket(bar.getUuid(), new BossBarS2CPacket.AddAction(bar));
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return BossBarS2CPacket — результат операции
+	 */
 	public static BossBarS2CPacket remove(UUID uuid) {
 		return new BossBarS2CPacket(uuid, REMOVE_ACTION);
 	}
 
+	/**
+	 * Обновляет progress.
+	 *
+	 * @param bar bar
+	 *
+	 * @return BossBarS2CPacket — результат операции
+	 */
 	public static BossBarS2CPacket updateProgress(BossBar bar) {
 		return new BossBarS2CPacket(bar.getUuid(), new BossBarS2CPacket.UpdateProgressAction(bar.getPercent()));
 	}
 
+	/**
+	 * Обновляет name.
+	 *
+	 * @param bar bar
+	 *
+	 * @return BossBarS2CPacket — результат операции
+	 */
 	public static BossBarS2CPacket updateName(BossBar bar) {
 		return new BossBarS2CPacket(bar.getUuid(), new BossBarS2CPacket.UpdateNameAction(bar.getName()));
 	}
 
+	/**
+	 * Обновляет style.
+	 *
+	 * @param bar bar
+	 *
+	 * @return BossBarS2CPacket — результат операции
+	 */
 	public static BossBarS2CPacket updateStyle(BossBar bar) {
 		return new BossBarS2CPacket(
 				bar.getUuid(),
@@ -73,6 +111,13 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		);
 	}
 
+	/**
+	 * Обновляет properties.
+	 *
+	 * @param bar bar
+	 *
+	 * @return BossBarS2CPacket — результат операции
+	 */
 	public static BossBarS2CPacket updateProperties(BossBar bar) {
 		return new BossBarS2CPacket(
 				bar.getUuid(),
@@ -112,10 +157,20 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.BOSS_EVENT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onBossBar(this);
 	}
 
+	/**
+	 * Accept.
+	 *
+	 * @param consumer consumer
+	 */
 	public void accept(BossBarS2CPacket.Consumer consumer) {
 		this.action.accept(this.uuid, consumer);
 	}
@@ -189,6 +244,9 @@ public class BossBarS2CPacket implements Packet<ClientPlayPacketListener> {
 		}
 	}
 
+	/**
+	 * Интерфейс consumer.
+	 */
 	public interface Consumer {
 
 		default void add(

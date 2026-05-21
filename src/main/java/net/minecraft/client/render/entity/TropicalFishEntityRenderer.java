@@ -17,6 +17,9 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Класс tropical fish entity renderer.
+ */
 public class TropicalFishEntityRenderer
 		extends MobEntityRenderer<TropicalFishEntity, TropicalFishEntityRenderState, EntityModel<TropicalFishEntityRenderState>> {
 
@@ -38,6 +41,11 @@ public class TropicalFishEntityRenderer
 		};
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return TropicalFishEntityRenderState — результат операции
+	 */
 	public TropicalFishEntityRenderState createRenderState() {
 		return new TropicalFishEntityRenderState();
 	}

@@ -32,6 +32,11 @@ public class Divider implements IntIterator {
 		return this.returnedCount < this.divisor;
 	}
 
+	/**
+	 * Next int.
+	 *
+	 * @return int — результат операции
+	 */
 	public int nextInt() {
 		if (!this.hasNext()) {
 			throw new NoSuchElementException();
@@ -50,6 +55,14 @@ public class Divider implements IntIterator {
 	}
 
 	@VisibleForTesting
+	/**
+	 * As iterable.
+	 *
+	 * @param dividend dividend
+	 * @param divisor divisor
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public static Iterable<Integer> asIterable(int dividend, int divisor) {
 		return () -> new Divider(dividend, divisor);
 	}

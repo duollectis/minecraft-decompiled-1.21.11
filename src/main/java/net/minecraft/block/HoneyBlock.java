@@ -140,10 +140,20 @@ public class HoneyBlock extends TranslucentBlock {
 		}
 	}
 
+	/**
+	 * Добавляет regular particles.
+	 *
+	 * @param entity entity
+	 */
 	public static void addRegularParticles(Entity entity) {
 		addParticles(entity, 5);
 	}
 
+	/**
+	 * Добавляет rich particles.
+	 *
+	 * @param entity entity
+	 */
 	public static void addRichParticles(Entity entity) {
 		addParticles(entity, 10);
 	}

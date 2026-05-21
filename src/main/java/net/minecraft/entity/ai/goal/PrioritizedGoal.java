@@ -18,6 +18,13 @@ public class PrioritizedGoal extends Goal {
 		this.goal = goal;
 	}
 
+	/**
+	 * Проверяет возможность be replaced by.
+	 *
+	 * @param goal goal
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBeReplacedBy(PrioritizedGoal goal) {
 		return this.canStop() && goal.getPriority() < this.getPriority();
 	}

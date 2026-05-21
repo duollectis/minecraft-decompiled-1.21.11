@@ -159,6 +159,11 @@ public interface Spline<C, I extends ToFloatFunction<C>> extends ToFloatFunction
 			}
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return Spline — результат операции
+		 */
 		public Spline<C, I> build() {
 			if (this.locations.isEmpty()) {
 				throw new IllegalStateException("No elements added");

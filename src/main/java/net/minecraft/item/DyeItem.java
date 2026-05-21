@@ -58,6 +58,13 @@ public class DyeItem extends Item implements SignChangingItem {
 		return this.color;
 	}
 
+	/**
+	 * By color.
+	 *
+	 * @param color color
+	 *
+	 * @return DyeItem — результат операции
+	 */
 	public static DyeItem byColor(DyeColor color) {
 		return DYES.get(color);
 	}

@@ -397,6 +397,9 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 		}
 	}
 
+	/**
+	 * Age.
+	 */
 	protected void age() {
 		this.life++;
 		if (this.life >= 1200) {
@@ -545,6 +548,12 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 		}
 	}
 
+	/**
+	 * Knockback.
+	 *
+	 * @param target target
+	 * @param source source
+	 */
 	protected void knockback(LivingEntity target, DamageSource source) {
 		double d = this.weapon != null && this.getEntityWorld() instanceof ServerWorld serverWorld
 		           ? EnchantmentHelper.modifyKnockback(serverWorld, this.weapon, target, source, 0.0F)
@@ -612,6 +621,11 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 		return this.sound;
 	}
 
+	/**
+	 * Обрабатывает событие hit.
+	 *
+	 * @param target target
+	 */
 	protected void onHit(LivingEntity target) {
 	}
 
@@ -626,6 +640,14 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 		);
 	}
 
+	/**
+	 * Collect piercing collisions.
+	 *
+	 * @param from from
+	 * @param to to
+	 *
+	 * @return Collection — результат операции
+	 */
 	protected Collection<EntityHitResult> collectPiercingCollisions(Vec3d from, Vec3d to) {
 		return ProjectileUtil.collectPiercingCollisions(
 				this.getEntityWorld(),
@@ -710,6 +732,13 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 		}
 	}
 
+	/**
+	 * Try pickup.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean tryPickup(PlayerEntity player) {
 		return switch (this.pickupType) {
 			case DISALLOWED -> false;
@@ -718,6 +747,11 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 		};
 	}
 
+	/**
+	 * As item stack.
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	protected ItemStack asItemStack() {
 		return this.stack.copy();
 	}
@@ -778,6 +812,11 @@ public abstract class PersistentProjectileEntity extends ProjectileEntity {
 		return this.dataTracker.get(PIERCE_LEVEL);
 	}
 
+	/**
+	 * Применяет damage modifier.
+	 *
+	 * @param damageModifier damage modifier
+	 */
 	public void applyDamageModifier(float damageModifier) {
 		this.setDamage(damageModifier * 2.0F + this.random.nextTriangular(
 				this.getEntityWorld().getDifficulty().getId() * 0.11,

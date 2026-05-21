@@ -139,6 +139,13 @@ public class PointOfInterestTypes {
 		return POI_STATES_TO_TYPE.containsKey(state);
 	}
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return PointOfInterestType — результат операции
+	 */
 	public static PointOfInterestType registerAndGetDefault(Registry<PointOfInterestType> registry) {
 		register(registry, ARMORER, getStatesOfBlock(Blocks.BLAST_FURNACE), 1, 1);
 		register(registry, BUTCHER, getStatesOfBlock(Blocks.SMOKER), 1, 1);

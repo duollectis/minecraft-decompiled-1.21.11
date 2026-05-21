@@ -51,6 +51,11 @@ public final class Profilers {
 		return Profiler.union(getDefault(), builtinProfiler);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @return Profiler — 
+	 */
 	public static Profiler get() {
 		return ACTIVE_BUILTIN_PROFILER_COUNT.get() == 0 ? getDefault() : Objects.requireNonNullElseGet(
 				BUILTIN_PROFILER.get(),

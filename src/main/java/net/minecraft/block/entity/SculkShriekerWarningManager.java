@@ -57,6 +57,9 @@ public class SculkShriekerWarningManager {
 		this(0, 0, 0);
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.ticksSinceLastWarning >= 12000) {
 			this.decreaseWarningLevel();
@@ -71,12 +74,24 @@ public class SculkShriekerWarningManager {
 		}
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.ticksSinceLastWarning = 0;
 		this.warningLevel = 0;
 		this.cooldownTicks = 0;
 	}
 
+	/**
+	 * Warn nearby players.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param player player
+	 *
+	 * @return OptionalInt — результат операции
+	 */
 	public static OptionalInt warnNearbyPlayers(ServerWorld world, BlockPos pos, ServerPlayerEntity player) {
 		if (isWardenNearby(world, pos)) {
 			return OptionalInt.empty();

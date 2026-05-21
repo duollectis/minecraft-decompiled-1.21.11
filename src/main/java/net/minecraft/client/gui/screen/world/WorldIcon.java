@@ -29,6 +29,14 @@ public class WorldIcon implements AutoCloseable {
 		this.id = id;
 	}
 
+	/**
+	 * For world.
+	 *
+	 * @param textureManager texture manager
+	 * @param worldName world name
+	 *
+	 * @return WorldIcon — результат операции
+	 */
 	public static WorldIcon forWorld(TextureManager textureManager, String worldName) {
 		return new WorldIcon(
 				textureManager,
@@ -39,6 +47,14 @@ public class WorldIcon implements AutoCloseable {
 		);
 	}
 
+	/**
+	 * For server.
+	 *
+	 * @param textureManager texture manager
+	 * @param serverAddress server address
+	 *
+	 * @return WorldIcon — результат операции
+	 */
 	public static WorldIcon forServer(TextureManager textureManager, String serverAddress) {
 		return new WorldIcon(
 				textureManager,
@@ -46,6 +62,11 @@ public class WorldIcon implements AutoCloseable {
 		);
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param image image
+	 */
 	public void load(NativeImage image) {
 		if (image.getWidth() == 64 && image.getHeight() == 64) {
 			try {
@@ -73,6 +94,9 @@ public class WorldIcon implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Destroy.
+	 */
 	public void destroy() {
 		this.assertOpen();
 		if (this.texture != null) {

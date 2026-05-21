@@ -14,6 +14,9 @@ import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.network.packet.s2c.common.CookieRequestS2CPacket;
 import net.minecraft.network.packet.s2c.login.*;
 
+/**
+ * Класс login states.
+ */
 public class LoginStates {
 
 	public static final NetworkStateFactory<ServerLoginPacketListener, PacketByteBuf>

@@ -29,10 +29,23 @@ public class Vec3d implements Position {
 					vec -> List.of(vec.getX(), vec.getY(), vec.getZ())
 			);
 	public static final PacketCodec<ByteBuf, Vec3d> PACKET_CODEC = new PacketCodec<ByteBuf, Vec3d>() {
+		/**
+		 * Decode.
+		 *
+		 * @param byteBuf byte buf
+		 *
+		 * @return Vec3d — результат операции
+		 */
 		public Vec3d decode(ByteBuf byteBuf) {
 			return PacketByteBuf.readVec3d(byteBuf);
 		}
 
+		/**
+		 * Encode.
+		 *
+		 * @param byteBuf byte buf
+		 * @param vec3d vec3d
+		 */
 		public void encode(ByteBuf byteBuf, Vec3d vec3d) {
 			PacketByteBuf.writeVec3d(byteBuf, vec3d);
 		}
@@ -45,22 +58,61 @@ public class Vec3d implements Position {
 	public final double y;
 	public final double z;
 
+	/**
+	 * Of.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d of(Vec3i vec) {
 		return new Vec3d(vec.getX(), vec.getY(), vec.getZ());
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param vec vec
+	 * @param deltaX delta x
+	 * @param deltaY delta y
+	 * @param deltaZ delta z
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d add(Vec3i vec, double deltaX, double deltaY, double deltaZ) {
 		return new Vec3d(vec.getX() + deltaX, vec.getY() + deltaY, vec.getZ() + deltaZ);
 	}
 
+	/**
+	 * Of center.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d ofCenter(Vec3i vec) {
 		return add(vec, 0.5, 0.5, 0.5);
 	}
 
+	/**
+	 * Of bottom center.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d ofBottomCenter(Vec3i vec) {
 		return add(vec, 0.5, 0.0, 0.5);
 	}
 
+	/**
+	 * Of center.
+	 *
+	 * @param vec vec
+	 * @param deltaY delta y
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d ofCenter(Vec3i vec, double deltaY) {
 		return add(vec, 0.5, deltaY, 0.5);
 	}
@@ -79,19 +131,45 @@ public class Vec3d implements Position {
 		this(vec.getX(), vec.getY(), vec.getZ());
 	}
 
+	/**
+	 * Relativize.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d relativize(Vec3d vec) {
 		return new Vec3d(vec.x - this.x, vec.y - this.y, vec.z - this.z);
 	}
 
+	/**
+	 * Normalize.
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d normalize() {
 		double d = Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
 		return d < 1.0E-5F ? ZERO : new Vec3d(this.x / d, this.y / d, this.z / d);
 	}
 
+	/**
+	 * Dot product.
+	 *
+	 * @param vec vec
+	 *
+	 * @return double — результат операции
+	 */
 	public double dotProduct(Vec3d vec) {
 		return this.x * vec.x + this.y * vec.y + this.z * vec.z;
 	}
 
+	/**
+	 * Cross product.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d crossProduct(Vec3d vec) {
 		return new Vec3d(
 				this.y * vec.z - this.z * vec.y,
@@ -100,26 +178,72 @@ public class Vec3d implements Position {
 		);
 	}
 
+	/**
+	 * Subtract.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d subtract(Vec3d vec) {
 		return this.subtract(vec.x, vec.y, vec.z);
 	}
 
+	/**
+	 * Subtract.
+	 *
+	 * @param value value
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d subtract(double value) {
 		return this.subtract(value, value, value);
 	}
 
+	/**
+	 * Subtract.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d subtract(double x, double y, double z) {
 		return this.add(-x, -y, -z);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param value value
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d add(double value) {
 		return this.add(value, value, value);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d add(Vec3d vec) {
 		return this.add(vec.x, vec.y, vec.z);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d add(double x, double y, double z) {
 		return new Vec3d(this.x + x, this.y + y, this.z + z);
 	}
@@ -128,6 +252,13 @@ public class Vec3d implements Position {
 		return this.squaredDistanceTo(pos.getX(), pos.getY(), pos.getZ()) < radius * radius;
 	}
 
+	/**
+	 * Distance to.
+	 *
+	 * @param vec vec
+	 *
+	 * @return double — результат операции
+	 */
 	public double distanceTo(Vec3d vec) {
 		double d = vec.x - this.x;
 		double e = vec.y - this.y;
@@ -135,6 +266,13 @@ public class Vec3d implements Position {
 		return Math.sqrt(d * d + e * e + f * f);
 	}
 
+	/**
+	 * Squared distance to.
+	 *
+	 * @param vec vec
+	 *
+	 * @return double — результат операции
+	 */
 	public double squaredDistanceTo(Vec3d vec) {
 		double d = vec.x - this.x;
 		double e = vec.y - this.y;
@@ -142,6 +280,15 @@ public class Vec3d implements Position {
 		return d * d + e * e + f * f;
 	}
 
+	/**
+	 * Squared distance to.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return double — результат операции
+	 */
 	public double squaredDistanceTo(double x, double y, double z) {
 		double d = x - this.x;
 		double e = y - this.y;
@@ -156,18 +303,46 @@ public class Vec3d implements Position {
 		return MathHelper.squaredHypot(d, f) < MathHelper.square(horizontalRange) && Math.abs(e) < verticalRange;
 	}
 
+	/**
+	 * Multiply.
+	 *
+	 * @param value value
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d multiply(double value) {
 		return this.multiply(value, value, value);
 	}
 
+	/**
+	 * Negate.
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d negate() {
 		return this.multiply(-1.0);
 	}
 
+	/**
+	 * Multiply.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d multiply(Vec3d vec) {
 		return this.multiply(vec.x, vec.y, vec.z);
 	}
 
+	/**
+	 * Multiply.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d multiply(double x, double y, double z) {
 		return new Vec3d(this.x * x, this.y * y, this.z * z);
 	}
@@ -176,6 +351,14 @@ public class Vec3d implements Position {
 		return new Vec3d(this.x, 0.0, this.z);
 	}
 
+	/**
+	 * Добавляет random.
+	 *
+	 * @param random random
+	 * @param multiplier multiplier
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d addRandom(Random random, float multiplier) {
 		return this.add(
 				(random.nextFloat() - 0.5F) * multiplier,
@@ -184,22 +367,50 @@ public class Vec3d implements Position {
 		);
 	}
 
+	/**
+	 * Добавляет horizontal random.
+	 *
+	 * @param random random
+	 * @param multiplier multiplier
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d addHorizontalRandom(Random random, float multiplier) {
 		return this.add((random.nextFloat() - 0.5F) * multiplier, 0.0, (random.nextFloat() - 0.5F) * multiplier);
 	}
 
+	/**
+	 * Length.
+	 *
+	 * @return double — результат операции
+	 */
 	public double length() {
 		return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
 	}
 
+	/**
+	 * Length squared.
+	 *
+	 * @return double — результат операции
+	 */
 	public double lengthSquared() {
 		return this.x * this.x + this.y * this.y + this.z * this.z;
 	}
 
+	/**
+	 * Horizontal length.
+	 *
+	 * @return double — результат операции
+	 */
 	public double horizontalLength() {
 		return Math.sqrt(this.x * this.x + this.z * this.z);
 	}
 
+	/**
+	 * Horizontal length squared.
+	 *
+	 * @return double — результат операции
+	 */
 	public double horizontalLengthSquared() {
 		return this.x * this.x + this.z * this.z;
 	}
@@ -235,6 +446,14 @@ public class Vec3d implements Position {
 		return "(" + this.x + ", " + this.y + ", " + this.z + ")";
 	}
 
+	/**
+	 * Lerp.
+	 *
+	 * @param to to
+	 * @param delta delta
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d lerp(Vec3d to, double delta) {
 		return new Vec3d(
 				MathHelper.lerp(delta, this.x, to.x),
@@ -243,6 +462,13 @@ public class Vec3d implements Position {
 		);
 	}
 
+	/**
+	 * Rotate x.
+	 *
+	 * @param angle angle
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d rotateX(float angle) {
 		float f = MathHelper.cos(angle);
 		float g = MathHelper.sin(angle);
@@ -252,6 +478,13 @@ public class Vec3d implements Position {
 		return new Vec3d(d, e, h);
 	}
 
+	/**
+	 * Rotate y.
+	 *
+	 * @param angle angle
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d rotateY(float angle) {
 		float f = MathHelper.cos(angle);
 		float g = MathHelper.sin(angle);
@@ -261,6 +494,13 @@ public class Vec3d implements Position {
 		return new Vec3d(d, e, h);
 	}
 
+	/**
+	 * Rotate z.
+	 *
+	 * @param angle angle
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d rotateZ(float angle) {
 		float f = MathHelper.cos(angle);
 		float g = MathHelper.sin(angle);
@@ -270,14 +510,34 @@ public class Vec3d implements Position {
 		return new Vec3d(d, e, h);
 	}
 
+	/**
+	 * Rotate y clockwise.
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d rotateYClockwise() {
 		return new Vec3d(-this.z, this.y, this.x);
 	}
 
+	/**
+	 * From polar.
+	 *
+	 * @param polar polar
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d fromPolar(Vec2f polar) {
 		return fromPolar(polar.x, polar.y);
 	}
 
+	/**
+	 * From polar.
+	 *
+	 * @param pitch pitch
+	 * @param yaw yaw
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d fromPolar(float pitch, float yaw) {
 		float f = MathHelper.cos(-yaw * (float) (Math.PI / 180.0) - (float) Math.PI);
 		float g = MathHelper.sin(-yaw * (float) (Math.PI / 180.0) - (float) Math.PI);
@@ -296,6 +556,13 @@ public class Vec3d implements Position {
 		return new Vec2f(g, f);
 	}
 
+	/**
+	 * Floor along axes.
+	 *
+	 * @param axes axes
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d floorAlongAxes(EnumSet<Direction.Axis> axes) {
 		double d = axes.contains(Direction.Axis.X) ? MathHelper.floor(this.x) : this.x;
 		double e = axes.contains(Direction.Axis.Y) ? MathHelper.floor(this.y) : this.y;
@@ -307,6 +574,14 @@ public class Vec3d implements Position {
 		return axis.choose(this.x, this.y, this.z);
 	}
 
+	/**
+	 * With axis.
+	 *
+	 * @param axis axis
+	 * @param value value
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d withAxis(Direction.Axis axis, double value) {
 		double d = axis == Direction.Axis.X ? value : this.x;
 		double e = axis == Direction.Axis.Y ? value : this.y;
@@ -314,6 +589,14 @@ public class Vec3d implements Position {
 		return new Vec3d(d, e, f);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param direction direction
+	 * @param value value
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d offset(Direction direction, double value) {
 		Vec3i vec3i = direction.getVector();
 		return new Vec3d(this.x + value * vec3i.getX(), this.y + value * vec3i.getY(), this.z + value * vec3i.getZ());
@@ -334,15 +617,35 @@ public class Vec3d implements Position {
 		return this.z;
 	}
 
+	/**
+	 * To vector3f.
+	 *
+	 * @return Vector3f — результат операции
+	 */
 	public Vector3f toVector3f() {
 		return new Vector3f((float) this.x, (float) this.y, (float) this.z);
 	}
 
+	/**
+	 * Project onto.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d projectOnto(Vec3d vec) {
 		return vec.lengthSquared() == 0.0 ? vec
 		                                  : vec.multiply(this.dotProduct(vec)).multiply(1.0 / vec.lengthSquared());
 	}
 
+	/**
+	 * Трансформирует local pos.
+	 *
+	 * @param rotation rotation
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d transformLocalPos(Vec2f rotation, Vec3d vec) {
 		float f = MathHelper.cos((rotation.y + 90.0F) * (float) (Math.PI / 180.0));
 		float g = MathHelper.sin((rotation.y + 90.0F) * (float) (Math.PI / 180.0));
@@ -359,6 +662,13 @@ public class Vec3d implements Position {
 		return new Vec3d(d, e, l);
 	}
 
+	/**
+	 * Трансформирует local pos.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d transformLocalPos(Vec3d vec) {
 		return transformLocalPos(this.getYawAndPitch(), vec);
 	}

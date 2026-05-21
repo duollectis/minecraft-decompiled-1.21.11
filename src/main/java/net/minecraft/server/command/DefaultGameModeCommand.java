@@ -12,6 +12,11 @@ import net.minecraft.world.GameMode;
  */
 public class DefaultGameModeCommand {
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("defaultgamemode")

@@ -30,6 +30,11 @@ public class BrushableBlockEntityRenderer implements BlockEntityRenderer<Brushab
 		this.itemModelManager = context.itemModelManager();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BrushableBlockEntityRenderState — результат операции
+	 */
 	public BrushableBlockEntityRenderState createRenderState() {
 		return new BrushableBlockEntityRenderState();
 	}

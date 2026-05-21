@@ -48,6 +48,13 @@ public record LoreComponent(List<Text> lines, List<Text> styledLines) implements
 		}
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param line line
+	 *
+	 * @return LoreComponent — результат операции
+	 */
 	public LoreComponent with(Text line) {
 		return new LoreComponent(Util.withAppended(this.lines, line));
 	}

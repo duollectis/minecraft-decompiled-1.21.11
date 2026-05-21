@@ -213,6 +213,11 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		);
 	}
 
+	/**
+	 * Sample block state.
+	 *
+	 * @return @Nullable BlockState — результат операции
+	 */
 	protected @Nullable BlockState sampleBlockState() {
 		return this.blockStateSampler.sample(this);
 	}
@@ -232,6 +237,16 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		return this.startBlockZ + this.cellBlockZ;
 	}
 
+	/**
+	 * Estimate highest surface level.
+	 *
+	 * @param minX min x
+	 * @param minZ min z
+	 * @param maxX max x
+	 * @param maxZ max z
+	 *
+	 * @return int — результат операции
+	 */
 	public int estimateHighestSurfaceLevel(int minX, int minZ, int maxX, int maxZ) {
 		int i = Integer.MIN_VALUE;
 
@@ -247,6 +262,14 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		return i;
 	}
 
+	/**
+	 * Estimate surface height.
+	 *
+	 * @param blockX block x
+	 * @param blockZ block z
+	 *
+	 * @return int — результат операции
+	 */
 	public int estimateSurfaceHeight(int blockX, int blockZ) {
 		int i = BiomeCoords.toBlock(BiomeCoords.fromBlock(blockX));
 		int j = BiomeCoords.toBlock(BiomeCoords.fromBlock(blockZ));
@@ -288,6 +311,9 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		this.cacheOnceUniqueIndex++;
 	}
 
+	/**
+	 * Sample start density.
+	 */
 	public void sampleStartDensity() {
 		if (this.isInInterpolationLoop) {
 			throw new IllegalStateException("Staring interpolation twice");
@@ -299,11 +325,23 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		}
 	}
 
+	/**
+	 * Sample end density.
+	 *
+	 * @param cellX cell x
+	 */
 	public void sampleEndDensity(int cellX) {
 		this.sampleDensity(false, this.startCellX + cellX + 1);
 		this.startBlockX = (this.startCellX + cellX) * this.horizontalCellBlockCount;
 	}
 
+	/**
+	 * At.
+	 *
+	 * @param i i
+	 *
+	 * @return ChunkNoiseSampler — результат операции
+	 */
 	public ChunkNoiseSampler at(int i) {
 		int j = Math.floorMod(i, this.horizontalCellBlockCount);
 		int k = Math.floorDiv(i, this.horizontalCellBlockCount);
@@ -334,6 +372,12 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		}
 	}
 
+	/**
+	 * Обрабатывает событие sampled cell corners.
+	 *
+	 * @param cellY cell y
+	 * @param cellZ cell z
+	 */
 	public void onSampledCellCorners(int cellY, int cellZ) {
 		for (ChunkNoiseSampler.DensityInterpolator densityInterpolator : this.interpolators) {
 			densityInterpolator.onSampledCellCorners(cellY, cellZ);
@@ -352,6 +396,12 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		this.isSamplingForCaches = false;
 	}
 
+	/**
+	 * Interpolate y.
+	 *
+	 * @param blockY block y
+	 * @param deltaY delta y
+	 */
 	public void interpolateY(int blockY, double deltaY) {
 		this.cellBlockY = blockY - this.startBlockY;
 
@@ -360,6 +410,12 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		}
 	}
 
+	/**
+	 * Interpolate x.
+	 *
+	 * @param blockX block x
+	 * @param deltaX delta x
+	 */
 	public void interpolateX(int blockX, double deltaX) {
 		this.cellBlockX = blockX - this.startBlockX;
 
@@ -368,6 +424,12 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		}
 	}
 
+	/**
+	 * Interpolate z.
+	 *
+	 * @param blockZ block z
+	 * @param deltaZ delta z
+	 */
 	public void interpolateZ(int blockZ, double deltaZ) {
 		this.cellBlockZ = blockZ - this.startBlockZ;
 		this.sampleUniqueIndex++;
@@ -377,6 +439,9 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		}
 	}
 
+	/**
+	 * Останавливает interpolation.
+	 */
 	public void stopInterpolation() {
 		if (!this.isInInterpolationLoop) {
 			throw new IllegalStateException("Staring interpolation twice");
@@ -386,6 +451,9 @@ public class ChunkNoiseSampler implements DensityFunction.EachApplier, DensityFu
 		}
 	}
 
+	/**
+	 * Swap buffers.
+	 */
 	public void swapBuffers() {
 		this.interpolators.forEach(ChunkNoiseSampler.DensityInterpolator::swapBuffers);
 	}

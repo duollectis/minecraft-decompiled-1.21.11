@@ -38,6 +38,14 @@ public class AbstractDustParticle<T extends AbstractDustParticleEffect> extends 
 		this.updateSprite(spriteProvider);
 	}
 
+	/**
+	 * Darken.
+	 *
+	 * @param colorComponent color component
+	 * @param multiplier multiplier
+	 *
+	 * @return float — результат операции
+	 */
 	protected float darken(float colorComponent, float multiplier) {
 		return (this.random.nextFloat() * 0.2F + 0.8F) * colorComponent * multiplier;
 	}

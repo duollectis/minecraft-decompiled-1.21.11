@@ -21,6 +21,13 @@ public class NbtTypes {
 			NbtLongArray.TYPE
 	};
 
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 *
+	 * @return NbtType — результат операции
+	 */
 	public static NbtType<?> byId(int id) {
 		return id >= 0 && id < VALUES.length ? VALUES[id] : NbtType.createInvalid(id);
 	}

@@ -16,6 +16,11 @@ import java.util.function.Function;
  */
 public class ListCommand {
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("list")

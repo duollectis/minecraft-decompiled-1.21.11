@@ -16,6 +16,14 @@ public class JsonRpc {
 
 	public static final String JSON_RPC_VERSION = "2.0";
 
+	/**
+	 * Кодирует result.
+	 *
+	 * @param id id
+	 * @param result result
+	 *
+	 * @return JsonObject — результат операции
+	 */
 	public static JsonObject encodeResult(JsonElement id, JsonElement result) {
 		JsonObject jsonObject = new JsonObject();
 		jsonObject.addProperty("jsonrpc", "2.0");
@@ -24,6 +32,15 @@ public class JsonRpc {
 		return jsonObject;
 	}
 
+	/**
+	 * Кодирует request.
+	 *
+	 * @param id id
+	 * @param method method
+	 * @param parameters parameters
+	 *
+	 * @return JsonObject — результат операции
+	 */
 	public static JsonObject encodeRequest(@Nullable Integer id, Identifier method, List<JsonElement> parameters) {
 		JsonObject jsonObject = new JsonObject();
 		jsonObject.addProperty("jsonrpc", "2.0");
@@ -45,6 +62,16 @@ public class JsonRpc {
 		return jsonObject;
 	}
 
+	/**
+	 * Кодирует error.
+	 *
+	 * @param id id
+	 * @param message message
+	 * @param code code
+	 * @param data data
+	 *
+	 * @return JsonObject — результат операции
+	 */
 	public static JsonObject encodeError(JsonElement id, String message, int code, @Nullable String data) {
 		JsonObject jsonObject = new JsonObject();
 		jsonObject.addProperty("jsonrpc", "2.0");

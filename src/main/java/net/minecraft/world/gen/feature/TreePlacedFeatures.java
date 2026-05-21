@@ -69,6 +69,11 @@ public class TreePlacedFeatures {
 	public static final RegistryKey<PlacedFeature> FALLEN_SPRUCE_TREE = PlacedFeatures.of("fallen_spruce_tree");
 	public static final RegistryKey<PlacedFeature> FALLEN_JUNGLE_TREE = PlacedFeatures.of("fallen_jungle_tree");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =

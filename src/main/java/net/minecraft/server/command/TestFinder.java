@@ -101,6 +101,14 @@ public class TestFinder implements TestInstanceFinder, TestInstanceBlockFinder {
 			);
 		}
 
+		/**
+		 * Surface.
+		 *
+		 * @param context context
+		 * @param radius radius
+		 *
+		 * @return TestFinder — результат операции
+		 */
 		public TestFinder surface(CommandContext<ServerCommandSource> context, int radius) {
 			ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
 			BlockPos blockPos = BlockPos.ofFloored(serverCommandSource.getPosition());
@@ -111,6 +119,13 @@ public class TestFinder implements TestInstanceFinder, TestInstanceBlockFinder {
 			);
 		}
 
+		/**
+		 * Nearest.
+		 *
+		 * @param context context
+		 *
+		 * @return TestFinder — результат операции
+		 */
 		public TestFinder nearest(CommandContext<ServerCommandSource> context) {
 			ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
 			BlockPos blockPos = BlockPos.ofFloored(serverCommandSource.getPosition());
@@ -123,6 +138,13 @@ public class TestFinder implements TestInstanceFinder, TestInstanceBlockFinder {
 			);
 		}
 
+		/**
+		 * All structures.
+		 *
+		 * @param context context
+		 *
+		 * @return TestFinder — результат операции
+		 */
 		public TestFinder allStructures(CommandContext<ServerCommandSource> context) {
 			ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
 			BlockPos blockPos = BlockPos.ofFloored(serverCommandSource.getPosition());
@@ -133,6 +155,13 @@ public class TestFinder implements TestInstanceFinder, TestInstanceBlockFinder {
 			);
 		}
 
+		/**
+		 * Targeted.
+		 *
+		 * @param context context
+		 *
+		 * @return TestFinder — результат операции
+		 */
 		public TestFinder targeted(CommandContext<ServerCommandSource> context) {
 			ServerCommandSource serverCommandSource = (ServerCommandSource) context.getSource();
 			return this.build(
@@ -146,6 +175,14 @@ public class TestFinder implements TestInstanceFinder, TestInstanceBlockFinder {
 			);
 		}
 
+		/**
+		 * Failed.
+		 *
+		 * @param context context
+		 * @param onlyRequired only required
+		 *
+		 * @return TestFinder — результат операции
+		 */
 		public TestFinder failed(CommandContext<ServerCommandSource> context, boolean onlyRequired) {
 			return this.build(
 					(ServerCommandSource) context.getSource(),
@@ -167,6 +204,13 @@ public class TestFinder implements TestInstanceFinder, TestInstanceBlockFinder {
 			);
 		}
 
+		/**
+		 * Failed.
+		 *
+		 * @param context context
+		 *
+		 * @return TestFinder — результат операции
+		 */
 		public TestFinder failed(CommandContext<ServerCommandSource> context) {
 			return this.failed(context, false);
 		}

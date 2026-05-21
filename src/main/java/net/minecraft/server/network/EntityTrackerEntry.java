@@ -78,6 +78,9 @@ public class EntityTrackerEntry {
 		this.changedEntries = entity.getDataTracker().getChangedEntries();
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.entity.beforePacketsSent();
 		List<Entity> list = this.entity.getPassengerList();
@@ -299,11 +302,21 @@ public class EntityTrackerEntry {
 		this.trackedPos.setPos(this.entity.getEntityPos());
 	}
 
+	/**
+	 * Останавливает tracking.
+	 *
+	 * @param player player
+	 */
 	public void stopTracking(ServerPlayerEntity player) {
 		this.entity.onStoppedTrackingBy(player);
 		player.networkHandler.sendPacket(new EntitiesDestroyS2CPacket(this.entity.getId()));
 	}
 
+	/**
+	 * Запускает tracking.
+	 *
+	 * @param player player
+	 */
 	public void startTracking(ServerPlayerEntity player) {
 		List<Packet<? super ClientPlayPacketListener>> packets = new ArrayList<>();
 		this.sendPackets(player, packets::add);
@@ -311,6 +324,12 @@ public class EntityTrackerEntry {
 		this.entity.onStartedTrackingBy(player);
 	}
 
+	/**
+	 * Отправляет packets.
+	 *
+	 * @param player player
+	 * @param sender sender
+	 */
 	public void sendPackets(ServerPlayerEntity player, Consumer<Packet<ClientPlayPacketListener>> sender) {
 		this.entity.beforePacketsSent();
 		if (this.entity.isRemoved()) {

@@ -64,6 +64,11 @@ public class PlaceCommand {
 		return CommandSource.suggestIdentifiers(structureTemplateManager.streamTemplates(), builder);
 	};
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager

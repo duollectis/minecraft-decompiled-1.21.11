@@ -80,6 +80,11 @@ public class ZombieNautilusEntityRenderer extends MobEntityRenderer<ZombieNautil
 		       : nautilusEntityRenderState.variant.modelAndTexture().asset().texturePath();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return NautilusEntityRenderState — результат операции
+	 */
 	public NautilusEntityRenderState createRenderState() {
 		return new NautilusEntityRenderState();
 	}

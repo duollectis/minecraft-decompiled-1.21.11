@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.village.TradeOfferList;
 
+/**
+ * Класс set trade offers s2 c packet.
+ */
 public class SetTradeOffersS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, SetTradeOffersS2CPacket> CODEC = Packet.createCodec(
@@ -59,6 +62,11 @@ public class SetTradeOffersS2CPacket implements Packet<ClientPlayPacketListener>
 		return PlayPackets.MERCHANT_OFFERS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onSetTradeOffers(this);
 	}

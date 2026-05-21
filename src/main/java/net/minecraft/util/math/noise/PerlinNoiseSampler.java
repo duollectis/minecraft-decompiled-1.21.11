@@ -34,11 +34,31 @@ public final class PerlinNoiseSampler {
 		}
 	}
 
+	/**
+	 * Sample.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return double — результат операции
+	 */
 	public double sample(double x, double y, double z) {
 		return this.sample(x, y, z, 0.0, 0.0);
 	}
 
 	@Deprecated
+	/**
+	 * Sample.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param yScale y scale
+	 * @param yMax y max
+	 *
+	 * @return double — результат операции
+	 */
 	public double sample(double x, double y, double z, double yScale, double yMax) {
 		double d = x + this.originX;
 		double e = y + this.originY;
@@ -68,6 +88,16 @@ public final class PerlinNoiseSampler {
 		return this.sample(i, j, k, g, h - n, l, h);
 	}
 
+	/**
+	 * Sample derivative.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param ds ds
+	 *
+	 * @return double — результат операции
+	 */
 	public double sampleDerivative(double x, double y, double z, double[] ds) {
 		double d = x + this.originX;
 		double e = y + this.originY;
@@ -179,6 +209,11 @@ public final class PerlinNoiseSampler {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Добавляет debug info.
+	 *
+	 * @param info info
+	 */
 	public void addDebugInfo(StringBuilder info) {
 		NoiseHelper.appendDebugInfo(info, this.originX, this.originY, this.originZ, this.permutation);
 	}

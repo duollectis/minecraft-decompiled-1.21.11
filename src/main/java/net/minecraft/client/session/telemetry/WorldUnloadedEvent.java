@@ -18,6 +18,9 @@ public class WorldUnloadedEvent {
 	private long ticksSinceLoad;
 	private long lastTick;
 
+	/**
+	 * Start.
+	 */
 	public void start() {
 		this.lastTick = -1L;
 		if (this.startTime.isEmpty()) {
@@ -38,6 +41,11 @@ public class WorldUnloadedEvent {
 		return (int) duration.toSeconds();
 	}
 
+	/**
+	 * Send.
+	 *
+	 * @param sender sender
+	 */
 	public void send(TelemetrySender sender) {
 		this.startTime.ifPresent(startTime -> sender.send(
 				TelemetryEventType.WORLD_UNLOADED, builder -> {

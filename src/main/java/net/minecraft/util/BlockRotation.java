@@ -41,6 +41,13 @@ public enum BlockRotation implements StringIdentifiable {
 		this.directionTransformation = directionTransformation;
 	}
 
+	/**
+	 * Rotate.
+	 *
+	 * @param rotation rotation
+	 *
+	 * @return BlockRotation — результат операции
+	 */
 	public BlockRotation rotate(BlockRotation rotation) {
 		return switch (rotation) {
 			case CLOCKWISE_90 -> {
@@ -93,6 +100,13 @@ public enum BlockRotation implements StringIdentifiable {
 		return this.directionTransformation;
 	}
 
+	/**
+	 * Rotate.
+	 *
+	 * @param direction direction
+	 *
+	 * @return Direction — результат операции
+	 */
 	public Direction rotate(Direction direction) {
 		if (direction.getAxis() == Direction.Axis.Y) {
 			return direction;
@@ -107,6 +121,14 @@ public enum BlockRotation implements StringIdentifiable {
 		}
 	}
 
+	/**
+	 * Rotate.
+	 *
+	 * @param rotation rotation
+	 * @param fullTurn full turn
+	 *
+	 * @return int — результат операции
+	 */
 	public int rotate(int rotation, int fullTurn) {
 		return switch (this) {
 			case CLOCKWISE_90 -> (rotation + fullTurn / 4) % fullTurn;
@@ -116,10 +138,24 @@ public enum BlockRotation implements StringIdentifiable {
 		};
 	}
 
+	/**
+	 * Random.
+	 *
+	 * @param random random
+	 *
+	 * @return BlockRotation — результат операции
+	 */
 	public static BlockRotation random(Random random) {
 		return Util.getRandom(values(), random);
 	}
 
+	/**
+	 * Random rotation order.
+	 *
+	 * @param random random
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<BlockRotation> randomRotationOrder(Random random) {
 		return Util.copyShuffled(values(), random);
 	}

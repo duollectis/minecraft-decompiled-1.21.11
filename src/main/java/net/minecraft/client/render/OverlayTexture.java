@@ -53,6 +53,14 @@ public class OverlayTexture implements AutoCloseable {
 		return hurt ? 3 : 10;
 	}
 
+	/**
+	 * Pack uv.
+	 *
+	 * @param u u
+	 * @param v v
+	 *
+	 * @return int — результат операции
+	 */
 	public static int packUv(int u, int v) {
 		return u | v << 16;
 	}

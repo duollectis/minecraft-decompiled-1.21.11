@@ -12,6 +12,9 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Collection;
 
+/**
+ * Интерфейс signature verifier.
+ */
 public interface SignatureVerifier {
 
 	SignatureVerifier NOOP = (updatable, signatureData) -> true;

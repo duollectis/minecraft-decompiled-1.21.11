@@ -68,6 +68,13 @@ public interface Literals {
 			}
 		}
 
+		/**
+		 * Accepts.
+		 *
+		 * @param c c
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected abstract boolean accepts(char c);
 	}
 

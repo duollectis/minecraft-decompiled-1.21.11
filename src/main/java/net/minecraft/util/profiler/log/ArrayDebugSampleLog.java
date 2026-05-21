@@ -42,8 +42,14 @@ public abstract class ArrayDebugSampleLog implements DebugSampleLog {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие push.
+	 */
 	protected abstract void onPush();
 
+	/**
+	 * Очищает values.
+	 */
 	protected void clearValues() {
 		System.arraycopy(this.defaults, 0, this.values, 0, this.defaults.length);
 	}

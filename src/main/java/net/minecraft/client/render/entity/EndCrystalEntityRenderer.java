@@ -81,6 +81,11 @@ public class EndCrystalEntityRenderer extends EntityRenderer<EndCrystalEntity, E
 		return g - 1.4F;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return EndCrystalEntityRenderState — результат операции
+	 */
 	public EndCrystalEntityRenderState createRenderState() {
 		return new EndCrystalEntityRenderState();
 	}
@@ -103,6 +108,17 @@ public class EndCrystalEntityRenderer extends EntityRenderer<EndCrystalEntity, E
 		}
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param endCrystalEntity end crystal entity
+	 * @param frustum frustum
+	 * @param d d
+	 * @param e e
+	 * @param f f
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRender(EndCrystalEntity endCrystalEntity, Frustum frustum, double d, double e, double f) {
 		return super.shouldRender(endCrystalEntity, frustum, d, e, f) || endCrystalEntity.getBeamTarget() != null;
 	}

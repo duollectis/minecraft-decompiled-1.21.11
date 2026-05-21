@@ -16,6 +16,13 @@ import java.util.Optional;
  */
 public record EnchantmentEffectEntry<T>(T effect, Optional<LootCondition> requirements) {
 
+	/**
+	 * Создаёт requirements codec.
+	 *
+	 * @param lootContextType loot context type
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<LootCondition> createRequirementsCodec(ContextType lootContextType) {
 		return LootCondition.CODEC
 				.validate(
@@ -31,6 +38,14 @@ public record EnchantmentEffectEntry<T>(T effect, Optional<LootCondition> requir
 				);
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param effectCodec effect codec
+	 * @param lootContextType loot context type
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<EnchantmentEffectEntry<T>> createCodec(Codec<T> effectCodec, ContextType lootContextType) {
 		return RecordCodecBuilder.create(
 				instance -> instance.group(
@@ -43,6 +58,13 @@ public record EnchantmentEffectEntry<T>(T effect, Optional<LootCondition> requir
 		);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param context context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext context) {
 		return this.requirements.isEmpty() ? true : this.requirements.get().test(context);
 	}

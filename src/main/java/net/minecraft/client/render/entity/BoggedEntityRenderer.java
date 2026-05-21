@@ -38,10 +38,22 @@ public class BoggedEntityRenderer extends AbstractSkeletonEntityRenderer<BoggedE
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BoggedEntityRenderState — результат операции
+	 */
 	public BoggedEntityRenderState createRenderState() {
 		return new BoggedEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param boggedEntity bogged entity
+	 * @param boggedEntityRenderState bogged entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(BoggedEntity boggedEntity, BoggedEntityRenderState boggedEntityRenderState, float f) {
 		super.updateRenderState(boggedEntity, boggedEntityRenderState, f);
 		boggedEntityRenderState.sheared = boggedEntity.isSheared();

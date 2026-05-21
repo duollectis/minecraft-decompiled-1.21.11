@@ -57,10 +57,22 @@ public class TntEntityRenderer extends EntityRenderer<TntEntity, TntEntityRender
 		super.render(tntEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return TntEntityRenderState — результат операции
+	 */
 	public TntEntityRenderState createRenderState() {
 		return new TntEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param tntEntity tnt entity
+	 * @param tntEntityRenderState tnt entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(TntEntity tntEntity, TntEntityRenderState tntEntityRenderState, float f) {
 		super.updateRenderState(tntEntity, tntEntityRenderState, f);
 		tntEntityRenderState.fuse = tntEntity.getFuse() - f + 1.0F;

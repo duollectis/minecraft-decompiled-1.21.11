@@ -31,6 +31,11 @@ public class ArmorTrimPatterns {
 	public static final RegistryKey<ArmorTrimPattern> FLOW = of("flow");
 	public static final RegistryKey<ArmorTrimPattern> BOLT = of("bolt");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<ArmorTrimPattern> registry) {
 		register(registry, SENTRY);
 		register(registry, DUNE);
@@ -52,6 +57,12 @@ public class ArmorTrimPatterns {
 		register(registry, BOLT);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param registry registry
+	 * @param key key
+	 */
 	public static void register(Registerable<ArmorTrimPattern> registry, RegistryKey<ArmorTrimPattern> key) {
 		ArmorTrimPattern
 				armorTrimPattern =

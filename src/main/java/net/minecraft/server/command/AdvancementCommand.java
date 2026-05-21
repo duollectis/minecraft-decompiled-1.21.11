@@ -36,6 +36,11 @@ public class AdvancementCommand {
 			)
 	);
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
@@ -694,6 +699,15 @@ public class AdvancementCommand {
 			this.commandPrefix = "commands.advancement." + name;
 		}
 
+		/**
+		 * Обрабатывает all.
+		 *
+		 * @param player player
+		 * @param advancements advancements
+		 * @param skipSync skip sync
+		 *
+		 * @return int — результат операции
+		 */
 		public int processAll(ServerPlayerEntity player, Iterable<AdvancementEntry> advancements, boolean skipSync) {
 			int i = 0;
 			if (!skipSync) {
@@ -713,6 +727,14 @@ public class AdvancementCommand {
 			return i;
 		}
 
+		/**
+		 * Обрабатывает each.
+		 *
+		 * @param player player
+		 * @param advancement advancement
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected abstract boolean processEach(ServerPlayerEntity player, AdvancementEntry advancement);
 
 		protected abstract boolean processEachCriterion(

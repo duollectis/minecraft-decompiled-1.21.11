@@ -51,6 +51,11 @@ public class PlayerAbilities {
 		);
 	}
 
+	/**
+	 * Unpack.
+	 *
+	 * @param packed packed
+	 */
 	public void unpack(PlayerAbilities.Packed packed) {
 		this.invulnerable = packed.invulnerable;
 		this.flying = packed.flying;

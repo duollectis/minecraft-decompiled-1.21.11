@@ -79,6 +79,12 @@ public class RecipeToast implements Toast {
 		this.justUpdated = true;
 	}
 
+	/**
+	 * Show.
+	 *
+	 * @param toastManager toast manager
+	 * @param display display
+	 */
 	public static void show(ToastManager toastManager, RecipeDisplay display) {
 		RecipeToast recipeToast = toastManager.getToast(RecipeToast.class, TYPE);
 		if (recipeToast == null) {

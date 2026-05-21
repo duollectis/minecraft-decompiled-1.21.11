@@ -30,6 +30,15 @@ public class NoiseThresholdCountPlacementModifier extends AbstractCountPlacement
 		this.aboveNoise = aboveNoise;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param noiseLevel noise level
+	 * @param belowNoise below noise
+	 * @param aboveNoise above noise
+	 *
+	 * @return NoiseThresholdCountPlacementModifier — результат операции
+	 */
 	public static NoiseThresholdCountPlacementModifier of(double noiseLevel, int belowNoise, int aboveNoise) {
 		return new NoiseThresholdCountPlacementModifier(noiseLevel, belowNoise, aboveNoise);
 	}

@@ -433,6 +433,11 @@ public class RegistryLoader {
 			return new RegistryLoader.Loader<>(this, mutableRegistry, errors);
 		}
 
+		/**
+		 * Добавляет to cloner.
+		 *
+		 * @param callback callback
+		 */
 		public void addToCloner(BiConsumer<RegistryKey<? extends Registry<T>>, Codec<T>> callback) {
 			callback.accept(this.key, this.elementCodec);
 		}
@@ -447,6 +452,12 @@ public class RegistryLoader {
 			Map<RegistryKey<?>, Exception> loadingErrors
 	) {
 
+		/**
+		 * Загружает from resource.
+		 *
+		 * @param resourceManager resource manager
+		 * @param infoGetter info getter
+		 */
 		public void loadFromResource(ResourceManager resourceManager, RegistryOps.RegistryInfoGetter infoGetter) {
 			RegistryLoader.loadFromResource(
 					resourceManager,

@@ -59,6 +59,9 @@ public class ManagementConnectionHandler extends SimpleChannelInboundHandler<Jso
 		this.managementLogger = managementLogger;
 	}
 
+	/**
+	 * Обрабатывает timeouts.
+	 */
 	public void processTimeouts() {
 		long l = Util.getMeasuringTimeMs();
 		this.pendingResponses
@@ -84,6 +87,11 @@ public class ManagementConnectionHandler extends SimpleChannelInboundHandler<Jso
 				);
 	}
 
+	/**
+	 * Channel active.
+	 *
+	 * @param context context
+	 */
 	public void channelActive(ChannelHandlerContext context) throws Exception {
 		this.managementLogger.logAction(
 				this.remote,
@@ -94,6 +102,11 @@ public class ManagementConnectionHandler extends SimpleChannelInboundHandler<Jso
 		this.managementServer.onConnectionOpen(this);
 	}
 
+	/**
+	 * Channel inactive.
+	 *
+	 * @param context context
+	 */
 	public void channelInactive(ChannelHandlerContext context) throws Exception {
 		this.managementLogger.logAction(
 				this.remote,
@@ -104,6 +117,12 @@ public class ManagementConnectionHandler extends SimpleChannelInboundHandler<Jso
 		this.managementServer.onConnectionClose(this);
 	}
 
+	/**
+	 * Exception caught.
+	 *
+	 * @param context context
+	 * @param throwable throwable
+	 */
 	public void exceptionCaught(ChannelHandlerContext context, Throwable throwable) throws Exception {
 		if (throwable.getCause() instanceof JsonParseException) {
 			this.channel.writeAndFlush(ManagementError.PARSE_ERROR.encode(throwable.getMessage()));
@@ -114,6 +133,12 @@ public class ManagementConnectionHandler extends SimpleChannelInboundHandler<Jso
 		}
 	}
 
+	/**
+	 * Channel read0.
+	 *
+	 * @param channelHandlerContext channel handler context
+	 * @param jsonElement json element
+	 */
 	protected void channelRead0(ChannelHandlerContext channelHandlerContext, JsonElement jsonElement) {
 		if (jsonElement.isJsonObject()) {
 			JsonObject jsonObject = this.handleMessage(jsonElement.getAsJsonObject());
@@ -139,6 +164,11 @@ public class ManagementConnectionHandler extends SimpleChannelInboundHandler<Jso
 		return jsonArray;
 	}
 
+	/**
+	 * Отправляет notification.
+	 *
+	 * @param method method
+	 */
 	public void sendNotification(RegistryEntry.Reference<? extends OutgoingRpcMethod<Void, ?>> method) {
 		this.sendRequest(method, null, false);
 	}
@@ -150,6 +180,13 @@ public class ManagementConnectionHandler extends SimpleChannelInboundHandler<Jso
 		this.sendRequest(method, params, false);
 	}
 
+	/**
+	 * Отправляет request.
+	 *
+	 * @param method method
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public <Result> CompletableFuture<Result> sendRequest(RegistryEntry.Reference<? extends OutgoingRpcMethod<Void, Result>> method) {
 		return this.sendRequest(method, null, true);
 	}
@@ -266,6 +303,14 @@ public class ManagementConnectionHandler extends SimpleChannelInboundHandler<Jso
 		}
 	}
 
+	/**
+	 * Обрабатывает request.
+	 *
+	 * @param method method
+	 * @param json json
+	 *
+	 * @return @Nullable JsonElement — результат операции
+	 */
 	public @Nullable JsonElement processRequest(String method, @Nullable JsonElement json) {
 		Identifier identifier = Identifier.tryParse(method);
 		if (identifier == null) {

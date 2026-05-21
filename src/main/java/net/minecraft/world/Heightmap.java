@@ -45,6 +45,12 @@ public class Heightmap {
 		this.storage = new PackedIntegerArray(i, 256);
 	}
 
+	/**
+	 * Populate heightmaps.
+	 *
+	 * @param chunk chunk
+	 * @param types types
+	 */
 	public static void populateHeightmaps(Chunk chunk, Set<Heightmap.Type> types) {
 		if (!types.isEmpty()) {
 			int i = types.size();
@@ -83,6 +89,16 @@ public class Heightmap {
 		}
 	}
 
+	/**
+	 * Track update.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean trackUpdate(int x, int y, int z, BlockState state) {
 		int i = this.get(x, z);
 		if (y <= i - 2) {
@@ -114,6 +130,14 @@ public class Heightmap {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return int — 
+	 */
 	public int get(int x, int z) {
 		return this.get(toIndex(x, z));
 	}
@@ -144,6 +168,11 @@ public class Heightmap {
 		}
 	}
 
+	/**
+	 * As long array.
+	 *
+	 * @return long[] — результат операции
+	 */
 	public long[] asLongArray() {
 		return this.storage.getData();
 	}
@@ -211,6 +240,11 @@ public class Heightmap {
 			return this.id;
 		}
 
+		/**
+		 * Определяет, следует ли send to client.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldSendToClient() {
 			return this.purpose == Heightmap.Purpose.CLIENT;
 		}

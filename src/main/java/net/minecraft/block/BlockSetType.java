@@ -226,6 +226,11 @@ public record BlockSetType(
 		return blockSetType;
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<BlockSetType> stream() {
 		return VALUES.values().stream();
 	}

@@ -51,6 +51,13 @@ public class HotbarStorageEntry {
 		this(Collections.nCopies(HOTBAR_SIZE, EMPTY_STACK));
 	}
 
+	/**
+	 * Deserialize.
+	 *
+	 * @param registries registries
+	 *
+	 * @return List — результат операции
+	 */
 	public List<ItemStack> deserialize(RegistryWrapper.WrapperLookup registries) {
 		return this.stacks
 				.stream()
@@ -63,6 +70,12 @@ public class HotbarStorageEntry {
 				.toList();
 	}
 
+	/**
+	 * Serialize.
+	 *
+	 * @param playerInventory player inventory
+	 * @param registryManager registry manager
+	 */
 	public void serialize(PlayerInventory playerInventory, DynamicRegistryManager registryManager) {
 		RegistryOps<NbtElement> registryOps = registryManager.getOps(NBT_OPS);
 		Builder<Dynamic<?>> builder = ImmutableList.builderWithExpectedSize(HOTBAR_SIZE);

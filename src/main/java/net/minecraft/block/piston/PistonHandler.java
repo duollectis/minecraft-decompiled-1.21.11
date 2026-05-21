@@ -40,6 +40,11 @@ public class PistonHandler {
 		}
 	}
 
+	/**
+	 * Вычисляет push.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean calculatePush() {
 		this.movedBlocks.clear();
 		this.brokenBlocks.clear();

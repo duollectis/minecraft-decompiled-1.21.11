@@ -36,6 +36,9 @@ public final class Path {
 		this.reachesTarget = reachesTarget;
 	}
 
+	/**
+	 * Next.
+	 */
 	public void next() {
 		this.currentNodeIndex++;
 	}
@@ -106,6 +109,13 @@ public final class Path {
 		return this.currentNodeIndex > 0 ? this.nodes.get(this.currentNodeIndex - 1) : null;
 	}
 
+	/**
+	 * Проверяет равенство с path.
+	 *
+	 * @param path path
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean equalsPath(@Nullable Path path) {
 		return path != null && this.nodes.equals(path.nodes);
 	}
@@ -126,6 +136,11 @@ public final class Path {
 		return this.currentNodeIndex + this.nodes.hashCode() * 31;
 	}
 
+	/**
+	 * Reaches target.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean reachesTarget() {
 		return this.reachesTarget;
 	}
@@ -139,6 +154,11 @@ public final class Path {
 		return this.debugNodeInfos;
 	}
 
+	/**
+	 * To buf.
+	 *
+	 * @param buf buf
+	 */
 	public void toBuf(PacketByteBuf buf) {
 		if (this.debugNodeInfos != null && !this.debugNodeInfos.targetNodes.isEmpty()) {
 			buf.writeBoolean(this.reachesTarget);
@@ -152,6 +172,13 @@ public final class Path {
 		}
 	}
 
+	/**
+	 * From buf.
+	 *
+	 * @param buf buf
+	 *
+	 * @return Path — результат операции
+	 */
 	public static Path fromBuf(PacketByteBuf buf) {
 		boolean bl = buf.readBoolean();
 		int i = buf.readInt();
@@ -195,6 +222,11 @@ public final class Path {
 		}
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return Path — результат операции
+	 */
 	public Path copy() {
 		Path path = new Path(this.nodes, this.target, this.reachesTarget);
 		path.debugNodeInfos = this.debugNodeInfos;
@@ -207,6 +239,11 @@ public final class Path {
 	 */
 	public record DebugNodeInfo(PathNode[] openSet, PathNode[] closedSet, Set<TargetPathNode> targetNodes) {
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 */
 		public void write(PacketByteBuf buf) {
 			buf.writeCollection(this.targetNodes, (bufx, node) -> node.write(bufx));
 			Path.write(buf, this.openSet);

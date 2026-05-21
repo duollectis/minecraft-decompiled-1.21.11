@@ -158,6 +158,11 @@ public class EndCrystalEntity extends Entity {
 		this.getDataTracker().set(SHOW_BOTTOM, showBottom);
 	}
 
+	/**
+	 * Определяет, следует ли show bottom.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowBottom() {
 		return this.getDataTracker().get(SHOW_BOTTOM);
 	}

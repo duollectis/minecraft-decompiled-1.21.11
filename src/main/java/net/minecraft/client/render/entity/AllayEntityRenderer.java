@@ -28,10 +28,22 @@ public class AllayEntityRenderer extends MobEntityRenderer<AllayEntity, AllayEnt
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return AllayEntityRenderState — результат операции
+	 */
 	public AllayEntityRenderState createRenderState() {
 		return new AllayEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param allayEntity allay entity
+	 * @param allayEntityRenderState allay entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(AllayEntity allayEntity, AllayEntityRenderState allayEntityRenderState, float f) {
 		super.updateRenderState(allayEntity, allayEntityRenderState, f);
 		ArmedEntityRenderState.updateRenderState(allayEntity, allayEntityRenderState, this.itemModelResolver, f);

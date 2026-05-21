@@ -81,6 +81,9 @@ public class SleepingChatScreen extends ChatScreen {
 		));
 	}
 
+	/**
+	 * Закрывает chat if empty.
+	 */
 	public void closeChatIfEmpty() {
 		String string = this.chatField.getText();
 		if (!this.draft && !string.isEmpty()) {

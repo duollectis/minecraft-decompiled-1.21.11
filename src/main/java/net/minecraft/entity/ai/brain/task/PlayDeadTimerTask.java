@@ -8,6 +8,11 @@ import net.minecraft.entity.ai.brain.MemoryModuleType;
  */
 public class PlayDeadTimerTask {
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context

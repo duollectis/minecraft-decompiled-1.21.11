@@ -19,6 +19,13 @@ import java.util.List;
  */
 public class Ping {
 
+	/**
+	 * Ping.
+	 *
+	 * @param regions regions
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<RegionPingResult> ping(Ping.Region... regions) {
 		for (Ping.Region region : regions) {
 			ping(region.endpoint);
@@ -62,6 +69,11 @@ public class Ping {
 		return Util.getMeasuringTimeMs();
 	}
 
+	/**
+	 * Ping all regions.
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<RegionPingResult> pingAllRegions() {
 		return ping(Ping.Region.values());
 	}

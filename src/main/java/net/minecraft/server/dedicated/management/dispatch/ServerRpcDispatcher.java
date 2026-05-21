@@ -27,10 +27,27 @@ public class ServerRpcDispatcher {
 		       );
 	}
 
+	/**
+	 * Save.
+	 *
+	 * @param dispatcher dispatcher
+	 * @param flush flush
+	 * @param remote remote
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean save(ManagementHandlerDispatcher dispatcher, boolean flush, ManagementConnectionId remote) {
 		return dispatcher.getServerHandler().save(true, flush, true, remote);
 	}
 
+	/**
+	 * Stop.
+	 *
+	 * @param dispatcher dispatcher
+	 * @param remote remote
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean stop(ManagementHandlerDispatcher dispatcher, ManagementConnectionId remote) {
 		dispatcher.submit(() -> dispatcher.getServerHandler().stop(false, remote));
 		return true;

@@ -69,6 +69,12 @@ public final class RegionBasedStorage implements AutoCloseable {
 		return var4;
 	}
 
+	/**
+	 * Scan chunk.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param scanner scanner
+	 */
 	public void scanChunk(ChunkPos chunkPos, NbtScanner scanner) throws IOException {
 		RegionFile regionFile = this.getRegionFile(chunkPos);
 
@@ -79,6 +85,12 @@ public final class RegionBasedStorage implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param pos pos
+	 * @param nbt nbt
+	 */
 	protected void write(ChunkPos pos, @Nullable NbtCompound nbt) throws IOException {
 		if (!SharedConstants.DONT_SAVE_WORLD) {
 			RegionFile regionFile = this.getRegionFile(pos);
@@ -112,6 +124,9 @@ public final class RegionBasedStorage implements AutoCloseable {
 		throwableDeliverer.deliver();
 	}
 
+	/**
+	 * Sync.
+	 */
 	public void sync() throws IOException {
 		ObjectIterator var1 = this.cachedRegionFiles.values().iterator();
 

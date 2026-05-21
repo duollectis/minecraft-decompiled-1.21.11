@@ -38,6 +38,13 @@ public class BufferHelper {
 		                               | buf[start + 3] & 0xFF;
 	}
 
+	/**
+	 * To hex.
+	 *
+	 * @param b b
+	 *
+	 * @return String — результат операции
+	 */
 	public static String toHex(byte b) {
 		return "" + HEX_CHARS_LOOKUP[(b & 240) >>> 4] + HEX_CHARS_LOOKUP[b & 15];
 	}

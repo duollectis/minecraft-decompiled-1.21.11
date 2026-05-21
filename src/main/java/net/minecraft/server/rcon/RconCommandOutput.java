@@ -23,14 +23,27 @@ public class RconCommandOutput implements CommandOutput {
 		this.server = server;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.buffer.setLength(0);
 	}
 
+	/**
+	 * As string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String asString() {
 		return this.buffer.toString();
 	}
 
+	/**
+	 * Создаёт rcon command source.
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource createRconCommandSource() {
 		ServerWorld serverWorld = this.server.getOverworld();
 		return new ServerCommandSource(

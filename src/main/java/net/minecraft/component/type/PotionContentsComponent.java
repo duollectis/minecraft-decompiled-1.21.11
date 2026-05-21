@@ -83,12 +83,27 @@ public record PotionContentsComponent(
 		this(Optional.of(potion), Optional.empty(), List.of(), Optional.empty());
 	}
 
+	/**
+	 * Создаёт stack.
+	 *
+	 * @param item item
+	 * @param potion potion
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public static ItemStack createStack(Item item, RegistryEntry<Potion> potion) {
 		ItemStack itemStack = new ItemStack(item);
 		itemStack.set(DataComponentTypes.POTION_CONTENTS, new PotionContentsComponent(potion));
 		return itemStack;
 	}
 
+	/**
+	 * Matches.
+	 *
+	 * @param potion potion
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matches(RegistryEntry<Potion> potion) {
 		return this.potion.isPresent() && this.potion.get().matches(potion) && this.customEffects.isEmpty();
 	}
@@ -108,6 +123,12 @@ public record PotionContentsComponent(
 		}
 	}
 
+	/**
+	 * For each effect.
+	 *
+	 * @param effectConsumer effect consumer
+	 * @param durationMultiplier duration multiplier
+	 */
 	public void forEachEffect(Consumer<StatusEffectInstance> effectConsumer, float durationMultiplier) {
 		if (this.potion.isPresent()) {
 			for (StatusEffectInstance statusEffectInstance : this.potion.get().value().getEffects()) {
@@ -120,10 +141,24 @@ public record PotionContentsComponent(
 		}
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param potion potion
+	 *
+	 * @return PotionContentsComponent — результат операции
+	 */
 	public PotionContentsComponent with(RegistryEntry<Potion> potion) {
 		return new PotionContentsComponent(Optional.of(potion), this.customColor, this.customEffects, this.customName);
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param customEffect custom effect
+	 *
+	 * @return PotionContentsComponent — результат операции
+	 */
 	public PotionContentsComponent with(StatusEffectInstance customEffect) {
 		return new PotionContentsComponent(
 				this.potion,
@@ -151,6 +186,13 @@ public record PotionContentsComponent(
 		return Text.translatable(prefix + string);
 	}
 
+	/**
+	 * Mix colors.
+	 *
+	 * @param effects effects
+	 *
+	 * @return OptionalInt — результат операции
+	 */
 	public static OptionalInt mixColors(Iterable<StatusEffectInstance> effects) {
 		int i = 0;
 		int j = 0;
@@ -179,10 +221,21 @@ public record PotionContentsComponent(
 		                                                                          .isEmpty();
 	}
 
+	/**
+	 * Custom effects.
+	 *
+	 * @return List — результат операции
+	 */
 	public List<StatusEffectInstance> customEffects() {
 		return Lists.transform(this.customEffects, StatusEffectInstance::new);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param user user
+	 * @param durationMultiplier duration multiplier
+	 */
 	public void apply(LivingEntity user, float durationMultiplier) {
 		if (user.getEntityWorld() instanceof ServerWorld serverWorld) {
 			PlayerEntity playerEntity2 = user instanceof PlayerEntity playerEntity ? playerEntity : null;

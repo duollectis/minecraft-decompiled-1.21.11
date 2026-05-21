@@ -26,6 +26,15 @@ public record GeometryBakedModel(
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Create.
+	 *
+	 * @param baker baker
+	 * @param id id
+	 * @param bakeSettings bake settings
+	 *
+	 * @return BlockModelPart — результат операции
+	 */
 	public static BlockModelPart create(Baker baker, Identifier id, ModelBakeSettings bakeSettings) {
 		BakedSimpleModel bakedSimpleModel = baker.getModel(id);
 		ModelTextures modelTextures = bakedSimpleModel.getTextures();

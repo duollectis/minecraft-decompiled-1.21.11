@@ -18,6 +18,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.Collection;
 import java.util.Optional;
 
+/**
+ * Класс team s2 c packet.
+ */
 public class TeamS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, TeamS2CPacket>
@@ -47,6 +50,14 @@ public class TeamS2CPacket implements Packet<ClientPlayPacketListener> {
 		this.playerNames = ImmutableList.copyOf(playerNames);
 	}
 
+	/**
+	 * Обновляет team.
+	 *
+	 * @param team team
+	 * @param updatePlayers update players
+	 *
+	 * @return TeamS2CPacket — результат операции
+	 */
 	public static TeamS2CPacket updateTeam(Team team, boolean updatePlayers) {
 		return new TeamS2CPacket(
 				team.getName(),
@@ -56,10 +67,26 @@ public class TeamS2CPacket implements Packet<ClientPlayPacketListener> {
 		);
 	}
 
+	/**
+	 * Обновляет removed team.
+	 *
+	 * @param team team
+	 *
+	 * @return TeamS2CPacket — результат операции
+	 */
 	public static TeamS2CPacket updateRemovedTeam(Team team) {
 		return new TeamS2CPacket(team.getName(), 1, Optional.empty(), ImmutableList.of());
 	}
 
+	/**
+	 * Change player team.
+	 *
+	 * @param team team
+	 * @param playerName player name
+	 * @param operation operation
+	 *
+	 * @return TeamS2CPacket — результат операции
+	 */
 	public static TeamS2CPacket changePlayerTeam(Team team, String playerName, TeamS2CPacket.Operation operation) {
 		return new TeamS2CPacket(
 				team.getName(),
@@ -131,6 +158,11 @@ public class TeamS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.SET_PLAYER_TEAM;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onTeam(this);
 	}
@@ -210,6 +242,11 @@ public class TeamS2CPacket implements Packet<ClientPlayPacketListener> {
 			return this.suffix;
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 */
 		public void write(RegistryByteBuf buf) {
 			TextCodecs.UNLIMITED_REGISTRY_PACKET_CODEC.encode(buf, this.displayName);
 			buf.writeByte(this.friendlyFlags);

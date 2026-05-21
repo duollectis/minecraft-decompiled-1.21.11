@@ -211,6 +211,15 @@ public class AdvancementsScreen extends Screen implements ClientAdvancementManag
 		}
 	}
 
+	/**
+	 * Draw window.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	public void drawWindow(DrawContext context, int x, int y, int mouseX, int mouseY) {
 		context.drawTexture(RenderPipelines.GUI_TEXTURED, WINDOW_TEXTURE, x, y, 0.0F, 0.0F, 252, 140, 256, 256);
 		if (this.tabs.size() > 1) {

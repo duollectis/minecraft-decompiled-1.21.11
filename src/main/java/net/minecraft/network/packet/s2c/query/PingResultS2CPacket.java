@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PingPackets;
 
+/**
+ * Запись ping result s2 c packet.
+ */
 public record PingResultS2CPacket(long startTime) implements Packet<ClientPingResultPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, PingResultS2CPacket>
@@ -26,6 +29,11 @@ public record PingResultS2CPacket(long startTime) implements Packet<ClientPingRe
 		return PingPackets.PONG_RESPONSE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPingResultPacketListener client ping result packet listener
+	 */
 	public void apply(ClientPingResultPacketListener clientPingResultPacketListener) {
 		clientPingResultPacketListener.onPingResult(this);
 	}

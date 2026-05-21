@@ -70,6 +70,16 @@ public abstract class AbstractRailBlock extends Block implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Обновляет curves.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param notify notify
+	 *
+	 * @return BlockState — результат операции
+	 */
 	protected BlockState updateCurves(BlockState state, World world, BlockPos pos, boolean notify) {
 		state = this.updateBlockState(world, pos, state, true);
 		if (this.forbidCurves) {
@@ -120,9 +130,27 @@ public abstract class AbstractRailBlock extends Block implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Обновляет block state.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param neighbor neighbor
+	 */
 	protected void updateBlockState(BlockState state, World world, BlockPos pos, Block neighbor) {
 	}
 
+	/**
+	 * Обновляет block state.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param forceUpdate force update
+	 *
+	 * @return BlockState — результат операции
+	 */
 	protected BlockState updateBlockState(World world, BlockPos pos, BlockState state, boolean forceUpdate) {
 		if (world.isClient()) {
 			return state;
@@ -163,6 +191,14 @@ public abstract class AbstractRailBlock extends Block implements Waterloggable {
 
 	public abstract Property<RailShape> getShapeProperty();
 
+	/**
+	 * Rotate shape.
+	 *
+	 * @param shape shape
+	 * @param rotation rotation
+	 *
+	 * @return RailShape — результат операции
+	 */
 	protected RailShape rotateShape(RailShape shape, BlockRotation rotation) {
 		return switch (rotation) {
 			case CLOCKWISE_180 -> {
@@ -247,6 +283,14 @@ public abstract class AbstractRailBlock extends Block implements Waterloggable {
 		};
 	}
 
+	/**
+	 * Mirror shape.
+	 *
+	 * @param shape shape
+	 * @param mirror mirror
+	 *
+	 * @return RailShape — результат операции
+	 */
 	protected RailShape mirrorShape(RailShape shape, BlockMirror mirror) {
 		return switch (mirror) {
 			case LEFT_RIGHT -> {

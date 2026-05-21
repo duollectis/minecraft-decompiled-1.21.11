@@ -96,6 +96,11 @@ public interface IncomingRpcMethod<Params, Result> {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return IncomingRpcMethod — результат операции
+		 */
 		public IncomingRpcMethod<Params, Result> build() {
 			if (this.result == null) {
 				throw new IllegalStateException("No response defined");

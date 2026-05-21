@@ -110,6 +110,11 @@ public abstract class ButtonWidget extends PressableWidget {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ButtonWidget — результат операции
+		 */
 		public ButtonWidget build() {
 			ButtonWidget
 					buttonWidget =

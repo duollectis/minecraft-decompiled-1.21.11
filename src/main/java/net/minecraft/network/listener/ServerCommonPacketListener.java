@@ -2,6 +2,9 @@ package net.minecraft.network.listener;
 
 import net.minecraft.network.packet.c2s.common.*;
 
+/**
+ * Интерфейс server common packet listener.
+ */
 public interface ServerCommonPacketListener extends ServerCookieResponsePacketListener {
 
 	void onKeepAlive(KeepAliveC2SPacket packet);

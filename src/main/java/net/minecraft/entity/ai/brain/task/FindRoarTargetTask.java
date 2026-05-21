@@ -12,6 +12,13 @@ import java.util.function.Function;
  */
 public class FindRoarTargetTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param targetFinder target finder
+	 *
+	 * @return Task — результат операции
+	 */
 	public static <E extends WardenEntity> Task<E> create(Function<E, Optional<? extends LivingEntity>> targetFinder) {
 		return TaskTriggerer.task(
 				context -> context.group(

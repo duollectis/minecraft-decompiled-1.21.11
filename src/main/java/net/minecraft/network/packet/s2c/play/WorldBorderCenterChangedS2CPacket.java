@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.border.WorldBorder;
 
+/**
+ * Класс world border center changed s2 c packet.
+ */
 public class WorldBorderCenterChangedS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, WorldBorderCenterChangedS2CPacket> CODEC = Packet.createCodec(
@@ -36,6 +39,11 @@ public class WorldBorderCenterChangedS2CPacket implements Packet<ClientPlayPacke
 		return PlayPackets.SET_BORDER_CENTER;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onWorldBorderCenterChanged(this);
 	}

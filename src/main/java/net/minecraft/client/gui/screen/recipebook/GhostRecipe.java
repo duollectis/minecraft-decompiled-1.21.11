@@ -29,6 +29,9 @@ public class GhostRecipe {
 		this.currentIndexProvider = currentIndexProvider;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.items.clear();
 	}
@@ -40,14 +43,35 @@ public class GhostRecipe {
 		}
 	}
 
+	/**
+	 * Добавляет inputs.
+	 *
+	 * @param slot slot
+	 * @param context context
+	 * @param display display
+	 */
 	protected void addInputs(Slot slot, ContextParameterMap context, SlotDisplay display) {
 		this.addItems(slot, context, display, false);
 	}
 
+	/**
+	 * Добавляет results.
+	 *
+	 * @param slot slot
+	 * @param context context
+	 * @param display display
+	 */
 	protected void addResults(Slot slot, ContextParameterMap context, SlotDisplay display) {
 		this.addItems(slot, context, display, true);
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param context context
+	 * @param client client
+	 * @param resultHasPadding result has padding
+	 */
 	public void draw(DrawContext context, MinecraftClient client, boolean resultHasPadding) {
 		this.items.forEach((slot, item) -> {
 			int i = slot.x;
@@ -68,6 +92,15 @@ public class GhostRecipe {
 		});
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param context context
+	 * @param client client
+	 * @param x x
+	 * @param y y
+	 * @param slot slot
+	 */
 	public void drawTooltip(DrawContext context, MinecraftClient client, int x, int y, @Nullable Slot slot) {
 		if (slot != null) {
 			GhostRecipe.CyclingItem cyclingItem = (GhostRecipe.CyclingItem) this.items.get(slot);
@@ -90,6 +123,13 @@ public class GhostRecipe {
 	 */
 	record CyclingItem(List<ItemStack> items, boolean isResultSlot) {
 
+		/**
+		 * Get.
+		 *
+		 * @param index index
+		 *
+		 * @return ItemStack — 
+		 */
 		public ItemStack get(int index) {
 			int i = this.items.size();
 			return i == 0 ? ItemStack.EMPTY : this.items.get(index % i);

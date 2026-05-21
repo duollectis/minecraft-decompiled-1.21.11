@@ -54,6 +54,13 @@ public enum AttributeModifierSlot implements StringIdentifiable, Iterable<Equipm
 		this(id, name, slotx -> slotx == slot);
 	}
 
+	/**
+	 * For equipment slot.
+	 *
+	 * @param slot slot
+	 *
+	 * @return AttributeModifierSlot — результат операции
+	 */
 	public static AttributeModifierSlot forEquipmentSlot(EquipmentSlot slot) {
 		return switch (slot) {
 			case MAINHAND -> MAINHAND;
@@ -72,6 +79,13 @@ public enum AttributeModifierSlot implements StringIdentifiable, Iterable<Equipm
 		return this.name;
 	}
 
+	/**
+	 * Matches.
+	 *
+	 * @param slot slot
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matches(EquipmentSlot slot) {
 		return this.slotPredicate.test(slot);
 	}

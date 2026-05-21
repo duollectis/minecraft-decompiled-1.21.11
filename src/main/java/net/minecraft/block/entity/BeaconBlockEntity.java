@@ -121,6 +121,14 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 		super(BlockEntityType.BEACON, pos, state);
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, BeaconBlockEntity blockEntity) {
 		int i = pos.getX();
 		int j = pos.getY();
@@ -271,6 +279,13 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 		}
 	}
 
+	/**
+	 * Play sound.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param sound sound
+	 */
 	public static void playSound(World world, BlockPos pos, SoundEvent sound) {
 		world.playSound(null, pos, sound, SoundCategory.BLOCKS, 1.0F, 1.0F);
 	}
@@ -280,6 +295,11 @@ public class BeaconBlockEntity extends BlockEntity implements NamedScreenHandler
 		return (List<BeamEmitter.BeamSegment>) (this.level == 0 ? ImmutableList.of() : this.beamSegments);
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}

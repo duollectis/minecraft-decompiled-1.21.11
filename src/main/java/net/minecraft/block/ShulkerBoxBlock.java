@@ -190,6 +190,13 @@ public class ShulkerBoxBlock extends BlockWithEntity {
 		return ScreenHandler.calculateComparatorOutput(world.getBlockEntity(pos));
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param dyeColor dye color
+	 *
+	 * @return Block — 
+	 */
 	public static Block get(@Nullable DyeColor dyeColor) {
 		if (dyeColor == null) {
 			return Blocks.SHULKER_BOX;

@@ -131,6 +131,9 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 			return this.cut;
 		}
 
+		/**
+		 * Reset.
+		 */
 		public void reset() {
 			this.cut = false;
 		}
@@ -199,6 +202,13 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 		private Object[] values = new Object[16];
 		private int top;
 
+		/**
+		 * Get.
+		 *
+		 * @param symbol symbol
+		 *
+		 * @return int — 
+		 */
 		public int get(Symbol<?> symbol) {
 			for (int i = 0; i < this.top; i += 2) {
 				if (this.values[i] == symbol) {
@@ -209,6 +219,13 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 			return -1;
 		}
 
+		/**
+		 * Push.
+		 *
+		 * @param symbol symbol
+		 *
+		 * @return int — результат операции
+		 */
 		public int push(Symbol<?> symbol) {
 			int i = this.top;
 			this.top += 2;
@@ -229,6 +246,12 @@ public abstract class ParsingStateImpl<S> implements ParsingState<S> {
 			return (ParsingStateImpl.MemoizedValue<T>) this.values[index + 1];
 		}
 
+		/**
+		 * Put.
+		 *
+		 * @param index index
+		 * @param value value
+		 */
 		public void put(int index, ParsingStateImpl.MemoizedValue<?> value) {
 			this.values[index + 1] = value;
 		}

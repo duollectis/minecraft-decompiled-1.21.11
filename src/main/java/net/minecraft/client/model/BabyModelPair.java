@@ -9,6 +9,13 @@ import net.fabricmc.api.Environment;
  */
 public record BabyModelPair<T extends Model>(T adultModel, T babyModel) {
 
+	/**
+	 * Get.
+	 *
+	 * @param baby baby
+	 *
+	 * @return T — 
+	 */
 	public T get(boolean baby) {
 		return baby ? this.babyModel : this.adultModel;
 	}

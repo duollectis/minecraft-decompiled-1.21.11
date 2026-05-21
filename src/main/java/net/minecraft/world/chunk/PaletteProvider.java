@@ -34,6 +34,13 @@ public abstract class PaletteProvider<T> {
 		this.size = 1 << bitsPerAxis * 3;
 	}
 
+	/**
+	 * For block states.
+	 *
+	 * @param idList id list
+	 *
+	 * @return PaletteProvider — результат операции
+	 */
 	public static <T> PaletteProvider<T> forBlockStates(IndexedIterable<T> idList) {
 		return new PaletteProvider<T>(idList, 4) {
 			@Override
@@ -52,6 +59,13 @@ public abstract class PaletteProvider<T> {
 		};
 	}
 
+	/**
+	 * For biomes.
+	 *
+	 * @param idList id list
+	 *
+	 * @return PaletteProvider — результат операции
+	 */
 	public static <T> PaletteProvider<T> forBiomes(IndexedIterable<T> idList) {
 		return new PaletteProvider<T>(idList, 2) {
 			@Override
@@ -72,6 +86,15 @@ public abstract class PaletteProvider<T> {
 		return this.size;
 	}
 
+	/**
+	 * Вычисляет index.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return int — результат операции
+	 */
 	public int computeIndex(int x, int y, int z) {
 		return (y << this.bitsPerAxis | z) << this.bitsPerAxis | x;
 	}
@@ -84,8 +107,22 @@ public abstract class PaletteProvider<T> {
 		return this.palette;
 	}
 
+	/**
+	 * Создаёт type.
+	 *
+	 * @param bitsInStorage bits in storage
+	 *
+	 * @return PaletteType — результат операции
+	 */
 	protected abstract PaletteType createType(int bitsInStorage);
 
+	/**
+	 * Создаёт type from size.
+	 *
+	 * @param size size
+	 *
+	 * @return PaletteType — результат операции
+	 */
 	protected PaletteType createTypeFromSize(int size) {
 		int i = toBits(size);
 		return this.createType(i);

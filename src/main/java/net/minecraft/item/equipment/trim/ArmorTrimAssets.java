@@ -63,10 +63,25 @@ public record ArmorTrimAssets(
 	public static final ArmorTrimAssets AMETHYST = of("amethyst");
 	public static final ArmorTrimAssets RESIN = of("resin");
 
+	/**
+	 * Of.
+	 *
+	 * @param suffix suffix
+	 *
+	 * @return ArmorTrimAssets — результат операции
+	 */
 	public static ArmorTrimAssets of(String suffix) {
 		return new ArmorTrimAssets(new ArmorTrimAssets.AssetId(suffix), Map.of());
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param suffix suffix
+	 * @param overrides overrides
+	 *
+	 * @return ArmorTrimAssets — результат операции
+	 */
 	public static ArmorTrimAssets of(String suffix, Map<RegistryKey<EquipmentAsset>, String> overrides) {
 		return new ArmorTrimAssets(
 				new ArmorTrimAssets.AssetId(suffix),

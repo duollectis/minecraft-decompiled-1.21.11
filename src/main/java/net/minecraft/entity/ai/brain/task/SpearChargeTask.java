@@ -53,6 +53,14 @@ public class SpearChargeTask extends MultiTickTask<PathAwareEntity> {
 				.orElse(0);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, PathAwareEntity pathAwareEntity) {
 		return pathAwareEntity
 				.getBrain()
@@ -63,6 +71,13 @@ public class SpearChargeTask extends MultiTickTask<PathAwareEntity> {
 				&& !pathAwareEntity.isUsingItem();
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		pathAwareEntity.setAttacking(true);
 		pathAwareEntity.getBrain().remember(MemoryModuleType.SPEAR_ENGAGE_TIME, this.getSpearUseTicks(pathAwareEntity));
@@ -71,11 +86,27 @@ public class SpearChargeTask extends MultiTickTask<PathAwareEntity> {
 		super.run(serverWorld, pathAwareEntity, l);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		return pathAwareEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SPEAR_ENGAGE_TIME).orElse(0) > 0
 				&& this.shouldAttack(pathAwareEntity);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		LivingEntity livingEntity = this.getTarget(pathAwareEntity);
 		double d = pathAwareEntity.squaredDistanceTo(livingEntity.getX(), livingEntity.getY(), livingEntity.getZ());
@@ -118,6 +149,13 @@ public class SpearChargeTask extends MultiTickTask<PathAwareEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		pathAwareEntity.getNavigation().stop();
 		pathAwareEntity.clearActiveItem();

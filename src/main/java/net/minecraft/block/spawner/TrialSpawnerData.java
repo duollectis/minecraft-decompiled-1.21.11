@@ -68,6 +68,11 @@ public class TrialSpawnerData {
 		);
 	}
 
+	/**
+	 * Unpack.
+	 *
+	 * @param packed packed
+	 */
 	public void unpack(TrialSpawnerData.Packed packed) {
 		this.players.clear();
 		this.players.addAll(packed.detectedPlayers);
@@ -80,12 +85,18 @@ public class TrialSpawnerData {
 		this.rewardLootTable = packed.ejectingLootTable;
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.spawnedMobsAlive.clear();
 		this.spawnData = Optional.empty();
 		this.deactivate();
 	}
 
+	/**
+	 * Deactivate.
+	 */
 	public void deactivate() {
 		this.players.clear();
 		this.totalSpawnedMobs = 0;
@@ -102,10 +113,24 @@ public class TrialSpawnerData {
 		return this.totalSpawnedMobs >= config.getTotalMobs(additionalPlayers);
 	}
 
+	/**
+	 * Are mobs dead.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areMobsDead() {
 		return this.spawnedMobsAlive.isEmpty();
 	}
 
+	/**
+	 * Проверяет возможность spawn more.
+	 *
+	 * @param world world
+	 * @param config config
+	 * @param additionalPlayers additional players
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSpawnMore(ServerWorld world, TrialSpawnerConfig config, int additionalPlayers) {
 		return world.getTime() >= this.nextMobSpawnsAt && this.spawnedMobsAlive.size() < config.getSimultaneousMobs(
 				additionalPlayers);
@@ -119,6 +144,13 @@ public class TrialSpawnerData {
 		return Math.max(0, this.players.size() - 1);
 	}
 
+	/**
+	 * Обновляет players.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param logic logic
+	 */
 	public void updatePlayers(ServerWorld world, BlockPos pos, TrialSpawnerLogic logic) {
 		boolean bl = (pos.asLong() + world.getTime()) % 20L != 0L;
 		if (!bl) {
@@ -196,6 +228,12 @@ public class TrialSpawnerData {
 		return Optional.ofNullable(playerEntity).map(player -> Pair.of(player, StatusEffects.BAD_OMEN));
 	}
 
+	/**
+	 * Сбрасывает and clear mobs.
+	 *
+	 * @param logic logic
+	 * @param world world
+	 */
 	public void resetAndClearMobs(TrialSpawnerLogic logic, ServerWorld world) {
 		this.spawnedMobsAlive.stream().map(world::getEntity).forEach(entity -> {
 			if (entity != null) {

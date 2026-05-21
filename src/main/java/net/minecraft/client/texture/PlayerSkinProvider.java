@@ -63,6 +63,13 @@ public class PlayerSkinProvider {
 		                         .expireAfterAccess(Duration.ofSeconds(15L))
 		                         .build(
 				                         new CacheLoader<PlayerSkinProvider.Key, CompletableFuture<Optional<SkinTextures>>>() {
+					                         /**
+					                          * Load.
+					                          *
+					                          * @param key key
+					                          *
+					                          * @return CompletableFuture> — результат операции
+					                          */
 					                         public CompletableFuture<Optional<SkinTextures>> load(PlayerSkinProvider.Key key) {
 						                         return CompletableFuture.<MinecraftProfileTextures>supplyAsync(
 								                                                 () -> {
@@ -110,6 +117,14 @@ public class PlayerSkinProvider {
 		                         );
 	}
 
+	/**
+	 * Supply skin textures.
+	 *
+	 * @param profile profile
+	 * @param requireSecure require secure
+	 *
+	 * @return Supplier — результат операции
+	 */
 	public Supplier<SkinTextures> supplySkinTextures(GameProfile profile, boolean requireSecure) {
 		CompletableFuture<Optional<SkinTextures>> completableFuture = this.fetchSkinTextures(profile);
 		SkinTextures skinTextures = DefaultSkinHelper.getSkinTextures(profile);
@@ -133,6 +148,13 @@ public class PlayerSkinProvider {
 		}
 	}
 
+	/**
+	 * Fetch skin textures.
+	 *
+	 * @param profile profile
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public CompletableFuture<Optional<SkinTextures>> fetchSkinTextures(GameProfile profile) {
 		if (SharedConstants.DEFAULT_SKIN_OVERRIDE) {
 			SkinTextures skinTextures = DefaultSkinHelper.getSkinTextures(profile);

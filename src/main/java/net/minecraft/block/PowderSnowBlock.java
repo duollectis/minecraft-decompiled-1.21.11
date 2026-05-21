@@ -145,6 +145,13 @@ public class PowderSnowBlock extends Block implements FluidDrainable {
 		return VoxelShapes.empty();
 	}
 
+	/**
+	 * Проверяет возможность walk on powder snow.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canWalkOnPowderSnow(Entity entity) {
 		if (entity.getType().isIn(EntityTypeTags.POWDER_SNOW_WALKABLE_MOBS)) {
 			return true;

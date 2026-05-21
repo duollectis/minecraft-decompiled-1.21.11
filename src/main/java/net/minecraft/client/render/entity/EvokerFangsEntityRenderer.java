@@ -54,6 +54,11 @@ public class EvokerFangsEntityRenderer extends EntityRenderer<EvokerFangsEntity,
 		}
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return EvokerFangsEntityRenderState — результат операции
+	 */
 	public EvokerFangsEntityRenderState createRenderState() {
 		return new EvokerFangsEntityRenderState();
 	}

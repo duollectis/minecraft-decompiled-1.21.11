@@ -13,6 +13,14 @@ public class Scroller {
 	private double cumulHorizontal;
 	private double cumulVertical;
 
+	/**
+	 * Update.
+	 *
+	 * @param horizontal horizontal
+	 * @param vertical vertical
+	 *
+	 * @return Vector2i — результат операции
+	 */
 	public Vector2i update(double horizontal, double vertical) {
 		if (this.cumulHorizontal != 0.0 && Math.signum(horizontal) != Math.signum(this.cumulHorizontal)) {
 			this.cumulHorizontal = 0.0;
@@ -36,6 +44,15 @@ public class Scroller {
 		}
 	}
 
+	/**
+	 * Scroll cycling.
+	 *
+	 * @param amount amount
+	 * @param selectedIndex selected index
+	 * @param total total
+	 *
+	 * @return int — результат операции
+	 */
 	public static int scrollCycling(double amount, int selectedIndex, int total) {
 		int i = (int) Math.signum(amount);
 		selectedIndex -= i;

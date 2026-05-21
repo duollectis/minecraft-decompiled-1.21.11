@@ -52,6 +52,12 @@ public class SynchronizeRegistriesTask implements ServerPlayerConfigurationTask 
 		sender.accept(new SynchronizeTagsS2CPacket(TagPacketSerializer.serializeTags(this.registries)));
 	}
 
+	/**
+	 * Обрабатывает событие select known packs.
+	 *
+	 * @param clientKnownPacks client known packs
+	 * @param sender sender
+	 */
 	public void onSelectKnownPacks(List<VersionedIdentifier> clientKnownPacks, Consumer<Packet<?>> sender) {
 		if (clientKnownPacks.equals(this.knownPacks)) {
 			this.syncRegistryAndTags(sender, Set.copyOf(this.knownPacks));

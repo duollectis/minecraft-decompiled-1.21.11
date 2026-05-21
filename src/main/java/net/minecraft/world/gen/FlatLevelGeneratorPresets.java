@@ -37,6 +37,11 @@ public class FlatLevelGeneratorPresets {
 	public static final RegistryKey<FlatLevelGeneratorPreset> REDSTONE_READY = of("redstone_ready");
 	public static final RegistryKey<FlatLevelGeneratorPreset> THE_VOID = of("the_void");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param presetRegisterable preset registerable
+	 */
 	public static void bootstrap(Registerable<FlatLevelGeneratorPreset> presetRegisterable) {
 		new FlatLevelGeneratorPresets.Registrar(presetRegisterable).bootstrap();
 	}
@@ -100,6 +105,9 @@ public class FlatLevelGeneratorPresets {
 			);
 		}
 
+		/**
+		 * Bootstrap.
+		 */
 		public void bootstrap() {
 			this.createAndRegister(
 					FlatLevelGeneratorPresets.CLASSIC_FLAT,

@@ -16,10 +16,26 @@ public final class NormalizedRelativePos {
 	private int y;
 	private int z;
 
+	/**
+	 * Of.
+	 *
+	 * @param cameraPos camera pos
+	 * @param sectionPos section pos
+	 *
+	 * @return NormalizedRelativePos — результат операции
+	 */
 	public static NormalizedRelativePos of(Vec3d cameraPos, long sectionPos) {
 		return new NormalizedRelativePos().with(cameraPos, sectionPos);
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param cameraPos camera pos
+	 * @param sectionPos section pos
+	 *
+	 * @return NormalizedRelativePos — результат операции
+	 */
 	public NormalizedRelativePos with(Vec3d cameraPos, long sectionPos) {
 		this.x = normalize(cameraPos.getX(), ChunkSectionPos.unpackX(sectionPos));
 		this.y = normalize(cameraPos.getY(), ChunkSectionPos.unpackY(sectionPos));

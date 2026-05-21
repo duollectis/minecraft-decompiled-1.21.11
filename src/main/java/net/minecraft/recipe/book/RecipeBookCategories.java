@@ -26,6 +26,13 @@ public class RecipeBookCategories {
 		return Registry.register(Registries.RECIPE_BOOK_CATEGORY, id, new RecipeBookCategory());
 	}
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return RecipeBookCategory — результат операции
+	 */
 	public static RecipeBookCategory registerAndGetDefault(Registry<RecipeBookCategory> registry) {
 		return CAMPFIRE;
 	}

@@ -3,6 +3,9 @@ package net.minecraft.network.message;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 
+/**
+ * Интерфейс sent message.
+ */
 public interface SentMessage {
 
 	Text content();
@@ -15,6 +18,9 @@ public interface SentMessage {
 		);
 	}
 
+	/**
+	 * Запись chat.
+	 */
 	public record Chat(SignedMessage message) implements SentMessage {
 
 		@Override
@@ -31,6 +37,9 @@ public interface SentMessage {
 		}
 	}
 
+	/**
+	 * Запись profileless.
+	 */
 	public record Profileless(Text content) implements SentMessage {
 
 		@Override

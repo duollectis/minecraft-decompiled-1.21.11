@@ -15,6 +15,9 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.UUID;
 
+/**
+ * Запись player public key.
+ */
 public record PlayerPublicKey(PlayerPublicKey.PublicKeyData data) {
 
 	public static final Text EXPIRED_PUBLIC_KEY_TEXT = Text.translatable("multiplayer.disconnect.expired_public_key");
@@ -39,10 +42,18 @@ public record PlayerPublicKey(PlayerPublicKey.PublicKeyData data) {
 		}
 	}
 
+	/**
+	 * Создаёт signature instance.
+	 *
+	 * @return SignatureVerifier — результат операции
+	 */
 	public SignatureVerifier createSignatureInstance() {
 		return SignatureVerifier.create(this.data.key, "SHA256withRSA");
 	}
 
+	/**
+	 * Запись public key data.
+	 */
 	public record PublicKeyData(Instant expiresAt, PublicKey key, byte[] keySignature) {
 
 		private static final int KEY_SIGNATURE_MAX_SIZE = 4096;
@@ -61,6 +72,11 @@ public record PlayerPublicKey(PlayerPublicKey.PublicKeyData data) {
 			this(buf.readInstant(), buf.readPublicKey(), buf.readByteArray(4096));
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 */
 		public void write(PacketByteBuf buf) {
 			buf.writeInstant(this.expiresAt);
 			buf.writePublicKey(this.key);

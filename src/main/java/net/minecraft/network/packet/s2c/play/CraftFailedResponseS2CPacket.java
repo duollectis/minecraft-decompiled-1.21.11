@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.recipe.display.RecipeDisplay;
 
+/**
+ * Запись craft failed response s2 c packet.
+ */
 public record CraftFailedResponseS2CPacket(
 		int syncId,
 		RecipeDisplay recipeDisplay
@@ -27,6 +30,11 @@ public record CraftFailedResponseS2CPacket(
 		return PlayPackets.PLACE_GHOST_RECIPE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onCraftFailedResponse(this);
 	}

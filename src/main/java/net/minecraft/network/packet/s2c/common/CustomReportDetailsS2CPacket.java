@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PacketType;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Запись custom report details s2 c packet.
+ */
 public record CustomReportDetailsS2CPacket(Map<String, String> details) implements Packet<ClientCommonPacketListener> {
 
 	private static final int MAX_KEY_LENGTH = 128;
@@ -28,6 +31,11 @@ public record CustomReportDetailsS2CPacket(Map<String, String> details) implemen
 		return CommonPackets.CUSTOM_REPORT_DETAILS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onCustomReportDetails(this);
 	}

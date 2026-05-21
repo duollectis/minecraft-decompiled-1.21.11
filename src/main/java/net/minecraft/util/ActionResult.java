@@ -81,6 +81,11 @@ public sealed interface ActionResult permits ActionResult.Success, ActionResult.
 			);
 		}
 
+		/**
+		 * Определяет, следует ли increment stat.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldIncrementStat() {
 			return this.itemContext.incrementStat;
 		}

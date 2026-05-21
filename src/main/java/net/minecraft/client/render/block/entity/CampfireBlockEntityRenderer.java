@@ -34,6 +34,11 @@ public class CampfireBlockEntityRenderer implements BlockEntityRenderer<Campfire
 		this.itemModelManager = ctx.itemModelManager();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return CampfireBlockEntityRenderState — результат операции
+	 */
 	public CampfireBlockEntityRenderState createRenderState() {
 		return new CampfireBlockEntityRenderState();
 	}

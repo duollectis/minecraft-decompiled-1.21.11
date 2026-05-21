@@ -12,6 +12,14 @@ import net.minecraft.util.math.MathHelper;
  */
 public class LookTowardsAttackTargetTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param distance distance
+	 * @param forwardMovement forward movement
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<MobEntity> create(int distance, float forwardMovement) {
 		return TaskTriggerer.task(
 				context -> context.group(

@@ -100,6 +100,15 @@ public class GlassBottleItem extends Item {
 		}
 	}
 
+	/**
+	 * Fill.
+	 *
+	 * @param stack stack
+	 * @param player player
+	 * @param outputStack output stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	protected ItemStack fill(ItemStack stack, PlayerEntity player, ItemStack outputStack) {
 		player.incrementStat(Stats.USED.getOrCreateStat(this));
 		return ItemUsage.exchangeStack(stack, player, outputStack);

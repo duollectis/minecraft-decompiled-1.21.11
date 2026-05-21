@@ -913,6 +913,16 @@ public class CreativeInventoryScreen extends HandledScreen<CreativeInventoryScre
 		return mouseX >= i && mouseX <= i + 26 && mouseY >= j && mouseY <= j + 32;
 	}
 
+	/**
+	 * Отрисовывает tab tooltip if hovered.
+	 *
+	 * @param context context
+	 * @param group group
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean renderTabTooltipIfHovered(DrawContext context, ItemGroup group, int mouseX, int mouseY) {
 		int i = this.getTabX(group);
 		int j = this.getTabY(group);
@@ -925,6 +935,14 @@ public class CreativeInventoryScreen extends HandledScreen<CreativeInventoryScre
 		}
 	}
 
+	/**
+	 * Отрисовывает tab icon.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param tab tab
+	 */
 	protected void renderTabIcon(DrawContext context, int mouseX, int mouseY, ItemGroup tab) {
 		boolean bl = tab == selectedTab;
 		boolean bl2 = tab.getRow() == ItemGroup.Row.TOP;
@@ -960,6 +978,14 @@ public class CreativeInventoryScreen extends HandledScreen<CreativeInventoryScre
 		return selectedTab.getType() == ItemGroup.Type.INVENTORY;
 	}
 
+	/**
+	 * Обрабатывает событие hotbar key press.
+	 *
+	 * @param client client
+	 * @param index index
+	 * @param restore restore
+	 * @param save save
+	 */
 	public static void onHotbarKeyPress(MinecraftClient client, int index, boolean restore, boolean save) {
 		ClientPlayerEntity clientPlayerEntity = client.player;
 		DynamicRegistryManager dynamicRegistryManager = clientPlayerEntity.getEntityWorld().getRegistryManager();
@@ -1037,6 +1063,11 @@ public class CreativeInventoryScreen extends HandledScreen<CreativeInventoryScre
 			return MathHelper.clamp(current - (float) (amount / this.getOverflowRows()), 0.0F, 1.0F);
 		}
 
+		/**
+		 * Scroll items.
+		 *
+		 * @param position position
+		 */
 		public void scrollItems(float position) {
 			int i = this.getRow(position);
 
@@ -1053,6 +1084,11 @@ public class CreativeInventoryScreen extends HandledScreen<CreativeInventoryScre
 			}
 		}
 
+		/**
+		 * Определяет, следует ли show scrollbar.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldShowScrollbar() {
 			return this.itemList.size() > 45;
 		}

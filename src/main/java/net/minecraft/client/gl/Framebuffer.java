@@ -34,12 +34,21 @@ public abstract class Framebuffer {
 		this.useDepthAttachment = useDepthAttachment;
 	}
 
+	/**
+	 * Resize.
+	 *
+	 * @param width width
+	 * @param height height
+	 */
 	public void resize(int width, int height) {
 		RenderSystem.assertOnRenderThread();
 		this.delete();
 		this.initFbo(width, height);
 	}
 
+	/**
+	 * Delete.
+	 */
 	public void delete() {
 		RenderSystem.assertOnRenderThread();
 		if (this.depthAttachment != null) {
@@ -63,6 +72,11 @@ public abstract class Framebuffer {
 		}
 	}
 
+	/**
+	 * Создаёт копию depth from.
+	 *
+	 * @param framebuffer framebuffer
+	 */
 	public void copyDepthFrom(Framebuffer framebuffer) {
 		RenderSystem.assertOnRenderThread();
 		if (this.depthAttachment == null) {
@@ -88,6 +102,12 @@ public abstract class Framebuffer {
 		}
 	}
 
+	/**
+	 * Инициализирует fbo.
+	 *
+	 * @param width width
+	 * @param height height
+	 */
 	public void initFbo(int width, int height) {
 		RenderSystem.assertOnRenderThread();
 		GpuDevice gpuDevice = RenderSystem.getDevice();
@@ -119,6 +139,9 @@ public abstract class Framebuffer {
 		}
 	}
 
+	/**
+	 * Blit to screen.
+	 */
 	public void blitToScreen() {
 		if (this.colorAttachment == null) {
 			throw new IllegalStateException("Can't blit to screen, color texture doesn't exist yet");
@@ -128,6 +151,11 @@ public abstract class Framebuffer {
 		}
 	}
 
+	/**
+	 * Draw blit.
+	 *
+	 * @param texture texture
+	 */
 	public void drawBlit(GpuTextureView texture) {
 		RenderSystem.assertOnRenderThread();
 

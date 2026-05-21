@@ -26,18 +26,45 @@ public class SortedArraySet<T> extends AbstractSet<T> {
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @return > SortedArraySet — результат операции
+	 */
 	public static <T extends Comparable<T>> SortedArraySet<T> create() {
 		return create(10);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param initialCapacity initial capacity
+	 *
+	 * @return > SortedArraySet — результат операции
+	 */
 	public static <T extends Comparable<T>> SortedArraySet<T> create(int initialCapacity) {
 		return new SortedArraySet<T>(initialCapacity, Comparator.naturalOrder());
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param comparator comparator
+	 *
+	 * @return SortedArraySet — результат операции
+	 */
 	public static <T> SortedArraySet<T> create(Comparator<T> comparator) {
 		return create(comparator, 10);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param comparator comparator
+	 * @param initialCapacity initial capacity
+	 *
+	 * @return SortedArraySet — результат операции
+	 */
 	public static <T> SortedArraySet<T> create(Comparator<T> comparator, int initialCapacity) {
 		return new SortedArraySet<>(initialCapacity, comparator);
 	}
@@ -105,6 +132,13 @@ public class SortedArraySet<T> extends AbstractSet<T> {
 		return this.elements[index];
 	}
 
+	/**
+	 * Добавляет and get.
+	 *
+	 * @param object object
+	 *
+	 * @return T — результат операции
+	 */
 	public T addAndGet(T object) {
 		int i = this.binarySearch(object);
 		if (i >= 0) {
@@ -133,10 +167,20 @@ public class SortedArraySet<T> extends AbstractSet<T> {
 		return i >= 0 ? this.get(i) : null;
 	}
 
+	/**
+	 * First.
+	 *
+	 * @return T — результат операции
+	 */
 	public T first() {
 		return this.get(0);
 	}
 
+	/**
+	 * Last.
+	 *
+	 * @return T — результат операции
+	 */
 	public T last() {
 		return this.get(this.size - 1);
 	}

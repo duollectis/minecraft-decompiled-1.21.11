@@ -22,24 +22,57 @@ public abstract class DebugLabelManager {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Label gl gpu buffer.
+	 *
+	 * @param buffer buffer
+	 */
 	public void labelGlGpuBuffer(GlGpuBuffer buffer) {
 	}
 
+	/**
+	 * Label gl texture.
+	 *
+	 * @param texture texture
+	 */
 	public void labelGlTexture(GlTexture texture) {
 	}
 
+	/**
+	 * Label compiled shader.
+	 *
+	 * @param shader shader
+	 */
 	public void labelCompiledShader(CompiledShader shader) {
 	}
 
+	/**
+	 * Label shader program.
+	 *
+	 * @param program program
+	 */
 	public void labelShaderProgram(ShaderProgram program) {
 	}
 
+	/**
+	 * Label allocated buffer.
+	 *
+	 * @param buffer buffer
+	 */
 	public void labelAllocatedBuffer(VertexBufferManager.AllocatedBuffer buffer) {
 	}
 
+	/**
+	 * Push debug group.
+	 *
+	 * @param labelGetter label getter
+	 */
 	public void pushDebugGroup(Supplier<String> labelGetter) {
 	}
 
+	/**
+	 * Pop debug group.
+	 */
 	public void popDebugGroup() {
 	}
 

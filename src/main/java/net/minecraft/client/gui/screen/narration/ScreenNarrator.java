@@ -21,16 +21,33 @@ public class ScreenNarrator {
 					.thenComparing(partIndex -> partIndex.depth)
 	);
 
+	/**
+	 * Строит narrations.
+	 *
+	 * @param builderConsumer builder consumer
+	 */
 	public void buildNarrations(Consumer<NarrationMessageBuilder> builderConsumer) {
 		this.currentMessageIndex++;
 		builderConsumer.accept(new ScreenNarrator.MessageBuilder(0));
 	}
 
+	/**
+	 * Строит narrator text.
+	 *
+	 * @param includeUnchanged include unchanged
+	 *
+	 * @return String — результат операции
+	 */
 	public String buildNarratorText(boolean includeUnchanged) {
 		final StringBuilder stringBuilder = new StringBuilder();
 		Consumer<String> consumer = new Consumer<String>() {
 			private boolean first = true;
 
+			/**
+			 * Accept.
+			 *
+			 * @param string string
+			 */
 			public void accept(String string) {
 				if (!this.first) {
 					stringBuilder.append(". ");

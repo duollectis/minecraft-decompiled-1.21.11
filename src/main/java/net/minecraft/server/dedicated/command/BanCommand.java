@@ -27,6 +27,11 @@ public class BanCommand {
 			ALREADY_BANNED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.ban.failed"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("ban")

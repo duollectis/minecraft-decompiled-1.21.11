@@ -106,6 +106,13 @@ public final class ComponentChanges {
 
 	private static PacketCodec<RegistryByteBuf, ComponentChanges> createPacketCodec(ComponentChanges.PacketCodecFunction packetCodecFunction) {
 		return new PacketCodec<RegistryByteBuf, ComponentChanges>() {
+			/**
+			 * Decode.
+			 *
+			 * @param registryByteBuf registry byte buf
+			 *
+			 * @return ComponentChanges — результат операции
+			 */
 			public ComponentChanges decode(RegistryByteBuf registryByteBuf) {
 				int i = registryByteBuf.readVarInt();
 				int j = registryByteBuf.readVarInt();
@@ -133,6 +140,12 @@ public final class ComponentChanges {
 				}
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param registryByteBuf registry byte buf
+			 * @param componentChanges component changes
+			 */
 			public void encode(RegistryByteBuf registryByteBuf, ComponentChanges componentChanges) {
 				if (componentChanges.isEmpty()) {
 					registryByteBuf.writeVarInt(0);
@@ -201,18 +214,42 @@ public final class ComponentChanges {
 		return new ComponentChanges.Builder();
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param type type
+	 *
+	 * @return @Nullable Optional — 
+	 */
 	public <T> @Nullable Optional<? extends T> get(ComponentType<? extends T> type) {
 		return (Optional<? extends T>) this.changedComponents.get(type);
 	}
 
+	/**
+	 * Entry set.
+	 *
+	 * @return Set, Optional>> — результат операции
+	 */
 	public Set<Entry<ComponentType<?>, Optional<?>>> entrySet() {
 		return this.changedComponents.entrySet();
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.changedComponents.size();
 	}
 
+	/**
+	 * With removed if.
+	 *
+	 * @param removedTypePredicate removed type predicate
+	 *
+	 * @return ComponentChanges — результат операции
+	 */
 	public ComponentChanges withRemovedIf(Predicate<ComponentType<?>> removedTypePredicate) {
 		if (this.isEmpty()) {
 			return EMPTY;
@@ -330,6 +367,11 @@ public final class ComponentChanges {
 			return this.add(component.type(), component.value());
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ComponentChanges — результат операции
+		 */
 		public ComponentChanges build() {
 			return this.changes.isEmpty() ? ComponentChanges.EMPTY : new ComponentChanges(this.changes);
 		}

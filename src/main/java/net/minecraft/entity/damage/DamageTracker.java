@@ -35,6 +35,12 @@ public class DamageTracker {
 		this.entity = entity;
 	}
 
+	/**
+	 * Обрабатывает событие damage.
+	 *
+	 * @param damageSource damage source
+	 * @param damage damage
+	 */
 	public void onDamage(DamageSource damageSource, float damage) {
 		this.update();
 		FallLocation fallLocation = FallLocation.fromEntity(this.entity);
@@ -176,6 +182,9 @@ public class DamageTracker {
 		                             : this.ageOnLastUpdate - this.ageOnLastAttacked;
 	}
 
+	/**
+	 * Update.
+	 */
 	public void update() {
 		int i = this.recentlyAttacked ? 300 : 100;
 		if (this.hasDamage && (!this.entity.isAlive() || this.entity.age - this.ageOnLastDamage > i)) {

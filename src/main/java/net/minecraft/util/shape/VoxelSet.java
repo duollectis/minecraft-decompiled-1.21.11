@@ -27,6 +27,13 @@ public abstract class VoxelSet {
 		}
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param transformation transformation
+	 *
+	 * @return VoxelSet — результат операции
+	 */
 	public VoxelSet transform(DirectionTransformation transformation) {
 		if (transformation == DirectionTransformation.IDENTITY) {
 			return this;
@@ -67,6 +74,16 @@ public abstract class VoxelSet {
 		}
 	}
 
+	/**
+	 * In bounds and contains.
+	 *
+	 * @param cycle cycle
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean inBoundsAndContains(AxisCycleDirection cycle, int x, int y, int z) {
 		return this.inBoundsAndContains(
 				cycle.choose(x, y, z, Direction.Axis.X),
@@ -75,6 +92,15 @@ public abstract class VoxelSet {
 		);
 	}
 
+	/**
+	 * In bounds and contains.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean inBoundsAndContains(int x, int y, int z) {
 		if (x < 0 || y < 0 || z < 0) {
 			return false;
@@ -84,6 +110,16 @@ public abstract class VoxelSet {
 		}
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param cycle cycle
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(AxisCycleDirection cycle, int x, int y, int z) {
 		return this.contains(
 				cycle.choose(x, y, z, Direction.Axis.X),
@@ -92,8 +128,24 @@ public abstract class VoxelSet {
 		);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public abstract boolean contains(int x, int y, int z);
 
+	/**
+	 * Set.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	public abstract void set(int x, int y, int z);
 
 	public boolean isEmpty() {
@@ -176,6 +228,12 @@ public abstract class VoxelSet {
 		return this.getSize(Direction.Axis.Z);
 	}
 
+	/**
+	 * For each edge.
+	 *
+	 * @param callback callback
+	 * @param coalesce coalesce
+	 */
 	public void forEachEdge(VoxelSet.PositionBiConsumer callback, boolean coalesce) {
 		this.forEachEdge(callback, AxisCycleDirection.NONE, coalesce);
 		this.forEachEdge(callback, AxisCycleDirection.FORWARD, coalesce);
@@ -238,10 +296,21 @@ public abstract class VoxelSet {
 		}
 	}
 
+	/**
+	 * For each box.
+	 *
+	 * @param consumer consumer
+	 * @param coalesce coalesce
+	 */
 	public void forEachBox(VoxelSet.PositionBiConsumer consumer, boolean coalesce) {
 		BitSetVoxelSet.forEachBox(this, consumer, coalesce);
 	}
 
+	/**
+	 * For each direction.
+	 *
+	 * @param consumer consumer
+	 */
 	public void forEachDirection(VoxelSet.PositionConsumer consumer) {
 		this.forEachDirection(consumer, AxisCycleDirection.NONE);
 		this.forEachDirection(consumer, AxisCycleDirection.FORWARD);

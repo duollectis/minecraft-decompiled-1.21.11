@@ -65,11 +65,17 @@ public class ResourcePackOrganizer {
 						.collect(ImmutableList.toImmutableList()));
 	}
 
+	/**
+	 * Apply.
+	 */
 	public void apply() {
 		this.refreshEnabledProfiles();
 		this.applier.accept(this.resourcePackManager);
 	}
 
+	/**
+	 * Refresh.
+	 */
 	public void refresh() {
 		this.resourcePackManager.scanPacks();
 		this.enabledPacks.retainAll(this.resourcePackManager.getProfiles());
@@ -134,6 +140,9 @@ public class ResourcePackOrganizer {
 			return this.profile.isRequired();
 		}
 
+		/**
+		 * Toggle.
+		 */
 		protected void toggle() {
 			this.getCurrentList().remove(this.profile);
 			this.profile
@@ -151,6 +160,11 @@ public class ResourcePackOrganizer {
 			}
 		}
 
+		/**
+		 * Move.
+		 *
+		 * @param offset offset
+		 */
 		protected void move(int offset) {
 			List<ResourcePackProfile> list = this.getCurrentList();
 			int i = list.indexOf(this.profile);

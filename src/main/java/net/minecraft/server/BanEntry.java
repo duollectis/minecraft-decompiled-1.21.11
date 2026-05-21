@@ -84,6 +84,11 @@ public abstract class BanEntry<T> extends ServerConfigEntry<T> {
 		                      : Text.literal(string);
 	}
 
+	/**
+	 * To text.
+	 *
+	 * @return Text — результат операции
+	 */
 	public abstract Text toText();
 
 	@Override

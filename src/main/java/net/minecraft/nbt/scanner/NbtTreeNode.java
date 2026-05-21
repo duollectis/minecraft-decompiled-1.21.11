@@ -14,10 +14,20 @@ public record NbtTreeNode(int depth, Map<String, NbtType<?>> selectedFields, Map
 		this(depth, new HashMap<>(), new HashMap<>());
 	}
 
+	/**
+	 * Создаёт root.
+	 *
+	 * @return NbtTreeNode — результат операции
+	 */
 	public static NbtTreeNode createRoot() {
 		return new NbtTreeNode(1);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param query query
+	 */
 	public void add(NbtScanQuery query) {
 		if (this.depth <= query.path().size()) {
 			this.fieldsToRecurse

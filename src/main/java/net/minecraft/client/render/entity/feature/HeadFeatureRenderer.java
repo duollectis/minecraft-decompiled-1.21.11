@@ -118,6 +118,12 @@ public class HeadFeatureRenderer<S extends LivingEntityRenderState, M extends En
 		return SkullBlockEntityRenderer.getCutoutRenderLayer(skullType, null);
 	}
 
+	/**
+	 * Translate.
+	 *
+	 * @param matrices matrices
+	 * @param transformation transformation
+	 */
 	public static void translate(MatrixStack matrices, HeadFeatureRenderer.HeadTransformation transformation) {
 		matrices.translate(0.0F, -0.25F + transformation.yOffset(), 0.0F);
 		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F));

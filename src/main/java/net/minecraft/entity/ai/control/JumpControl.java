@@ -18,6 +18,9 @@ public class JumpControl implements Control {
 		this.active = true;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.entity.setJumping(this.active);
 		this.active = false;

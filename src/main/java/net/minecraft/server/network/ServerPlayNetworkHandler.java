@@ -96,6 +96,9 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/**
+ * Класс server play network handler.
+ */
 public class ServerPlayNetworkHandler
 		extends ServerCommonNetworkHandler
 		implements PlayStateFactories.PacketCodecModifierContext,
@@ -260,11 +263,17 @@ public class ServerPlayNetworkHandler
 		}
 	}
 
+	/**
+	 * Сбрасывает floating ticks.
+	 */
 	public void resetFloatingTicks() {
 		this.floatingTicks = 0;
 		this.vehicleFloatingTicks = 0;
 	}
 
+	/**
+	 * Sync with player position.
+	 */
 	public void syncWithPlayerPosition() {
 		this.lastTickX = this.player.getX();
 		this.lastTickY = this.player.getY();
@@ -1266,10 +1275,25 @@ public class ServerPlayNetworkHandler
 		return false;
 	}
 
+	/**
+	 * Request teleport.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param yaw yaw
+	 * @param pitch pitch
+	 */
 	public void requestTeleport(double x, double y, double z, float yaw, float pitch) {
 		this.requestTeleport(new EntityPosition(new Vec3d(x, y, z), Vec3d.ZERO, yaw, pitch), Collections.emptySet());
 	}
 
+	/**
+	 * Request teleport.
+	 *
+	 * @param pos pos
+	 * @param flags flags
+	 */
 	public void requestTeleport(EntityPosition pos, Set<PositionFlag> flags) {
 		this.lastTeleportCheckTicks = this.ticks;
 		if (++this.requestedTeleportId == Integer.MAX_VALUE) {
@@ -1519,6 +1543,11 @@ public class ServerPlayNetworkHandler
 		this.player.getTextStream().onDisconnect();
 	}
 
+	/**
+	 * Обновляет sequence.
+	 *
+	 * @param sequence sequence
+	 */
 	public void updateSequence(int sequence) {
 		if (sequence < 0) {
 			throw new IllegalArgumentException("Expected packet sequence nr >= 0");
@@ -1855,6 +1884,12 @@ public class ServerPlayNetworkHandler
 		}
 	}
 
+	/**
+	 * Отправляет chat message.
+	 *
+	 * @param message message
+	 * @param params params
+	 */
 	public void sendChatMessage(SignedMessage message, MessageType.Parameters params) {
 		this.sendPacket(
 				new ChatMessageS2CPacket(
@@ -1883,6 +1918,12 @@ public class ServerPlayNetworkHandler
 		}
 	}
 
+	/**
+	 * Отправляет profileless chat message.
+	 *
+	 * @param message message
+	 * @param params params
+	 */
 	public void sendProfilelessChatMessage(Text message, MessageType.Parameters params) {
 		this.sendPacket(new ProfilelessChatMessageS2CPacket(message, params));
 	}
@@ -1891,6 +1932,9 @@ public class ServerPlayNetworkHandler
 		return this.connection.getAddress();
 	}
 
+	/**
+	 * Reconfigure.
+	 */
 	public void reconfigure() {
 		this.requestedReconfiguration = true;
 		this.cleanUp();
@@ -2383,10 +2427,18 @@ public class ServerPlayNetworkHandler
 		return this.player;
 	}
 
+	/**
+	 * Проверяет возможность interact with game.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canInteractWithGame() {
 		return !this.dead && this.remainingLoadingTicks <= 0;
 	}
 
+	/**
+	 * Выполняет тик обновления для loading.
+	 */
 	public void tickLoading() {
 		if (this.remainingLoadingTicks > 0) {
 			this.remainingLoadingTicks--;
@@ -2397,6 +2449,9 @@ public class ServerPlayNetworkHandler
 		this.remainingLoadingTicks = 0;
 	}
 
+	/**
+	 * Mark as dead.
+	 */
 	public void markAsDead() {
 		this.dead = true;
 	}

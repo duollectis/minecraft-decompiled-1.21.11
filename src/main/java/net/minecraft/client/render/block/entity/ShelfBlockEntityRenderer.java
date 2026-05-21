@@ -36,6 +36,11 @@ public class ShelfBlockEntityRenderer implements BlockEntityRenderer<ShelfBlockE
 		this.itemModelManager = context.itemModelManager();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ShelfBlockEntityRenderState — результат операции
+	 */
 	public ShelfBlockEntityRenderState createRenderState() {
 		return new ShelfBlockEntityRenderState();
 	}

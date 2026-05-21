@@ -11,6 +11,9 @@ import org.lwjgl.system.MemoryUtil;
  */
 public class GlfwUtil {
 
+	/**
+	 * Make jvm crash.
+	 */
 	public static void makeJvmCrash() {
 		MemoryUtil.memSet(0L, 0, 1L);
 	}

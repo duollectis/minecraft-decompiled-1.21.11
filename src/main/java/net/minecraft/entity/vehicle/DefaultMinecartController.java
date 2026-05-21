@@ -42,6 +42,11 @@ public class DefaultMinecartController extends MinecartController {
 		return this.interpolator;
 	}
 
+	/**
+	 * Обрабатывает событие lerp.
+	 *
+	 * @param interpolator interpolator
+	 */
 	public void onLerp(PositionInterpolator interpolator) {
 		this.setVelocity(this.velocity);
 	}
@@ -293,6 +298,16 @@ public class DefaultMinecartController extends MinecartController {
 		}
 	}
 
+	/**
+	 * Simulate movement.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param movement movement
+	 *
+	 * @return @Nullable Vec3d — результат операции
+	 */
 	public @Nullable Vec3d simulateMovement(double x, double y, double z, double movement) {
 		int i = MathHelper.floor(x);
 		int j = MathHelper.floor(y);
@@ -335,6 +350,15 @@ public class DefaultMinecartController extends MinecartController {
 		}
 	}
 
+	/**
+	 * Snap position to rail.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return @Nullable Vec3d — результат операции
+	 */
 	public @Nullable Vec3d snapPositionToRail(double x, double y, double z) {
 		int i = MathHelper.floor(x);
 		int j = MathHelper.floor(y);

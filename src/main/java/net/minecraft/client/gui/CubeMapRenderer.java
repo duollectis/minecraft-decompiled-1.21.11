@@ -47,6 +47,13 @@ public class CubeMapRenderer implements AutoCloseable {
 		this.buffer = upload();
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param client client
+	 * @param x x
+	 * @param y y
+	 */
 	public void draw(MinecraftClient client, float x, float y) {
 		RenderSystem.setProjectionMatrix(
 				this.projectionMatrix.set(
@@ -140,6 +147,11 @@ public class CubeMapRenderer implements AutoCloseable {
 		return var3;
 	}
 
+	/**
+	 * Регистрирует textures.
+	 *
+	 * @param textureManager texture manager
+	 */
 	public void registerTextures(TextureManager textureManager) {
 		textureManager.registerTexture(this.id, (AbstractTexture) (new CubemapTexture(this.id)));
 	}

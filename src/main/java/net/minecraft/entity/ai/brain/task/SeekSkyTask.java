@@ -17,6 +17,13 @@ import java.util.Optional;
  */
 public class SeekSkyTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<LivingEntity> create(float speed) {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET)).apply(

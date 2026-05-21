@@ -90,6 +90,14 @@ public class TntBlock extends Block {
 		}
 	}
 
+	/**
+	 * Prime tnt.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean primeTnt(World world, BlockPos pos) {
 		return primeTnt(world, pos, null);
 	}

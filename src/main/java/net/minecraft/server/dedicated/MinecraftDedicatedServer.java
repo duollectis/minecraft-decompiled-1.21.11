@@ -512,10 +512,19 @@ public class MinecraftDedicatedServer extends MinecraftServer implements Dedicat
 		this.executeQueuedCommands();
 	}
 
+	/**
+	 * Enqueue command.
+	 *
+	 * @param command command
+	 * @param commandSource command source
+	 */
 	public void enqueueCommand(String command, ServerCommandSource commandSource) {
 		this.commandQueue.add(new PendingServerCommand(command, commandSource));
 	}
 
+	/**
+	 * Execute queued commands.
+	 */
 	public void executeQueuedCommands() {
 		while (!this.commandQueue.isEmpty()) {
 			PendingServerCommand pendingServerCommand = this.commandQueue.remove(0);
@@ -571,6 +580,9 @@ public class MinecraftDedicatedServer extends MinecraftServer implements Dedicat
 		return this.getServerMotd();
 	}
 
+	/**
+	 * Создаёт gui.
+	 */
 	public void createGui() {
 		if (this.gui == null) {
 			this.gui = DedicatedServerGui.create(this);
@@ -716,6 +728,11 @@ public class MinecraftDedicatedServer extends MinecraftServer implements Dedicat
 		return this.getProperties().logIps;
 	}
 
+	/**
+	 * Конвертирует data.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean convertData() {
 		boolean bl = false;
 

@@ -28,6 +28,11 @@ public class TrialSpawnerBlockEntityRenderer implements BlockEntityRenderer<Tria
 		this.entityRenderDispatcher = context.entityRenderDispatcher();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return MobSpawnerBlockEntityRenderState — результат операции
+	 */
 	public MobSpawnerBlockEntityRenderState createRenderState() {
 		return new MobSpawnerBlockEntityRenderState();
 	}

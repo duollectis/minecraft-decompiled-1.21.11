@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс close screen s2 c packet.
+ */
 public class CloseScreenS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, CloseScreenS2CPacket>
@@ -31,6 +34,11 @@ public class CloseScreenS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.CONTAINER_CLOSE_S2C;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onCloseScreen(this);
 	}

@@ -30,11 +30,17 @@ public class GuiRenderState {
 		this.createNewRootLayer();
 	}
 
+	/**
+	 * Создаёт new root layer.
+	 */
 	public void createNewRootLayer() {
 		this.currentLayer = new GuiRenderState.Layer(null);
 		this.rootLayers.add(this.currentLayer);
 	}
 
+	/**
+	 * Применяет blur.
+	 */
 	public void applyBlur() {
 		if (this.blurLayer != Integer.MAX_VALUE) {
 			throw new IllegalStateException("Can only blur once per frame");
@@ -44,6 +50,9 @@ public class GuiRenderState {
 		}
 	}
 
+	/**
+	 * Go up layer.
+	 */
 	public void goUpLayer() {
 		if (this.currentLayer.up == null) {
 			this.currentLayer.up = new GuiRenderState.Layer(this.currentLayer);
@@ -52,6 +61,11 @@ public class GuiRenderState {
 		this.currentLayer = this.currentLayer.up;
 	}
 
+	/**
+	 * Добавляет item.
+	 *
+	 * @param state state
+	 */
 	public void addItem(ItemGuiElementRenderState state) {
 		if (this.findAndGoToLayerToAdd(state)) {
 			this.itemModelKeys.add(state.state().getModelKey());
@@ -60,6 +74,11 @@ public class GuiRenderState {
 		}
 	}
 
+	/**
+	 * Добавляет text.
+	 *
+	 * @param state state
+	 */
 	public void addText(TextGuiElementRenderState state) {
 		if (this.findAndGoToLayerToAdd(state)) {
 			this.currentLayer.addText(state);
@@ -67,6 +86,11 @@ public class GuiRenderState {
 		}
 	}
 
+	/**
+	 * Добавляет special element.
+	 *
+	 * @param state state
+	 */
 	public void addSpecialElement(SpecialGuiElementRenderState state) {
 		if (this.findAndGoToLayerToAdd(state)) {
 			this.currentLayer.addSpecialElement(state);
@@ -74,6 +98,11 @@ public class GuiRenderState {
 		}
 	}
 
+	/**
+	 * Добавляет simple element.
+	 *
+	 * @param state state
+	 */
 	public void addSimpleElement(SimpleGuiElementRenderState state) {
 		if (this.findAndGoToLayerToAdd(state)) {
 			this.currentLayer.addSimpleElement(state);
@@ -165,10 +194,20 @@ public class GuiRenderState {
 		return false;
 	}
 
+	/**
+	 * Добавляет simple element to current layer.
+	 *
+	 * @param state state
+	 */
 	public void addSimpleElementToCurrentLayer(TexturedQuadGuiElementRenderState state) {
 		this.currentLayer.addSimpleElement(state);
 	}
 
+	/**
+	 * Добавляет prepared text element.
+	 *
+	 * @param state state
+	 */
 	public void addPreparedTextElement(SimpleGuiElementRenderState state) {
 		this.currentLayer.addPreparedText(state);
 	}
@@ -200,6 +239,11 @@ public class GuiRenderState {
 		);
 	}
 
+	/**
+	 * For each item element.
+	 *
+	 * @param itemElementStateConsumer item element state consumer
+	 */
 	public void forEachItemElement(Consumer<ItemGuiElementRenderState> itemElementStateConsumer) {
 		GuiRenderState.Layer layer = this.currentLayer;
 		this.forEachLayer(
@@ -216,6 +260,11 @@ public class GuiRenderState {
 		this.currentLayer = layer;
 	}
 
+	/**
+	 * For each text element.
+	 *
+	 * @param textElementStateConsumer text element state consumer
+	 */
 	public void forEachTextElement(Consumer<TextGuiElementRenderState> textElementStateConsumer) {
 		GuiRenderState.Layer layer = this.currentLayer;
 		this.forEachLayer(
@@ -231,6 +280,11 @@ public class GuiRenderState {
 		this.currentLayer = layer;
 	}
 
+	/**
+	 * For each special element.
+	 *
+	 * @param specialElementStateConsumer special element state consumer
+	 */
 	public void forEachSpecialElement(Consumer<SpecialGuiElementRenderState> specialElementStateConsumer) {
 		GuiRenderState.Layer layer = this.currentLayer;
 		this.forEachLayer(
@@ -247,6 +301,11 @@ public class GuiRenderState {
 		this.currentLayer = layer;
 	}
 
+	/**
+	 * Sort simple elements.
+	 *
+	 * @param simpleElementStateComparator simple element state comparator
+	 */
 	public void sortSimpleElements(Comparator<SimpleGuiElementRenderState> simpleElementStateComparator) {
 		this.forEachLayer(
 				layer -> {
@@ -284,6 +343,9 @@ public class GuiRenderState {
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.itemModelKeys.clear();
 		this.rootLayers.clear();
@@ -309,6 +371,11 @@ public class GuiRenderState {
 			this.parent = parent;
 		}
 
+		/**
+		 * Добавляет item.
+		 *
+		 * @param state state
+		 */
 		public void addItem(ItemGuiElementRenderState state) {
 			if (this.itemElementRenderStates == null) {
 				this.itemElementRenderStates = new ArrayList<>();
@@ -317,6 +384,11 @@ public class GuiRenderState {
 			this.itemElementRenderStates.add(state);
 		}
 
+		/**
+		 * Добавляет text.
+		 *
+		 * @param state state
+		 */
 		public void addText(TextGuiElementRenderState state) {
 			if (this.textElementRenderStates == null) {
 				this.textElementRenderStates = new ArrayList<>();
@@ -325,6 +397,11 @@ public class GuiRenderState {
 			this.textElementRenderStates.add(state);
 		}
 
+		/**
+		 * Добавляет special element.
+		 *
+		 * @param state state
+		 */
 		public void addSpecialElement(SpecialGuiElementRenderState state) {
 			if (this.specialElementRenderStates == null) {
 				this.specialElementRenderStates = new ArrayList<>();
@@ -333,6 +410,11 @@ public class GuiRenderState {
 			this.specialElementRenderStates.add(state);
 		}
 
+		/**
+		 * Добавляет simple element.
+		 *
+		 * @param state state
+		 */
 		public void addSimpleElement(SimpleGuiElementRenderState state) {
 			if (this.simpleElementRenderStates == null) {
 				this.simpleElementRenderStates = new ArrayList<>();
@@ -341,6 +423,11 @@ public class GuiRenderState {
 			this.simpleElementRenderStates.add(state);
 		}
 
+		/**
+		 * Добавляет prepared text.
+		 *
+		 * @param state state
+		 */
 		public void addPreparedText(SimpleGuiElementRenderState state) {
 			if (this.preparedTextElementRenderStates == null) {
 				this.preparedTextElementRenderStates = new ArrayList<>();

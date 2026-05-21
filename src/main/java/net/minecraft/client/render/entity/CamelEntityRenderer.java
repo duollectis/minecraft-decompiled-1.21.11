@@ -47,10 +47,22 @@ public class CamelEntityRenderer extends AgeableMobEntityRenderer<CamelEntity, C
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return CamelEntityRenderState — результат операции
+	 */
 	public CamelEntityRenderState createRenderState() {
 		return new CamelEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param camelEntity camel entity
+	 * @param camelEntityRenderState camel entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(CamelEntity camelEntity, CamelEntityRenderState camelEntityRenderState, float f) {
 		super.updateRenderState(camelEntity, camelEntityRenderState, f);
 		camelEntityRenderState.saddleStack = camelEntity.getEquippedStack(EquipmentSlot.SADDLE).copy();

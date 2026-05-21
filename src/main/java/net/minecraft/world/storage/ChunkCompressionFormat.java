@@ -92,6 +92,13 @@ public class ChunkCompressionFormat {
 		return version;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable ChunkCompressionFormat — 
+	 */
 	public static @Nullable ChunkCompressionFormat get(int id) {
 		return (ChunkCompressionFormat) FORMATS.get(id);
 	}
@@ -114,6 +121,13 @@ public class ChunkCompressionFormat {
 		return currentFormat;
 	}
 
+	/**
+	 * Exists.
+	 *
+	 * @param id id
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean exists(int id) {
 		return FORMATS.containsKey(id);
 	}
@@ -122,10 +136,24 @@ public class ChunkCompressionFormat {
 		return this.id;
 	}
 
+	/**
+	 * Wrap.
+	 *
+	 * @param outputStream output stream
+	 *
+	 * @return OutputStream — результат операции
+	 */
 	public OutputStream wrap(OutputStream outputStream) throws IOException {
 		return this.outputStreamWrapper.wrap(outputStream);
 	}
 
+	/**
+	 * Wrap.
+	 *
+	 * @param inputStream input stream
+	 *
+	 * @return InputStream — результат операции
+	 */
 	public InputStream wrap(InputStream inputStream) throws IOException {
 		return this.inputStreamWrapper.wrap(inputStream);
 	}

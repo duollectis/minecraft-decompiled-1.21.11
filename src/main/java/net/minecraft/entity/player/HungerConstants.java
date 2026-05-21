@@ -31,6 +31,14 @@ public class HungerConstants {
 	public static final float SPRINT_JUMP_EXHAUSTION_BONUS = 0.1F;
 	public static final float ATTACK_EXHAUSTION_BONUS = 0.01F;
 
+	/**
+	 * Вычисляет saturation.
+	 *
+	 * @param nutrition nutrition
+	 * @param saturationModifier saturation modifier
+	 *
+	 * @return float — результат операции
+	 */
 	public static float calculateSaturation(int nutrition, float saturationModifier) {
 		return nutrition * saturationModifier * 2.0F;
 	}

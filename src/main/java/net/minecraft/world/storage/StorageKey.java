@@ -8,6 +8,13 @@ import net.minecraft.world.World;
  */
 public record StorageKey(String level, RegistryKey<World> dimension, String type) {
 
+	/**
+	 * With suffix.
+	 *
+	 * @param suffix suffix
+	 *
+	 * @return StorageKey — результат операции
+	 */
 	public StorageKey withSuffix(String suffix) {
 		return new StorageKey(this.level, this.dimension, this.type + suffix);
 	}

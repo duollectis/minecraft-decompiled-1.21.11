@@ -40,6 +40,14 @@ public class TargetUtil {
 		walkTowardsEachOther(first, second, speed, walkCompletionRange);
 	}
 
+	/**
+	 * Проверяет возможность see.
+	 *
+	 * @param brain brain
+	 * @param target target
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canSee(Brain<?> brain, LivingEntity target) {
 		Optional<LivingTargetCache> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS);
 		return optional.isPresent() && optional.get().contains(target);
@@ -71,6 +79,12 @@ public class TargetUtil {
 		lookAt(second, first);
 	}
 
+	/**
+	 * Look at.
+	 *
+	 * @param entity entity
+	 * @param target target
+	 */
 	public static void lookAt(LivingEntity entity, LivingEntity target) {
 		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, new EntityLookTarget(target, true));
 	}
@@ -85,20 +99,51 @@ public class TargetUtil {
 		walkTowards(second, first, speed, completionRange);
 	}
 
+	/**
+	 * Walk towards.
+	 *
+	 * @param entity entity
+	 * @param target target
+	 * @param speed speed
+	 * @param completionRange completion range
+	 */
 	public static void walkTowards(LivingEntity entity, Entity target, float speed, int completionRange) {
 		walkTowards(entity, new EntityLookTarget(target, true), speed, completionRange);
 	}
 
+	/**
+	 * Walk towards.
+	 *
+	 * @param entity entity
+	 * @param target target
+	 * @param speed speed
+	 * @param completionRange completion range
+	 */
 	public static void walkTowards(LivingEntity entity, BlockPos target, float speed, int completionRange) {
 		walkTowards(entity, new BlockPosLookTarget(target), speed, completionRange);
 	}
 
+	/**
+	 * Walk towards.
+	 *
+	 * @param entity entity
+	 * @param target target
+	 * @param speed speed
+	 * @param completionRange completion range
+	 */
 	public static void walkTowards(LivingEntity entity, LookTarget target, float speed, int completionRange) {
 		WalkTarget walkTarget = new WalkTarget(target, speed, completionRange);
 		entity.getBrain().remember(MemoryModuleType.LOOK_TARGET, target);
 		entity.getBrain().remember(MemoryModuleType.WALK_TARGET, walkTarget);
 	}
 
+	/**
+	 * Give.
+	 *
+	 * @param entity entity
+	 * @param stack stack
+	 * @param targetLocation target location
+	 */
 	public static void give(LivingEntity entity, ItemStack stack, Vec3d targetLocation) {
 		Vec3d vec3d = new Vec3d(0.3F, 0.3F, 0.3F);
 		give(entity, stack, targetLocation, vec3d, 0.3F);
@@ -183,6 +228,15 @@ public class TargetUtil {
 		               .map(target -> target instanceof LivingEntity livingEntity ? livingEntity : null);
 	}
 
+	/**
+	 * Find.
+	 *
+	 * @param entity entity
+	 * @param horizontalRange horizontal range
+	 * @param verticalRange vertical range
+	 *
+	 * @return @Nullable Vec3d — 
+	 */
 	public static @Nullable Vec3d find(PathAwareEntity entity, int horizontalRange, int verticalRange) {
 		Vec3d vec3d = NoPenaltyTargeting.find(entity, horizontalRange, verticalRange);
 		int i = 0;

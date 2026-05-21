@@ -87,10 +87,24 @@ public class MultiNoiseUtil {
 		);
 	}
 
+	/**
+	 * To long.
+	 *
+	 * @param value value
+	 *
+	 * @return long — результат операции
+	 */
 	public static long toLong(float value) {
 		return (long) (value * 10000.0F);
 	}
 
+	/**
+	 * To float.
+	 *
+	 * @param value value
+	 *
+	 * @return float — результат операции
+	 */
 	public static float toFloat(long value) {
 		return (float) value / 10000.0F;
 	}
@@ -148,6 +162,13 @@ public class MultiNoiseUtil {
 			return this.entries;
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @param point point
+		 *
+		 * @return T — 
+		 */
 		public T get(MultiNoiseUtil.NoiseValuePoint point) {
 			return this.getValue(point);
 		}
@@ -283,6 +304,11 @@ public class MultiNoiseUtil {
 			);
 		}
 
+		/**
+		 * Ищет best spawn position.
+		 *
+		 * @return BlockPos — best spawn position
+		 */
 		public BlockPos findBestSpawnPosition() {
 			return this.spawnTarget.isEmpty() ? BlockPos.ORIGIN
 			                                  : MultiNoiseUtil.findFittestPosition(this.spawnTarget, this);
@@ -628,6 +654,14 @@ public class MultiNoiseUtil {
 			}
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @param point point
+		 * @param distanceFunction distance function
+		 *
+		 * @return T — 
+		 */
 		public T get(MultiNoiseUtil.NoiseValuePoint point, MultiNoiseUtil.NodeDistanceFunction<T> distanceFunction) {
 			long[] ls = point.getNoiseValueList();
 			MultiNoiseUtil.SearchTree.TreeLeafNode<T>

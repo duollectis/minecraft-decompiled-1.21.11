@@ -33,10 +33,22 @@ public class SheepEntityRenderer extends AgeableMobEntityRenderer<SheepEntity, S
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SheepEntityRenderState — результат операции
+	 */
 	public SheepEntityRenderState createRenderState() {
 		return new SheepEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param sheepEntity sheep entity
+	 * @param sheepEntityRenderState sheep entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(SheepEntity sheepEntity, SheepEntityRenderState sheepEntityRenderState, float f) {
 		super.updateRenderState(sheepEntity, sheepEntityRenderState, f);
 		sheepEntityRenderState.headAngle = sheepEntity.getHeadAngle(f);

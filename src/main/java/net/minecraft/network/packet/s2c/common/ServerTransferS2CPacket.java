@@ -7,6 +7,9 @@ import net.minecraft.network.packet.CommonPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Запись server transfer s2 c packet.
+ */
 public record ServerTransferS2CPacket(String host, int port) implements Packet<ClientCommonPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ServerTransferS2CPacket> CODEC = Packet.createCodec(
@@ -27,6 +30,11 @@ public record ServerTransferS2CPacket(String host, int port) implements Packet<C
 		return CommonPackets.TRANSFER;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onServerTransfer(this);
 	}

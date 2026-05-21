@@ -367,10 +367,25 @@ public class BlockEntityType<T extends BlockEntity> implements FabricBlockEntity
 		this.blocks = blocks;
 	}
 
+	/**
+	 * Instantiate.
+	 *
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return T — результат операции
+	 */
 	public T instantiate(BlockPos pos, BlockState state) {
 		return (T) this.factory.create(pos, state);
 	}
 
+	/**
+	 * Supports.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean supports(BlockState state) {
 		return this.blocks.contains(state.getBlock());
 	}
@@ -380,11 +395,24 @@ public class BlockEntityType<T extends BlockEntity> implements FabricBlockEntity
 		return this.registryEntry;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return @Nullable T — 
+	 */
 	public @Nullable T get(BlockView world, BlockPos pos) {
 		BlockEntity blockEntity = world.getBlockEntity(pos);
 		return (T) (blockEntity != null && blockEntity.getType() == this ? blockEntity : null);
 	}
 
+	/**
+	 * Проверяет возможность potentially execute commands.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canPotentiallyExecuteCommands() {
 		return POTENTIALLY_EXECUTES_COMMANDS.contains(this);
 	}

@@ -52,6 +52,13 @@ public final class StatusEffectUtil {
 				|| entity.hasStatusEffect(StatusEffects.BREATH_OF_THE_NAUTILUS);
 	}
 
+	/**
+	 * Проверяет возможность increase air on land.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canIncreaseAirOnLand(LivingEntity entity) {
 		return !entity.hasStatusEffect(StatusEffects.BREATH_OF_THE_NAUTILUS)
 				|| entity.hasStatusEffect(StatusEffects.WATER_BREATHING)

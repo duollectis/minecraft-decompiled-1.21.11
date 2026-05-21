@@ -7,6 +7,9 @@ import net.minecraft.network.packet.*;
 
 import java.util.List;
 
+/**
+ * Запись custom payload c2 s packet.
+ */
 public record CustomPayloadC2SPacket(CustomPayload payload) implements Packet<ServerCommonPacketListener> {
 
 	private static final int MAX_PAYLOAD_SIZE = 32767;
@@ -23,6 +26,11 @@ public record CustomPayloadC2SPacket(CustomPayload payload) implements Packet<Se
 		return CommonPackets.CUSTOM_PAYLOAD_C2S;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverCommonPacketListener server common packet listener
+	 */
 	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
 		serverCommonPacketListener.onCustomPayload(this);
 	}

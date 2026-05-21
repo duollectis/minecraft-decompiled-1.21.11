@@ -21,10 +21,20 @@ public class MacWindowUtil {
 	private static final int STYLE_MASK_RESIZE_BIT = 8;
 	private static final int FULLSCREEN_MASK = 16384;
 
+	/**
+	 * Toggle fullscreen.
+	 *
+	 * @param window window
+	 */
 	public static void toggleFullscreen(Window window) {
 		getCocoaWindow(window).filter(MacWindowUtil::isFullscreen).ifPresent(MacWindowUtil::toggleFullscreen);
 	}
 
+	/**
+	 * Fix style mask.
+	 *
+	 * @param window window
+	 */
 	public static void fixStyleMask(Window window) {
 		getCocoaWindow(window).ifPresent(windowHandle -> {
 			long styleMask = getStyleMask(windowHandle);

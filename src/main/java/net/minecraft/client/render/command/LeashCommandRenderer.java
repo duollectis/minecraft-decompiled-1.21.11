@@ -19,6 +19,12 @@ public class LeashCommandRenderer {
 	private static final int LEASH_SEGMENTS = 24;
 	private static final float LEASH_WIDTH = 0.05F;
 
+	/**
+	 * Render.
+	 *
+	 * @param queue queue
+	 * @param vertexConsumers vertex consumers
+	 */
 	public void render(BatchingRenderCommandQueue queue, VertexConsumerProvider.Immediate vertexConsumers) {
 		for (OrderedRenderCommandQueueImpl.LeashCommand leashCommand : queue.getLeashCommands()) {
 			render(leashCommand.matricesEntry(), vertexConsumers, leashCommand.leashState());

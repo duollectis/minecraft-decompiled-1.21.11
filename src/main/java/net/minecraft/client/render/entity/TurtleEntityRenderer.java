@@ -30,10 +30,22 @@ public class TurtleEntityRenderer extends AgeableMobEntityRenderer<TurtleEntity,
 		return turtleEntityRenderState.baby ? f * 0.83F : f;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return TurtleEntityRenderState — результат операции
+	 */
 	public TurtleEntityRenderState createRenderState() {
 		return new TurtleEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param turtleEntity turtle entity
+	 * @param turtleEntityRenderState turtle entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(TurtleEntity turtleEntity, TurtleEntityRenderState turtleEntityRenderState, float f) {
 		super.updateRenderState(turtleEntity, turtleEntityRenderState, f);
 		turtleEntityRenderState.onLand = !turtleEntity.isTouchingWater() && turtleEntity.isOnGround();

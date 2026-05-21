@@ -274,6 +274,11 @@ public class PresetsScreen extends Screen {
 		this.customPresetField.render(context, mouseX, mouseY, deltaTicks);
 	}
 
+	/**
+	 * Обновляет select button.
+	 *
+	 * @param hasSelected has selected
+	 */
 	public void updateSelectButton(boolean hasSelected) {
 		this.selectPresetButton.active = hasSelected || this.customPresetField.getText().length() > 1;
 	}

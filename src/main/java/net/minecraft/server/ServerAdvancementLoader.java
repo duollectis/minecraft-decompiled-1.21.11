@@ -32,6 +32,13 @@ public class ServerAdvancementLoader extends JsonDataLoader<Advancement> {
 		this.registries = registries;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param map map
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(Map<Identifier, Advancement> map, ResourceManager resourceManager, Profiler profiler) {
 		Builder<Identifier, AdvancementEntry> builder = ImmutableMap.builder();
 		map.forEach((id, advancement) -> {
@@ -59,6 +66,13 @@ public class ServerAdvancementLoader extends JsonDataLoader<Advancement> {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable AdvancementEntry — 
+	 */
 	public @Nullable AdvancementEntry get(Identifier id) {
 		return this.advancements.get(id);
 	}

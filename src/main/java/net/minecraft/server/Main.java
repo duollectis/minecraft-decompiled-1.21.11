@@ -73,6 +73,11 @@ public class Main {
 
 	@SuppressLinter(reason = "System.out needed before bootstrap")
 	@DontObfuscate
+	/**
+	 * Main.
+	 *
+	 * @param args args
+	 */
 	public static void main(String[] args) {
 		SharedConstants.createGameVersion();
 		OptionParser optionParser = new OptionParser();

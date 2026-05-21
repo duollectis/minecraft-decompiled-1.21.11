@@ -73,6 +73,13 @@ public abstract class ScrollableWidget extends ClickableWidget {
 		this.scrollY = MathHelper.clamp(scrollY, 0.0, (double) this.getMaxScrollY());
 	}
 
+	/**
+	 * Проверяет scrollbar dragged.
+	 *
+	 * @param click click
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean checkScrollbarDragged(Click click) {
 		this.scrollbarDragged =
 				this.overflows() && this.isValidClickButton(click.buttonInfo()) && this.isInScrollbar(
@@ -87,6 +94,9 @@ public abstract class ScrollableWidget extends ClickableWidget {
 				&& mouseY < this.getBottom();
 	}
 
+	/**
+	 * Refresh scroll.
+	 */
 	public void refreshScroll() {
 		this.setScrollY(this.scrollY);
 	}
@@ -95,6 +105,11 @@ public abstract class ScrollableWidget extends ClickableWidget {
 		return Math.max(0, this.getContentsHeightWithPadding() - this.height);
 	}
 
+	/**
+	 * Overflows.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean overflows() {
 		return this.getMaxScrollY() > 0;
 	}
@@ -118,6 +133,13 @@ public abstract class ScrollableWidget extends ClickableWidget {
 		);
 	}
 
+	/**
+	 * Draw scrollbar.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	protected void drawScrollbar(DrawContext context, int mouseX, int mouseY) {
 		if (this.overflows()) {
 			int i = this.getScrollbarX();

@@ -142,6 +142,11 @@ public class UndergroundConfiguredFeatures {
 		);
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =

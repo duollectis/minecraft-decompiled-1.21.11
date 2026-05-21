@@ -107,6 +107,11 @@ public class GlDebug {
 		LOGGER.info("OpenGL debug message: {}", debugMessage);
 	}
 
+	/**
+	 * Collect debug messages.
+	 *
+	 * @return List — результат операции
+	 */
 	public List<String> collectDebugMessages() {
 		synchronized (this.debugMessages) {
 			List<String> list = Lists.newArrayListWithCapacity(this.debugMessages.size());
@@ -119,6 +124,15 @@ public class GlDebug {
 		}
 	}
 
+	/**
+	 * Включает debug.
+	 *
+	 * @param verbosity verbosity
+	 * @param sync sync
+	 * @param usedGlCaps used gl caps
+	 *
+	 * @return @Nullable GlDebug — результат операции
+	 */
 	public static @Nullable GlDebug enableDebug(int verbosity, boolean sync, Set<String> usedGlCaps) {
 		if (verbosity <= 0) {
 			return null;

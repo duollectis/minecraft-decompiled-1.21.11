@@ -34,6 +34,11 @@ public class BlockParticleEffectsManager {
 		}
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 */
 	public void tick(ClientWorld world) {
 		if (MinecraftClient.getInstance().options.getParticles().getValue() != ParticlesMode.ALL) {
 			this.pool.clear();

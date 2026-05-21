@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.particle.ParticleTypes;
 
+/**
+ * Класс particle s2 c packet.
+ */
 public class ParticleS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, ParticleS2CPacket>
@@ -85,10 +88,20 @@ public class ParticleS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.LEVEL_PARTICLES;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onParticle(this);
 	}
 
+	/**
+	 * Определяет, следует ли force spawn.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldForceSpawn() {
 		return this.forceSpawn;
 	}

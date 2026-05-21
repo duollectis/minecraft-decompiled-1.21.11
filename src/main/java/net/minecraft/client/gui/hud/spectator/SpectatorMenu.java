@@ -104,6 +104,11 @@ public class SpectatorMenu {
 		return this.currentGroup;
 	}
 
+	/**
+	 * Использует command.
+	 *
+	 * @param slot slot
+	 */
 	public void useCommand(int slot) {
 		SpectatorMenuCommand spectatorMenuCommand = this.getCommand(slot);
 		if (spectatorMenuCommand != BLANK_COMMAND) {
@@ -116,6 +121,9 @@ public class SpectatorMenu {
 		}
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		this.closeCallback.close(this);
 	}
@@ -124,6 +132,11 @@ public class SpectatorMenu {
 		return this.selectedSlot;
 	}
 
+	/**
+	 * Select element.
+	 *
+	 * @param group group
+	 */
 	public void selectElement(SpectatorMenuCommandGroup group) {
 		this.currentGroup = group;
 		this.selectedSlot = -1;

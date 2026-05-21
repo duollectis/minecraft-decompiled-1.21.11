@@ -57,6 +57,13 @@ public class SnifferBrain {
 	private static final float TEMPT_SPEED = 1.25F;
 	private static final float FOLLOW_SPEED = 1.25F;
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<SnifferEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -192,20 +199,51 @@ public class SnifferBrain {
 			);
 		}
 
+		/**
+		 * Определяет, следует ли run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldRun(ServerWorld serverWorld, SnifferEntity snifferEntity) {
 			return snifferEntity.canTryToDig();
 		}
 
+		/**
+		 * Определяет, следует ли keep running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldKeepRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			return snifferEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SNIFFER_DIGGING).isPresent()
 					&& snifferEntity.canDig()
 					&& !snifferEntity.isInLove();
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			snifferEntity.startState(SnifferEntity.State.DIGGING);
 		}
 
+		/**
+		 * Finish running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void finishRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			boolean bl = this.isTimeLimitExceeded(l);
 			if (bl) {
@@ -226,14 +264,37 @@ public class SnifferBrain {
 			super(Map.of(MemoryModuleType.SNIFFER_HAPPY, MemoryModuleState.VALUE_PRESENT), minRunTime, maxRunTime);
 		}
 
+		/**
+		 * Определяет, следует ли keep running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldKeepRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			return true;
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			snifferEntity.startState(SnifferEntity.State.FEELING_HAPPY);
 		}
 
+		/**
+		 * Finish running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void finishRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			snifferEntity.startState(SnifferEntity.State.IDLING);
 			snifferEntity.getBrain().forget(MemoryModuleType.SNIFFER_HAPPY);
@@ -262,18 +323,49 @@ public class SnifferBrain {
 			);
 		}
 
+		/**
+		 * Определяет, следует ли run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldRun(ServerWorld serverWorld, SnifferEntity snifferEntity) {
 			return true;
 		}
 
+		/**
+		 * Определяет, следует ли keep running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldKeepRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			return snifferEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SNIFFER_DIGGING).isPresent();
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			snifferEntity.startState(SnifferEntity.State.RISING);
 		}
 
+		/**
+		 * Finish running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void finishRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			boolean bl = this.isTimeLimitExceeded(l);
 			snifferEntity.startState(SnifferEntity.State.IDLING).finishDigging(bl);
@@ -306,18 +398,49 @@ public class SnifferBrain {
 			);
 		}
 
+		/**
+		 * Определяет, следует ли run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldRun(ServerWorld serverWorld, SnifferEntity snifferEntity) {
 			return !snifferEntity.isTempted();
 		}
 
+		/**
+		 * Определяет, следует ли keep running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldKeepRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			return true;
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			snifferEntity.startState(SnifferEntity.State.SCENTING);
 		}
 
+		/**
+		 * Finish running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void finishRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			snifferEntity.startState(SnifferEntity.State.IDLING);
 		}
@@ -342,10 +465,27 @@ public class SnifferBrain {
 			);
 		}
 
+		/**
+		 * Определяет, следует ли run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldRun(ServerWorld serverWorld, SnifferEntity snifferEntity) {
 			return snifferEntity.canTryToDig();
 		}
 
+		/**
+		 * Определяет, следует ли keep running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldKeepRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			if (!snifferEntity.canTryToDig()) {
 				snifferEntity.startState(SnifferEntity.State.IDLING);
@@ -363,10 +503,24 @@ public class SnifferBrain {
 			}
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			snifferEntity.startState(SnifferEntity.State.SEARCHING);
 		}
 
+		/**
+		 * Finish running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void finishRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			if (snifferEntity.canDig() && snifferEntity.canTryToDig()) {
 				snifferEntity.getBrain().remember(MemoryModuleType.SNIFFER_DIGGING, true);
@@ -397,18 +551,49 @@ public class SnifferBrain {
 			);
 		}
 
+		/**
+		 * Определяет, следует ли run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldRun(ServerWorld serverWorld, SnifferEntity snifferEntity) {
 			return !snifferEntity.isBaby() && snifferEntity.canTryToDig();
 		}
 
+		/**
+		 * Определяет, следует ли keep running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldKeepRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			return snifferEntity.canTryToDig();
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			snifferEntity.startState(SnifferEntity.State.SNIFFING);
 		}
 
+		/**
+		 * Finish running.
+		 *
+		 * @param serverWorld server world
+		 * @param snifferEntity sniffer entity
+		 * @param l l
+		 */
 		protected void finishRunning(ServerWorld serverWorld, SnifferEntity snifferEntity, long l) {
 			boolean bl = this.isTimeLimitExceeded(l);
 			snifferEntity.startState(SnifferEntity.State.IDLING);

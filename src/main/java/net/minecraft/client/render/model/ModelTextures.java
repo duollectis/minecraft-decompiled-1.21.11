@@ -36,6 +36,13 @@ public class ModelTextures {
 		this.textures = textures;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param textureId texture id
+	 *
+	 * @return @Nullable SpriteIdentifier — 
+	 */
 	public @Nullable SpriteIdentifier get(String textureId) {
 		if (isTextureReference(textureId)) {
 			textureId = textureId.substring(1);
@@ -91,6 +98,13 @@ public class ModelTextures {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param modelNameSupplier model name supplier
+		 *
+		 * @return ModelTextures — результат операции
+		 */
 		public ModelTextures build(SimpleModel modelNameSupplier) {
 			if (this.textures.isEmpty()) {
 				return ModelTextures.EMPTY;

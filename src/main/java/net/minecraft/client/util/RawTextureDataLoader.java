@@ -16,6 +16,14 @@ import java.io.InputStream;
 public class RawTextureDataLoader {
 
 	@Deprecated
+	/**
+	 * Загружает raw texture data.
+	 *
+	 * @param resourceManager resource manager
+	 * @param id id
+	 *
+	 * @return int[] — результат операции
+	 */
 	public static int[] loadRawTextureData(ResourceManager resourceManager, Identifier id) throws IOException {
 		int[] var4;
 		try (

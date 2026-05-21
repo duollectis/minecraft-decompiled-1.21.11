@@ -108,6 +108,14 @@ public record TeleportTarget(
 		return entity.getWorldSpawnPos(world, world.getSpawnPoint().getPos()).toBottomCenterPos();
 	}
 
+	/**
+	 * With rotation.
+	 *
+	 * @param yaw yaw
+	 * @param pitch pitch
+	 *
+	 * @return TeleportTarget — результат операции
+	 */
 	public TeleportTarget withRotation(float yaw, float pitch) {
 		return new TeleportTarget(
 				this.world(),
@@ -122,6 +130,13 @@ public record TeleportTarget(
 		);
 	}
 
+	/**
+	 * With position.
+	 *
+	 * @param position position
+	 *
+	 * @return TeleportTarget — результат операции
+	 */
 	public TeleportTarget withPosition(Vec3d position) {
 		return new TeleportTarget(
 				this.world(),
@@ -136,6 +151,11 @@ public record TeleportTarget(
 		);
 	}
 
+	/**
+	 * With as passenger.
+	 *
+	 * @return TeleportTarget — результат операции
+	 */
 	public TeleportTarget withAsPassenger() {
 		return new TeleportTarget(
 				this.world(),

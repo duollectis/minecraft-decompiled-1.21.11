@@ -59,6 +59,15 @@ public class LocalTimeProperty implements SelectProperty<String> {
 		this.dateFormat = dateFormat;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param pattern pattern
+	 * @param locale locale
+	 * @param timeZone time zone
+	 *
+	 * @return LocalTimeProperty — результат операции
+	 */
 	public static LocalTimeProperty create(String pattern, String locale, Optional<TimeZone> timeZone) {
 		return (LocalTimeProperty) validate(new LocalTimeProperty.Data(pattern, locale, timeZone))
 				.getOrThrow(format -> new IllegalStateException("Failed to validate format: " + format));

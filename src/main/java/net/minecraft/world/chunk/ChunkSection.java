@@ -55,10 +55,16 @@ public class ChunkSection {
 		return this.blockStateContainer.get(x, y, z).getFluidState();
 	}
 
+	/**
+	 * Lock.
+	 */
 	public void lock() {
 		this.blockStateContainer.lock();
 	}
 
+	/**
+	 * Unlock.
+	 */
 	public void unlock() {
 		this.blockStateContainer.unlock();
 	}
@@ -119,6 +125,9 @@ public class ChunkSection {
 		return this.nonEmptyFluidCount > 0;
 	}
 
+	/**
+	 * Вычисляет counts.
+	 */
 	public void calculateCounts() {
 		/**
 		 * {@code BlockStateCounter}.
@@ -129,6 +138,12 @@ public class ChunkSection {
 			public int randomTickableBlockCount;
 			public int nonEmptyFluidCount;
 
+			/**
+			 * Accept.
+			 *
+			 * @param blockState block state
+			 * @param i i
+			 */
 			public void accept(BlockState blockState, int i) {
 				FluidState fluidState = blockState.getFluidState();
 				if (!blockState.isAir()) {
@@ -162,6 +177,11 @@ public class ChunkSection {
 		return this.biomeContainer;
 	}
 
+	/**
+	 * Читает data packet.
+	 *
+	 * @param buf buf
+	 */
 	public void readDataPacket(PacketByteBuf buf) {
 		this.nonEmptyBlockCount = buf.readShort();
 		this.blockStateContainer.readPacket(buf);
@@ -170,12 +190,22 @@ public class ChunkSection {
 		this.biomeContainer = palettedContainer;
 	}
 
+	/**
+	 * Читает biome packet.
+	 *
+	 * @param buf buf
+	 */
 	public void readBiomePacket(PacketByteBuf buf) {
 		PalettedContainer<RegistryEntry<Biome>> palettedContainer = this.biomeContainer.slice();
 		palettedContainer.readPacket(buf);
 		this.biomeContainer = palettedContainer;
 	}
 
+	/**
+	 * To packet.
+	 *
+	 * @param buf buf
+	 */
 	public void toPacket(PacketByteBuf buf) {
 		buf.writeShort(this.nonEmptyBlockCount);
 		this.blockStateContainer.writePacket(buf);
@@ -215,6 +245,11 @@ public class ChunkSection {
 		this.biomeContainer = palettedContainer;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return ChunkSection — результат операции
+	 */
 	public ChunkSection copy() {
 		return new ChunkSection(this);
 	}

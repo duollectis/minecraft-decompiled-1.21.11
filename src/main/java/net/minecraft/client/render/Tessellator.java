@@ -16,6 +16,9 @@ public class Tessellator {
 	private final BufferAllocator allocator;
 	private static @Nullable Tessellator INSTANCE;
 
+	/**
+	 * Инициализирует ialize.
+	 */
 	public static void initialize() {
 		if (INSTANCE != null) {
 			throw new IllegalStateException("Tesselator has already been initialized");
@@ -42,10 +45,21 @@ public class Tessellator {
 		this(786432);
 	}
 
+	/**
+	 * Begin.
+	 *
+	 * @param drawMode draw mode
+	 * @param format format
+	 *
+	 * @return BufferBuilder — результат операции
+	 */
 	public BufferBuilder begin(VertexFormat.DrawMode drawMode, VertexFormat format) {
 		return new BufferBuilder(this.allocator, drawMode, format);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.allocator.clear();
 	}

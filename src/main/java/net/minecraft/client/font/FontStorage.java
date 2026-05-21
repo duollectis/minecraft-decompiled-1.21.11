@@ -237,6 +237,11 @@ public class FontStorage implements AutoCloseable {
 			this.glyph = glyph;
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @return BakedGlyph — 
+		 */
 		public BakedGlyph get() {
 			if (this.baked == null) {
 				this.baked = this.glyph.bake(FontStorage.this.abstractBaker);

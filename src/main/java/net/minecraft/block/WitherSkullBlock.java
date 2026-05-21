@@ -50,12 +50,25 @@ public class WitherSkullBlock extends SkullBlock {
 		onPlaced(world, pos);
 	}
 
+	/**
+	 * Обрабатывает событие placed.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	public static void onPlaced(World world, BlockPos pos) {
 		if (world.getBlockEntity(pos) instanceof SkullBlockEntity skullBlockEntity) {
 			onPlaced(world, pos, skullBlockEntity);
 		}
 	}
 
+	/**
+	 * Обрабатывает событие placed.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param blockEntity block entity
+	 */
 	public static void onPlaced(World world, BlockPos pos, SkullBlockEntity blockEntity) {
 		if (!world.isClient()) {
 			BlockState blockState = blockEntity.getCachedState();
@@ -93,6 +106,15 @@ public class WitherSkullBlock extends SkullBlock {
 		}
 	}
 
+	/**
+	 * Проверяет возможность dispense.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canDispense(World world, BlockPos pos, ItemStack stack) {
 		return stack.isOf(Items.WITHER_SKELETON_SKULL)
 				       && pos.getY() >= world.getBottomY() + 2

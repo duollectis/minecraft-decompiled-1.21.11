@@ -52,6 +52,13 @@ public record TransmuteRecipeResult(RegistryEntry<Item> itemEntry, int count, Co
 				.map(stack -> result);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param stack stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack apply(ItemStack stack) {
 		ItemStack itemStack = stack.copyComponentsToNewStack(this.itemEntry.value(), this.count);
 		itemStack.applyUnvalidatedChanges(this.components);
@@ -63,6 +70,11 @@ public record TransmuteRecipeResult(RegistryEntry<Item> itemEntry, int count, Co
 		return itemStack.getCount() == 1 && ItemStack.areItemsAndComponentsEqual(stack, itemStack);
 	}
 
+	/**
+	 * Создаёт slot display.
+	 *
+	 * @return SlotDisplay — результат операции
+	 */
 	public SlotDisplay createSlotDisplay() {
 		return new SlotDisplay.StackSlotDisplay(new ItemStack(this.itemEntry, this.count, this.components));
 	}

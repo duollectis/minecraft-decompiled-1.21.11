@@ -21,6 +21,13 @@ public record BiomeSpawnCondition(RegistryEntryList<Biome> requiredBiomes) imple
 					.apply(instance, BiomeSpawnCondition::new)
 	);
 
+	/**
+	 * Test.
+	 *
+	 * @param spawnContext spawn context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(SpawnContext spawnContext) {
 		return this.requiredBiomes.contains(spawnContext.biome());
 	}

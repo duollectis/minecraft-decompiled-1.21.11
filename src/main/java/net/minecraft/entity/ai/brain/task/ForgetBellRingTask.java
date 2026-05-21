@@ -13,6 +13,14 @@ public class ForgetBellRingTask {
 
 	private static final int MIN_HEARD_BELL_TIME = 300;
 
+	/**
+	 * Create.
+	 *
+	 * @param maxHiddenSeconds max hidden seconds
+	 * @param distance distance
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(int maxHiddenSeconds, int distance) {
 		int i = maxHiddenSeconds * 20;
 		MutableInt mutableInt = new MutableInt(0);

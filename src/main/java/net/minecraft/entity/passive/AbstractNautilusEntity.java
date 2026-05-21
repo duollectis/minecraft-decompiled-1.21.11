@@ -230,6 +230,11 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 		       : 0.02F * (float) this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED);
 	}
 
+	/**
+	 * Put player on back.
+	 *
+	 * @param player player
+	 */
 	protected void putPlayerOnBack(PlayerEntity player) {
 		if (!this.getEntityWorld().isClient()) {
 			player.startRiding(this);
@@ -243,6 +248,9 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 		return !this.isBaby() && this.getEquippedStack(EquipmentSlot.SADDLE).isEmpty() ? 32 : 16;
 	}
 
+	/**
+	 * Выполняет тик обновления для position target.
+	 */
 	protected void tickPositionTarget() {
 		if (!this.isLeashed() && !this.hasPassengers() && this.isTamed()) {
 			int i = this.getMaxTargetRange();
@@ -349,6 +357,12 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 		this.dataTracker.set(DASHING, dashing);
 	}
 
+	/**
+	 * Dash.
+	 *
+	 * @param strength strength
+	 * @param controller controller
+	 */
 	protected void dash(float strength, PlayerEntity controller) {
 		this.addVelocityInternal(
 				controller.getRotationVector()
@@ -513,6 +527,9 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 		return MountScreenHandler.getSlotCount(this.getInventoryColumns());
 	}
 
+	/**
+	 * Инициализирует inventory.
+	 */
 	protected void initInventory() {
 		SimpleInventory simpleInventory = this.inventory;
 		this.inventory = new SimpleInventory(this.getSlotCount());
@@ -543,6 +560,13 @@ public abstract class AbstractNautilusEntity extends TameableEntity implements R
 		                                           : super.getStackReference(slot);
 	}
 
+	/**
+	 * Are inventories different.
+	 *
+	 * @param inventory inventory
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areInventoriesDifferent(Inventory inventory) {
 		return this.inventory != inventory;
 	}

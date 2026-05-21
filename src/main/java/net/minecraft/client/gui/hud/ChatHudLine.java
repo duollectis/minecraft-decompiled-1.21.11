@@ -24,6 +24,14 @@ public record ChatHudLine(
 
 	private static final int PADDING = 4;
 
+	/**
+	 * Ломает lines.
+	 *
+	 * @param textRenderer text renderer
+	 * @param width width
+	 *
+	 * @return List — результат операции
+	 */
 	public List<OrderedText> breakLines(TextRenderer textRenderer, int width) {
 		if (this.indicator != null && this.indicator.icon() != null) {
 			width -= this.indicator.icon().width + 4 + 2;

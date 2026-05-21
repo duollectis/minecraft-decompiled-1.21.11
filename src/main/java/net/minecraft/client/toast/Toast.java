@@ -74,6 +74,11 @@ public interface Toast {
 			this.sound = sound;
 		}
 
+		/**
+		 * Play sound.
+		 *
+		 * @param soundManager sound manager
+		 */
 		public void playSound(SoundManager soundManager) {
 			soundManager.play(PositionedSoundInstance.master(this.sound, 1.0F, 1.0F));
 		}

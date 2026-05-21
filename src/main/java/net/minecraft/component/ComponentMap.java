@@ -156,6 +156,11 @@ public interface ComponentMap extends Iterable<Component<?>>, ComponentsAccess {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ComponentMap — результат операции
+		 */
 		public ComponentMap build() {
 			return build(this.components);
 		}

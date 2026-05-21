@@ -188,6 +188,13 @@ public class IntegratedServerLoader {
 		);
 	}
 
+	/**
+	 * Загружает for recreation.
+	 *
+	 * @param session session
+	 *
+	 * @return Pair — результат операции
+	 */
 	public Pair<LevelInfo, GeneratorOptionsHolder> loadForRecreation(LevelStorage.Session session) throws Exception {
 		ResourcePackManager resourcePackManager = VanillaDataPackProvider.createManager(session);
 		Dynamic<?> dynamic = session.readLevelProperties();
@@ -323,6 +330,12 @@ public class IntegratedServerLoader {
 		}
 	}
 
+	/**
+	 * Start.
+	 *
+	 * @param name name
+	 * @param onCancel on cancel
+	 */
 	public void start(String name, Runnable onCancel) {
 		this.client.setScreenAndRender(new MessageScreen(Text.translatable("selectWorld.data_read")));
 		LevelStorage.Session session = this.createSession(name);

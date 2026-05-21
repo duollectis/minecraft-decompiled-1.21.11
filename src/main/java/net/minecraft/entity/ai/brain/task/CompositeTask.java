@@ -121,6 +121,11 @@ public class CompositeTask<E extends LivingEntity> implements Task<E> {
 			this.listModifier = listModifier;
 		}
 
+		/**
+		 * Apply.
+		 *
+		 * @param list list
+		 */
 		public void apply(WeightedList<?> list) {
 			this.listModifier.accept(list);
 		}

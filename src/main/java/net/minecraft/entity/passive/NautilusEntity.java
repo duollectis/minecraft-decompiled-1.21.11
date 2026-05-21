@@ -39,6 +39,14 @@ public class NautilusEntity extends AbstractNautilusEntity {
 		return (Brain<NautilusEntity>) super.getBrain();
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable NautilusEntity — результат операции
+	 */
 	public @Nullable NautilusEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		NautilusEntity nautilusEntity = EntityType.NAUTILUS.create(serverWorld, SpawnReason.BREEDING);
 		if (nautilusEntity != null && this.isTamed()) {
@@ -123,6 +131,12 @@ public class NautilusEntity extends AbstractNautilusEntity {
 		return 300;
 	}
 
+	/**
+	 * Выполняет тик обновления для air.
+	 *
+	 * @param world world
+	 * @param lastAir last air
+	 */
 	protected void tickAir(ServerWorld world, int lastAir) {
 		if (this.isAlive() && !this.isTouchingWater()) {
 			this.setAir(lastAir - 1);

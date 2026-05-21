@@ -48,6 +48,13 @@ public class V0TextFilterer extends AbstractTextFilterer {
 		this.apiKey = apiKey;
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param config config
+	 *
+	 * @return @Nullable AbstractTextFilterer — результат операции
+	 */
 	public static @Nullable AbstractTextFilterer load(String config) {
 		try {
 			JsonObject jsonObject = JsonHelper.deserialize(config);

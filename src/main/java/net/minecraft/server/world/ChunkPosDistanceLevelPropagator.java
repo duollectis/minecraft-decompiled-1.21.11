@@ -72,6 +72,13 @@ public abstract class ChunkPosDistanceLevelPropagator extends LevelPropagator {
 
 	protected abstract int getInitialLevel(long id);
 
+	/**
+	 * Обновляет level.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param distance distance
+	 * @param decrease decrease
+	 */
 	public void updateLevel(long chunkPos, int distance, boolean decrease) {
 		this.updateLevel(ChunkPos.MARKER, chunkPos, distance, decrease);
 	}

@@ -275,6 +275,13 @@ public class RecipeAlternativesWidget implements Drawable, Element {
 				}
 			}
 
+			/**
+			 * Get.
+			 *
+			 * @param index index
+			 *
+			 * @return ItemStack — 
+			 */
 			public ItemStack get(int index) {
 				return this.stacks.get(index % this.stacks.size());
 			}

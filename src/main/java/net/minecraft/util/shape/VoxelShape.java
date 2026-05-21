@@ -53,6 +53,11 @@ public abstract class VoxelShape {
 		}
 	}
 
+	/**
+	 * As cuboid.
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public VoxelShape asCuboid() {
 		return this.isEmpty()
 		       ? VoxelShapes.empty()
@@ -76,14 +81,37 @@ public abstract class VoxelShape {
 		return this.voxels.isEmpty();
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param vec3d vec3d
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public VoxelShape offset(Vec3d vec3d) {
 		return this.offset(vec3d.x, vec3d.y, vec3d.z);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param vec vec
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public VoxelShape offset(Vec3i vec) {
 		return this.offset(vec.getX(), vec.getY(), vec.getZ());
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public VoxelShape offset(double x, double y, double z) {
 		return (VoxelShape) (this.isEmpty()
 		                     ? VoxelShapes.empty()
@@ -96,6 +124,11 @@ public abstract class VoxelShape {
 		);
 	}
 
+	/**
+	 * Simplify.
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public VoxelShape simplify() {
 		VoxelShape[] voxelShapes = new VoxelShape[]{VoxelShapes.empty()};
 		this.forEachBox(
@@ -106,6 +139,11 @@ public abstract class VoxelShape {
 		return voxelShapes[0];
 	}
 
+	/**
+	 * For each edge.
+	 *
+	 * @param consumer consumer
+	 */
 	public void forEachEdge(VoxelShapes.BoxConsumer consumer) {
 		this.voxels
 				.forEachEdge(
@@ -121,6 +159,11 @@ public abstract class VoxelShape {
 				);
 	}
 
+	/**
+	 * For each box.
+	 *
+	 * @param consumer consumer
+	 */
 	public void forEachBox(VoxelShapes.BoxConsumer consumer) {
 		DoubleList doubleList = this.getPointPositions(Direction.Axis.X);
 		DoubleList doubleList2 = this.getPointPositions(Direction.Axis.Y);
@@ -168,6 +211,15 @@ public abstract class VoxelShape {
 				- 1;
 	}
 
+	/**
+	 * Raycast.
+	 *
+	 * @param start start
+	 * @param end end
+	 * @param pos pos
+	 *
+	 * @return @Nullable BlockHitResult — результат операции
+	 */
 	public @Nullable BlockHitResult raycast(Vec3d start, Vec3d end, BlockPos pos) {
 		if (this.isEmpty()) {
 			return null;
@@ -271,10 +323,28 @@ public abstract class VoxelShape {
 				&& DoubleMath.fuzzyEquals(doubleList.getDouble(1), 1.0, 1.0E-7);
 	}
 
+	/**
+	 * Вычисляет max distance.
+	 *
+	 * @param axis axis
+	 * @param box box
+	 * @param maxDist max dist
+	 *
+	 * @return double — результат операции
+	 */
 	public double calculateMaxDistance(Direction.Axis axis, Box box, double maxDist) {
 		return this.calculateMaxDistance(AxisCycleDirection.between(axis, Direction.Axis.X), box, maxDist);
 	}
 
+	/**
+	 * Вычисляет max distance.
+	 *
+	 * @param axisCycle axis cycle
+	 * @param box box
+	 * @param maxDist max dist
+	 *
+	 * @return double — результат операции
+	 */
 	protected double calculateMaxDistance(AxisCycleDirection axisCycle, Box box, double maxDist) {
 		if (this.isEmpty()) {
 			return maxDist;

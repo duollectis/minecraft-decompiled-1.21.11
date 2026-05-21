@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс boat paddle state c2 s packet.
+ */
 public class BoatPaddleStateC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, BoatPaddleStateC2SPacket> CODEC = Packet.createCodec(
@@ -30,6 +33,11 @@ public class BoatPaddleStateC2SPacket implements Packet<ServerPlayPacketListener
 		buf.writeBoolean(this.rightPaddling);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onBoatPaddleState(this);
 	}

@@ -10,6 +10,11 @@ import net.minecraft.entity.mob.PiglinEntity;
  */
 public class RemoveOffHandItemTask {
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<PiglinEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.ADMIRING_ITEM)).apply(

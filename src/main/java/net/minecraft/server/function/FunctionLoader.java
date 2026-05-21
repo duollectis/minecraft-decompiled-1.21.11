@@ -52,6 +52,13 @@ public class FunctionLoader implements ResourceReloader {
 	private final PermissionPredicate permissions;
 	private final CommandDispatcher<ServerCommandSource> commandDispatcher;
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return Optional> — 
+	 */
 	public Optional<CommandFunction<ServerCommandSource>> get(Identifier id) {
 		return Optional.ofNullable(this.functions.get(id));
 	}

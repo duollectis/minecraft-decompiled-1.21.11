@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PlayPackets;
 
 import java.util.Set;
 
+/**
+ * Запись entity position s2 c packet.
+ */
 public record EntityPositionS2CPacket(
 		int entityId,
 		EntityPosition change,
@@ -45,6 +48,11 @@ public record EntityPositionS2CPacket(
 		return PlayPackets.TELEPORT_ENTITY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntityPosition(this);
 	}

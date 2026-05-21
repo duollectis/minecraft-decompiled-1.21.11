@@ -17,6 +17,12 @@ public class ChunkLoadingCounter {
 	private final List<ChunkHolder> nonFullChunks = new ArrayList<>();
 	private int totalChunks;
 
+	/**
+	 * Load.
+	 *
+	 * @param world world
+	 * @param runnable runnable
+	 */
 	public void load(ServerWorld world, Runnable runnable) {
 		ServerChunkManager serverChunkManager = world.getChunkManager();
 		LongSet longSet = new LongOpenHashSet();

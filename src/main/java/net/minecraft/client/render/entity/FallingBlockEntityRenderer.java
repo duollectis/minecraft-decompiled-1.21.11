@@ -23,6 +23,17 @@ public class FallingBlockEntityRenderer extends EntityRenderer<FallingBlockEntit
 		this.shadowRadius = 0.5F;
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param fallingBlockEntity falling block entity
+	 * @param frustum frustum
+	 * @param d d
+	 * @param e e
+	 * @param f f
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRender(FallingBlockEntity fallingBlockEntity, Frustum frustum, double d, double e, double f) {
 		return !super.shouldRender(fallingBlockEntity, frustum, d, e, f)
 		       ? false
@@ -50,6 +61,11 @@ public class FallingBlockEntityRenderer extends EntityRenderer<FallingBlockEntit
 		}
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return FallingBlockEntityRenderState — результат операции
+	 */
 	public FallingBlockEntityRenderState createRenderState() {
 		return new FallingBlockEntityRenderState();
 	}

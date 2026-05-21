@@ -388,6 +388,9 @@ public class SimpleRegistry<T> implements MutableRegistry<T> {
 		map.forEach(RegistryEntry.Reference::setTags);
 	}
 
+	/**
+	 * Сбрасывает tag entries.
+	 */
 	public void resetTagEntries() {
 		this.assertNotFrozen();
 		this.tags.values().forEach(tag -> tag.setEntries(List.of()));

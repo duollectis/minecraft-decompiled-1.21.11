@@ -42,6 +42,14 @@ public record AttributeEnchantmentEffect(
 		return this.id.withSuffixedPath("/" + suffix.asString());
 	}
 
+	/**
+	 * Создаёт attribute modifier.
+	 *
+	 * @param value value
+	 * @param suffix suffix
+	 *
+	 * @return EntityAttributeModifier — результат операции
+	 */
 	public EntityAttributeModifier createAttributeModifier(int value, StringIdentifiable suffix) {
 		return new EntityAttributeModifier(this.getModifierId(suffix), this.amount().getValue(value), this.operation());
 	}

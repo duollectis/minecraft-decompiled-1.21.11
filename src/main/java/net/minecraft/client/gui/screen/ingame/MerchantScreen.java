@@ -434,6 +434,13 @@ public class MerchantScreen extends HandledScreen<MerchantScreenHandler> {
 			return this.index;
 		}
 
+		/**
+		 * Отрисовывает tooltip.
+		 *
+		 * @param context context
+		 * @param x x
+		 * @param y y
+		 */
 		public void renderTooltip(DrawContext context, int x, int y) {
 			if (this.hovered && MerchantScreen.this.handler.getRecipes().size()
 					> this.index + MerchantScreen.this.indexStartOffset) {

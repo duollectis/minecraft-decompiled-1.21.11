@@ -172,6 +172,12 @@ public class CopyNbtLootFunction extends ConditionalLootFunction {
 				                    .apply(instance, CopyNbtLootFunction.Operation::new)
 		);
 
+		/**
+		 * Execute.
+		 *
+		 * @param itemNbtGetter item nbt getter
+		 * @param sourceEntityNbt source entity nbt
+		 */
 		public void execute(Supplier<NbtElement> itemNbtGetter, NbtElement sourceEntityNbt) {
 			try {
 				List<NbtElement> list = this.parsedSourcePath.get(sourceEntityNbt);

@@ -18,6 +18,14 @@ public class PrioritizedConsecutiveExecutor extends ConsecutiveExecutor<TaskQueu
 		return new TaskQueue.PrioritizedTask(0, runnable);
 	}
 
+	/**
+	 * Execute async.
+	 *
+	 * @param priority priority
+	 * @param future future
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public <Source> CompletableFuture<Source> executeAsync(int priority, Consumer<CompletableFuture<Source>> future) {
 		CompletableFuture<Source> completableFuture = new CompletableFuture<>();
 		this.send(new TaskQueue.PrioritizedTask(priority, () -> future.accept(completableFuture)));

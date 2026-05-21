@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.debug.DebugSubscriptionType;
 
+/**
+ * Запись block value debug s2 c packet.
+ */
 public record BlockValueDebugS2CPacket(
 		BlockPos blockPos,
 		DebugSubscriptionType.OptionalValue<?> update
@@ -27,6 +30,11 @@ public record BlockValueDebugS2CPacket(
 		return PlayPackets.BLOCK_VALUE_DEBUG;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onBlockValueDebug(this);
 	}

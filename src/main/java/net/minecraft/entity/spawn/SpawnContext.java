@@ -16,6 +16,14 @@ public record SpawnContext(
 		RegistryEntry<Biome> biome
 ) {
 
+	/**
+	 * Of.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return SpawnContext — результат операции
+	 */
 	public static SpawnContext of(ServerWorldAccess world, BlockPos pos) {
 		RegistryEntry<Biome> registryEntry = world.getBiome(pos);
 		return new SpawnContext(pos, world, world.getEnvironmentAttributes(), registryEntry);

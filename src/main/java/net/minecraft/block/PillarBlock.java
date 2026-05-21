@@ -31,6 +31,14 @@ public class PillarBlock extends Block {
 		return changeRotation(state, rotation);
 	}
 
+	/**
+	 * Change rotation.
+	 *
+	 * @param state state
+	 * @param rotation rotation
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public static BlockState changeRotation(BlockState state, BlockRotation rotation) {
 		switch (rotation) {
 			case COUNTERCLOCKWISE_90:

@@ -43,11 +43,19 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 		this.contents = this.collectContents(MinecraftClient.getInstance().isOptionalTelemetryEnabled());
 	}
 
+	/**
+	 * Refresh.
+	 *
+	 * @param optionalTelemetryEnabled optional telemetry enabled
+	 */
 	public void refresh(boolean optionalTelemetryEnabled) {
 		this.contents = this.collectContents(optionalTelemetryEnabled);
 		this.refreshScroll();
 	}
 
+	/**
+	 * Инициализирует contents.
+	 */
 	public void initContents() {
 		this.contents = this.collectContents(MinecraftClient.getInstance().isOptionalTelemetryEnabled());
 		this.refreshScroll();
@@ -170,10 +178,23 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 			this.layout.add(EmptyWidget.ofWidth(gridWidth));
 		}
 
+		/**
+		 * Append title.
+		 *
+		 * @param textRenderer text renderer
+		 * @param title title
+		 */
 		public void appendTitle(TextRenderer textRenderer, Text title) {
 			this.appendTitle(textRenderer, title, 0);
 		}
 
+		/**
+		 * Append title.
+		 *
+		 * @param textRenderer text renderer
+		 * @param title title
+		 * @param marginBottom margin bottom
+		 */
 		public void appendTitle(TextRenderer textRenderer, Text title, int marginBottom) {
 			this.layout.add(
 					new MultilineTextWidget(title, textRenderer).setMaxWidth(this.gridWidth),
@@ -182,6 +203,12 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 			this.narration.append(title).append("\n");
 		}
 
+		/**
+		 * Append text.
+		 *
+		 * @param textRenderer text renderer
+		 * @param text text
+		 */
 		public void appendText(TextRenderer textRenderer, Text text) {
 			this.layout
 					.add(
@@ -193,6 +220,11 @@ public class TelemetryEventWidget extends ScrollableTextFieldWidget {
 			this.narration.append(text).append("\n");
 		}
 
+		/**
+		 * Append space.
+		 *
+		 * @param height height
+		 */
 		public void appendSpace(int height) {
 			this.layout.add(EmptyWidget.ofHeight(height));
 		}

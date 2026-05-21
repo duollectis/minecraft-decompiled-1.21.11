@@ -23,6 +23,11 @@ public class SpectralArrowEntityRenderer extends ProjectileEntityRenderer<Spectr
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ProjectileEntityRenderState — результат операции
+	 */
 	public ProjectileEntityRenderState createRenderState() {
 		return new ProjectileEntityRenderState();
 	}

@@ -24,18 +24,37 @@ public final class MemoryQueryResult<F extends K1, Value> {
 		return this.value;
 	}
 
+	/**
+	 * Remember.
+	 *
+	 * @param value value
+	 */
 	public void remember(Value value) {
 		this.brain.remember(this.memory, Optional.of(value));
 	}
 
+	/**
+	 * Remember.
+	 *
+	 * @param value value
+	 */
 	public void remember(Optional<Value> value) {
 		this.brain.remember(this.memory, value);
 	}
 
+	/**
+	 * Remember.
+	 *
+	 * @param value value
+	 * @param expiry expiry
+	 */
 	public void remember(Value value, long expiry) {
 		this.brain.remember(this.memory, value, expiry);
 	}
 
+	/**
+	 * Forget.
+	 */
 	public void forget() {
 		this.brain.forget(this.memory);
 	}

@@ -40,19 +40,43 @@ public abstract class RealmsScreen extends Screen {
 		super(text);
 	}
 
+	/**
+	 * Row.
+	 *
+	 * @param index index
+	 *
+	 * @return int — результат операции
+	 */
 	protected static int row(int index) {
 		return 40 + index * 13;
 	}
 
+	/**
+	 * Добавляет label.
+	 *
+	 * @param label label
+	 *
+	 * @return RealmsLabel — результат операции
+	 */
 	protected RealmsLabel addLabel(RealmsLabel label) {
 		this.labels.add(label);
 		return this.addDrawable(label);
 	}
 
+	/**
+	 * Narrate labels.
+	 *
+	 * @return Text — результат операции
+	 */
 	public Text narrateLabels() {
 		return ScreenTexts.joinLines(this.labels.stream().map(RealmsLabel::getText).collect(Collectors.toList()));
 	}
 
+	/**
+	 * Создаёт realms logo icon widget.
+	 *
+	 * @return IconWidget — результат операции
+	 */
 	protected static IconWidget createRealmsLogoIconWidget() {
 		return IconWidget.create(128, 34, REALMS_LOGO_TEXTURE, 128, 64);
 	}

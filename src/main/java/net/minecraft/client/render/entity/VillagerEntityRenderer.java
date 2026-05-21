@@ -57,6 +57,11 @@ public class VillagerEntityRenderer extends AgeableMobEntityRenderer<VillagerEnt
 		return villagerEntityRenderState.baby ? f * 0.5F : f;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return VillagerEntityRenderState — результат операции
+	 */
 	public VillagerEntityRenderState createRenderState() {
 		return new VillagerEntityRenderState();
 	}

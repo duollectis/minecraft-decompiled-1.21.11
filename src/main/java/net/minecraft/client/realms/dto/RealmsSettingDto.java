@@ -16,6 +16,13 @@ public record RealmsSettingDto(
 		@SerializedName("value") String value
 ) implements RealmsSerializable {
 
+	/**
+	 * Of hardcore.
+	 *
+	 * @param hardcore hardcore
+	 *
+	 * @return RealmsSettingDto — результат операции
+	 */
 	public static RealmsSettingDto ofHardcore(boolean hardcore) {
 		return new RealmsSettingDto("hardcore", Boolean.toString(hardcore));
 	}

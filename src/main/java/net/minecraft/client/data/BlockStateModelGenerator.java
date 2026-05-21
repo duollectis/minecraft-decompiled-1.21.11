@@ -320,14 +320,35 @@ public class BlockStateModelGenerator {
 			CHISELED_BOOKSHELF_MODEL_CACHE =
 			new HashMap<>();
 
+	/**
+	 * Создаёт model variant.
+	 *
+	 * @param id id
+	 *
+	 * @return ModelVariant — результат операции
+	 */
 	public static ModelVariant createModelVariant(Identifier id) {
 		return new ModelVariant(id);
 	}
 
+	/**
+	 * Создаёт weighted variant.
+	 *
+	 * @param variant variant
+	 *
+	 * @return WeightedVariant — результат операции
+	 */
 	public static WeightedVariant createWeightedVariant(ModelVariant variant) {
 		return new WeightedVariant(Pool.of(variant));
 	}
 
+	/**
+	 * Создаёт weighted variant.
+	 *
+	 * @param variants variants
+	 *
+	 * @return WeightedVariant — результат операции
+	 */
 	public static WeightedVariant createWeightedVariant(ModelVariant... variants) {
 		return new WeightedVariant(Pool.of(Arrays
 				.stream(variants)
@@ -335,10 +356,22 @@ public class BlockStateModelGenerator {
 				.toList()));
 	}
 
+	/**
+	 * Создаёт weighted variant.
+	 *
+	 * @param id id
+	 *
+	 * @return WeightedVariant — результат операции
+	 */
 	public static WeightedVariant createWeightedVariant(Identifier id) {
 		return createWeightedVariant(createModelVariant(id));
 	}
 
+	/**
+	 * Создаёт multipart condition builder.
+	 *
+	 * @return MultipartModelConditionBuilder — результат операции
+	 */
 	public static MultipartModelConditionBuilder createMultipartConditionBuilder() {
 		return new MultipartModelConditionBuilder();
 	}
@@ -357,6 +390,13 @@ public class BlockStateModelGenerator {
 		return createMultipartConditionBuilder().put(property, value);
 	}
 
+	/**
+	 * Or.
+	 *
+	 * @param conditionBuilders condition builders
+	 *
+	 * @return MultipartModelCondition — результат операции
+	 */
 	public static MultipartModelCondition or(MultipartModelConditionBuilder... conditionBuilders) {
 		return new MultipartModelCombinedCondition(
 				MultipartModelCombinedCondition.LogicalOperator.OR,
@@ -364,6 +404,13 @@ public class BlockStateModelGenerator {
 		);
 	}
 
+	/**
+	 * And.
+	 *
+	 * @param conditionBuilders condition builders
+	 *
+	 * @return MultipartModelCondition — результат операции
+	 */
 	public static MultipartModelCondition and(MultipartModelConditionBuilder... conditionBuilders) {
 		return new MultipartModelCombinedCondition(
 				MultipartModelCombinedCondition.LogicalOperator.AND,
@@ -410,26 +457,69 @@ public class BlockStateModelGenerator {
 		this.modelCollector = modelCollector;
 	}
 
+	/**
+	 * Регистрирует item model.
+	 *
+	 * @param item item
+	 * @param modelId model id
+	 */
 	public final void registerItemModel(Item item, Identifier modelId) {
 		this.itemModelOutput.accept(item, ItemModels.basic(modelId));
 	}
 
+	/**
+	 * Регистрирует parented item model.
+	 *
+	 * @param block block
+	 * @param parentModelId parent model id
+	 */
 	public void registerParentedItemModel(Block block, Identifier parentModelId) {
 		this.itemModelOutput.accept(block.asItem(), ItemModels.basic(parentModelId));
 	}
 
+	/**
+	 * Регистрирует tinted item model.
+	 *
+	 * @param block block
+	 * @param modelId model id
+	 * @param tint tint
+	 */
 	public final void registerTintedItemModel(Block block, Identifier modelId, TintSource tint) {
 		this.itemModelOutput.accept(block.asItem(), ItemModels.tinted(modelId, tint));
 	}
 
+	/**
+	 * Upload item model.
+	 *
+	 * @param item item
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public final Identifier uploadItemModel(Item item) {
 		return Models.GENERATED.upload(ModelIds.getItemModelId(item), TextureMap.layer0(item), this.modelCollector);
 	}
 
+	/**
+	 * Upload block item model.
+	 *
+	 * @param item item
+	 * @param block block
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier uploadBlockItemModel(Item item, Block block) {
 		return Models.GENERATED.upload(ModelIds.getItemModelId(item), TextureMap.layer0(block), this.modelCollector);
 	}
 
+	/**
+	 * Upload block item model.
+	 *
+	 * @param item item
+	 * @param block block
+	 * @param textureSuffix texture suffix
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public final Identifier uploadBlockItemModel(Item item, Block block, String textureSuffix) {
 		return Models.GENERATED.upload(
 				ModelIds.getItemModelId(item),
@@ -438,6 +528,15 @@ public class BlockStateModelGenerator {
 		);
 	}
 
+	/**
+	 * Upload two layer block item model.
+	 *
+	 * @param item item
+	 * @param block block
+	 * @param layer1Suffix layer1 suffix
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier uploadTwoLayerBlockItemModel(Item item, Block block, String layer1Suffix) {
 		Identifier identifier = TextureMap.getId(block);
 		Identifier identifier2 = TextureMap.getSubId(block, layer1Suffix);
@@ -448,10 +547,20 @@ public class BlockStateModelGenerator {
 		);
 	}
 
+	/**
+	 * Регистрирует item model.
+	 *
+	 * @param item item
+	 */
 	public void registerItemModel(Item item) {
 		this.registerItemModel(item, this.uploadItemModel(item));
 	}
 
+	/**
+	 * Регистрирует item model.
+	 *
+	 * @param block block
+	 */
 	public final void registerItemModel(Block block) {
 		Item item = block.asItem();
 		if (item != Items.AIR) {
@@ -459,6 +568,12 @@ public class BlockStateModelGenerator {
 		}
 	}
 
+	/**
+	 * Регистрирует item model.
+	 *
+	 * @param block block
+	 * @param textureSuffix texture suffix
+	 */
 	public final void registerItemModel(Block block, String textureSuffix) {
 		Item item = block.asItem();
 		if (item != Items.AIR) {
@@ -466,6 +581,12 @@ public class BlockStateModelGenerator {
 		}
 	}
 
+	/**
+	 * Регистрирует two layer item model.
+	 *
+	 * @param block block
+	 * @param layer1Suffix layer1 suffix
+	 */
 	public final void registerTwoLayerItemModel(Block block, String layer1Suffix) {
 		Item item = block.asItem();
 		if (item != Items.AIR) {
@@ -474,6 +595,13 @@ public class BlockStateModelGenerator {
 		}
 	}
 
+	/**
+	 * Model with y rotation.
+	 *
+	 * @param variant variant
+	 *
+	 * @return WeightedVariant — результат операции
+	 */
 	public static WeightedVariant modelWithYRotation(ModelVariant variant) {
 		return createWeightedVariant(
 				variant,
@@ -483,6 +611,14 @@ public class BlockStateModelGenerator {
 		);
 	}
 
+	/**
+	 * Model with mirroring.
+	 *
+	 * @param variant variant
+	 * @param mirroredVariant mirrored variant
+	 *
+	 * @return WeightedVariant — результат операции
+	 */
 	public static WeightedVariant modelWithMirroring(ModelVariant variant, ModelVariant mirroredVariant) {
 		return createWeightedVariant(
 				variant,
@@ -500,6 +636,11 @@ public class BlockStateModelGenerator {
 		return BlockStateVariantMap.models(property).register(true, trueModel).register(false, falseModel);
 	}
 
+	/**
+	 * Регистрирует mirrorable.
+	 *
+	 * @param block block
+	 */
 	public final void registerMirrorable(Block block) {
 		ModelVariant modelVariant = createModelVariant(TexturedModel.CUBE_ALL.upload(block, this.modelCollector));
 		ModelVariant
@@ -511,6 +652,11 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует rotatable.
+	 *
+	 * @param block block
+	 */
 	public final void registerRotatable(Block block) {
 		ModelVariant modelVariant = createModelVariant(TexturedModel.CUBE_ALL.upload(block, this.modelCollector));
 		this.blockStateCollector.accept(VariantsBlockModelDefinitionCreator.of(
@@ -519,6 +665,11 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует brushable block.
+	 *
+	 * @param block block
+	 */
 	public final void registerBrushableBlock(Block block) {
 		this.blockStateCollector.accept(VariantsBlockModelDefinitionCreator
 				.of(block)
@@ -1537,10 +1688,23 @@ public class BlockStateModelGenerator {
 		                                          );
 	}
 
+	/**
+	 * Создаёт singleton block state.
+	 *
+	 * @param block block
+	 * @param model model
+	 *
+	 * @return VariantsBlockModelDefinitionCreator — результат операции
+	 */
 	public static VariantsBlockModelDefinitionCreator createSingletonBlockState(Block block, WeightedVariant model) {
 		return VariantsBlockModelDefinitionCreator.of(block, model);
 	}
 
+	/**
+	 * Создаёт axis rotated variant map.
+	 *
+	 * @return BlockStateVariantMap — результат операции
+	 */
 	public static BlockStateVariantMap<ModelVariantOperator> createAxisRotatedVariantMap() {
 		return BlockStateVariantMap.operations(Properties.AXIS)
 		                           .register(Direction.Axis.Y, NO_OP)
@@ -1578,19 +1742,45 @@ public class BlockStateModelGenerator {
 		                                          );
 	}
 
+	/**
+	 * Создаёт axis rotated block state.
+	 *
+	 * @param block block
+	 * @param model model
+	 *
+	 * @return BlockModelDefinitionCreator — результат операции
+	 */
 	public static BlockModelDefinitionCreator createAxisRotatedBlockState(Block block, WeightedVariant model) {
 		return VariantsBlockModelDefinitionCreator.of(block, model).apply(createAxisRotatedVariantMap());
 	}
 
+	/**
+	 * Регистрирует axis rotated.
+	 *
+	 * @param block block
+	 * @param model model
+	 */
 	public final void registerAxisRotated(Block block, WeightedVariant model) {
 		this.blockStateCollector.accept(createAxisRotatedBlockState(block, model));
 	}
 
+	/**
+	 * Регистрирует axis rotated.
+	 *
+	 * @param block block
+	 * @param modelFactory model factory
+	 */
 	public void registerAxisRotated(Block block, TexturedModel.Factory modelFactory) {
 		WeightedVariant weightedVariant = createWeightedVariant(modelFactory.upload(block, this.modelCollector));
 		this.blockStateCollector.accept(createAxisRotatedBlockState(block, weightedVariant));
 	}
 
+	/**
+	 * Регистрирует north default horizontal rotatable.
+	 *
+	 * @param block block
+	 * @param modelFactory model factory
+	 */
 	public final void registerNorthDefaultHorizontalRotatable(Block block, TexturedModel.Factory modelFactory) {
 		WeightedVariant weightedVariant = createWeightedVariant(modelFactory.upload(block, this.modelCollector));
 		this.blockStateCollector.accept(VariantsBlockModelDefinitionCreator
@@ -1634,6 +1824,11 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(createAxisRotatedBlockState(block, weightedVariant, weightedVariant2));
 	}
 
+	/**
+	 * Регистрирует creaking heart.
+	 *
+	 * @param block block
+	 */
 	public final void registerCreakingHeart(Block block) {
 		WeightedVariant
 				weightedVariant =
@@ -1781,10 +1976,21 @@ public class BlockStateModelGenerator {
 		                                          );
 	}
 
+	/**
+	 * Регистрирует simple cube all.
+	 *
+	 * @param block block
+	 */
 	public void registerSimpleCubeAll(Block block) {
 		this.registerSingleton(block, TexturedModel.CUBE_ALL);
 	}
 
+	/**
+	 * Регистрирует singleton.
+	 *
+	 * @param block block
+	 * @param modelFactory model factory
+	 */
 	public void registerSingleton(Block block, TexturedModel.Factory modelFactory) {
 		this.blockStateCollector.accept(createSingletonBlockState(
 				block,
@@ -1792,6 +1998,13 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует tinted block and item.
+	 *
+	 * @param block block
+	 * @param texturedModelFactory textured model factory
+	 * @param tintColor tint color
+	 */
 	public void registerTintedBlockAndItem(Block block, TexturedModel.Factory texturedModelFactory, int tintColor) {
 		Identifier identifier = texturedModelFactory.upload(block, this.modelCollector);
 		this.blockStateCollector.accept(createSingletonBlockState(block, createWeightedVariant(identifier)));
@@ -1804,6 +2017,11 @@ public class BlockStateModelGenerator {
 		this.registerTintedItemModel(Blocks.VINE, identifier, ItemModels.constantTintSource(-12012264));
 	}
 
+	/**
+	 * Регистрирует grass tinted.
+	 *
+	 * @param block block
+	 */
 	public final void registerGrassTinted(Block block) {
 		Identifier identifier = this.uploadBlockItemModel(block.asItem(), block);
 		this.registerTintedItemModel(block, identifier, new GrassTintSource());
@@ -1817,6 +2035,13 @@ public class BlockStateModelGenerator {
 		);
 	}
 
+	/**
+	 * Регистрирует hanging sign.
+	 *
+	 * @param base base
+	 * @param hangingSign hanging sign
+	 * @param wallHangingSign wall hanging sign
+	 */
 	public void registerHangingSign(Block base, Block hangingSign, Block wallHangingSign) {
 		WeightedVariant weightedVariant = this.uploadParticleModel(hangingSign, base);
 		this.blockStateCollector.accept(createSingletonBlockState(hangingSign, weightedVariant));
@@ -1824,6 +2049,11 @@ public class BlockStateModelGenerator {
 		this.registerItemModel(hangingSign.asItem());
 	}
 
+	/**
+	 * Регистрирует door.
+	 *
+	 * @param doorBlock door block
+	 */
 	public void registerDoor(Block doorBlock) {
 		TextureMap textureMap = TextureMap.topBottom(doorBlock);
 		WeightedVariant
@@ -1867,6 +2097,12 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует parented door.
+	 *
+	 * @param parent parent
+	 * @param doorBlock door block
+	 */
 	public final void registerParentedDoor(Block parent, Block doorBlock) {
 		WeightedVariant weightedVariant = createWeightedVariant(Models.DOOR_BOTTOM_LEFT.getBlockSubModelId(parent));
 		WeightedVariant
@@ -1897,6 +2133,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует orientable trapdoor.
+	 *
+	 * @param trapdoorBlock trapdoor block
+	 */
 	public void registerOrientableTrapdoor(Block trapdoorBlock) {
 		TextureMap textureMap = TextureMap.texture(trapdoorBlock);
 		WeightedVariant
@@ -1925,6 +2166,11 @@ public class BlockStateModelGenerator {
 		this.registerParentedItemModel(trapdoorBlock, identifier);
 	}
 
+	/**
+	 * Регистрирует trapdoor.
+	 *
+	 * @param trapdoorBlock trapdoor block
+	 */
 	public void registerTrapdoor(Block trapdoorBlock) {
 		TextureMap textureMap = TextureMap.texture(trapdoorBlock);
 		WeightedVariant
@@ -1951,6 +2197,12 @@ public class BlockStateModelGenerator {
 		this.registerParentedItemModel(trapdoorBlock, identifier);
 	}
 
+	/**
+	 * Регистрирует parented trapdoor.
+	 *
+	 * @param parent parent
+	 * @param trapdoorBlock trapdoor block
+	 */
 	public final void registerParentedTrapdoor(Block parent, Block trapdoorBlock) {
 		WeightedVariant
 				weightedVariant =
@@ -2008,10 +2260,21 @@ public class BlockStateModelGenerator {
 		return new BlockStateModelGenerator.LogTexturePool(TextureMap.sideAndEndForTop(logBlock));
 	}
 
+	/**
+	 * Регистрирует simple state.
+	 *
+	 * @param block block
+	 */
 	public final void registerSimpleState(Block block) {
 		this.registerStateWithModelReference(block, block);
 	}
 
+	/**
+	 * Регистрирует state with model reference.
+	 *
+	 * @param block block
+	 * @param modelReference model reference
+	 */
 	public final void registerStateWithModelReference(Block block, Block modelReference) {
 		this.blockStateCollector.accept(createSingletonBlockState(
 				block,
@@ -2019,6 +2282,12 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует tintable cross.
+	 *
+	 * @param block block
+	 * @param crossType cross type
+	 */
 	public final void registerTintableCross(Block block, BlockStateModelGenerator.CrossType crossType) {
 		this.registerItemModel(block.asItem(), crossType.registerItemModel(this, block));
 		this.registerTintableCrossBlockState(block, crossType);
@@ -2033,6 +2302,12 @@ public class BlockStateModelGenerator {
 		this.registerTintableCrossBlockState(block, tintType, texture);
 	}
 
+	/**
+	 * Регистрирует tintable cross block state.
+	 *
+	 * @param block block
+	 * @param tintType tint type
+	 */
 	public final void registerTintableCrossBlockState(Block block, BlockStateModelGenerator.CrossType tintType) {
 		TextureMap textureMap = tintType.getTextureMap(block);
 		this.registerTintableCrossBlockState(block, tintType, textureMap);
@@ -2093,6 +2368,12 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(createSingletonBlockState(flowerPotBlock, weightedVariant));
 	}
 
+	/**
+	 * Регистрирует coral fan.
+	 *
+	 * @param coralFanBlock coral fan block
+	 * @param coralWallFanBlock coral wall fan block
+	 */
 	public final void registerCoralFan(Block coralFanBlock, Block coralWallFanBlock) {
 		TexturedModel texturedModel = TexturedModel.CORAL_FAN.get(coralFanBlock);
 		WeightedVariant
@@ -2109,6 +2390,12 @@ public class BlockStateModelGenerator {
 		this.registerItemModel(coralFanBlock);
 	}
 
+	/**
+	 * Регистрирует gourd.
+	 *
+	 * @param stemBlock stem block
+	 * @param attachedStemBlock attached stem block
+	 */
 	public final void registerGourd(Block stemBlock, Block attachedStemBlock) {
 		this.registerItemModel(stemBlock.asItem());
 		TextureMap textureMap = TextureMap.stem(stemBlock);
@@ -2197,6 +2484,12 @@ public class BlockStateModelGenerator {
 		this.registerCoralFan(deadCoralFan, deadCoralWallFan);
 	}
 
+	/**
+	 * Регистрирует double block.
+	 *
+	 * @param doubleBlock double block
+	 * @param tintType tint type
+	 */
 	public final void registerDoubleBlock(Block doubleBlock, BlockStateModelGenerator.CrossType tintType) {
 		WeightedVariant
 				weightedVariant =
@@ -2217,11 +2510,22 @@ public class BlockStateModelGenerator {
 		this.registerDoubleBlock(doubleBlock, weightedVariant, weightedVariant2);
 	}
 
+	/**
+	 * Регистрирует double block and item.
+	 *
+	 * @param block block
+	 * @param crossType cross type
+	 */
 	public final void registerDoubleBlockAndItem(Block block, BlockStateModelGenerator.CrossType crossType) {
 		this.registerItemModel(block, "_top");
 		this.registerDoubleBlock(block, crossType);
 	}
 
+	/**
+	 * Регистрирует grass tinted double block and item.
+	 *
+	 * @param block block
+	 */
 	public final void registerGrassTintedDoubleBlockAndItem(Block block) {
 		Identifier identifier = this.uploadBlockItemModel(block.asItem(), block, "_top");
 		this.registerTintedItemModel(block, identifier, new GrassTintSource());
@@ -2283,6 +2587,13 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует double block.
+	 *
+	 * @param block block
+	 * @param upperModel upper model
+	 * @param lowerModel lower model
+	 */
 	public final void registerDoubleBlock(Block block, WeightedVariant upperModel, WeightedVariant lowerModel) {
 		this.blockStateCollector
 				.accept(
@@ -2296,6 +2607,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует turnable rail.
+	 *
+	 * @param rail rail
+	 */
 	public final void registerTurnableRail(Block rail) {
 		TextureMap textureMap = TextureMap.rail(rail);
 		TextureMap textureMap2 = TextureMap.rail(TextureMap.getSubId(rail, "_corner"));
@@ -2367,6 +2683,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует straight rail.
+	 *
+	 * @param rail rail
+	 */
 	public final void registerStraightRail(Block rail) {
 		WeightedVariant
 				weightedVariant =
@@ -2435,6 +2756,12 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует builtin with particle.
+	 *
+	 * @param block block
+	 * @param particleSource particle source
+	 */
 	public final void registerBuiltinWithParticle(Block block, Item particleSource) {
 		WeightedVariant
 				weightedVariant =
@@ -2446,6 +2773,12 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(createSingletonBlockState(block, weightedVariant));
 	}
 
+	/**
+	 * Регистрирует builtin with particle.
+	 *
+	 * @param block block
+	 * @param particleSource particle source
+	 */
 	public final void registerBuiltinWithParticle(Block block, Identifier particleSource) {
 		WeightedVariant
 				weightedVariant =
@@ -2457,6 +2790,14 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(createSingletonBlockState(block, weightedVariant));
 	}
 
+	/**
+	 * Upload particle model.
+	 *
+	 * @param block block
+	 * @param particleSource particle source
+	 *
+	 * @return WeightedVariant — результат операции
+	 */
 	public final WeightedVariant uploadParticleModel(Block block, Block particleSource) {
 		return createWeightedVariant(Models.PARTICLE.upload(
 				block,
@@ -2465,6 +2806,12 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует builtin with particle.
+	 *
+	 * @param block block
+	 * @param particleSource particle source
+	 */
 	public void registerBuiltinWithParticle(Block block, Block particleSource) {
 		this.blockStateCollector.accept(createSingletonBlockState(
 				block,
@@ -2472,10 +2819,21 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует builtin.
+	 *
+	 * @param block block
+	 */
 	public final void registerBuiltin(Block block) {
 		this.registerBuiltinWithParticle(block, block);
 	}
 
+	/**
+	 * Регистрирует wool and carpet.
+	 *
+	 * @param wool wool
+	 * @param carpet carpet
+	 */
 	public final void registerWoolAndCarpet(Block wool, Block carpet) {
 		this.registerSimpleCubeAll(wool);
 		WeightedVariant
@@ -2484,6 +2842,11 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(createSingletonBlockState(carpet, weightedVariant));
 	}
 
+	/**
+	 * Регистрирует leaf litter.
+	 *
+	 * @param leafLitter leaf litter
+	 */
 	public final void registerLeafLitter(Block leafLitter) {
 		WeightedVariant
 				weightedVariant =
@@ -2511,6 +2874,11 @@ public class BlockStateModelGenerator {
 		);
 	}
 
+	/**
+	 * Регистрирует flowerbed.
+	 *
+	 * @param flowerbed flowerbed
+	 */
 	public final void registerFlowerbed(Block flowerbed) {
 		WeightedVariant
 				weightedVariant =
@@ -2675,6 +3043,12 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует random horizontal rotations.
+	 *
+	 * @param modelFactory model factory
+	 * @param blocks blocks
+	 */
 	public final void registerRandomHorizontalRotations(TexturedModel.Factory modelFactory, Block... blocks) {
 		for (Block block : blocks) {
 			ModelVariant modelVariant = createModelVariant(modelFactory.upload(block, this.modelCollector));
@@ -2685,6 +3059,12 @@ public class BlockStateModelGenerator {
 		}
 	}
 
+	/**
+	 * Регистрирует south default horizontal facing.
+	 *
+	 * @param modelFactory model factory
+	 * @param blocks blocks
+	 */
 	public final void registerSouthDefaultHorizontalFacing(TexturedModel.Factory modelFactory, Block... blocks) {
 		for (Block block : blocks) {
 			WeightedVariant weightedVariant = createWeightedVariant(modelFactory.upload(block, this.modelCollector));
@@ -2694,6 +3074,12 @@ public class BlockStateModelGenerator {
 		}
 	}
 
+	/**
+	 * Регистрирует glass and pane.
+	 *
+	 * @param glassBlock glass block
+	 * @param glassPane glass pane
+	 */
 	public final void registerGlassAndPane(Block glassBlock, Block glassPane) {
 		this.registerSimpleCubeAll(glassBlock);
 		TextureMap textureMap = TextureMap.paneAndTopForEdge(glassBlock, glassPane);
@@ -2789,6 +3175,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует command block.
+	 *
+	 * @param commandBlock command block
+	 */
 	public final void registerCommandBlock(Block commandBlock) {
 		TextureMap textureMap = TextureMap.sideFrontBack(commandBlock);
 		WeightedVariant
@@ -2818,6 +3209,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует anvil.
+	 *
+	 * @param anvil anvil
+	 */
 	public final void registerAnvil(Block anvil) {
 		WeightedVariant
 				weightedVariant =
@@ -2912,6 +3308,12 @@ public class BlockStateModelGenerator {
 		});
 	}
 
+	/**
+	 * Регистрирует beehive.
+	 *
+	 * @param beehive beehive
+	 * @param texturesFactory textures factory
+	 */
 	public final void registerBeehive(Block beehive, Function<Block, TextureMap> texturesFactory) {
 		TextureMap textureMap = texturesFactory.apply(beehive).inherit(TextureKey.SIDE, TextureKey.PARTICLE);
 		TextureMap textureMap2 = textureMap.copyAndAdd(TextureKey.FRONT, TextureMap.getSubId(beehive, "_front_honey"));
@@ -2943,6 +3345,13 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует crop.
+	 *
+	 * @param crop crop
+	 * @param ageProperty age property
+	 * @param ageTextureIndices age texture indices
+	 */
 	public final void registerCrop(Block crop, Property<Integer> ageProperty, int... ageTextureIndices) {
 		this.registerItemModel(crop.asItem());
 		if (ageProperty.getValues().size() != ageTextureIndices.length) {
@@ -3127,6 +3536,12 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует cooker.
+	 *
+	 * @param cooker cooker
+	 * @param modelFactory model factory
+	 */
 	public final void registerCooker(Block cooker, TexturedModel.Factory modelFactory) {
 		WeightedVariant weightedVariant = createWeightedVariant(modelFactory.upload(cooker, this.modelCollector));
 		Identifier identifier = TextureMap.getSubId(cooker, "_front_on");
@@ -3148,6 +3563,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует campfire.
+	 *
+	 * @param blocks blocks
+	 */
 	public final void registerCampfire(Block... blocks) {
 		WeightedVariant weightedVariant = createWeightedVariant(ModelIds.getMinecraftNamespacedBlock("campfire_off"));
 
@@ -3173,6 +3593,11 @@ public class BlockStateModelGenerator {
 		}
 	}
 
+	/**
+	 * Регистрирует azalea.
+	 *
+	 * @param block block
+	 */
 	public final void registerAzalea(Block block) {
 		WeightedVariant
 				weightedVariant =
@@ -3184,6 +3609,11 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(createSingletonBlockState(block, weightedVariant));
 	}
 
+	/**
+	 * Регистрирует potted azalea bush.
+	 *
+	 * @param block block
+	 */
 	public final void registerPottedAzaleaBush(Block block) {
 		WeightedVariant weightedVariant;
 		if (block == Blocks.POTTED_FLOWERING_AZALEA_BUSH) {
@@ -3521,6 +3951,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует mushroom block.
+	 *
+	 * @param mushroomBlock mushroom block
+	 */
 	public final void registerMushroomBlock(Block mushroomBlock) {
 		WeightedVariant weightedVariant = createWeightedVariant(
 				Models.TEMPLATE_SINGLE_FACE.upload(
@@ -3738,6 +4173,11 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует generic.
+	 *
+	 * @param block block
+	 */
 	public void registerGeneric(Block block) {
 		TextureMap textureMap = new TextureMap()
 				.put(TextureKey.PARTICLE, TextureMap.getSubId(block, "_particle"))
@@ -3763,6 +4203,12 @@ public class BlockStateModelGenerator {
 		this.registerNorthDefaultHorizontalRotatable(Blocks.JACK_O_LANTERN, textureMap);
 	}
 
+	/**
+	 * Регистрирует north default horizontal rotatable.
+	 *
+	 * @param block block
+	 * @param texture texture
+	 */
 	public final void registerNorthDefaultHorizontalRotatable(Block block, TextureMap texture) {
 		WeightedVariant weightedVariant = createWeightedVariant(
 				Models.ORIENTABLE.upload(
@@ -3961,6 +4407,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует dispenser like orientable.
+	 *
+	 * @param block block
+	 */
 	public final void registerDispenserLikeOrientable(Block block) {
 		TextureMap textureMap = new TextureMap()
 				.put(TextureKey.TOP, TextureMap.getSubId(Blocks.FURNACE, "_top"))
@@ -4317,6 +4768,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует copper bulb.
+	 *
+	 * @param copperBulbBlock copper bulb block
+	 */
 	public final void registerCopperBulb(Block copperBulbBlock) {
 		WeightedVariant
 				weightedVariant =
@@ -4372,6 +4828,12 @@ public class BlockStateModelGenerator {
 				}));
 	}
 
+	/**
+	 * Регистрирует waxed copper bulb.
+	 *
+	 * @param unwaxedCopperBulbBlock unwaxed copper bulb block
+	 * @param waxedCopperBulbBlock waxed copper bulb block
+	 */
 	public final void registerWaxedCopperBulb(Block unwaxedCopperBulbBlock, Block waxedCopperBulbBlock) {
 		WeightedVariant weightedVariant = createWeightedVariant(ModelIds.getBlockModelId(unwaxedCopperBulbBlock));
 		WeightedVariant
@@ -4393,6 +4855,11 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует amethyst.
+	 *
+	 * @param block block
+	 */
 	public final void registerAmethyst(Block block) {
 		WeightedVariant
 				weightedVariant =
@@ -4440,6 +4907,11 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует netherrack bottom custom top.
+	 *
+	 * @param block block
+	 */
 	public final void registerNetherrackBottomCustomTop(Block block) {
 		TextureMap textureMap = new TextureMap()
 				.put(TextureKey.BOTTOM, TextureMap.getId(Blocks.NETHERRACK))
@@ -4494,6 +4966,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует rod.
+	 *
+	 * @param block block
+	 */
 	public final void registerRod(Block block) {
 		this.blockStateCollector
 				.accept(VariantsBlockModelDefinitionCreator
@@ -4501,6 +4978,12 @@ public class BlockStateModelGenerator {
 						.apply(UP_DEFAULT_ROTATION_OPERATIONS));
 	}
 
+	/**
+	 * Регистрирует lightning rod.
+	 *
+	 * @param unwaxed unwaxed
+	 * @param waxed waxed
+	 */
 	public final void registerLightningRod(Block unwaxed, Block waxed) {
 		WeightedVariant
 				weightedVariant =
@@ -4713,6 +5196,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует lantern.
+	 *
+	 * @param lantern lantern
+	 */
 	public final void registerLantern(Block lantern) {
 		WeightedVariant
 				weightedVariant =
@@ -4727,6 +5215,12 @@ public class BlockStateModelGenerator {
 						.with(createBooleanModelMap(Properties.HANGING, weightedVariant2, weightedVariant)));
 	}
 
+	/**
+	 * Регистрирует copper lantern.
+	 *
+	 * @param unwaxed unwaxed
+	 * @param waxed waxed
+	 */
 	public final void registerCopperLantern(Block unwaxed, Block waxed) {
 		Identifier identifier = TexturedModel.TEMPLATE_LANTERN.upload(unwaxed, this.modelCollector);
 		Identifier identifier2 = TexturedModel.TEMPLATE_HANGING_LANTERN.upload(unwaxed, this.modelCollector);
@@ -4752,6 +5246,12 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует copper chain.
+	 *
+	 * @param unwaxed unwaxed
+	 * @param waxed waxed
+	 */
 	public final void registerCopperChain(Block unwaxed, Block waxed) {
 		WeightedVariant
 				weightedVariant =
@@ -4886,6 +5386,13 @@ public class BlockStateModelGenerator {
 		this.registerTopSoil(Blocks.PODZOL, weightedVariant3, weightedVariant);
 	}
 
+	/**
+	 * Регистрирует top soil.
+	 *
+	 * @param topSoil top soil
+	 * @param regularVariant regular variant
+	 * @param snowyVariant snowy variant
+	 */
 	public final void registerTopSoil(Block topSoil, WeightedVariant regularVariant, WeightedVariant snowyVariant) {
 		this.blockStateCollector
 				.accept(
@@ -4941,6 +5448,12 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует weighted pressure plate.
+	 *
+	 * @param weightedPressurePlate weighted pressure plate
+	 * @param textureSource texture source
+	 */
 	public final void registerWeightedPressurePlate(Block weightedPressurePlate, Block textureSource) {
 		TextureMap textureMap = TextureMap.texture(textureSource);
 		WeightedVariant
@@ -5005,12 +5518,23 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует parented.
+	 *
+	 * @param modelSource model source
+	 * @param child child
+	 */
 	public final void registerParented(Block modelSource, Block child) {
 		WeightedVariant weightedVariant = createWeightedVariant(ModelIds.getBlockModelId(modelSource));
 		this.blockStateCollector.accept(VariantsBlockModelDefinitionCreator.of(child, weightedVariant));
 		this.itemModelOutput.acceptAlias(modelSource.asItem(), child.asItem());
 	}
 
+	/**
+	 * Регистрирует bars.
+	 *
+	 * @param block block
+	 */
 	public final void registerBars(Block block) {
 		TextureMap textureMap = TextureMap.bars(block);
 		this.registerBars(
@@ -5025,6 +5549,12 @@ public class BlockStateModelGenerator {
 		this.registerItemModel(block);
 	}
 
+	/**
+	 * Регистрирует copper bars.
+	 *
+	 * @param unwaxedBlock unwaxed block
+	 * @param waxedBlock waxed block
+	 */
 	public final void registerCopperBars(Block unwaxedBlock, Block waxedBlock) {
 		TextureMap textureMap = TextureMap.bars(unwaxedBlock);
 		Identifier identifier = Models.TEMPLATE_BARS_POST_ENDS.upload(unwaxedBlock, textureMap, this.modelCollector);
@@ -5125,6 +5655,11 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует north default horizontal rotatable.
+	 *
+	 * @param block block
+	 */
 	public final void registerNorthDefaultHorizontalRotatable(Block block) {
 		this.blockStateCollector
 				.accept(
@@ -5333,6 +5868,13 @@ public class BlockStateModelGenerator {
 		this.registerParentedItemModel(Blocks.STICKY_PISTON, identifier4);
 	}
 
+	/**
+	 * Регистрирует piston.
+	 *
+	 * @param piston piston
+	 * @param weightedVariant weighted variant
+	 * @param textures textures
+	 */
 	public final void registerPiston(Block piston, WeightedVariant weightedVariant, TextureMap textures) {
 		WeightedVariant
 				weightedVariant2 =
@@ -5710,6 +6252,12 @@ public class BlockStateModelGenerator {
 						.with(createBooleanModelMap(Properties.LIT, weightedVariant2, weightedVariant)));
 	}
 
+	/**
+	 * Регистрирует torch.
+	 *
+	 * @param torch torch
+	 * @param wallTorch wall torch
+	 */
 	public final void registerTorch(Block torch, Block wallTorch) {
 		TextureMap textureMap = TextureMap.torch(torch);
 		this.blockStateCollector
@@ -6500,11 +7048,22 @@ public class BlockStateModelGenerator {
 						})));
 	}
 
+	/**
+	 * Регистрирует multiface block.
+	 *
+	 * @param block block
+	 */
 	public final void registerMultifaceBlock(Block block) {
 		this.registerItemModel(block);
 		this.registerMultifaceBlockModel(block);
 	}
 
+	/**
+	 * Регистрирует multiface block.
+	 *
+	 * @param block block
+	 * @param item item
+	 */
 	public final void registerMultifaceBlock(Block block, Item item) {
 		this.registerItemModel(item);
 		this.registerMultifaceBlockModel(block);
@@ -6526,6 +7085,11 @@ public class BlockStateModelGenerator {
 		return builder.build();
 	}
 
+	/**
+	 * Регистрирует multiface block model.
+	 *
+	 * @param block block
+	 */
 	public final void registerMultifaceBlockModel(Block block) {
 		Map<Property<Boolean>, ModelVariantOperator>
 				map =
@@ -6548,6 +7112,11 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(multipartBlockModelDefinitionCreator);
 	}
 
+	/**
+	 * Регистрирует pale moss carpet.
+	 *
+	 * @param block block
+	 */
 	public final void registerPaleMossCarpet(Block block) {
 		Map<Property<WallShape>, ModelVariantOperator>
 				map =
@@ -6609,6 +7178,11 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(multipartBlockModelDefinitionCreator);
 	}
 
+	/**
+	 * Регистрирует hanging moss.
+	 *
+	 * @param block block
+	 */
 	public final void registerHangingMoss(Block block) {
 		this.registerItemModel(block);
 		this.blockStateCollector.accept(VariantsBlockModelDefinitionCreator
@@ -6653,6 +7227,12 @@ public class BlockStateModelGenerator {
 		this.registerParentedItemModel(Blocks.SCULK_CATALYST, identifier2);
 	}
 
+	/**
+	 * Регистрирует shelf.
+	 *
+	 * @param block block
+	 * @param block2 block2
+	 */
 	public final void registerShelf(Block block, Block block2) {
 		TextureMap
 				textureMap =
@@ -6734,6 +7314,11 @@ public class BlockStateModelGenerator {
 		);
 	}
 
+	/**
+	 * For each horizontal direction.
+	 *
+	 * @param biConsumer bi consumer
+	 */
 	public static void forEachHorizontalDirection(BiConsumer<Direction, ModelVariantOperator> biConsumer) {
 		List.of(
 				    Pair.of(Direction.NORTH, NO_OP),
@@ -6872,6 +7457,12 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(createSingletonBlockState(Blocks.MAGMA_BLOCK, weightedVariant));
 	}
 
+	/**
+	 * Регистрирует shulker box.
+	 *
+	 * @param shulkerBox shulker box
+	 * @param color color
+	 */
 	public final void registerShulkerBox(Block shulkerBox, @Nullable DyeColor color) {
 		this.registerBuiltin(shulkerBox);
 		Item item = shulkerBox.asItem();
@@ -6884,6 +7475,13 @@ public class BlockStateModelGenerator {
 		this.itemModelOutput.accept(item, unbaked);
 	}
 
+	/**
+	 * Регистрирует plant part.
+	 *
+	 * @param plant plant
+	 * @param plantStem plant stem
+	 * @param tintType tint type
+	 */
 	public final void registerPlantPart(Block plant, Block plantStem, BlockStateModelGenerator.CrossType tintType) {
 		this.registerTintableCrossBlockState(plant, tintType);
 		this.registerTintableCrossBlockState(plantStem, tintType);
@@ -6913,6 +7511,12 @@ public class BlockStateModelGenerator {
 		this.registerParentedItemModel(Blocks.INFESTED_DEEPSLATE, identifier);
 	}
 
+	/**
+	 * Регистрирует roots.
+	 *
+	 * @param root root
+	 * @param pottedRoot potted root
+	 */
 	public final void registerRoots(Block root, Block pottedRoot) {
 		this.registerTintableCross(root, BlockStateModelGenerator.CrossType.NOT_TINTED);
 		TextureMap textureMap = TextureMap.plant(TextureMap.getSubId(root, "_pot"));
@@ -6950,6 +7554,13 @@ public class BlockStateModelGenerator {
 		this.registerParentedItemModel(Blocks.RESPAWN_ANCHOR, identifiers[0]);
 	}
 
+	/**
+	 * Добавляет jigsaw orientation to variant.
+	 *
+	 * @param orientation orientation
+	 *
+	 * @return ModelVariantOperator — результат операции
+	 */
 	public static ModelVariantOperator addJigsawOrientationToVariant(Orientation orientation) {
 		return switch (orientation) {
 			case DOWN_NORTH -> ROTATE_X_90;
@@ -7015,6 +7626,14 @@ public class BlockStateModelGenerator {
 		));
 	}
 
+	/**
+	 * Регистрирует skull.
+	 *
+	 * @param block block
+	 * @param wallBlock wall block
+	 * @param type type
+	 * @param baseModelId base model id
+	 */
 	public final void registerSkull(Block block, Block wallBlock, SkullBlock.SkullType type, Identifier baseModelId) {
 		WeightedVariant weightedVariant = createWeightedVariant(ModelIds.getMinecraftNamespacedBlock("skull"));
 		this.blockStateCollector.accept(createSingletonBlockState(block, weightedVariant));
@@ -7133,6 +7752,13 @@ public class BlockStateModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует banner.
+	 *
+	 * @param block block
+	 * @param wallBlock wall block
+	 * @param color color
+	 */
 	public final void registerBanner(Block block, Block wallBlock, DyeColor color) {
 		WeightedVariant weightedVariant = createWeightedVariant(ModelIds.getMinecraftNamespacedBlock("banner"));
 		Identifier identifier = ModelIds.getMinecraftNamespacedItem("template_banner");
@@ -7161,6 +7787,14 @@ public class BlockStateModelGenerator {
 		this.registerBanner(Blocks.BLACK_BANNER, Blocks.BLACK_WALL_BANNER, DyeColor.BLACK);
 	}
 
+	/**
+	 * Регистрирует chest.
+	 *
+	 * @param block block
+	 * @param particleSource particle source
+	 * @param texture texture
+	 * @param christmas christmas
+	 */
 	public final void registerChest(Block block, Block particleSource, Identifier texture, boolean christmas) {
 		this.registerBuiltinWithParticle(block, particleSource);
 		Item item = block.asItem();
@@ -7211,6 +7845,13 @@ public class BlockStateModelGenerator {
 		this.registerParented(Blocks.OXIDIZED_COPPER_CHEST, Blocks.WAXED_OXIDIZED_COPPER_CHEST);
 	}
 
+	/**
+	 * Регистрирует bed.
+	 *
+	 * @param block block
+	 * @param particleSource particle source
+	 * @param color color
+	 */
 	public final void registerBed(Block block, Block particleSource, DyeColor color) {
 		WeightedVariant weightedVariant = createWeightedVariant(ModelIds.getMinecraftNamespacedBlock("bed"));
 		this.blockStateCollector.accept(createSingletonBlockState(block, weightedVariant));
@@ -7244,12 +7885,21 @@ public class BlockStateModelGenerator {
 		this.registerBed(Blocks.BLACK_BED, Blocks.BLACK_WOOL, DyeColor.BLACK);
 	}
 
+	/**
+	 * Регистрирует special item model.
+	 *
+	 * @param block block
+	 * @param specialModel special model
+	 */
 	public final void registerSpecialItemModel(Block block, SpecialModelRenderer.Unbaked specialModel) {
 		Item item = block.asItem();
 		Identifier identifier = ModelIds.getItemModelId(item);
 		this.itemModelOutput.accept(item, ItemModels.special(identifier, specialModel));
 	}
 
+	/**
+	 * Register.
+	 */
 	public void register() {
 		BlockFamilies.getFamilies()
 		             .filter(BlockFamily::shouldGenerateModels)
@@ -8169,12 +8819,24 @@ public class BlockStateModelGenerator {
 		this.blockStateCollector.accept(VariantsBlockModelDefinitionCreator.of(Blocks.LIGHT).with(singleProperty));
 	}
 
+	/**
+	 * Регистрирует waxable.
+	 *
+	 * @param unwaxed unwaxed
+	 * @param waxed waxed
+	 */
 	public final void registerWaxable(Item unwaxed, Item waxed) {
 		Identifier identifier = this.uploadItemModel(unwaxed);
 		this.registerItemModel(unwaxed, identifier);
 		this.registerItemModel(waxed, identifier);
 	}
 
+	/**
+	 * Регистрирует candle.
+	 *
+	 * @param candle candle
+	 * @param cake cake
+	 */
 	public final void registerCandle(Block candle, Block cake) {
 		this.registerItemModel(candle.asItem());
 		TextureMap textureMap = TextureMap.all(TextureMap.getId(candle));
@@ -8738,6 +9400,14 @@ public class BlockStateModelGenerator {
 			return this.flowerPotModel;
 		}
 
+		/**
+		 * Регистрирует item model.
+		 *
+		 * @param modelGenerator model generator
+		 * @param block block
+		 *
+		 * @return Identifier — результат операции
+		 */
 		public Identifier registerItemModel(BlockStateModelGenerator modelGenerator, Block block) {
 			Item item = block.asItem();
 			return this.emissive ? modelGenerator.uploadTwoLayerBlockItemModel(item, block, "_emissive")

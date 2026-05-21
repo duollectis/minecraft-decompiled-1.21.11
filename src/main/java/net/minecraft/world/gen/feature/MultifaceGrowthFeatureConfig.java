@@ -91,10 +91,25 @@ public class MultifaceGrowthFeatureConfig implements FeatureConfig {
 		}
 	}
 
+	/**
+	 * Shuffle directions.
+	 *
+	 * @param random random
+	 * @param excluded excluded
+	 *
+	 * @return List — результат операции
+	 */
 	public List<Direction> shuffleDirections(Random random, Direction excluded) {
 		return Util.copyShuffled(this.directions.stream().filter(direction -> direction != excluded), random);
 	}
 
+	/**
+	 * Shuffle directions.
+	 *
+	 * @param random random
+	 *
+	 * @return List — результат операции
+	 */
 	public List<Direction> shuffleDirections(Random random) {
 		return Util.copyShuffled(this.directions, random);
 	}

@@ -23,6 +23,9 @@ public class AtlasSourceManager {
 			ID_MAPPER.getCodec(Identifier.CODEC).dispatch(AtlasSource::getCodec, codec -> codec);
 	public static final Codec<List<AtlasSource>> LIST_CODEC = TYPE_CODEC.listOf().fieldOf("sources").codec();
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		ID_MAPPER.put(Identifier.ofVanilla("single"), SingleAtlasSource.CODEC);
 		ID_MAPPER.put(Identifier.ofVanilla("directory"), DirectoryAtlasSource.CODEC);

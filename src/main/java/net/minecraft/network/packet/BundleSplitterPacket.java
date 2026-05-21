@@ -2,6 +2,9 @@ package net.minecraft.network.packet;
 
 import net.minecraft.network.listener.PacketListener;
 
+/**
+ * Класс bundle splitter packet.
+ */
 public abstract class BundleSplitterPacket<T extends PacketListener> implements Packet<T> {
 
 	@Override

@@ -25,6 +25,11 @@ public class SkeletonEntityModel<S extends SkeletonEntityRenderState> extends Bi
 		return TexturedModelData.of(modelData, 64, 32);
 	}
 
+	/**
+	 * Добавляет limbs.
+	 *
+	 * @param data data
+	 */
 	protected static void addLimbs(ModelPartData data) {
 		data.addChild(
 				"right_arm",

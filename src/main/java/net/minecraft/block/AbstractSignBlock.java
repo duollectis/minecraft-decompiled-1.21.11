@@ -211,6 +211,13 @@ public abstract class AbstractSignBlock extends BlockWithEntity implements Water
 		return woodType;
 	}
 
+	/**
+	 * Открывает edit screen.
+	 *
+	 * @param player player
+	 * @param blockEntity block entity
+	 * @param front front
+	 */
 	public void openEditScreen(PlayerEntity player, SignBlockEntity blockEntity, boolean front) {
 		blockEntity.setEditor(player.getUuid());
 		player.openEditSignScreen(blockEntity, front);

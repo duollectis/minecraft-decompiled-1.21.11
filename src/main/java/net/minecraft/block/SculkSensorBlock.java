@@ -265,6 +265,14 @@ public class SculkSensorBlock extends BlockWithEntity implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Try resonate.
+	 *
+	 * @param sourceEntity source entity
+	 * @param world world
+	 * @param pos pos
+	 * @param frequency frequency
+	 */
 	public static void tryResonate(@Nullable Entity sourceEntity, World world, BlockPos pos, int frequency) {
 		for (Direction direction : Direction.values()) {
 			BlockPos blockPos = pos.offset(direction);

@@ -32,6 +32,13 @@ public class RawProjectionMatrix implements AutoCloseable {
 		this.slice = this.buffer.slice(0L, RenderSystem.PROJECTION_MATRIX_UBO_SIZE);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param projectionMatrix projection matrix
+	 *
+	 * @return GpuBufferSlice — результат операции
+	 */
 	public GpuBufferSlice set(Matrix4f projectionMatrix) {
 		MemoryStack memoryStack = MemoryStack.stackPush();
 

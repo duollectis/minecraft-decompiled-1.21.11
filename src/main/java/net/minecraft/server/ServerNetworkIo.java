@@ -45,6 +45,12 @@ public class ServerNetworkIo {
 		this.active = true;
 	}
 
+	/**
+	 * Bind.
+	 *
+	 * @param address address
+	 * @param port port
+	 */
 	public void bind(@Nullable InetAddress address, int port) throws IOException {
 		synchronized (this.channels) {
 			NetworkingBackend networkingBackend = NetworkingBackend.remote(this.server.isUsingNativeTransport());
@@ -52,6 +58,11 @@ public class ServerNetworkIo {
 					.add(
 							((ServerBootstrap) ((ServerBootstrap) new ServerBootstrap().channel(networkingBackend.getServerChannelClass()))
 									.childHandler(new ChannelInitializer<Channel>() {
+										/**
+										 * Инициализирует channel.
+										 *
+										 * @param channel channel
+										 */
 										protected void initChannel(Channel channel) {
 											try {
 												channel.config().setOption(ChannelOption.TCP_NODELAY, true);
@@ -99,6 +110,11 @@ public class ServerNetworkIo {
 		}
 	}
 
+	/**
+	 * Bind local.
+	 *
+	 * @return SocketAddress — результат операции
+	 */
 	public SocketAddress bindLocal() {
 		ChannelFuture channelFuture;
 		synchronized (this.channels) {
@@ -109,6 +125,11 @@ public class ServerNetworkIo {
 					)
 							.childHandler(
 									new ChannelInitializer<Channel>() {
+										/**
+										 * Инициализирует channel.
+										 *
+										 * @param channel channel
+										 */
 										protected void initChannel(Channel channel) {
 											ClientConnection
 													clientConnection =
@@ -148,6 +169,9 @@ public class ServerNetworkIo {
 		return channelFuture.channel().localAddress();
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		this.active = false;
 
@@ -161,6 +185,9 @@ public class ServerNetworkIo {
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		synchronized (this.connections) {
 			Iterator<ClientConnection> iterator = this.connections.iterator();
@@ -222,6 +249,12 @@ public class ServerNetworkIo {
 			this.extraDelay = extraDelay;
 		}
 
+		/**
+		 * Channel read.
+		 *
+		 * @param ctx ctx
+		 * @param msg msg
+		 */
 		public void channelRead(ChannelHandlerContext ctx, Object msg) {
 			this.delay(ctx, msg);
 		}

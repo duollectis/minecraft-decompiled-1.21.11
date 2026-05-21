@@ -52,6 +52,14 @@ public class CowEntity extends AbstractCowEntity {
 		Variants.fromData(view, RegistryKeys.COW_VARIANT).ifPresent(this::setVariant);
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable CowEntity — результат операции
+	 */
 	public @Nullable CowEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		CowEntity cowEntity = EntityType.COW.create(serverWorld, SpawnReason.BREEDING);
 		if (cowEntity != null && passiveEntity instanceof CowEntity cowEntity2) {

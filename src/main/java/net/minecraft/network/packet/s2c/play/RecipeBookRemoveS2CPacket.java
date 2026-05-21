@@ -11,6 +11,9 @@ import net.minecraft.recipe.NetworkRecipeId;
 
 import java.util.List;
 
+/**
+ * Запись recipe book remove s2 c packet.
+ */
 public record RecipeBookRemoveS2CPacket(List<NetworkRecipeId> recipes) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<ByteBuf, RecipeBookRemoveS2CPacket> CODEC = PacketCodec.tuple(
@@ -24,6 +27,11 @@ public record RecipeBookRemoveS2CPacket(List<NetworkRecipeId> recipes) implement
 		return PlayPackets.RECIPE_BOOK_REMOVE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onRecipeBookRemove(this);
 	}

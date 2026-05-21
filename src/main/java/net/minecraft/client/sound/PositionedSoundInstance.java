@@ -27,14 +27,39 @@ public class PositionedSoundInstance extends AbstractSoundInstance {
 		this(sound, category, volume, pitch, random, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
 	}
 
+	/**
+	 * Master.
+	 *
+	 * @param sound sound
+	 * @param pitch pitch
+	 *
+	 * @return PositionedSoundInstance — результат операции
+	 */
 	public static PositionedSoundInstance master(SoundEvent sound, float pitch) {
 		return master(sound, pitch, 0.25F);
 	}
 
+	/**
+	 * Master.
+	 *
+	 * @param sound sound
+	 * @param pitch pitch
+	 *
+	 * @return PositionedSoundInstance — результат операции
+	 */
 	public static PositionedSoundInstance master(RegistryEntry<SoundEvent> sound, float pitch) {
 		return master(sound.value(), pitch);
 	}
 
+	/**
+	 * Master.
+	 *
+	 * @param sound sound
+	 * @param pitch pitch
+	 * @param volume volume
+	 *
+	 * @return PositionedSoundInstance — результат операции
+	 */
 	public static PositionedSoundInstance master(SoundEvent sound, float pitch, float volume) {
 		return new PositionedSoundInstance(
 				sound.id(),
@@ -52,6 +77,13 @@ public class PositionedSoundInstance extends AbstractSoundInstance {
 		);
 	}
 
+	/**
+	 * Music.
+	 *
+	 * @param sound sound
+	 *
+	 * @return PositionedSoundInstance — результат операции
+	 */
 	public static PositionedSoundInstance music(SoundEvent sound) {
 		return new PositionedSoundInstance(
 				sound.id(),
@@ -69,6 +101,14 @@ public class PositionedSoundInstance extends AbstractSoundInstance {
 		);
 	}
 
+	/**
+	 * Record.
+	 *
+	 * @param sound sound
+	 * @param pos pos
+	 *
+	 * @return PositionedSoundInstance — результат операции
+	 */
 	public static PositionedSoundInstance record(SoundEvent sound, Vec3d pos) {
 		return new PositionedSoundInstance(
 				sound,
@@ -85,6 +125,15 @@ public class PositionedSoundInstance extends AbstractSoundInstance {
 		);
 	}
 
+	/**
+	 * Ambient.
+	 *
+	 * @param sound sound
+	 * @param pitch pitch
+	 * @param volume volume
+	 *
+	 * @return PositionedSoundInstance — результат операции
+	 */
 	public static PositionedSoundInstance ambient(SoundEvent sound, float pitch, float volume) {
 		return new PositionedSoundInstance(
 				sound.id(),
@@ -102,10 +151,28 @@ public class PositionedSoundInstance extends AbstractSoundInstance {
 		);
 	}
 
+	/**
+	 * Ambient.
+	 *
+	 * @param sound sound
+	 *
+	 * @return PositionedSoundInstance — результат операции
+	 */
 	public static PositionedSoundInstance ambient(SoundEvent sound) {
 		return ambient(sound, 1.0F, 1.0F);
 	}
 
+	/**
+	 * Ambient.
+	 *
+	 * @param sound sound
+	 * @param random random
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return PositionedSoundInstance — результат операции
+	 */
 	public static PositionedSoundInstance ambient(SoundEvent sound, Random random, double x, double y, double z) {
 		return new PositionedSoundInstance(
 				sound,

@@ -123,6 +123,14 @@ public class PlayerEntityModel extends BipedEntityModel<PlayerEntityRenderState>
 		return modelData;
 	}
 
+	/**
+	 * Создаёт equipment model data.
+	 *
+	 * @param hatDilation hat dilation
+	 * @param armorDilation armor dilation
+	 *
+	 * @return EquipmentModelData — результат операции
+	 */
 	public static EquipmentModelData<ModelData> createEquipmentModelData(Dilation hatDilation, Dilation armorDilation) {
 		return BipedEntityModel.createEquipmentModelData(hatDilation, armorDilation).map(modelData -> {
 			ModelPartData modelPartData = modelData.getRoot();

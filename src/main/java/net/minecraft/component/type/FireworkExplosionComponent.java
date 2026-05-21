@@ -80,6 +80,11 @@ public record FireworkExplosionComponent(
 		this.appendOptionalTooltip(textConsumer);
 	}
 
+	/**
+	 * Append optional tooltip.
+	 *
+	 * @param textConsumer text consumer
+	 */
 	public void appendOptionalTooltip(Consumer<Text> textConsumer) {
 		if (!this.colors.isEmpty()) {
 			textConsumer.accept(appendColorsTooltipText(Text.empty().formatted(Formatting.GRAY), this.colors));
@@ -124,6 +129,13 @@ public record FireworkExplosionComponent(
 		);
 	}
 
+	/**
+	 * With fade colors.
+	 *
+	 * @param fadeColors fade colors
+	 *
+	 * @return FireworkExplosionComponent — результат операции
+	 */
 	public FireworkExplosionComponent withFadeColors(IntList fadeColors) {
 		return new FireworkExplosionComponent(
 				this.shape,

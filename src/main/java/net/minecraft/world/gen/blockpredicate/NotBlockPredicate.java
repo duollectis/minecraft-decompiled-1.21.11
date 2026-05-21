@@ -21,6 +21,14 @@ class NotBlockPredicate implements BlockPredicate {
 		this.predicate = predicate;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param structureWorldAccess structure world access
+	 * @param blockPos block pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
 		return !this.predicate.test(structureWorldAccess, blockPos);
 	}

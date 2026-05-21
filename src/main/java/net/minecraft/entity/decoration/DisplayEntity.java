@@ -223,6 +223,12 @@ public abstract class DisplayEntity extends Entity {
 		return this.interpolator;
 	}
 
+	/**
+	 * Refresh data.
+	 *
+	 * @param shouldLerp should lerp
+	 * @param lerpProgress lerp progress
+	 */
 	protected abstract void refreshData(boolean shouldLerp, float lerpProgress);
 
 	@Override
@@ -291,6 +297,11 @@ public abstract class DisplayEntity extends Entity {
 		return this.visibilityBoundingBox;
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRender() {
 		return !this.tooSmallToRender;
 	}
@@ -491,6 +502,13 @@ public abstract class DisplayEntity extends Entity {
 	record AffineTransformationInterpolator(AffineTransformation previous, AffineTransformation current)
 			implements DisplayEntity.AbstractInterpolator<AffineTransformation> {
 
+		/**
+		 * Interpolate.
+		 *
+		 * @param f f
+		 *
+		 * @return AffineTransformation — результат операции
+		 */
 		public AffineTransformation interpolate(float f) {
 			return f >= 1.0 ? this.current : this.previous.interpolate(this.current, f);
 		}

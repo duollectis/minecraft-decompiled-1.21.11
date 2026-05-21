@@ -69,6 +69,12 @@ public class PackListWidget extends AlwaysSelectedEntryListWidget<PackListWidget
 		return this.getSelectedOrNull() != null ? this.getSelectedOrNull().keyPressed(input) : super.keyPressed(input);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param packs packs
+	 * @param focused focused
+	 */
 	public void set(Stream<ResourcePackOrganizer.Pack> packs, ResourcePackOrganizer.@Nullable AbstractPack focused) {
 		this.clearEntries();
 		Text text = Text.empty().append(this.title).formatted(Formatting.UNDERLINE, Formatting.BOLD);
@@ -392,6 +398,9 @@ public class PackListWidget extends AlwaysSelectedEntryListWidget<PackListWidget
 			return !this.pack.isPinned() || !this.pack.isAlwaysEnabled();
 		}
 
+		/**
+		 * Toggle.
+		 */
 		public void toggle() {
 			if (this.pack.canBeEnabled()) {
 				this.enable();

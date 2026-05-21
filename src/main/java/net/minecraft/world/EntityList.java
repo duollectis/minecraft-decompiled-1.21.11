@@ -35,20 +35,42 @@ public class EntityList {
 		}
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param entity entity
+	 */
 	public void add(Entity entity) {
 		this.ensureSafe();
 		this.entities.put(entity.getId(), entity);
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param entity entity
+	 */
 	public void remove(Entity entity) {
 		this.ensureSafe();
 		this.entities.remove(entity.getId());
 	}
 
+	/**
+	 * Has.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean has(Entity entity) {
 		return this.entities.containsKey(entity.getId());
 	}
 
+	/**
+	 * For each.
+	 *
+	 * @param action action
+	 */
 	public void forEach(Consumer<Entity> action) {
 		if (this.iterating != null) {
 			throw new UnsupportedOperationException("Only one concurrent iteration supported");

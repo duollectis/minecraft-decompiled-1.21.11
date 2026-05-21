@@ -22,6 +22,12 @@ public class SuppressedExceptionsTracker {
 		return System.currentTimeMillis();
 	}
 
+	/**
+	 * Обрабатывает событие suppressed exception.
+	 *
+	 * @param location location
+	 * @param exception exception
+	 */
 	public synchronized void onSuppressedException(String location, Throwable exception) {
 		long l = currentTimeMillis();
 		String string = exception.getMessage();
@@ -43,6 +49,11 @@ public class SuppressedExceptionsTracker {
 		this.keyToCount.putAndMoveToFirst(key, i + 1);
 	}
 
+	/**
+	 * Collect.
+	 *
+	 * @return String — результат операции
+	 */
 	public synchronized String collect() {
 		long l = currentTimeMillis();
 		StringBuilder stringBuilder = new StringBuilder();

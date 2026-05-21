@@ -27,6 +27,14 @@ public record ButtonTextures(
 		this(enabled, disabled, focused, disabled);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param enabled enabled
+	 * @param focused focused
+	 *
+	 * @return Identifier — 
+	 */
 	public Identifier get(boolean enabled, boolean focused) {
 		if (enabled) {
 			return focused ? this.enabledFocused : this.enabled;

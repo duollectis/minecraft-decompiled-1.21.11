@@ -45,6 +45,13 @@ public record TableBonusLootCondition(
 		return Set.of(LootContextParameters.TOOL);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		ItemStack itemStack = lootContext.get(LootContextParameters.TOOL);
 		int i = itemStack != null ? EnchantmentHelper.getLevel(this.enchantment, itemStack) : 0;

@@ -14,6 +14,9 @@ import net.minecraft.network.packet.c2s.config.SelectKnownPacksC2SPacket;
 import net.minecraft.network.packet.s2c.common.*;
 import net.minecraft.network.packet.s2c.config.*;
 
+/**
+ * Класс configuration states.
+ */
 public class ConfigurationStates {
 
 	public static final NetworkStateFactory<ServerConfigurationPacketListener, PacketByteBuf>

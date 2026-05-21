@@ -10,6 +10,9 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
+/**
+ * Класс message chain task queue.
+ */
 public class MessageChainTaskQueue implements FutureQueue, AutoCloseable {
 
 	private static final Logger LOGGER = LogUtils.getLogger();

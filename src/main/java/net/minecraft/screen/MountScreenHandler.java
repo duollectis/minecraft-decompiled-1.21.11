@@ -26,6 +26,13 @@ public abstract class MountScreenHandler extends ScreenHandler {
 		inventory.onOpen(playerInventory.player);
 	}
 
+	/**
+	 * Are inventories different.
+	 *
+	 * @param inventory inventory
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected abstract boolean areInventoriesDifferent(Inventory inventory);
 
 	@Override

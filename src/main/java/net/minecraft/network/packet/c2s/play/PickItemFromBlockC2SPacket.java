@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Запись pick item from block c2 s packet.
+ */
 public record PickItemFromBlockC2SPacket(
 		BlockPos pos,
 		boolean includeData
@@ -27,6 +30,11 @@ public record PickItemFromBlockC2SPacket(
 		return PlayPackets.PICK_ITEM_FROM_BLOCK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onPickItemFromBlock(this);
 	}

@@ -116,6 +116,9 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Класс minecraft server.
+ */
 public abstract class MinecraftServer
 		extends ReentrantThreadExecutor<ServerTask>
 		implements QueryableServer,
@@ -227,6 +230,13 @@ public abstract class MinecraftServer
 	private final PacketApplyBatcher packetApplyBatcher;
 	private final DataResourceStoreImpl dataResourceStore = new DataResourceStoreImpl();
 
+	/**
+	 * Запускает server.
+	 *
+	 * @param serverFactory server factory
+	 *
+	 * @return S — результат операции
+	 */
 	public static <S extends MinecraftServer> S startServer(Function<Thread, S> serverFactory) {
 		AtomicReference<S> atomicReference = new AtomicReference<>();
 		Thread thread = new Thread(() -> atomicReference.get().runServer(), "Server thread");
@@ -304,8 +314,20 @@ public abstract class MinecraftServer
 		}
 	}
 
+	/**
+	 * Устанавливает up server.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected abstract boolean setupServer() throws IOException;
 
+	/**
+	 * Создаёт chunk load map.
+	 *
+	 * @param radius radius
+	 *
+	 * @return ChunkLoadMap — результат операции
+	 */
 	public ChunkLoadMap createChunkLoadMap(int radius) {
 		return new ChunkLoadMap() {
 			private @Nullable ServerChunkLoadingManager chunkLoadingManager;
@@ -338,6 +360,9 @@ public abstract class MinecraftServer
 		};
 	}
 
+	/**
+	 * Загружает world.
+	 */
 	protected void loadWorld() {
 		boolean bl = !FlightProfiler.INSTANCE.isProfiling()
 				&& SharedConstants.JFR_PROFILING_ENABLE_LEVEL_LOADING
@@ -361,9 +386,15 @@ public abstract class MinecraftServer
 		}
 	}
 
+	/**
+	 * Обновляет difficulty.
+	 */
 	protected void updateDifficulty() {
 	}
 
+	/**
+	 * Создаёт worlds.
+	 */
 	protected void createWorlds() {
 		ServerWorldProperties serverWorldProperties = this.saveProperties.getMainWorldProperties();
 		boolean bl = this.saveProperties.isDebugWorld();
@@ -653,8 +684,22 @@ public abstract class MinecraftServer
 
 	public abstract PermissionPredicate getFunctionPermissions();
 
+	/**
+	 * Определяет, следует ли broadcast rcon to ops.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public abstract boolean shouldBroadcastRconToOps();
 
+	/**
+	 * Save.
+	 *
+	 * @param suppressLogs suppress logs
+	 * @param flush flush
+	 * @param force force
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean save(boolean suppressLogs, boolean flush, boolean force) {
 		this.scoreboard.writeTo(this.getOverworld().getPersistentStateManager().getOrCreate(ScoreboardState.TYPE));
 		boolean bl = false;
@@ -688,6 +733,15 @@ public abstract class MinecraftServer
 		return bl;
 	}
 
+	/**
+	 * Сохраняет all.
+	 *
+	 * @param suppressLogs suppress logs
+	 * @param flush flush
+	 * @param force force
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean saveAll(boolean suppressLogs, boolean flush, boolean force) {
 		boolean var4;
 		try {
@@ -707,6 +761,9 @@ public abstract class MinecraftServer
 		this.shutdown();
 	}
 
+	/**
+	 * Shutdown.
+	 */
 	public void shutdown() {
 		this.packetApplyBatcher.close();
 		if (this.recorder.isActive()) {
@@ -780,6 +837,11 @@ public abstract class MinecraftServer
 		return this.running;
 	}
 
+	/**
+	 * Stop.
+	 *
+	 * @param waitForShutdown wait for shutdown
+	 */
 	public void stop(boolean waitForShutdown) {
 		this.running = false;
 		if (waitForShutdown) {
@@ -792,6 +854,9 @@ public abstract class MinecraftServer
 		}
 	}
 
+	/**
+	 * Run server.
+	 */
 	protected void runServer() {
 		try {
 			if (!this.setupServer()) {
@@ -947,6 +1012,11 @@ public abstract class MinecraftServer
 		);
 	}
 
+	/**
+	 * Проверяет world gen exception.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean checkWorldGenException() {
 		RuntimeException runtimeException = WORLD_GEN_EXCEPTION.get();
 		if (runtimeException != null) {
@@ -970,6 +1040,9 @@ public abstract class MinecraftServer
 		return this.managementListener;
 	}
 
+	/**
+	 * Run tasks till tick end.
+	 */
 	protected void runTasksTillTickEnd() {
 		this.runTasks();
 		this.waitingForNextTick = true;
@@ -993,10 +1066,24 @@ public abstract class MinecraftServer
 		}
 	}
 
+	/**
+	 * Создаёт task.
+	 *
+	 * @param runnable runnable
+	 *
+	 * @return ServerTask — результат операции
+	 */
 	public ServerTask createTask(Runnable runnable) {
 		return new ServerTask(this.ticks, runnable);
 	}
 
+	/**
+	 * Проверяет возможность execute.
+	 *
+	 * @param serverTask server task
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canExecute(ServerTask serverTask) {
 		return serverTask.getCreationTicks() + 3 < this.ticks || this.shouldKeepTicking();
 	}
@@ -1025,6 +1112,11 @@ public abstract class MinecraftServer
 		}
 	}
 
+	/**
+	 * Execute task.
+	 *
+	 * @param serverTask server task
+	 */
 	public void executeTask(ServerTask serverTask) {
 		Profilers.get().visit("runTask");
 		super.executeTask(serverTask);
@@ -1071,6 +1163,9 @@ public abstract class MinecraftServer
 	public void setCrashReport(CrashReport report) {
 	}
 
+	/**
+	 * Exit.
+	 */
 	public void exit() {
 	}
 
@@ -1078,6 +1173,11 @@ public abstract class MinecraftServer
 		return false;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param shouldKeepTicking should keep ticking
+	 */
 	public void tick(BooleanSupplier shouldKeepTicking) {
 		long l = Util.getMeasuringTimeNano();
 		int i = this.getPauseWhenEmptySeconds() * 20;
@@ -1126,6 +1226,11 @@ public abstract class MinecraftServer
 		profiler.pop();
 	}
 
+	/**
+	 * Обрабатывает packets and tick.
+	 *
+	 * @param sprint sprint
+	 */
 	protected void processPacketsAndTick(boolean sprint) {
 		Profiler profiler = Profilers.get();
 		profiler.push("tick");
@@ -1170,6 +1275,9 @@ public abstract class MinecraftServer
 		return Math.max(100, (int) (f * 300.0F));
 	}
 
+	/**
+	 * Обновляет autosave ticks.
+	 */
 	public void updateAutosaveTicks() {
 		int i = this.getAutosaveInterval();
 		if (i < this.ticksUntilAutosave) {
@@ -1179,6 +1287,11 @@ public abstract class MinecraftServer
 
 	protected abstract DebugSampleLog getDebugSampleLog();
 
+	/**
+	 * Определяет, следует ли push tick time log.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public abstract boolean shouldPushTickTimeLog();
 
 	private ServerMetadata createMetadata() {
@@ -1214,6 +1327,11 @@ public abstract class MinecraftServer
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для worlds.
+	 *
+	 * @param shouldKeepTicking should keep ticking
+	 */
 	protected void tickWorlds(BooleanSupplier shouldKeepTicking) {
 		Profiler profiler = Profilers.get();
 		this.getPlayerManager().getPlayerList().forEach(player -> player.networkHandler.disableFlush());
@@ -1279,6 +1397,9 @@ public abstract class MinecraftServer
 		this.spawnPoint = serverWorld.ensureWithinBorder(spawnPoint);
 	}
 
+	/**
+	 * Выполняет тик обновления для network io.
+	 */
 	public void tickNetworkIo() {
 		this.getNetworkIo().tick();
 	}
@@ -1294,6 +1415,9 @@ public abstract class MinecraftServer
 				);
 	}
 
+	/**
+	 * Отправляет time update packets.
+	 */
 	public void sendTimeUpdatePackets() {
 		Profiler profiler = Profilers.get();
 		profiler.push("timeSync");
@@ -1305,6 +1429,11 @@ public abstract class MinecraftServer
 		profiler.pop();
 	}
 
+	/**
+	 * Добавляет server gui tickable.
+	 *
+	 * @param tickable tickable
+	 */
 	public void addServerGuiTickable(Runnable tickable) {
 		this.serverGuiTickables.add(tickable);
 	}
@@ -1356,6 +1485,13 @@ public abstract class MinecraftServer
 		return "vanilla";
 	}
 
+	/**
+	 * Добавляет system details.
+	 *
+	 * @param details details
+	 *
+	 * @return SystemDetails — результат операции
+	 */
 	public SystemDetails addSystemDetails(SystemDetails details) {
 		details.addSection("Server Running", () -> Boolean.toString(this.running));
 		if (this.playerManager != null) {
@@ -1392,6 +1528,13 @@ public abstract class MinecraftServer
 		return this.addExtraSystemDetails(details);
 	}
 
+	/**
+	 * Добавляет extra system details.
+	 *
+	 * @param details details
+	 *
+	 * @return SystemDetails — результат операции
+	 */
 	public abstract SystemDetails addExtraSystemDetails(SystemDetails details);
 
 	public ModStatus getModStatus() {
@@ -1427,6 +1570,9 @@ public abstract class MinecraftServer
 		return this.hostProfile != null;
 	}
 
+	/**
+	 * Generate key pair.
+	 */
 	protected void generateKeyPair() {
 		LOGGER.info("Generating keypair");
 
@@ -1446,10 +1592,20 @@ public abstract class MinecraftServer
 		}
 	}
 
+	/**
+	 * Adjust tracking distance.
+	 *
+	 * @param initialDistance initial distance
+	 *
+	 * @return int — результат операции
+	 */
 	public int adjustTrackingDistance(int initialDistance) {
 		return initialDistance;
 	}
 
+	/**
+	 * Обновляет mob spawn options.
+	 */
 	public void updateMobSpawnOptions() {
 		for (ServerWorld serverWorld : this.getWorlds()) {
 			serverWorld.setMobSpawnOptions(serverWorld.shouldSpawnMonsters());
@@ -1485,6 +1641,11 @@ public abstract class MinecraftServer
 		return Optional.empty();
 	}
 
+	/**
+	 * Require resource pack.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean requireResourcePack() {
 		return this
 				.getResourcePackProperties()
@@ -1504,6 +1665,11 @@ public abstract class MinecraftServer
 		this.onlineMode = onlineMode;
 	}
 
+	/**
+	 * Определяет, следует ли prevent proxy connections.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldPreventProxyConnections() {
 		return this.preventProxyConnections;
 	}
@@ -1545,6 +1711,13 @@ public abstract class MinecraftServer
 		this.saveProperties.setGameMode(gameMode);
 	}
 
+	/**
+	 * Change game mode globally.
+	 *
+	 * @param gameMode game mode
+	 *
+	 * @return int — результат операции
+	 */
 	public int changeGameModeGlobally(@Nullable GameMode gameMode) {
 		if (gameMode == null) {
 			return 0;
@@ -1570,6 +1743,15 @@ public abstract class MinecraftServer
 		return this.loading;
 	}
 
+	/**
+	 * Открывает to lan.
+	 *
+	 * @param gameMode game mode
+	 * @param cheatsAllowed cheats allowed
+	 * @param port port
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean openToLan(@Nullable GameMode gameMode, boolean cheatsAllowed, int port) {
 		return false;
 	}
@@ -1582,10 +1764,20 @@ public abstract class MinecraftServer
 		return false;
 	}
 
+	/**
+	 * Accepts status query.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean acceptsStatusQuery() {
 		return true;
 	}
 
+	/**
+	 * Hide online players.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean hideOnlinePlayers() {
 		return false;
 	}
@@ -1610,6 +1802,9 @@ public abstract class MinecraftServer
 		return this.metadata;
 	}
 
+	/**
+	 * Force player sample update.
+	 */
 	public void forcePlayerSampleUpdate() {
 		this.lastPlayerSampleUpdate = 0L;
 	}
@@ -1642,6 +1837,11 @@ public abstract class MinecraftServer
 		return 256;
 	}
 
+	/**
+	 * Определяет, следует ли enforce secure profile.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldEnforceSecureProfile() {
 		return false;
 	}
@@ -1662,6 +1862,13 @@ public abstract class MinecraftServer
 		return this.commandFunctionManager;
 	}
 
+	/**
+	 * Reload resources.
+	 *
+	 * @param dataPacks data packs
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Void> reloadResources(Collection<String> dataPacks) {
 		CompletableFuture<Void> completableFuture = CompletableFuture.<ImmutableList>supplyAsync(
 				                                                             () -> dataPacks.stream()
@@ -1880,6 +2087,9 @@ public abstract class MinecraftServer
 		return new DataPackSettings(list, list2);
 	}
 
+	/**
+	 * Kick non whitelisted players.
+	 */
 	public void kickNonWhitelistedPlayers() {
 		if (this.isEnforceWhitelist() && this.getUseAllowlist()) {
 			PlayerManager playerManager = this.getPlayerManager();
@@ -2037,6 +2247,11 @@ public abstract class MinecraftServer
 
 	public abstract boolean isHost(PlayerConfigEntry player);
 
+	/**
+	 * Dump properties.
+	 *
+	 * @param file file
+	 */
 	public void dumpProperties(Path file) throws IOException {
 	}
 
@@ -2154,6 +2369,9 @@ public abstract class MinecraftServer
 		return TickDurationMonitor.tickProfiler(this.recorder.getProfiler(), TickDurationMonitor.create("Server"));
 	}
 
+	/**
+	 * End tick metrics.
+	 */
 	public void endTickMetrics() {
 		this.recorder.endTick();
 	}
@@ -2162,6 +2380,12 @@ public abstract class MinecraftServer
 		return this.recorder.isActive();
 	}
 
+	/**
+	 * Устанавливает up recorder.
+	 *
+	 * @param resultConsumer result consumer
+	 * @param dumpConsumer dump consumer
+	 */
 	public void setupRecorder(Consumer<ProfileResult> resultConsumer, Consumer<Path> dumpConsumer) {
 		this.recorderResultConsumer = result -> {
 			this.resetRecorder();
@@ -2171,14 +2395,23 @@ public abstract class MinecraftServer
 		this.needsRecorderSetup = true;
 	}
 
+	/**
+	 * Сбрасывает recorder.
+	 */
 	public void resetRecorder() {
 		this.recorder = DummyRecorder.INSTANCE;
 	}
 
+	/**
+	 * Останавливает recorder.
+	 */
 	public void stopRecorder() {
 		this.recorder.stop();
 	}
 
+	/**
+	 * Force stop recorder.
+	 */
 	public void forceStopRecorder() {
 		this.recorder.forceStop();
 	}
@@ -2187,6 +2420,11 @@ public abstract class MinecraftServer
 		return this.session.getDirectory(worldSavePath);
 	}
 
+	/**
+	 * Sync chunk writes.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean syncChunkWrites() {
 		return true;
 	}
@@ -2211,6 +2449,13 @@ public abstract class MinecraftServer
 		return this.resourceManagerHolder.dataPackContents.getReloadableRegistries();
 	}
 
+	/**
+	 * Создаёт filterer.
+	 *
+	 * @param player player
+	 *
+	 * @return TextStream — результат операции
+	 */
 	public TextStream createFilterer(ServerPlayerEntity player) {
 		return TextStream.UNFILTERED;
 	}
@@ -2237,10 +2482,18 @@ public abstract class MinecraftServer
 		return this.needsDebugSetup || this.debugStart != null;
 	}
 
+	/**
+	 * Запускает debug.
+	 */
 	public void startDebug() {
 		this.needsDebugSetup = true;
 	}
 
+	/**
+	 * Останавливает debug.
+	 *
+	 * @return ProfileResult — результат операции
+	 */
 	public ProfileResult stopDebug() {
 		if (this.debugStart == null) {
 			return EmptyProfileResult.INSTANCE;
@@ -2256,6 +2509,13 @@ public abstract class MinecraftServer
 		return 1000000;
 	}
 
+	/**
+	 * Логирует chat message.
+	 *
+	 * @param message message
+	 * @param params params
+	 * @param prefix prefix
+	 */
 	public void logChatMessage(Text message, MessageType.Parameters params, @Nullable String prefix) {
 		String string = params.applyChatDecoration(message).getString();
 		if (prefix != null) {
@@ -2270,10 +2530,21 @@ public abstract class MinecraftServer
 		return MessageDecorator.NOOP;
 	}
 
+	/**
+	 * Определяет, следует ли log ips.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldLogIps() {
 		return true;
 	}
 
+	/**
+	 * Обрабатывает custom click action.
+	 *
+	 * @param id id
+	 * @param payload payload
+	 */
 	public void handleCustomClickAction(Identifier id, Optional<NbtElement> payload) {
 		LOGGER.debug("Received custom click action {} with payload {}", id, payload.orElse(null));
 	}
@@ -2305,6 +2576,14 @@ public abstract class MinecraftServer
 		return false;
 	}
 
+	/**
+	 * Обрабатывает событие game rule updated.
+	 *
+	 * @param gameRule game rule
+	 * @param object object
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void onGameRuleUpdated(GameRule<T> gameRule, T object) {
 		this.getManagementListener().onGameRuleUpdated(gameRule, object);
 		if (gameRule == GameRules.REDUCED_DEBUG_INFO) {
@@ -2343,6 +2622,11 @@ public abstract class MinecraftServer
 		}
 	}
 
+	/**
+	 * Accepts transfers.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean acceptsTransfers() {
 		return false;
 	}
@@ -2389,6 +2673,12 @@ public abstract class MinecraftServer
 		this.writeChunkIoReport(CrashReport.create(exception, "Chunk save failure"), chunkPos, key);
 	}
 
+	/**
+	 * Обрабатывает событие packet exception.
+	 *
+	 * @param exception exception
+	 * @param type type
+	 */
 	public void onPacketException(Throwable exception, PacketType<?> type) {
 		this.suppressedExceptionsTracker.onSuppressedException("packet/" + type, exception);
 	}

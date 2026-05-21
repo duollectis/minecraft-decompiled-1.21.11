@@ -24,6 +24,12 @@ public class BreezeAttackablesSensor extends NearestLivingEntitiesSensor<BreezeE
 		));
 	}
 
+	/**
+	 * Sense.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 */
 	protected void sense(ServerWorld serverWorld, BreezeEntity breezeEntity) {
 		super.sense(serverWorld, breezeEntity);
 		breezeEntity.getBrain()

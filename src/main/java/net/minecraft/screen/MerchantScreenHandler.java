@@ -90,6 +90,11 @@ public class MerchantScreenHandler extends ScreenHandler {
 		this.canRefreshTrades = canRefreshTrades;
 	}
 
+	/**
+	 * Проверяет возможность refresh trades.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canRefreshTrades() {
 		return this.canRefreshTrades;
 	}
@@ -186,6 +191,11 @@ public class MerchantScreenHandler extends ScreenHandler {
 		}
 	}
 
+	/**
+	 * Switch to.
+	 *
+	 * @param recipeIndex recipe index
+	 */
 	public void switchTo(int recipeIndex) {
 		if (recipeIndex >= 0 && this.getRecipes().size() > recipeIndex) {
 			ItemStack itemStack = this.merchantInventory.getStack(0);

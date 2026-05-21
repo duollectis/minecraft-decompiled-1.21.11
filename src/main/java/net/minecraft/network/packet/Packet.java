@@ -6,6 +6,9 @@ import net.minecraft.network.codec.PacketDecoder;
 import net.minecraft.network.codec.ValueFirstEncoder;
 import net.minecraft.network.listener.PacketListener;
 
+/**
+ * Интерфейс packet.
+ */
 public interface Packet<T extends PacketListener> {
 
 	PacketType<? extends Packet<T>> getPacketType();

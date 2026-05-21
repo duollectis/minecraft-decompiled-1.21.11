@@ -52,6 +52,13 @@ public class VariantsBlockModelDefinitionCreator implements BlockModelDefinition
 		return set;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param operators operators
+	 *
+	 * @return VariantsBlockModelDefinitionCreator — результат операции
+	 */
 	public VariantsBlockModelDefinitionCreator apply(BlockStateVariantMap<ModelVariantOperator> operators) {
 		Set<Property<?>> set = validateAndAddProperties(this.definedProperties, this.block, operators);
 		List<VariantsBlockModelDefinitionCreator.Entry>
@@ -60,6 +67,13 @@ public class VariantsBlockModelDefinitionCreator implements BlockModelDefinition
 		return new VariantsBlockModelDefinitionCreator(this.block, list, set);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param operator operator
+	 *
+	 * @return VariantsBlockModelDefinitionCreator — результат операции
+	 */
 	public VariantsBlockModelDefinitionCreator apply(ModelVariantOperator operator) {
 		List<VariantsBlockModelDefinitionCreator.Entry>
 				list =
@@ -87,6 +101,14 @@ public class VariantsBlockModelDefinitionCreator implements BlockModelDefinition
 		return new VariantsBlockModelDefinitionCreator.Empty(block);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param block block
+	 * @param model model
+	 *
+	 * @return VariantsBlockModelDefinitionCreator — результат операции
+	 */
 	public static VariantsBlockModelDefinitionCreator of(Block block, WeightedVariant model) {
 		return new VariantsBlockModelDefinitionCreator(
 				block,
@@ -107,6 +129,13 @@ public class VariantsBlockModelDefinitionCreator implements BlockModelDefinition
 			this.block = block;
 		}
 
+		/**
+		 * With.
+		 *
+		 * @param variantMap variant map
+		 *
+		 * @return VariantsBlockModelDefinitionCreator — результат операции
+		 */
 		public VariantsBlockModelDefinitionCreator with(BlockStateVariantMap<WeightedVariant> variantMap) {
 			Set<Property<?>>
 					set =

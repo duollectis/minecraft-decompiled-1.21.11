@@ -72,6 +72,11 @@ public class DataCommand {
 			                                                                                            "source"))
 	                                                                                            .collect(ImmutableList.toImmutableList());
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		LiteralArgumentBuilder<ServerCommandSource>
 				literalArgumentBuilder =

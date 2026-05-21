@@ -31,16 +31,34 @@ public class GlyphContainer<T> {
 		this.makeRow = makeRow;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		Arrays.fill(this.rows, this.defaultRow);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param codePoint code point
+	 *
+	 * @return @Nullable T — 
+	 */
 	public @Nullable T get(int codePoint) {
 		int i = codePoint >> 8;
 		int j = codePoint & 0xFF;
 		return this.rows[i][j];
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param codePoint code point
+	 * @param glyph glyph
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public @Nullable T put(int codePoint, T glyph) {
 		int i = codePoint >> 8;
 		int j = codePoint & 0xFF;
@@ -58,6 +76,14 @@ public class GlyphContainer<T> {
 		}
 	}
 
+	/**
+	 * Вычисляет if absent.
+	 *
+	 * @param codePoint code point
+	 * @param ifAbsent if absent
+	 *
+	 * @return T — результат операции
+	 */
 	public T computeIfAbsent(int codePoint, IntFunction<T> ifAbsent) {
 		int i = codePoint >> 8;
 		int j = codePoint & 0xFF;
@@ -78,6 +104,13 @@ public class GlyphContainer<T> {
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param codePoint code point
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public @Nullable T remove(int codePoint) {
 		int i = codePoint >> 8;
 		int j = codePoint & 0xFF;
@@ -92,6 +125,11 @@ public class GlyphContainer<T> {
 		}
 	}
 
+	/**
+	 * For each glyph.
+	 *
+	 * @param glyphConsumer glyph consumer
+	 */
 	public void forEachGlyph(GlyphContainer.GlyphConsumer<T> glyphConsumer) {
 		for (int i = 0; i < this.rows.length; i++) {
 			T[] objects = this.rows[i];

@@ -9,6 +9,9 @@ import net.minecraft.network.listener.PacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.state.NetworkState;
 
+/**
+ * Класс network state transitions.
+ */
 public class NetworkStateTransitions {
 
 	public static <T extends PacketListener> NetworkStateTransitions.DecoderTransitioner decoderTransitioner(
@@ -35,6 +38,9 @@ public class NetworkStateTransitions {
 	}
 
 	@FunctionalInterface
+	/**
+	 * Интерфейс decoder transitioner.
+	 */
 	public interface DecoderTransitioner {
 
 		void run(ChannelHandlerContext context);
@@ -48,6 +54,9 @@ public class NetworkStateTransitions {
 	}
 
 	@FunctionalInterface
+	/**
+	 * Интерфейс encoder transitioner.
+	 */
 	public interface EncoderTransitioner {
 
 		void run(ChannelHandlerContext context);
@@ -62,6 +71,12 @@ public class NetworkStateTransitions {
 
 	public static class InboundConfigurer extends ChannelDuplexHandler {
 
+		/**
+		 * Channel read.
+		 *
+		 * @param context context
+		 * @param received received
+		 */
 		public void channelRead(ChannelHandlerContext context, Object received) {
 			if (!(received instanceof ByteBuf) && !(received instanceof Packet)) {
 				context.fireChannelRead(received);
@@ -73,6 +88,13 @@ public class NetworkStateTransitions {
 			}
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param context context
+		 * @param received received
+		 * @param promise promise
+		 */
 		public void write(ChannelHandlerContext context, Object received, ChannelPromise promise) throws Exception {
 			if (received instanceof NetworkStateTransitions.DecoderTransitioner decoderTransitioner) {
 				try {
@@ -92,6 +114,13 @@ public class NetworkStateTransitions {
 
 	public static class OutboundConfigurer extends ChannelOutboundHandlerAdapter {
 
+		/**
+		 * Write.
+		 *
+		 * @param context context
+		 * @param received received
+		 * @param promise promise
+		 */
 		public void write(ChannelHandlerContext context, Object received, ChannelPromise promise) throws Exception {
 			if (received instanceof Packet) {
 				ReferenceCountUtil.release(received);

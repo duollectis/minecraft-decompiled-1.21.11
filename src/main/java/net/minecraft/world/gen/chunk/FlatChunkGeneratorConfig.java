@@ -156,14 +156,27 @@ public class FlatChunkGeneratorConfig {
 		return flatChunkGeneratorConfig;
 	}
 
+	/**
+	 * Включает features.
+	 */
 	public void enableFeatures() {
 		this.hasFeatures = true;
 	}
 
+	/**
+	 * Включает lakes.
+	 */
 	public void enableLakes() {
 		this.hasLakes = true;
 	}
 
+	/**
+	 * Создаёт generation settings.
+	 *
+	 * @param biomeEntry biome entry
+	 *
+	 * @return GenerationSettings — результат операции
+	 */
 	public GenerationSettings createGenerationSettings(RegistryEntry<Biome> biomeEntry) {
 		if (!biomeEntry.equals(this.biome)) {
 			return biomeEntry.value().getGenerationSettings();
@@ -225,6 +238,9 @@ public class FlatChunkGeneratorConfig {
 		return this.layerBlocks;
 	}
 
+	/**
+	 * Обновляет layer blocks.
+	 */
 	public void updateLayerBlocks() {
 		this.layerBlocks.clear();
 

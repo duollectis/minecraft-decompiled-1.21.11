@@ -56,6 +56,11 @@ public class RealmsUploader {
 		this.progressTracker = progressTracker;
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<?> upload() {
 		return CompletableFuture.runAsync(
 				() -> {
@@ -133,6 +138,9 @@ public class RealmsUploader {
 		);
 	}
 
+	/**
+	 * Проверяет возможность cel.
+	 */
 	public void cancel() {
 		this.cancelled = true;
 		CompletableFuture<?> completableFuture = this.upload;

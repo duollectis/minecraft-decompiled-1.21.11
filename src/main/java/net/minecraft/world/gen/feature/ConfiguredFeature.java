@@ -29,6 +29,16 @@ public record ConfiguredFeature<FC extends FeatureConfig, F extends Feature<FC>>
 			LIST_CODEC =
 			RegistryCodecs.entryList(RegistryKeys.CONFIGURED_FEATURE, CODEC);
 
+	/**
+	 * Generate.
+	 *
+	 * @param world world
+	 * @param chunkGenerator chunk generator
+	 * @param random random
+	 * @param origin origin
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean generate(StructureWorldAccess world, ChunkGenerator chunkGenerator, Random random, BlockPos origin) {
 		return this.feature.generateIfValid(this.config, world, chunkGenerator, random, origin);
 	}

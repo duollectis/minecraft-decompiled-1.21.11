@@ -62,6 +62,11 @@ public class BossBarHud {
 		this.client = client;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 */
 	public void render(DrawContext context) {
 		if (!this.bossBars.isEmpty()) {
 			context.createNewRootLayer();
@@ -133,6 +138,11 @@ public class BossBarHud {
 		}
 	}
 
+	/**
+	 * Обрабатывает packet.
+	 *
+	 * @param packet packet
+	 */
 	public void handlePacket(BossBarS2CPacket packet) {
 		packet.accept(
 				new BossBarS2CPacket.Consumer() {
@@ -191,10 +201,18 @@ public class BossBarHud {
 		);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.bossBars.clear();
 	}
 
+	/**
+	 * Определяет, следует ли play dragon music.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldPlayDragonMusic() {
 		if (!this.bossBars.isEmpty()) {
 			for (BossBar bossBar : this.bossBars.values()) {
@@ -207,6 +225,11 @@ public class BossBarHud {
 		return false;
 	}
 
+	/**
+	 * Определяет, следует ли darken sky.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDarkenSky() {
 		if (!this.bossBars.isEmpty()) {
 			for (BossBar bossBar : this.bossBars.values()) {
@@ -219,6 +242,11 @@ public class BossBarHud {
 		return false;
 	}
 
+	/**
+	 * Определяет, следует ли thicken fog.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldThickenFog() {
 		if (!this.bossBars.isEmpty()) {
 			for (BossBar bossBar : this.bossBars.values()) {

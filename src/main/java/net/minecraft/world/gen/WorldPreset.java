@@ -50,6 +50,11 @@ public class WorldPreset {
 		return builder.build();
 	}
 
+	/**
+	 * Создаёт dimensions registry holder.
+	 *
+	 * @return DimensionOptionsRegistryHolder — результат операции
+	 */
 	public DimensionOptionsRegistryHolder createDimensionsRegistryHolder() {
 		return new DimensionOptionsRegistryHolder(this.collectDimensions());
 	}

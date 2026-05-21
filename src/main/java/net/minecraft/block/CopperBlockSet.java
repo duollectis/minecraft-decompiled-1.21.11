@@ -122,6 +122,11 @@ public record CopperBlockSet(
 		);
 	}
 
+	/**
+	 * For each.
+	 *
+	 * @param consumer consumer
+	 */
 	public void forEach(Consumer<Block> consumer) {
 		consumer.accept(this.unaffected);
 		consumer.accept(this.exposed);

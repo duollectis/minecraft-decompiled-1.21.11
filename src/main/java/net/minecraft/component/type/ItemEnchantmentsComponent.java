@@ -165,6 +165,12 @@ public class ItemEnchantmentsComponent implements TooltipAppender {
 			this.enchantments.putAll(enchantmentsComponent.enchantments);
 		}
 
+		/**
+		 * Set.
+		 *
+		 * @param enchantment enchantment
+		 * @param level level
+		 */
 		public void set(RegistryEntry<Enchantment> enchantment, int level) {
 			if (level <= 0) {
 				this.enchantments.removeInt(enchantment);
@@ -174,12 +180,23 @@ public class ItemEnchantmentsComponent implements TooltipAppender {
 			}
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param enchantment enchantment
+		 * @param level level
+		 */
 		public void add(RegistryEntry<Enchantment> enchantment, int level) {
 			if (level > 0) {
 				this.enchantments.merge(enchantment, Math.min(level, 255), Integer::max);
 			}
 		}
 
+		/**
+		 * Remove.
+		 *
+		 * @param predicate predicate
+		 */
 		public void remove(Predicate<RegistryEntry<Enchantment>> predicate) {
 			this.enchantments.keySet().removeIf(predicate);
 		}
@@ -192,6 +209,11 @@ public class ItemEnchantmentsComponent implements TooltipAppender {
 			return this.enchantments.keySet();
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ItemEnchantmentsComponent — результат операции
+		 */
 		public ItemEnchantmentsComponent build() {
 			return new ItemEnchantmentsComponent(this.enchantments);
 		}

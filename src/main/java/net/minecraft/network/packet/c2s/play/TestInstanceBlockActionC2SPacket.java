@@ -19,6 +19,9 @@ import net.minecraft.util.math.Vec3i;
 import java.util.Optional;
 import java.util.function.IntFunction;
 
+/**
+ * Запись test instance block action c2 s packet.
+ */
 public record TestInstanceBlockActionC2SPacket(
 		BlockPos pos,
 		TestInstanceBlockActionC2SPacket.Action action,
@@ -63,6 +66,11 @@ public record TestInstanceBlockActionC2SPacket(
 		return PlayPackets.TEST_INSTANCE_BLOCK_ACTION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onTestInstanceBlockAction(this);
 	}

@@ -33,10 +33,22 @@ public class ParrotEntityRenderer extends MobEntityRenderer<ParrotEntity, Parrot
 		return getTexture(parrotEntityRenderState.variant);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ParrotEntityRenderState — результат операции
+	 */
 	public ParrotEntityRenderState createRenderState() {
 		return new ParrotEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param parrotEntity parrot entity
+	 * @param parrotEntityRenderState parrot entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(ParrotEntity parrotEntity, ParrotEntityRenderState parrotEntityRenderState, float f) {
 		super.updateRenderState(parrotEntity, parrotEntityRenderState, f);
 		parrotEntityRenderState.variant = parrotEntity.getVariant();

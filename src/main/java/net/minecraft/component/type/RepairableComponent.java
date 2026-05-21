@@ -28,6 +28,13 @@ public record RepairableComponent(RegistryEntryList<Item> items) {
 			PacketCodecs.registryEntryList(RegistryKeys.ITEM), RepairableComponent::items, RepairableComponent::new
 	);
 
+	/**
+	 * Matches.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matches(ItemStack stack) {
 		return stack.isIn(this.items);
 	}

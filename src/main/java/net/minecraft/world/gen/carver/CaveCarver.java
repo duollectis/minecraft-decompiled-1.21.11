@@ -22,6 +22,14 @@ public class CaveCarver extends Carver<CaveCarverConfig> {
 		super(codec);
 	}
 
+	/**
+	 * Определяет, следует ли carve.
+	 *
+	 * @param caveCarverConfig cave carver config
+	 * @param random random
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldCarve(CaveCarverConfig caveCarverConfig, Random random) {
 		return random.nextFloat() <= caveCarverConfig.probability;
 	}

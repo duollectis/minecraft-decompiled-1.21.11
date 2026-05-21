@@ -12,6 +12,15 @@ import net.minecraft.world.poi.PointOfInterestTypes;
  */
 public class HideInHomeTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param maxDistance max distance
+	 * @param walkSpeed walk speed
+	 * @param preferredDistance preferred distance
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<LivingEntity> create(int maxDistance, float walkSpeed, int preferredDistance) {
 		return TaskTriggerer.task(
 				context -> context.group(

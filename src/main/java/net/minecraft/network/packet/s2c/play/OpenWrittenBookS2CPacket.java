@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Hand;
 
+/**
+ * Класс open written book s2 c packet.
+ */
 public class OpenWrittenBookS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, OpenWrittenBookS2CPacket> CODEC = Packet.createCodec(
@@ -32,6 +35,11 @@ public class OpenWrittenBookS2CPacket implements Packet<ClientPlayPacketListener
 		return PlayPackets.OPEN_BOOK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onOpenWrittenBook(this);
 	}

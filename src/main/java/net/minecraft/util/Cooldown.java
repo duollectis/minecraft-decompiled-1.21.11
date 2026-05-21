@@ -14,16 +14,27 @@ public class Cooldown {
 		this.threshold = threshold;
 	}
 
+	/**
+	 * Increment.
+	 */
 	public void increment() {
 		this.current = this.current + this.increment;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.current > 0) {
 			this.current--;
 		}
 	}
 
+	/**
+	 * Проверяет возможность use.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canUse() {
 		return this.current < this.threshold;
 	}

@@ -23,6 +23,11 @@ public class GameModeCommand {
 
 	public static final PermissionCheck PERMISSION_CHECK = new PermissionCheck.Require(DefaultPermissions.GAMEMASTERS);
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
@@ -96,6 +101,12 @@ public class GameModeCommand {
 		return i;
 	}
 
+	/**
+	 * Execute.
+	 *
+	 * @param target target
+	 * @param gameMode game mode
+	 */
 	public static void execute(ServerPlayerEntity target, GameMode gameMode) {
 		execute(target.getCommandSource(), target, gameMode);
 	}

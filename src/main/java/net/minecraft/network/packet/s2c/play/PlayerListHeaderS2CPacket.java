@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
+/**
+ * Запись player list header s2 c packet.
+ */
 public record PlayerListHeaderS2CPacket(Text header, Text footer) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, PlayerListHeaderS2CPacket> CODEC = PacketCodec.tuple(
@@ -24,6 +27,11 @@ public record PlayerListHeaderS2CPacket(Text header, Text footer) implements Pac
 		return PlayPackets.TAB_LIST;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlayerListHeader(this);
 	}

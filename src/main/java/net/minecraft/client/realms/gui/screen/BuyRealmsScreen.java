@@ -56,6 +56,11 @@ public class BuyRealmsScreen extends RealmsScreen {
 		this.trialAvailable = trialAvailable;
 	}
 
+	/**
+	 * Refresh images.
+	 *
+	 * @param resourceManager resource manager
+	 */
 	public static void refreshImages(ResourceManager resourceManager) {
 		Collection<Identifier>
 				collection =
@@ -127,6 +132,12 @@ public class BuyRealmsScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Draw trial available texture.
+	 *
+	 * @param context context
+	 * @param button button
+	 */
 	public static void drawTrialAvailableTexture(DrawContext context, ButtonWidget button) {
 		int i = 8;
 		context.drawGuiTexture(

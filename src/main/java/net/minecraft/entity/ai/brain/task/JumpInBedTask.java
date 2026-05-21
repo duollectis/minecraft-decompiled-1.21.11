@@ -37,10 +37,25 @@ public class JumpInBedTask extends MultiTickTask<MobEntity> {
 		this.walkSpeed = walkSpeed;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, MobEntity mobEntity) {
 		return mobEntity.isBaby() && this.shouldStartJumping(serverWorld, mobEntity);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		super.run(serverWorld, mobEntity, l);
 		this.getNearestBed(mobEntity).ifPresent(pos -> {
@@ -52,6 +67,13 @@ public class JumpInBedTask extends MultiTickTask<MobEntity> {
 		});
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		super.finishRunning(serverWorld, mobEntity, l);
 		this.bedPos = null;
@@ -60,6 +82,15 @@ public class JumpInBedTask extends MultiTickTask<MobEntity> {
 		this.ticksToNextJump = 0;
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		return mobEntity.isBaby()
 				&& this.bedPos != null
@@ -73,6 +104,13 @@ public class JumpInBedTask extends MultiTickTask<MobEntity> {
 		return false;
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		if (!this.isAboveBed(serverWorld, mobEntity)) {
 			this.ticksOutOfBedUntilStopped--;

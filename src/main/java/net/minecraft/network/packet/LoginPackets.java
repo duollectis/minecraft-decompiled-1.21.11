@@ -10,6 +10,9 @@ import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 import net.minecraft.network.packet.s2c.login.*;
 import net.minecraft.util.Identifier;
 
+/**
+ * Класс login packets.
+ */
 public class LoginPackets {
 
 	public static final PacketType<LoginQueryRequestS2CPacket> CUSTOM_QUERY = s2c("custom_query");

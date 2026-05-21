@@ -20,6 +20,13 @@ public class EndPortalFeature extends Feature<DefaultFeatureConfig> {
 	private static final BlockPos ORIGIN = BlockPos.ORIGIN;
 	private final boolean open;
 
+	/**
+	 * Offset origin.
+	 *
+	 * @param pos pos
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos offsetOrigin(BlockPos pos) {
 		return ORIGIN.add(pos);
 	}

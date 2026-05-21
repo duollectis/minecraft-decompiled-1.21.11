@@ -134,6 +134,9 @@ public class FrogEntity extends AnimalEntity {
 		builder.add(TARGET, OptionalInt.empty());
 	}
 
+	/**
+	 * Очищает frog target.
+	 */
 	public void clearFrogTarget() {
 		this.dataTracker.set(TARGET, OptionalInt.empty());
 	}

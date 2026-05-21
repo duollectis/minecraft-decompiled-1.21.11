@@ -21,6 +21,14 @@ public record CopperBlockItemSet(
 		Item waxedOxidized
 ) {
 
+	/**
+	 * Create.
+	 *
+	 * @param blockSet block set
+	 * @param registerFunction register function
+	 *
+	 * @return CopperBlockItemSet — результат операции
+	 */
 	public static CopperBlockItemSet create(CopperBlockSet blockSet, Function<Block, Item> registerFunction) {
 		return new CopperBlockItemSet(
 				registerFunction.apply(blockSet.unaffected()),
@@ -47,6 +55,11 @@ public record CopperBlockItemSet(
 		);
 	}
 
+	/**
+	 * For each.
+	 *
+	 * @param consumer consumer
+	 */
 	public void forEach(Consumer<Item> consumer) {
 		consumer.accept(this.unaffected);
 		consumer.accept(this.exposed);

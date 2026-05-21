@@ -54,6 +54,13 @@ public class CopperGolemOxidationLevels {
 			OXIDIZED
 	);
 
+	/**
+	 * Get.
+	 *
+	 * @param oxidationLevel oxidation level
+	 *
+	 * @return CopperGolemOxidationLevel — 
+	 */
 	public static CopperGolemOxidationLevel get(Oxidizable.OxidationLevel oxidationLevel) {
 		return LEVELS.get(oxidationLevel);
 	}

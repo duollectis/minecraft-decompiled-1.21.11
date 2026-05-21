@@ -51,6 +51,13 @@ public final class DensityFunctionTypes {
 					                                                        : Either.right(densityFunction)
 	                                                        );
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static MapCodec<? extends DensityFunction> registerAndGetDefault(Registry<MapCodec<? extends DensityFunction>> registry) {
 		register(registry, "blend_alpha", DensityFunctionTypes.BlendAlpha.CODEC);
 		register(registry, "blend_offset", DensityFunctionTypes.BlendOffset.CODEC);
@@ -128,22 +135,57 @@ public final class DensityFunctionTypes {
 	private DensityFunctionTypes() {
 	}
 
+	/**
+	 * Interpolated.
+	 *
+	 * @param inputFunction input function
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction interpolated(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.INTERPOLATED, inputFunction);
 	}
 
+	/**
+	 * Flat cache.
+	 *
+	 * @param inputFunction input function
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction flatCache(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.FLAT_CACHE, inputFunction);
 	}
 
+	/**
+	 * Cache2d.
+	 *
+	 * @param inputFunction input function
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction cache2d(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.CACHE2D, inputFunction);
 	}
 
+	/**
+	 * Cache once.
+	 *
+	 * @param inputFunction input function
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction cacheOnce(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.CACHE_ONCE, inputFunction);
 	}
 
+	/**
+	 * Cache all in cell.
+	 *
+	 * @param inputFunction input function
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction cacheAllInCell(DensityFunction inputFunction) {
 		return new DensityFunctionTypes.Wrapping(DensityFunctionTypes.Wrapping.Type.CACHE_ALL_IN_CELL, inputFunction);
 	}
@@ -195,6 +237,13 @@ public final class DensityFunctionTypes {
 		);
 	}
 
+	/**
+	 * Noise.
+	 *
+	 * @param noiseParameters noise parameters
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction noise(RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> noiseParameters) {
 		return noise(noiseParameters, 1.0, 1.0);
 	}
@@ -224,22 +273,57 @@ public final class DensityFunctionTypes {
 		return new DensityFunctionTypes.RangeChoice(input, minInclusive, maxExclusive, whenInRange, whenOutOfRange);
 	}
 
+	/**
+	 * Shift a.
+	 *
+	 * @param noiseParameters noise parameters
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction shiftA(RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> noiseParameters) {
 		return new DensityFunctionTypes.ShiftA(new DensityFunction.Noise(noiseParameters));
 	}
 
+	/**
+	 * Shift b.
+	 *
+	 * @param noiseParameters noise parameters
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction shiftB(RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> noiseParameters) {
 		return new DensityFunctionTypes.ShiftB(new DensityFunction.Noise(noiseParameters));
 	}
 
+	/**
+	 * Shift.
+	 *
+	 * @param noiseParameters noise parameters
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction shift(RegistryEntry<DoublePerlinNoiseSampler.NoiseParameters> noiseParameters) {
 		return new DensityFunctionTypes.Shift(new DensityFunction.Noise(noiseParameters));
 	}
 
+	/**
+	 * Blend density.
+	 *
+	 * @param input input
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction blendDensity(DensityFunction input) {
 		return new DensityFunctionTypes.BlendDensity(input);
 	}
 
+	/**
+	 * End islands.
+	 *
+	 * @param seed seed
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction endIslands(long seed) {
 		return new DensityFunctionTypes.EndIslands(seed);
 	}
@@ -252,18 +336,50 @@ public final class DensityFunctionTypes {
 		return new DensityFunctionTypes.WeirdScaledSampler(input, new DensityFunction.Noise(parameters), mapper);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction add(DensityFunction a, DensityFunction b) {
 		return DensityFunctionTypes.BinaryOperationLike.create(DensityFunctionTypes.BinaryOperationLike.Type.ADD, a, b);
 	}
 
+	/**
+	 * Mul.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction mul(DensityFunction a, DensityFunction b) {
 		return DensityFunctionTypes.BinaryOperationLike.create(DensityFunctionTypes.BinaryOperationLike.Type.MUL, a, b);
 	}
 
+	/**
+	 * Min.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction min(DensityFunction a, DensityFunction b) {
 		return DensityFunctionTypes.BinaryOperationLike.create(DensityFunctionTypes.BinaryOperationLike.Type.MIN, a, b);
 	}
 
+	/**
+	 * Max.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction max(DensityFunction a, DensityFunction b) {
 		return DensityFunctionTypes.BinaryOperationLike.create(DensityFunctionTypes.BinaryOperationLike.Type.MAX, a, b);
 	}
@@ -274,18 +390,48 @@ public final class DensityFunctionTypes {
 		return new DensityFunctionTypes.Spline(spline);
 	}
 
+	/**
+	 * Zero.
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction zero() {
 		return DensityFunctionTypes.Constant.ZERO;
 	}
 
+	/**
+	 * Constant.
+	 *
+	 * @param density density
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction constant(double density) {
 		return new DensityFunctionTypes.Constant(density);
 	}
 
+	/**
+	 * Y clamped gradient.
+	 *
+	 * @param fromY from y
+	 * @param toY to y
+	 * @param fromValue from value
+	 * @param toValue to value
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction yClampedGradient(int fromY, int toY, double fromValue, double toValue) {
 		return new DensityFunctionTypes.YClampedGradient(fromY, toY, fromValue, toValue);
 	}
 
+	/**
+	 * Unary.
+	 *
+	 * @param input input
+	 * @param type type
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction unary(DensityFunction input, DensityFunctionTypes.UnaryOperation.Type type) {
 		return DensityFunctionTypes.UnaryOperation.create(type, input);
 	}
@@ -296,14 +442,33 @@ public final class DensityFunctionTypes {
 		return add(constant(d), mul(constant(e), function));
 	}
 
+	/**
+	 * Blend alpha.
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction blendAlpha() {
 		return DensityFunctionTypes.BlendAlpha.INSTANCE;
 	}
 
+	/**
+	 * Blend offset.
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction blendOffset() {
 		return DensityFunctionTypes.BlendOffset.INSTANCE;
 	}
 
+	/**
+	 * Lerp.
+	 *
+	 * @param delta delta
+	 * @param start start
+	 * @param end end
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction lerp(DensityFunction delta, DensityFunction start, DensityFunction end) {
 		if (start instanceof DensityFunctionTypes.Constant constant) {
 			return lerp(delta, constant.value, end);
@@ -315,6 +480,15 @@ public final class DensityFunctionTypes {
 		}
 	}
 
+	/**
+	 * Lerp.
+	 *
+	 * @param delta delta
+	 * @param start start
+	 * @param end end
+	 *
+	 * @return DensityFunction — результат операции
+	 */
 	public static DensityFunction lerp(DensityFunction delta, double start, DensityFunction end) {
 		return add(mul(delta, add(end, constant(-start))), constant(start));
 	}
@@ -1425,6 +1599,13 @@ public final class DensityFunctionTypes {
 				return "Coordinate[" + this.function + "]";
 			}
 
+			/**
+			 * Apply.
+			 *
+			 * @param splinePos spline pos
+			 *
+			 * @return float — результат операции
+			 */
 			public float apply(DensityFunctionTypes.Spline.SplinePos splinePos) {
 				return (float) this.function.value().sample(splinePos.context());
 			}

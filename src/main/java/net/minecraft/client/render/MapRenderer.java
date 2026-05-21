@@ -122,6 +122,13 @@ public class MapRenderer {
 		}
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param mapId map id
+	 * @param mapState map state
+	 * @param renderState render state
+	 */
 	public void update(MapIdComponent mapId, MapState mapState, MapRenderState renderState) {
 		renderState.texture = this.textureManager.getTextureId(mapId, mapState);
 		renderState.decorations.clear();

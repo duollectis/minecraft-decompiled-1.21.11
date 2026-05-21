@@ -35,10 +35,27 @@ public class DoublePerlinNoiseSampler {
 		return new DoublePerlinNoiseSampler(random, parameters, false);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param random random
+	 * @param offset offset
+	 * @param octaves octaves
+	 *
+	 * @return DoublePerlinNoiseSampler — результат операции
+	 */
 	public static DoublePerlinNoiseSampler create(Random random, int offset, double... octaves) {
 		return create(random, new DoublePerlinNoiseSampler.NoiseParameters(offset, new DoubleArrayList(octaves)));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param random random
+	 * @param parameters parameters
+	 *
+	 * @return DoublePerlinNoiseSampler — результат операции
+	 */
 	public static DoublePerlinNoiseSampler create(Random random, DoublePerlinNoiseSampler.NoiseParameters parameters) {
 		return new DoublePerlinNoiseSampler(random, parameters, true);
 	}
@@ -85,6 +102,15 @@ public class DoublePerlinNoiseSampler {
 		return 0.1 * (1.0 + 1.0 / (octaves + 1));
 	}
 
+	/**
+	 * Sample.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return double — результат операции
+	 */
 	public double sample(double x, double y, double z) {
 		double d = x * 1.0181268882175227;
 		double e = y * 1.0181268882175227;
@@ -97,6 +123,11 @@ public class DoublePerlinNoiseSampler {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Добавляет debug info.
+	 *
+	 * @param info info
+	 */
 	public void addDebugInfo(StringBuilder info) {
 		info.append("NormalNoise {");
 		info.append("first: ");

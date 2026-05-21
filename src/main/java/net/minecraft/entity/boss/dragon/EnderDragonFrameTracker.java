@@ -18,11 +18,22 @@ public class EnderDragonFrameTracker {
 		Arrays.fill(this.frames, new EnderDragonFrameTracker.Frame(0.0, 0.0F));
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param other other
+	 */
 	public void copyFrom(EnderDragonFrameTracker other) {
 		System.arraycopy(other.frames, 0, this.frames, 0, 64);
 		this.currentIndex = other.currentIndex;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param y y
+	 * @param yaw yaw
+	 */
 	public void tick(double y, float yaw) {
 		EnderDragonFrameTracker.Frame frame = new EnderDragonFrameTracker.Frame(y, yaw);
 		if (this.currentIndex < 0) {

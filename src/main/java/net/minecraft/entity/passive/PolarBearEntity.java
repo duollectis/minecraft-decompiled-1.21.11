@@ -173,6 +173,9 @@ public class PolarBearEntity extends AnimalEntity implements Angerable {
 		this.playSound(SoundEvents.ENTITY_POLAR_BEAR_STEP, 0.15F, 1.0F);
 	}
 
+	/**
+	 * Play warning sound.
+	 */
 	protected void playWarningSound() {
 		if (this.warningSoundCooldown <= 0) {
 			this.playSound(SoundEvents.ENTITY_POLAR_BEAR_WARNING);

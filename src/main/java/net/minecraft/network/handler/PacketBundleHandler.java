@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * Интерфейс packet bundle handler.
+ */
 public interface PacketBundleHandler {
 
 	int MAX_PACKETS = 4096;
@@ -62,6 +65,9 @@ public interface PacketBundleHandler {
 
 	PacketBundleHandler.@Nullable Bundler createBundler(Packet<?> splitter);
 
+	/**
+	 * Интерфейс bundler.
+	 */
 	public interface Bundler {
 
 		@Nullable Packet<?> add(Packet<?> packet);

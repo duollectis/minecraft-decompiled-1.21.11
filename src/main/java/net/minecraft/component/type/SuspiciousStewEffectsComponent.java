@@ -38,6 +38,13 @@ public record SuspiciousStewEffectsComponent(List<SuspiciousStewEffectsComponent
 					.collect(PacketCodecs.toList())
 					.xmap(SuspiciousStewEffectsComponent::new, SuspiciousStewEffectsComponent::effects);
 
+	/**
+	 * With.
+	 *
+	 * @param stewEffect stew effect
+	 *
+	 * @return SuspiciousStewEffectsComponent — результат операции
+	 */
 	public SuspiciousStewEffectsComponent with(SuspiciousStewEffectsComponent.StewEffect stewEffect) {
 		return new SuspiciousStewEffectsComponent(Util.withAppended(this.effects, stewEffect));
 	}
@@ -93,6 +100,11 @@ public record SuspiciousStewEffectsComponent(List<SuspiciousStewEffectsComponent
 						SuspiciousStewEffectsComponent.StewEffect::new
 				);
 
+		/**
+		 * Создаёт status effect instance.
+		 *
+		 * @return StatusEffectInstance — результат операции
+		 */
 		public StatusEffectInstance createStatusEffectInstance() {
 			return new StatusEffectInstance(this.effect, this.duration);
 		}

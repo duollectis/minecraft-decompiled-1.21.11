@@ -66,14 +66,27 @@ public class ConfirmScreen extends Screen {
 		SimplePositioningWidget.setPos(this.layout, this.getNavigationFocus());
 	}
 
+	/**
+	 * Инициализирует extras.
+	 */
 	protected void initExtras() {
 	}
 
+	/**
+	 * Добавляет buttons.
+	 *
+	 * @param layout layout
+	 */
 	protected void addButtons(DirectionalLayoutWidget layout) {
 		this.yesButton = layout.add(ButtonWidget.builder(this.yesText, button -> this.callback.accept(true)).build());
 		this.noButton = layout.add(ButtonWidget.builder(this.noText, button -> this.callback.accept(false)).build());
 	}
 
+	/**
+	 * Отключает buttons.
+	 *
+	 * @param ticks ticks
+	 */
 	public void disableButtons(int ticks) {
 		this.buttonEnableTimer = ticks;
 		this.yesButton.active = false;

@@ -38,6 +38,11 @@ public abstract class TrackedSubscription<T> {
 		this.type = type;
 	}
 
+	/**
+	 * Refresh tracking.
+	 *
+	 * @param world world
+	 */
 	public final void refreshTracking(ServerWorld world) {
 		for (ServerPlayerEntity serverPlayerEntity : world.getPlayers()) {
 			boolean bl = this.subscribingPlayers.contains(serverPlayerEntity.getUuid());
@@ -99,27 +104,59 @@ public abstract class TrackedSubscription<T> {
 		);
 	}
 
+	/**
+	 * Отправляет initial if subscribed.
+	 *
+	 * @param player player
+	 * @param chunkPos chunk pos
+	 */
 	public final void sendInitialIfSubscribed(ServerPlayerEntity player, ChunkPos chunkPos) {
 		if (this.subscribingPlayers.contains(player.getUuid())) {
 			this.sendInitial(player, chunkPos);
 		}
 	}
 
+	/**
+	 * Отправляет initial if subscribed.
+	 *
+	 * @param player player
+	 * @param entity entity
+	 */
 	public final void sendInitialIfSubscribed(ServerPlayerEntity player, Entity entity) {
 		if (this.subscribingPlayers.contains(player.getUuid())) {
 			this.sendInitial(player, entity);
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	protected void clear() {
 	}
 
+	/**
+	 * Отправляет update.
+	 *
+	 * @param world world
+	 */
 	protected void sendUpdate(ServerWorld world) {
 	}
 
+	/**
+	 * Отправляет initial.
+	 *
+	 * @param player player
+	 * @param chunkPos chunk pos
+	 */
 	protected void sendInitial(ServerPlayerEntity player, ChunkPos chunkPos) {
 	}
 
+	/**
+	 * Отправляет initial.
+	 *
+	 * @param player player
+	 * @param entity entity
+	 */
 	protected void sendInitial(ServerPlayerEntity player, Entity entity) {
 	}
 
@@ -143,6 +180,12 @@ public abstract class TrackedSubscription<T> {
 			                      )));
 		}
 
+		/**
+		 * Обрабатывает событие poi added.
+		 *
+		 * @param world world
+		 * @param poi poi
+		 */
 		public void onPoiAdded(ServerWorld world, PointOfInterest poi) {
 			this.sendToTrackingPlayers(
 					world,
@@ -151,6 +194,12 @@ public abstract class TrackedSubscription<T> {
 			);
 		}
 
+		/**
+		 * Обрабатывает событие poi removed.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 */
 		public void onPoiRemoved(ServerWorld world, BlockPos pos) {
 			this.sendToTrackingPlayers(
 					world,
@@ -159,6 +208,12 @@ public abstract class TrackedSubscription<T> {
 			);
 		}
 
+		/**
+		 * Обрабатывает событие poi updated.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 */
 		public void onPoiUpdated(ServerWorld world, BlockPos pos) {
 			this.sendToTrackingPlayers(
 					world,
@@ -200,10 +255,22 @@ public abstract class TrackedSubscription<T> {
 					});
 		}
 
+		/**
+		 * Обрабатывает событие poi added.
+		 *
+		 * @param world world
+		 * @param poi poi
+		 */
 		public void onPoiAdded(ServerWorld world, PointOfInterest poi) {
 			this.handlePoiUpdate(world, poi.getPos());
 		}
 
+		/**
+		 * Обрабатывает событие poi removed.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 */
 		public void onPoiRemoved(ServerWorld world, BlockPos pos) {
 			this.handlePoiUpdate(world, pos);
 		}
@@ -327,23 +394,52 @@ public abstract class TrackedSubscription<T> {
 			}
 		}
 
+		/**
+		 * Track chunk.
+		 *
+		 * @param chunkPos chunk pos
+		 * @param dataSupplier data supplier
+		 */
 		public void trackChunk(ChunkPos chunkPos, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
 			this.trackedChunks.put(chunkPos, new TrackedSubscription.UpdateQuerier<>(dataSupplier));
 		}
 
+		/**
+		 * Track block entity.
+		 *
+		 * @param chunkPos chunk pos
+		 * @param dataSupplier data supplier
+		 */
 		public void trackBlockEntity(BlockPos chunkPos, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
 			this.trackedBlockEntities.put(chunkPos, new TrackedSubscription.UpdateQuerier<>(dataSupplier));
 		}
 
+		/**
+		 * Track entity.
+		 *
+		 * @param uuid uuid
+		 * @param dataSupplier data supplier
+		 */
 		public void trackEntity(UUID uuid, DebugTrackable.DebugDataSupplier<T> dataSupplier) {
 			this.trackedEntities.put(uuid, new TrackedSubscription.UpdateQuerier<>(dataSupplier));
 		}
 
+		/**
+		 * Untrack chunk.
+		 *
+		 * @param chunkPos chunk pos
+		 */
 		public void untrackChunk(ChunkPos chunkPos) {
 			this.trackedChunks.remove(chunkPos);
 			this.trackedBlockEntities.keySet().removeIf(chunkPos::contains);
 		}
 
+		/**
+		 * Untrack block entity.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 */
 		public void untrackBlockEntity(ServerWorld world, BlockPos pos) {
 			TrackedSubscription.UpdateQuerier<T> updateQuerier = this.trackedBlockEntities.remove(pos);
 			if (updateQuerier != null) {
@@ -356,6 +452,11 @@ public abstract class TrackedSubscription<T> {
 			}
 		}
 
+		/**
+		 * Untrack entity.
+		 *
+		 * @param entity entity
+		 */
 		public void untrackEntity(Entity entity) {
 			this.trackedEntities.remove(entity.getUuid());
 		}

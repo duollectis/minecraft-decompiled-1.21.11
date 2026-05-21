@@ -47,6 +47,11 @@ public class AxolotlEntityRenderer extends AgeableMobEntityRenderer<AxolotlEntit
 		return TEXTURES.get(axolotlEntityRenderState.variant);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return AxolotlEntityRenderState — результат операции
+	 */
 	public AxolotlEntityRenderState createRenderState() {
 		return new AxolotlEntityRenderState();
 	}

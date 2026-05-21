@@ -16,6 +16,13 @@ public class ConstantHeightProvider extends HeightProvider {
 			.xmap(ConstantHeightProvider::new, ConstantHeightProvider::getOffset);
 	private final YOffset offset;
 
+	/**
+	 * Create.
+	 *
+	 * @param offset offset
+	 *
+	 * @return ConstantHeightProvider — результат операции
+	 */
 	public static ConstantHeightProvider create(YOffset offset) {
 		return new ConstantHeightProvider(offset);
 	}

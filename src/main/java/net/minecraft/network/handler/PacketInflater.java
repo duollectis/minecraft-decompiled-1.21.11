@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.zip.DataFormatException;
 import java.util.zip.Inflater;
 
+/**
+ * Класс packet inflater.
+ */
 public class PacketInflater extends ByteToMessageDecoder {
 
 	public static final int MAX_UNCOMPRESSED_SIZE = 2097152;
@@ -25,6 +28,13 @@ public class PacketInflater extends ByteToMessageDecoder {
 		this.inflater = new Inflater();
 	}
 
+	/**
+	 * Decode.
+	 *
+	 * @param ctx ctx
+	 * @param buf buf
+	 * @param objects objects
+	 */
 	protected void decode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> objects) throws Exception {
 		int i = VarInts.read(buf);
 		if (i == 0) {

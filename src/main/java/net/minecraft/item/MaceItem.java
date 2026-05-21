@@ -41,6 +41,11 @@ public class MaceItem extends Item {
 		super(settings);
 	}
 
+	/**
+	 * Создаёт attribute modifiers.
+	 *
+	 * @return AttributeModifiersComponent — результат операции
+	 */
 	public static AttributeModifiersComponent createAttributeModifiers() {
 		return AttributeModifiersComponent.builder()
 		                                  .add(
@@ -64,6 +69,11 @@ public class MaceItem extends Item {
 		                                  .build();
 	}
 
+	/**
+	 * Создаёт tool component.
+	 *
+	 * @return ToolComponent — результат операции
+	 */
 	public static ToolComponent createToolComponent() {
 		return new ToolComponent(List.of(), 1.0F, 2, false);
 	}
@@ -220,6 +230,13 @@ public class MaceItem extends Item {
 				* (1.0 - attacked.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE));
 	}
 
+	/**
+	 * Определяет, следует ли deal additional damage.
+	 *
+	 * @param attacker attacker
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldDealAdditionalDamage(LivingEntity attacker) {
 		return attacker.fallDistance > 1.5 && !attacker.isGliding();
 	}

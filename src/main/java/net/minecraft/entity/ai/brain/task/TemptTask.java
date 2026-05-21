@@ -67,16 +67,39 @@ public class TemptTask extends MultiTickTask<PathAwareEntity> {
 		return false;
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		return this.getTemptingPlayer(pathAwareEntity).isPresent()
 				&& !pathAwareEntity.getBrain().hasMemoryModule(MemoryModuleType.BREED_TARGET)
 				&& !pathAwareEntity.getBrain().hasMemoryModule(MemoryModuleType.IS_PANICKING);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		pathAwareEntity.getBrain().remember(MemoryModuleType.IS_TEMPTED, true);
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		Brain<?> brain = pathAwareEntity.getBrain();
 		brain.remember(MemoryModuleType.TEMPTATION_COOLDOWN_TICKS, 100);
@@ -85,6 +108,13 @@ public class TemptTask extends MultiTickTask<PathAwareEntity> {
 		brain.forget(MemoryModuleType.LOOK_TARGET);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		PlayerEntity playerEntity = this.getTemptingPlayer(pathAwareEntity).get();
 		Brain<?> brain = pathAwareEntity.getBrain();

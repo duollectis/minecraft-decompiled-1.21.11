@@ -19,6 +19,13 @@ public record ChunkGenerationSample(
 )
 		implements LongRunningSample {
 
+	/**
+	 * From event.
+	 *
+	 * @param event event
+	 *
+	 * @return ChunkGenerationSample — результат операции
+	 */
 	public static ChunkGenerationSample fromEvent(RecordedEvent event) {
 		return new ChunkGenerationSample(
 				event.getDuration(),

@@ -12,6 +12,9 @@ import net.minecraft.registry.tag.TagPacketSerializer;
 
 import java.util.Map;
 
+/**
+ * Класс synchronize tags s2 c packet.
+ */
 public class SynchronizeTagsS2CPacket implements Packet<ClientCommonPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, SynchronizeTagsS2CPacket> CODEC = Packet.createCodec(
@@ -40,6 +43,11 @@ public class SynchronizeTagsS2CPacket implements Packet<ClientCommonPacketListen
 		return CommonPackets.UPDATE_TAGS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onSynchronizeTags(this);
 	}

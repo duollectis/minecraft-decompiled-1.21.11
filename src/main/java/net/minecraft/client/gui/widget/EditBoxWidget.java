@@ -348,6 +348,16 @@ public class EditBoxWidget extends ScrollableTextFieldWidget {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param textRenderer text renderer
+		 * @param width width
+		 * @param height height
+		 * @param message message
+		 *
+		 * @return EditBoxWidget — результат операции
+		 */
 		public EditBoxWidget build(TextRenderer textRenderer, int width, int height, Text message) {
 			return new EditBoxWidget(
 					textRenderer,

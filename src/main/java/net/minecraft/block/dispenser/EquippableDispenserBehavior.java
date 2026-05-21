@@ -23,6 +23,14 @@ public class EquippableDispenserBehavior extends ItemDispenserBehavior {
 		return tryEquip(pointer, stack) ? stack : super.dispenseSilently(pointer, stack);
 	}
 
+	/**
+	 * Try equip.
+	 *
+	 * @param pointer pointer
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean tryEquip(BlockPointer pointer, ItemStack stack) {
 		BlockPos blockPos = pointer.pos().offset(pointer.state().get(DispenserBlock.FACING));
 		List<LivingEntity>

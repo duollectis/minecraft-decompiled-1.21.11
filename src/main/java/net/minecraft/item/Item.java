@@ -95,11 +95,25 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return item == null ? 0 : Registries.ITEM.getRawId(item);
 	}
 
+	/**
+	 * By raw id.
+	 *
+	 * @param id id
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item byRawId(int id) {
 		return Registries.ITEM.get(id);
 	}
 
 	@Deprecated
+	/**
+	 * From block.
+	 *
+	 * @param block block
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item fromBlock(Block block) {
 		return BLOCK_ITEMS.getOrDefault(block, Items.AIR);
 	}
@@ -131,12 +145,36 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return this.components.getOrDefault(DataComponentTypes.MAX_STACK_SIZE, 1);
 	}
 
+	/**
+	 * Usage tick.
+	 *
+	 * @param world world
+	 * @param user user
+	 * @param stack stack
+	 * @param remainingUseTicks remaining use ticks
+	 */
 	public void usageTick(World world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
 	}
 
+	/**
+	 * Обрабатывает событие item entity destroyed.
+	 *
+	 * @param entity entity
+	 */
 	public void onItemEntityDestroyed(ItemEntity entity) {
 	}
 
+	/**
+	 * Проверяет возможность mine.
+	 *
+	 * @param stack stack
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param user user
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canMine(ItemStack stack, BlockState state, World world, BlockPos pos, LivingEntity user) {
 		ToolComponent toolComponent = stack.get(DataComponentTypes.TOOL);
 		return toolComponent != null && !toolComponent.canDestroyBlocksInCreative()
@@ -149,6 +187,13 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return this;
 	}
 
+	/**
+	 * Использует on block.
+	 *
+	 * @param context context
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		return ActionResult.PASS;
 	}
@@ -158,6 +203,15 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return toolComponent != null ? toolComponent.getSpeed(state) : 1.0F;
 	}
 
+	/**
+	 * Use.
+	 *
+	 * @param world world
+	 * @param user user
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
 		ItemStack itemStack = user.getStackInHand(hand);
 		ConsumableComponent consumableComponent = itemStack.get(DataComponentTypes.CONSUMABLE);
@@ -187,6 +241,15 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		}
 	}
 
+	/**
+	 * Finish using.
+	 *
+	 * @param stack stack
+	 * @param world world
+	 * @param user user
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack finishUsing(ItemStack stack, World world, LivingEntity user) {
 		ConsumableComponent consumableComponent = stack.get(DataComponentTypes.CONSUMABLE);
 		return consumableComponent != null ? consumableComponent.finishConsumption(world, user, stack) : stack;
@@ -206,6 +269,16 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return MathHelper.hsvToRgb(f / 3.0F, 1.0F, 1.0F);
 	}
 
+	/**
+	 * Обрабатывает событие stack clicked.
+	 *
+	 * @param stack stack
+	 * @param slot slot
+	 * @param clickType click type
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean onStackClicked(ItemStack stack, Slot slot, ClickType clickType, PlayerEntity player) {
 		return false;
 	}
@@ -230,12 +303,37 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return null;
 	}
 
+	/**
+	 * Post hit.
+	 *
+	 * @param stack stack
+	 * @param target target
+	 * @param attacker attacker
+	 */
 	public void postHit(ItemStack stack, LivingEntity target, LivingEntity attacker) {
 	}
 
+	/**
+	 * Post damage entity.
+	 *
+	 * @param stack stack
+	 * @param target target
+	 * @param attacker attacker
+	 */
 	public void postDamageEntity(ItemStack stack, LivingEntity target, LivingEntity attacker) {
 	}
 
+	/**
+	 * Post mine.
+	 *
+	 * @param stack stack
+	 * @param world world
+	 * @param state state
+	 * @param pos pos
+	 * @param miner miner
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean postMine(ItemStack stack, World world, BlockState state, BlockPos pos, LivingEntity miner) {
 		ToolComponent toolComponent = stack.get(DataComponentTypes.TOOL);
 		if (toolComponent == null) {
@@ -255,6 +353,16 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return toolComponent != null && toolComponent.isCorrectForDrops(state);
 	}
 
+	/**
+	 * Использует on entity.
+	 *
+	 * @param stack stack
+	 * @param user user
+	 * @param entity entity
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult useOnEntity(ItemStack stack, PlayerEntity user, LivingEntity entity, Hand hand) {
 		return ActionResult.PASS;
 	}
@@ -268,13 +376,33 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return this.recipeRemainder == null ? ItemStack.EMPTY : new ItemStack(this.recipeRemainder);
 	}
 
+	/**
+	 * Inventory tick.
+	 *
+	 * @param stack stack
+	 * @param world world
+	 * @param entity entity
+	 * @param slot slot
+	 */
 	public void inventoryTick(ItemStack stack, ServerWorld world, Entity entity, @Nullable EquipmentSlot slot) {
 	}
 
+	/**
+	 * Обрабатывает событие craft by player.
+	 *
+	 * @param stack stack
+	 * @param player player
+	 */
 	public void onCraftByPlayer(ItemStack stack, PlayerEntity player) {
 		this.onCraft(stack, player.getEntityWorld());
 	}
 
+	/**
+	 * Обрабатывает событие craft.
+	 *
+	 * @param stack stack
+	 * @param world world
+	 */
 	public void onCraft(ItemStack stack, World world) {
 	}
 
@@ -302,6 +430,16 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие stopped using.
+	 *
+	 * @param stack stack
+	 * @param world world
+	 * @param user user
+	 * @param remainingUseTicks remaining use ticks
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean onStoppedUsing(ItemStack stack, World world, LivingEntity user, int remainingUseTicks) {
 		return false;
 	}
@@ -365,6 +503,11 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return new ItemStack(this);
 	}
 
+	/**
+	 * Проверяет возможность be nested.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBeNested() {
 		return true;
 	}
@@ -374,6 +517,14 @@ public class Item implements ToggleableFeature, ItemConvertible, FabricItem {
 		return this.requiredFeatures;
 	}
 
+	/**
+	 * Определяет, следует ли show operator block warnings.
+	 *
+	 * @param stack stack
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowOperatorBlockWarnings(ItemStack stack, @Nullable PlayerEntity player) {
 		return false;
 	}

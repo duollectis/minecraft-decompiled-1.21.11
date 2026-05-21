@@ -41,5 +41,13 @@ public abstract class IdentifiableParsingRule<C, V> implements ParsingRule<Strin
 		}
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param reader reader
+	 * @param id id
+	 *
+	 * @return V — результат операции
+	 */
 	protected abstract V parse(ImmutableStringReader reader, Identifier id) throws Exception;
 }

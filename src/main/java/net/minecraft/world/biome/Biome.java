@@ -88,6 +88,11 @@ public final class Biome {
 	private final BiomeEffects effects;
 	private final ThreadLocal<Long2FloatLinkedOpenHashMap> temperatureCache = ThreadLocal.withInitial(() -> {
 		Long2FloatLinkedOpenHashMap long2FloatLinkedOpenHashMap = new Long2FloatLinkedOpenHashMap(1024, 0.25F) {
+			/**
+			 * Rehash.
+			 *
+			 * @param n n
+			 */
 			protected void rehash(int n) {
 			}
 		};
@@ -157,10 +162,27 @@ public final class Biome {
 		}
 	}
 
+	/**
+	 * Проверяет возможность set ice.
+	 *
+	 * @param world world
+	 * @param blockPos block pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSetIce(WorldView world, BlockPos blockPos) {
 		return this.canSetIce(world, blockPos, true);
 	}
 
+	/**
+	 * Проверяет возможность set ice.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param doWaterCheck do water check
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSetIce(WorldView world, BlockPos pos, boolean doWaterCheck) {
 		if (this.doesNotSnow(pos, world.getSeaLevel())) {
 			return false;
@@ -192,14 +214,38 @@ public final class Biome {
 		return !this.doesNotSnow(pos, seaLevel);
 	}
 
+	/**
+	 * Does not snow.
+	 *
+	 * @param pos pos
+	 * @param seaLevel sea level
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean doesNotSnow(BlockPos pos, int seaLevel) {
 		return this.getTemperature(pos, seaLevel) >= 0.15F;
 	}
 
+	/**
+	 * Определяет, следует ли generate lower frozen ocean surface.
+	 *
+	 * @param pos pos
+	 * @param seaLevel sea level
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldGenerateLowerFrozenOceanSurface(BlockPos pos, int seaLevel) {
 		return this.getTemperature(pos, seaLevel) > 0.1F;
 	}
 
+	/**
+	 * Проверяет возможность set snow.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSetSnow(WorldView world, BlockPos pos) {
 		if (this.getPrecipitation(pos, world.getSeaLevel()) != Biome.Precipitation.SNOW) {
 			return false;
@@ -346,6 +392,11 @@ public final class Biome {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return Biome — результат операции
+		 */
 		public Biome build() {
 			if (this.temperature != null && this.downfall != null && this.specialEffects != null
 					&& this.spawnSettings != null && this.generationSettings != null) {

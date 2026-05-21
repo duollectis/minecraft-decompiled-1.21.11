@@ -38,6 +38,13 @@ public record EntityAttributeModifier(Identifier id, double value, EntityAttribu
 			EntityAttributeModifier::new
 	);
 
+	/**
+	 * Id matches.
+	 *
+	 * @param id id
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean idMatches(Identifier id) {
 		return id.equals(this.id);
 	}

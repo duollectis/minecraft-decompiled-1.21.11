@@ -37,6 +37,14 @@ public record DebugStickStateComponent(Map<RegistryEntry<Block>, Property<?>> pr
 					component -> (Map<?, ?>) component.properties()
 			);
 
+	/**
+	 * With.
+	 *
+	 * @param block block
+	 * @param property property
+	 *
+	 * @return DebugStickStateComponent — результат операции
+	 */
 	public DebugStickStateComponent with(RegistryEntry<Block> block, Property<?> property) {
 		return new DebugStickStateComponent(Util.mapWith(this.properties, block, property));
 	}

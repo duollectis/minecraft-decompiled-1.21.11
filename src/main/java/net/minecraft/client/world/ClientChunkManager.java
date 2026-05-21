@@ -66,6 +66,11 @@ public class ClientChunkManager extends ChunkManager {
 		}
 	}
 
+	/**
+	 * Unload.
+	 *
+	 * @param pos pos
+	 */
 	public void unload(ChunkPos pos) {
 		if (this.chunks.isInRadius(pos.x, pos.z)) {
 			int i = this.chunks.getIndex(pos.x, pos.z);
@@ -92,6 +97,13 @@ public class ClientChunkManager extends ChunkManager {
 		return this.world;
 	}
 
+	/**
+	 * Обрабатывает событие chunk biome data.
+	 *
+	 * @param x x
+	 * @param z z
+	 * @param buf buf
+	 */
 	public void onChunkBiomeData(int x, int z, PacketByteBuf buf) {
 		if (!this.chunks.isInRadius(x, z)) {
 			LOGGER.warn("Ignoring chunk since it's not in the view range: {}, {}", x, z);
@@ -147,6 +159,11 @@ public class ClientChunkManager extends ChunkManager {
 		this.chunks.centerChunkZ = z;
 	}
 
+	/**
+	 * Обновляет load distance.
+	 *
+	 * @param loadDistance load distance
+	 */
 	public void updateLoadDistance(int loadDistance) {
 		int i = this.chunks.radius;
 		int j = getChunkMapRadius(loadDistance);
@@ -248,6 +265,14 @@ public class ClientChunkManager extends ChunkManager {
 			ClientChunkManager.this.world.unloadBlockEntities(chunk);
 		}
 
+		/**
+		 * Обрабатывает событие section status changed.
+		 *
+		 * @param x x
+		 * @param sectionY section y
+		 * @param z z
+		 * @param previouslyEmpty previously empty
+		 */
 		public void onSectionStatusChanged(int x, int sectionY, int z, boolean previouslyEmpty) {
 			if (this.isInRadius(x, z)) {
 				long l = ChunkSectionPos.asLong(x, sectionY, z);

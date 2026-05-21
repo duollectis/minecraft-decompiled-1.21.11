@@ -7,6 +7,9 @@ import net.minecraft.network.packet.CommonPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Класс clear dialog s2 c packet.
+ */
 public class ClearDialogS2CPacket implements Packet<ClientCommonPacketListener> {
 
 	public static final ClearDialogS2CPacket INSTANCE = new ClearDialogS2CPacket();
@@ -20,6 +23,11 @@ public class ClearDialogS2CPacket implements Packet<ClientCommonPacketListener> 
 		return CommonPackets.CLEAR_DIALOG;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onClearDialog(this);
 	}

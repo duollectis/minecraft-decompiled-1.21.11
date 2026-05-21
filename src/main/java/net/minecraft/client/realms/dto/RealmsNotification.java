@@ -62,6 +62,13 @@ public class RealmsNotification {
 		return this.uuid;
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<RealmsNotification> parse(String json) {
 		List<RealmsNotification> list = new ArrayList<>();
 
@@ -140,6 +147,14 @@ public class RealmsNotification {
 			return new RealmsNotification.InfoPopup(parent, realmsText, realmsText2, identifier, urlButton);
 		}
 
+		/**
+		 * Создаёт screen.
+		 *
+		 * @param backgroundScreen background screen
+		 * @param dismissCallback dismiss callback
+		 *
+		 * @return @Nullable PopupScreen — результат операции
+		 */
 		public @Nullable PopupScreen createScreen(Screen backgroundScreen, Consumer<UUID> dismissCallback) {
 			Text text = this.title.toText();
 			if (text == null) {
@@ -234,6 +249,13 @@ public class RealmsNotification {
 			return this.message.toText(Text.translatable("mco.notification.visitUrl.message.default"));
 		}
 
+		/**
+		 * Создаёт button.
+		 *
+		 * @param currentScreen current screen
+		 *
+		 * @return ButtonWidget — результат операции
+		 */
 		public ButtonWidget createButton(Screen currentScreen) {
 			Text text = this.buttonText.toText(RealmsNotification.OPEN_LINK_TEXT);
 			return ButtonWidget.builder(text, ConfirmLinkScreen.opening(currentScreen, this.url)).build();

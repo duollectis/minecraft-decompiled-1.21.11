@@ -9,6 +9,14 @@ public class Smoother {
 	private double smoothedSum;
 	private double movementLatency;
 
+	/**
+	 * Smooth.
+	 *
+	 * @param original original
+	 * @param smoother smoother
+	 *
+	 * @return double — результат операции
+	 */
 	public double smooth(double original, double smoother) {
 		this.actualSum += original;
 		double d = this.actualSum - this.smoothedSum;
@@ -23,6 +31,9 @@ public class Smoother {
 		return d * smoother;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.actualSum = 0.0;
 		this.smoothedSum = 0.0;

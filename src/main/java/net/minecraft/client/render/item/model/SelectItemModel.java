@@ -144,6 +144,14 @@ public class SelectItemModel<T> implements ItemModel {
 						SelectProperty.Type::switchCodec
 				);
 
+		/**
+		 * Bake.
+		 *
+		 * @param context context
+		 * @param fallback fallback
+		 *
+		 * @return ItemModel — результат операции
+		 */
 		public ItemModel bake(ItemModel.BakeContext context, ItemModel fallback) {
 			Object2ObjectMap<T, ItemModel> object2ObjectMap = new Object2ObjectOpenHashMap();
 
@@ -197,6 +205,11 @@ public class SelectItemModel<T> implements ItemModel {
 			}
 		}
 
+		/**
+		 * Resolve cases.
+		 *
+		 * @param resolver resolver
+		 */
 		public void resolveCases(ResolvableModel.Resolver resolver) {
 			for (SelectItemModel.SwitchCase<?> switchCase : this.cases) {
 				switchCase.model.resolve(resolver);

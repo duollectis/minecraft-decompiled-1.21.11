@@ -9332,6 +9332,13 @@ public class Blocks {
 			                      .pistonBehavior(PistonBehavior.DESTROY)
 	);
 
+	/**
+	 * Создаёт light level from lit block state.
+	 *
+	 * @param litLevel lit level
+	 *
+	 * @return ToIntFunction — результат операции
+	 */
 	public static ToIntFunction<BlockState> createLightLevelFromLitBlockState(int litLevel) {
 		return state -> state.get(Properties.LIT) ? litLevel : 0;
 	}
@@ -9340,14 +9347,44 @@ public class Blocks {
 		return state -> state.get(Properties.WATERLOGGED) ? MapColor.WATER_BLUE : mapColor;
 	}
 
+	/**
+	 * Never.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param type type
+	 *
+	 * @return Boolean — результат операции
+	 */
 	public static Boolean never(BlockState state, BlockView world, BlockPos pos, EntityType<?> type) {
 		return false;
 	}
 
+	/**
+	 * Always.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param type type
+	 *
+	 * @return Boolean — результат операции
+	 */
 	public static Boolean always(BlockState state, BlockView world, BlockPos pos, EntityType<?> type) {
 		return true;
 	}
 
+	/**
+	 * Проверяет возможность spawn on leaves.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param type type
+	 *
+	 * @return Boolean — {@code true} если условие выполнено
+	 */
 	public static Boolean canSpawnOnLeaves(BlockState state, BlockView world, BlockPos pos, EntityType<?> type) {
 		return type == EntityType.OCELOT || type == EntityType.PARROT;
 	}
@@ -9389,10 +9426,28 @@ public class Blocks {
 		                             .sounds(BlockSoundGroup.NETHER_STEM);
 	}
 
+	/**
+	 * Always.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean always(BlockState state, BlockView world, BlockPos pos) {
 		return true;
 	}
 
+	/**
+	 * Never.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean never(BlockState state, BlockView world, BlockPos pos) {
 		return false;
 	}
@@ -9504,6 +9559,14 @@ public class Blocks {
 		return Registry.register(Registries.BLOCK, key, block);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param key key
+	 * @param settings settings
+	 *
+	 * @return Block — результат операции
+	 */
 	public static Block register(RegistryKey<Block> key, AbstractBlock.Settings settings) {
 		return register(key, Block::new, settings);
 	}

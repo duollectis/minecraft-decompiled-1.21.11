@@ -105,6 +105,15 @@ enum AdvancementTabType {
 		return this.tabCount;
 	}
 
+	/**
+	 * Draw background.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param selected selected
+	 * @param index index
+	 */
 	public void drawBackground(DrawContext context, int x, int y, boolean selected, int index) {
 		AdvancementTabType.Textures textures = selected ? this.selectedTextures : this.unselectedTextures;
 		Identifier identifier;
@@ -121,6 +130,15 @@ enum AdvancementTabType {
 		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, identifier, x, y, this.width, this.height);
 	}
 
+	/**
+	 * Draw icon.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param index index
+	 * @param stack stack
+	 */
 	public void drawIcon(DrawContext context, int x, int y, int index, ItemStack stack) {
 		int i = x + this.getTabX(index);
 		int j = y + this.getTabY(index);

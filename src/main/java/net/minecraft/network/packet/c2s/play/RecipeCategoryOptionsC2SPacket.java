@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.recipe.book.RecipeBookType;
 
+/**
+ * Класс recipe category options c2 s packet.
+ */
 public class RecipeCategoryOptionsC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, RecipeCategoryOptionsC2SPacket> CODEC = Packet.createCodec(
@@ -40,6 +43,11 @@ public class RecipeCategoryOptionsC2SPacket implements Packet<ServerPlayPacketLi
 		return PlayPackets.RECIPE_BOOK_CHANGE_SETTINGS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onRecipeCategoryOptions(this);
 	}

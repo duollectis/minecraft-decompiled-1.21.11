@@ -71,6 +71,11 @@ public class BannerBlockEntity extends BlockEntity implements Nameable {
 						.orElse(BannerPatternsComponent.DEFAULT);
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}

@@ -55,6 +55,13 @@ public abstract class AbstractSignBlockEntityRenderer implements BlockEntityRend
 
 	protected abstract Vec3d getTextOffset();
 
+	/**
+	 * Применяет transforms.
+	 *
+	 * @param matrices matrices
+	 * @param blockRotationDegrees block rotation degrees
+	 * @param state state
+	 */
 	protected abstract void applyTransforms(MatrixStack matrices, float blockRotationDegrees, BlockState state);
 
 	public void render(
@@ -206,6 +213,11 @@ public abstract class AbstractSignBlockEntityRenderer implements BlockEntityRend
 		return i == DyeColor.BLACK.getSignColor() && text.isGlowing() ? -988212 : ColorHelper.scaleRgb(i, 0.4F);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SignBlockEntityRenderState — результат операции
+	 */
 	public SignBlockEntityRenderState createRenderState() {
 		return new SignBlockEntityRenderState();
 	}

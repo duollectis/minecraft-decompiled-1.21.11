@@ -15,6 +15,13 @@ public class PathResolving {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * To path.
+	 *
+	 * @param uri uri
+	 *
+	 * @return Path — результат операции
+	 */
 	public static Path toPath(URI uri) throws IOException {
 		try {
 			return Paths.get(uri);

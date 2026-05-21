@@ -228,6 +228,13 @@ public class EditGameRulesScreen extends Screen {
 			return this.children;
 		}
 
+		/**
+		 * Draw name.
+		 *
+		 * @param context context
+		 * @param x x
+		 * @param y y
+		 */
 		protected void drawName(DrawContext context, int x, int y) {
 			if (this.name.size() == 1) {
 				context.drawTextWithShadow(

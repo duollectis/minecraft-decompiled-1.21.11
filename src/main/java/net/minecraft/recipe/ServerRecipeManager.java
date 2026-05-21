@@ -71,6 +71,14 @@ public class ServerRecipeManager extends SinglePreparationResourceReloader<Prepa
 		this.registries = registries;
 	}
 
+	/**
+	 * Prepare.
+	 *
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 *
+	 * @return PreparedRecipes — результат операции
+	 */
 	protected PreparedRecipes prepare(ResourceManager resourceManager, Profiler profiler) {
 		SortedMap<Identifier, Recipe<?>> sortedMap = new TreeMap<>();
 		JsonDataLoader.load(resourceManager, FINDER, this.registries.getOps(JsonOps.INSTANCE), Recipe.CODEC, sortedMap);
@@ -83,11 +91,23 @@ public class ServerRecipeManager extends SinglePreparationResourceReloader<Prepa
 		return PreparedRecipes.of(list);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param preparedRecipes prepared recipes
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(PreparedRecipes preparedRecipes, ResourceManager resourceManager, Profiler profiler) {
 		this.preparedRecipes = preparedRecipes;
 		LOGGER.info("Loaded {} recipes", preparedRecipes.recipes().size());
 	}
 
+	/**
+	 * Инициализирует ialize.
+	 *
+	 * @param features features
+	 */
 	public void initialize(FeatureSet features) {
 		List<CuttingRecipeDisplay.GroupEntry<StonecuttingRecipe>> list = new ArrayList<>();
 		List<ServerRecipeManager.PropertySetBuilder> list2 = SOLE_INGREDIENT_GETTERS.entrySet()
@@ -176,6 +196,13 @@ public class ServerRecipeManager extends SinglePreparationResourceReloader<Prepa
 		return this.preparedRecipes.find(type, input, world).findFirst();
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 *
+	 * @return Optional> — 
+	 */
 	public Optional<RecipeEntry<?>> get(RegistryKey<Recipe<?>> key) {
 		return Optional.ofNullable(this.preparedRecipes.get(key));
 	}
@@ -204,6 +231,11 @@ public class ServerRecipeManager extends SinglePreparationResourceReloader<Prepa
 		return this.stonecutterRecipes;
 	}
 
+	/**
+	 * Values.
+	 *
+	 * @return Collection> — результат операции
+	 */
 	public Collection<RecipeEntry<?>> values() {
 		return this.preparedRecipes.recipes();
 	}
@@ -213,6 +245,12 @@ public class ServerRecipeManager extends SinglePreparationResourceReloader<Prepa
 		return i >= 0 && i < this.recipes.size() ? this.recipes.get(i) : null;
 	}
 
+	/**
+	 * For each recipe display.
+	 *
+	 * @param key key
+	 * @param action action
+	 */
 	public void forEachRecipeDisplay(RegistryKey<Recipe<?>> key, Consumer<RecipeDisplayEntry> action) {
 		List<ServerRecipeManager.ServerRecipe> list = this.recipesByKey.get(key);
 		if (list != null) {
@@ -328,10 +366,22 @@ public class ServerRecipeManager extends SinglePreparationResourceReloader<Prepa
 			this.ingredientGetter = ingredientGetter;
 		}
 
+		/**
+		 * Accept.
+		 *
+		 * @param recipe recipe
+		 */
 		public void accept(Recipe<?> recipe) {
 			this.ingredientGetter.apply(recipe).ifPresent(this.ingredients::add);
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param enabledFeatures enabled features
+		 *
+		 * @return RecipePropertySet — результат операции
+		 */
 		public RecipePropertySet build(FeatureSet enabledFeatures) {
 			return RecipePropertySet.of(ServerRecipeManager.filterIngredients(enabledFeatures, this.ingredients));
 		}

@@ -100,6 +100,11 @@ public class EditBox {
 		return this.text;
 	}
 
+	/**
+	 * Replace selection.
+	 *
+	 * @param string string
+	 */
 	public void replaceSelection(String string) {
 		if (!string.isEmpty() || this.hasSelection()) {
 			String string2 = this.truncate(StringHelper.stripInvalidChars(string, true));
@@ -116,6 +121,11 @@ public class EditBox {
 		}
 	}
 
+	/**
+	 * Delete.
+	 *
+	 * @param offset offset
+	 */
 	public void delete(int offset) {
 		if (!this.hasSelection()) {
 			this.selectionEnd = MathHelper.clamp(this.cursor + offset, 0, this.text.length());
@@ -158,6 +168,12 @@ public class EditBox {
 		return this.lines.get(MathHelper.clamp(index, 0, this.lines.size() - 1));
 	}
 
+	/**
+	 * Перемещает cursor.
+	 *
+	 * @param movement movement
+	 * @param amount amount
+	 */
 	public void moveCursor(CursorMovement movement, int amount) {
 		switch (movement) {
 			case ABSOLUTE:
@@ -177,6 +193,11 @@ public class EditBox {
 		}
 	}
 
+	/**
+	 * Перемещает cursor line.
+	 *
+	 * @param offset offset
+	 */
 	public void moveCursorLine(int offset) {
 		if (offset != 0) {
 			int i = this.textRenderer.getWidth(this.text.substring(this.getCurrentLine().beginIndex, this.cursor)) + 2;
@@ -190,6 +211,12 @@ public class EditBox {
 		}
 	}
 
+	/**
+	 * Перемещает cursor.
+	 *
+	 * @param x x
+	 * @param y y
+	 */
 	public void moveCursor(double x, double y) {
 		int i = MathHelper.floor(x);
 		int j = MathHelper.floor(y / 9.0);
@@ -202,6 +229,9 @@ public class EditBox {
 		this.moveCursor(CursorMovement.ABSOLUTE, substring.beginIndex + k);
 	}
 
+	/**
+	 * Select word.
+	 */
 	public void selectWord() {
 		EditBox.Substring substring = this.getPreviousWordAtCursor();
 		this.moveCursor(CursorMovement.ABSOLUTE, substring.beginIndex);
@@ -209,6 +239,13 @@ public class EditBox {
 		this.moveCursor(CursorMovement.ABSOLUTE, substring.endIndex);
 	}
 
+	/**
+	 * Обрабатывает special key.
+	 *
+	 * @param key key
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean handleSpecialKey(KeyInput key) {
 		this.selecting = key.hasShift();
 		if (key.isSelectAll()) {

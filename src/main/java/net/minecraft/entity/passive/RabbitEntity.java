@@ -168,6 +168,9 @@ public class RabbitEntity extends AnimalEntity {
 		}
 	}
 
+	/**
+	 * Запускает jump.
+	 */
 	public void startJump() {
 		this.setJumping(true);
 		this.jumpDuration = 10;
@@ -343,6 +346,14 @@ public class RabbitEntity extends AnimalEntity {
 		return this.getVariant() == RabbitEntity.Variant.EVIL ? SoundCategory.HOSTILE : SoundCategory.NEUTRAL;
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable RabbitEntity — результат операции
+	 */
 	public @Nullable RabbitEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		RabbitEntity rabbitEntity = EntityType.RABBIT.create(serverWorld, SpawnReason.BREEDING);
 		if (rabbitEntity != null) {
@@ -649,6 +660,11 @@ public class RabbitEntity extends AnimalEntity {
 			return this.active;
 		}
 
+		/**
+		 * Проверяет возможность jump.
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canJump() {
 			return this.canJump;
 		}

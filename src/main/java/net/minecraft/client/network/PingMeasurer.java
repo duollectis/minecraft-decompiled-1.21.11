@@ -8,6 +8,9 @@ import net.minecraft.util.Util;
 import net.minecraft.util.profiler.MultiValueDebugSampleLogImpl;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Класс ping measurer.
+ */
 public class PingMeasurer {
 
 	private final ClientPlayNetworkHandler handler;
@@ -18,10 +21,18 @@ public class PingMeasurer {
 		this.log = log;
 	}
 
+	/**
+	 * Ping.
+	 */
 	public void ping() {
 		this.handler.sendPacket(new QueryPingC2SPacket(Util.getMeasuringTimeMs()));
 	}
 
+	/**
+	 * Обрабатывает событие ping result.
+	 *
+	 * @param packet packet
+	 */
 	public void onPingResult(PingResultS2CPacket packet) {
 		this.log.push(Util.getMeasuringTimeMs() - packet.startTime());
 	}

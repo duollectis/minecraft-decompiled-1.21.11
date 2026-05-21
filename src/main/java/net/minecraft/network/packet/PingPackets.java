@@ -7,6 +7,9 @@ import net.minecraft.network.packet.c2s.query.QueryPingC2SPacket;
 import net.minecraft.network.packet.s2c.query.PingResultS2CPacket;
 import net.minecraft.util.Identifier;
 
+/**
+ * Класс ping packets.
+ */
 public class PingPackets {
 
 	public static final PacketType<PingResultS2CPacket> PONG_RESPONSE = s2c("pong_response");

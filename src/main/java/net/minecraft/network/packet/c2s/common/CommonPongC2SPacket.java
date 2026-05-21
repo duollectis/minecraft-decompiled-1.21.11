@@ -7,6 +7,9 @@ import net.minecraft.network.packet.CommonPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Класс common pong c2 s packet.
+ */
 public class CommonPongC2SPacket implements Packet<ServerCommonPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, CommonPongC2SPacket>
@@ -31,6 +34,11 @@ public class CommonPongC2SPacket implements Packet<ServerCommonPacketListener> {
 		return CommonPackets.PONG;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverCommonPacketListener server common packet listener
+	 */
 	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
 		serverCommonPacketListener.onPong(this);
 	}

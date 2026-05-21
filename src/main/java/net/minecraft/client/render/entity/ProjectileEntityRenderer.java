@@ -52,6 +52,13 @@ public abstract class ProjectileEntityRenderer<T extends PersistentProjectileEnt
 
 	protected abstract Identifier getTexture(S state);
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param persistentProjectileEntity persistent projectile entity
+	 * @param projectileEntityRenderState projectile entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T persistentProjectileEntity, S projectileEntityRenderState, float f) {
 		super.updateRenderState(persistentProjectileEntity, projectileEntityRenderState, f);
 		projectileEntityRenderState.pitch = persistentProjectileEntity.getLerpedPitch(f);

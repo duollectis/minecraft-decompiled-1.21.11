@@ -39,6 +39,9 @@ public class OutlineVertexConsumerProvider implements VertexConsumerProvider {
 		this.OUTLINE_COLOR = red;
 	}
 
+	/**
+	 * Draw.
+	 */
 	public void draw() {
 		this.plainDrawer.draw();
 	}

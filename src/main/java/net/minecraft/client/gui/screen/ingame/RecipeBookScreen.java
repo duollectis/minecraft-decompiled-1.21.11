@@ -56,6 +56,9 @@ public abstract class RecipeBookScreen<T extends AbstractRecipeScreenHandler> ex
 		this.addSelectableChild(this.recipeBook);
 	}
 
+	/**
+	 * Обрабатывает событие recipe book toggled.
+	 */
 	protected void onRecipeBookToggled() {
 	}
 
@@ -83,6 +86,11 @@ public abstract class RecipeBookScreen<T extends AbstractRecipeScreenHandler> ex
 		this.recipeBook.drawGhostSlots(context, this.shouldAddPaddingToGhostResult());
 	}
 
+	/**
+	 * Определяет, следует ли add padding to ghost result.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldAddPaddingToGhostResult() {
 		return true;
 	}

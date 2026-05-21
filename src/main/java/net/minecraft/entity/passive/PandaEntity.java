@@ -607,6 +607,12 @@ public class PandaEntity extends AnimalEntity {
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
+	/**
+	 * Инициализирует genes.
+	 *
+	 * @param mother mother
+	 * @param father father
+	 */
 	public void initGenes(PandaEntity mother, @Nullable PandaEntity father) {
 		if (father == null) {
 			if (this.random.nextBoolean()) {
@@ -640,6 +646,9 @@ public class PandaEntity extends AnimalEntity {
 		return this.random.nextBoolean() ? this.getMainGene() : this.getHiddenGene();
 	}
 
+	/**
+	 * Сбрасывает attributes.
+	 */
 	public void resetAttributes() {
 		if (this.isWeak()) {
 			this.getAttributeInstance(EntityAttributes.MAX_HEALTH).setBaseValue(10.0);

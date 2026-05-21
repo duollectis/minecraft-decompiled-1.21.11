@@ -48,6 +48,14 @@ public enum Orientation implements StringIdentifiable {
 		return this.name;
 	}
 
+	/**
+	 * By directions.
+	 *
+	 * @param facing facing
+	 * @param rotation rotation
+	 *
+	 * @return Orientation — результат операции
+	 */
 	public static Orientation byDirections(Direction facing, Direction rotation) {
 		return VALUES[getIndex(facing, rotation)];
 	}

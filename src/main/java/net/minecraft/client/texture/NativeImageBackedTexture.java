@@ -72,6 +72,9 @@ public class NativeImageBackedTexture extends AbstractTexture implements Dynamic
 		this.glTextureView = gpuDevice.createTextureView(this.glTexture);
 	}
 
+	/**
+	 * Upload.
+	 */
 	public void upload() {
 		if (this.image != null && this.glTexture != null) {
 			RenderSystem.getDevice().createCommandEncoder().writeToTexture(this.glTexture, this.image);

@@ -50,6 +50,14 @@ public class FireworkStarRecipe extends SpecialCraftingRecipe {
 		super(craftingRecipeCategory);
 	}
 
+	/**
+	 * Matches.
+	 *
+	 * @param craftingRecipeInput crafting recipe input
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
 		if (craftingRecipeInput.getStackCount() < 2) {
 			return false;
@@ -106,6 +114,14 @@ public class FireworkStarRecipe extends SpecialCraftingRecipe {
 		}
 	}
 
+	/**
+	 * Craft.
+	 *
+	 * @param craftingRecipeInput crafting recipe input
+	 * @param wrapperLookup wrapper lookup
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
 		FireworkExplosionComponent.Type type = FireworkExplosionComponent.Type.SMALL_BALL;
 		boolean bl = false;

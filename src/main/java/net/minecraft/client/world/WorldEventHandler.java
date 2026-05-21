@@ -47,6 +47,13 @@ public class WorldEventHandler {
 		this.world = world;
 	}
 
+	/**
+	 * Обрабатывает global event.
+	 *
+	 * @param eventId event id
+	 * @param pos pos
+	 * @param data data
+	 */
 	public void processGlobalEvent(int eventId, BlockPos pos, int data) {
 		switch (eventId) {
 			case 1023:
@@ -96,6 +103,13 @@ public class WorldEventHandler {
 		}
 	}
 
+	/**
+	 * Обрабатывает world event.
+	 *
+	 * @param eventId event id
+	 * @param pos pos
+	 * @param data data
+	 */
 	public void processWorldEvent(int eventId, BlockPos pos, int data) {
 		Random random = this.world.random;
 		switch (eventId) {

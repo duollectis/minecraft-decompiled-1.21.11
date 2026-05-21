@@ -37,24 +37,51 @@ public record MessageIndicator(
 			new MessageIndicator(13684944, null, NOT_SECURE_TEXT, "Not Secure");
 	private static final MessageIndicator CHAT_ERROR = new MessageIndicator(16733525, null, ERROR_TEXT, "Chat Error");
 
+	/**
+	 * System.
+	 *
+	 * @return MessageIndicator — результат операции
+	 */
 	public static MessageIndicator system() {
 		return SYSTEM;
 	}
 
+	/**
+	 * Single player.
+	 *
+	 * @return MessageIndicator — результат операции
+	 */
 	public static MessageIndicator singlePlayer() {
 		return SINGLE_PLAYER;
 	}
 
+	/**
+	 * Not secure.
+	 *
+	 * @return MessageIndicator — результат операции
+	 */
 	public static MessageIndicator notSecure() {
 		return NOT_SECURE;
 	}
 
+	/**
+	 * Modified.
+	 *
+	 * @param originalText original text
+	 *
+	 * @return MessageIndicator — результат операции
+	 */
 	public static MessageIndicator modified(String originalText) {
 		Text text = Text.literal(originalText).formatted(Formatting.GRAY);
 		Text text2 = Text.empty().append(MODIFIED_TEXT).append(ScreenTexts.LINE_BREAK).append(text);
 		return new MessageIndicator(6316128, MessageIndicator.Icon.CHAT_MODIFIED, text2, "Modified");
 	}
 
+	/**
+	 * Chat error.
+	 *
+	 * @return MessageIndicator — результат операции
+	 */
 	public static MessageIndicator chatError() {
 		return CHAT_ERROR;
 	}
@@ -76,6 +103,13 @@ public record MessageIndicator(
 			this.height = height;
 		}
 
+		/**
+		 * Draw.
+		 *
+		 * @param context context
+		 * @param x x
+		 * @param y y
+		 */
 		public void draw(DrawContext context, int x, int y) {
 			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, this.texture, x, y, this.width, this.height);
 		}

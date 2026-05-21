@@ -35,10 +35,24 @@ public record Weighted<T>(T value, int weight) {
 		}
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param dataCodec data codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <E> Codec<Weighted<E>> createCodec(Codec<E> dataCodec) {
 		return createCodec(dataCodec.fieldOf("data"));
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param dataCodec data codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <E> Codec<Weighted<E>> createCodec(MapCodec<E> dataCodec) {
 		return RecordCodecBuilder.create(
 				instance -> instance
@@ -50,10 +64,24 @@ public record Weighted<T>(T value, int weight) {
 		);
 	}
 
+	/**
+	 * Создаёт packet codec.
+	 *
+	 * @param dataCodec data codec
+	 *
+	 * @return PacketCodec> — результат операции
+	 */
 	public static <B extends ByteBuf, T> PacketCodec<B, Weighted<T>> createPacketCodec(PacketCodec<B, T> dataCodec) {
 		return PacketCodec.tuple(dataCodec, Weighted::value, PacketCodecs.VAR_INT, Weighted::weight, Weighted::new);
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param function function
+	 *
+	 * @return Weighted — результат операции
+	 */
 	public <U> Weighted<U> transform(Function<T, U> function) {
 		return new Weighted<>(function.apply(this.value()), this.weight);
 	}

@@ -54,6 +54,14 @@ public class FrogEatEntityTask extends MultiTickTask<FrogEntity> {
 		this.eatSound = eatSound;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param frogEntity frog entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, FrogEntity frogEntity) {
 		LivingEntity
 				livingEntity =
@@ -67,12 +75,28 @@ public class FrogEatEntityTask extends MultiTickTask<FrogEntity> {
 		return bl && frogEntity.getPose() != EntityPose.CROAKING && FrogEntity.isValidFrogFood(livingEntity);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param frogEntity frog entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
 		return frogEntity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET)
 				&& this.phase != FrogEatEntityTask.Phase.DONE
 				&& !frogEntity.getBrain().hasMemoryModule(MemoryModuleType.IS_PANICKING);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param frogEntity frog entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
 		LivingEntity
 				livingEntity =
@@ -86,6 +110,13 @@ public class FrogEatEntityTask extends MultiTickTask<FrogEntity> {
 		this.phase = FrogEatEntityTask.Phase.MOVE_TO_TARGET;
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param frogEntity frog entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
 		frogEntity.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
 		frogEntity.clearFrogTarget();
@@ -106,6 +137,13 @@ public class FrogEatEntityTask extends MultiTickTask<FrogEntity> {
 		}
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param frogEntity frog entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, FrogEntity frogEntity, long l) {
 		LivingEntity
 				livingEntity =

@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PlayPackets;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Запись book update c2 s packet.
+ */
 public record BookUpdateC2SPacket(
 		int slot,
 		List<String> pages,
@@ -39,6 +42,11 @@ public record BookUpdateC2SPacket(
 		return PlayPackets.EDIT_BOOK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onBookUpdate(this);
 	}

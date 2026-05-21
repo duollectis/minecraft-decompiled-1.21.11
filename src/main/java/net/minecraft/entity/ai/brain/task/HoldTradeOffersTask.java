@@ -38,6 +38,14 @@ public class HoldTradeOffersTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		Brain<?> brain = villagerEntity.getBrain();
 		if (brain.getOptionalRegisteredMemory(MemoryModuleType.INTERACTION_TARGET).isEmpty()) {
@@ -53,6 +61,15 @@ public class HoldTradeOffersTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		return this.shouldRun(serverWorld, villagerEntity)
 				&& this.ticksLeft > 0
@@ -62,6 +79,13 @@ public class HoldTradeOffersTask extends MultiTickTask<VillagerEntity> {
 				.isPresent();
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	public void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		super.run(serverWorld, villagerEntity, l);
 		this.findPotentialCustomer(villagerEntity);
@@ -70,6 +94,13 @@ public class HoldTradeOffersTask extends MultiTickTask<VillagerEntity> {
 		this.ticksLeft = 40;
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	public void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		LivingEntity livingEntity = this.findPotentialCustomer(villagerEntity);
 		this.setupOffers(livingEntity, villagerEntity);
@@ -84,6 +115,13 @@ public class HoldTradeOffersTask extends MultiTickTask<VillagerEntity> {
 		this.ticksLeft--;
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	public void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		super.finishRunning(serverWorld, villagerEntity, l);
 		villagerEntity.getBrain().forget(MemoryModuleType.INTERACTION_TARGET);

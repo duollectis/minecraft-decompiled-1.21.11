@@ -6,6 +6,9 @@ import net.minecraft.network.packet.Packet;
 
 import java.util.List;
 
+/**
+ * Класс packet unbundler.
+ */
 public class PacketUnbundler extends MessageToMessageEncoder<Packet<?>> {
 
 	private final PacketBundleHandler bundleHandler;

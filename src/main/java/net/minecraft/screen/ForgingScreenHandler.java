@@ -30,12 +30,33 @@ public abstract class ForgingScreenHandler extends ScreenHandler {
 	};
 	private final int resultSlotIndex;
 
+	/**
+	 * Проверяет возможность take output.
+	 *
+	 * @param player player
+	 * @param present present
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canTakeOutput(PlayerEntity player, boolean present) {
 		return true;
 	}
 
+	/**
+	 * Обрабатывает событие take output.
+	 *
+	 * @param player player
+	 * @param stack stack
+	 */
 	protected abstract void onTakeOutput(PlayerEntity player, ItemStack stack);
 
+	/**
+	 * Проверяет возможность use.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected abstract boolean canUse(BlockState state);
 
 	public ForgingScreenHandler(
@@ -92,6 +113,9 @@ public abstract class ForgingScreenHandler extends ScreenHandler {
 		);
 	}
 
+	/**
+	 * Обновляет result.
+	 */
 	public abstract void updateResult();
 
 	private SimpleInventory createInputInventory(int size) {

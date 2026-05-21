@@ -22,6 +22,11 @@ public class ServerWaypointHandler implements WaypointHandler<ServerWaypoint> {
 			trackers =
 			HashBasedTable.create();
 
+	/**
+	 * Обрабатывает событие track.
+	 *
+	 * @param serverWaypoint server waypoint
+	 */
 	public void onTrack(ServerWaypoint serverWaypoint) {
 		this.waypoints.add(serverWaypoint);
 
@@ -30,6 +35,11 @@ public class ServerWaypointHandler implements WaypointHandler<ServerWaypoint> {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие update.
+	 *
+	 * @param serverWaypoint server waypoint
+	 */
 	public void onUpdate(ServerWaypoint serverWaypoint) {
 		if (this.waypoints.contains(serverWaypoint)) {
 			Map<ServerPlayerEntity, ServerWaypoint.WaypointTracker>
@@ -54,12 +64,22 @@ public class ServerWaypointHandler implements WaypointHandler<ServerWaypoint> {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие untrack.
+	 *
+	 * @param serverWaypoint server waypoint
+	 */
 	public void onUntrack(ServerWaypoint serverWaypoint) {
 		this.trackers.column(serverWaypoint).forEach((player, tracker) -> tracker.untrack());
 		Tables.transpose(this.trackers).row(serverWaypoint).clear();
 		this.waypoints.remove(serverWaypoint);
 	}
 
+	/**
+	 * Добавляет player.
+	 *
+	 * @param player player
+	 */
 	public void addPlayer(ServerPlayerEntity player) {
 		this.players.add(player);
 
@@ -72,6 +92,11 @@ public class ServerWaypointHandler implements WaypointHandler<ServerWaypoint> {
 		}
 	}
 
+	/**
+	 * Обновляет player pos.
+	 *
+	 * @param player player
+	 */
 	public void updatePlayerPos(ServerPlayerEntity player) {
 		Map<ServerWaypoint, ServerWaypoint.WaypointTracker> map = this.trackers.row(player);
 		SetView<ServerWaypoint> setView = Sets.difference(this.waypoints, map.keySet());
@@ -92,6 +117,11 @@ public class ServerWaypointHandler implements WaypointHandler<ServerWaypoint> {
 		}
 	}
 
+	/**
+	 * Удаляет player.
+	 *
+	 * @param player player
+	 */
 	public void removePlayer(ServerPlayerEntity player) {
 		this.trackers.row(player).values().removeIf(tracker -> {
 			tracker.untrack();
@@ -101,11 +131,19 @@ public class ServerWaypointHandler implements WaypointHandler<ServerWaypoint> {
 		this.players.remove(player);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.trackers.values().forEach(ServerWaypoint.WaypointTracker::untrack);
 		this.trackers.clear();
 	}
 
+	/**
+	 * Refresh tracking.
+	 *
+	 * @param waypoint waypoint
+	 */
 	public void refreshTracking(ServerWaypoint waypoint) {
 		for (ServerPlayerEntity serverPlayerEntity : this.players) {
 			this.refreshTracking(serverPlayerEntity, waypoint);

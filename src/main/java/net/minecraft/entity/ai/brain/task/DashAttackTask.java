@@ -65,10 +65,27 @@ public class DashAttackTask extends MultiTickTask<AnimalEntity> {
 		this.lastPos = Vec3d.ZERO;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, AnimalEntity animalEntity) {
 		return animalEntity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
 		Brain<?> brain = animalEntity.getBrain();
 		Optional<LivingEntity> optional = brain.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET);
@@ -95,6 +112,13 @@ public class DashAttackTask extends MultiTickTask<AnimalEntity> {
 		}
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
 		Brain<?> brain = animalEntity.getBrain();
 		this.lastPos = animalEntity.getEntityPos();
@@ -106,6 +130,13 @@ public class DashAttackTask extends MultiTickTask<AnimalEntity> {
 		}
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
 		Brain<?> brain = animalEntity.getBrain();
 		LivingEntity livingEntity = brain.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).orElseThrow();
@@ -159,6 +190,13 @@ public class DashAttackTask extends MultiTickTask<AnimalEntity> {
 		entity.knockbackTarget(target, g * this.knockbackStrength, entity.getVelocity());
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
 		animalEntity.getBrain().remember(MemoryModuleType.CHARGE_COOLDOWN_TICKS, this.cooldownTicks);
 		animalEntity.getBrain().forget(MemoryModuleType.ATTACK_TARGET);

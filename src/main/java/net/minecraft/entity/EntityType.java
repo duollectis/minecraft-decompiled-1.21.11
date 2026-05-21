@@ -1442,6 +1442,13 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return Registries.ENTITY_TYPE.getId(type);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return Optional> — 
+	 */
 	public static Optional<EntityType<?>> get(String id) {
 		return Registries.ENTITY_TYPE.getOptionalValue(Identifier.tryParse(id));
 	}
@@ -1500,6 +1507,15 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return this.spawn(world, consumer, pos, spawnReason, alignPosition, invertY);
 	}
 
+	/**
+	 * Copier.
+	 *
+	 * @param world world
+	 * @param stack stack
+	 * @param spawner spawner
+	 *
+	 * @return Consumer — результат операции
+	 */
 	public static <T extends Entity> Consumer<T> copier(World world, ItemStack stack, @Nullable LivingEntity spawner) {
 		return copier(entity -> {}, world, stack, spawner);
 	}
@@ -1513,6 +1529,14 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return nbtCopier(componentsCopier(chained, stack), world, stack, spawner);
 	}
 
+	/**
+	 * Components copier.
+	 *
+	 * @param chained chained
+	 * @param stack stack
+	 *
+	 * @return Consumer — результат операции
+	 */
 	public static <T extends Entity> Consumer<T> componentsCopier(Consumer<T> chained, ItemStack stack) {
 		return chained.andThen(entity -> entity.copyComponentsFrom(stack));
 	}
@@ -1532,6 +1556,15 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		)) : chained;
 	}
 
+	/**
+	 * Spawn.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param reason reason
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public @Nullable T spawn(ServerWorld world, BlockPos pos, SpawnReason reason) {
 		return this.spawn(world, null, pos, reason, false, false);
 	}
@@ -1687,6 +1720,14 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return this.requiredFeatures;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param world world
+	 * @param reason reason
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public @Nullable T create(World world, SpawnReason reason) {
 		return !this.isEnabled(world.getEnabledFeatures()) ? null : this.factory.create(this, world);
 	}
@@ -1732,6 +1773,13 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return this.dimensions;
 	}
 
+	/**
+	 * From data.
+	 *
+	 * @param view view
+	 *
+	 * @return Optional> — результат операции
+	 */
 	public static Optional<EntityType<?>> fromData(ReadView view) {
 		return view.read("id", CODEC);
 	}
@@ -1816,6 +1864,15 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return entity;
 	}
 
+	/**
+	 * Stream from data.
+	 *
+	 * @param view view
+	 * @param world world
+	 * @param reason reason
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<Entity> streamFromData(ReadView.ListReadView view, World world, SpawnReason reason) {
 		return view.stream().mapMulti((viewx, callback) -> loadEntityWithPassengers(
 				viewx, world, reason, entity -> {
@@ -1858,6 +1915,11 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return this.trackTickInterval;
 	}
 
+	/**
+	 * Always update velocity.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean alwaysUpdateVelocity() {
 		return this != PLAYER
 				&& this != LLAMA_SPIT
@@ -1879,6 +1941,13 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return entityTypeEntryList.contains(this.registryEntry);
 	}
 
+	/**
+	 * Downcast.
+	 *
+	 * @param entity entity
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public @Nullable T downcast(Entity entity) {
 		return (T) (entity.getType() == this ? entity : null);
 	}
@@ -1913,6 +1982,11 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 		return (type, world) -> new ChestRaftEntity(type, world, itemSupplier);
 	}
 
+	/**
+	 * Проверяет возможность potentially execute commands.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canPotentiallyExecuteCommands() {
 		return POTENTIALLY_EXECUTES_COMMANDS.contains(this);
 	}
@@ -2070,6 +2144,13 @@ public class EntityType<T extends Entity> implements ToggleableFeature, TypeFilt
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param registryKey registry key
+		 *
+		 * @return EntityType — результат операции
+		 */
 		public EntityType<T> build(RegistryKey<EntityType<?>> registryKey) {
 			if (this.saveable) {
 				Util.getChoiceType(TypeReferences.ENTITY_TREE, registryKey.getValue().toString());

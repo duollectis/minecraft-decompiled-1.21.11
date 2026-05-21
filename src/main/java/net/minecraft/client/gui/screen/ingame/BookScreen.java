@@ -93,6 +93,13 @@ public class BookScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Jump to page.
+	 *
+	 * @param page page
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean jumpToPage(int page) {
 		return this.setPage(page);
 	}
@@ -118,6 +125,9 @@ public class BookScreen extends Screen {
 				.fillStyle(TEXT_STYLE);
 	}
 
+	/**
+	 * Добавляет close button.
+	 */
 	protected void addCloseButton() {
 		this.addDrawableChild(
 				ButtonWidget
@@ -128,6 +138,9 @@ public class BookScreen extends Screen {
 		);
 	}
 
+	/**
+	 * Добавляет page buttons.
+	 */
 	protected void addPageButtons() {
 		int i = this.getBookX();
 		int j = this.getBookY();
@@ -154,6 +167,9 @@ public class BookScreen extends Screen {
 		return this.contents.getPageCount();
 	}
 
+	/**
+	 * Go to previous page.
+	 */
 	protected void goToPreviousPage() {
 		if (this.pageIndex > 0) {
 			this.pageIndex--;
@@ -162,6 +178,9 @@ public class BookScreen extends Screen {
 		this.updatePageButtons();
 	}
 
+	/**
+	 * Go to next page.
+	 */
 	protected void goToNextPage() {
 		if (this.pageIndex < this.getPageCount() - 1) {
 			this.pageIndex++;
@@ -268,6 +287,13 @@ public class BookScreen extends Screen {
 		return super.mouseClicked(click, doubled);
 	}
 
+	/**
+	 * Обрабатывает click event.
+	 *
+	 * @param clickEvent click event
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean handleClickEvent(@Nullable ClickEvent clickEvent) {
 		if (clickEvent == null) {
 			return false;
@@ -290,6 +316,9 @@ public class BookScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Закрывает screen.
+	 */
 	protected void closeScreen() {
 	}
 

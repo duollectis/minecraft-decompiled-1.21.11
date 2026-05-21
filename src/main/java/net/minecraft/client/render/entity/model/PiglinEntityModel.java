@@ -64,6 +64,11 @@ public class PiglinEntityModel extends PiglinBaseEntityModel<PiglinEntityRenderS
 		}
 	}
 
+	/**
+	 * Animate arms.
+	 *
+	 * @param piglinEntityRenderState piglin entity render state
+	 */
 	protected void animateArms(PiglinEntityRenderState piglinEntityRenderState) {
 		float f = piglinEntityRenderState.handSwingProgress;
 		if (f > 0.0F && piglinEntityRenderState.activity == PiglinActivity.ATTACKING_WITH_MELEE_WEAPON) {

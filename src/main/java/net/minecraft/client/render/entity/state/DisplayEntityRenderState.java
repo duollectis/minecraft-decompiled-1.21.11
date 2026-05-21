@@ -18,5 +18,10 @@ public abstract class DisplayEntityRenderState extends EntityRenderState {
 	public float cameraYaw;
 	public float cameraPitch;
 
+	/**
+	 * Проверяет возможность render.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public abstract boolean canRender();
 }

@@ -152,10 +152,22 @@ public enum DirectionTransformation implements StringIdentifiable {
 		return toIndex(this.flipX, this.flipY, this.flipZ, this.axisTransformation);
 	}
 
+	/**
+	 * Prepend.
+	 *
+	 * @param transformation transformation
+	 *
+	 * @return DirectionTransformation — результат операции
+	 */
 	public DirectionTransformation prepend(DirectionTransformation transformation) {
 		return COMBINATIONS[this.ordinal()][transformation.ordinal()];
 	}
 
+	/**
+	 * Inverse.
+	 *
+	 * @return DirectionTransformation — результат операции
+	 */
 	public DirectionTransformation inverse() {
 		return INVERSES[this.ordinal()];
 	}
@@ -174,6 +186,13 @@ public enum DirectionTransformation implements StringIdentifiable {
 		return this.name;
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param direction direction
+	 *
+	 * @return Direction — результат операции
+	 */
 	public Direction map(Direction direction) {
 		if (this.mappings == null) {
 			this.mappings = Util.mapEnum(
@@ -192,6 +211,13 @@ public enum DirectionTransformation implements StringIdentifiable {
 		return this.mappings.get(direction);
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vector3i — результат операции
+	 */
 	public Vector3i map(Vector3i vec) {
 		this.axisTransformation.map(vec);
 		vec.x = vec.x * (this.flipX ? -1 : 1);
@@ -200,6 +226,13 @@ public enum DirectionTransformation implements StringIdentifiable {
 		return vec;
 	}
 
+	/**
+	 * Определяет, следует ли flip direction.
+	 *
+	 * @param axis axis
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldFlipDirection(Direction.Axis axis) {
 		return switch (axis) {
 			case X -> this.flipX;
@@ -212,6 +245,13 @@ public enum DirectionTransformation implements StringIdentifiable {
 		return this.axisTransformation;
 	}
 
+	/**
+	 * Map jigsaw orientation.
+	 *
+	 * @param orientation orientation
+	 *
+	 * @return Orientation — результат операции
+	 */
 	public Orientation mapJigsawOrientation(Orientation orientation) {
 		return Orientation.byDirections(this.map(orientation.getFacing()), this.map(orientation.getRotation()));
 	}

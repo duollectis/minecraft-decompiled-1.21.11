@@ -18,6 +18,13 @@ import java.util.stream.Collectors;
  */
 public class AllowlistRpcDispatcher {
 
+	/**
+	 * Get.
+	 *
+	 * @param dispatcher dispatcher
+	 *
+	 * @return List — 
+	 */
 	public static List<RpcPlayer> get(ManagementHandlerDispatcher dispatcher) {
 		return dispatcher.getAllowlistHandler()
 		                 .getAllowlist()
@@ -48,6 +55,14 @@ public class AllowlistRpcDispatcher {
 		return get(dispatcher);
 	}
 
+	/**
+	 * Clear.
+	 *
+	 * @param dispatcher dispatcher
+	 * @param remote remote
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<RpcPlayer> clear(ManagementHandlerDispatcher dispatcher, ManagementConnectionId remote) {
 		dispatcher.getAllowlistHandler().clear(remote);
 		return get(dispatcher);

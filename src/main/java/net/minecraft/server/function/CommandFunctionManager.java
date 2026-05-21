@@ -41,6 +41,9 @@ public class CommandFunctionManager {
 		return this.server.getCommandManager().getDispatcher();
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.server.getTickManager().shouldTick()) {
 			if (this.justLoaded) {
@@ -63,6 +66,12 @@ public class CommandFunctionManager {
 		Profilers.get().pop();
 	}
 
+	/**
+	 * Execute.
+	 *
+	 * @param function function
+	 * @param source source
+	 */
 	public void execute(CommandFunction<ServerCommandSource> function, ServerCommandSource source) {
 		Profiler profiler = Profilers.get();
 		profiler.push(() -> "function " + function.id());

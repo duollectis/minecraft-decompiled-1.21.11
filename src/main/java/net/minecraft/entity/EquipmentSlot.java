@@ -70,6 +70,13 @@ public enum EquipmentSlot implements StringIdentifiable {
 		return offset + this.entityId;
 	}
 
+	/**
+	 * Split.
+	 *
+	 * @param stack stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack split(ItemStack stack) {
 		return this.maxCount > 0 ? stack.split(this.maxCount) : stack;
 	}
@@ -95,10 +102,22 @@ public enum EquipmentSlot implements StringIdentifiable {
 		return this.name;
 	}
 
+	/**
+	 * Increases dropped experience.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean increasesDroppedExperience() {
 		return this.type != EquipmentSlot.Type.SADDLE;
 	}
 
+	/**
+	 * By name.
+	 *
+	 * @param name name
+	 *
+	 * @return EquipmentSlot — результат операции
+	 */
 	public static EquipmentSlot byName(String name) {
 		EquipmentSlot equipmentSlot = CODEC.byId(name);
 		if (equipmentSlot != null) {

@@ -23,6 +23,11 @@ public class DeOpCommand {
 			ALREADY_DEOPPED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.deop.failed"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("deop")

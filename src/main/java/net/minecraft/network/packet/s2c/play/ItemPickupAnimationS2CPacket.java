@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс item pickup animation s2 c packet.
+ */
 public class ItemPickupAnimationS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ItemPickupAnimationS2CPacket> CODEC = Packet.createCodec(
@@ -39,6 +42,11 @@ public class ItemPickupAnimationS2CPacket implements Packet<ClientPlayPacketList
 		return PlayPackets.TAKE_ITEM_ENTITY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onItemPickupAnimation(this);
 	}

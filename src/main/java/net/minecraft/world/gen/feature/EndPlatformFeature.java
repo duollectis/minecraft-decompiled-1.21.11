@@ -22,6 +22,13 @@ public class EndPlatformFeature extends Feature<DefaultFeatureConfig> {
 		return true;
 	}
 
+	/**
+	 * Generate.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param breakBlocks break blocks
+	 */
 	public static void generate(ServerWorldAccess world, BlockPos pos, boolean breakBlocks) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
 

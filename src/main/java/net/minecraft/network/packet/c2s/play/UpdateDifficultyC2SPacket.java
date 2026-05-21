@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.Difficulty;
 
+/**
+ * Запись update difficulty c2 s packet.
+ */
 public record UpdateDifficultyC2SPacket(Difficulty difficulty) implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<ByteBuf, UpdateDifficultyC2SPacket> CODEC = PacketCodec.tuple(
@@ -19,6 +22,11 @@ public record UpdateDifficultyC2SPacket(Difficulty difficulty) implements Packet
 		return PlayPackets.CHANGE_DIFFICULTY_C2S;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onUpdateDifficulty(this);
 	}

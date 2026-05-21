@@ -37,6 +37,14 @@ public class SculkCatalystBlockEntity extends BlockEntity implements GameEventLi
 		this.eventListener = new SculkCatalystBlockEntity.Listener(state, new BlockPositionSource(pos));
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, SculkCatalystBlockEntity blockEntity) {
 		blockEntity.eventListener.getSpreadManager().tick(world, pos, world.getRandom(), true);
 	}

@@ -80,10 +80,25 @@ public class BubbleColumnBlock extends Block implements FluidDrainable {
 		return Fluids.WATER.getStill(false);
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	public static void update(WorldAccess world, BlockPos pos, BlockState state) {
 		update(world, pos, world.getBlockState(pos), state);
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param water water
+	 * @param bubbleSource bubble source
+	 */
 	public static void update(WorldAccess world, BlockPos pos, BlockState water, BlockState bubbleSource) {
 		if (isStillWater(water)) {
 			BlockState blockState = getBubbleState(bubbleSource);

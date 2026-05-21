@@ -100,6 +100,11 @@ public class ChunkHolder extends AbstractChunkHolder {
 		return this.postProcessingFuture;
 	}
 
+	/**
+	 * Combine post processing future.
+	 *
+	 * @param postProcessingFuture post processing future
+	 */
 	public void combinePostProcessingFuture(CompletableFuture<?> postProcessingFuture) {
 		if (this.postProcessingFuture.isDone()) {
 			this.postProcessingFuture = postProcessingFuture;
@@ -135,6 +140,13 @@ public class ChunkHolder extends AbstractChunkHolder {
 		}
 	}
 
+	/**
+	 * Mark for block update.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean markForBlockUpdate(BlockPos pos) {
 		WorldChunk worldChunk = this.getWorldChunk();
 		if (worldChunk == null) {
@@ -155,6 +167,14 @@ public class ChunkHolder extends AbstractChunkHolder {
 		}
 	}
 
+	/**
+	 * Mark for light update.
+	 *
+	 * @param lightType light type
+	 * @param y y
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean markForLightUpdate(LightType lightType, int y) {
 		Chunk chunk = this.getOrNull(ChunkStatus.INITIALIZE_LIGHT);
 		if (chunk == null) {
@@ -191,6 +211,11 @@ public class ChunkHolder extends AbstractChunkHolder {
 		return this.pendingBlockUpdates || !this.skyLightUpdateBits.isEmpty() || !this.blockLightUpdateBits.isEmpty();
 	}
 
+	/**
+	 * Flush updates.
+	 *
+	 * @param chunk chunk
+	 */
 	public void flushUpdates(WorldChunk chunk) {
 		if (this.hasPendingUpdates()) {
 			World world = chunk.getWorld();
@@ -305,6 +330,12 @@ public class ChunkHolder extends AbstractChunkHolder {
 		chunkLoadingManager.onChunkStatusChange(this.pos, target);
 	}
 
+	/**
+	 * Обновляет futures.
+	 *
+	 * @param chunkLoadingManager chunk loading manager
+	 * @param executor executor
+	 */
 	protected void updateFutures(ServerChunkLoadingManager chunkLoadingManager, Executor executor) {
 		ChunkLevelType chunkLevelType = ChunkLevels.getType(this.lastTickLevel);
 		ChunkLevelType chunkLevelType2 = ChunkLevels.getType(this.level);
@@ -364,6 +395,9 @@ public class ChunkHolder extends AbstractChunkHolder {
 		return this.accessible;
 	}
 
+	/**
+	 * Обновляет accessible status.
+	 */
 	public void updateAccessibleStatus() {
 		this.accessible = ChunkLevels.getType(this.level).isAfter(ChunkLevelType.FULL);
 	}

@@ -22,10 +22,22 @@ public class FrogEntityRenderer extends MobEntityRenderer<FrogEntity, FrogEntity
 		return frogEntityRenderState.texture;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return FrogEntityRenderState — результат операции
+	 */
 	public FrogEntityRenderState createRenderState() {
 		return new FrogEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param frogEntity frog entity
+	 * @param frogEntityRenderState frog entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(FrogEntity frogEntity, FrogEntityRenderState frogEntityRenderState, float f) {
 		super.updateRenderState(frogEntity, frogEntityRenderState, f);
 		frogEntityRenderState.insideWaterOrBubbleColumn = frogEntity.isTouchingWater();

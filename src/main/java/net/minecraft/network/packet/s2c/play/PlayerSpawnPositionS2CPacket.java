@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.WorldProperties;
 
+/**
+ * Запись player spawn position s2 c packet.
+ */
 public record PlayerSpawnPositionS2CPacket(WorldProperties.SpawnPoint respawnData) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, PlayerSpawnPositionS2CPacket> CODEC = PacketCodec.tuple(
@@ -21,6 +24,11 @@ public record PlayerSpawnPositionS2CPacket(WorldProperties.SpawnPoint respawnDat
 		return PlayPackets.SET_DEFAULT_SPAWN_POSITION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlayerSpawnPosition(this);
 	}

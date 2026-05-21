@@ -61,6 +61,14 @@ public final class Ingredient implements RecipeMatcher.RawIngredient<RegistryEnt
 		this.entries = entries;
 	}
 
+	/**
+	 * Matches.
+	 *
+	 * @param ingredient ingredient
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean matches(Optional<Ingredient> ingredient, ItemStack stack) {
 		return ingredient.<Boolean>map(ingredient2 -> ingredient2.test(stack)).orElseGet(stack::isEmpty);
 	}
@@ -74,10 +82,24 @@ public final class Ingredient implements RecipeMatcher.RawIngredient<RegistryEnt
 		return this.entries.size() == 0;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param itemStack item stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(ItemStack itemStack) {
 		return itemStack.isIn(this.entries);
 	}
 
+	/**
+	 * Accepts item.
+	 *
+	 * @param registryEntry registry entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean acceptsItem(RegistryEntry<Item> registryEntry) {
 		return this.entries.contains(registryEntry);
 	}
@@ -87,22 +109,55 @@ public final class Ingredient implements RecipeMatcher.RawIngredient<RegistryEnt
 		return o instanceof Ingredient ingredient ? Objects.equals(this.entries, ingredient.entries) : false;
 	}
 
+	/**
+	 * Of item.
+	 *
+	 * @param item item
+	 *
+	 * @return Ingredient — результат операции
+	 */
 	public static Ingredient ofItem(ItemConvertible item) {
 		return new Ingredient(RegistryEntryList.of(item.asItem().getRegistryEntry()));
 	}
 
+	/**
+	 * Of items.
+	 *
+	 * @param items items
+	 *
+	 * @return Ingredient — результат операции
+	 */
 	public static Ingredient ofItems(ItemConvertible... items) {
 		return ofItems(Arrays.stream(items));
 	}
 
+	/**
+	 * Of items.
+	 *
+	 * @param stacks stacks
+	 *
+	 * @return Ingredient — результат операции
+	 */
 	public static Ingredient ofItems(Stream<? extends ItemConvertible> stacks) {
 		return new Ingredient(RegistryEntryList.of(stacks.map(item -> item.asItem().getRegistryEntry()).toList()));
 	}
 
+	/**
+	 * Of tag.
+	 *
+	 * @param tag tag
+	 *
+	 * @return Ingredient — результат операции
+	 */
 	public static Ingredient ofTag(RegistryEntryList<Item> tag) {
 		return new Ingredient(tag);
 	}
 
+	/**
+	 * To display.
+	 *
+	 * @return SlotDisplay — результат операции
+	 */
 	public SlotDisplay toDisplay() {
 		return (SlotDisplay) this.entries
 				.getStorage()
@@ -115,6 +170,13 @@ public final class Ingredient implements RecipeMatcher.RawIngredient<RegistryEnt
 				);
 	}
 
+	/**
+	 * To display.
+	 *
+	 * @param ingredient ingredient
+	 *
+	 * @return SlotDisplay — результат операции
+	 */
 	public static SlotDisplay toDisplay(Optional<Ingredient> ingredient) {
 		return ingredient.<SlotDisplay>map(Ingredient::toDisplay).orElse(SlotDisplay.EmptySlotDisplay.INSTANCE);
 	}

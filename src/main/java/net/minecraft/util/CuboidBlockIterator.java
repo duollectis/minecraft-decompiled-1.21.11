@@ -31,6 +31,11 @@ public class CuboidBlockIterator {
 		this.totalSize = this.sizeX * this.sizeY * this.sizeZ;
 	}
 
+	/**
+	 * Step.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean step() {
 		if (this.blocksIterated == this.totalSize) {
 			return false;

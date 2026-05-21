@@ -40,6 +40,13 @@ public record EntityPropertiesLootCondition(
 		return Set.of(LootContextParameters.ORIGIN, this.entity.contextParam());
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		Entity entity = lootContext.get(this.entity.contextParam());
 		Vec3d vec3d = lootContext.get(LootContextParameters.ORIGIN);

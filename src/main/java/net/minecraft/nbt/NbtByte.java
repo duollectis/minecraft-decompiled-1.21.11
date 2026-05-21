@@ -15,6 +15,14 @@ public record NbtByte(byte value) implements AbstractNbtNumber {
 
 	private static final int SIZE = 9;
 	public static final NbtType<NbtByte> TYPE = new NbtType.OfFixedSize<NbtByte>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtByte — результат операции
+		 */
 		public NbtByte read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 			return NbtByte.of(readByte(dataInput, nbtSizeTracker));
 		}
@@ -53,10 +61,24 @@ public record NbtByte(byte value) implements AbstractNbtNumber {
 		this.value = value;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param value value
+	 *
+	 * @return NbtByte — результат операции
+	 */
 	public static NbtByte of(byte value) {
 		return NbtByte.Cache.VALUES[128 + value];
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param value value
+	 *
+	 * @return NbtByte — результат операции
+	 */
 	public static NbtByte of(boolean value) {
 		return value ? ONE : ZERO;
 	}
@@ -81,6 +103,11 @@ public record NbtByte(byte value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return NbtByte — результат операции
+	 */
 	public NbtByte copy() {
 		return this;
 	}

@@ -94,6 +94,14 @@ public abstract class TrackTargetGoal extends Goal {
 		this.target = null;
 	}
 
+	/**
+	 * Проверяет возможность track.
+	 *
+	 * @param target target
+	 * @param targetPredicate target predicate
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canTrack(@Nullable LivingEntity target, TargetPredicate targetPredicate) {
 		if (target == null) {
 			return false;

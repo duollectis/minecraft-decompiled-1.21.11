@@ -43,6 +43,13 @@ public abstract class CombinedEntry extends LootPoolEntry {
 		}
 	}
 
+	/**
+	 * Combine.
+	 *
+	 * @param terms terms
+	 *
+	 * @return EntryCombiner — результат операции
+	 */
 	protected abstract EntryCombiner combine(List<? extends EntryCombiner> terms);
 
 	@Override
@@ -50,6 +57,13 @@ public abstract class CombinedEntry extends LootPoolEntry {
 		return !this.test(lootContext) ? false : this.predicate.expand(lootContext, consumer);
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param factory factory
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static <T extends CombinedEntry> MapCodec<T> createCodec(CombinedEntry.Factory<T> factory) {
 		return RecordCodecBuilder.mapCodec(
 				instance -> instance

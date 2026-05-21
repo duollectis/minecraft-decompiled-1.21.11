@@ -31,6 +31,11 @@ public class LoggerPrintStream extends PrintStream {
 		this.log(String.valueOf(object));
 	}
 
+	/**
+	 * Log.
+	 *
+	 * @param message message
+	 */
 	protected void log(@Nullable String message) {
 		LOGGER.info("[{}]: {}", this.name, message);
 	}

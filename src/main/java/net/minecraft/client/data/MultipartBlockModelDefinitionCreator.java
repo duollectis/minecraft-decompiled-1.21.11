@@ -27,10 +27,24 @@ public class MultipartBlockModelDefinitionCreator implements BlockModelDefinitio
 		return this.block;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param block block
+	 *
+	 * @return MultipartBlockModelDefinitionCreator — результат операции
+	 */
 	public static MultipartBlockModelDefinitionCreator create(Block block) {
 		return new MultipartBlockModelDefinitionCreator(block);
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param part part
+	 *
+	 * @return MultipartBlockModelDefinitionCreator — результат операции
+	 */
 	public MultipartBlockModelDefinitionCreator with(WeightedVariant part) {
 		this.multiparts.add(new MultipartBlockModelDefinitionCreator.Part(Optional.empty(), part));
 		return this;
@@ -40,6 +54,14 @@ public class MultipartBlockModelDefinitionCreator implements BlockModelDefinitio
 		selector.instantiate(this.block.getStateManager());
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param condition condition
+	 * @param part part
+	 *
+	 * @return MultipartBlockModelDefinitionCreator — результат операции
+	 */
 	public MultipartBlockModelDefinitionCreator with(MultipartModelCondition condition, WeightedVariant part) {
 		this.validate(condition);
 		this.multiparts.add(new MultipartBlockModelDefinitionCreator.Part(Optional.of(condition), part));
@@ -70,6 +92,11 @@ public class MultipartBlockModelDefinitionCreator implements BlockModelDefinitio
 	 */
 	record Part(Optional<MultipartModelCondition> condition, WeightedVariant variants) {
 
+		/**
+		 * To component.
+		 *
+		 * @return MultipartModelComponent — результат операции
+		 */
 		public MultipartModelComponent toComponent() {
 			return new MultipartModelComponent(this.condition, this.variants.toModel());
 		}

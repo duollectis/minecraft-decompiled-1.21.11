@@ -22,6 +22,11 @@ public class ChunkDataList<T> {
 		return this.pos;
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<T> stream() {
 		return this.backingList.stream();
 	}

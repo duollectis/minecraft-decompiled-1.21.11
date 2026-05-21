@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.UUID;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Запись cookie storage.
+ */
 public record CookieStorage(
 		Map<Identifier, byte[]> cookies,
 		Map<UUID, PlayerListEntry> seenPlayers,

@@ -41,10 +41,26 @@ public record BlockStateComponent(Map<String, String> properties) implements Too
 			PACKET_CODEC =
 			MAP_PACKET_CODEC.xmap(BlockStateComponent::new, BlockStateComponent::properties);
 
+	/**
+	 * With.
+	 *
+	 * @param property property
+	 * @param value value
+	 *
+	 * @return > BlockStateComponent — результат операции
+	 */
 	public <T extends Comparable<T>> BlockStateComponent with(Property<T> property, T value) {
 		return new BlockStateComponent(Util.mapWith(this.properties, property.getName(), property.name(value)));
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param property property
+	 * @param fromState from state
+	 *
+	 * @return > BlockStateComponent — результат операции
+	 */
 	public <T extends Comparable<T>> BlockStateComponent with(Property<T> property, BlockState fromState) {
 		return this.with(property, fromState.get(property));
 	}
@@ -54,6 +70,13 @@ public record BlockStateComponent(Map<String, String> properties) implements Too
 		return string == null ? null : property.parse(string).orElse(null);
 	}
 
+	/**
+	 * Применяет to state.
+	 *
+	 * @param state state
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public BlockState applyToState(BlockState state) {
 		StateManager<Block, BlockState> stateManager = state.getBlock().getStateManager();
 

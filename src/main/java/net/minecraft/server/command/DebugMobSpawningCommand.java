@@ -12,6 +12,11 @@ import net.minecraft.world.SpawnHelper;
  */
 public class DebugMobSpawningCommand {
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		LiteralArgumentBuilder<ServerCommandSource>
 				literalArgumentBuilder =

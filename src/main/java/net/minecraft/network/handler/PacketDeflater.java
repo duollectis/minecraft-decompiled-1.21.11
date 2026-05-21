@@ -7,6 +7,9 @@ import net.minecraft.network.encoding.VarInts;
 
 import java.util.zip.Deflater;
 
+/**
+ * Класс packet deflater.
+ */
 public class PacketDeflater extends MessageToByteEncoder<ByteBuf> {
 
 	private final byte[] deflateBuffer = new byte[8192];
@@ -18,6 +21,13 @@ public class PacketDeflater extends MessageToByteEncoder<ByteBuf> {
 		this.deflater = new Deflater();
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param channelHandlerContext channel handler context
+	 * @param byteBuf byte buf
+	 * @param byteBuf2 byte buf2
+	 */
 	protected void encode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, ByteBuf byteBuf2) {
 		int i = byteBuf.readableBytes();
 		if (i > 8388608) {

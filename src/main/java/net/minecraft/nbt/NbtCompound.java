@@ -38,6 +38,14 @@ public final class NbtCompound implements NbtElement {
 	private static final int SIZE = 48;
 	private static final int MAX_DEPTH = 32;
 	public static final NbtType<NbtCompound> TYPE = new NbtType.OfVariableSize<NbtCompound>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtCompound — результат операции
+		 */
 		public NbtCompound read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 			nbtSizeTracker.pushStack();
 
@@ -205,14 +213,29 @@ public final class NbtCompound implements NbtElement {
 		return this.entries.keySet();
 	}
 
+	/**
+	 * Entry set.
+	 *
+	 * @return Set> — результат операции
+	 */
 	public Set<Entry<String, NbtElement>> entrySet() {
 		return this.entries.entrySet();
 	}
 
+	/**
+	 * Values.
+	 *
+	 * @return Collection — результат операции
+	 */
 	public Collection<NbtElement> values() {
 		return this.entries.values();
 	}
 
+	/**
+	 * For each.
+	 *
+	 * @param entryConsumer entry consumer
+	 */
 	public void forEach(BiConsumer<String, NbtElement> entryConsumer) {
 		this.entries.forEach(entryConsumer);
 	}
@@ -231,58 +254,146 @@ public final class NbtCompound implements NbtElement {
 		return this.entries.size();
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param key key
+	 * @param element element
+	 *
+	 * @return @Nullable NbtElement — результат операции
+	 */
 	public @Nullable NbtElement put(String key, NbtElement element) {
 		return this.entries.put(key, element);
 	}
 
+	/**
+	 * Put byte.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putByte(String key, byte value) {
 		this.entries.put(key, NbtByte.of(value));
 	}
 
+	/**
+	 * Put short.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putShort(String key, short value) {
 		this.entries.put(key, NbtShort.of(value));
 	}
 
+	/**
+	 * Put int.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putInt(String key, int value) {
 		this.entries.put(key, NbtInt.of(value));
 	}
 
+	/**
+	 * Put long.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putLong(String key, long value) {
 		this.entries.put(key, NbtLong.of(value));
 	}
 
+	/**
+	 * Put float.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putFloat(String key, float value) {
 		this.entries.put(key, NbtFloat.of(value));
 	}
 
+	/**
+	 * Put double.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putDouble(String key, double value) {
 		this.entries.put(key, NbtDouble.of(value));
 	}
 
+	/**
+	 * Put string.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putString(String key, String value) {
 		this.entries.put(key, NbtString.of(value));
 	}
 
+	/**
+	 * Put byte array.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putByteArray(String key, byte[] value) {
 		this.entries.put(key, new NbtByteArray(value));
 	}
 
+	/**
+	 * Put int array.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putIntArray(String key, int[] value) {
 		this.entries.put(key, new NbtIntArray(value));
 	}
 
+	/**
+	 * Put long array.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putLongArray(String key, long[] value) {
 		this.entries.put(key, new NbtLongArray(value));
 	}
 
+	/**
+	 * Put boolean.
+	 *
+	 * @param key key
+	 * @param value value
+	 */
 	public void putBoolean(String key, boolean value) {
 		this.entries.put(key, NbtByte.of(value));
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 *
+	 * @return @Nullable NbtElement — 
+	 */
 	public @Nullable NbtElement get(String key) {
 		return this.entries.get(key);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param key key
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(String key) {
 		return this.entries.containsKey(key);
 	}
@@ -392,6 +503,13 @@ public final class NbtCompound implements NbtElement {
 		return this.getByte(key, (byte) (fallback ? 1 : 0)) != 0;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param key key
+	 *
+	 * @return @Nullable NbtElement — результат операции
+	 */
 	public @Nullable NbtElement remove(String key) {
 		return this.entries.remove(key);
 	}
@@ -407,10 +525,20 @@ public final class NbtCompound implements NbtElement {
 		return this.entries.isEmpty();
 	}
 
+	/**
+	 * Shallow copy.
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	protected NbtCompound shallowCopy() {
 		return new NbtCompound(new HashMap<>(this.entries));
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound copy() {
 		HashMap<String, NbtElement> hashMap = new HashMap<>();
 		this.entries.forEach((key, value) -> hashMap.put(key, value.copy()));
@@ -453,6 +581,13 @@ public final class NbtCompound implements NbtElement {
 		}
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param source source
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound copyFrom(NbtCompound source) {
 		for (String string : source.entries.keySet()) {
 			NbtElement nbtElement = source.entries.get(string);
@@ -510,38 +645,110 @@ public final class NbtCompound implements NbtElement {
 		return visitor.endNested();
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param key key
+	 * @param codec codec
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void put(String key, Codec<T> codec, T value) {
 		this.put(key, codec, NbtOps.INSTANCE, value);
 	}
 
+	/**
+	 * Put nullable.
+	 *
+	 * @param key key
+	 * @param codec codec
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void putNullable(String key, Codec<T> codec, @Nullable T value) {
 		if (value != null) {
 			this.put(key, codec, value);
 		}
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param key key
+	 * @param codec codec
+	 * @param ops ops
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void put(String key, Codec<T> codec, DynamicOps<NbtElement> ops, T value) {
 		this.put(key, (NbtElement) codec.encodeStart(ops, value).getOrThrow());
 	}
 
+	/**
+	 * Put nullable.
+	 *
+	 * @param key key
+	 * @param codec codec
+	 * @param ops ops
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void putNullable(String key, Codec<T> codec, DynamicOps<NbtElement> ops, @Nullable T value) {
 		if (value != null) {
 			this.put(key, codec, ops, value);
 		}
 	}
 
+	/**
+	 * Создаёт копию from codec.
+	 *
+	 * @param codec codec
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void copyFromCodec(MapCodec<T> codec, T value) {
 		this.copyFromCodec(codec, NbtOps.INSTANCE, value);
 	}
 
+	/**
+	 * Создаёт копию from codec.
+	 *
+	 * @param codec codec
+	 * @param ops ops
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void copyFromCodec(MapCodec<T> codec, DynamicOps<NbtElement> ops, T value) {
 		this.copyFrom((NbtCompound) codec.encoder().encodeStart(ops, value).getOrThrow());
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 * @param codec codec
+	 *
+	 * @return Optional — 
+	 */
 	public <T> Optional<T> get(String key, Codec<T> codec) {
 		return this.get(key, codec, NbtOps.INSTANCE);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 * @param codec codec
+	 * @param ops ops
+	 *
+	 * @return Optional — 
+	 */
 	public <T> Optional<T> get(String key, Codec<T> codec, DynamicOps<NbtElement> ops) {
 		NbtElement nbtElement = this.get(key);
 		return nbtElement == null
@@ -554,10 +761,25 @@ public final class NbtCompound implements NbtElement {
 		         ));
 	}
 
+	/**
+	 * Decode.
+	 *
+	 * @param codec codec
+	 *
+	 * @return Optional — результат операции
+	 */
 	public <T> Optional<T> decode(MapCodec<T> codec) {
 		return this.decode(codec, NbtOps.INSTANCE);
 	}
 
+	/**
+	 * Decode.
+	 *
+	 * @param codec codec
+	 * @param ops ops
+	 *
+	 * @return Optional — результат операции
+	 */
 	public <T> Optional<T> decode(MapCodec<T> codec, DynamicOps<NbtElement> ops) {
 		return codec
 				.decode(ops, (MapLike) ops.getMap(this).getOrThrow())

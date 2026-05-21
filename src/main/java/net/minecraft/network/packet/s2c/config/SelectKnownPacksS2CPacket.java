@@ -11,6 +11,9 @@ import net.minecraft.registry.VersionedIdentifier;
 
 import java.util.List;
 
+/**
+ * Запись select known packs s2 c packet.
+ */
 public record SelectKnownPacksS2CPacket(List<VersionedIdentifier> knownPacks) implements Packet<ClientConfigurationPacketListener> {
 
 	public static final PacketCodec<ByteBuf, SelectKnownPacksS2CPacket> CODEC = PacketCodec.tuple(
@@ -24,6 +27,11 @@ public record SelectKnownPacksS2CPacket(List<VersionedIdentifier> knownPacks) im
 		return ConfigPackets.SELECT_KNOWN_PACKS_S2C;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientConfigurationPacketListener client configuration packet listener
+	 */
 	public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
 		clientConfigurationPacketListener.onSelectKnownPacks(this);
 	}

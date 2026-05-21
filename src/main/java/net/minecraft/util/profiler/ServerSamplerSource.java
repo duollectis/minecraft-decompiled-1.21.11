@@ -35,6 +35,11 @@ public class ServerSamplerSource implements SamplerSource {
 		}
 	}
 
+	/**
+	 * Создаёт system samplers.
+	 *
+	 * @return Set — результат операции
+	 */
 	public static Set<Sampler> createSystemSamplers() {
 		Builder<Sampler> builder = ImmutableSet.builder();
 
@@ -70,8 +75,20 @@ public class ServerSamplerSource implements SamplerSource {
 		return this.samplers;
 	}
 
+	/**
+	 * Создаёт tick time tracker.
+	 *
+	 * @param nanoTimeSupplier nano time supplier
+	 *
+	 * @return Sampler — результат операции
+	 */
 	public static Sampler createTickTimeTracker(LongSupplier nanoTimeSupplier) {
 		Stopwatch stopwatch = Stopwatch.createUnstarted(new Ticker() {
+			/**
+			 * Read.
+			 *
+			 * @return long — результат операции
+			 */
 			public long read() {
 				return nanoTimeSupplier.getAsLong();
 			}

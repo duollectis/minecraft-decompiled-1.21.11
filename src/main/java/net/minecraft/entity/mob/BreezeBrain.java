@@ -57,6 +57,14 @@ public class BreezeBrain {
 	);
 	private static final int TIME_BEFORE_FORGETTING_TARGET = 100;
 
+	/**
+	 * Create.
+	 *
+	 * @param breeze breeze
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(BreezeEntity breeze, Brain<BreezeEntity> brain) {
 		addCoreTasks(brain);
 		addIdleTasks(brain);

@@ -224,6 +224,15 @@ public class RailPlacementHelper {
 		}
 	}
 
+	/**
+	 * Обновляет block state.
+	 *
+	 * @param powered powered
+	 * @param forceUpdate force update
+	 * @param railShape rail shape
+	 *
+	 * @return RailPlacementHelper — результат операции
+	 */
 	public RailPlacementHelper updateBlockState(boolean powered, boolean forceUpdate, RailShape railShape) {
 		BlockPos blockPos = this.pos.north();
 		BlockPos blockPos2 = this.pos.south();

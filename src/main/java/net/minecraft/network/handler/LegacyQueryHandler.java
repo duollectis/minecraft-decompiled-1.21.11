@@ -12,6 +12,9 @@ import org.slf4j.Logger;
 import java.net.SocketAddress;
 import java.util.Locale;
 
+/**
+ * Класс legacy query handler.
+ */
 public class LegacyQueryHandler extends ChannelInboundHandlerAdapter {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
@@ -21,6 +24,12 @@ public class LegacyQueryHandler extends ChannelInboundHandlerAdapter {
 		this.server = server;
 	}
 
+	/**
+	 * Channel read.
+	 *
+	 * @param ctx ctx
+	 * @param msg msg
+	 */
 	public void channelRead(ChannelHandlerContext ctx, Object msg) {
 		ByteBuf byteBuf = (ByteBuf) msg;
 		byteBuf.markReaderIndex();

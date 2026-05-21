@@ -30,6 +30,11 @@ public class IronGolemEntityRenderer extends MobEntityRenderer<IronGolemEntity, 
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return IronGolemEntityRenderState — результат операции
+	 */
 	public IronGolemEntityRenderState createRenderState() {
 		return new IronGolemEntityRenderState();
 	}

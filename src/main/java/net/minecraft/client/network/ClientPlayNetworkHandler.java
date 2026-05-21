@@ -2917,6 +2917,12 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 	}
 
 	/** Подтверждает получение подписанного сообщения. */
+	/**
+	 * Acknowledge.
+	 *
+	 * @param signature signature
+	 * @param displayed displayed
+	 */
 	public void acknowledge(MessageSignatureData signature, boolean displayed) {
 		if (lastSeenMessagesCollector.add(signature, displayed) && lastSeenMessagesCollector.getMessageCount() > 64) {
 			sendAcknowledgment();
@@ -2932,6 +2938,11 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 	}
 
 	/** Отправляет сообщение в чат. */
+	/**
+	 * Отправляет chat message.
+	 *
+	 * @param content content
+	 */
 	public void sendChatMessage(String content) {
 		Instant instant = Instant.now();
 		long l = NetworkEncryptionUtils.SecureRandomUtil.nextLong();
@@ -2943,6 +2954,11 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 	}
 
 	/** Отправляет команду чата с подписями аргументов. */
+	/**
+	 * Отправляет chat command.
+	 *
+	 * @param command command
+	 */
 	public void sendChatCommand(String command) {
 		SignedArgumentList<ClientCommandSource>
 				signedArgumentList =
@@ -2971,6 +2987,12 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 	}
 
 	/** Выполняет команду из события клика (ссылка в чате). */
+	/**
+	 * Run click event command.
+	 *
+	 * @param command command
+	 * @param afterActionScreen after action screen
+	 */
 	public void runClickEventCommand(String command, @Nullable Screen afterActionScreen) {
 		switch (parseCommand(command)) {
 			case NO_ISSUES:
@@ -3066,8 +3088,13 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 	}
 
 	/** Синхронизирует настройки клиента с сервером, если они изменились. */
+	/**
+	 * Sync options.
+	 *
+	 * @param newOptions new options
+	 */
 	public void syncOptions(SyncedClientOptions newOptions) {
-		if (syncedOptions.equals(newOptions)) {
+		if (newOptions.equals(syncedOptions)) {
 			return;
 		}
 
@@ -3124,6 +3151,9 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 	}
 
 	/** Запрашивает ключевую пару профиля для подписи сообщений. */
+	/**
+	 * Fetch profile key.
+	 */
 	public void fetchProfileKey() {
 		profileKeyPairFuture = client.getProfileKeys().fetchKeyPair();
 	}
@@ -3181,6 +3211,9 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 	}
 
 	/** Обновляет поисковые индексы (рецепты, предметы и т.д.). */
+	/**
+	 * Refresh search manager.
+	 */
 	public void refreshSearchManager() {
 		searchManager.refresh();
 	}
@@ -3191,6 +3224,11 @@ public class ClientPlayNetworkHandler extends ClientCommonNetworkHandler impleme
 	}
 
 	/** Регистрирует DataCache для очистки при выгрузке мира. */
+	/**
+	 * Регистрирует for cleaning.
+	 *
+	 * @param dataCache data cache
+	 */
 	public void registerForCleaning(DataCache<?, ?> dataCache) {
 		cachedData.add(new WeakReference<>(dataCache));
 	}

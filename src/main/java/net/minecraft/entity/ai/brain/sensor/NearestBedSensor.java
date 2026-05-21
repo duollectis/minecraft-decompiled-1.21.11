@@ -41,6 +41,12 @@ public class NearestBedSensor extends Sensor<MobEntity> {
 		return ImmutableSet.of(MemoryModuleType.NEAREST_BED);
 	}
 
+	/**
+	 * Sense.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 */
 	protected void sense(ServerWorld serverWorld, MobEntity mobEntity) {
 		if (mobEntity.isBaby()) {
 			this.tries = 0;

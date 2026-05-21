@@ -43,6 +43,13 @@ public abstract class ZombieBaseEntityRenderer<T extends ZombieEntity, S extends
 		return TEXTURE;
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param zombieEntity zombie entity
+	 * @param zombieEntityRenderState zombie entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T zombieEntity, S zombieEntityRenderState, float f) {
 		super.updateRenderState(zombieEntity, zombieEntityRenderState, f);
 		zombieEntityRenderState.attacking = zombieEntity.isAttacking();

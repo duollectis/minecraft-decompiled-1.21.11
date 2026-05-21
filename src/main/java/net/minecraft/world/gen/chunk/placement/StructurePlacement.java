@@ -94,12 +94,30 @@ public abstract class StructurePlacement {
 		return this.exclusionZone;
 	}
 
+	/**
+	 * Определяет, следует ли generate.
+	 *
+	 * @param calculator calculator
+	 * @param chunkX chunk x
+	 * @param chunkZ chunk z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldGenerate(StructurePlacementCalculator calculator, int chunkX, int chunkZ) {
 		return this.isStartChunk(calculator, chunkX, chunkZ)
 				&& this.applyFrequencyReduction(chunkX, chunkZ, calculator.getStructureSeed())
 				&& this.applyExclusionZone(calculator, chunkX, chunkZ);
 	}
 
+	/**
+	 * Применяет frequency reduction.
+	 *
+	 * @param chunkX chunk x
+	 * @param chunkZ chunk z
+	 * @param seed seed
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean applyFrequencyReduction(int chunkX, int chunkZ, long seed) {
 		return !(this.frequency < 1.0F) || this.frequencyReductionMethod.shouldGenerate(
 				seed,
@@ -110,6 +128,15 @@ public abstract class StructurePlacement {
 		);
 	}
 
+	/**
+	 * Применяет exclusion zone.
+	 *
+	 * @param calculator calculator
+	 * @param centerChunkX center chunk x
+	 * @param centerChunkZ center chunk z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean applyExclusionZone(StructurePlacementCalculator calculator, int centerChunkX, int centerChunkZ) {
 		return !this.exclusionZone.isPresent() || !this.exclusionZone
 				.get()
@@ -198,6 +225,17 @@ public abstract class StructurePlacement {
 			this.generationPredicate = generationPredicate;
 		}
 
+		/**
+		 * Определяет, следует ли generate.
+		 *
+		 * @param seed seed
+		 * @param salt salt
+		 * @param chunkX chunk x
+		 * @param chunkZ chunk z
+		 * @param chance chance
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldGenerate(long seed, int salt, int chunkX, int chunkZ, float chance) {
 			return this.generationPredicate.shouldGenerate(seed, salt, chunkX, chunkZ, chance);
 		}

@@ -31,6 +31,12 @@ public class DialogControls {
 		this.screen = screen;
 	}
 
+	/**
+	 * Добавляет input.
+	 *
+	 * @param input input
+	 * @param widgetConsumer widget consumer
+	 */
 	public void addInput(DialogInput input, Consumer<Widget> widgetConsumer) {
 		String string = input.key();
 		InputControlHandlers.addControl(
@@ -51,6 +57,13 @@ public class DialogControls {
 		return builder;
 	}
 
+	/**
+	 * Создаёт click event.
+	 *
+	 * @param action action
+	 *
+	 * @return Supplier> — результат операции
+	 */
 	public Supplier<Optional<ClickEvent>> createClickEvent(Optional<DialogAction> action) {
 		if (action.isPresent()) {
 			DialogAction dialogAction = action.get();

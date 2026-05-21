@@ -70,6 +70,13 @@ public class CopperGolemBrain {
 		return Brain.createProfile(MEMORY_MODULES, SENSORS);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<CopperGolemEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -79,6 +86,11 @@ public class CopperGolemBrain {
 		return brain;
 	}
 
+	/**
+	 * Обновляет activity.
+	 *
+	 * @param entity entity
+	 */
 	public static void updateActivity(CopperGolemEntity entity) {
 		entity.getBrain().resetPossibleActivities(ImmutableList.of(Activity.IDLE));
 	}

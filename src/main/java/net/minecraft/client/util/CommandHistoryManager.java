@@ -38,6 +38,11 @@ public class CommandHistoryManager {
 		}
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param command command
+	 */
 	public void add(String command) {
 		if (!command.equals(this.history.peekLast())) {
 			if (this.history.size() >= 50) {

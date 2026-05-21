@@ -29,6 +29,12 @@ public class BookModelGuiElementRenderer extends SpecialGuiElementRenderer<BookM
 		return BookModelGuiElementRenderState.class;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param bookModelGuiElementRenderState book model gui element render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void render(BookModelGuiElementRenderState bookModelGuiElementRenderState, MatrixStack matrixStack) {
 		MinecraftClient.getInstance().gameRenderer
 				.getDiffuseLighting()

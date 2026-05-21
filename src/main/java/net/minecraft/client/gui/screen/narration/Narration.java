@@ -24,18 +24,44 @@ public class Narration<T> {
 		this.transformer = transformer;
 	}
 
+	/**
+	 * String.
+	 *
+	 * @param string string
+	 *
+	 * @return Narration — результат операции
+	 */
 	public static Narration<?> string(String string) {
 		return new Narration<>(string, Consumer::accept);
 	}
 
+	/**
+	 * Text.
+	 *
+	 * @param text text
+	 *
+	 * @return Narration — результат операции
+	 */
 	public static Narration<?> text(Text text) {
 		return new Narration<>(text, (consumer, textx) -> consumer.accept(textx.getString()));
 	}
 
+	/**
+	 * Texts.
+	 *
+	 * @param texts texts
+	 *
+	 * @return Narration — результат операции
+	 */
 	public static Narration<?> texts(List<Text> texts) {
 		return new Narration<>(texts, (consumer, textsx) -> texts.stream().map(Text::getString).forEach(consumer));
 	}
 
+	/**
+	 * For each sentence.
+	 *
+	 * @param consumer consumer
+	 */
 	public void forEachSentence(Consumer<String> consumer) {
 		this.transformer.accept(consumer, this.value);
 	}

@@ -72,6 +72,13 @@ public abstract class VehicleEntity extends Entity {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли always kill.
+	 *
+	 * @param source source
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldAlwaysKill(DamageSource source) {
 		return false;
 	}
@@ -84,6 +91,12 @@ public abstract class VehicleEntity extends Entity {
 				.getValue(GameRules.DO_MOB_GRIEFING);
 	}
 
+	/**
+	 * Уничтожает and drop item.
+	 *
+	 * @param world world
+	 * @param item item
+	 */
 	public void killAndDropItem(ServerWorld world, Item item) {
 		this.kill(world);
 		if (world.getGameRules().getValue(GameRules.ENTITY_DROPS)) {
@@ -124,6 +137,12 @@ public abstract class VehicleEntity extends Entity {
 		return this.dataTracker.get(DAMAGE_WOBBLE_SIDE);
 	}
 
+	/**
+	 * Уничтожает and drop self.
+	 *
+	 * @param world world
+	 * @param damageSource damage source
+	 */
 	protected void killAndDropSelf(ServerWorld world, DamageSource damageSource) {
 		this.killAndDropItem(world, this.asItem());
 	}
@@ -133,5 +152,10 @@ public abstract class VehicleEntity extends Entity {
 		return 10;
 	}
 
+	/**
+	 * As item.
+	 *
+	 * @return Item — результат операции
+	 */
 	protected abstract Item asItem();
 }

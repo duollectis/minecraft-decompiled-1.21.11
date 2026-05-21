@@ -206,6 +206,11 @@ public class ProtoChunk extends Chunk {
 		return this.blockEntities;
 	}
 
+	/**
+	 * Добавляет entity.
+	 *
+	 * @param entityNbt entity nbt
+	 */
 	public void addEntity(NbtCompound entityNbt) {
 		this.entities.add(entityNbt);
 	}
@@ -274,6 +279,15 @@ public class ProtoChunk extends Chunk {
 		return (short) (l | m << 4 | n << 8);
 	}
 
+	/**
+	 * Join block pos.
+	 *
+	 * @param sectionRel section rel
+	 * @param sectionY section y
+	 * @param chunkPos chunk pos
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos joinBlockPos(short sectionRel, int sectionY, ChunkPos chunkPos) {
 		int i = ChunkSectionPos.getOffsetPos(chunkPos.x, sectionRel & 15);
 		int j = ChunkSectionPos.getOffsetPos(sectionY, sectionRel >>> 4 & 15);

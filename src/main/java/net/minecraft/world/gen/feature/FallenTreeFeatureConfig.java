@@ -76,6 +76,11 @@ public class FallenTreeFeatureConfig implements FeatureConfig {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return FallenTreeFeatureConfig — результат операции
+		 */
 		public FallenTreeFeatureConfig build() {
 			return new FallenTreeFeatureConfig(
 					this.trunkProvider,

@@ -54,6 +54,11 @@ public abstract class BufferManager {
 
 	abstract void unmapBuffer(int buffer, @GpuBuffer.Usage int usage);
 
+	/**
+	 * Создаёт framebuffer.
+	 *
+	 * @return int — результат операции
+	 */
 	public abstract int createFramebuffer();
 
 	public abstract void setupFramebuffer(

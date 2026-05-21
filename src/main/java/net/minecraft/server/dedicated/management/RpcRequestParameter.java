@@ -14,6 +14,11 @@ public record RpcRequestParameter<Param>(String name, RpcSchema<Param> schema, b
 		this(name, schema, true);
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @return MapCodec> — результат операции
+	 */
 	public static <Param> MapCodec<RpcRequestParameter<Param>> createCodec() {
 		return RecordCodecBuilder.<RpcRequestParameter<Param>>mapCodec(
 				instance -> instance.group(

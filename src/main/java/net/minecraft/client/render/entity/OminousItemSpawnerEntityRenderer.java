@@ -29,6 +29,11 @@ public class OminousItemSpawnerEntityRenderer extends EntityRenderer<OminousItem
 		this.itemModelManager = context.getItemModelManager();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ItemStackEntityRenderState — результат операции
+	 */
 	public ItemStackEntityRenderState createRenderState() {
 		return new ItemStackEntityRenderState();
 	}

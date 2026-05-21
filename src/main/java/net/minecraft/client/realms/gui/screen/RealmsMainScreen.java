@@ -356,10 +356,16 @@ public class RealmsMainScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Сбрасывает pending invites count.
+	 */
 	public static void resetPendingInvitesCount() {
 		MinecraftClient.getInstance().getRealmsPeriodicCheckers().pendingInvitesCount.reset();
 	}
 
+	/**
+	 * Сбрасывает server list.
+	 */
 	public static void resetServerList() {
 		MinecraftClient.getInstance().getRealmsPeriodicCheckers().serverList.reset();
 	}
@@ -585,6 +591,9 @@ public class RealmsMainScreen extends RealmsScreen {
 		);
 	}
 
+	/**
+	 * Удаляет selection.
+	 */
 	public void removeSelection() {
 		this.realmSelectionList.setSelected(null);
 		resetServerList();
@@ -630,10 +639,23 @@ public class RealmsMainScreen extends RealmsScreen {
 		this.client.setScreen(new BuyRealmsScreen(this, this.trialAvailable));
 	}
 
+	/**
+	 * Play.
+	 *
+	 * @param serverData server data
+	 * @param parent parent
+	 */
 	public static void play(@Nullable RealmsServer serverData, Screen parent) {
 		play(serverData, parent, false);
 	}
 
+	/**
+	 * Play.
+	 *
+	 * @param server server
+	 * @param parent parent
+	 * @param needsPreparation needs preparation
+	 */
 	public static void play(@Nullable RealmsServer server, Screen parent, boolean needsPreparation) {
 		if (server != null) {
 			if (!isSnapshotRealmsEligible() || needsPreparation || server.isMinigame()) {
@@ -900,6 +922,15 @@ public class RealmsMainScreen extends RealmsScreen {
 			}
 		}
 
+		/**
+		 * Draw description.
+		 *
+		 * @param context context
+		 * @param y y
+		 * @param x x
+		 * @param width width
+		 * @param server server
+		 */
 		protected void drawDescription(DrawContext context, int y, int x, int width, RealmsServer server) {
 			int i = this.getNameX(x);
 			int j = this.getNameY(y);
@@ -922,6 +953,14 @@ public class RealmsMainScreen extends RealmsScreen {
 			}
 		}
 
+		/**
+		 * Draw owner or expired text.
+		 *
+		 * @param context context
+		 * @param y y
+		 * @param x x
+		 * @param server server
+		 */
 		protected void drawOwnerOrExpiredText(DrawContext context, int y, int x, RealmsServer server) {
 			int i = this.getNameX(x);
 			int j = this.getNameY(y);
@@ -976,6 +1015,17 @@ public class RealmsMainScreen extends RealmsScreen {
 			return x + width - RealmsMainScreen.this.textRenderer.getWidth(gameMode) - 20;
 		}
 
+		/**
+		 * Draw game mode.
+		 *
+		 * @param server server
+		 * @param context context
+		 * @param x x
+		 * @param entryWidth entry width
+		 * @param y y
+		 *
+		 * @return int — результат операции
+		 */
 		protected int drawGameMode(RealmsServer server, DrawContext context, int x, int entryWidth, int y) {
 			boolean bl = server.hardcore;
 			int i = server.gameMode;

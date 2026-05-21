@@ -51,6 +51,12 @@ public class CamelBrain {
 			new MemoryModuleType[]{MemoryModuleType.BREED_TARGET, MemoryModuleType.NEAREST_VISIBLE_ADULT}
 	);
 
+	/**
+	 * Инициализирует ialize.
+	 *
+	 * @param camel camel
+	 * @param random random
+	 */
 	protected static void initialize(CamelEntity camel, Random random) {
 	}
 
@@ -58,6 +64,13 @@ public class CamelBrain {
 		return Brain.createProfile(MEMORY_MODULES, SENSORS);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<CamelEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -142,6 +155,11 @@ public class CamelBrain {
 		);
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param camel camel
+	 */
 	public static void updateActivities(CamelEntity camel) {
 		camel.getBrain().resetPossibleActivities(ImmutableList.of(Activity.IDLE));
 	}
@@ -155,10 +173,25 @@ public class CamelBrain {
 			super(f);
 		}
 
+		/**
+		 * Определяет, следует ли run.
+		 *
+		 * @param serverWorld server world
+		 * @param camelEntity camel entity
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldRun(ServerWorld serverWorld, CamelEntity camelEntity) {
 			return super.shouldRun(serverWorld, camelEntity) && !camelEntity.isControlledByMob();
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param camelEntity camel entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, CamelEntity camelEntity, long l) {
 			camelEntity.setStanding();
 			super.run(serverWorld, camelEntity, l);
@@ -177,6 +210,14 @@ public class CamelBrain {
 			this.lastTimeSinceLastPoseTick = lastPoseSecondsDelta * 20;
 		}
 
+		/**
+		 * Определяет, следует ли run.
+		 *
+		 * @param serverWorld server world
+		 * @param camelEntity camel entity
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldRun(ServerWorld serverWorld, CamelEntity camelEntity) {
 			return !camelEntity.isTouchingWater()
 					&& camelEntity.getTimeSinceLastPoseTick() >= this.lastTimeSinceLastPoseTick
@@ -186,6 +227,13 @@ public class CamelBrain {
 					&& camelEntity.canChangePose();
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param camelEntity camel entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, CamelEntity camelEntity, long l) {
 			if (camelEntity.isSitting()) {
 				camelEntity.startStanding();

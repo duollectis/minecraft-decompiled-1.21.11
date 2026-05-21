@@ -26,6 +26,9 @@ public class EnvironmentAttributeInterpolator {
 	@Nullable Vec3d pos;
 	final WeightedAttributeList pool = new WeightedAttributeList();
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.world = null;
 		this.pos = null;
@@ -33,6 +36,12 @@ public class EnvironmentAttributeInterpolator {
 		this.entries.clear();
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	public void update(World world, Vec3d pos) {
 		this.world = world;
 		this.pos = pos;
@@ -45,6 +54,14 @@ public class EnvironmentAttributeInterpolator {
 		);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param attribute attribute
+	 * @param tickProgress tick progress
+	 *
+	 * @return Value — 
+	 */
 	public <Value> Value get(EnvironmentAttribute<Value> attribute, float tickProgress) {
 		EnvironmentAttributeInterpolator.Entry<Value>
 				entry =
@@ -80,6 +97,11 @@ public class EnvironmentAttributeInterpolator {
 			       : attribute.getDefaultValue();
 		}
 
+		/**
+		 * Update.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean update() {
 			if (this.current == null) {
 				return true;
@@ -91,6 +113,14 @@ public class EnvironmentAttributeInterpolator {
 			}
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @param attribute attribute
+		 * @param tickProgress tick progress
+		 *
+		 * @return Value — 
+		 */
 		public Value get(EnvironmentAttribute<Value> attribute, float tickProgress) {
 			if (this.current == null) {
 				this.current = this.compute(attribute);

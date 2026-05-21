@@ -18,6 +18,14 @@ import java.util.function.Supplier;
  */
 public abstract class GpuBufferManager {
 
+	/**
+	 * Create.
+	 *
+	 * @param capabilities capabilities
+	 * @param usedCapabilities used capabilities
+	 *
+	 * @return GpuBufferManager — результат операции
+	 */
 	public static GpuBufferManager create(GLCapabilities capabilities, Set<String> usedCapabilities) {
 		if (capabilities.GL_ARB_buffer_storage && GlBackend.allowGlBufferStorage) {
 			usedCapabilities.add("GL_ARB_buffer_storage");

@@ -86,6 +86,15 @@ public class FallingBlockEntity extends Entity {
 		this.setFallingBlockPos(this.getBlockPos());
 	}
 
+	/**
+	 * Создаёт (спавнит) from block.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return FallingBlockEntity — результат операции
+	 */
 	public static FallingBlockEntity spawnFromBlock(World world, BlockPos pos, BlockState state) {
 		FallingBlockEntity fallingBlockEntity = new FallingBlockEntity(
 				world,
@@ -298,6 +307,12 @@ public class FallingBlockEntity extends Entity {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие destroyed on landing.
+	 *
+	 * @param block block
+	 * @param pos pos
+	 */
 	public void onDestroyedOnLanding(Block block, BlockPos pos) {
 		if (block instanceof Falling) {
 			((Falling) block).onDestroyedOnLanding(this.getEntityWorld(), pos, this);

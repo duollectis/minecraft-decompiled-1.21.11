@@ -145,6 +145,15 @@ public class CreakingHeartBlock extends BlockWithEntity {
 		       : state;
 	}
 
+	/**
+	 * Определяет, следует ли be enabled.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldBeEnabled(BlockState state, WorldView world, BlockPos pos) {
 		Direction.Axis axis = state.get(AXIS);
 

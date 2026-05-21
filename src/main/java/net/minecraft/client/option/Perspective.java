@@ -29,6 +29,11 @@ public enum Perspective {
 		return this.frontView;
 	}
 
+	/**
+	 * Next.
+	 *
+	 * @return Perspective — результат операции
+	 */
 	public Perspective next() {
 		return VALUES[(this.ordinal() + 1) % VALUES.length];
 	}

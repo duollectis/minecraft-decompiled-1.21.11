@@ -90,6 +90,15 @@ public class TextWidget extends AbstractTextWidget {
 		}
 	}
 
+	/**
+	 * Trim.
+	 *
+	 * @param text text
+	 * @param textRenderer text renderer
+	 * @param width width
+	 *
+	 * @return OrderedText — результат операции
+	 */
 	public static OrderedText trim(Text text, TextRenderer textRenderer, int width) {
 		StringVisitable
 				stringVisitable =

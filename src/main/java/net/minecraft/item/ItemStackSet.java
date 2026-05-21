@@ -12,10 +12,25 @@ import java.util.Set;
 public class ItemStackSet {
 
 	private static final Strategy<? super ItemStack> HASH_STRATEGY = new Strategy<ItemStack>() {
+		/**
+		 * Проверяет наличие h code.
+		 *
+		 * @param itemStack item stack
+		 *
+		 * @return int — {@code true} если условие выполнено
+		 */
 		public int hashCode(@Nullable ItemStack itemStack) {
 			return ItemStack.hashCode(itemStack);
 		}
 
+		/**
+		 * Equals.
+		 *
+		 * @param itemStack item stack
+		 * @param itemStack2 item stack2
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean equals(@Nullable ItemStack itemStack, @Nullable ItemStack itemStack2) {
 			return itemStack == itemStack2
 					|| itemStack != null
@@ -25,6 +40,11 @@ public class ItemStackSet {
 		}
 	};
 
+	/**
+	 * Create.
+	 *
+	 * @return Set — результат операции
+	 */
 	public static Set<ItemStack> create() {
 		return new ObjectLinkedOpenCustomHashSet(HASH_STRATEGY);
 	}

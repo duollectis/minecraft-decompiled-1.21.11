@@ -4,6 +4,9 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * Класс velocity encoding.
+ */
 public class VelocityEncoding {
 
 	private static final int VELOCITY_BITS = 15;
@@ -22,6 +25,13 @@ public class VelocityEncoding {
 		return (maxDirectionalVelocity & 4) == 4;
 	}
 
+	/**
+	 * Читает velocity.
+	 *
+	 * @param buf buf
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d readVelocity(ByteBuf buf) {
 		int i = buf.readUnsignedByte();
 		if (i == 0) {
@@ -40,6 +50,12 @@ public class VelocityEncoding {
 		}
 	}
 
+	/**
+	 * Записывает velocity.
+	 *
+	 * @param buf buf
+	 * @param velocity velocity
+	 */
 	public static void writeVelocity(ByteBuf buf, Vec3d velocity) {
 		double d = clampValue(velocity.x);
 		double e = clampValue(velocity.y);

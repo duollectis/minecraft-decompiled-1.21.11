@@ -64,10 +64,20 @@ public class SculkSpreadManager {
 		this.decayChance = decayChance;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @return SculkSpreadManager — результат операции
+	 */
 	public static SculkSpreadManager create() {
 		return new SculkSpreadManager(false, BlockTags.SCULK_REPLACEABLE, 10, 4, 10, 5);
 	}
 
+	/**
+	 * Создаёт world gen.
+	 *
+	 * @return SculkSpreadManager — результат операции
+	 */
 	public static SculkSpreadManager createWorldGen() {
 		return new SculkSpreadManager(true, BlockTags.SCULK_REPLACEABLE_WORLD_GEN, 50, 1, 5, 10);
 	}
@@ -101,10 +111,18 @@ public class SculkSpreadManager {
 		return this.cursors;
 	}
 
+	/**
+	 * Очищает cursors.
+	 */
 	public void clearCursors() {
 		this.cursors.clear();
 	}
 
+	/**
+	 * Читает data.
+	 *
+	 * @param view view
+	 */
 	public void readData(ReadView view) {
 		this.cursors.clear();
 		view
@@ -113,6 +131,11 @@ public class SculkSpreadManager {
 				.forEach(this::addCursor);
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param view view
+	 */
 	public void writeData(WriteView view) {
 		view.put("cursors", SculkSpreadManager.Cursor.CODEC.listOf(), this.cursors);
 		if (SharedConstants.SCULK_CATALYST) {
@@ -126,6 +149,12 @@ public class SculkSpreadManager {
 		}
 	}
 
+	/**
+	 * Spread.
+	 *
+	 * @param pos pos
+	 * @param charge charge
+	 */
 	public void spread(BlockPos pos, int charge) {
 		while (charge > 0) {
 			int i = Math.min(charge, 1000);
@@ -140,6 +169,14 @@ public class SculkSpreadManager {
 		}
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 * @param shouldConvertToBlock should convert to block
+	 */
 	public void tick(WorldAccess world, BlockPos pos, Random random, boolean shouldConvertToBlock) {
 		if (!this.cursors.isEmpty()) {
 			List<SculkSpreadManager.Cursor> list = new ArrayList<>();

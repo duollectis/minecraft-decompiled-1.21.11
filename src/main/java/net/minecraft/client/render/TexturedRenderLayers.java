@@ -228,10 +228,24 @@ public class TexturedRenderLayers {
 		return BED_TEXTURES[color.getIndex()];
 	}
 
+	/**
+	 * Создаёт color id.
+	 *
+	 * @param color color
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public static Identifier createColorId(DyeColor color) {
 		return Identifier.ofVanilla(color.getId());
 	}
 
+	/**
+	 * Создаёт bed texture id.
+	 *
+	 * @param color color
+	 *
+	 * @return SpriteIdentifier — результат операции
+	 */
 	public static SpriteIdentifier createBedTextureId(DyeColor color) {
 		return BED_SPRITE_MAPPER.map(createColorId(color));
 	}
@@ -240,10 +254,24 @@ public class TexturedRenderLayers {
 		return COLORED_SHULKER_BOXES_TEXTURES.get(color.getIndex());
 	}
 
+	/**
+	 * Создаёт shulker id.
+	 *
+	 * @param color color
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public static Identifier createShulkerId(DyeColor color) {
 		return Identifier.ofVanilla("shulker_" + color.getId());
 	}
 
+	/**
+	 * Создаёт shulker box texture id.
+	 *
+	 * @param color color
+	 *
+	 * @return SpriteIdentifier — результат операции
+	 */
 	public static SpriteIdentifier createShulkerBoxTextureId(DyeColor color) {
 		return SHULKER_SPRITE_MAPPER.map(createShulkerId(color));
 	}

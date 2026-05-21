@@ -20,6 +20,13 @@ public class ContextParameterMap {
 		this.map = map;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param parameter parameter
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(ContextParameter<?> parameter) {
 		return this.map.containsKey(parameter);
 	}
@@ -80,6 +87,13 @@ public class ContextParameterMap {
 			return (T) this.map.get(parameter);
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param type type
+		 *
+		 * @return ContextParameterMap — результат операции
+		 */
 		public ContextParameterMap build(ContextType type) {
 			Set<ContextParameter<?>> set = Sets.difference(this.map.keySet(), type.getAllowed());
 			if (!set.isEmpty()) {

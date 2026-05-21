@@ -25,10 +25,22 @@ public class GhastEntityRenderer extends MobEntityRenderer<GhastEntity, GhastEnt
 		return ghastEntityRenderState.shooting ? SHOOTING_TEXTURE : TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return GhastEntityRenderState — результат операции
+	 */
 	public GhastEntityRenderState createRenderState() {
 		return new GhastEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param ghastEntity ghast entity
+	 * @param ghastEntityRenderState ghast entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(GhastEntity ghastEntity, GhastEntityRenderState ghastEntityRenderState, float f) {
 		super.updateRenderState(ghastEntity, ghastEntityRenderState, f);
 		ghastEntityRenderState.shooting = ghastEntity.isShooting();

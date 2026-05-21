@@ -161,6 +161,13 @@ public class VaultBlockEntity extends BlockEntity {
 			}
 		}
 
+		/**
+		 * Создаёт (спавнит) deactivate particles.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param particle particle
+		 */
 		public static void spawnDeactivateParticles(World world, BlockPos pos, ParticleEffect particle) {
 			Random random = world.random;
 

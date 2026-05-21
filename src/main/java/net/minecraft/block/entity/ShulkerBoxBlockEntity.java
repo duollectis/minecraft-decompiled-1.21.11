@@ -61,6 +61,14 @@ public class ShulkerBoxBlockEntity extends LootableContainerBlockEntity implemen
 				state.getBlock() instanceof ShulkerBoxBlock shulkerBoxBlock ? shulkerBoxBlock.getColor() : null;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, ShulkerBoxBlockEntity blockEntity) {
 		blockEntity.updateAnimation(world, pos, state);
 	}
@@ -240,6 +248,11 @@ public class ShulkerBoxBlockEntity extends LootableContainerBlockEntity implemen
 		}
 	}
 
+	/**
+	 * Читает inventory nbt.
+	 *
+	 * @param readView read view
+	 */
 	public void readInventoryNbt(ReadView readView) {
 		this.inventory = DefaultedList.ofSize(this.size(), ItemStack.EMPTY);
 		if (!this.readLootTable(readView)) {
@@ -285,6 +298,11 @@ public class ShulkerBoxBlockEntity extends LootableContainerBlockEntity implemen
 		return new ShulkerBoxScreenHandler(syncId, playerInventory, this);
 	}
 
+	/**
+	 * Suffocates.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean suffocates() {
 		return this.animationStage == ShulkerBoxBlockEntity.AnimationStage.CLOSED;
 	}

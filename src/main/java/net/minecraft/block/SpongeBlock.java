@@ -51,6 +51,12 @@ public class SpongeBlock extends Block {
 		super.neighborUpdate(state, world, pos, sourceBlock, wireOrientation, notify);
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected void update(World world, BlockPos pos) {
 		if (this.absorbWater(world, pos)) {
 			world.setBlockState(pos, Blocks.WET_SPONGE.getDefaultState(), 2);

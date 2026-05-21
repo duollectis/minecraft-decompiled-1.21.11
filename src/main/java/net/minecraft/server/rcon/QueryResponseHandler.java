@@ -70,6 +70,13 @@ public class QueryResponseHandler extends RconBase {
 		this.queries = Maps.newHashMap();
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param server server
+	 *
+	 * @return @Nullable QueryResponseHandler — результат операции
+	 */
 	public static @Nullable QueryResponseHandler create(DedicatedServer server) {
 		int i = server.getProperties().queryPort;
 		if (0 < i && 65535 >= i) {
@@ -304,6 +311,13 @@ public class QueryResponseHandler extends RconBase {
 					String.format(Locale.ROOT, "\t%s%d\u0000", this.message, this.id).getBytes(StandardCharsets.UTF_8);
 		}
 
+		/**
+		 * Запускает ed before.
+		 *
+		 * @param lastQueryTime last query time
+		 *
+		 * @return Boolean — результат операции
+		 */
 		public Boolean startedBefore(long lastQueryTime) {
 			return this.startTime < lastQueryTime;
 		}

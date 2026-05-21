@@ -29,6 +29,14 @@ public class NbtIo {
 			StandardOpenOption.TRUNCATE_EXISTING
 	};
 
+	/**
+	 * Читает compressed.
+	 *
+	 * @param path path
+	 * @param tagSizeTracker tag size tracker
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound readCompressed(Path path, NbtSizeTracker tagSizeTracker) throws IOException {
 		NbtCompound var4;
 		try (
@@ -49,6 +57,14 @@ public class NbtIo {
 		return new DataOutputStream(new BufferedOutputStream(new GZIPOutputStream(stream)));
 	}
 
+	/**
+	 * Читает compressed.
+	 *
+	 * @param stream stream
+	 * @param tagSizeTracker tag size tracker
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound readCompressed(InputStream stream, NbtSizeTracker tagSizeTracker) throws IOException {
 		NbtCompound var3;
 		try (DataInputStream dataInputStream = decompress(stream)) {
@@ -58,6 +74,13 @@ public class NbtIo {
 		return var3;
 	}
 
+	/**
+	 * Scan compressed.
+	 *
+	 * @param path path
+	 * @param scanner scanner
+	 * @param tracker tracker
+	 */
 	public static void scanCompressed(Path path, NbtScanner scanner, NbtSizeTracker tracker) throws IOException {
 		try (
 				InputStream inputStream = Files.newInputStream(path);
@@ -74,6 +97,12 @@ public class NbtIo {
 		}
 	}
 
+	/**
+	 * Записывает compressed.
+	 *
+	 * @param nbt nbt
+	 * @param path path
+	 */
 	public static void writeCompressed(NbtCompound nbt, Path path) throws IOException {
 		try (
 				OutputStream outputStream = Files.newOutputStream(path, OPEN_OPTIONS);
@@ -83,12 +112,24 @@ public class NbtIo {
 		}
 	}
 
+	/**
+	 * Записывает compressed.
+	 *
+	 * @param nbt nbt
+	 * @param stream stream
+	 */
 	public static void writeCompressed(NbtCompound nbt, OutputStream stream) throws IOException {
 		try (DataOutputStream dataOutputStream = compress(stream)) {
 			writeCompound(nbt, dataOutputStream);
 		}
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param nbt nbt
+	 * @param path path
+	 */
 	public static void write(NbtCompound nbt, Path path) throws IOException {
 		try (
 				OutputStream outputStream = Files.newOutputStream(path, OPEN_OPTIONS);
@@ -99,6 +140,13 @@ public class NbtIo {
 		}
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param path path
+	 *
+	 * @return @Nullable NbtCompound — результат операции
+	 */
 	public static @Nullable NbtCompound read(Path path) throws IOException {
 		if (!Files.exists(path)) {
 			return null;
@@ -116,10 +164,25 @@ public class NbtIo {
 		}
 	}
 
+	/**
+	 * Читает compound.
+	 *
+	 * @param input input
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound readCompound(DataInput input) throws IOException {
 		return readCompound(input, NbtSizeTracker.ofUnlimitedBytes());
 	}
 
+	/**
+	 * Читает compound.
+	 *
+	 * @param input input
+	 * @param tracker tracker
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound readCompound(DataInput input, NbtSizeTracker tracker) throws IOException {
 		NbtElement nbtElement = readElement(input, tracker);
 		if (nbtElement instanceof NbtCompound) {
@@ -130,10 +193,23 @@ public class NbtIo {
 		}
 	}
 
+	/**
+	 * Записывает compound.
+	 *
+	 * @param nbt nbt
+	 * @param output output
+	 */
 	public static void writeCompound(NbtCompound nbt, DataOutput output) throws IOException {
 		write(nbt, output);
 	}
 
+	/**
+	 * Scan.
+	 *
+	 * @param input input
+	 * @param scanner scanner
+	 * @param tracker tracker
+	 */
 	public static void scan(DataInput input, NbtScanner scanner, NbtSizeTracker tracker) throws IOException {
 		NbtType<?> nbtType = NbtTypes.byId(input.readByte());
 		if (nbtType == NbtEnd.TYPE) {
@@ -157,11 +233,25 @@ public class NbtIo {
 		}
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param input input
+	 * @param tracker tracker
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public static NbtElement read(DataInput input, NbtSizeTracker tracker) throws IOException {
 		byte b = input.readByte();
 		return (NbtElement) (b == 0 ? NbtEnd.INSTANCE : readElement(input, tracker, b));
 	}
 
+	/**
+	 * Записывает for packet.
+	 *
+	 * @param nbt nbt
+	 * @param output output
+	 */
 	public static void writeForPacket(NbtElement nbt, DataOutput output) throws IOException {
 		output.writeByte(nbt.getType());
 		if (nbt.getType() != 0) {
@@ -169,6 +259,12 @@ public class NbtIo {
 		}
 	}
 
+	/**
+	 * Записывает unsafe.
+	 *
+	 * @param nbt nbt
+	 * @param output output
+	 */
 	public static void writeUnsafe(NbtElement nbt, DataOutput output) throws IOException {
 		output.writeByte(nbt.getType());
 		if (nbt.getType() != 0) {
@@ -177,11 +273,25 @@ public class NbtIo {
 		}
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param nbt nbt
+	 * @param output output
+	 */
 	public static void write(NbtElement nbt, DataOutput output) throws IOException {
 		writeUnsafe(nbt, new NbtIo.InvalidUtfSkippingDataOutput(output));
 	}
 
 	@VisibleForTesting
+	/**
+	 * Читает element.
+	 *
+	 * @param input input
+	 * @param tracker tracker
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public static NbtElement readElement(DataInput input, NbtSizeTracker tracker) throws IOException {
 		byte b = input.readByte();
 		if (b == 0) {

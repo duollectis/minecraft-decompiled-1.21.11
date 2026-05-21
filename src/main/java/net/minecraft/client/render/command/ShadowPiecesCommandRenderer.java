@@ -20,6 +20,12 @@ public class ShadowPiecesCommandRenderer {
 			renderLayer =
 			RenderLayers.entityShadow(Identifier.ofVanilla("textures/misc/shadow.png"));
 
+	/**
+	 * Render.
+	 *
+	 * @param queue queue
+	 * @param vertexConsumers vertex consumers
+	 */
 	public void render(BatchingRenderCommandQueue queue, VertexConsumerProvider.Immediate vertexConsumers) {
 		VertexConsumer vertexConsumer = vertexConsumers.getBuffer(renderLayer);
 

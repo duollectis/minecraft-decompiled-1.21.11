@@ -35,10 +35,25 @@ public class AndLootFunction implements LootFunction {
 		this.applier = LootFunctionTypes.join(terms);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param terms terms
+	 *
+	 * @return AndLootFunction — результат операции
+	 */
 	public static AndLootFunction create(List<LootFunction> terms) {
 		return new AndLootFunction(List.copyOf(terms));
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param itemStack item stack
+	 * @param lootContext loot context
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack apply(ItemStack itemStack, LootContext lootContext) {
 		return this.applier.apply(itemStack, lootContext);
 	}

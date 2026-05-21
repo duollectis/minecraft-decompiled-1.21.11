@@ -198,6 +198,14 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 	}
 
 	@VisibleForTesting
+	/**
+	 * Drip tick.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param dripChance drip chance
+	 */
 	public static void dripTick(BlockState state, ServerWorld world, BlockPos pos, float dripChance) {
 		if (!(dripChance > 0.17578125F) || !(dripChance > 0.05859375F)) {
 			if (isHeldByPointedDripstone(state, world, pos)) {
@@ -329,6 +337,14 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 	}
 
 	@VisibleForTesting
+	/**
+	 * Try grow.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 */
 	public static void tryGrow(BlockState state, ServerWorld world, BlockPos pos, Random random) {
 		BlockState blockState = world.getBlockState(pos.up(1));
 		BlockState blockState2 = world.getBlockState(pos.up(2));
@@ -410,6 +426,13 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 		place(world, blockPos, Direction.UP, Thickness.TIP_MERGE);
 	}
 
+	/**
+	 * Создаёт particle.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	public static void createParticle(World world, BlockPos pos, BlockState state) {
 		getFluid(world, pos, state).ifPresent(fluid -> createParticle(world, pos, state, fluid.fluid, fluid.pos));
 	}
@@ -488,6 +511,13 @@ public class PointedDripstoneBlock extends Block implements Falling, Waterloggab
 		}
 	}
 
+	/**
+	 * Проверяет возможность drip.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canDrip(BlockState state) {
 		return isPointingDown(state) && state.get(THICKNESS) == Thickness.TIP && !state.get(WATERLOGGED);
 	}

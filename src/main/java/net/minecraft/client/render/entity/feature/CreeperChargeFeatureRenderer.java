@@ -25,6 +25,13 @@ public class CreeperChargeFeatureRenderer extends EnergySwirlOverlayFeatureRende
 		this.model = new CreeperEntityModel(loader.getModelPart(EntityModelLayers.CREEPER_ARMOR));
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param creeperEntityRenderState creeper entity render state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRender(CreeperEntityRenderState creeperEntityRenderState) {
 		return creeperEntityRenderState.charged;
 	}

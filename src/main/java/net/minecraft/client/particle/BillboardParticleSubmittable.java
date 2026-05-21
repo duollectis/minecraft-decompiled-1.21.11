@@ -326,6 +326,11 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 			this.nextVertexIndex++;
 		}
 
+		/**
+		 * Render.
+		 *
+		 * @param vertexConsumer vertex consumer
+		 */
 		public void render(BillboardParticleSubmittable.Consumer vertexConsumer) {
 			for (int i = 0; i < this.nextVertexIndex; i++) {
 				int j = i * 12;
@@ -349,6 +354,9 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 			}
 		}
 
+		/**
+		 * Reset.
+		 */
 		public void reset() {
 			this.nextVertexIndex = 0;
 		}
@@ -359,6 +367,11 @@ public class BillboardParticleSubmittable implements OrderedRenderCommandQueue.L
 			this.intData = Arrays.copyOf(this.intData, this.maxVertices * 2);
 		}
 
+		/**
+		 * Next vertex index.
+		 *
+		 * @return int — результат операции
+		 */
 		public int nextVertexIndex() {
 			return this.nextVertexIndex;
 		}

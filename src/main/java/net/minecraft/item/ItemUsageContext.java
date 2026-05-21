@@ -54,6 +54,11 @@ public class ItemUsageContext {
 		return this.hit.getPos();
 	}
 
+	/**
+	 * Hits inside block.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean hitsInsideBlock() {
 		return this.hit.isInsideBlock();
 	}
@@ -78,6 +83,11 @@ public class ItemUsageContext {
 		return this.player == null ? Direction.NORTH : this.player.getHorizontalFacing();
 	}
 
+	/**
+	 * Определяет, следует ли cancel interaction.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldCancelInteraction() {
 		return this.player != null && this.player.shouldCancelInteraction();
 	}

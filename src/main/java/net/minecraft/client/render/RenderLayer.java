@@ -51,6 +51,14 @@ public class RenderLayer {
 		                       : Optional.empty();
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param name name
+	 * @param renderSetup render setup
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer of(String name, RenderSetup renderSetup) {
 		return new RenderLayer(name, renderSetup);
 	}
@@ -60,6 +68,11 @@ public class RenderLayer {
 		return "RenderType[" + this.name + ":" + this.renderSetup + "]";
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param buffer buffer
+	 */
 	public void draw(BuiltBuffer buffer) {
 		Matrix4fStack matrix4fStack = RenderSystem.getModelViewStack();
 		Consumer<Matrix4fStack> consumer = this.renderSetup.layeringTransform.getTransform();
@@ -193,6 +206,11 @@ public class RenderLayer {
 		return this.renderSetup.hasCrumbling;
 	}
 
+	/**
+	 * Are vertices not shared.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areVerticesNotShared() {
 		return !this.getDrawMode().shareVertices;
 	}

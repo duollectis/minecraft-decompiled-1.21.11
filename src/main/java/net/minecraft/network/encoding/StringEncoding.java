@@ -7,8 +7,19 @@ import io.netty.handler.codec.EncoderException;
 
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Класс string encoding.
+ */
 public class StringEncoding {
 
+	/**
+	 * Decode.
+	 *
+	 * @param buf buf
+	 * @param maxLength max length
+	 *
+	 * @return String — результат операции
+	 */
 	public static String decode(ByteBuf buf, int maxLength) {
 		int i = ByteBufUtil.utf8MaxBytes(maxLength);
 		int j = VarInts.read(buf);
@@ -39,6 +50,13 @@ public class StringEncoding {
 		}
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param buf buf
+	 * @param string string
+	 * @param maxLength max length
+	 */
 	public static void encode(ByteBuf buf, CharSequence string, int maxLength) {
 		if (string.length() > maxLength) {
 			throw new EncoderException(

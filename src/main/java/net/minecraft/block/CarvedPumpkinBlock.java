@@ -61,6 +61,14 @@ public class CarvedPumpkinBlock extends HorizontalFacingBlock {
 		}
 	}
 
+	/**
+	 * Проверяет возможность dispense.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canDispense(WorldView world, BlockPos pos) {
 		return this.getSnowGolemDispenserPattern().searchAround(world, pos) != null
 				|| this.getIronGolemDispenserPattern().searchAround(world, pos) != null
@@ -124,6 +132,12 @@ public class CarvedPumpkinBlock extends HorizontalFacingBlock {
 		updatePatternBlocks(world, patternResult);
 	}
 
+	/**
+	 * Ломает pattern blocks.
+	 *
+	 * @param world world
+	 * @param patternResult pattern result
+	 */
 	public static void breakPatternBlocks(World world, BlockPattern.Result patternResult) {
 		for (int i = 0; i < patternResult.getWidth(); i++) {
 			for (int j = 0; j < patternResult.getHeight(); j++) {
@@ -138,6 +152,12 @@ public class CarvedPumpkinBlock extends HorizontalFacingBlock {
 		}
 	}
 
+	/**
+	 * Обновляет pattern blocks.
+	 *
+	 * @param world world
+	 * @param patternResult pattern result
+	 */
 	public static void updatePatternBlocks(World world, BlockPattern.Result patternResult) {
 		for (int i = 0; i < patternResult.getWidth(); i++) {
 			for (int j = 0; j < patternResult.getHeight(); j++) {
@@ -271,6 +291,12 @@ public class CarvedPumpkinBlock extends HorizontalFacingBlock {
 		return this.copperGolemPattern;
 	}
 
+	/**
+	 * Replace copper block with chest.
+	 *
+	 * @param world world
+	 * @param patternResult pattern result
+	 */
 	public void replaceCopperBlockWithChest(World world, BlockPattern.Result patternResult) {
 		CachedBlockPosition cachedBlockPosition = patternResult.translate(0, 1, 0);
 		CachedBlockPosition cachedBlockPosition2 = patternResult.translate(0, 0, 0);

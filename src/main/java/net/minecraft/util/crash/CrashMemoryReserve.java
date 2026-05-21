@@ -9,10 +9,16 @@ public class CrashMemoryReserve {
 
 	private static byte @Nullable [] reservedMemory;
 
+	/**
+	 * Reserve memory.
+	 */
 	public static void reserveMemory() {
 		reservedMemory = new byte[10485760];
 	}
 
+	/**
+	 * Release memory.
+	 */
 	public static void releaseMemory() {
 		if (reservedMemory != null) {
 			reservedMemory = null;

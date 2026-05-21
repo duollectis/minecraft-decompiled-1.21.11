@@ -32,6 +32,11 @@ public class BlockColors {
 	private final IdList<BlockColorProvider> providers = new IdList<>(32);
 	private final Map<Block, Set<Property<?>>> properties = Maps.newHashMap();
 
+	/**
+	 * Create.
+	 *
+	 * @return BlockColors — результат операции
+	 */
 	public static BlockColors create() {
 		BlockColors blockColors = new BlockColors();
 		blockColors.registerColorProvider(
@@ -134,6 +139,12 @@ public class BlockColors {
 		return blockColorProvider == null ? -1 : blockColorProvider.getColor(state, world, pos, tintIndex);
 	}
 
+	/**
+	 * Регистрирует color provider.
+	 *
+	 * @param provider provider
+	 * @param blocks blocks
+	 */
 	public void registerColorProvider(BlockColorProvider provider, Block... blocks) {
 		for (Block block : blocks) {
 			this.providers.set(provider, Registries.BLOCK.getRawId(block));

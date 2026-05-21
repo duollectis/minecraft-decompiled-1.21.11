@@ -9,6 +9,9 @@ import net.minecraft.registry.Registries;
 import java.util.List;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Перечисление client dynamic registry type.
+ */
 public enum ClientDynamicRegistryType {
 	STATIC,
 	REMOTE;
@@ -18,6 +21,11 @@ public enum ClientDynamicRegistryType {
 			STATIC_REGISTRY_MANAGER =
 			DynamicRegistryManager.of(Registries.REGISTRIES);
 
+	/**
+	 * Создаёт combined dynamic registries.
+	 *
+	 * @return CombinedDynamicRegistries — результат операции
+	 */
 	public static CombinedDynamicRegistries<ClientDynamicRegistryType> createCombinedDynamicRegistries() {
 		return new CombinedDynamicRegistries<>(VALUES).with(STATIC, STATIC_REGISTRY_MANAGER);
 	}

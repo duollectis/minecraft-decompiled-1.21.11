@@ -17,6 +17,13 @@ public class EndPortalBlockEntity extends BlockEntity {
 		this(BlockEntityType.END_PORTAL, pos, state);
 	}
 
+	/**
+	 * Определяет, следует ли draw side.
+	 *
+	 * @param direction direction
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDrawSide(Direction direction) {
 		return direction.getAxis() == Direction.Axis.Y;
 	}

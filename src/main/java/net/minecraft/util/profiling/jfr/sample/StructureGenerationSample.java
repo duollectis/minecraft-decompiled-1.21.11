@@ -16,6 +16,13 @@ public record StructureGenerationSample(
 		boolean success
 ) implements LongRunningSample {
 
+	/**
+	 * From event.
+	 *
+	 * @param event event
+	 *
+	 * @return StructureGenerationSample — результат операции
+	 */
 	public static StructureGenerationSample fromEvent(RecordedEvent event) {
 		return new StructureGenerationSample(
 				event.getDuration(),

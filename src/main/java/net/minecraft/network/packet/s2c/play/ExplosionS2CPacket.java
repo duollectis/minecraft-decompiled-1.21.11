@@ -17,6 +17,9 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.Optional;
 
+/**
+ * Запись explosion s2 c packet.
+ */
 public record ExplosionS2CPacket(
 		Vec3d center,
 		float radius,
@@ -50,6 +53,11 @@ public record ExplosionS2CPacket(
 		return PlayPackets.EXPLODE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onExplosion(this);
 	}

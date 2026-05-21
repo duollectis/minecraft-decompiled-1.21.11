@@ -69,6 +69,11 @@ public class NetherConfiguredFeatures {
 	public static final RegistryKey<ConfiguredFeature<?, ?>> PATCH_FIRE = ConfiguredFeatures.of("patch_fire");
 	public static final RegistryKey<ConfiguredFeature<?, ?>> PATCH_SOUL_FIRE = ConfiguredFeatures.of("patch_soul_fire");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		ConfiguredFeatures.register(
 				featureRegisterable,

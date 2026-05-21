@@ -29,6 +29,14 @@ public class VillagerWorkTask extends MultiTickTask<VillagerEntity> {
 		));
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		if (serverWorld.getTime() - this.lastCheckedTime < 300L) {
 			return false;
@@ -47,6 +55,13 @@ public class VillagerWorkTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		Brain<VillagerEntity> brain = villagerEntity.getBrain();
 		brain.remember(MemoryModuleType.LAST_WORKED_AT_POI, l);
@@ -59,9 +74,24 @@ public class VillagerWorkTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Perform additional work.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 */
 	protected void performAdditionalWork(ServerWorld world, VillagerEntity entity) {
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		Optional<GlobalPos> optional = villagerEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.JOB_SITE);
 		if (optional.isEmpty()) {

@@ -2,6 +2,9 @@ package net.minecraft.network.packet;
 
 import net.minecraft.network.listener.PacketListener;
 
+/**
+ * Класс bundle packet.
+ */
 public abstract class BundlePacket<T extends PacketListener> implements Packet<T> {
 
 	private final Iterable<Packet<? super T>> packets;

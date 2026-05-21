@@ -15,6 +15,9 @@ import net.minecraft.network.packet.s2c.common.*;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.network.packet.s2c.query.PingResultS2CPacket;
 
+/**
+ * Класс play state factories.
+ */
 public class PlayStateFactories {
 
 	public static final PacketCodecModifier<RegistryByteBuf, CreativeInventoryActionC2SPacket, PlayStateFactories.PacketCodecModifierContext>
@@ -22,6 +25,13 @@ public class PlayStateFactories {
 			(packetCodec, context) -> new PacketCodec<RegistryByteBuf, CreativeInventoryActionC2SPacket>(
 
 			) {
+				/**
+				 * Decode.
+				 *
+				 * @param registryByteBuf registry byte buf
+				 *
+				 * @return CreativeInventoryActionC2SPacket — результат операции
+				 */
 				public CreativeInventoryActionC2SPacket decode(RegistryByteBuf registryByteBuf) {
 					if (!context.isInCreativeMode()) {
 						throw new PacketDecoderException("Not in creative mode");
@@ -276,6 +286,9 @@ public class PlayStateFactories {
 			                  .add(CommonPackets.SHOW_DIALOG, ShowDialogS2CPacket.REGISTRY_CODEC)
 	);
 
+	/**
+	 * Интерфейс packet codec modifier context.
+	 */
 	public interface PacketCodecModifierContext {
 
 		boolean isInCreativeMode();

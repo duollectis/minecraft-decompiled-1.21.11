@@ -14,6 +14,13 @@ import java.io.StringReader;
  */
 public class StrictJsonParser {
 
+	/**
+	 * Parse.
+	 *
+	 * @param reader reader
+	 *
+	 * @return JsonElement — результат операции
+	 */
 	public static JsonElement parse(Reader reader) throws JsonIOException, JsonSyntaxException {
 		try {
 			JsonReader jsonReader = new JsonReader(reader);
@@ -34,6 +41,13 @@ public class StrictJsonParser {
 		}
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return JsonElement — результат операции
+	 */
 	public static JsonElement parse(String json) throws JsonSyntaxException {
 		return parse(new StringReader(json));
 	}

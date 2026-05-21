@@ -39,6 +39,14 @@ public class BoneMealTask extends MultiTickTask<VillagerEntity> {
 		));
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		if (villagerEntity.age % 10 == 0 && (this.lastEndEntityAge == 0L
 				|| this.lastEndEntityAge + 160L <= villagerEntity.age
@@ -56,6 +64,15 @@ public class BoneMealTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		return this.duration < 80 && this.pos.isPresent();
 	}
@@ -87,6 +104,13 @@ public class BoneMealTask extends MultiTickTask<VillagerEntity> {
 		return block instanceof CropBlock && !((CropBlock) block).isMature(blockState);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		this.addLookWalkTargets(villagerEntity);
 		villagerEntity.equipStack(EquipmentSlot.MAINHAND, new ItemStack(Items.BONE_MEAL));
@@ -102,11 +126,25 @@ public class BoneMealTask extends MultiTickTask<VillagerEntity> {
 		});
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		villagerEntity.equipStack(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
 		this.lastEndEntityAge = villagerEntity.age;
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		BlockPos blockPos = this.pos.get();
 		if (l >= this.startTime && blockPos.isWithinDistance(villagerEntity.getEntityPos(), 1.0)) {

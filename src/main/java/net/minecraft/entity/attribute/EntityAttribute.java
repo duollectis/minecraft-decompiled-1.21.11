@@ -46,6 +46,13 @@ public class EntityAttribute {
 		return this;
 	}
 
+	/**
+	 * Clamp.
+	 *
+	 * @param value value
+	 *
+	 * @return double — результат операции
+	 */
 	public double clamp(double value) {
 		return value;
 	}

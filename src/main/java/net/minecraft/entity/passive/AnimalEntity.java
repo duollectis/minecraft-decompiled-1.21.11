@@ -175,13 +175,26 @@ public abstract class AnimalEntity extends PassiveEntity {
 		return super.interactMob(player, hand);
 	}
 
+	/**
+	 * Play eat sound.
+	 */
 	protected void playEatSound() {
 	}
 
+	/**
+	 * Проверяет возможность eat.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canEat() {
 		return this.loveTicks <= 0;
 	}
 
+	/**
+	 * Love player.
+	 *
+	 * @param player player
+	 */
 	public void lovePlayer(@Nullable PlayerEntity player) {
 		this.loveTicks = 600;
 		if (player instanceof ServerPlayerEntity serverPlayerEntity) {
@@ -207,10 +220,20 @@ public abstract class AnimalEntity extends PassiveEntity {
 		return this.loveTicks > 0;
 	}
 
+	/**
+	 * Сбрасывает love ticks.
+	 */
 	public void resetLoveTicks() {
 		this.loveTicks = 0;
 	}
 
+	/**
+	 * Проверяет возможность breed with.
+	 *
+	 * @param other other
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBreedWith(AnimalEntity other) {
 		if (other == this) {
 			return false;
@@ -220,6 +243,12 @@ public abstract class AnimalEntity extends PassiveEntity {
 		}
 	}
 
+	/**
+	 * Breed.
+	 *
+	 * @param world world
+	 * @param other other
+	 */
 	public void breed(ServerWorld world, AnimalEntity other) {
 		PassiveEntity passiveEntity = this.createChild(world, other);
 		if (passiveEntity != null) {
@@ -230,6 +259,13 @@ public abstract class AnimalEntity extends PassiveEntity {
 		}
 	}
 
+	/**
+	 * Breed.
+	 *
+	 * @param world world
+	 * @param other other
+	 * @param baby baby
+	 */
 	public void breed(ServerWorld world, AnimalEntity other, @Nullable PassiveEntity baby) {
 		Optional
 				.ofNullable(this.getLovingPlayer())

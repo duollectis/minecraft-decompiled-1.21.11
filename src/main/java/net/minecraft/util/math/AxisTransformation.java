@@ -67,6 +67,13 @@ public enum AxisTransformation {
 				new Matrix3f().zero().set(this.map(0), 0, 1.0F).set(this.map(1), 1, 1.0F).set(this.map(2), 2, 1.0F);
 	}
 
+	/**
+	 * Prepend.
+	 *
+	 * @param transformation transformation
+	 *
+	 * @return AxisTransformation — результат операции
+	 */
 	public AxisTransformation prepend(AxisTransformation transformation) {
 		return COMBINATIONS[this.ordinal()][transformation.ordinal()];
 	}
@@ -75,6 +82,13 @@ public enum AxisTransformation {
 		return INVERSE[this.ordinal()];
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param axis axis
+	 *
+	 * @return int — результат операции
+	 */
 	public int map(int axis) {
 		return switch (axis) {
 			case 0 -> this.xMapping;
@@ -88,6 +102,13 @@ public enum AxisTransformation {
 		return Direction.Axis.VALUES[this.map(axis.ordinal())];
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vector3f — результат операции
+	 */
 	public Vector3f map(Vector3f vec) {
 		float f = vec.get(this.xMapping);
 		float g = vec.get(this.yMapping);
@@ -95,6 +116,13 @@ public enum AxisTransformation {
 		return vec.set(f, g, h);
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vector3i — результат операции
+	 */
 	public Vector3i map(Vector3i vec) {
 		int i = vec.get(this.xMapping);
 		int j = vec.get(this.yMapping);

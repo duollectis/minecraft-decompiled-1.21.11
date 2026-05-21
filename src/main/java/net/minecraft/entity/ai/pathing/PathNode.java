@@ -32,6 +32,15 @@ public class PathNode {
 		this.hashCode = hash(x, y, z);
 	}
 
+	/**
+	 * Создаёт копию with new position.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return PathNode — результат операции
+	 */
 	public PathNode copyWithNewPosition(int x, int y, int z) {
 		PathNode pathNode = new PathNode(x, y, z);
 		pathNode.heapIndex = this.heapIndex;
@@ -46,6 +55,15 @@ public class PathNode {
 		return pathNode;
 	}
 
+	/**
+	 * Проверяет наличие h.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return int — {@code true} если условие выполнено
+	 */
 	public static int hash(int x, int y, int z) {
 		return y & 0xFF | (x & 32767) << 8 | (z & 32767) << 24 | (x < 0 ? Integer.MIN_VALUE : 0) | (z < 0 ? 32768 : 0);
 	}
@@ -128,6 +146,11 @@ public class PathNode {
 		return "Node{x=" + this.x + ", y=" + this.y + ", z=" + this.z + "}";
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param buf buf
+	 */
 	public void write(PacketByteBuf buf) {
 		buf.writeInt(this.x);
 		buf.writeInt(this.y);
@@ -139,12 +162,25 @@ public class PathNode {
 		buf.writeFloat(this.heapWeight);
 	}
 
+	/**
+	 * From buf.
+	 *
+	 * @param buf buf
+	 *
+	 * @return PathNode — результат операции
+	 */
 	public static PathNode fromBuf(PacketByteBuf buf) {
 		PathNode pathNode = new PathNode(buf.readInt(), buf.readInt(), buf.readInt());
 		readFromBuf(buf, pathNode);
 		return pathNode;
 	}
 
+	/**
+	 * Читает from buf.
+	 *
+	 * @param buf buf
+	 * @param target target
+	 */
 	protected static void readFromBuf(PacketByteBuf buf, PathNode target) {
 		target.pathLength = buf.readFloat();
 		target.penalty = buf.readFloat();

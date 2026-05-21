@@ -15,16 +15,32 @@ public class RecipeFinder {
 
 	private final RecipeMatcher<RegistryEntry<Item>> recipeMatcher = new RecipeMatcher<>();
 
+	/**
+	 * Добавляет input if usable.
+	 *
+	 * @param item item
+	 */
 	public void addInputIfUsable(ItemStack item) {
 		if (PlayerInventory.usableWhenFillingSlot(item)) {
 			this.addInput(item);
 		}
 	}
 
+	/**
+	 * Добавляет input.
+	 *
+	 * @param item item
+	 */
 	public void addInput(ItemStack item) {
 		this.addInput(item, item.getMaxCount());
 	}
 
+	/**
+	 * Добавляет input.
+	 *
+	 * @param item item
+	 * @param maxCount max count
+	 */
 	public void addInput(ItemStack item, int maxCount) {
 		if (!item.isEmpty()) {
 			int i = Math.min(maxCount, item.getCount());
@@ -67,6 +83,14 @@ public class RecipeFinder {
 		return this.recipeMatcher.match(rawIngredients, quantity, itemCallback);
 	}
 
+	/**
+	 * Count crafts.
+	 *
+	 * @param recipe recipe
+	 * @param itemCallback item callback
+	 *
+	 * @return int — результат операции
+	 */
 	public int countCrafts(Recipe<?> recipe, RecipeMatcher.@Nullable ItemCallback<RegistryEntry<Item>> itemCallback) {
 		return this.countCrafts(recipe, Integer.MAX_VALUE, itemCallback);
 	}
@@ -79,6 +103,9 @@ public class RecipeFinder {
 		return this.recipeMatcher.countCrafts(recipe.getIngredientPlacement().getIngredients(), max, itemCallback);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.recipeMatcher.clear();
 	}

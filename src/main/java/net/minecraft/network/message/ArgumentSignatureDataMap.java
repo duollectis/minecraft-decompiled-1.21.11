@@ -8,6 +8,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Запись argument signature data map.
+ */
 public record ArgumentSignatureDataMap(List<ArgumentSignatureDataMap.Entry> entries) {
 
 	public static final ArgumentSignatureDataMap EMPTY = new ArgumentSignatureDataMap(List.of());
@@ -21,6 +24,11 @@ public record ArgumentSignatureDataMap(List<ArgumentSignatureDataMap.Entry> entr
 		));
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param buf buf
+	 */
 	public void write(PacketByteBuf buf) {
 		buf.writeCollection(this.entries, (buf2, entry) -> entry.write(buf2));
 	}
@@ -40,17 +48,28 @@ public record ArgumentSignatureDataMap(List<ArgumentSignatureDataMap.Entry> entr
 	}
 
 	@FunctionalInterface
+	/**
+	 * Интерфейс argument signer.
+	 */
 	public interface ArgumentSigner {
 
 		@Nullable MessageSignatureData sign(String value);
 	}
 
+	/**
+	 * Запись entry.
+	 */
 	public record Entry(String name, MessageSignatureData signature) {
 
 		public Entry(PacketByteBuf buf) {
 			this(buf.readString(16), MessageSignatureData.fromBuf(buf));
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 */
 		public void write(PacketByteBuf buf) {
 			buf.writeString(this.name, 16);
 			MessageSignatureData.write(buf, this.signature);

@@ -22,6 +22,13 @@ public class UriUtil {
 			}, URI::toString
 	);
 
+	/**
+	 * Создаёт schemas uri.
+	 *
+	 * @param id id
+	 *
+	 * @return URI — результат операции
+	 */
 	public static URI createSchemasUri(String id) {
 		return URI.create("#/components/schemas/" + id);
 	}

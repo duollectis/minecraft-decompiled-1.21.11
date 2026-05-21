@@ -36,6 +36,14 @@ public class SplashTextRenderer {
 		this.text = text;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 * @param screenWidth screen width
+	 * @param textRenderer text renderer
+	 * @param alpha alpha
+	 */
 	public void render(DrawContext context, int screenWidth, TextRenderer textRenderer, float alpha) {
 		int i = textRenderer.getWidth(this.text);
 		DrawnTextConsumer drawnTextConsumer = context.getTextConsumer();

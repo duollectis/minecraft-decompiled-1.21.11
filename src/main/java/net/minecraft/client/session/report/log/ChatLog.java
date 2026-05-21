@@ -18,6 +18,13 @@ public class ChatLog {
 	private final ChatLogEntry[] entries;
 	private int currentIndex;
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param maxSize max size
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<ChatLog> createCodec(int maxSize) {
 		return Codec.list(ChatLogEntry.CODEC)
 		            .comapFlatMap(
@@ -52,10 +59,22 @@ public class ChatLog {
 		return list;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param entry entry
+	 */
 	public void add(ChatLogEntry entry) {
 		this.entries[this.wrapIndex(this.currentIndex++)] = entry;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param index index
+	 *
+	 * @return @Nullable ChatLogEntry — 
+	 */
 	public @Nullable ChatLogEntry get(int index) {
 		return index >= this.getMinIndex() && index <= this.getMaxIndex() ? this.entries[this.wrapIndex(index)] : null;
 	}

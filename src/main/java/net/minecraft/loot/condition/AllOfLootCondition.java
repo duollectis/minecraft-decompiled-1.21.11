@@ -18,6 +18,13 @@ public class AllOfLootCondition extends AlternativeLootCondition {
 		super(terms, Util.allOf(terms));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param terms terms
+	 *
+	 * @return AllOfLootCondition — результат операции
+	 */
 	public static AllOfLootCondition create(List<LootCondition> terms) {
 		return new AllOfLootCondition(List.copyOf(terms));
 	}

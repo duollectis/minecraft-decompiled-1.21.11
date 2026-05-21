@@ -70,6 +70,13 @@ public interface StringIdentifiable {
 
 	static Keyable toKeyable(StringIdentifiable[] values) {
 		return new Keyable() {
+			/**
+			 * Keys.
+			 *
+			 * @param ops ops
+			 *
+			 * @return Stream — результат операции
+			 */
 			public <T> Stream<T> keys(DynamicOps<T> ops) {
 				return Arrays.stream(values).map(StringIdentifiable::asString).map(ops::createString);
 			}
@@ -102,6 +109,15 @@ public interface StringIdentifiable {
 			return this.codec.decode(ops, input);
 		}
 
+		/**
+		 * Encode.
+		 *
+		 * @param stringIdentifiable string identifiable
+		 * @param dynamicOps dynamic ops
+		 * @param object object
+		 *
+		 * @return DataResult — результат операции
+		 */
 		public <T> DataResult<T> encode(S stringIdentifiable, DynamicOps<T> dynamicOps, T object) {
 			return this.codec.encode(stringIdentifiable, dynamicOps, object);
 		}
@@ -119,14 +135,37 @@ public interface StringIdentifiable {
 			this.idToIdentifiable = idToIdentifiable;
 		}
 
+		/**
+		 * By id.
+		 *
+		 * @param id id
+		 *
+		 * @return @Nullable E — результат операции
+		 */
 		public @Nullable E byId(String id) {
 			return this.idToIdentifiable.apply(id);
 		}
 
+		/**
+		 * By id.
+		 *
+		 * @param id id
+		 * @param fallback fallback
+		 *
+		 * @return E — результат операции
+		 */
 		public E byId(String id, E fallback) {
 			return Objects.requireNonNullElse(this.byId(id), fallback);
 		}
 
+		/**
+		 * By id.
+		 *
+		 * @param id id
+		 * @param fallbackSupplier fallback supplier
+		 *
+		 * @return E — результат операции
+		 */
 		public E byId(String id, Supplier<? extends E> fallbackSupplier) {
 			return Objects.requireNonNullElseGet(this.byId(id), fallbackSupplier);
 		}

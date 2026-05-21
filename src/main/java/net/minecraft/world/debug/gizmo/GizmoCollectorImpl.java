@@ -35,6 +35,11 @@ public class GizmoCollectorImpl implements GizmoCollector {
 		return this.gizmos;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param gizmos gizmos
+	 */
 	public void add(Collection<GizmoCollectorImpl.Entry> gizmos) {
 		this.pendingGizmos.addAll(gizmos);
 	}
@@ -84,6 +89,11 @@ public class GizmoCollectorImpl implements GizmoCollector {
 			}
 		}
 
+		/**
+		 * Ignores occlusion.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean ignoresOcclusion() {
 			return this.ignoreOcclusion;
 		}

@@ -33,6 +33,14 @@ public enum SizeUnit {
 		}
 	}
 
+	/**
+	 * Конвертирует to unit.
+	 *
+	 * @param bytes bytes
+	 * @param unit unit
+	 *
+	 * @return double — результат операции
+	 */
 	public static double convertToUnit(long bytes, SizeUnit unit) {
 		return unit == B ? bytes : bytes / Math.pow(1024.0, unit.ordinal());
 	}
@@ -49,6 +57,14 @@ public enum SizeUnit {
 		}
 	}
 
+	/**
+	 * Human readable size.
+	 *
+	 * @param bytes bytes
+	 * @param unit unit
+	 *
+	 * @return String — результат операции
+	 */
 	public static String humanReadableSize(long bytes, SizeUnit unit) {
 		return String.format(
 				Locale.ROOT,

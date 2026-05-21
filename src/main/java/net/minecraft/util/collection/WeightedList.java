@@ -30,6 +30,13 @@ public class WeightedList<U> implements Iterable<U> {
 		this.entries = Lists.newArrayList(list);
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param codec codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <U> Codec<WeightedList<U>> createCodec(Codec<U> codec) {
 		return WeightedList.Entry
 				.createCodec(codec)
@@ -37,17 +44,35 @@ public class WeightedList<U> implements Iterable<U> {
 				.xmap(WeightedList::new, weightedList -> weightedList.entries);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param data data
+	 * @param weight weight
+	 *
+	 * @return WeightedList — результат операции
+	 */
 	public WeightedList<U> add(U data, int weight) {
 		this.entries.add(new WeightedList.Entry<>(data, weight));
 		return this;
 	}
 
+	/**
+	 * Shuffle.
+	 *
+	 * @return WeightedList — результат операции
+	 */
 	public WeightedList<U> shuffle() {
 		this.entries.forEach(entry -> entry.setShuffledOrder(this.random.nextFloat()));
 		this.entries.sort(Comparator.comparingDouble(WeightedList.Entry::getShuffledOrder));
 		return this;
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<U> stream() {
 		return this.entries.stream().map(WeightedList.Entry::getElement);
 	}
@@ -107,6 +132,15 @@ public class WeightedList<U> implements Iterable<U> {
 					              .map(entry -> Pair.of(entry, ops.empty()));
 				}
 
+				/**
+				 * Encode.
+				 *
+				 * @param entry entry
+				 * @param dynamicOps dynamic ops
+				 * @param object object
+				 *
+				 * @return DataResult — результат операции
+				 */
 				public <T> DataResult<T> encode(WeightedList.Entry<E> entry, DynamicOps<T> dynamicOps, T object) {
 					return dynamicOps.mapBuilder()
 					                 .add("weight", dynamicOps.createInt(entry.weight))

@@ -39,10 +39,22 @@ public class BeeEntityRenderer extends AgeableMobEntityRenderer<BeeEntity, BeeEn
 		}
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BeeEntityRenderState — результат операции
+	 */
 	public BeeEntityRenderState createRenderState() {
 		return new BeeEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param beeEntity bee entity
+	 * @param beeEntityRenderState bee entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(BeeEntity beeEntity, BeeEntityRenderState beeEntityRenderState, float f) {
 		super.updateRenderState(beeEntity, beeEntityRenderState, f);
 		beeEntityRenderState.bodyPitch = beeEntity.getBodyPitch(f);

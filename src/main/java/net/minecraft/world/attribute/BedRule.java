@@ -39,10 +39,24 @@ public record BedRule(
 			                    .apply(instance, BedRule::new)
 	);
 
+	/**
+	 * Проверяет возможность sleep.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSleep(World world) {
 		return this.canSleep.test(world);
 	}
 
+	/**
+	 * Проверяет возможность set spawn.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSetSpawn(World world) {
 		return this.canSetSpawn.test(world);
 	}
@@ -66,6 +80,13 @@ public record BedRule(
 			this.name = name;
 		}
 
+		/**
+		 * Test.
+		 *
+		 * @param world world
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean test(World world) {
 			return switch (this) {
 				case ALWAYS -> true;

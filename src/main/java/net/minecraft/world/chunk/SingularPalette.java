@@ -23,6 +23,14 @@ public class SingularPalette<T> implements Palette<T> {
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param bitSize bit size
+	 * @param idList id list
+	 *
+	 * @return Palette — результат операции
+	 */
 	public static <A> Palette<A> create(int bitSize, List<A> idList) {
 		return new SingularPalette<>(idList);
 	}

@@ -46,6 +46,11 @@ public class TextureStitcher<T extends TextureStitcher.Stitchable> {
 		return this.height;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param info info
+	 */
 	public void add(T info) {
 		TextureStitcher.Holder<T> holder = new TextureStitcher.Holder<>(
 				info,
@@ -55,6 +60,9 @@ public class TextureStitcher<T extends TextureStitcher.Stitchable> {
 		this.holders.add(holder);
 	}
 
+	/**
+	 * Stitch.
+	 */
 	public void stitch() {
 		List<TextureStitcher.Holder<T>> list = new ArrayList<>(this.holders);
 		list.sort(COMPARATOR);
@@ -165,6 +173,13 @@ public class TextureStitcher<T extends TextureStitcher.Stitchable> {
 			return this.y;
 		}
 
+		/**
+		 * Fit.
+		 *
+		 * @param holder holder
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean fit(TextureStitcher.Holder<T> holder) {
 			if (this.texture != null) {
 				return false;
@@ -218,6 +233,12 @@ public class TextureStitcher<T extends TextureStitcher.Stitchable> {
 			}
 		}
 
+		/**
+		 * Добавляет all filled slots.
+		 *
+		 * @param consumer consumer
+		 * @param padding padding
+		 */
 		public void addAllFilledSlots(TextureStitcher.SpriteConsumer<T> consumer, int padding) {
 			if (this.texture != null) {
 				consumer.load(this.texture.sprite, this.getX(), this.getY(), padding);

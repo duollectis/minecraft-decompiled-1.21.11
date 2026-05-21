@@ -34,6 +34,11 @@ public class TestInstanceBlockEntityRenderer implements BlockEntityRenderer<Test
 			structureBlockBlockEntityRenderer =
 			new StructureBlockBlockEntityRenderer<>();
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return TestInstanceBlockEntityRenderState — результат операции
+	 */
 	public TestInstanceBlockEntityRenderState createRenderState() {
 		return new TestInstanceBlockEntityRenderState();
 	}

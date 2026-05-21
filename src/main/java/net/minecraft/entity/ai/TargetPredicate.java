@@ -23,14 +23,29 @@ public class TargetPredicate {
 		this.attackable = attackable;
 	}
 
+	/**
+	 * Создаёт attackable.
+	 *
+	 * @return TargetPredicate — результат операции
+	 */
 	public static TargetPredicate createAttackable() {
 		return new TargetPredicate(true);
 	}
 
+	/**
+	 * Создаёт non attackable.
+	 *
+	 * @return TargetPredicate — результат операции
+	 */
 	public static TargetPredicate createNonAttackable() {
 		return new TargetPredicate(false);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return TargetPredicate — результат операции
+	 */
 	public TargetPredicate copy() {
 		TargetPredicate targetPredicate = this.attackable ? createAttackable() : createNonAttackable();
 		targetPredicate.baseMaxDistance = this.baseMaxDistance;
@@ -45,11 +60,21 @@ public class TargetPredicate {
 		return this;
 	}
 
+	/**
+	 * Ignore visibility.
+	 *
+	 * @return TargetPredicate — результат операции
+	 */
 	public TargetPredicate ignoreVisibility() {
 		this.respectsVisibility = false;
 		return this;
 	}
 
+	/**
+	 * Ignore distance scaling factor.
+	 *
+	 * @return TargetPredicate — результат операции
+	 */
 	public TargetPredicate ignoreDistanceScalingFactor() {
 		this.useDistanceScalingFactor = false;
 		return this;
@@ -60,6 +85,15 @@ public class TargetPredicate {
 		return this;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param world world
+	 * @param tester tester
+	 * @param target target
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(ServerWorld world, @Nullable LivingEntity tester, LivingEntity target) {
 		if (tester == target) {
 			return false;

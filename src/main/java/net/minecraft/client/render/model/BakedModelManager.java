@@ -389,6 +389,14 @@ public class BakedModelManager implements ResourceReloader, FabricBakedModelMana
 		this.entityModels = bakingResult.entityModelSet;
 	}
 
+	/**
+	 * Определяет, следует ли rerender.
+	 *
+	 * @param from from
+	 * @param to to
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRerender(BlockState from, BlockState to) {
 		if (from == to) {
 			return false;

@@ -26,6 +26,11 @@ public class SoundEntry {
 		return this.sounds;
 	}
 
+	/**
+	 * Проверяет возможность replace.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canReplace() {
 		return this.replace;
 	}

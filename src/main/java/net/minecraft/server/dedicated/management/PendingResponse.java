@@ -15,6 +15,11 @@ public record PendingResponse<Result>(
 		long timeoutTime
 ) {
 
+	/**
+	 * Обрабатывает response.
+	 *
+	 * @param result result
+	 */
 	public void handleResponse(JsonElement result) {
 		try {
 			Result object = (Result) this.method.value().decodeResult(result);
@@ -25,6 +30,13 @@ public record PendingResponse<Result>(
 		}
 	}
 
+	/**
+	 * Определяет, следует ли timeout.
+	 *
+	 * @param time time
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTimeout(long time) {
 		return time > this.timeoutTime;
 	}

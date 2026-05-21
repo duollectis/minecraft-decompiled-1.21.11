@@ -39,10 +39,20 @@ public enum MusicToastMode implements StringIdentifiable {
 		return this.id;
 	}
 
+	/**
+	 * Проверяет возможность show.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canShow() {
 		return this != NEVER;
 	}
 
+	/**
+	 * Проверяет возможность show as toast.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canShowAsToast() {
 		return this == PAUSE_AND_TOAST;
 	}

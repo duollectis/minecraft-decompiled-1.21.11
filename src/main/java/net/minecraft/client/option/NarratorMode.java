@@ -38,18 +38,40 @@ public enum NarratorMode {
 		return this.name;
 	}
 
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 *
+	 * @return NarratorMode — результат операции
+	 */
 	public static NarratorMode byId(int id) {
 		return BY_ID.apply(id);
 	}
 
+	/**
+	 * Определяет, следует ли narrate chat.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldNarrateChat() {
 		return this == ALL || this == CHAT;
 	}
 
+	/**
+	 * Определяет, следует ли narrate system.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldNarrateSystem() {
 		return this == ALL || this == SYSTEM;
 	}
 
+	/**
+	 * Определяет, следует ли narrate.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldNarrate() {
 		return this == ALL || this == SYSTEM || this == CHAT;
 	}

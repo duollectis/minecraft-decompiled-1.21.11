@@ -31,6 +31,13 @@ public class OperatorList extends ServerConfigList<PlayerConfigEntry, OperatorEn
 				.toArray(String[]::new);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param operatorEntry operator entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean add(OperatorEntry operatorEntry) {
 		if (super.add(operatorEntry)) {
 			if (operatorEntry.getKey() != null) {
@@ -44,6 +51,13 @@ public class OperatorList extends ServerConfigList<PlayerConfigEntry, OperatorEn
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param playerConfigEntry player config entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean remove(PlayerConfigEntry playerConfigEntry) {
 		OperatorEntry operatorEntry = this.get(playerConfigEntry);
 		if (super.remove(playerConfigEntry)) {
@@ -69,11 +83,25 @@ public class OperatorList extends ServerConfigList<PlayerConfigEntry, OperatorEn
 		super.clear();
 	}
 
+	/**
+	 * Проверяет возможность bypass player limit.
+	 *
+	 * @param playerConfigEntry player config entry
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBypassPlayerLimit(PlayerConfigEntry playerConfigEntry) {
 		OperatorEntry operatorEntry = this.get(playerConfigEntry);
 		return operatorEntry != null ? operatorEntry.canBypassPlayerLimit() : false;
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param playerConfigEntry player config entry
+	 *
+	 * @return String — результат операции
+	 */
 	protected String toString(PlayerConfigEntry playerConfigEntry) {
 		return playerConfigEntry.id().toString();
 	}

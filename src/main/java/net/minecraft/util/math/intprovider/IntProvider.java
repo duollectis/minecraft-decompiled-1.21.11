@@ -22,10 +22,27 @@ public abstract class IntProvider {
 	public static final Codec<IntProvider> NON_NEGATIVE_CODEC = createValidatingCodec(0, Integer.MAX_VALUE);
 	public static final Codec<IntProvider> POSITIVE_CODEC = createValidatingCodec(1, Integer.MAX_VALUE);
 
+	/**
+	 * Создаёт validating codec.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<IntProvider> createValidatingCodec(int min, int max) {
 		return createValidatingCodec(min, max, VALUE_CODEC);
 	}
 
+	/**
+	 * Создаёт validating codec.
+	 *
+	 * @param min min
+	 * @param max max
+	 * @param providerCodec provider codec
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static <T extends IntProvider> Codec<T> createValidatingCodec(int min, int max, Codec<T> providerCodec) {
 		return providerCodec.validate(provider -> validateProvider(min, max, provider));
 	}
@@ -43,6 +60,13 @@ public abstract class IntProvider {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param random random
+	 *
+	 * @return int — 
+	 */
 	public abstract int get(Random random);
 
 	public abstract int getMin();

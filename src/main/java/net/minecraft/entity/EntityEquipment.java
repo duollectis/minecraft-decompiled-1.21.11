@@ -34,10 +34,25 @@ public class EntityEquipment {
 		this(new EnumMap<>(EquipmentSlot.class));
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param slot slot
+	 * @param itemStack item stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack put(EquipmentSlot slot, ItemStack itemStack) {
 		return Objects.requireNonNullElse(this.map.put(slot, itemStack), ItemStack.EMPTY);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param slot slot
+	 *
+	 * @return ItemStack — 
+	 */
 	public ItemStack get(EquipmentSlot slot) {
 		return this.map.getOrDefault(slot, ItemStack.EMPTY);
 	}
@@ -52,6 +67,11 @@ public class EntityEquipment {
 		return true;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param entity entity
+	 */
 	public void tick(Entity entity) {
 		for (Entry<EquipmentSlot, ItemStack> entry : this.map.entrySet()) {
 			ItemStack itemStack = entry.getValue();
@@ -61,11 +81,21 @@ public class EntityEquipment {
 		}
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param equipment equipment
+	 */
 	public void copyFrom(EntityEquipment equipment) {
 		this.map.clear();
 		this.map.putAll(equipment.map);
 	}
 
+	/**
+	 * Бросает all.
+	 *
+	 * @param entity entity
+	 */
 	public void dropAll(LivingEntity entity) {
 		for (ItemStack itemStack : this.map.values()) {
 			entity.dropItem(itemStack, true, false);
@@ -74,6 +104,9 @@ public class EntityEquipment {
 		this.clear();
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.map.replaceAll((slot, stack) -> ItemStack.EMPTY);
 	}

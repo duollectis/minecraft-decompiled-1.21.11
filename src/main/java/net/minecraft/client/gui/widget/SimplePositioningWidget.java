@@ -48,6 +48,11 @@ public class SimplePositioningWidget extends WrapperWidget {
 		return this;
 	}
 
+	/**
+	 * Создаёт копию positioner.
+	 *
+	 * @return Positioner — результат операции
+	 */
 	public Positioner copyPositioner() {
 		return this.mainPositioner.copy();
 	}
@@ -76,15 +81,38 @@ public class SimplePositioningWidget extends WrapperWidget {
 		this.height = j;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget) {
 		return this.add(widget, this.copyPositioner());
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 * @param positioner positioner
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget, Positioner positioner) {
 		this.elements.add(new SimplePositioningWidget.Element(widget, positioner));
 		return widget;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 * @param callback callback
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget, Consumer<Positioner> callback) {
 		return this.add(widget, Util.make(this.copyPositioner(), callback));
 	}

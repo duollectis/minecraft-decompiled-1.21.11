@@ -255,6 +255,11 @@ public class TreeConfiguredFeatures {
 				.ignoreVines();
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		RegistryEntryLookup<Block> registryEntryLookup = featureRegisterable.getRegistryLookup(RegistryKeys.BLOCK);
 		BlockPredicate blockPredicate = BlockPredicate.matchingBlocks(

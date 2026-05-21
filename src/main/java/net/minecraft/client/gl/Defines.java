@@ -38,6 +38,13 @@ public record Defines(Map<String, String> values, Set<String> flags) {
 		return new Defines.Builder();
 	}
 
+	/**
+	 * With merged.
+	 *
+	 * @param other other
+	 *
+	 * @return Defines — результат операции
+	 */
 	public Defines withMerged(Defines other) {
 		if (this.isEmpty()) {
 			return other;
@@ -60,6 +67,11 @@ public record Defines(Map<String, String> values, Set<String> flags) {
 		}
 	}
 
+	/**
+	 * To source.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toSource() {
 		StringBuilder stringBuilder = new StringBuilder();
 
@@ -121,6 +133,11 @@ public record Defines(Map<String, String> values, Set<String> flags) {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return Defines — результат операции
+		 */
 		public Defines build() {
 			return new Defines(this.values.build(), this.flags.build());
 		}

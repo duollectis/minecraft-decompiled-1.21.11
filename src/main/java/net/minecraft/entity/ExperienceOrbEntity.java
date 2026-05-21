@@ -84,6 +84,11 @@ public class ExperienceOrbEntity extends Entity {
 		super(entityType, world);
 	}
 
+	/**
+	 * Try move to open space.
+	 *
+	 * @param boundingBoxLength bounding box length
+	 */
 	protected void tryMoveToOpenSpace(double boundingBoxLength) {
 		Vec3d vec3d = this.getEntityPos().add(0.0, this.getHeight() / 2.0, 0.0);
 		VoxelShape
@@ -213,10 +218,25 @@ public class ExperienceOrbEntity extends Entity {
 		}
 	}
 
+	/**
+	 * Spawn.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param amount amount
+	 */
 	public static void spawn(ServerWorld world, Vec3d pos, int amount) {
 		spawn(world, pos, Vec3d.ZERO, amount);
 	}
 
+	/**
+	 * Spawn.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param velocity velocity
+	 * @param amount amount
+	 */
 	public static void spawn(ServerWorld world, Vec3d pos, Vec3d velocity, int amount) {
 		while (amount > 0) {
 			int i = roundToOrbSize(amount);
@@ -392,6 +412,13 @@ public class ExperienceOrbEntity extends Entity {
 		}
 	}
 
+	/**
+	 * Round to orb size.
+	 *
+	 * @param value value
+	 *
+	 * @return int — результат операции
+	 */
 	public static int roundToOrbSize(int value) {
 		if (value >= 2477) {
 			return 2477;

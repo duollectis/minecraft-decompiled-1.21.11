@@ -9,6 +9,16 @@ import net.minecraft.util.math.Vec3d;
  */
 public record QuadGizmo(Vec3d a, Vec3d b, Vec3d c, Vec3d d, DrawStyle style) implements Gizmo {
 
+	/**
+	 * Of face.
+	 *
+	 * @param nwd nwd
+	 * @param seu seu
+	 * @param direction direction
+	 * @param style style
+	 *
+	 * @return QuadGizmo — результат операции
+	 */
 	public static QuadGizmo ofFace(Vec3d nwd, Vec3d seu, Direction direction, DrawStyle style) {
 		return switch (direction) {
 			case DOWN -> new QuadGizmo(

@@ -27,6 +27,11 @@ public class DebugPathCommand {
 			TARGET_NOT_REACHED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.literal("Target not reached"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("debugpath")

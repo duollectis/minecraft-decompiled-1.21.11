@@ -25,6 +25,12 @@ public class SecondaryPointsOfInterestSensor extends Sensor<VillagerEntity> {
 		super(40);
 	}
 
+	/**
+	 * Sense.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 */
 	protected void sense(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		RegistryKey<World> registryKey = serverWorld.getRegistryKey();
 		BlockPos blockPos = villagerEntity.getBlockPos();

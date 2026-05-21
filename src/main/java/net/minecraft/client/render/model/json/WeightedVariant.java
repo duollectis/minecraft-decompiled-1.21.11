@@ -25,6 +25,13 @@ public record WeightedVariant(Pool<ModelVariant> variants) {
 		}
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param operator operator
+	 *
+	 * @return WeightedVariant — результат операции
+	 */
 	public WeightedVariant apply(ModelVariantOperator operator) {
 		return new WeightedVariant(this.variants.transform(operator));
 	}

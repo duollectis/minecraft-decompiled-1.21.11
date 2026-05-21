@@ -753,6 +753,9 @@ public class HeldItemRenderer {
 				                                                                                            to);
 	}
 
+	/**
+	 * Обновляет held items.
+	 */
 	public void updateHeldItems() {
 		this.lastEquipProgressMainHand = this.equipProgressMainHand;
 		this.lastEquipProgressOffHand = this.equipProgressOffHand;
@@ -790,6 +793,11 @@ public class HeldItemRenderer {
 		}
 	}
 
+	/**
+	 * Сбрасывает equip progress.
+	 *
+	 * @param hand hand
+	 */
 	public void resetEquipProgress(Hand hand) {
 		if (hand == Hand.MAIN_HAND) {
 			this.equipProgressMainHand = 0.0F;

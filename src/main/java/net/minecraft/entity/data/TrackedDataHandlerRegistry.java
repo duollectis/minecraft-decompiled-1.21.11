@@ -59,6 +59,13 @@ public class TrackedDataHandlerRegistry {
 			return ItemStack.OPTIONAL_PACKET_CODEC;
 		}
 
+		/**
+		 * Copy.
+		 *
+		 * @param itemStack item stack
+		 *
+		 * @return ItemStack — результат операции
+		 */
 		public ItemStack copy(ItemStack itemStack) {
 			return itemStack.copy();
 		}
@@ -69,6 +76,12 @@ public class TrackedDataHandlerRegistry {
 	private static final PacketCodec<ByteBuf, Optional<BlockState>>
 			OPTIONAL_BLOCK_STATE_CODEC =
 			new PacketCodec<ByteBuf, Optional<BlockState>>() {
+				/**
+				 * Encode.
+				 *
+				 * @param byteBuf byte buf
+				 * @param optional optional
+				 */
 				public void encode(ByteBuf byteBuf, Optional<BlockState> optional) {
 					if (optional.isPresent()) {
 						VarInts.write(byteBuf, Block.getRawIdFromState(optional.get()));
@@ -78,6 +91,13 @@ public class TrackedDataHandlerRegistry {
 					}
 				}
 
+				/**
+				 * Decode.
+				 *
+				 * @param byteBuf byte buf
+				 *
+				 * @return Optional — результат операции
+				 */
 				public Optional<BlockState> decode(ByteBuf byteBuf) {
 					int i = VarInts.read(byteBuf);
 					return i == 0 ? Optional.empty() : Optional.of(Block.getStateFromRawId(i));
@@ -115,11 +135,24 @@ public class TrackedDataHandlerRegistry {
 	private static final PacketCodec<ByteBuf, OptionalInt>
 			OPTIONAL_INT_CODEC =
 			new PacketCodec<ByteBuf, OptionalInt>() {
+				/**
+				 * Decode.
+				 *
+				 * @param byteBuf byte buf
+				 *
+				 * @return OptionalInt — результат операции
+				 */
 				public OptionalInt decode(ByteBuf byteBuf) {
 					int i = VarInts.read(byteBuf);
 					return i == 0 ? OptionalInt.empty() : OptionalInt.of(i - 1);
 				}
 
+				/**
+				 * Encode.
+				 *
+				 * @param byteBuf byte buf
+				 * @param optionalInt optional int
+				 */
 				public void encode(ByteBuf byteBuf, OptionalInt optionalInt) {
 					VarInts.write(byteBuf, optionalInt.orElse(-1) + 1);
 				}
@@ -176,10 +209,22 @@ public class TrackedDataHandlerRegistry {
 			TrackedDataHandler.create(ProfileComponent.PACKET_CODEC);
 	public static final TrackedDataHandler<Arm> ARM = TrackedDataHandler.create(Arm.PACKET_CODEC);
 
+	/**
+	 * Register.
+	 *
+	 * @param handler handler
+	 */
 	public static void register(TrackedDataHandler<?> handler) {
 		DATA_HANDLERS.add(handler);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable TrackedDataHandler — 
+	 */
 	public static @Nullable TrackedDataHandler<?> get(int id) {
 		return DATA_HANDLERS.get(id);
 	}

@@ -64,6 +64,13 @@ public class CropBlock extends PlantBlock implements Fertilizable {
 		return state.get(this.getAgeProperty());
 	}
 
+	/**
+	 * With age.
+	 *
+	 * @param age age
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public BlockState withAge(int age) {
 		return this.getDefaultState().with(this.getAgeProperty(), age);
 	}
@@ -90,6 +97,13 @@ public class CropBlock extends PlantBlock implements Fertilizable {
 		}
 	}
 
+	/**
+	 * Применяет growth.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	public void applyGrowth(World world, BlockPos pos, BlockState state) {
 		int i = Math.min(this.getMaxAge(), this.getAge(state) + this.getGrowthAmount(world));
 		world.setBlockState(pos, this.withAge(i), 2);

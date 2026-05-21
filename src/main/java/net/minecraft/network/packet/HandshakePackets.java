@@ -5,6 +5,9 @@ import net.minecraft.network.listener.ServerHandshakePacketListener;
 import net.minecraft.network.packet.c2s.handshake.HandshakeC2SPacket;
 import net.minecraft.util.Identifier;
 
+/**
+ * Класс handshake packets.
+ */
 public class HandshakePackets {
 
 	public static final PacketType<HandshakeC2SPacket> INTENTION = c2s("intention");

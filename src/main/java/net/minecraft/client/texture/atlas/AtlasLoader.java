@@ -66,6 +66,14 @@ public class AtlasLoader {
 		return builder.build();
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param resourceManager resource manager
+	 * @param id id
+	 *
+	 * @return AtlasLoader — результат операции
+	 */
 	public static AtlasLoader of(ResourceManager resourceManager, Identifier id) {
 		Identifier identifier = FINDER.toResourcePath(id);
 		List<AtlasSource> list = new ArrayList<>();

@@ -43,6 +43,14 @@ public class SonicBoomTask extends MultiTickTask<WardenEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, WardenEntity wardenEntity) {
 		return wardenEntity.isInRange(
 				wardenEntity
@@ -52,10 +60,26 @@ public class SonicBoomTask extends MultiTickTask<WardenEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
 		return true;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
 		wardenEntity.getBrain().remember(MemoryModuleType.ATTACK_COOLING_DOWN, true, RUN_TIME);
 		wardenEntity.getBrain().remember(MemoryModuleType.SONIC_BOOM_SOUND_DELAY, Unit.INSTANCE, SOUND_DELAY);
@@ -63,6 +87,13 @@ public class SonicBoomTask extends MultiTickTask<WardenEntity> {
 		wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_SONIC_CHARGE, 3.0F, 1.0F);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
 		wardenEntity.getBrain()
 		            .getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET)
@@ -122,10 +153,23 @@ public class SonicBoomTask extends MultiTickTask<WardenEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
 		cooldown(wardenEntity, 40);
 	}
 
+	/**
+	 * Cooldown.
+	 *
+	 * @param warden warden
+	 * @param cooldown cooldown
+	 */
 	public static void cooldown(LivingEntity warden, int cooldown) {
 		warden.getBrain().remember(MemoryModuleType.SONIC_BOOM_COOLDOWN, Unit.INSTANCE, cooldown);
 	}

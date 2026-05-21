@@ -35,8 +35,26 @@ public abstract class ThrowablePotionItem extends PotionItem implements Projecti
 		return ActionResult.SUCCESS;
 	}
 
+	/**
+	 * Создаёт entity.
+	 *
+	 * @param world world
+	 * @param user user
+	 * @param stack stack
+	 *
+	 * @return PotionEntity — результат операции
+	 */
 	protected abstract PotionEntity createEntity(ServerWorld world, LivingEntity user, ItemStack stack);
 
+	/**
+	 * Создаёт entity.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param stack stack
+	 *
+	 * @return PotionEntity — результат операции
+	 */
 	protected abstract PotionEntity createEntity(World world, Position pos, ItemStack stack);
 
 	@Override

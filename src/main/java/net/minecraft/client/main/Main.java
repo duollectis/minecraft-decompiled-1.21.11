@@ -60,6 +60,11 @@ import java.util.stream.Stream;
 public class Main {
 
 	@DontObfuscate
+	/**
+	 * Main.
+	 *
+	 * @param args args
+	 */
 	public static void main(String[] args) {
 		OptionParser optionParser = new OptionParser();
 		optionParser.allowsUnrecognizedOptions();

@@ -26,6 +26,11 @@ public class PlayWithVillagerBabiesTask {
 	private static final int MAX_BABY_INTERACTION_COUNT = 5;
 	private static final int RUN_CHANCE = 10;
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<PathAwareEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(

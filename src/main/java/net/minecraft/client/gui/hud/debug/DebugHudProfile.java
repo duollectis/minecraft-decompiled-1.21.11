@@ -50,6 +50,9 @@ public class DebugHudProfile {
 		this.readProfileFile();
 	}
 
+	/**
+	 * Читает profile file.
+	 */
 	public void readProfileFile() {
 		try {
 			if (!this.file.isFile()) {
@@ -116,6 +119,13 @@ public class DebugHudProfile {
 		this.saveProfileFile();
 	}
 
+	/**
+	 * Toggle visibility.
+	 *
+	 * @param entryId entry id
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean toggleVisibility(Identifier entryId) {
 		switch ((DebugHudEntryVisibility) this.visibilityMap.get(entryId)) {
 			case ALWAYS_ON:
@@ -149,6 +159,9 @@ public class DebugHudProfile {
 		return this.visibleEntries;
 	}
 
+	/**
+	 * Toggle f3 enabled.
+	 */
 	public void toggleF3Enabled() {
 		this.setF3Enabled(!this.f3Enabled);
 	}
@@ -164,6 +177,9 @@ public class DebugHudProfile {
 		return this.f3Enabled;
 	}
 
+	/**
+	 * Обновляет visible entries.
+	 */
 	public void updateVisibleEntries() {
 		this.visibleEntries.clear();
 		boolean bl = MinecraftClient.getInstance().hasReducedDebugInfo();
@@ -186,10 +202,20 @@ public class DebugHudProfile {
 		return this.version;
 	}
 
+	/**
+	 * Profile type matches.
+	 *
+	 * @param type type
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean profileTypeMatches(DebugProfileType type) {
 		return this.type == type;
 	}
 
+	/**
+	 * Сохраняет profile file.
+	 */
 	public void saveProfileFile() {
 		DebugHudProfile.Serialization serialization = new DebugHudProfile.Serialization(
 				Optional.ofNullable(this.type), this.type == null ? Optional.of(this.visibilityMap) : Optional.empty()

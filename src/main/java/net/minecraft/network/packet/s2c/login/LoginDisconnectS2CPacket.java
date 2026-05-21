@@ -14,6 +14,9 @@ import net.minecraft.registry.RegistryOps;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
+/**
+ * Запись login disconnect s2 c packet.
+ */
 public record LoginDisconnectS2CPacket(Text reason) implements Packet<ClientLoginPacketListener> {
 
 	private static final RegistryOps<JsonElement> OPS = DynamicRegistryManager.EMPTY.getOps(JsonOps.INSTANCE);
@@ -28,6 +31,11 @@ public record LoginDisconnectS2CPacket(Text reason) implements Packet<ClientLogi
 		return LoginPackets.LOGIN_DISCONNECT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientLoginPacketListener client login packet listener
+	 */
 	public void apply(ClientLoginPacketListener clientLoginPacketListener) {
 		clientLoginPacketListener.onDisconnect(this);
 	}

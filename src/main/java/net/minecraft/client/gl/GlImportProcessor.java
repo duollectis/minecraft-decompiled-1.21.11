@@ -31,6 +31,13 @@ public abstract class GlImportProcessor {
 			TRAILING_WHITESPACE_PATTERN =
 			Pattern.compile("(?:^|\\v)(?:\\s|/\\*(?:[^*]|\\*+[^*/])*\\*+/|(//[^\\v]*))*\\z");
 
+	/**
+	 * Читает source.
+	 *
+	 * @param source source
+	 *
+	 * @return List — результат операции
+	 */
 	public List<String> readSource(String source) {
 		GlImportProcessor.Context context = new GlImportProcessor.Context();
 		List<String> list = this.parseImports(source, context, "");
@@ -145,8 +152,24 @@ public abstract class GlImportProcessor {
 		}
 	}
 
+	/**
+	 * Загружает import.
+	 *
+	 * @param inline inline
+	 * @param name name
+	 *
+	 * @return @Nullable String — результат операции
+	 */
 	public abstract @Nullable String loadImport(boolean inline, String name);
 
+	/**
+	 * Добавляет defines.
+	 *
+	 * @param source source
+	 * @param defines defines
+	 *
+	 * @return String — результат операции
+	 */
 	public static String addDefines(String source, Defines defines) {
 		if (defines.isEmpty()) {
 			return source;

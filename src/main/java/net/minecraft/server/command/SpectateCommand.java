@@ -27,6 +27,11 @@ public class SpectateCommand {
 			entityName -> Text.stringifiedTranslatable("commands.spectate.cannot_spectate", entityName)
 	);
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager

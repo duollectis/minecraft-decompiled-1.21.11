@@ -128,6 +128,13 @@ public abstract class PotionEntity extends ThrownItemEntity {
 		}
 	}
 
+	/**
+	 * Создаёт (спавнит) area effect cloud.
+	 *
+	 * @param world world
+	 * @param stack stack
+	 * @param hitResult hit result
+	 */
 	protected abstract void spawnAreaEffectCloud(ServerWorld world, ItemStack stack, HitResult hitResult);
 
 	private void extinguishFire(BlockPos pos) {

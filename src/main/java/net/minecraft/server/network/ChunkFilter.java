@@ -113,6 +113,13 @@ public interface ChunkFilter {
 		}
 
 		@VisibleForTesting
+		/**
+		 * Overlaps.
+		 *
+		 * @param o o
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean overlaps(ChunkFilter.Cylindrical o) {
 			return this.getLeft() <= o.getRight() && this.getRight() >= o.getLeft() && this.getBottom() <= o.getTop()
 					&& this.getTop() >= o.getBottom();

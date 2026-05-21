@@ -382,6 +382,12 @@ public class AllayEntity extends PathAwareEntity implements InventoryOwner, Vibr
 		}
 	}
 
+	/**
+	 * Обновляет jukebox pos.
+	 *
+	 * @param jukeboxPos jukebox pos
+	 * @param playing playing
+	 */
 	public void updateJukeboxPos(BlockPos jukeboxPos, boolean playing) {
 		if (playing) {
 			if (!this.isDancing()) {

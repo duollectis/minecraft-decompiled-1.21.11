@@ -31,10 +31,22 @@ public record LootDataType<T>(
 			LOOT_TABLES =
 			new LootDataType<>(RegistryKeys.LOOT_TABLE, LootTable.CODEC, tableValidator());
 
+	/**
+	 * Validate.
+	 *
+	 * @param reporter reporter
+	 * @param key key
+	 * @param value value
+	 */
 	public void validate(LootTableReporter reporter, RegistryKey<T> key, T value) {
 		this.validator.run(reporter, key, value);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @return Stream> — результат операции
+	 */
 	public static Stream<LootDataType<?>> stream() {
 		return Stream.of(PREDICATES, ITEM_MODIFIERS, LOOT_TABLES);
 	}

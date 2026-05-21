@@ -10,6 +10,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись entity position sync s2 c packet.
+ */
 public record EntityPositionSyncS2CPacket(
 		int id,
 		EntityPosition values,
@@ -26,6 +29,13 @@ public record EntityPositionSyncS2CPacket(
 			EntityPositionSyncS2CPacket::new
 	);
 
+	/**
+	 * Create.
+	 *
+	 * @param entity entity
+	 *
+	 * @return EntityPositionSyncS2CPacket — результат операции
+	 */
 	public static EntityPositionSyncS2CPacket create(Entity entity) {
 		return new EntityPositionSyncS2CPacket(
 				entity.getId(),
@@ -39,6 +49,11 @@ public record EntityPositionSyncS2CPacket(
 		return PlayPackets.ENTITY_POSITION_SYNC;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntityPositionSync(this);
 	}

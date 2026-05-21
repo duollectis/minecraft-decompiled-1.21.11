@@ -96,6 +96,11 @@ public class CreakingEntity extends HostileEntity {
 		this.experiencePoints = 0;
 	}
 
+	/**
+	 * Инициализирует home pos.
+	 *
+	 * @param homePos home pos
+	 */
 	public void initHomePos(BlockPos homePos) {
 		this.setHomePos(homePos);
 		this.setPathfindingPenalty(PathNodeType.DAMAGE_OTHER, 8.0F);
@@ -193,6 +198,13 @@ public class CreakingEntity extends HostileEntity {
 		}
 	}
 
+	/**
+	 * Become angry and get player.
+	 *
+	 * @param damageSource damage source
+	 *
+	 * @return PlayerEntity — результат операции
+	 */
 	public PlayerEntity becomeAngryAndGetPlayer(DamageSource damageSource) {
 		this.becomeAngry(damageSource);
 		return this.setAttackingPlayer(damageSource);
@@ -303,6 +315,9 @@ public class CreakingEntity extends HostileEntity {
 		this.crumblingAnimationState.setRunning(this.isCrumbling(), this.age);
 	}
 
+	/**
+	 * Finish crumbling.
+	 */
 	public void finishCrumbling() {
 		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
 			Box box = this.getBoundingBox();
@@ -343,6 +358,11 @@ public class CreakingEntity extends HostileEntity {
 		this.remove(Entity.RemovalReason.DISCARDED);
 	}
 
+	/**
+	 * Уничтожает from heart.
+	 *
+	 * @param damageSource damage source
+	 */
 	public void killFromHeart(DamageSource damageSource) {
 		this.becomeAngryAndGetPlayer(damageSource);
 		this.onDeath(damageSource);
@@ -434,6 +454,9 @@ public class CreakingEntity extends HostileEntity {
 		return this.glowingEyesWhileCrumbling;
 	}
 
+	/**
+	 * Обновляет crumbling eye flicker.
+	 */
 	public void updateCrumblingEyeFlicker() {
 		if (this.deathTime > this.nextEyeFlickerTime) {
 			this.nextEyeFlickerTime = this.deathTime
@@ -484,6 +507,11 @@ public class CreakingEntity extends HostileEntity {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли be unrooted.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldBeUnrooted() {
 		List<PlayerEntity>
 				list =
@@ -532,6 +560,11 @@ public class CreakingEntity extends HostileEntity {
 		}
 	}
 
+	/**
+	 * Activate.
+	 *
+	 * @param player player
+	 */
 	public void activate(PlayerEntity player) {
 		this.getBrain().remember(MemoryModuleType.ATTACK_TARGET, player);
 		this.emitGameEvent(GameEvent.ENTITY_ACTION);
@@ -539,6 +572,9 @@ public class CreakingEntity extends HostileEntity {
 		this.setActive(true);
 	}
 
+	/**
+	 * Deactivate.
+	 */
 	public void deactivate() {
 		this.getBrain().forget(MemoryModuleType.ATTACK_TARGET);
 		this.emitGameEvent(GameEvent.ENTITY_ACTION);

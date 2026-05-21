@@ -19,6 +19,13 @@ public class FrameGraphBuilder {
 	private final List<FrameGraphBuilder.ObjectNode<?>> objectNodes = new ArrayList<>();
 	private final List<FrameGraphBuilder.FramePassImpl> passes = new ArrayList<>();
 
+	/**
+	 * Создаёт pass.
+	 *
+	 * @param name name
+	 *
+	 * @return FramePass — результат операции
+	 */
 	public FramePass createPass(String name) {
 		FrameGraphBuilder.FramePassImpl framePassImpl = new FrameGraphBuilder.FramePassImpl(this.passes.size(), name);
 		this.passes.add(framePassImpl);
@@ -48,10 +55,21 @@ public class FrameGraphBuilder {
 		return resourceNode;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param allocator allocator
+	 */
 	public void run(ObjectAllocator allocator) {
 		this.run(allocator, FrameGraphBuilder.Profiler.NONE);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param allocator allocator
+	 * @param profiler profiler
+	 */
 	public void run(ObjectAllocator allocator, FrameGraphBuilder.Profiler profiler) {
 		BitSet bitSet = this.collectPassesToVisit();
 		List<FrameGraphBuilder.FramePassImpl> list = new ArrayList<>(bitSet.cardinality());
@@ -324,6 +342,11 @@ public class FrameGraphBuilder {
 			this.handle = new FrameGraphBuilder.Handle<>(this, 0, from);
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @return T — 
+		 */
 		public abstract T get();
 
 		@Override
@@ -398,6 +421,11 @@ public class FrameGraphBuilder {
 			return Objects.requireNonNull(this.resource, "Resource is not currently available");
 		}
 
+		/**
+		 * Acquire.
+		 *
+		 * @param allocator allocator
+		 */
 		public void acquire(ObjectAllocator allocator) {
 			if (this.resource != null) {
 				throw new IllegalStateException("Tried to acquire physical resource, but it was already assigned");
@@ -407,6 +435,11 @@ public class FrameGraphBuilder {
 			}
 		}
 
+		/**
+		 * Release.
+		 *
+		 * @param allocator allocator
+		 */
 		public void release(ObjectAllocator allocator) {
 			if (this.resource == null) {
 				throw new IllegalStateException("Tried to release physical resource that was not allocated");

@@ -70,6 +70,14 @@ public class ExplosionImpl implements Explosion {
 		return (ExplosionBehavior) (entity == null ? DEFAULT_BEHAVIOR : new EntityExplosionBehavior(entity));
 	}
 
+	/**
+	 * Вычисляет received damage.
+	 *
+	 * @param pos pos
+	 * @param entity entity
+	 *
+	 * @return float — результат операции
+	 */
 	public static float calculateReceivedDamage(Vec3d pos, Entity entity) {
 		Box box = entity.getBoundingBox();
 		double d = 1.0 / ((box.maxX - box.minX) * 2.0 + 1.0);
@@ -255,6 +263,11 @@ public class ExplosionImpl implements Explosion {
 		}
 	}
 
+	/**
+	 * Explode.
+	 *
+	 * @return int — результат операции
+	 */
 	public int explode() {
 		this.world.emitGameEvent(this.entity, GameEvent.EXPLODE, this.pos);
 		List<BlockPos> list = this.getBlocksToDestroy();
@@ -355,6 +368,11 @@ public class ExplosionImpl implements Explosion {
 			this.item = item;
 		}
 
+		/**
+		 * Merge.
+		 *
+		 * @param other other
+		 */
 		public void merge(ItemStack other) {
 			if (ItemEntity.canMerge(this.item, other)) {
 				this.item = ItemEntity.merge(this.item, other, 16);

@@ -30,6 +30,13 @@ public class GoToHomeTask {
 	private static final int RUN_TIME = 20;
 	private static final int MAX_DISTANCE = 4;
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<PathAwareEntity> create(float speed) {
 		Long2LongMap long2LongMap = new Long2LongOpenHashMap();
 		MutableLong mutableLong = new MutableLong(0L);

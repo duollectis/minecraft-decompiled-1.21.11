@@ -7,6 +7,9 @@ import net.minecraft.network.packet.ConfigPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Класс reset chat s2 c packet.
+ */
 public class ResetChatS2CPacket implements Packet<ClientConfigurationPacketListener> {
 
 	public static final ResetChatS2CPacket INSTANCE = new ResetChatS2CPacket();
@@ -20,6 +23,11 @@ public class ResetChatS2CPacket implements Packet<ClientConfigurationPacketListe
 		return ConfigPackets.RESET_CHAT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientConfigurationPacketListener client configuration packet listener
+	 */
 	public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
 		clientConfigurationPacketListener.onResetChat(this);
 	}

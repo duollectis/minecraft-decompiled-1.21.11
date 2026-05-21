@@ -13,6 +13,9 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Optional;
 
+/**
+ * Запись message signature data.
+ */
 public record MessageSignatureData(byte[] data) {
 
 	public static final Codec<MessageSignatureData>
@@ -25,20 +28,46 @@ public record MessageSignatureData(byte[] data) {
 		this.data = data;
 	}
 
+	/**
+	 * From buf.
+	 *
+	 * @param buf buf
+	 *
+	 * @return MessageSignatureData — результат операции
+	 */
 	public static MessageSignatureData fromBuf(PacketByteBuf buf) {
 		byte[] bs = new byte[256];
 		buf.readBytes(bs);
 		return new MessageSignatureData(bs);
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param buf buf
+	 * @param signature signature
+	 */
 	public static void write(PacketByteBuf buf, MessageSignatureData signature) {
 		buf.writeBytes(signature.data);
 	}
 
+	/**
+	 * Verify.
+	 *
+	 * @param verifier verifier
+	 * @param updatable updatable
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean verify(SignatureVerifier verifier, SignatureUpdatable updatable) {
 		return verifier.validate(updatable, this.data);
 	}
 
+	/**
+	 * To byte buffer.
+	 *
+	 * @return ByteBuffer — результат операции
+	 */
 	public ByteBuffer toByteBuffer() {
 		return ByteBuffer.wrap(this.data);
 	}
@@ -61,6 +90,13 @@ public record MessageSignatureData(byte[] data) {
 		return Base64.getEncoder().encodeToString(this.data);
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param signature signature
+	 *
+	 * @return String — результат операции
+	 */
 	public static String toString(@Nullable MessageSignatureData signature) {
 		return signature == null ? "<no signature>" : signature.toString();
 	}
@@ -70,10 +106,18 @@ public record MessageSignatureData(byte[] data) {
 		return i != -1 ? new MessageSignatureData.Indexed(i) : new MessageSignatureData.Indexed(this);
 	}
 
+	/**
+	 * Вычисляет checksum.
+	 *
+	 * @return int — результат операции
+	 */
 	public int calculateChecksum() {
 		return Arrays.hashCode(this.data);
 	}
 
+	/**
+	 * Запись indexed.
+	 */
 	public record Indexed(int id, @Nullable MessageSignatureData fullSignature) {
 
 		public static final int MISSING_ID = -1;
@@ -92,6 +136,12 @@ public record MessageSignatureData(byte[] data) {
 			               : new MessageSignatureData.Indexed(i);
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 * @param indexed indexed
+		 */
 		public static void write(PacketByteBuf buf, MessageSignatureData.Indexed indexed) {
 			buf.writeVarInt(indexed.id() + 1);
 			if (indexed.fullSignature() != null) {

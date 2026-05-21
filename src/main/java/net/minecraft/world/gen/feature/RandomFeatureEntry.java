@@ -28,6 +28,16 @@ public class RandomFeatureEntry {
 		this.chance = chance;
 	}
 
+	/**
+	 * Generate.
+	 *
+	 * @param world world
+	 * @param chunkGenerator chunk generator
+	 * @param random random
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean generate(StructureWorldAccess world, ChunkGenerator chunkGenerator, Random random, BlockPos pos) {
 		return this.feature.value().generateUnregistered(world, chunkGenerator, random, pos);
 	}

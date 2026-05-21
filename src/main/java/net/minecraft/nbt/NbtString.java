@@ -16,6 +16,14 @@ public record NbtString(String value) implements NbtPrimitive {
 
 	private static final int SIZE = 36;
 	public static final NbtType<NbtString> TYPE = new NbtType.OfVariableSize<NbtString>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtString — результат операции
+		 */
 		public NbtString read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 			return NbtString.of(readString(dataInput, nbtSizeTracker));
 		}
@@ -59,10 +67,22 @@ public record NbtString(String value) implements NbtPrimitive {
 		this.value = value;
 	}
 
+	/**
+	 * Skip.
+	 *
+	 * @param input input
+	 */
 	public static void skip(DataInput input) throws IOException {
 		input.skipBytes(input.readUnsignedShort());
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param value value
+	 *
+	 * @return NbtString — результат операции
+	 */
 	public static NbtString of(String value) {
 		return value.isEmpty() ? EMPTY : new NbtString(value);
 	}
@@ -94,6 +114,11 @@ public record NbtString(String value) implements NbtPrimitive {
 		return stringNbtWriter.getString();
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return NbtString — результат операции
+	 */
 	public NbtString copy() {
 		return this;
 	}
@@ -108,12 +133,25 @@ public record NbtString(String value) implements NbtPrimitive {
 		visitor.visitString(this);
 	}
 
+	/**
+	 * Escape.
+	 *
+	 * @param value value
+	 *
+	 * @return String — результат операции
+	 */
 	public static String escape(String value) {
 		StringBuilder stringBuilder = new StringBuilder();
 		appendEscaped(value, stringBuilder);
 		return stringBuilder.toString();
 	}
 
+	/**
+	 * Append escaped.
+	 *
+	 * @param value value
+	 * @param builder builder
+	 */
 	public static void appendEscaped(String value, StringBuilder builder) {
 		int i = builder.length();
 		builder.append(' ');
@@ -155,12 +193,25 @@ public record NbtString(String value) implements NbtPrimitive {
 		builder.append(c);
 	}
 
+	/**
+	 * Escape unquoted.
+	 *
+	 * @param value value
+	 *
+	 * @return String — результат операции
+	 */
 	public static String escapeUnquoted(String value) {
 		StringBuilder stringBuilder = new StringBuilder();
 		appendEscapedWithoutQuoting(value, stringBuilder);
 		return stringBuilder.toString();
 	}
 
+	/**
+	 * Append escaped without quoting.
+	 *
+	 * @param value value
+	 * @param builder builder
+	 */
 	public static void appendEscapedWithoutQuoting(String value, StringBuilder builder) {
 		for (int i = 0; i < value.length(); i++) {
 			char c = value.charAt(i);

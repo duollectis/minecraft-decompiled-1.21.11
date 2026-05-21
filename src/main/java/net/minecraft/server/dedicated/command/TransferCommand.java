@@ -26,6 +26,11 @@ public class TransferCommand {
 			Text.translatable("commands.transfer.error.no_players")
 	);
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("transfer")

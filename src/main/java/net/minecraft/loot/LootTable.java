@@ -85,6 +85,14 @@ public class LootTable {
 		this.combinedFunction = LootFunctionTypes.join(functions);
 	}
 
+	/**
+	 * Обрабатывает stacks.
+	 *
+	 * @param world world
+	 * @param consumer consumer
+	 *
+	 * @return Consumer — результат операции
+	 */
 	public static Consumer<ItemStack> processStacks(ServerWorld world, Consumer<ItemStack> consumer) {
 		return stack -> {
 			if (stack.isItemEnabled(world.getEnabledFeatures())) {
@@ -104,10 +112,22 @@ public class LootTable {
 		};
 	}
 
+	/**
+	 * Generate unprocessed loot.
+	 *
+	 * @param parameters parameters
+	 * @param lootConsumer loot consumer
+	 */
 	public void generateUnprocessedLoot(LootWorldContext parameters, Consumer<ItemStack> lootConsumer) {
 		this.generateUnprocessedLoot(new LootContext.Builder(parameters).build(this.randomSequenceId), lootConsumer);
 	}
 
+	/**
+	 * Generate unprocessed loot.
+	 *
+	 * @param context context
+	 * @param lootConsumer loot consumer
+	 */
 	public void generateUnprocessedLoot(LootContext context, Consumer<ItemStack> lootConsumer) {
 		LootContext.Entry<?> entry = LootContext.table(this);
 		if (context.markActive(entry)) {
@@ -124,6 +144,13 @@ public class LootTable {
 		}
 	}
 
+	/**
+	 * Generate loot.
+	 *
+	 * @param parameters parameters
+	 * @param seed seed
+	 * @param lootConsumer loot consumer
+	 */
 	public void generateLoot(LootWorldContext parameters, long seed, Consumer<ItemStack> lootConsumer) {
 		this.generateUnprocessedLoot(
 				new LootContext.Builder(parameters).random(seed).build(this.randomSequenceId),
@@ -131,22 +158,57 @@ public class LootTable {
 		);
 	}
 
+	/**
+	 * Generate loot.
+	 *
+	 * @param parameters parameters
+	 * @param lootConsumer loot consumer
+	 */
 	public void generateLoot(LootWorldContext parameters, Consumer<ItemStack> lootConsumer) {
 		this.generateUnprocessedLoot(parameters, processStacks(parameters.getWorld(), lootConsumer));
 	}
 
+	/**
+	 * Generate loot.
+	 *
+	 * @param context context
+	 * @param lootConsumer loot consumer
+	 */
 	public void generateLoot(LootContext context, Consumer<ItemStack> lootConsumer) {
 		this.generateUnprocessedLoot(context, processStacks(context.getWorld(), lootConsumer));
 	}
 
+	/**
+	 * Generate loot.
+	 *
+	 * @param parameters parameters
+	 * @param random random
+	 *
+	 * @return ObjectArrayList — результат операции
+	 */
 	public ObjectArrayList<ItemStack> generateLoot(LootWorldContext parameters, Random random) {
 		return this.generateLoot(new LootContext.Builder(parameters).random(random).build(this.randomSequenceId));
 	}
 
+	/**
+	 * Generate loot.
+	 *
+	 * @param parameters parameters
+	 * @param seed seed
+	 *
+	 * @return ObjectArrayList — результат операции
+	 */
 	public ObjectArrayList<ItemStack> generateLoot(LootWorldContext parameters, long seed) {
 		return this.generateLoot(new LootContext.Builder(parameters).random(seed).build(this.randomSequenceId));
 	}
 
+	/**
+	 * Generate loot.
+	 *
+	 * @param parameters parameters
+	 *
+	 * @return ObjectArrayList — результат операции
+	 */
 	public ObjectArrayList<ItemStack> generateLoot(LootWorldContext parameters) {
 		return this.generateLoot(new LootContext.Builder(parameters).build(this.randomSequenceId));
 	}
@@ -161,6 +223,11 @@ public class LootTable {
 		return this.type;
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param reporter reporter
+	 */
 	public void validate(LootTableReporter reporter) {
 		for (int i = 0; i < this.pools.size(); i++) {
 			this.pools.get(i).validate(reporter.makeChild(new ErrorReporter.NamedListElementContext("pools", i)));
@@ -173,6 +240,13 @@ public class LootTable {
 		}
 	}
 
+	/**
+	 * Supply inventory.
+	 *
+	 * @param inventory inventory
+	 * @param parameters parameters
+	 * @param seed seed
+	 */
 	public void supplyInventory(Inventory inventory, LootWorldContext parameters, long seed) {
 		LootContext lootContext = new LootContext.Builder(parameters).random(seed).build(this.randomSequenceId);
 		ObjectArrayList<ItemStack> objectArrayList = this.generateLoot(lootContext);
@@ -286,6 +360,11 @@ public class LootTable {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return LootTable — результат операции
+		 */
 		public LootTable build() {
 			return new LootTable(this.type, this.randomSequenceId, this.pools.build(), this.functions.build());
 		}

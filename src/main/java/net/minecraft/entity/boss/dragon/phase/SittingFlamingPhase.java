@@ -128,6 +128,9 @@ public class SittingFlamingPhase extends AbstractSittingPhase {
 		return PhaseType.SITTING_FLAMING;
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.timesRun = 0;
 	}

@@ -14,6 +14,13 @@ import java.util.List;
  */
 public class GoIndoorsTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<PathAwareEntity> create(float speed) {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET))

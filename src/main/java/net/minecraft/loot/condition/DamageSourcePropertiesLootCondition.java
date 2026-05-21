@@ -35,6 +35,13 @@ public record DamageSourcePropertiesLootCondition(Optional<DamageSourcePredicate
 		return Set.of(LootContextParameters.ORIGIN, LootContextParameters.DAMAGE_SOURCE);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		DamageSource damageSource = lootContext.get(LootContextParameters.DAMAGE_SOURCE);
 		Vec3d vec3d = lootContext.get(LootContextParameters.ORIGIN);

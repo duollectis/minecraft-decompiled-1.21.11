@@ -487,6 +487,11 @@ public class MaterialRules {
 
 		protected abstract long getCurrentUniqueValue();
 
+		/**
+		 * Test.
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected abstract boolean test();
 	}
 
@@ -601,6 +606,12 @@ public class MaterialRules {
 			this.heightContext = heightContext;
 		}
 
+		/**
+		 * Инициализирует horizontal context.
+		 *
+		 * @param blockX block x
+		 * @param blockZ block z
+		 */
 		protected void initHorizontalContext(int blockX, int blockZ) {
 			this.uniqueHorizontalPosValue++;
 			this.uniquePosValue++;
@@ -646,6 +657,11 @@ public class MaterialRules {
 			return chunkCoord << 4;
 		}
 
+		/**
+		 * Estimate surface height.
+		 *
+		 * @return int — результат операции
+		 */
 		protected int estimateSurfaceHeight() {
 			if (this.cachedSurfaceHeightKey != this.uniqueHorizontalPosValue) {
 				this.cachedSurfaceHeightKey = this.uniqueHorizontalPosValue;

@@ -111,6 +111,11 @@ public class GuardianEntity extends HostileEntity {
 		builder.add(BEAM_TARGET_ID, 0);
 	}
 
+	/**
+	 * Are spikes retracted.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areSpikesRetracted() {
 		return this.dataTracker.get(SPIKES_RETRACTED);
 	}

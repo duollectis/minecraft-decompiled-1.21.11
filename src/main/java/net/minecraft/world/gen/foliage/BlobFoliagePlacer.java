@@ -21,6 +21,13 @@ public class BlobFoliagePlacer extends FoliagePlacer {
 	);
 	protected final int height;
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param builder builder
+	 *
+	 * @return P3, IntProvider, IntProvider, Integer> — результат операции
+	 */
 	protected static <P extends BlobFoliagePlacer> P3<Mu<P>, IntProvider, IntProvider, Integer> createCodec(Instance<P> builder) {
 		return fillFoliagePlacerFields(builder).and(Codec
 				.intRange(0, 16)

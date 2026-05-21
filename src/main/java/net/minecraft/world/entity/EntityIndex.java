@@ -23,6 +23,14 @@ public class EntityIndex<T extends EntityLike> {
 	private final Int2ObjectMap<T> idToEntity = new Int2ObjectLinkedOpenHashMap();
 	private final Map<UUID, T> uuidToEntity = Maps.newHashMap();
 
+	/**
+	 * For each.
+	 *
+	 * @param filter filter
+	 * @param consumer consumer
+	 *
+	 * @return void — результат операции
+	 */
 	public <U extends T> void forEach(TypeFilter<T, U> filter, LazyIterationConsumer<U> consumer) {
 		ObjectIterator var3 = this.idToEntity.values().iterator();
 
@@ -35,10 +43,20 @@ public class EntityIndex<T extends EntityLike> {
 		}
 	}
 
+	/**
+	 * Iterate.
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public Iterable<T> iterate() {
 		return Iterables.unmodifiableIterable(this.idToEntity.values());
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param entity entity
+	 */
 	public void add(T entity) {
 		UUID uUID = entity.getUuid();
 		if (this.uuidToEntity.containsKey(uUID)) {
@@ -50,19 +68,43 @@ public class EntityIndex<T extends EntityLike> {
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param entity entity
+	 */
 	public void remove(T entity) {
 		this.uuidToEntity.remove(entity.getUuid());
 		this.idToEntity.remove(entity.getId());
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable T — 
+	 */
 	public @Nullable T get(int id) {
 		return (T) this.idToEntity.get(id);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return @Nullable T — 
+	 */
 	public @Nullable T get(UUID uuid) {
 		return this.uuidToEntity.get(uuid);
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.uuidToEntity.size();
 	}

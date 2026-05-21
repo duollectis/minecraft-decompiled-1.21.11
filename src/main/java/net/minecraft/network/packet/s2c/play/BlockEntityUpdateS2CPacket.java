@@ -16,6 +16,9 @@ import net.minecraft.util.math.BlockPos;
 
 import java.util.function.BiFunction;
 
+/**
+ * Класс block entity update s2 c packet.
+ */
 public class BlockEntityUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, BlockEntityUpdateS2CPacket> CODEC = PacketCodec.tuple(
@@ -43,6 +46,13 @@ public class BlockEntityUpdateS2CPacket implements Packet<ClientPlayPacketListen
 		);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param blockEntity block entity
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public static BlockEntityUpdateS2CPacket create(BlockEntity blockEntity) {
 		return create(blockEntity, BlockEntity::toInitialChunkDataNbt);
 	}
@@ -58,6 +68,11 @@ public class BlockEntityUpdateS2CPacket implements Packet<ClientPlayPacketListen
 		return PlayPackets.BLOCK_ENTITY_DATA;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onBlockEntityUpdate(this);
 	}

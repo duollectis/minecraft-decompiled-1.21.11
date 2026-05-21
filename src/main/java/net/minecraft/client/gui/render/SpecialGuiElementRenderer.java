@@ -38,6 +38,13 @@ public abstract class SpecialGuiElementRenderer<T extends SpecialGuiElementRende
 		this.vertexConsumers = vertexConsumers;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param elementState element state
+	 * @param state state
+	 * @param windowScaleFactor window scale factor
+	 */
 	public void render(T elementState, GuiRenderState state, int windowScaleFactor) {
 		int i = (elementState.x2() - elementState.x1()) * windowScaleFactor;
 		int j = (elementState.y2() - elementState.y1()) * windowScaleFactor;
@@ -61,6 +68,12 @@ public abstract class SpecialGuiElementRenderer<T extends SpecialGuiElementRende
 		}
 	}
 
+	/**
+	 * Отрисовывает element.
+	 *
+	 * @param element element
+	 * @param state state
+	 */
 	protected void renderElement(T element, GuiRenderState state) {
 		state.addSimpleElementToCurrentLayer(
 				new TexturedQuadGuiElementRenderState(
@@ -127,6 +140,13 @@ public abstract class SpecialGuiElementRenderer<T extends SpecialGuiElementRende
 		RenderSystem.setProjectionMatrix(this.projectionMatrix.set(width, height), ProjectionType.ORTHOGRAPHIC);
 	}
 
+	/**
+	 * Определяет, следует ли bypass scaling.
+	 *
+	 * @param elementRenderer element renderer
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldBypassScaling(T elementRenderer) {
 		return false;
 	}
@@ -158,6 +178,12 @@ public abstract class SpecialGuiElementRenderer<T extends SpecialGuiElementRende
 
 	public abstract Class<T> getElementClass();
 
+	/**
+	 * Render.
+	 *
+	 * @param state state
+	 * @param matrices matrices
+	 */
 	protected abstract void render(T state, MatrixStack matrices);
 
 	protected abstract String getName();

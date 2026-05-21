@@ -60,6 +60,13 @@ public abstract class ChunkLevelManager {
 
 	protected abstract @Nullable ChunkHolder setLevel(long pos, int level, @Nullable ChunkHolder holder, int i);
 
+	/**
+	 * Update.
+	 *
+	 * @param chunkLoadingManager chunk loading manager
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean update(ServerChunkLoadingManager chunkLoadingManager) {
 		this.distanceFromNearestPlayerTracker.updateLevels();
 		this.simulationDistanceLevelPropagator.updateLevels();
@@ -115,6 +122,12 @@ public abstract class ChunkLevelManager {
 		}
 	}
 
+	/**
+	 * Обрабатывает chunk enter.
+	 *
+	 * @param pos pos
+	 * @param player player
+	 */
 	public void handleChunkEnter(ChunkSectionPos pos, ServerPlayerEntity player) {
 		ChunkPos chunkPos = pos.toChunkPos();
 		long l = chunkPos.toLong();
@@ -129,6 +142,12 @@ public abstract class ChunkLevelManager {
 		);
 	}
 
+	/**
+	 * Обрабатывает chunk leave.
+	 *
+	 * @param pos pos
+	 * @param player player
+	 */
 	public void handleChunkLeave(ChunkSectionPos pos, ServerPlayerEntity player) {
 		ChunkPos chunkPos = pos.toChunkPos();
 		long l = chunkPos.toLong();
@@ -151,10 +170,24 @@ public abstract class ChunkLevelManager {
 		return Math.max(0, ChunkLevels.getLevelFromType(ChunkLevelType.ENTITY_TICKING) - this.simulationDistance);
 	}
 
+	/**
+	 * Определяет, следует ли tick entities.
+	 *
+	 * @param chunkPos chunk pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTickEntities(long chunkPos) {
 		return ChunkLevels.shouldTickEntities(this.simulationDistanceLevelPropagator.getLevel(chunkPos));
 	}
 
+	/**
+	 * Определяет, следует ли tick blocks.
+	 *
+	 * @param chunkPos chunk pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTickBlocks(long chunkPos) {
 		return ChunkLevels.shouldTickBlocks(this.simulationDistanceLevelPropagator.getLevel(chunkPos));
 	}
@@ -180,6 +213,13 @@ public abstract class ChunkLevelManager {
 		return this.distanceFromNearestPlayerTracker.distanceFromNearestPlayer.size();
 	}
 
+	/**
+	 * Определяет, следует ли tick.
+	 *
+	 * @param chunkPos chunk pos
+	 *
+	 * @return TriState — результат операции
+	 */
 	public TriState shouldTick(long chunkPos) {
 		this.distanceFromNearestPlayerTracker.updateLevels();
 		int i = this.distanceFromNearestPlayerTracker.getLevel(chunkPos);
@@ -191,6 +231,11 @@ public abstract class ChunkLevelManager {
 		}
 	}
 
+	/**
+	 * For each block ticking chunk.
+	 *
+	 * @param chunkPosConsumer chunk pos consumer
+	 */
 	public void forEachBlockTickingChunk(LongConsumer chunkPosConsumer) {
 		ObjectIterator var2 = Long2ByteMaps.fastIterable(this.simulationDistanceLevelPropagator.levels).iterator();
 
@@ -204,15 +249,30 @@ public abstract class ChunkLevelManager {
 		}
 	}
 
+	/**
+	 * Iterate chunk pos to tick.
+	 *
+	 * @return LongIterator — результат операции
+	 */
 	public LongIterator iterateChunkPosToTick() {
 		this.distanceFromNearestPlayerTracker.updateLevels();
 		return this.distanceFromNearestPlayerTracker.distanceFromNearestPlayer.keySet().iterator();
 	}
 
+	/**
+	 * To dump string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toDumpString() {
 		return this.scheduler.toDumpString();
 	}
 
+	/**
+	 * Определяет, следует ли delay shutdown.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDelayShutdown() {
 		return this.ticketManager.hasTickets();
 	}
@@ -249,6 +309,13 @@ public abstract class ChunkLevelManager {
 			this.onDistanceChange(id, b, level);
 		}
 
+		/**
+		 * Обрабатывает событие distance change.
+		 *
+		 * @param pos pos
+		 * @param oldDistance old distance
+		 * @param distance distance
+		 */
 		protected void onDistanceChange(long pos, int oldDistance, int distance) {
 		}
 
@@ -264,6 +331,9 @@ public abstract class ChunkLevelManager {
 			return objectSet != null && !objectSet.isEmpty();
 		}
 
+		/**
+		 * Обновляет levels.
+		 */
 		public void updateLevels() {
 			this.applyPendingUpdates(Integer.MAX_VALUE);
 		}

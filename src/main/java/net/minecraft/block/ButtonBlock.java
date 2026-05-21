@@ -117,6 +117,14 @@ public class ButtonBlock extends WallMountedBlock {
 		super.onExploded(state, world, pos, explosion, stackMerger);
 	}
 
+	/**
+	 * Power on.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param player player
+	 */
 	public void powerOn(BlockState state, World world, BlockPos pos, @Nullable PlayerEntity player) {
 		world.setBlockState(pos, state.with(POWERED, true), 3);
 		this.updateNeighbors(state, world, pos);
@@ -125,6 +133,14 @@ public class ButtonBlock extends WallMountedBlock {
 		world.emitGameEvent(player, GameEvent.BLOCK_ACTIVATE, pos);
 	}
 
+	/**
+	 * Play click sound.
+	 *
+	 * @param player player
+	 * @param world world
+	 * @param pos pos
+	 * @param powered powered
+	 */
 	protected void playClickSound(@Nullable PlayerEntity player, WorldAccess world, BlockPos pos, boolean powered) {
 		world.playSound(powered ? player : null, pos, this.getClickSound(powered), SoundCategory.BLOCKS);
 	}
@@ -176,6 +192,13 @@ public class ButtonBlock extends WallMountedBlock {
 		}
 	}
 
+	/**
+	 * Try power with projectiles.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected void tryPowerWithProjectiles(BlockState state, World world, BlockPos pos) {
 		PersistentProjectileEntity persistentProjectileEntity = this.blockSetType.canButtonBeActivatedByArrows()
 		                                                        ? world

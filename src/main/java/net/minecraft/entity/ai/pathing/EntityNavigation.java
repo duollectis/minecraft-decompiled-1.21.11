@@ -67,6 +67,9 @@ public abstract class EntityNavigation {
 		}
 	}
 
+	/**
+	 * Обновляет range.
+	 */
 	public void updateRange() {
 		int i = MathHelper.floor(this.getMaxFollowRange() * 16.0F);
 		this.pathNodeNavigator.setRange(i);
@@ -81,6 +84,9 @@ public abstract class EntityNavigation {
 		return Math.max((float) this.entity.getAttributeValue(EntityAttributes.FOLLOW_RANGE), this.maxFollowRange);
 	}
 
+	/**
+	 * Сбрасывает range multiplier.
+	 */
 	public void resetRangeMultiplier() {
 		this.rangeMultiplier = 1.0F;
 	}
@@ -93,12 +99,22 @@ public abstract class EntityNavigation {
 		return this.currentTarget;
 	}
 
+	/**
+	 * Создаёт path node navigator.
+	 *
+	 * @param range range
+	 *
+	 * @return PathNodeNavigator — результат операции
+	 */
 	protected abstract PathNodeNavigator createPathNodeNavigator(int range);
 
 	public void setSpeed(double speed) {
 		this.speed = speed;
 	}
 
+	/**
+	 * Recalculate path.
+	 */
 	public void recalculatePath() {
 		if (this.world.getTime() - this.lastRecalculateTime > 20L) {
 			if (this.currentTarget != null) {
@@ -113,30 +129,91 @@ public abstract class EntityNavigation {
 		}
 	}
 
+	/**
+	 * Ищет path to.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param distance distance
+	 *
+	 * @return @Nullable Path — path to
+	 */
 	public final @Nullable Path findPathTo(double x, double y, double z, int distance) {
 		return this.findPathTo(BlockPos.ofFloored(x, y, z), distance);
 	}
 
+	/**
+	 * Ищет path to any.
+	 *
+	 * @param positions positions
+	 * @param distance distance
+	 *
+	 * @return @Nullable Path — path to any
+	 */
 	public @Nullable Path findPathToAny(Stream<BlockPos> positions, int distance) {
 		return this.findPathTo(positions.collect(Collectors.toSet()), 8, false, distance);
 	}
 
+	/**
+	 * Ищет path to.
+	 *
+	 * @param positions positions
+	 * @param distance distance
+	 *
+	 * @return @Nullable Path — path to
+	 */
 	public @Nullable Path findPathTo(Set<BlockPos> positions, int distance) {
 		return this.findPathTo(positions, 8, false, distance);
 	}
 
+	/**
+	 * Ищет path to.
+	 *
+	 * @param target target
+	 * @param distance distance
+	 *
+	 * @return @Nullable Path — path to
+	 */
 	public @Nullable Path findPathTo(BlockPos target, int distance) {
 		return this.findPathTo(ImmutableSet.of(target), 8, false, distance);
 	}
 
+	/**
+	 * Ищет path to.
+	 *
+	 * @param target target
+	 * @param minDistance min distance
+	 * @param maxDistance max distance
+	 *
+	 * @return @Nullable Path — path to
+	 */
 	public @Nullable Path findPathTo(BlockPos target, int minDistance, int maxDistance) {
 		return this.findPathToAny(ImmutableSet.of(target), 8, false, minDistance, maxDistance);
 	}
 
+	/**
+	 * Ищет path to.
+	 *
+	 * @param entity entity
+	 * @param distance distance
+	 *
+	 * @return @Nullable Path — path to
+	 */
 	public @Nullable Path findPathTo(Entity entity, int distance) {
 		return this.findPathTo(ImmutableSet.of(entity.getBlockPos()), 16, true, distance);
 	}
 
+	/**
+	 * Ищет path to.
+	 *
+	 * @param positions positions
+	 * @param range range
+	 * @param useHeadPos use head pos
+	 * @param distance distance
+	 *
+	 * @return @Nullable Path — path to
+	 */
 	protected @Nullable Path findPathTo(Set<BlockPos> positions, int range, boolean useHeadPos, int distance) {
 		return this.findPathToAny(positions, range, useHeadPos, distance, this.getMaxFollowRange());
 	}
@@ -187,19 +264,56 @@ public abstract class EntityNavigation {
 		}
 	}
 
+	/**
+	 * Запускает moving to.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param speed speed
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean startMovingTo(double x, double y, double z, double speed) {
 		return this.startMovingAlong(this.findPathTo(x, y, z, 1), speed);
 	}
 
+	/**
+	 * Запускает moving to.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param distance distance
+	 * @param speed speed
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean startMovingTo(double x, double y, double z, int distance, double speed) {
 		return this.startMovingAlong(this.findPathTo(x, y, z, distance), speed);
 	}
 
+	/**
+	 * Запускает moving to.
+	 *
+	 * @param entity entity
+	 * @param speed speed
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean startMovingTo(Entity entity, double speed) {
 		Path path = this.findPathTo(entity, 1);
 		return path != null && this.startMovingAlong(path, speed);
 	}
 
+	/**
+	 * Запускает moving along.
+	 *
+	 * @param path path
+	 * @param speed speed
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean startMovingAlong(@Nullable Path path, double speed) {
 		if (path == null) {
 			this.currentPath = null;
@@ -233,6 +347,9 @@ public abstract class EntityNavigation {
 		return this.currentPath;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.tickCount++;
 		if (this.inRecalculationCooldown) {
@@ -261,12 +378,22 @@ public abstract class EntityNavigation {
 		}
 	}
 
+	/**
+	 * Adjust target y.
+	 *
+	 * @param pos pos
+	 *
+	 * @return double — результат операции
+	 */
 	protected double adjustTargetY(Vec3d pos) {
 		BlockPos blockPos = BlockPos.ofFloored(pos);
 		return this.world.getBlockState(blockPos.down()).isAir() ? pos.y
 		                                                         : LandPathNodeMaker.getFeetY(this.world, blockPos);
 	}
 
+	/**
+	 * Continue following path.
+	 */
 	protected void continueFollowingPath() {
 		Vec3d vec3d = this.getPos();
 		this.nodeReachProximity =
@@ -317,6 +444,11 @@ public abstract class EntityNavigation {
 		}
 	}
 
+	/**
+	 * Проверяет timeouts.
+	 *
+	 * @param currentPos current pos
+	 */
 	protected void checkTimeouts(Vec3d currentPos) {
 		if (this.tickCount - this.pathStartTime > 100) {
 			float
@@ -378,6 +510,9 @@ public abstract class EntityNavigation {
 		return !this.isIdle();
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		this.currentPath = null;
 	}
@@ -386,6 +521,9 @@ public abstract class EntityNavigation {
 
 	protected abstract boolean isAtValidPosition();
 
+	/**
+	 * Adjust path.
+	 */
 	protected void adjustPath() {
 		if (this.currentPath != null) {
 			for (int i = 0; i < this.currentPath.getLength(); i++) {
@@ -405,15 +543,40 @@ public abstract class EntityNavigation {
 		}
 	}
 
+	/**
+	 * Проверяет возможность path directly through.
+	 *
+	 * @param origin origin
+	 * @param target target
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canPathDirectlyThrough(Vec3d origin, Vec3d target) {
 		return false;
 	}
 
+	/**
+	 * Проверяет возможность jump to next.
+	 *
+	 * @param nodeType node type
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canJumpToNext(PathNodeType nodeType) {
 		return nodeType != PathNodeType.DANGER_FIRE && nodeType != PathNodeType.DANGER_OTHER
 				&& nodeType != PathNodeType.WALKABLE_DOOR;
 	}
 
+	/**
+	 * Does not collide.
+	 *
+	 * @param entity entity
+	 * @param startPos start pos
+	 * @param entityPos entity pos
+	 * @param includeFluids include fluids
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected static boolean doesNotCollide(MobEntity entity, Vec3d startPos, Vec3d entityPos, boolean includeFluids) {
 		Vec3d vec3d = new Vec3d(entityPos.x, entityPos.y + entity.getHeight() * 0.5, entityPos.z);
 		return entity.getEntityWorld()
@@ -444,10 +607,22 @@ public abstract class EntityNavigation {
 		this.nodeMaker.setCanSwim(canSwim);
 	}
 
+	/**
+	 * Проверяет возможность swim.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSwim() {
 		return this.nodeMaker.canSwim();
 	}
 
+	/**
+	 * Определяет, следует ли recalculate path.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRecalculatePath(BlockPos pos) {
 		if (this.inRecalculationCooldown) {
 			return false;
@@ -476,6 +651,11 @@ public abstract class EntityNavigation {
 		return this.nearPathStartPos;
 	}
 
+	/**
+	 * Проверяет возможность control opening doors.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public abstract boolean canControlOpeningDoors();
 
 	public void setCanOpenDoors(boolean canOpenDoors) {

@@ -341,6 +341,14 @@ public class FoxEntity extends AnimalEntity {
 		                   .add(EntityAttributes.FOLLOW_RANGE, 32.0);
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable FoxEntity — результат операции
+	 */
 	public @Nullable FoxEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		FoxEntity foxEntity = EntityType.FOX.create(serverWorld, SpawnReason.BREEDING);
 		if (foxEntity != null) {
@@ -772,6 +780,14 @@ public class FoxEntity extends AnimalEntity {
 		super.drop(world, damageSource);
 	}
 
+	/**
+	 * Проверяет возможность jump chase.
+	 *
+	 * @param fox fox
+	 * @param chasedEntity chased entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canJumpChase(FoxEntity fox, LivingEntity chasedEntity) {
 		double d = chasedEntity.getZ() - fox.getZ();
 		double e = chasedEntity.getX() - fox.getX();
@@ -900,6 +916,11 @@ public class FoxEntity extends AnimalEntity {
 					&& FoxEntity.this.getPathfindingFavor(blockPos) >= 0.0F;
 		}
 
+		/**
+		 * Проверяет возможность calm down.
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		protected boolean canCalmDown() {
 			return !castToServerWorld(FoxEntity.this.getEntityWorld())
 					.getTargets(
@@ -1071,6 +1092,9 @@ public class FoxEntity extends AnimalEntity {
 			super.tick();
 		}
 
+		/**
+		 * Eat berries.
+		 */
 		protected void eatBerries() {
 			if (castToServerWorld(FoxEntity.this.getEntityWorld()).getGameRules().getValue(GameRules.DO_MOB_GRIEFING)) {
 				BlockState blockState = FoxEntity.this.getEntityWorld().getBlockState(this.targetPos);

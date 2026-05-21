@@ -44,6 +44,11 @@ public class Channel {
 		return completableFuture;
 	}
 
+	/**
+	 * Execute.
+	 *
+	 * @param sourcesConsumer sources consumer
+	 */
 	public void execute(Consumer<Stream<Source>> sourcesConsumer) {
 		this.executor.execute(() -> sourcesConsumer.accept(this.sources
 				.stream()
@@ -51,6 +56,9 @@ public class Channel {
 				.filter(Objects::nonNull)));
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.executor.execute(() -> {
 			Iterator<Channel.SourceManager> iterator = this.sources.iterator();
@@ -66,6 +74,9 @@ public class Channel {
 		});
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		this.sources.forEach(Channel.SourceManager::close);
 		this.sources.clear();
@@ -88,6 +99,11 @@ public class Channel {
 			this.source = source;
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param action action
+		 */
 		public void run(Consumer<Source> action) {
 			Channel.this.executor.execute(() -> {
 				if (this.source != null) {
@@ -96,6 +112,9 @@ public class Channel {
 			});
 		}
 
+		/**
+		 * Close.
+		 */
 		public void close() {
 			this.stopped = true;
 			Channel.this.soundEngine.release(this.source);

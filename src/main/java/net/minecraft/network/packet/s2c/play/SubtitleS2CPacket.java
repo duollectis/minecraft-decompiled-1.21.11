@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
+/**
+ * Запись subtitle s2 c packet.
+ */
 public record SubtitleS2CPacket(Text text) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, SubtitleS2CPacket> CODEC = PacketCodec.tuple(
@@ -20,6 +23,11 @@ public record SubtitleS2CPacket(Text text) implements Packet<ClientPlayPacketLis
 		return PlayPackets.SET_SUBTITLE_TEXT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onSubtitle(this);
 	}

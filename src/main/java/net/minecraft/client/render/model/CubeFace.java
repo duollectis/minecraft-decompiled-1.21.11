@@ -82,6 +82,14 @@ public enum CubeFace {
 	 */
 	public record Corner(CubeFace.AxisBound xSide, CubeFace.AxisBound ySide, CubeFace.AxisBound zSide) {
 
+		/**
+		 * Resolve.
+		 *
+		 * @param vector3fc vector3fc
+		 * @param vector3fc2 vector3fc2
+		 *
+		 * @return Vector3f — результат операции
+		 */
 		public Vector3f resolve(Vector3fc vector3fc, Vector3fc vector3fc2) {
 			return new Vector3f(
 					this.xSide.select(vector3fc, vector3fc2),
@@ -103,6 +111,14 @@ public enum CubeFace {
 		MAX_Y,
 		MAX_Z;
 
+		/**
+		 * Select.
+		 *
+		 * @param vector3fc vector3fc
+		 * @param vector3fc2 vector3fc2
+		 *
+		 * @return float — результат операции
+		 */
 		public float select(Vector3fc vector3fc, Vector3fc vector3fc2) {
 			return switch (this) {
 				case MIN_X -> vector3fc.x();
@@ -114,6 +130,18 @@ public enum CubeFace {
 			};
 		}
 
+		/**
+		 * Select float.
+		 *
+		 * @param f f
+		 * @param g g
+		 * @param h h
+		 * @param i i
+		 * @param j j
+		 * @param k k
+		 *
+		 * @return float — результат операции
+		 */
 		public float selectFloat(float f, float g, float h, float i, float j, float k) {
 			return switch (this) {
 				case MIN_X -> f;

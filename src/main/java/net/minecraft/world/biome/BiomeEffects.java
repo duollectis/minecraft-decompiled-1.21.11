@@ -68,6 +68,11 @@ public record BiomeEffects(
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return BiomeEffects — результат операции
+		 */
 		public BiomeEffects build() {
 			return new BiomeEffects(
 					this.waterColor.orElseThrow(() -> new IllegalStateException("Missing 'water' color.")),

@@ -83,6 +83,13 @@ public record GameEvent(int notificationRadius) {
 	public static final int DEFAULT_RANGE = 16;
 	public static final Codec<RegistryEntry<GameEvent>> CODEC = RegistryFixedCodec.of(RegistryKeys.GAME_EVENT);
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return RegistryEntry — результат операции
+	 */
 	public static RegistryEntry<GameEvent> registerAndGetDefault(Registry<GameEvent> registry) {
 		return BLOCK_ACTIVATE;
 	}
@@ -138,6 +145,13 @@ public record GameEvent(int notificationRadius) {
 			this.distanceTraveled = emitterPos.squaredDistanceTo(listenerPos);
 		}
 
+		/**
+		 * Compare to.
+		 *
+		 * @param message message
+		 *
+		 * @return int — результат операции
+		 */
 		public int compareTo(GameEvent.Message message) {
 			return Double.compare(this.distanceTraveled, message.distanceTraveled);
 		}

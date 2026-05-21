@@ -68,6 +68,14 @@ public class PointOfInterestSet {
 				.filter(occupationStatus.getPredicate());
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param pos pos
+	 * @param type type
+	 *
+	 * @return @Nullable PointOfInterest — результат операции
+	 */
 	public @Nullable PointOfInterest add(BlockPos pos, RegistryEntry<PointOfInterestType> type) {
 		PointOfInterest pointOfInterest = new PointOfInterest(pos, type, this.updateListener);
 		if (this.add(pointOfInterest)) {
@@ -98,6 +106,11 @@ public class PointOfInterestSet {
 		return true;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param pos pos
+	 */
 	public void remove(BlockPos pos) {
 		PointOfInterest
 				pointOfInterest =
@@ -122,6 +135,13 @@ public class PointOfInterestSet {
 		return this.get(pos).map(PointOfInterest::getFreeTickets).orElse(0);
 	}
 
+	/**
+	 * Release ticket.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean releaseTicket(BlockPos pos) {
 		PointOfInterest
 				pointOfInterest =
@@ -137,6 +157,14 @@ public class PointOfInterestSet {
 		}
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param pos pos
+	 * @param predicate predicate
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(BlockPos pos, Predicate<RegistryEntry<PointOfInterestType>> predicate) {
 		return this.getType(pos).filter(predicate).isPresent();
 	}
@@ -153,6 +181,11 @@ public class PointOfInterestSet {
 		return this.get(pos).map(PoiDebugData::new);
 	}
 
+	/**
+	 * Обновляет points of interest.
+	 *
+	 * @param updater updater
+	 */
 	public void updatePointsOfInterest(Consumer<BiConsumer<BlockPos, RegistryEntry<PointOfInterestType>>> updater) {
 		if (!this.valid) {
 			Short2ObjectMap<PointOfInterest> short2ObjectMap = new Short2ObjectOpenHashMap(this.pointsOfInterestByPos);
@@ -198,6 +231,13 @@ public class PointOfInterestSet {
 				                    .apply(instance, PointOfInterestSet.Serialized::new)
 		);
 
+		/**
+		 * To point of interest set.
+		 *
+		 * @param updateListener update listener
+		 *
+		 * @return PointOfInterestSet — результат операции
+		 */
 		public PointOfInterestSet toPointOfInterestSet(Runnable updateListener) {
 			return new PointOfInterestSet(
 					updateListener,

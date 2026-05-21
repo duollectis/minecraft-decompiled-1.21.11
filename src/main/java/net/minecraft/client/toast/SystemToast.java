@@ -52,6 +52,16 @@ public class SystemToast implements Toast {
 		);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param client client
+	 * @param type type
+	 * @param title title
+	 * @param description description
+	 *
+	 * @return SystemToast — результат операции
+	 */
 	public static SystemToast create(MinecraftClient client, SystemToast.Type type, Text title, Text description) {
 		TextRenderer textRenderer = client.textRenderer;
 		List<OrderedText> list = textRenderer.wrapLines(description, 200);
@@ -80,6 +90,9 @@ public class SystemToast implements Toast {
 		return 20 + Math.max(this.lines.size(), 1) * 12;
 	}
 
+	/**
+	 * Hide.
+	 */
 	public void hide() {
 		this.hidden = true;
 	}
@@ -126,10 +139,26 @@ public class SystemToast implements Toast {
 		return this.type;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param manager manager
+	 * @param type type
+	 * @param title title
+	 * @param description description
+	 */
 	public static void add(ToastManager manager, SystemToast.Type type, Text title, @Nullable Text description) {
 		manager.add(new SystemToast(type, title, description));
 	}
 
+	/**
+	 * Show.
+	 *
+	 * @param manager manager
+	 * @param type type
+	 * @param title title
+	 * @param description description
+	 */
 	public static void show(ToastManager manager, SystemToast.Type type, Text title, @Nullable Text description) {
 		SystemToast systemToast = manager.getToast(SystemToast.class, type);
 		if (systemToast == null) {
@@ -140,6 +169,12 @@ public class SystemToast implements Toast {
 		}
 	}
 
+	/**
+	 * Hide.
+	 *
+	 * @param manager manager
+	 * @param type type
+	 */
 	public static void hide(ToastManager manager, SystemToast.Type type) {
 		SystemToast systemToast = manager.getToast(SystemToast.class, type);
 		if (systemToast != null) {
@@ -147,6 +182,12 @@ public class SystemToast implements Toast {
 		}
 	}
 
+	/**
+	 * Добавляет world access failure toast.
+	 *
+	 * @param client client
+	 * @param worldName world name
+	 */
 	public static void addWorldAccessFailureToast(MinecraftClient client, String worldName) {
 		add(
 				client.getToastManager(),
@@ -156,6 +197,12 @@ public class SystemToast implements Toast {
 		);
 	}
 
+	/**
+	 * Добавляет world delete failure toast.
+	 *
+	 * @param client client
+	 * @param worldName world name
+	 */
 	public static void addWorldDeleteFailureToast(MinecraftClient client, String worldName) {
 		add(
 				client.getToastManager(),
@@ -165,6 +212,12 @@ public class SystemToast implements Toast {
 		);
 	}
 
+	/**
+	 * Добавляет pack copy failure.
+	 *
+	 * @param client client
+	 * @param directory directory
+	 */
 	public static void addPackCopyFailure(MinecraftClient client, String directory) {
 		add(
 				client.getToastManager(),
@@ -174,6 +227,12 @@ public class SystemToast implements Toast {
 		);
 	}
 
+	/**
+	 * Добавляет file drop failure.
+	 *
+	 * @param client client
+	 * @param count count
+	 */
 	public static void addFileDropFailure(MinecraftClient client, int count) {
 		add(
 				client.getToastManager(),
@@ -183,6 +242,11 @@ public class SystemToast implements Toast {
 		);
 	}
 
+	/**
+	 * Добавляет low disk space.
+	 *
+	 * @param client client
+	 */
 	public static void addLowDiskSpace(MinecraftClient client) {
 		show(
 				client.getToastManager(),
@@ -192,6 +256,12 @@ public class SystemToast implements Toast {
 		);
 	}
 
+	/**
+	 * Добавляет chunk load failure.
+	 *
+	 * @param client client
+	 * @param pos pos
+	 */
 	public static void addChunkLoadFailure(MinecraftClient client, ChunkPos pos) {
 		show(
 				client.getToastManager(),
@@ -201,6 +271,12 @@ public class SystemToast implements Toast {
 		);
 	}
 
+	/**
+	 * Добавляет chunk save failure.
+	 *
+	 * @param client client
+	 * @param pos pos
+	 */
 	public static void addChunkSaveFailure(MinecraftClient client, ChunkPos pos) {
 		show(
 				client.getToastManager(),

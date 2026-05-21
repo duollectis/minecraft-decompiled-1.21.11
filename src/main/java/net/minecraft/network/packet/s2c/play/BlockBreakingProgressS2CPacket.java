@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Класс block breaking progress s2 c packet.
+ */
 public class BlockBreakingProgressS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, BlockBreakingProgressS2CPacket> CODEC = Packet.createCodec(
@@ -40,6 +43,11 @@ public class BlockBreakingProgressS2CPacket implements Packet<ClientPlayPacketLi
 		return PlayPackets.BLOCK_DESTRUCTION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onBlockBreakingProgress(this);
 	}

@@ -9,6 +9,9 @@ import net.minecraft.network.packet.LoginPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Запись login success s2 c packet.
+ */
 public record LoginSuccessS2CPacket(GameProfile profile) implements Packet<ClientLoginPacketListener> {
 
 	public static final PacketCodec<ByteBuf, LoginSuccessS2CPacket> CODEC = PacketCodec.tuple(
@@ -20,6 +23,11 @@ public record LoginSuccessS2CPacket(GameProfile profile) implements Packet<Clien
 		return LoginPackets.LOGIN_FINISHED;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientLoginPacketListener client login packet listener
+	 */
 	public void apply(ClientLoginPacketListener clientLoginPacketListener) {
 		clientLoginPacketListener.onSuccess(this);
 	}

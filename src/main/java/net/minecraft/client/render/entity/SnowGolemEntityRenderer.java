@@ -26,6 +26,11 @@ public class SnowGolemEntityRenderer extends MobEntityRenderer<SnowGolemEntity, 
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SnowGolemEntityRenderState — результат операции
+	 */
 	public SnowGolemEntityRenderState createRenderState() {
 		return new SnowGolemEntityRenderState();
 	}

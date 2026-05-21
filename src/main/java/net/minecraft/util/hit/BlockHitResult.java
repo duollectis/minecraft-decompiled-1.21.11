@@ -15,6 +15,15 @@ public class BlockHitResult extends HitResult {
 	private final boolean insideBlock;
 	private final boolean againstWorldBorder;
 
+	/**
+	 * Создаёт missed.
+	 *
+	 * @param pos pos
+	 * @param side side
+	 * @param blockPos block pos
+	 *
+	 * @return BlockHitResult — результат операции
+	 */
 	public static BlockHitResult createMissed(Vec3d pos, Direction side, BlockPos blockPos) {
 		return new BlockHitResult(true, pos, side, blockPos, false, false);
 	}
@@ -49,6 +58,13 @@ public class BlockHitResult extends HitResult {
 		this.againstWorldBorder = againstWorldBorder;
 	}
 
+	/**
+	 * With side.
+	 *
+	 * @param side side
+	 *
+	 * @return BlockHitResult — результат операции
+	 */
 	public BlockHitResult withSide(Direction side) {
 		return new BlockHitResult(
 				this.missed,
@@ -60,6 +76,13 @@ public class BlockHitResult extends HitResult {
 		);
 	}
 
+	/**
+	 * With block pos.
+	 *
+	 * @param blockPos block pos
+	 *
+	 * @return BlockHitResult — результат операции
+	 */
 	public BlockHitResult withBlockPos(BlockPos blockPos) {
 		return new BlockHitResult(
 				this.missed,
@@ -71,6 +94,11 @@ public class BlockHitResult extends HitResult {
 		);
 	}
 
+	/**
+	 * Against world border.
+	 *
+	 * @return BlockHitResult — результат операции
+	 */
 	public BlockHitResult againstWorldBorder() {
 		return new BlockHitResult(this.missed, this.pos, this.side, this.blockPos, this.insideBlock, true);
 	}

@@ -28,6 +28,11 @@ public class ConfiguredCarvers {
 		return RegistryKey.of(RegistryKeys.CONFIGURED_CARVER, Identifier.ofVanilla(id));
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param carverRegisterable carver registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredCarver<?>> carverRegisterable) {
 		RegistryEntryLookup<Block> registryEntryLookup = carverRegisterable.getRegistryLookup(RegistryKeys.BLOCK);
 		carverRegisterable.register(

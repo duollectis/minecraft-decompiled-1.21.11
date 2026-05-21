@@ -71,6 +71,11 @@ public class Util {
 	public static final long NANOS_PER_MILLI = 1000000L;
 	public static TimeSupplier.Nanoseconds nanoTimeSupplier = System::nanoTime;
 	public static final Ticker TICKER = new Ticker() {
+		/**
+		 * Read.
+		 *
+		 * @return long — результат операции
+		 */
 		public long read() {
 			return Util.nanoTimeSupplier.getAsLong();
 		}
@@ -86,10 +91,20 @@ public class Util {
 			                                                                                    "No jar file system provider found"));
 	private static Consumer<String> missingBreakpointHandler = message -> {};
 
+	/**
+	 * To map.
+	 *
+	 * @return Collector, ?, Map> — результат операции
+	 */
 	public static <K, V> Collector<Entry<? extends K, ? extends V>, ?, Map<K, V>> toMap() {
 		return Collectors.toMap(Entry::getKey, Entry::getValue);
 	}
 
+	/**
+	 * To array list.
+	 *
+	 * @return Collector> — результат операции
+	 */
 	public static <T> Collector<T, ?, List<T>> toArrayList() {
 		return Collectors.toCollection(Lists::newArrayList);
 	}
@@ -98,6 +113,14 @@ public class Util {
 		return property.name((T) value);
 	}
 
+	/**
+	 * Создаёт translation key.
+	 *
+	 * @param type type
+	 * @param id id
+	 *
+	 * @return String — результат операции
+	 */
 	public static String createTranslationKey(String type, @Nullable Identifier id) {
 		return id == null ? type + ".unregistered_sadface"
 		                  : type + "." + id.getNamespace() + "." + id.getPath().replace('/', '.');
@@ -199,6 +222,9 @@ public class Util {
 		return DOWNLOAD_WORKER_EXECUTOR;
 	}
 
+	/**
+	 * Shutdown executors.
+	 */
 	public static void shutdownExecutors() {
 		MAIN_WORKER_EXECUTOR.shutdown(3L, TimeUnit.SECONDS);
 		IO_WORKER_EXECUTOR.shutdown(3L, TimeUnit.SECONDS);
@@ -217,6 +243,11 @@ public class Util {
 		}));
 	}
 
+	/**
+	 * Throw unchecked.
+	 *
+	 * @param t t
+	 */
 	public static void throwUnchecked(Throwable t) {
 		throw t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t);
 	}
@@ -259,6 +290,12 @@ public class Util {
 		return type;
 	}
 
+	/**
+	 * Run in named zone.
+	 *
+	 * @param runnable runnable
+	 * @param name name
+	 */
 	public static void runInNamedZone(Runnable runnable, String name) {
 		if (SharedConstants.isDevelopment) {
 			Thread thread = Thread.currentThread();
@@ -317,23 +354,60 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Registry value to string.
+	 *
+	 * @param registry registry
+	 * @param value value
+	 *
+	 * @return String — результат операции
+	 */
 	public static <T> String registryValueToString(Registry<T> registry, T value) {
 		Identifier identifier = registry.getId(value);
 		return identifier == null ? "[unregistered]" : identifier.toString();
 	}
 
+	/**
+	 * And.
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> and() {
 		return o -> true;
 	}
 
+	/**
+	 * And.
+	 *
+	 * @param a a
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> and(Predicate<? super T> a) {
 		return (Predicate<T>) a;
 	}
 
+	/**
+	 * And.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> and(Predicate<? super T> a, Predicate<? super T> b) {
 		return o -> a.test(o) && b.test(o);
 	}
 
+	/**
+	 * And.
+	 *
+	 * @param a a
+	 * @param b b
+	 * @param c c
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> and(Predicate<? super T> a, Predicate<? super T> b, Predicate<? super T> c) {
 		return o -> a.test(o) && b.test(o) && c.test(o);
 	}
@@ -358,6 +432,13 @@ public class Util {
 	}
 
 	@SafeVarargs
+	/**
+	 * And.
+	 *
+	 * @param predicates predicates
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> and(Predicate<? super T>... predicates) {
 		return o -> {
 			for (Predicate<? super T> predicate : predicates) {
@@ -370,6 +451,13 @@ public class Util {
 		};
 	}
 
+	/**
+	 * All of.
+	 *
+	 * @param predicates predicates
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> allOf(List<? extends Predicate<? super T>> predicates) {
 		return switch (predicates.size()) {
 			case 0 -> and();
@@ -400,18 +488,47 @@ public class Util {
 		};
 	}
 
+	/**
+	 * Or.
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> or() {
 		return o -> false;
 	}
 
+	/**
+	 * Or.
+	 *
+	 * @param a a
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> or(Predicate<? super T> a) {
 		return (Predicate<T>) a;
 	}
 
+	/**
+	 * Or.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> or(Predicate<? super T> a, Predicate<? super T> b) {
 		return o -> a.test(o) || b.test(o);
 	}
 
+	/**
+	 * Or.
+	 *
+	 * @param a a
+	 * @param b b
+	 * @param c c
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> or(Predicate<? super T> a, Predicate<? super T> b, Predicate<? super T> c) {
 		return o -> a.test(o) || b.test(o) || c.test(o);
 	}
@@ -436,6 +553,13 @@ public class Util {
 	}
 
 	@SafeVarargs
+	/**
+	 * Or.
+	 *
+	 * @param predicates predicates
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> or(Predicate<? super T>... predicates) {
 		return o -> {
 			for (Predicate<? super T> predicate : predicates) {
@@ -448,6 +572,13 @@ public class Util {
 		};
 	}
 
+	/**
+	 * Any of.
+	 *
+	 * @param predicates predicates
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static <T> Predicate<T> anyOf(List<? extends Predicate<? super T>> predicates) {
 		return switch (predicates.size()) {
 			case 0 -> or();
@@ -500,6 +631,14 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Next capacity.
+	 *
+	 * @param current current
+	 * @param min min
+	 *
+	 * @return int — результат операции
+	 */
 	public static int nextCapacity(int current, int min) {
 		return (int) Math.max(Math.min((long) current + (current >> 1), 2147483639L), (long) min);
 	}
@@ -536,6 +675,13 @@ public class Util {
 		return string.equals("aarch64");
 	}
 
+	/**
+	 * Валидирует uri.
+	 *
+	 * @param uri uri
+	 *
+	 * @return URI — результат операции
+	 */
 	public static URI validateUri(String uri) throws URISyntaxException {
 		URI uRI = new URI(uri);
 		String string = uRI.getScheme();
@@ -553,6 +699,14 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Next.
+	 *
+	 * @param iterable iterable
+	 * @param object object
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T> T next(Iterable<T> iterable, @Nullable T object) {
 		Iterator<T> iterator = iterable.iterator();
 		T object2 = iterator.next();
@@ -573,6 +727,14 @@ public class Util {
 		return object2;
 	}
 
+	/**
+	 * Previous.
+	 *
+	 * @param iterable iterable
+	 * @param object object
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T> T previous(Iterable<T> iterable, @Nullable T object) {
 		Iterator<T> iterator = iterable.iterator();
 		T object2 = null;
@@ -592,15 +754,38 @@ public class Util {
 		return object2;
 	}
 
+	/**
+	 * Make.
+	 *
+	 * @param factory factory
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T> T make(Supplier<T> factory) {
 		return factory.get();
 	}
 
+	/**
+	 * Make.
+	 *
+	 * @param object object
+	 * @param initializer initializer
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T> T make(T object, Consumer<? super T> initializer) {
 		initializer.accept(object);
 		return object;
 	}
 
+	/**
+	 * Map enum.
+	 *
+	 * @param enumClass enum class
+	 * @param mapper mapper
+	 *
+	 * @return , V> Map — результат операции
+	 */
 	public static <K extends Enum<K>, V> Map<K, V> mapEnum(Class<K> enumClass, Function<K, V> mapper) {
 		EnumMap<K, V> enumMap = new EnumMap<>(enumClass);
 
@@ -611,6 +796,15 @@ public class Util {
 		return enumMap;
 	}
 
+	/**
+	 * Трансформирует map values.
+	 *
+	 * @param map map
+	 * @param V1 v1
+	 * @param transformer transformer
+	 *
+	 * @return Map — результат операции
+	 */
 	public static <K, V1, V2> Map<K, V2> transformMapValues(Map<K, V1> map, Function<? super V1, V2> transformer) {
 		return map
 				.entrySet()
@@ -625,6 +819,13 @@ public class Util {
 		return Maps.transformValues(map, transformer);
 	}
 
+	/**
+	 * Combine safe.
+	 *
+	 * @param futures futures
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public static <V> CompletableFuture<List<V>> combineSafe(List<? extends CompletableFuture<V>> futures) {
 		if (futures.isEmpty()) {
 			return CompletableFuture.completedFuture(List.of());
@@ -640,6 +841,13 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Combine.
+	 *
+	 * @param futures futures
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public static <V> CompletableFuture<List<V>> combine(List<? extends CompletableFuture<? extends V>> futures) {
 		CompletableFuture<List<V>> completableFuture = new CompletableFuture<>();
 		return combine(futures, completableFuture::completeExceptionally).applyToEither(
@@ -648,6 +856,13 @@ public class Util {
 		);
 	}
 
+	/**
+	 * Combine cancellable.
+	 *
+	 * @param futures futures
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public static <V> CompletableFuture<List<V>> combineCancellable(List<? extends CompletableFuture<? extends V>> futures) {
 		CompletableFuture<List<V>> completableFuture = new CompletableFuture<>();
 		return combine(
@@ -699,6 +914,14 @@ public class Util {
 		return optional;
 	}
 
+	/**
+	 * Debug supplier.
+	 *
+	 * @param supplier supplier
+	 * @param messageSupplier message supplier
+	 *
+	 * @return Supplier — результат операции
+	 */
 	public static <T> Supplier<T> debugSupplier(Supplier<T> supplier, Supplier<String> messageSupplier) {
 		if (SharedConstants.NAMED_RUNNABLES) {
 			final String string = messageSupplier.get();
@@ -719,6 +942,14 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Debug runnable.
+	 *
+	 * @param runnable runnable
+	 * @param messageSupplier message supplier
+	 *
+	 * @return Runnable — результат операции
+	 */
 	public static Runnable debugRunnable(Runnable runnable, Supplier<String> messageSupplier) {
 		if (SharedConstants.NAMED_RUNNABLES) {
 			final String string = messageSupplier.get();
@@ -739,6 +970,11 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Логирует error or pause.
+	 *
+	 * @param message message
+	 */
 	public static void logErrorOrPause(String message) {
 		LOGGER.error(message);
 		if (SharedConstants.isDevelopment) {
@@ -746,6 +982,12 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Логирует error or pause.
+	 *
+	 * @param message message
+	 * @param throwable throwable
+	 */
 	public static void logErrorOrPause(String message, Throwable throwable) {
 		LOGGER.error(message, throwable);
 		if (SharedConstants.isDevelopment) {
@@ -894,10 +1136,27 @@ public class Util {
 		return false;
 	}
 
+	/**
+	 * Backup and replace.
+	 *
+	 * @param current current
+	 * @param newPath new path
+	 * @param backup backup
+	 */
 	public static void backupAndReplace(Path current, Path newPath, Path backup) {
 		backupAndReplace(current, newPath, backup, false);
 	}
 
+	/**
+	 * Backup and replace.
+	 *
+	 * @param current current
+	 * @param newPath new path
+	 * @param backup backup
+	 * @param noRestoreOnFail no restore on fail
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean backupAndReplace(Path current, Path newPath, Path backup, boolean noRestoreOnFail) {
 		if (Files.exists(current) && !attemptTasks(
 				10,
@@ -930,6 +1189,15 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Перемещает cursor.
+	 *
+	 * @param string string
+	 * @param cursor cursor
+	 * @param delta delta
+	 *
+	 * @return int — результат операции
+	 */
 	public static int moveCursor(String string, int cursor, int delta) {
 		int i = string.length();
 		if (delta >= 0) {
@@ -953,10 +1221,26 @@ public class Util {
 		return cursor;
 	}
 
+	/**
+	 * Добавляет prefix.
+	 *
+	 * @param prefix prefix
+	 * @param consumer consumer
+	 *
+	 * @return Consumer — результат операции
+	 */
 	public static Consumer<String> addPrefix(String prefix, Consumer<String> consumer) {
 		return string -> consumer.accept(prefix + string);
 	}
 
+	/**
+	 * Декодирует fixed length array.
+	 *
+	 * @param stream stream
+	 * @param length length
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public static DataResult<int[]> decodeFixedLengthArray(IntStream stream, int length) {
 		int[] is = stream.limit(length + 1).toArray();
 		if (is.length != length) {
@@ -969,6 +1253,14 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Декодирует fixed length array.
+	 *
+	 * @param stream stream
+	 * @param length length
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public static DataResult<long[]> decodeFixedLengthArray(LongStream stream, int length) {
 		long[] ls = stream.limit(length + 1).toArray();
 		if (ls.length != length) {
@@ -981,6 +1273,14 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Декодирует fixed length list.
+	 *
+	 * @param list list
+	 * @param length length
+	 *
+	 * @return DataResult> — результат операции
+	 */
 	public static <T> DataResult<List<T>> decodeFixedLengthList(List<T> list, int length) {
 		if (list.size() != length) {
 			Supplier<String> supplier = () -> "Input is not a list of " + length + " elements";
@@ -992,6 +1292,9 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Запускает timer hack.
+	 */
 	public static void startTimerHack() {
 		Thread thread = new Thread("Timer hack thread") {
 			@Override
@@ -1012,12 +1315,27 @@ public class Util {
 		thread.start();
 	}
 
+	/**
+	 * Relative copy.
+	 *
+	 * @param src src
+	 * @param dest dest
+	 * @param toCopy to copy
+	 */
 	public static void relativeCopy(Path src, Path dest, Path toCopy) throws IOException {
 		Path path = src.relativize(toCopy);
 		Path path2 = dest.resolve(path);
 		Files.copy(toCopy, path2);
 	}
 
+	/**
+	 * Replace invalid chars.
+	 *
+	 * @param string string
+	 * @param predicate predicate
+	 *
+	 * @return String — результат операции
+	 */
 	public static String replaceInvalidChars(String string, CharPredicate predicate) {
 		return string.toLowerCase(Locale.ROOT)
 		             .chars()
@@ -1025,10 +1343,24 @@ public class Util {
 		             .collect(Collectors.joining());
 	}
 
+	/**
+	 * Cached mapper.
+	 *
+	 * @param mapper mapper
+	 *
+	 * @return CachedMapper — результат операции
+	 */
 	public static <K, V> CachedMapper<K, V> cachedMapper(Function<K, V> mapper) {
 		return new CachedMapper<>(mapper);
 	}
 
+	/**
+	 * Memoize.
+	 *
+	 * @param function function
+	 *
+	 * @return Function — результат операции
+	 */
 	public static <T, R> Function<T, R> memoize(Function<T, R> function) {
 		return new Function<T, R>() {
 			private final Map<T, R> cache = new ConcurrentHashMap<>();
@@ -1045,6 +1377,13 @@ public class Util {
 		};
 	}
 
+	/**
+	 * Memoize.
+	 *
+	 * @param biFunction bi function
+	 *
+	 * @return BiFunction — результат операции
+	 */
 	public static <T, U, R> BiFunction<T, U, R> memoize(BiFunction<T, U, R> biFunction) {
 		return new BiFunction<T, U, R>() {
 			private final Map<com.mojang.datafixers.util.Pair<T, U>, R> cache = new ConcurrentHashMap<>();
@@ -1064,12 +1403,28 @@ public class Util {
 		};
 	}
 
+	/**
+	 * Создаёт копию shuffled.
+	 *
+	 * @param stream stream
+	 * @param random random
+	 *
+	 * @return List — результат операции
+	 */
 	public static <T> List<T> copyShuffled(Stream<T> stream, Random random) {
 		ObjectArrayList<T> objectArrayList = stream.collect(ObjectArrayList.toList());
 		shuffle(objectArrayList, random);
 		return objectArrayList;
 	}
 
+	/**
+	 * Shuffle.
+	 *
+	 * @param stream stream
+	 * @param random random
+	 *
+	 * @return IntArrayList — результат операции
+	 */
 	public static IntArrayList shuffle(IntStream stream, Random random) {
 		IntArrayList intArrayList = IntArrayList.wrap(stream.toArray());
 		int i = intArrayList.size();
@@ -1082,18 +1437,42 @@ public class Util {
 		return intArrayList;
 	}
 
+	/**
+	 * Создаёт копию shuffled.
+	 *
+	 * @param array array
+	 * @param random random
+	 *
+	 * @return List — результат операции
+	 */
 	public static <T> List<T> copyShuffled(T[] array, Random random) {
 		ObjectArrayList<T> objectArrayList = new ObjectArrayList(array);
 		shuffle(objectArrayList, random);
 		return objectArrayList;
 	}
 
+	/**
+	 * Создаёт копию shuffled.
+	 *
+	 * @param list list
+	 * @param random random
+	 *
+	 * @return List — результат операции
+	 */
 	public static <T> List<T> copyShuffled(ObjectArrayList<T> list, Random random) {
 		ObjectArrayList<T> objectArrayList = new ObjectArrayList(list);
 		shuffle(objectArrayList, random);
 		return objectArrayList;
 	}
 
+	/**
+	 * Shuffle.
+	 *
+	 * @param list list
+	 * @param random random
+	 *
+	 * @return void — результат операции
+	 */
 	public static <T> void shuffle(List<T> list, Random random) {
 		int i = list.size();
 
@@ -1103,10 +1482,25 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Wait and apply.
+	 *
+	 * @param resultFactory result factory
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public static <T> CompletableFuture<T> waitAndApply(Function<Executor, CompletableFuture<T>> resultFactory) {
 		return waitAndApply(resultFactory, CompletableFuture::isDone);
 	}
 
+	/**
+	 * Wait and apply.
+	 *
+	 * @param resultFactory result factory
+	 * @param donePredicate done predicate
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T> T waitAndApply(Function<Executor, T> resultFactory, Predicate<T> donePredicate) {
 		BlockingQueue<Runnable> blockingQueue = new LinkedBlockingQueue<>();
 		T object = resultFactory.apply(blockingQueue::add);
@@ -1132,6 +1526,13 @@ public class Util {
 		return object;
 	}
 
+	/**
+	 * Last index getter.
+	 *
+	 * @param values values
+	 *
+	 * @return ToIntFunction — результат операции
+	 */
 	public static <T> ToIntFunction<T> lastIndexGetter(List<T> values) {
 		int i = values.size();
 		if (i < 8) {
@@ -1149,6 +1550,13 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Last identity index getter.
+	 *
+	 * @param values values
+	 *
+	 * @return ToIntFunction — результат операции
+	 */
 	public static <T> ToIntFunction<T> lastIdentityIndexGetter(List<T> values) {
 		int i = values.size();
 		if (i < 8) {
@@ -1167,15 +1575,41 @@ public class Util {
 		}
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param typed typed
+	 * @param type type
+	 * @param modifier modifier
+	 *
+	 * @return Typed — результат операции
+	 */
 	public static <A, B> Typed<B> apply(Typed<A> typed, Type<B> type, UnaryOperator<Dynamic<?>> modifier) {
 		Dynamic<?> dynamic = (Dynamic<?>) typed.write().getOrThrow();
 		return readTyped(type, modifier.apply(dynamic), true);
 	}
 
+	/**
+	 * Читает typed.
+	 *
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return Typed — результат операции
+	 */
 	public static <T> Typed<T> readTyped(Type<T> type, Dynamic<?> value) {
 		return readTyped(type, value, false);
 	}
 
+	/**
+	 * Читает typed.
+	 *
+	 * @param type type
+	 * @param value value
+	 * @param allowPartial allow partial
+	 *
+	 * @return Typed — результат операции
+	 */
 	public static <T> Typed<T> readTyped(Type<T> type, Dynamic<?> value, boolean allowPartial) {
 		DataResult<Typed<T>> dataResult = type.readTyped(value).map(com.mojang.datafixers.util.Pair::getFirst);
 
@@ -1192,14 +1626,39 @@ public class Util {
 		}
 	}
 
+	/**
+	 * With appended.
+	 *
+	 * @param list list
+	 * @param valueToAppend value to append
+	 *
+	 * @return List — результат операции
+	 */
 	public static <T> List<T> withAppended(List<T> list, T valueToAppend) {
 		return ImmutableList.<T>builderWithExpectedSize(list.size() + 1).addAll(list).add(valueToAppend).build();
 	}
 
+	/**
+	 * With prepended.
+	 *
+	 * @param valueToPrepend value to prepend
+	 * @param list list
+	 *
+	 * @return List — результат операции
+	 */
 	public static <T> List<T> withPrepended(T valueToPrepend, List<T> list) {
 		return ImmutableList.<T>builderWithExpectedSize(list.size() + 1).add(valueToPrepend).addAll(list).build();
 	}
 
+	/**
+	 * Map with.
+	 *
+	 * @param map map
+	 * @param keyToAppend key to append
+	 * @param valueToAppend value to append
+	 *
+	 * @return Map — результат операции
+	 */
 	public static <K, V> Map<K, V> mapWith(Map<K, V> map, K keyToAppend, V valueToAppend) {
 		return ImmutableMap
 				.<K, V>builderWithExpectedSize(map.size() + 1)
@@ -1234,6 +1693,11 @@ public class Util {
 			this.name = name;
 		}
 
+		/**
+		 * Open.
+		 *
+		 * @param uri uri
+		 */
 		public void open(URI uri) {
 			try {
 				Process process = Runtime.getRuntime().exec(this.getURIOpenCommand(uri));
@@ -1246,10 +1710,20 @@ public class Util {
 			}
 		}
 
+		/**
+		 * Open.
+		 *
+		 * @param file file
+		 */
 		public void open(File file) {
 			this.open(file.toURI());
 		}
 
+		/**
+		 * Open.
+		 *
+		 * @param path path
+		 */
 		public void open(Path path) {
 			this.open(path.toUri());
 		}
@@ -1263,6 +1737,11 @@ public class Util {
 			return new String[]{"xdg-open", string};
 		}
 
+		/**
+		 * Open.
+		 *
+		 * @param uri uri
+		 */
 		public void open(String uri) {
 			try {
 				this.open(new URI(uri));

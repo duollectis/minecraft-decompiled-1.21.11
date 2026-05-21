@@ -291,10 +291,20 @@ public class ServerChunkManager extends ChunkManager {
 		return this.world;
 	}
 
+	/**
+	 * Execute queued tasks.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean executeQueuedTasks() {
 		return this.mainThreadExecutor.runTask();
 	}
 
+	/**
+	 * Обновляет chunks.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean updateChunks() {
 		boolean bl = this.levelManager.update(this.chunkLoadingManager);
 		boolean bl2 = this.chunkLoadingManager.updateHolderMap();
@@ -321,6 +331,11 @@ public class ServerChunkManager extends ChunkManager {
 		}
 	}
 
+	/**
+	 * Save.
+	 *
+	 * @param flush flush
+	 */
 	public void save(boolean flush) {
 		this.updateChunks();
 		this.chunkLoadingManager.save(flush);
@@ -490,6 +505,11 @@ public class ServerChunkManager extends ChunkManager {
 		return this.chunkLoadingManager.getLoadedChunkCount();
 	}
 
+	/**
+	 * Mark for update.
+	 *
+	 * @param pos pos
+	 */
 	public void markForUpdate(BlockPos pos) {
 		int i = ChunkSectionPos.getSectionCoord(pos.getX());
 		int j = ChunkSectionPos.getSectionCoord(pos.getZ());
@@ -509,14 +529,34 @@ public class ServerChunkManager extends ChunkManager {
 		});
 	}
 
+	/**
+	 * Определяет, следует ли reset idle timeout.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldResetIdleTimeout() {
 		return this.ticketManager.shouldResetIdleTimeout();
 	}
 
+	/**
+	 * Добавляет ticket.
+	 *
+	 * @param ticket ticket
+	 * @param pos pos
+	 */
 	public void addTicket(ChunkTicket ticket, ChunkPos pos) {
 		this.ticketManager.addTicket(ticket, pos);
 	}
 
+	/**
+	 * Добавляет chunk loading ticket.
+	 *
+	 * @param ticketType ticket type
+	 * @param pos pos
+	 * @param radius radius
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<?> addChunkLoadingTicket(ChunkTicketType ticketType, ChunkPos pos, int radius) {
 		if (!ticketType.isForLoading()) {
 			throw new IllegalStateException("Ticket type " + ticketType + " does not trigger chunk loading");
@@ -534,10 +574,24 @@ public class ServerChunkManager extends ChunkManager {
 		}
 	}
 
+	/**
+	 * Добавляет ticket.
+	 *
+	 * @param type type
+	 * @param pos pos
+	 * @param radius radius
+	 */
 	public void addTicket(ChunkTicketType type, ChunkPos pos, int radius) {
 		this.ticketManager.addTicket(type, pos, radius);
 	}
 
+	/**
+	 * Удаляет ticket.
+	 *
+	 * @param type type
+	 * @param pos pos
+	 * @param radius radius
+	 */
 	public void removeTicket(ChunkTicketType type, ChunkPos pos, int radius) {
 		this.ticketManager.removeTicket(type, pos, radius);
 	}
@@ -552,6 +606,11 @@ public class ServerChunkManager extends ChunkManager {
 		return this.ticketManager.getForcedChunks();
 	}
 
+	/**
+	 * Обновляет position.
+	 *
+	 * @param player player
+	 */
 	public void updatePosition(ServerPlayerEntity player) {
 		if (!player.isRemoved()) {
 			this.chunkLoadingManager.updatePosition(player);
@@ -561,26 +620,58 @@ public class ServerChunkManager extends ChunkManager {
 		}
 	}
 
+	/**
+	 * Unload entity.
+	 *
+	 * @param entity entity
+	 */
 	public void unloadEntity(Entity entity) {
 		this.chunkLoadingManager.unloadEntity(entity);
 	}
 
+	/**
+	 * Загружает entity.
+	 *
+	 * @param entity entity
+	 */
 	public void loadEntity(Entity entity) {
 		this.chunkLoadingManager.loadEntity(entity);
 	}
 
+	/**
+	 * Отправляет to nearby players.
+	 *
+	 * @param entity entity
+	 * @param packet packet
+	 */
 	public void sendToNearbyPlayers(Entity entity, Packet<? super ClientPlayPacketListener> packet) {
 		this.chunkLoadingManager.sendToNearbyPlayers(entity, packet);
 	}
 
+	/**
+	 * Отправляет to other nearby players.
+	 *
+	 * @param entity entity
+	 * @param packet packet
+	 */
 	public void sendToOtherNearbyPlayers(Entity entity, Packet<? super ClientPlayPacketListener> packet) {
 		this.chunkLoadingManager.sendToOtherNearbyPlayers(entity, packet);
 	}
 
+	/**
+	 * Применяет view distance.
+	 *
+	 * @param watchDistance watch distance
+	 */
 	public void applyViewDistance(int watchDistance) {
 		this.chunkLoadingManager.setViewDistance(watchDistance);
 	}
 
+	/**
+	 * Применяет simulation distance.
+	 *
+	 * @param simulationDistance simulation distance
+	 */
 	public void applySimulationDistance(int simulationDistance) {
 		this.levelManager.setSimulationDistance(simulationDistance);
 	}
@@ -611,10 +702,18 @@ public class ServerChunkManager extends ChunkManager {
 		return this.spawnInfo;
 	}
 
+	/**
+	 * Shutdown.
+	 */
 	public void shutdown() {
 		this.ticketManager.shutdown();
 	}
 
+	/**
+	 * Mark for update.
+	 *
+	 * @param chunkHolder chunk holder
+	 */
 	public void markForUpdate(ChunkHolder chunkHolder) {
 		if (chunkHolder.hasPendingUpdates()) {
 			this.chunksToBroadcastUpdate.add(chunkHolder);

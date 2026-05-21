@@ -83,6 +83,13 @@ public class FilledMapItem extends Item {
 		return mapIdComponent;
 	}
 
+	/**
+	 * Обновляет colors.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param state state
+	 */
 	public void updateColors(World world, Entity entity, MapState state) {
 		if (world.getRegistryKey() == state.dimension && entity instanceof PlayerEntity) {
 			int i = 1 << state.scale;
@@ -244,6 +251,12 @@ public class FilledMapItem extends Item {
 		return biomes[z * 128 + x];
 	}
 
+	/**
+	 * Fill exploration map.
+	 *
+	 * @param world world
+	 * @param map map
+	 */
 	public static void fillExplorationMap(ServerWorld world, ItemStack map) {
 		MapState mapState = getMapState(map, world);
 		if (mapState != null) {

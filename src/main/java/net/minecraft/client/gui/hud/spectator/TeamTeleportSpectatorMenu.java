@@ -103,6 +103,14 @@ public class TeamTeleportSpectatorMenu implements SpectatorMenuCommandGroup, Spe
 			this.skinTexturesSupplier = skinTexturesSupplier;
 		}
 
+		/**
+		 * Create.
+		 *
+		 * @param client client
+		 * @param team team
+		 *
+		 * @return Optional — результат операции
+		 */
 		public static Optional<SpectatorMenuCommand> create(MinecraftClient client, Team team) {
 			List<PlayerListEntry> list = new ArrayList<>();
 

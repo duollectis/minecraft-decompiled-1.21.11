@@ -24,10 +24,16 @@ public class TickTimeTracker {
 		return this.profiler != DummyProfiler.INSTANCE;
 	}
 
+	/**
+	 * Disable.
+	 */
 	public void disable() {
 		this.profiler = DummyProfiler.INSTANCE;
 	}
 
+	/**
+	 * Enable.
+	 */
 	public void enable() {
 		this.profiler = new ProfilerSystem(this.timeGetter, this.tickGetter, this.timeoutDisabled);
 	}

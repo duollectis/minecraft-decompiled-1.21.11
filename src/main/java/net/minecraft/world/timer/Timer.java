@@ -52,6 +52,12 @@ public class Timer<T> {
 		this.callback = timerCallbackSerializer;
 	}
 
+	/**
+	 * Обрабатывает events.
+	 *
+	 * @param server server
+	 * @param time time
+	 */
 	public void processEvents(T server, long time) {
 		while (true) {
 			Timer.Event<T> event = this.events.peek();
@@ -74,6 +80,13 @@ public class Timer<T> {
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param name name
+	 *
+	 * @return int — результат операции
+	 */
 	public int remove(String name) {
 		Collection<Timer.Event<T>> collection = this.eventsByName.row(name).values();
 		collection.forEach(this.events::remove);
@@ -103,6 +116,11 @@ public class Timer<T> {
 		return nbtCompound;
 	}
 
+	/**
+	 * To nbt.
+	 *
+	 * @return NbtList — результат операции
+	 */
 	public NbtList toNbt() {
 		NbtList nbtList = new NbtList();
 		this.events.stream().sorted(createEventComparator()).map(this::serialize).forEach(nbtList::add);

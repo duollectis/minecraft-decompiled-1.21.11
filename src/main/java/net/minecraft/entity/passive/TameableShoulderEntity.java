@@ -21,6 +21,13 @@ public abstract class TameableShoulderEntity extends TameableEntity {
 		super(entityType, world);
 	}
 
+	/**
+	 * Mount onto.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean mountOnto(ServerPlayerEntity player) {
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getErrorReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, this.getRegistryManager());

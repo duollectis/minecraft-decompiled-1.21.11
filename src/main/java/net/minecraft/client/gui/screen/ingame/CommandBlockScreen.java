@@ -108,6 +108,9 @@ public class CommandBlockScreen extends AbstractCommandBlockScreen {
 		this.redstoneTriggerButton.active = active;
 	}
 
+	/**
+	 * Обновляет command block.
+	 */
 	public void updateCommandBlock() {
 		CommandBlockExecutor commandBlockExecutor = this.blockEntity.getCommandExecutor();
 		this.consoleCommandTextField.setText(commandBlockExecutor.getCommand());

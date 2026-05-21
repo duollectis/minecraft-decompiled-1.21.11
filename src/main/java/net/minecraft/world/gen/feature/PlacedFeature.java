@@ -59,6 +59,16 @@ public record PlacedFeature(
 		return this.generate(new FeaturePlacementContext(world, generator, Optional.empty()), random, pos);
 	}
 
+	/**
+	 * Generate.
+	 *
+	 * @param world world
+	 * @param generator generator
+	 * @param random random
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean generate(StructureWorldAccess world, ChunkGenerator generator, Random random, BlockPos pos) {
 		return this.generate(new FeaturePlacementContext(world, generator, Optional.of(this)), random, pos);
 	}

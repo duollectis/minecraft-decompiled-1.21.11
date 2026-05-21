@@ -112,14 +112,35 @@ public enum Formatting implements StringIdentifiable {
 	}
 
 	@Contract("!null->!null;_->_")
+	/**
+	 * Strip.
+	 *
+	 * @param string string
+	 *
+	 * @return @Nullable String — результат операции
+	 */
 	public static @Nullable String strip(@Nullable String string) {
 		return string == null ? null : FORMATTING_CODE_PATTERN.matcher(string).replaceAll("");
 	}
 
+	/**
+	 * By name.
+	 *
+	 * @param name name
+	 *
+	 * @return @Nullable Formatting — результат операции
+	 */
 	public static @Nullable Formatting byName(@Nullable String name) {
 		return name == null ? null : BY_NAME.get(sanitize(name));
 	}
 
+	/**
+	 * By color index.
+	 *
+	 * @param colorIndex color index
+	 *
+	 * @return @Nullable Formatting — результат операции
+	 */
 	public static @Nullable Formatting byColorIndex(int colorIndex) {
 		if (colorIndex < 0) {
 			return RESET;
@@ -135,6 +156,13 @@ public enum Formatting implements StringIdentifiable {
 		}
 	}
 
+	/**
+	 * By code.
+	 *
+	 * @param code code
+	 *
+	 * @return @Nullable Formatting — результат операции
+	 */
 	public static @Nullable Formatting byCode(char code) {
 		char c = Character.toLowerCase(code);
 

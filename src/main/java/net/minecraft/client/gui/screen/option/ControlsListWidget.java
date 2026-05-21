@@ -54,11 +54,17 @@ public class ControlsListWidget extends ElementListWidget<ControlsListWidget.Ent
 		}
 	}
 
+	/**
+	 * Update.
+	 */
 	public void update() {
 		KeyBinding.updateKeysByCode();
 		this.updateChildren();
 	}
 
+	/**
+	 * Обновляет children.
+	 */
 	public void updateChildren() {
 		this.children().forEach(ControlsListWidget.Entry::update);
 	}

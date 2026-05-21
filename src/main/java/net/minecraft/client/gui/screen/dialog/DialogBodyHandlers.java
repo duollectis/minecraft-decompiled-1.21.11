@@ -44,6 +44,14 @@ public class DialogBodyHandlers {
 		return (DialogBodyHandler<B>) DIALOG_BODY_HANDLERS.get(dialogBody.getTypeCodec());
 	}
 
+	/**
+	 * Создаёт widget.
+	 *
+	 * @param dialogScreen dialog screen
+	 * @param dialogBody dialog body
+	 *
+	 * @return @Nullable Widget — результат операции
+	 */
 	public static <B extends DialogBody> @Nullable Widget createWidget(DialogScreen<?> dialogScreen, B dialogBody) {
 		DialogBodyHandler<B> dialogBodyHandler = getHandler(dialogBody);
 		if (dialogBodyHandler == null) {
@@ -55,6 +63,9 @@ public class DialogBodyHandlers {
 		}
 	}
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		register(PlainMessageDialogBody.CODEC, new DialogBodyHandlers.PlainMessageDialogBodyHandler());
 		register(ItemDialogBody.CODEC, new DialogBodyHandlers.ItemDialogBodyHandler());
@@ -75,6 +86,14 @@ public class DialogBodyHandlers {
 	 */
 	static class ItemDialogBodyHandler implements DialogBodyHandler<ItemDialogBody> {
 
+		/**
+		 * Создаёт widget.
+		 *
+		 * @param dialogScreen dialog screen
+		 * @param itemDialogBody item dialog body
+		 *
+		 * @return Widget — результат операции
+		 */
 		public Widget createWidget(DialogScreen<?> dialogScreen, ItemDialogBody itemDialogBody) {
 			if (itemDialogBody.description().isPresent()) {
 				PlainMessageDialogBody plainMessageDialogBody = itemDialogBody.description().get();
@@ -125,6 +144,14 @@ public class DialogBodyHandlers {
 	 */
 	static class PlainMessageDialogBodyHandler implements DialogBodyHandler<PlainMessageDialogBody> {
 
+		/**
+		 * Создаёт widget.
+		 *
+		 * @param dialogScreen dialog screen
+		 * @param plainMessageDialogBody plain message dialog body
+		 *
+		 * @return Widget — результат операции
+		 */
 		public Widget createWidget(DialogScreen<?> dialogScreen, PlainMessageDialogBody plainMessageDialogBody) {
 			return NarratedMultilineTextWidget
 					.builder(plainMessageDialogBody.contents(), dialogScreen.getTextRenderer())

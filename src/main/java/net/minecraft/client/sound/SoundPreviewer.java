@@ -16,6 +16,13 @@ public final class SoundPreviewer {
 	private static @Nullable SoundInstance currentSoundPreview;
 	private static @Nullable SoundCategory category;
 
+	/**
+	 * Preview.
+	 *
+	 * @param manager manager
+	 * @param category category
+	 * @param volume volume
+	 */
 	public static void preview(SoundManager manager, SoundCategory category, float volume) {
 		stopPreviewOfOtherCategory(manager, category);
 		if (canPlaySound(manager)) {

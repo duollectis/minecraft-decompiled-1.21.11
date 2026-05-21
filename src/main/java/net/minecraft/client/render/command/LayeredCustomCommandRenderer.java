@@ -26,6 +26,11 @@ public class LayeredCustomCommandRenderer implements AutoCloseable {
 	private final Queue<LayeredCustomCommandRenderer.VerticesCache> availableBuffers = new ArrayDeque<>();
 	private final List<LayeredCustomCommandRenderer.VerticesCache> usedBuffers = new ArrayList<>();
 
+	/**
+	 * Render.
+	 *
+	 * @param queue queue
+	 */
 	public void render(BatchingRenderCommandQueue queue) {
 		if (!queue.getLayeredCustomCommands().isEmpty()) {
 			GpuDevice gpuDevice = RenderSystem.getDevice();
@@ -78,6 +83,9 @@ public class LayeredCustomCommandRenderer implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * End.
+	 */
 	public void end() {
 		for (LayeredCustomCommandRenderer.VerticesCache verticesCache : this.usedBuffers) {
 			verticesCache.rotate();
@@ -110,6 +118,11 @@ public class LayeredCustomCommandRenderer implements AutoCloseable {
 
 		private @Nullable MappableRingBuffer ringBuffer;
 
+		/**
+		 * Write.
+		 *
+		 * @param byteBuffer byte buffer
+		 */
 		public void write(ByteBuffer byteBuffer) {
 			if (this.ringBuffer == null || this.ringBuffer.size() < byteBuffer.remaining()) {
 				if (this.ringBuffer != null) {
@@ -128,6 +141,11 @@ public class LayeredCustomCommandRenderer implements AutoCloseable {
 			}
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @return GpuBuffer — 
+		 */
 		public GpuBuffer get() {
 			if (this.ringBuffer == null) {
 				throw new IllegalStateException("Can't get buffer before it's made");

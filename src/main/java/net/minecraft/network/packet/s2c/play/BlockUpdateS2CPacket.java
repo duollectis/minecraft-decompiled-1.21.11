@@ -12,6 +12,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockView;
 
+/**
+ * Класс block update s2 c packet.
+ */
 public class BlockUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, BlockUpdateS2CPacket> CODEC = PacketCodec.tuple(
@@ -38,6 +41,11 @@ public class BlockUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.BLOCK_UPDATE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onBlockUpdate(this);
 	}

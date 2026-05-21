@@ -32,6 +32,13 @@ public enum PlayerSkinType implements StringIdentifiable {
 		this.modelMetadata = modelMetadata;
 	}
 
+	/**
+	 * By model metadata.
+	 *
+	 * @param modelMetadata model metadata
+	 *
+	 * @return PlayerSkinType — результат операции
+	 */
 	public static PlayerSkinType byModelMetadata(@Nullable String modelMetadata) {
 		return Objects.requireNonNullElse(BY_MODEL_METADATA.apply(modelMetadata), WIDE);
 	}

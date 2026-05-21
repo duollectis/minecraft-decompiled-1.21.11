@@ -18,14 +18,35 @@ public class RotationPropertyHelper {
 		return MAX;
 	}
 
+	/**
+	 * From direction.
+	 *
+	 * @param direction direction
+	 *
+	 * @return int — результат операции
+	 */
 	public static int fromDirection(Direction direction) {
 		return CALCULATOR.toRotation(direction);
 	}
 
+	/**
+	 * From yaw.
+	 *
+	 * @param yaw yaw
+	 *
+	 * @return int — результат операции
+	 */
 	public static int fromYaw(float yaw) {
 		return CALCULATOR.toClampedRotation(yaw);
 	}
 
+	/**
+	 * To direction.
+	 *
+	 * @param rotation rotation
+	 *
+	 * @return Optional — результат операции
+	 */
 	public static Optional<Direction> toDirection(int rotation) {
 		Direction direction = switch (rotation) {
 			case 0 -> Direction.NORTH;
@@ -37,6 +58,13 @@ public class RotationPropertyHelper {
 		return Optional.ofNullable(direction);
 	}
 
+	/**
+	 * To degrees.
+	 *
+	 * @param rotation rotation
+	 *
+	 * @return float — результат операции
+	 */
 	public static float toDegrees(int rotation) {
 		return CALCULATOR.toWrappedDegrees(rotation);
 	}

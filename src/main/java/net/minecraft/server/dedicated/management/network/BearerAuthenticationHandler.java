@@ -40,6 +40,12 @@ public class BearerAuthenticationHandler extends ChannelDuplexHandler {
 		this.allowedOrigins = Sets.newHashSet(allowedOrigins.split(","));
 	}
 
+	/**
+	 * Channel read.
+	 *
+	 * @param context context
+	 * @param object object
+	 */
 	public void channelRead(ChannelHandlerContext context, Object object) throws Exception {
 		String string = this.getHostAddress(context);
 		if (object instanceof HttpRequest httpRequest) {
@@ -67,6 +73,13 @@ public class BearerAuthenticationHandler extends ChannelDuplexHandler {
 		}
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param context context
+	 * @param value value
+	 * @param promise promise
+	 */
 	public void write(ChannelHandlerContext context, Object value, ChannelPromise promise) throws Exception {
 		if (value instanceof HttpResponse httpResponse
 				&& httpResponse.status().code() == HttpResponseStatus.SWITCHING_PROTOCOLS.code()
@@ -118,6 +131,13 @@ public class BearerAuthenticationHandler extends ChannelDuplexHandler {
 		                                                            : null;
 	}
 
+	/**
+	 * Token matches.
+	 *
+	 * @param requestToken request token
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean tokenMatches(String requestToken) {
 		if (requestToken.isEmpty()) {
 			return false;
@@ -181,6 +201,11 @@ public class BearerAuthenticationHandler extends ChannelDuplexHandler {
 			return this.message;
 		}
 
+		/**
+		 * Must return protocol.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean mustReturnProtocol() {
 			return this.mustReturnProtocol;
 		}

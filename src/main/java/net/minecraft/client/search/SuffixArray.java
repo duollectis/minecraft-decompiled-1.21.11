@@ -36,6 +36,12 @@ public class SuffixArray<T> {
 	private IntList offsetInText = new IntArrayList();
 	private int maxTextLength;
 
+	/**
+	 * Add.
+	 *
+	 * @param object object
+	 * @param text text
+	 */
 	public void add(T object, String text) {
 		this.maxTextLength = Math.max(this.maxTextLength, text.length());
 		int i = this.objects.size();
@@ -53,6 +59,9 @@ public class SuffixArray<T> {
 		this.characters.add(-1);
 	}
 
+	/**
+	 * Build.
+	 */
 	public void build() {
 		int i = this.characters.size();
 		int[] is = new int[i];
@@ -169,6 +178,13 @@ public class SuffixArray<T> {
 		return 0;
 	}
 
+	/**
+	 * Ищет all.
+	 *
+	 * @param text text
+	 *
+	 * @return List — all
+	 */
 	public List<T> findAll(String text) {
 		int i = this.suffixIndexToObjectIndex.size();
 		int j = 0;

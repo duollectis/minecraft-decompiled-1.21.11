@@ -12,6 +12,14 @@ import java.util.function.Predicate;
  */
 public class GoToLookTargetTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 * @param completionRange completion range
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<LivingEntity> create(float speed, int completionRange) {
 		return create(entity -> true, entity -> speed, completionRange);
 	}

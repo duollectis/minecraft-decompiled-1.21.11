@@ -79,6 +79,14 @@ public abstract class AbstractDecorationEntity extends BlockAttachedEntity {
 		}
 	}
 
+	/**
+	 * Вычисляет bounding box.
+	 *
+	 * @param pos pos
+	 * @param side side
+	 *
+	 * @return Box — результат операции
+	 */
 	protected abstract Box calculateBoundingBox(BlockPos pos, Direction side);
 
 	@Override
@@ -119,6 +127,9 @@ public abstract class AbstractDecorationEntity extends BlockAttachedEntity {
 		return this.getBoundingBox();
 	}
 
+	/**
+	 * Обрабатывает событие place.
+	 */
 	public abstract void onPlace();
 
 	@Override

@@ -48,10 +48,25 @@ public class StopwatchPersistentState extends PersistentState {
 		return map;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable Stopwatch — 
+	 */
 	public @Nullable Stopwatch get(Identifier id) {
 		return this.stopwatches.get(id);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param id id
+	 * @param stopwatch stopwatch
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean add(Identifier id, Stopwatch stopwatch) {
 		if (this.stopwatches.putIfAbsent(id, stopwatch) == null) {
 			this.markDirty();
@@ -62,6 +77,14 @@ public class StopwatchPersistentState extends PersistentState {
 		}
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param id id
+	 * @param f f
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean update(Identifier id, UnaryOperator<Stopwatch> f) {
 		if (this.stopwatches.computeIfPresent(id, (id_, stopwatch) -> f.apply(stopwatch)) != null) {
 			this.markDirty();
@@ -72,6 +95,13 @@ public class StopwatchPersistentState extends PersistentState {
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param id id
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean remove(Identifier id) {
 		boolean bl = this.stopwatches.remove(id) != null;
 		if (bl) {
@@ -86,6 +116,11 @@ public class StopwatchPersistentState extends PersistentState {
 		return super.isDirty() || !this.stopwatches.isEmpty();
 	}
 
+	/**
+	 * Keys.
+	 *
+	 * @return List — результат операции
+	 */
 	public List<Identifier> keys() {
 		return List.copyOf(this.stopwatches.keySet());
 	}

@@ -3444,18 +3444,49 @@ public class Items {
 		);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param block block
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(Block block) {
 		return register(block, BlockItem::new);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param block block
+	 * @param settings settings
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(Block block, Item.Settings settings) {
 		return register(block, BlockItem::new, settings);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param block block
+	 * @param settingsOperator settings operator
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(Block block, UnaryOperator<Item.Settings> settingsOperator) {
 		return register(block, (blockx, settings) -> new BlockItem(blockx, settingsOperator.apply(settings)));
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param block block
+	 * @param blocks blocks
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(Block block, Block... blocks) {
 		Item item = register(block);
 
@@ -3466,10 +3497,27 @@ public class Items {
 		return item;
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param block block
+	 * @param factory factory
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(Block block, BiFunction<Block, Item.Settings, Item> factory) {
 		return register(block, factory, new Item.Settings());
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param block block
+	 * @param factory factory
+	 * @param settings settings
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(Block block, BiFunction<Block, Item.Settings, Item> factory, Item.Settings settings) {
 		return register(
 				keyOf(block.getRegistryEntry().registryKey()),
@@ -3478,26 +3526,75 @@ public class Items {
 		);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param id id
+	 * @param factory factory
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(String id, Function<Item.Settings, Item> factory) {
 		return register(keyOf(id), factory, new Item.Settings());
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param id id
+	 * @param factory factory
+	 * @param settings settings
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(String id, Function<Item.Settings, Item> factory, Item.Settings settings) {
 		return register(keyOf(id), factory, settings);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param id id
+	 * @param settings settings
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(String id, Item.Settings settings) {
 		return register(keyOf(id), Item::new, settings);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param id id
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(String id) {
 		return register(keyOf(id), Item::new, new Item.Settings());
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param key key
+	 * @param factory factory
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(RegistryKey<Item> key, Function<Item.Settings, Item> factory) {
 		return register(key, factory, new Item.Settings());
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param key key
+	 * @param factory factory
+	 * @param settings settings
+	 *
+	 * @return Item — результат операции
+	 */
 	public static Item register(RegistryKey<Item> key, Function<Item.Settings, Item> factory, Item.Settings settings) {
 		Item item = factory.apply(settings.registryKey(key));
 		if (item instanceof BlockItem blockItem) {

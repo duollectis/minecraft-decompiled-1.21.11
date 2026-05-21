@@ -35,6 +35,12 @@ public abstract class VertexBufferManager {
 		}
 	}
 
+	/**
+	 * Устанавливает up buffer.
+	 *
+	 * @param format format
+	 * @param into into
+	 */
 	public abstract void setupBuffer(VertexFormat format, @Nullable GlGpuBuffer into);
 
 	@Environment(EnvType.CLIENT)

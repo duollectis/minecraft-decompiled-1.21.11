@@ -37,6 +37,15 @@ public class ItemPlacementContext extends ItemUsageContext {
 		this.canReplaceExisting = world.getBlockState(blockHitResult.getBlockPos()).canReplace(this);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param context context
+	 * @param pos pos
+	 * @param side side
+	 *
+	 * @return ItemPlacementContext — результат операции
+	 */
 	public static ItemPlacementContext offset(ItemPlacementContext context, BlockPos pos, Direction side) {
 		return new ItemPlacementContext(
 				context.getWorld(),
@@ -61,10 +70,20 @@ public class ItemPlacementContext extends ItemUsageContext {
 		return this.canReplaceExisting ? super.getBlockPos() : this.placementPos;
 	}
 
+	/**
+	 * Проверяет возможность place.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canPlace() {
 		return this.canReplaceExisting || this.getWorld().getBlockState(this.getBlockPos()).canReplace(this);
 	}
 
+	/**
+	 * Проверяет возможность replace existing.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canReplaceExisting() {
 		return this.canReplaceExisting;
 	}

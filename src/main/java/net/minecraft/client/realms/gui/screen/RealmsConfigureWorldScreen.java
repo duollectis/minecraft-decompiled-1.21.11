@@ -157,6 +157,13 @@ public class RealmsConfigureWorldScreen extends RealmsScreen {
 		return this.parent;
 	}
 
+	/**
+	 * Создаёт error screen.
+	 *
+	 * @param error error
+	 *
+	 * @return Screen — результат операции
+	 */
 	public Screen createErrorScreen(RealmsServiceException error) {
 		return new RealmsGenericErrorScreen(error, this.parent);
 	}
@@ -234,6 +241,9 @@ public class RealmsConfigureWorldScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Fetch region data list.
+	 */
 	public void fetchRegionDataList() {
 		RealmsUtil.<RealmsRegionDataList>runAsync(
 				          (RealmsUtil.RealmsSupplier<RealmsRegionDataList>) RealmsClient::getRegionDataList,
@@ -247,6 +257,11 @@ public class RealmsConfigureWorldScreen extends RealmsScreen {
 		          );
 	}
 
+	/**
+	 * Fetch server data.
+	 *
+	 * @param worldId world id
+	 */
 	public void fetchServerData(long worldId) {
 		RealmsUtil.<RealmsServer>runAsync(
 				          (RealmsUtil.RealmsSupplier<RealmsServer>) client -> client.getOwnWorld(worldId),
@@ -314,6 +329,11 @@ public class RealmsConfigureWorldScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Сохраняет slot settings.
+	 *
+	 * @param slot slot
+	 */
 	public void saveSlotSettings(RealmsSlot slot) {
 		RealmsSlot realmsSlot = this.server.slots.get(this.server.activeSlot);
 		slot.options.templateId = realmsSlot.options.templateId;
@@ -381,6 +401,11 @@ public class RealmsConfigureWorldScreen extends RealmsScreen {
 		this.client.setScreen(this);
 	}
 
+	/**
+	 * Открывает the world.
+	 *
+	 * @param join join
+	 */
 	public void openTheWorld(boolean join) {
 		RealmsConfigureWorldScreen realmsConfigureWorldScreen = this.withServer(this.server);
 		this.client
@@ -390,6 +415,9 @@ public class RealmsConfigureWorldScreen extends RealmsScreen {
 				));
 	}
 
+	/**
+	 * Закрывает the world.
+	 */
 	public void closeTheWorld() {
 		RealmsConfigureWorldScreen realmsConfigureWorldScreen = this.withServer(this.server);
 		this.client.setScreen(new RealmsLongRunningMcoTaskScreen(
@@ -398,6 +426,9 @@ public class RealmsConfigureWorldScreen extends RealmsScreen {
 		));
 	}
 
+	/**
+	 * State changed.
+	 */
 	public void stateChanged() {
 		this.stateChanged = true;
 		if (this.tabNavigation != null) {
@@ -409,6 +440,14 @@ public class RealmsConfigureWorldScreen extends RealmsScreen {
 		}
 	}
 
+	/**
+	 * Invite.
+	 *
+	 * @param worldId world id
+	 * @param profileName profile name
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean invite(long worldId, String profileName) {
 		RealmsClient realmsClient = RealmsClient.create();
 
@@ -438,6 +477,13 @@ public class RealmsConfigureWorldScreen extends RealmsScreen {
 		return realmsConfigureWorldScreen;
 	}
 
+	/**
+	 * With server.
+	 *
+	 * @param server server
+	 *
+	 * @return RealmsConfigureWorldScreen — результат операции
+	 */
 	public RealmsConfigureWorldScreen withServer(RealmsServer server) {
 		RealmsConfigureWorldScreen
 				realmsConfigureWorldScreen =

@@ -224,15 +224,26 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		return this.cameraOverride != null;
 	}
 
+	/**
+	 * Очищает post processor.
+	 */
 	public void clearPostProcessor() {
 		this.postProcessorId = null;
 		this.postProcessorEnabled = false;
 	}
 
+	/**
+	 * Toggle post processor enabled.
+	 */
 	public void togglePostProcessorEnabled() {
 		this.postProcessorEnabled = !this.postProcessorEnabled;
 	}
 
+	/**
+	 * Обрабатывает событие camera entity set.
+	 *
+	 * @param entity entity
+	 */
 	public void onCameraEntitySet(@Nullable Entity entity) {
 		switch (entity) {
 			case CreeperEntity creeperEntity:
@@ -255,6 +266,9 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		this.postProcessorEnabled = true;
 	}
 
+	/**
+	 * Отрисовывает blur.
+	 */
 	public void renderBlur() {
 		PostEffectProcessor
 				postEffectProcessor =
@@ -264,6 +278,11 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		}
 	}
 
+	/**
+	 * Preload programs.
+	 *
+	 * @param factory factory
+	 */
 	public void preloadPrograms(ResourceFactory factory) {
 		GpuDevice gpuDevice = RenderSystem.getDevice();
 		ShaderSourceGetter shaderSourceGetter = (id, type) -> {
@@ -289,6 +308,9 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.updateFovMultiplier();
 		this.lightmapTextureManager.tick();
@@ -333,11 +355,22 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		return this.postProcessorId;
 	}
 
+	/**
+	 * Обрабатывает событие resized.
+	 *
+	 * @param width width
+	 * @param height height
+	 */
 	public void onResized(int width, int height) {
 		this.pool.clear();
 		this.client.worldRenderer.onResized(width, height);
 	}
 
+	/**
+	 * Обновляет crosshair target.
+	 *
+	 * @param tickProgress tick progress
+	 */
 	public void updateCrosshairTarget(float tickProgress) {
 		Entity entity = this.client.getCameraEntity();
 		if (entity != null) {
@@ -492,6 +525,12 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		         + MathHelper.sin((statusEffectInstance.getDuration() - tickProgress) * (float) Math.PI * 0.2F) * 0.3F;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param tickCounter tick counter
+	 * @param tick tick
+	 */
 	public void render(RenderTickCounter tickCounter, boolean tick) {
 		if (!this.client.isWindowFocused()
 				&& this.client.options.pauseOnLostFocus
@@ -767,6 +806,11 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		}
 	}
 
+	/**
+	 * Обновляет camera.
+	 *
+	 * @param renderTickCounter render tick counter
+	 */
 	public void updateCamera(RenderTickCounter renderTickCounter) {
 		float f = renderTickCounter.getTickProgress(true);
 		ClientPlayerEntity clientPlayerEntity = this.client.player;
@@ -792,6 +836,11 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		}
 	}
 
+	/**
+	 * Отрисовывает world.
+	 *
+	 * @param renderTickCounter render tick counter
+	 */
 	public void renderWorld(RenderTickCounter renderTickCounter) {
 		float f = renderTickCounter.getTickProgress(true);
 		ClientPlayerEntity clientPlayerEntity = this.client.player;
@@ -903,6 +952,9 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		return this.getBasicProjectionMatrix(g);
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.overlayRenderer.clearFloatingItem();
 		this.client.getMapTextureManager().clear();
@@ -910,6 +962,11 @@ public class GameRenderer implements TrackedWaypoint.PitchProvider, AutoCloseabl
 		this.hasWorldIcon = false;
 	}
 
+	/**
+	 * Show floating item.
+	 *
+	 * @param floatingItem floating item
+	 */
 	public void showFloatingItem(ItemStack floatingItem) {
 		this.overlayRenderer.setFloatingItem(floatingItem, this.random);
 	}

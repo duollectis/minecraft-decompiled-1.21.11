@@ -118,6 +118,13 @@ public class FileDownload {
 	}
 
 	@CheckReturnValue
+	/**
+	 * Content length.
+	 *
+	 * @param uri uri
+	 *
+	 * @return OptionalLong — результат операции
+	 */
 	public static OptionalLong contentLength(String uri) {
 		try {
 			OptionalLong var3;
@@ -234,6 +241,9 @@ public class FileDownload {
 		}
 	}
 
+	/**
+	 * Проверяет возможность cel.
+	 */
 	public void cancel() {
 		if (this.backupFile != null) {
 			this.backupFile.delete();
@@ -259,6 +269,13 @@ public class FileDownload {
 		return this.extracting;
 	}
 
+	/**
+	 * Ищет available folder name.
+	 *
+	 * @param folder folder
+	 *
+	 * @return String — available folder name
+	 */
 	public static String findAvailableFolderName(String folder) {
 		folder = folder.replaceAll("[\\./\"]", "_");
 
@@ -443,6 +460,11 @@ public class FileDownload {
 			this.status = status;
 		}
 
+		/**
+		 * After write.
+		 *
+		 * @param n n
+		 */
 		protected void afterWrite(int n) throws IOException {
 			super.afterWrite(n);
 			this.status.bytesWritten = this.getByteCount();

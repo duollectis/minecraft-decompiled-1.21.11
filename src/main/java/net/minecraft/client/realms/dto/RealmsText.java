@@ -28,10 +28,22 @@ public class RealmsText {
 		this.args = args;
 	}
 
+	/**
+	 * To text.
+	 *
+	 * @param fallback fallback
+	 *
+	 * @return Text — результат операции
+	 */
 	public Text toText(Text fallback) {
 		return Objects.requireNonNullElse(this.toText(), fallback);
 	}
 
+	/**
+	 * To text.
+	 *
+	 * @return @Nullable Text — результат операции
+	 */
 	public @Nullable Text toText() {
 		if (!I18n.hasTranslation(this.translationKey)) {
 			return null;
@@ -42,6 +54,13 @@ public class RealmsText {
 		}
 	}
 
+	/**
+	 * From json.
+	 *
+	 * @param json json
+	 *
+	 * @return RealmsText — результат операции
+	 */
 	public static RealmsText fromJson(JsonObject json) {
 		String string = JsonUtils.getString("translationKey", json);
 		JsonElement jsonElement = json.get("args");

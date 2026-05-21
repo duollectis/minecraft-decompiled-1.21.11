@@ -29,6 +29,11 @@ public class AtlasSprite {
 		this.regionCount = new AtomicInteger(regionCount);
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @return NativeImage — результат операции
+	 */
 	public NativeImage read() throws IOException {
 		NativeImage nativeImage = this.image.get();
 		if (nativeImage == null) {
@@ -49,6 +54,9 @@ public class AtlasSprite {
 		return nativeImage;
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		int i = this.regionCount.decrementAndGet();
 		if (i <= 0) {

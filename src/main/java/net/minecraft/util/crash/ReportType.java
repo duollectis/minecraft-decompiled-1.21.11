@@ -125,6 +125,11 @@ public record ReportType(String header, List<String> nuggets) {
 			)
 	);
 
+	/**
+	 * Choose nugget.
+	 *
+	 * @return String — результат операции
+	 */
 	public String chooseNugget() {
 		try {
 			return this.nuggets.get((int) (Util.getMeasuringTimeNano() % this.nuggets.size()));
@@ -134,6 +139,12 @@ public record ReportType(String header, List<String> nuggets) {
 		}
 	}
 
+	/**
+	 * Добавляет header and nugget.
+	 *
+	 * @param reportBuilder report builder
+	 * @param extraInfo extra info
+	 */
 	public void addHeaderAndNugget(StringBuilder reportBuilder, List<String> extraInfo) {
 		reportBuilder.append("---- ");
 		reportBuilder.append(this.header());

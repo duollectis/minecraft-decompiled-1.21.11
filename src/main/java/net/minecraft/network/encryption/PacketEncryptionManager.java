@@ -6,6 +6,9 @@ import io.netty.channel.ChannelHandlerContext;
 import javax.crypto.Cipher;
 import javax.crypto.ShortBufferException;
 
+/**
+ * Класс packet encryption manager.
+ */
 public class PacketEncryptionManager {
 
 	private final Cipher cipher;
@@ -26,6 +29,14 @@ public class PacketEncryptionManager {
 		return this.conversionBuffer;
 	}
 
+	/**
+	 * Decrypt.
+	 *
+	 * @param context context
+	 * @param buf buf
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	protected ByteBuf decrypt(ChannelHandlerContext context, ByteBuf buf) throws ShortBufferException {
 		int i = buf.readableBytes();
 		byte[] bs = this.toByteArray(buf);
@@ -34,6 +45,12 @@ public class PacketEncryptionManager {
 		return byteBuf;
 	}
 
+	/**
+	 * Encrypt.
+	 *
+	 * @param buf buf
+	 * @param result result
+	 */
 	protected void encrypt(ByteBuf buf, ByteBuf result) throws ShortBufferException {
 		int i = buf.readableBytes();
 		byte[] bs = this.toByteArray(buf);

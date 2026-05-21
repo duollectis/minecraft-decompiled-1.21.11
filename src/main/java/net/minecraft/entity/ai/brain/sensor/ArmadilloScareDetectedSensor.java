@@ -49,6 +49,11 @@ public class ArmadilloScareDetectedSensor<T extends LivingEntity> extends Sensor
 		return Set.of(MemoryModuleType.MOBS);
 	}
 
+	/**
+	 * Try detect threat.
+	 *
+	 * @param entity entity
+	 */
 	public void tryDetectThreat(T entity) {
 		Optional<List<LivingEntity>> optional = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.MOBS);
 		if (!optional.isEmpty()) {
@@ -61,10 +66,20 @@ public class ArmadilloScareDetectedSensor<T extends LivingEntity> extends Sensor
 		}
 	}
 
+	/**
+	 * Обрабатывает событие detected.
+	 *
+	 * @param entity entity
+	 */
 	public void onDetected(T entity) {
 		entity.getBrain().remember(this.memoryModuleType, true, this.expiry);
 	}
 
+	/**
+	 * Clear.
+	 *
+	 * @param entity entity
+	 */
 	public void clear(T entity) {
 		entity.getBrain().forget(this.memoryModuleType);
 	}

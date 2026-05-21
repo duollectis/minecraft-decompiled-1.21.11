@@ -15,10 +15,23 @@ public final class MissingSprite {
 	private static final String MISSINGNO_ID = "missingno";
 	private static final Identifier MISSINGNO = Identifier.ofVanilla("missingno");
 
+	/**
+	 * Создаёт image.
+	 *
+	 * @return NativeImage — результат операции
+	 */
 	public static NativeImage createImage() {
 		return createImage(16, 16);
 	}
 
+	/**
+	 * Создаёт image.
+	 *
+	 * @param width width
+	 * @param height height
+	 *
+	 * @return NativeImage — результат операции
+	 */
 	public static NativeImage createImage(int width, int height) {
 		NativeImage nativeImage = new NativeImage(width, height, false);
 		int i = -524040;
@@ -37,6 +50,11 @@ public final class MissingSprite {
 		return nativeImage;
 	}
 
+	/**
+	 * Создаёт sprite contents.
+	 *
+	 * @return SpriteContents — результат операции
+	 */
 	public static SpriteContents createSpriteContents() {
 		NativeImage nativeImage = createImage(16, 16);
 		return new SpriteContents(MISSINGNO, new SpriteDimensions(16, 16), nativeImage);

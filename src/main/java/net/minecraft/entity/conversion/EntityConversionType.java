@@ -98,6 +98,11 @@ public enum EntityConversionType {
 		this.discardOldEntity = discardOldEntity;
 	}
 
+	/**
+	 * Определяет, следует ли discard old entity.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDiscardOldEntity() {
 		return this.discardOldEntity;
 	}

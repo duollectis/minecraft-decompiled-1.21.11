@@ -158,6 +158,13 @@ public class BrewingStandScreenHandler extends ScreenHandler {
 			return matches(stack);
 		}
 
+		/**
+		 * Matches.
+		 *
+		 * @param stack stack
+		 *
+		 * @return boolean — результат операции
+		 */
 		public static boolean matches(ItemStack stack) {
 			return stack.isIn(ItemTags.BREWING_FUEL);
 		}
@@ -223,6 +230,13 @@ public class BrewingStandScreenHandler extends ScreenHandler {
 			super.onTakeItem(player, stack);
 		}
 
+		/**
+		 * Matches.
+		 *
+		 * @param stack stack
+		 *
+		 * @return boolean — результат операции
+		 */
 		public static boolean matches(ItemStack stack) {
 			return stack.isOf(Items.POTION) || stack.isOf(Items.SPLASH_POTION) || stack.isOf(Items.LINGERING_POTION)
 					|| stack.isOf(Items.GLASS_BOTTLE);

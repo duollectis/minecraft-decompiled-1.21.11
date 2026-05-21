@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.debug.DebugSubscriptionType;
 
+/**
+ * Запись entity value debug s2 c packet.
+ */
 public record EntityValueDebugS2CPacket(
 		int entityId,
 		DebugSubscriptionType.OptionalValue<?> update
@@ -27,6 +30,11 @@ public record EntityValueDebugS2CPacket(
 		return PlayPackets.ENTITY_VALUE_DEBUG;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntityValueDebug(this);
 	}

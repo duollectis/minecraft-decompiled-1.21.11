@@ -4,6 +4,9 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс acknowledgment validator.
+ */
 public class AcknowledgmentValidator {
 
 	private final int size;
@@ -18,6 +21,11 @@ public class AcknowledgmentValidator {
 		}
 	}
 
+	/**
+	 * Добавляет pending.
+	 *
+	 * @param signature signature
+	 */
 	public void addPending(MessageSignatureData signature) {
 		if (!signature.equals(this.lastSignature)) {
 			this.messages.add(new AcknowledgedMessage(signature, true));

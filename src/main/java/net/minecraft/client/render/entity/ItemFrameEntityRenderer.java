@@ -170,10 +170,22 @@ public class ItemFrameEntityRenderer<T extends ItemFrameEntity> extends EntityRe
 		return itemFrameEntity.getHeldItemStack().getName();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ItemFrameEntityRenderState — результат операции
+	 */
 	public ItemFrameEntityRenderState createRenderState() {
 		return new ItemFrameEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param itemFrameEntity item frame entity
+	 * @param itemFrameEntityRenderState item frame entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T itemFrameEntity, ItemFrameEntityRenderState itemFrameEntityRenderState, float f) {
 		super.updateRenderState(itemFrameEntity, itemFrameEntityRenderState, f);
 		itemFrameEntityRenderState.facing = itemFrameEntity.getHorizontalFacing();

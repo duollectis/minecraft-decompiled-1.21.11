@@ -280,6 +280,11 @@ public class VideoOptionsScreen extends GameOptionsScreen {
 		}
 	}
 
+	/**
+	 * Обновляет fullscreen button value.
+	 *
+	 * @param fullscreen fullscreen
+	 */
 	public void updateFullscreenButtonValue(boolean fullscreen) {
 		if (this.body != null) {
 			ClickableWidget clickableWidget = this.body.getWidgetFor(this.gameOptions.getFullscreen());
@@ -290,6 +295,9 @@ public class VideoOptionsScreen extends GameOptionsScreen {
 		}
 	}
 
+	/**
+	 * Обновляет improved transparency button value.
+	 */
 	public void updateImprovedTransparencyButtonValue() {
 		if (this.body != null) {
 			SimpleOption<Boolean> simpleOption = this.gameOptions.getImprovedTransparency();

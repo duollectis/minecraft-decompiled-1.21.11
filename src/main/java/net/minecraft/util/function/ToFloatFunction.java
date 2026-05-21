@@ -19,6 +19,13 @@ public interface ToFloatFunction<C> {
 
 	static ToFloatFunction<Float> fromFloat(Float2FloatFunction delegate) {
 		return new ToFloatFunction<Float>() {
+			/**
+			 * Apply.
+			 *
+			 * @param float_ float_
+			 *
+			 * @return float — результат операции
+			 */
 			public float apply(Float float_) {
 				return (Float) delegate.apply(float_);
 			}

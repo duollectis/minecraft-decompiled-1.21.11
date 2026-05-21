@@ -80,6 +80,14 @@ public class RealmsWorldOptions extends ValueObject implements RealmsSerializabl
 		return realmsWorldOptions;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param levelInfo level info
+	 * @param string string
+	 *
+	 * @return RealmsWorldOptions — результат операции
+	 */
 	public static RealmsWorldOptions create(LevelInfo levelInfo, String string) {
 		return create(
 				levelInfo.getGameMode(),
@@ -100,6 +108,14 @@ public class RealmsWorldOptions extends ValueObject implements RealmsSerializabl
 		this.empty = empty;
 	}
 
+	/**
+	 * From json.
+	 *
+	 * @param gson gson
+	 * @param json json
+	 *
+	 * @return RealmsWorldOptions — результат операции
+	 */
 	public static RealmsWorldOptions fromJson(CheckedGson gson, String json) {
 		RealmsWorldOptions realmsWorldOptions = gson.fromJson(json, RealmsWorldOptions.class);
 		if (realmsWorldOptions == null) {
@@ -138,6 +154,11 @@ public class RealmsWorldOptions extends ValueObject implements RealmsSerializabl
 		return I18n.translate("mco.configure.world.slot", index);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return RealmsWorldOptions — результат операции
+	 */
 	public RealmsWorldOptions copy() {
 		return new RealmsWorldOptions(
 				this.spawnProtection,

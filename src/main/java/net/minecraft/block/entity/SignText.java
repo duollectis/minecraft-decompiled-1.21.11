@@ -81,6 +81,13 @@ public class SignText {
 		return this.glowing;
 	}
 
+	/**
+	 * With glowing.
+	 *
+	 * @param glowing glowing
+	 *
+	 * @return SignText — результат операции
+	 */
 	public SignText withGlowing(boolean glowing) {
 		return glowing == this.glowing ? this : new SignText(this.messages, this.filteredMessages, this.color, glowing);
 	}
@@ -89,6 +96,13 @@ public class SignText {
 		return this.color;
 	}
 
+	/**
+	 * With color.
+	 *
+	 * @param color color
+	 *
+	 * @return SignText — результат операции
+	 */
 	public SignText withColor(DyeColor color) {
 		return color == this.getColor() ? this
 		                                : new SignText(this.messages, this.filteredMessages, color, this.glowing);
@@ -98,10 +112,27 @@ public class SignText {
 		return this.getMessages(filtered)[line];
 	}
 
+	/**
+	 * With message.
+	 *
+	 * @param line line
+	 * @param message message
+	 *
+	 * @return SignText — результат операции
+	 */
 	public SignText withMessage(int line, Text message) {
 		return this.withMessage(line, message, message);
 	}
 
+	/**
+	 * With message.
+	 *
+	 * @param line line
+	 * @param message message
+	 * @param filteredMessage filtered message
+	 *
+	 * @return SignText — результат операции
+	 */
 	public SignText withMessage(int line, Text message, Text filteredMessage) {
 		Text[] texts = Arrays.copyOf(this.messages, this.messages.length);
 		Text[] texts2 = Arrays.copyOf(this.filteredMessages, this.filteredMessages.length);

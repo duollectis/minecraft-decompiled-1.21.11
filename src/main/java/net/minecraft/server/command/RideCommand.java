@@ -36,6 +36,11 @@ public class RideCommand {
 			Text.translatable("commands.ride.mount.failure.wrong_dimension")
 	);
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("ride")

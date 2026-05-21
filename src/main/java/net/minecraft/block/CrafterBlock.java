@@ -167,6 +167,13 @@ public class CrafterBlock extends BlockWithEntity {
 		return ActionResult.SUCCESS;
 	}
 
+	/**
+	 * Craft.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected void craft(BlockState state, ServerWorld world, BlockPos pos) {
 		if (world.getBlockEntity(pos) instanceof CrafterBlockEntity crafterBlockEntity) {
 			CraftingRecipeInput var11 = crafterBlockEntity.createRecipeInput();

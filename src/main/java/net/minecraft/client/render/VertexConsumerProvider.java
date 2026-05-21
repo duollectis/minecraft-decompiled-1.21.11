@@ -76,6 +76,9 @@ public interface VertexConsumerProvider {
 			}
 		}
 
+		/**
+		 * Draw current layer.
+		 */
 		public void drawCurrentLayer() {
 			if (this.currentLayer != null) {
 				this.draw(this.currentLayer);
@@ -83,6 +86,9 @@ public interface VertexConsumerProvider {
 			}
 		}
 
+		/**
+		 * Draw.
+		 */
 		public void draw() {
 			this.drawCurrentLayer();
 
@@ -91,6 +97,11 @@ public interface VertexConsumerProvider {
 			}
 		}
 
+		/**
+		 * Draw.
+		 *
+		 * @param layer layer
+		 */
 		public void draw(RenderLayer layer) {
 			BufferBuilder bufferBuilder = this.pending.remove(layer);
 			if (bufferBuilder != null) {

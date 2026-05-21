@@ -9,6 +9,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
+/**
+ * Интерфейс packet codec.
+ */
 public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B, V> {
 
 	static <B, V> PacketCodec<B, V> ofStatic(PacketEncoder<B, V> encoder, PacketDecoder<B, V> decoder) {
@@ -75,11 +78,24 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 
 	default <O extends ByteBuf> PacketCodec<O, V> mapBuf(Function<O, ? extends B> function) {
 		return new PacketCodec<O, V>() {
+			/**
+			 * Decode.
+			 *
+			 * @param byteBuf byte buf
+			 *
+			 * @return V — результат операции
+			 */
 			public V decode(O byteBuf) {
 				B object = (B) function.apply(byteBuf);
 				return PacketCodec.this.decode(object);
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param byteBuf byte buf
+			 * @param object object
+			 */
 			public void encode(O byteBuf, V object) {
 				B object2 = (B) function.apply(byteBuf);
 				PacketCodec.this.encode(object2, object);
@@ -661,6 +677,9 @@ public interface PacketCodec<B, V> extends PacketDecoder<B, V>, PacketEncoder<B,
 	}
 
 	@FunctionalInterface
+	/**
+	 * Интерфейс result function.
+	 */
 	public interface ResultFunction<B, S, T> {
 
 		PacketCodec<B, T> apply(PacketCodec<B, S> codec);

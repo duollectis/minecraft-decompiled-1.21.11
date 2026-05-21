@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс start chunk send s2 c packet.
+ */
 public class StartChunkSendS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final StartChunkSendS2CPacket INSTANCE = new StartChunkSendS2CPacket();
@@ -20,6 +23,11 @@ public class StartChunkSendS2CPacket implements Packet<ClientPlayPacketListener>
 		return PlayPackets.CHUNK_BATCH_START;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onStartChunkSend(this);
 	}

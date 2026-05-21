@@ -18,6 +18,13 @@ public class SlotDisplayContexts {
 			CONTEXT_TYPE =
 			new ContextType.Builder().allow(FUEL_REGISTRY).allow(REGISTRIES).build();
 
+	/**
+	 * Создаёт parameters.
+	 *
+	 * @param world world
+	 *
+	 * @return ContextParameterMap — результат операции
+	 */
 	public static ContextParameterMap createParameters(World world) {
 		return new ContextParameterMap.Builder()
 				.add(FUEL_REGISTRY, world.getFuelRegistry())

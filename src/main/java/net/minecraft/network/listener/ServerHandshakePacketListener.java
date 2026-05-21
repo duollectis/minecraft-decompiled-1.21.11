@@ -3,6 +3,9 @@ package net.minecraft.network.listener;
 import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.c2s.handshake.HandshakeC2SPacket;
 
+/**
+ * Интерфейс server handshake packet listener.
+ */
 public interface ServerHandshakePacketListener extends ServerCrashSafePacketListener {
 
 	@Override

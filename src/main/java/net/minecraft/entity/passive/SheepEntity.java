@@ -265,11 +265,27 @@ public class SheepEntity extends AnimalEntity implements Shearable {
 		}
 	}
 
+	/**
+	 * Select spawn color.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return DyeColor — результат операции
+	 */
 	public static DyeColor selectSpawnColor(ServerWorldAccess world, BlockPos pos) {
 		RegistryEntry<Biome> registryEntry = world.getBiome(pos);
 		return SheepColors.select(registryEntry, world.getRandom());
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable SheepEntity — результат операции
+	 */
 	public @Nullable SheepEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		SheepEntity sheepEntity = EntityType.SHEEP.create(serverWorld, SpawnReason.BREEDING);
 		if (sheepEntity != null) {

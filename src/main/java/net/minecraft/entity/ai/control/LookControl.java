@@ -24,22 +24,55 @@ public class LookControl implements Control {
 		this.entity = entity;
 	}
 
+	/**
+	 * Look at.
+	 *
+	 * @param direction direction
+	 */
 	public void lookAt(Vec3d direction) {
 		this.lookAt(direction.x, direction.y, direction.z);
 	}
 
+	/**
+	 * Look at.
+	 *
+	 * @param entity entity
+	 */
 	public void lookAt(Entity entity) {
 		this.lookAt(entity.getX(), entity.getEyeY(), entity.getZ());
 	}
 
+	/**
+	 * Look at.
+	 *
+	 * @param entity entity
+	 * @param maxYawChange max yaw change
+	 * @param maxPitchChange max pitch change
+	 */
 	public void lookAt(Entity entity, float maxYawChange, float maxPitchChange) {
 		this.lookAt(entity.getX(), entity.getEyeY(), entity.getZ(), maxYawChange, maxPitchChange);
 	}
 
+	/**
+	 * Look at.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	public void lookAt(double x, double y, double z) {
 		this.lookAt(x, y, z, this.entity.getMaxLookYawChange(), this.entity.getMaxLookPitchChange());
 	}
 
+	/**
+	 * Look at.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param maxYawChange max yaw change
+	 * @param maxPitchChange max pitch change
+	 */
 	public void lookAt(double x, double y, double z, float maxYawChange, float maxPitchChange) {
 		this.x = x;
 		this.y = y;
@@ -49,6 +82,9 @@ public class LookControl implements Control {
 		this.lookAtTimer = 2;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.shouldStayHorizontal()) {
 			this.entity.setPitch(0.0F);
@@ -76,6 +112,9 @@ public class LookControl implements Control {
 		this.clampHeadYaw();
 	}
 
+	/**
+	 * Clamp head yaw.
+	 */
 	protected void clampHeadYaw() {
 		if (!this.entity.getNavigation().isIdle()) {
 			this.entity.headYaw =
@@ -83,6 +122,11 @@ public class LookControl implements Control {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли stay horizontal.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldStayHorizontal() {
 		return true;
 	}

@@ -28,6 +28,13 @@ public class SoundLoader {
 		this.resourceFactory = resourceFactory;
 	}
 
+	/**
+	 * Загружает static.
+	 *
+	 * @param id id
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<StaticSound> loadStatic(Identifier id) {
 		return this.loadedSounds.computeIfAbsent(
 				id, id2 -> CompletableFuture.supplyAsync(
@@ -52,6 +59,14 @@ public class SoundLoader {
 		);
 	}
 
+	/**
+	 * Загружает streamed.
+	 *
+	 * @param id id
+	 * @param repeatInstantly repeat instantly
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<AudioStream> loadStreamed(Identifier id, boolean repeatInstantly) {
 		return CompletableFuture.supplyAsync(
 				() -> {
@@ -70,11 +85,21 @@ public class SoundLoader {
 		);
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		this.loadedSounds.values().forEach(soundFuture -> soundFuture.thenAccept(StaticSound::close));
 		this.loadedSounds.clear();
 	}
 
+	/**
+	 * Загружает static.
+	 *
+	 * @param sounds sounds
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<?> loadStatic(Collection<Sound> sounds) {
 		return CompletableFuture.allOf(sounds
 				.stream()

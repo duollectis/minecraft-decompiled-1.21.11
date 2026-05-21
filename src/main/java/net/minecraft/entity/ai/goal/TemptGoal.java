@@ -114,6 +114,11 @@ public class TemptGoal extends Goal {
 		return this.canStart();
 	}
 
+	/**
+	 * Проверяет возможность be scared.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canBeScared() {
 		return this.canBeScared;
 	}
@@ -147,10 +152,18 @@ public class TemptGoal extends Goal {
 		}
 	}
 
+	/**
+	 * Останавливает moving.
+	 */
 	protected void stopMoving() {
 		this.mob.getNavigation().stop();
 	}
 
+	/**
+	 * Запускает moving to.
+	 *
+	 * @param player player
+	 */
 	protected void startMovingTo(PlayerEntity player) {
 		this.mob.getNavigation().startMovingTo(player, this.speed);
 	}

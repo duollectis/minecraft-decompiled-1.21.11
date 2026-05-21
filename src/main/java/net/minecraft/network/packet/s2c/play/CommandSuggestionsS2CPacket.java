@@ -16,6 +16,9 @@ import net.minecraft.text.Texts;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Запись command suggestions s2 c packet.
+ */
 public record CommandSuggestionsS2CPacket(
 		int id,
 		int start,
@@ -58,6 +61,11 @@ public record CommandSuggestionsS2CPacket(
 		return PlayPackets.COMMAND_SUGGESTIONS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onCommandSuggestions(this);
 	}
@@ -77,6 +85,9 @@ public record CommandSuggestionsS2CPacket(
 		);
 	}
 
+	/**
+	 * Запись suggestion.
+	 */
 	public record Suggestion(String text, Optional<Text> tooltip) {
 
 		public static final PacketCodec<RegistryByteBuf, CommandSuggestionsS2CPacket.Suggestion>

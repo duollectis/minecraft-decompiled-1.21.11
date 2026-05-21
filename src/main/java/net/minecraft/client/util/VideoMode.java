@@ -113,6 +113,13 @@ public final class VideoMode {
 		);
 	}
 
+	/**
+	 * From string.
+	 *
+	 * @param string string
+	 *
+	 * @return Optional — результат операции
+	 */
 	public static Optional<VideoMode> fromString(@Nullable String string) {
 		if (string == null) {
 			return Optional.empty();
@@ -152,6 +159,11 @@ public final class VideoMode {
 		}
 	}
 
+	/**
+	 * As string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String asString() {
 		return String.format(
 				Locale.ROOT,

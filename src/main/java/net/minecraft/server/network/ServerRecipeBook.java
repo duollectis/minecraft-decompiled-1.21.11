@@ -43,6 +43,11 @@ public class ServerRecipeBook extends RecipeBook {
 		this.collector = collector;
 	}
 
+	/**
+	 * Unlock.
+	 *
+	 * @param recipeKey recipe key
+	 */
 	public void unlock(RegistryKey<Recipe<?>> recipeKey) {
 		this.unlocked.add(recipeKey);
 	}
@@ -51,11 +56,21 @@ public class ServerRecipeBook extends RecipeBook {
 		return this.unlocked.contains(recipeKey);
 	}
 
+	/**
+	 * Lock.
+	 *
+	 * @param recipeKey recipe key
+	 */
 	public void lock(RegistryKey<Recipe<?>> recipeKey) {
 		this.unlocked.remove(recipeKey);
 		this.highlighted.remove(recipeKey);
 	}
 
+	/**
+	 * Unmark highlighted.
+	 *
+	 * @param recipeKey recipe key
+	 */
 	public void unmarkHighlighted(RegistryKey<Recipe<?>> recipeKey) {
 		this.highlighted.remove(recipeKey);
 	}
@@ -64,6 +79,14 @@ public class ServerRecipeBook extends RecipeBook {
 		this.highlighted.add(recipeKey);
 	}
 
+	/**
+	 * Unlock recipes.
+	 *
+	 * @param recipes recipes
+	 * @param player player
+	 *
+	 * @return int — результат операции
+	 */
 	public int unlockRecipes(Collection<RecipeEntry<?>> recipes, ServerPlayerEntity player) {
 		List<RecipeBookAddS2CPacket.Entry> list = new ArrayList<>();
 
@@ -92,6 +115,14 @@ public class ServerRecipeBook extends RecipeBook {
 		return list.size();
 	}
 
+	/**
+	 * Lock recipes.
+	 *
+	 * @param recipes recipes
+	 * @param player player
+	 *
+	 * @return int — результат операции
+	 */
 	public int lockRecipes(Collection<RecipeEntry<?>> recipes, ServerPlayerEntity player) {
 		List<NetworkRecipeId> list = Lists.newArrayList();
 
@@ -125,6 +156,11 @@ public class ServerRecipeBook extends RecipeBook {
 		}
 	}
 
+	/**
+	 * Отправляет init recipes packet.
+	 *
+	 * @param player player
+	 */
 	public void sendInitRecipesPacket(ServerPlayerEntity player) {
 		player.networkHandler.sendPacket(new RecipeBookSettingsS2CPacket(this.getOptions().copy()));
 		List<RecipeBookAddS2CPacket.Entry> list = new ArrayList<>(this.unlocked.size());
@@ -144,6 +180,11 @@ public class ServerRecipeBook extends RecipeBook {
 		player.networkHandler.sendPacket(new RecipeBookAddS2CPacket(list, true));
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param recipeBook recipe book
+	 */
 	public void copyFrom(ServerRecipeBook recipeBook) {
 		this.unpack(recipeBook.pack());
 	}
@@ -164,6 +205,12 @@ public class ServerRecipeBook extends RecipeBook {
 		this.highlighted.addAll(packed.highlight);
 	}
 
+	/**
+	 * Unpack.
+	 *
+	 * @param packed packed
+	 * @param validPredicate valid predicate
+	 */
 	public void unpack(ServerRecipeBook.Packed packed, Predicate<RegistryKey<Recipe<?>>> validPredicate) {
 		this.options.copyFrom(packed.settings);
 		this.handleList(packed.known, this.unlocked::add, validPredicate);

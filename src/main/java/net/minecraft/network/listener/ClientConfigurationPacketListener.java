@@ -3,6 +3,9 @@ package net.minecraft.network.listener;
 import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.s2c.config.*;
 
+/**
+ * Интерфейс client configuration packet listener.
+ */
 public interface ClientConfigurationPacketListener extends ClientCommonPacketListener {
 
 	@Override

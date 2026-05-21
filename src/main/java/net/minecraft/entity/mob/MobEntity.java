@@ -143,6 +143,9 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Инициализирует goals.
+	 */
 	protected void initGoals() {
 	}
 
@@ -150,10 +153,22 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return LivingEntity.createLivingAttributes().add(EntityAttributes.FOLLOW_RANGE, 16.0);
 	}
 
+	/**
+	 * Создаёт navigation.
+	 *
+	 * @param world world
+	 *
+	 * @return EntityNavigation — результат операции
+	 */
 	protected EntityNavigation createNavigation(World world) {
 		return new MobNavigation(this, world);
 	}
 
+	/**
+	 * Перемещает s independently.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean movesIndependently() {
 		return false;
 	}
@@ -175,12 +190,23 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		this.pathfindingPenalties.put(nodeType, penalty);
 	}
 
+	/**
+	 * Обрабатывает событие start pathfinding.
+	 */
 	public void onStartPathfinding() {
 	}
 
+	/**
+	 * Обрабатывает событие finish pathfinding.
+	 */
 	public void onFinishPathfinding() {
 	}
 
+	/**
+	 * Создаёт body control.
+	 *
+	 * @return BodyControl — результат операции
+	 */
 	protected BodyControl createBodyControl() {
 		return new BodyControl(this);
 	}
@@ -232,10 +258,20 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return type != EntityType.GHAST;
 	}
 
+	/**
+	 * Проверяет возможность use ranged weapon.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canUseRangedWeapon(ItemStack stack) {
 		return false;
 	}
 
+	/**
+	 * Обрабатывает событие eating grass.
+	 */
 	public void onEatingGrass() {
 		this.emitGameEvent(GameEvent.EAT);
 	}
@@ -250,6 +286,9 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return 80;
 	}
 
+	/**
+	 * Play ambient sound.
+	 */
 	public void playAmbientSound() {
 		this.playSound(this.getAmbientSound());
 	}
@@ -298,6 +337,9 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Play spawn effects.
+	 */
 	public void playSpawnEffects() {
 		if (this.getEntityWorld().isClient()) {
 			this.addDeathParticles();
@@ -325,6 +367,9 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Обновляет goal controls.
+	 */
 	protected void updateGoalControls() {
 		boolean bl = !(this.getControllingPassenger() instanceof MobEntity);
 		boolean bl2 = !(this.getVehicle() instanceof AbstractBoatEntity);
@@ -423,6 +468,9 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		this.setForwardSpeed(movementSpeed);
 	}
 
+	/**
+	 * Останавливает movement.
+	 */
 	public void stopMovement() {
 		this.getNavigation().stop();
 		this.setSidewaysSpeed(0.0F);
@@ -513,6 +561,12 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return ITEM_PICK_UP_RANGE_EXPANDER;
 	}
 
+	/**
+	 * Loot.
+	 *
+	 * @param world world
+	 * @param itemEntity item entity
+	 */
 	protected void loot(ServerWorld world, ItemEntity itemEntity) {
 		ItemStack itemStack = itemEntity.getStack();
 		ItemStack itemStack2 = this.tryEquip(world, itemStack.copy());
@@ -526,6 +580,14 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Try equip.
+	 *
+	 * @param world world
+	 * @param stack stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack tryEquip(ServerWorld world, ItemStack stack) {
 		EquipmentSlot equipmentSlot = this.getPreferredEquipmentSlot(stack);
 		if (!this.canEquip(stack, equipmentSlot)) {
@@ -556,12 +618,25 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Equip loot stack.
+	 *
+	 * @param slot slot
+	 * @param stack stack
+	 */
 	public void equipLootStack(EquipmentSlot slot, ItemStack stack) {
 		this.equipStack(slot, stack);
 		this.setDropGuaranteed(slot);
 		this.persistent = true;
 	}
 
+	/**
+	 * Проверяет возможность remove saddle.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canRemoveSaddle(PlayerEntity player) {
 		return !this.hasPassengers();
 	}
@@ -570,6 +645,15 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		this.equipmentDropChances = this.equipmentDropChances.withGuaranteed(slot);
 	}
 
+	/**
+	 * Prefers new equipment.
+	 *
+	 * @param newStack new stack
+	 * @param currentStack current stack
+	 * @param slot slot
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean prefersNewEquipment(ItemStack newStack, ItemStack currentStack, EquipmentSlot slot) {
 		if (currentStack.isEmpty()) {
 			return true;
@@ -632,6 +716,14 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return attributeModifiersComponent.applyOperations(attribute, d, slot);
 	}
 
+	/**
+	 * Prefers new damageable item.
+	 *
+	 * @param newStack new stack
+	 * @param oldStack old stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean prefersNewDamageableItem(ItemStack newStack, ItemStack oldStack) {
 		Set<Entry<RegistryEntry<Enchantment>>>
 				set =
@@ -652,10 +744,25 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Проверяет возможность pickup item.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canPickupItem(ItemStack stack) {
 		return true;
 	}
 
+	/**
+	 * Проверяет возможность gather.
+	 *
+	 * @param world world
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canGather(ServerWorld world, ItemStack stack) {
 		return this.canPickupItem(stack);
 	}
@@ -664,10 +771,22 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return null;
 	}
 
+	/**
+	 * Проверяет возможность immediately despawn.
+	 *
+	 * @param distanceSquared distance squared
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canImmediatelyDespawn(double distanceSquared) {
 		return true;
 	}
 
+	/**
+	 * Проверяет возможность not despawn.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean cannotDespawn() {
 		return this.hasVehicle();
 	}
@@ -745,6 +864,11 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		profiler.pop();
 	}
 
+	/**
+	 * Mob tick.
+	 *
+	 * @param world world
+	 */
 	protected void mobTick(ServerWorld world) {
 	}
 
@@ -756,6 +880,9 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return 75;
 	}
 
+	/**
+	 * Clamp head yaw.
+	 */
 	protected void clampHeadYaw() {
 		float f = this.getMaxHeadRotation();
 		float g = this.getHeadYaw();
@@ -769,6 +896,13 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return 10;
 	}
 
+	/**
+	 * Look at entity.
+	 *
+	 * @param targetEntity target entity
+	 * @param maxYawChange max yaw change
+	 * @param maxPitchChange max pitch change
+	 */
 	public void lookAtEntity(Entity targetEntity, float maxYawChange, float maxPitchChange) {
 		double d = targetEntity.getX() - this.getX();
 		double e = targetEntity.getZ() - this.getZ();
@@ -813,10 +947,25 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 				.allowsSpawning(world, blockPos, type);
 	}
 
+	/**
+	 * Проверяет возможность spawn.
+	 *
+	 * @param world world
+	 * @param spawnReason spawn reason
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSpawn(WorldAccess world, SpawnReason spawnReason) {
 		return true;
 	}
 
+	/**
+	 * Проверяет возможность spawn.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSpawn(WorldView world) {
 		return !world.containsFluid(this.getBoundingBox()) && world.doesNotIntersectEntities(this);
 	}
@@ -825,6 +974,13 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return 4;
 	}
 
+	/**
+	 * Создаёт (спавнит) s too many for each try.
+	 *
+	 * @param count count
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean spawnsTooManyForEachTry(int count) {
 		return false;
 	}
@@ -861,10 +1017,22 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return this.hasStackEquipped(slot) && this.canEquip(this.getEquippedStack(slot), slot);
 	}
 
+	/**
+	 * Equip body armor.
+	 *
+	 * @param stack stack
+	 */
 	public void equipBodyArmor(ItemStack stack) {
 		this.equipLootStack(EquipmentSlot.BODY, stack);
 	}
 
+	/**
+	 * Создаёт equipment inventory.
+	 *
+	 * @param slot slot
+	 *
+	 * @return Inventory — результат операции
+	 */
 	public Inventory createEquipmentInventory(EquipmentSlot slot) {
 		return new SingleStackInventory() {
 			@Override
@@ -929,10 +1097,23 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return this.equipmentDropChances;
 	}
 
+	/**
+	 * Бросает all foreign equipment.
+	 *
+	 * @param world world
+	 */
 	public void dropAllForeignEquipment(ServerWorld world) {
 		this.dropForeignEquipment(world, stack -> true);
 	}
 
+	/**
+	 * Бросает foreign equipment.
+	 *
+	 * @param world world
+	 * @param dropPredicate drop predicate
+	 *
+	 * @return Set — результат операции
+	 */
 	public Set<EquipmentSlot> dropForeignEquipment(ServerWorld world, Predicate<ItemStack> dropPredicate) {
 		Set<EquipmentSlot> set = new HashSet<>();
 
@@ -969,6 +1150,12 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Инициализирует equipment.
+	 *
+	 * @param random random
+	 * @param localDifficulty local difficulty
+	 */
 	protected void initEquipment(Random random, LocalDifficulty localDifficulty) {
 		if (random.nextFloat() < 0.15F * localDifficulty.getClampedLocalDifficulty()) {
 			int i = random.nextInt(3);
@@ -1082,6 +1269,13 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Обновляет enchantments.
+	 *
+	 * @param world world
+	 * @param random random
+	 * @param localDifficulty local difficulty
+	 */
 	protected void updateEnchantments(ServerWorldAccess world, Random random, LocalDifficulty localDifficulty) {
 		this.enchantMainHandItem(world, random, localDifficulty);
 
@@ -1092,6 +1286,13 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Зачаровывает main hand item.
+	 *
+	 * @param world world
+	 * @param random random
+	 * @param localDifficulty local difficulty
+	 */
 	protected void enchantMainHandItem(ServerWorldAccess world, Random random, LocalDifficulty localDifficulty) {
 		this.enchantEquipment(world, EquipmentSlot.MAINHAND, random, 0.25F, localDifficulty);
 	}
@@ -1238,13 +1439,34 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		}
 	}
 
+	/**
+	 * Обрабатывает событие player spawned child.
+	 *
+	 * @param player player
+	 * @param child child
+	 */
 	protected void onPlayerSpawnedChild(PlayerEntity player, MobEntity child) {
 	}
 
+	/**
+	 * Выполняет взаимодействие с mob.
+	 *
+	 * @param player player
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	protected ActionResult interactMob(PlayerEntity player, Hand hand) {
 		return ActionResult.PASS;
 	}
 
+	/**
+	 * Eat.
+	 *
+	 * @param player player
+	 * @param hand hand
+	 * @param stack stack
+	 */
 	protected void eat(PlayerEntity player, Hand hand, ItemStack stack) {
 		int i = stack.getCount();
 		UseRemainderComponent useRemainderComponent = stack.get(DataComponentTypes.USE_REMAINDER);
@@ -1284,6 +1506,9 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 		return this.positionTargetRange;
 	}
 
+	/**
+	 * Очищает position target.
+	 */
 	public void clearPositionTarget() {
 		this.positionTargetRange = -1;
 	}
@@ -1490,11 +1715,19 @@ public abstract class MobEntity extends LivingEntity implements EquipmentHolder,
 	}
 
 	@VisibleForTesting
+	/**
+	 * Очищает goals and tasks.
+	 */
 	public void clearGoalsAndTasks() {
 		this.clearGoals(goal -> true);
 		this.getBrain().clear();
 	}
 
+	/**
+	 * Очищает goals.
+	 *
+	 * @param predicate predicate
+	 */
 	public void clearGoals(Predicate<Goal> predicate) {
 		this.goalSelector.clear(predicate);
 	}

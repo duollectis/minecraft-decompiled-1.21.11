@@ -30,6 +30,14 @@ public final class MergedComponentMap implements ComponentMap {
 		this.copyOnWrite = copyOnWrite;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param baseComponents base components
+	 * @param changes changes
+	 *
+	 * @return MergedComponentMap — результат операции
+	 */
 	public static MergedComponentMap create(ComponentMap baseComponents, ComponentChanges changes) {
 		if (shouldReuseChangesMap(baseComponents, changes.changedComponents)) {
 			return new MergedComponentMap(baseComponents, changes.changedComponents, true);
@@ -73,6 +81,14 @@ public final class MergedComponentMap implements ComponentMap {
 		return this.changedComponents.containsKey(type);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T> @Nullable T set(ComponentType<T> type, @Nullable T value) {
 		this.onWrite();
 		T object = this.baseComponents.get(type);
@@ -87,10 +103,24 @@ public final class MergedComponentMap implements ComponentMap {
 		return optional != null ? optional.orElse(object) : object;
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param component component
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T> @Nullable T set(Component<T> component) {
 		return this.set(component.type(), component.value());
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param type type
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T> @Nullable T remove(ComponentType<? extends T> type) {
 		this.onWrite();
 		T object = this.baseComponents.get(type);
@@ -105,6 +135,11 @@ public final class MergedComponentMap implements ComponentMap {
 		return (T) (optional != null ? optional.orElse(null) : object);
 	}
 
+	/**
+	 * Применяет changes.
+	 *
+	 * @param changes changes
+	 */
 	public void applyChanges(ComponentChanges changes) {
 		this.onWrite();
 		ObjectIterator var2 = Reference2ObjectMaps.fastIterable(changes.changedComponents).iterator();
@@ -139,6 +174,9 @@ public final class MergedComponentMap implements ComponentMap {
 		this.changedComponents.putAll(changes.changedComponents);
 	}
 
+	/**
+	 * Очищает changes.
+	 */
 	public void clearChanges() {
 		this.onWrite();
 		this.changedComponents.clear();
@@ -240,11 +278,21 @@ public final class MergedComponentMap implements ComponentMap {
 		}
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return MergedComponentMap — результат операции
+	 */
 	public MergedComponentMap copy() {
 		this.copyOnWrite = true;
 		return new MergedComponentMap(this.baseComponents, this.changedComponents, true);
 	}
 
+	/**
+	 * Immutable copy.
+	 *
+	 * @return ComponentMap — результат операции
+	 */
 	public ComponentMap immutableCopy() {
 		return (ComponentMap) (this.changedComponents.isEmpty() ? this.baseComponents : this.copy());
 	}

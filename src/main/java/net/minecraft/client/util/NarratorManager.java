@@ -30,18 +30,33 @@ public class NarratorManager {
 		this.client = client;
 	}
 
+	/**
+	 * Narrate chat message.
+	 *
+	 * @param message message
+	 */
 	public void narrateChatMessage(Text message) {
 		if (this.getNarratorMode().shouldNarrateChat()) {
 			this.narrateText(message);
 		}
 	}
 
+	/**
+	 * Narrate.
+	 *
+	 * @param message message
+	 */
 	public void narrate(Text message) {
 		if (this.getNarratorMode().shouldNarrate()) {
 			this.narrateText(message);
 		}
 	}
 
+	/**
+	 * Narrate system message.
+	 *
+	 * @param message message
+	 */
 	public void narrateSystemMessage(Text message) {
 		if (this.getNarratorMode().shouldNarrateSystem()) {
 			this.narrateText(message);
@@ -56,10 +71,20 @@ public class NarratorManager {
 		}
 	}
 
+	/**
+	 * Narrate system immediately.
+	 *
+	 * @param text text
+	 */
 	public void narrateSystemImmediately(Text text) {
 		this.narrateSystemImmediately(text.getString());
 	}
 
+	/**
+	 * Narrate system immediately.
+	 *
+	 * @param text text
+	 */
 	public void narrateSystemImmediately(String text) {
 		if (this.getNarratorMode().shouldNarrateSystem() && !text.isEmpty()) {
 			this.debugPrintMessage(text);
@@ -84,6 +109,11 @@ public class NarratorManager {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие mode change.
+	 *
+	 * @param mode mode
+	 */
 	public void onModeChange(NarratorMode mode) {
 		this.clear();
 		this.say(Text.translatable("options.narrator").append(" : ").append(mode.getName()).getString(), true);
@@ -120,16 +150,27 @@ public class NarratorManager {
 		return this.narrator.active();
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		if (this.getNarratorMode() != NarratorMode.OFF && this.narrator.active()) {
 			this.narrator.clear();
 		}
 	}
 
+	/**
+	 * Destroy.
+	 */
 	public void destroy() {
 		this.narrator.destroy();
 	}
 
+	/**
+	 * Проверяет narrator library.
+	 *
+	 * @param narratorEnabled narrator enabled
+	 */
 	public void checkNarratorLibrary(boolean narratorEnabled) {
 		if (narratorEnabled
 				&& !this.isActive()

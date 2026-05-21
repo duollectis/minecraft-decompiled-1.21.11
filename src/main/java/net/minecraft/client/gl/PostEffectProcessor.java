@@ -156,6 +156,12 @@ public class PostEffectProcessor implements AutoCloseable {
 	}
 
 	@Deprecated
+	/**
+	 * Render.
+	 *
+	 * @param framebuffer framebuffer
+	 * @param objectAllocator object allocator
+	 */
 	public void render(Framebuffer framebuffer, ObjectAllocator objectAllocator) {
 		FrameGraphBuilder frameGraphBuilder = new FrameGraphBuilder();
 		PostEffectProcessor.FramebufferSet framebufferSet = PostEffectProcessor.FramebufferSet.singleton(

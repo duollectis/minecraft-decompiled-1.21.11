@@ -27,11 +27,28 @@ public class ModelPartData {
 		this.transform = transform;
 	}
 
+	/**
+	 * Добавляет child.
+	 *
+	 * @param name name
+	 * @param builder builder
+	 * @param transform transform
+	 *
+	 * @return ModelPartData — результат операции
+	 */
 	public ModelPartData addChild(String name, ModelPartBuilder builder, ModelTransform transform) {
 		ModelPartData modelPartData = new ModelPartData(builder.build(), transform);
 		return this.addChild(name, modelPartData);
 	}
 
+	/**
+	 * Добавляет child.
+	 *
+	 * @param name name
+	 * @param data data
+	 *
+	 * @return ModelPartData — результат операции
+	 */
 	public ModelPartData addChild(String name, ModelPartData data) {
 		ModelPartData modelPartData = this.children.put(name, data);
 		if (modelPartData != null) {
@@ -41,6 +58,11 @@ public class ModelPartData {
 		return data;
 	}
 
+	/**
+	 * Сбрасывает children parts.
+	 *
+	 * @return ModelPartData — результат операции
+	 */
 	public ModelPartData resetChildrenParts() {
 		for (String string : this.children.keySet()) {
 			this.resetChildrenParts(string).resetChildrenParts();
@@ -49,6 +71,13 @@ public class ModelPartData {
 		return this;
 	}
 
+	/**
+	 * Сбрасывает children parts.
+	 *
+	 * @param name name
+	 *
+	 * @return ModelPartData — результат операции
+	 */
 	public ModelPartData resetChildrenParts(String name) {
 		ModelPartData modelPartData = this.children.get(name);
 		if (modelPartData == null) {
@@ -59,6 +88,11 @@ public class ModelPartData {
 		}
 	}
 
+	/**
+	 * Сбрасывает children except.
+	 *
+	 * @param names names
+	 */
 	public void resetChildrenExcept(Set<String> names) {
 		for (Entry<String, ModelPartData> entry : this.children.entrySet()) {
 			ModelPartData modelPartData = entry.getValue();
@@ -70,6 +104,11 @@ public class ModelPartData {
 		}
 	}
 
+	/**
+	 * Сбрасывает children except exact.
+	 *
+	 * @param names names
+	 */
 	public void resetChildrenExceptExact(Set<String> names) {
 		for (Entry<String, ModelPartData> entry : this.children.entrySet()) {
 			ModelPartData modelPartData = entry.getValue();
@@ -84,6 +123,14 @@ public class ModelPartData {
 		}
 	}
 
+	/**
+	 * Создаёт part.
+	 *
+	 * @param textureWidth texture width
+	 * @param textureHeight texture height
+	 *
+	 * @return ModelPart — результат операции
+	 */
 	public ModelPart createPart(int textureWidth, int textureHeight) {
 		Object2ObjectArrayMap<String, ModelPart> object2ObjectArrayMap = this.children
 				.entrySet()
@@ -113,6 +160,13 @@ public class ModelPartData {
 		return this.children.entrySet();
 	}
 
+	/**
+	 * Применяет transformer.
+	 *
+	 * @param transformer transformer
+	 *
+	 * @return ModelPartData — результат операции
+	 */
 	public ModelPartData applyTransformer(UnaryOperator<ModelTransform> transformer) {
 		ModelPartData modelPartData = new ModelPartData(this.cuboidData, transformer.apply(this.transform));
 		modelPartData.children.putAll(this.children);

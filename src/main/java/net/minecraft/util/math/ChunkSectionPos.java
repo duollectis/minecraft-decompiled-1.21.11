@@ -43,10 +43,26 @@ public class ChunkSectionPos extends Vec3i {
 		super(i, j, k);
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return ChunkSectionPos — результат операции
+	 */
 	public static ChunkSectionPos from(int x, int y, int z) {
 		return new ChunkSectionPos(x, y, z);
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param pos pos
+	 *
+	 * @return ChunkSectionPos — результат операции
+	 */
 	public static ChunkSectionPos from(BlockPos pos) {
 		return new ChunkSectionPos(
 				getSectionCoord(pos.getX()),
@@ -55,14 +71,36 @@ public class ChunkSectionPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param y y
+	 *
+	 * @return ChunkSectionPos — результат операции
+	 */
 	public static ChunkSectionPos from(ChunkPos chunkPos, int y) {
 		return new ChunkSectionPos(chunkPos.x, y, chunkPos.z);
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param entity entity
+	 *
+	 * @return ChunkSectionPos — результат операции
+	 */
 	public static ChunkSectionPos from(EntityLike entity) {
 		return from(entity.getBlockPos());
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param pos pos
+	 *
+	 * @return ChunkSectionPos — результат операции
+	 */
 	public static ChunkSectionPos from(Position pos) {
 		return new ChunkSectionPos(
 				getSectionCoordFloored(pos.getX()),
@@ -71,18 +109,50 @@ public class ChunkSectionPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param packed packed
+	 *
+	 * @return ChunkSectionPos — результат операции
+	 */
 	public static ChunkSectionPos from(long packed) {
 		return new ChunkSectionPos(unpackX(packed), unpackY(packed), unpackZ(packed));
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param chunk chunk
+	 *
+	 * @return ChunkSectionPos — результат операции
+	 */
 	public static ChunkSectionPos from(Chunk chunk) {
 		return from(chunk.getPos(), chunk.getBottomSectionCoord());
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param packed packed
+	 * @param direction direction
+	 *
+	 * @return long — результат операции
+	 */
 	public static long offset(long packed, Direction direction) {
 		return offset(packed, direction.getOffsetX(), direction.getOffsetY(), direction.getOffsetZ());
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param packed packed
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return long — результат операции
+	 */
 	public static long offset(long packed, int x, int y, int z) {
 		return asLong(unpackX(packed) + x, unpackY(packed) + y, unpackZ(packed) + z);
 	}
@@ -103,6 +173,13 @@ public class ChunkSectionPos extends Vec3i {
 		return coord & 15;
 	}
 
+	/**
+	 * Pack local.
+	 *
+	 * @param pos pos
+	 *
+	 * @return short — результат операции
+	 */
 	public static short packLocal(BlockPos pos) {
 		int i = getLocalCoord(pos.getX());
 		int j = getLocalCoord(pos.getY());
@@ -110,30 +187,79 @@ public class ChunkSectionPos extends Vec3i {
 		return (short) (i << 8 | k << 4 | j << 0);
 	}
 
+	/**
+	 * Unpack local x.
+	 *
+	 * @param packedLocalPos packed local pos
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackLocalX(short packedLocalPos) {
 		return packedLocalPos >>> 8 & 15;
 	}
 
+	/**
+	 * Unpack local y.
+	 *
+	 * @param packedLocalPos packed local pos
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackLocalY(short packedLocalPos) {
 		return packedLocalPos >>> 0 & 15;
 	}
 
+	/**
+	 * Unpack local z.
+	 *
+	 * @param packedLocalPos packed local pos
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackLocalZ(short packedLocalPos) {
 		return packedLocalPos >>> 4 & 15;
 	}
 
+	/**
+	 * Unpack block x.
+	 *
+	 * @param packedLocalPos packed local pos
+	 *
+	 * @return int — результат операции
+	 */
 	public int unpackBlockX(short packedLocalPos) {
 		return this.getMinX() + unpackLocalX(packedLocalPos);
 	}
 
+	/**
+	 * Unpack block y.
+	 *
+	 * @param packedLocalPos packed local pos
+	 *
+	 * @return int — результат операции
+	 */
 	public int unpackBlockY(short packedLocalPos) {
 		return this.getMinY() + unpackLocalY(packedLocalPos);
 	}
 
+	/**
+	 * Unpack block z.
+	 *
+	 * @param packedLocalPos packed local pos
+	 *
+	 * @return int — результат операции
+	 */
 	public int unpackBlockZ(short packedLocalPos) {
 		return this.getMinZ() + unpackLocalZ(packedLocalPos);
 	}
 
+	/**
+	 * Unpack block pos.
+	 *
+	 * @param packedLocalPos packed local pos
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos unpackBlockPos(short packedLocalPos) {
 		return new BlockPos(
 				this.unpackBlockX(packedLocalPos),
@@ -150,14 +276,35 @@ public class ChunkSectionPos extends Vec3i {
 		return getBlockCoord(chunkCoord) + offset;
 	}
 
+	/**
+	 * Unpack x.
+	 *
+	 * @param packed packed
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackX(long packed) {
 		return (int) (packed << 0 >> 42);
 	}
 
+	/**
+	 * Unpack y.
+	 *
+	 * @param packed packed
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackY(long packed) {
 		return (int) (packed << 44 >> 44);
 	}
 
+	/**
+	 * Unpack z.
+	 *
+	 * @param packed packed
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackZ(long packed) {
 		return (int) (packed << 22 >> 42);
 	}
@@ -198,6 +345,13 @@ public class ChunkSectionPos extends Vec3i {
 		return getOffsetPos(this.getSectionZ(), 15);
 	}
 
+	/**
+	 * From block pos.
+	 *
+	 * @param blockPos block pos
+	 *
+	 * @return long — результат операции
+	 */
 	public static long fromBlockPos(long blockPos) {
 		return asLong(
 				getSectionCoord(BlockPos.unpackLongX(blockPos)),
@@ -206,14 +360,36 @@ public class ChunkSectionPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * With zero y.
+	 *
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return long — результат операции
+	 */
 	public static long withZeroY(int x, int z) {
 		return withZeroY(asLong(x, 0, z));
 	}
 
+	/**
+	 * With zero y.
+	 *
+	 * @param pos pos
+	 *
+	 * @return long — результат операции
+	 */
 	public static long withZeroY(long pos) {
 		return pos & -1048576L;
 	}
 
+	/**
+	 * To chunk pos.
+	 *
+	 * @param sectionPos section pos
+	 *
+	 * @return long — результат операции
+	 */
 	public static long toChunkPos(long sectionPos) {
 		return ChunkPos.toLong(unpackX(sectionPos), unpackZ(sectionPos));
 	}
@@ -231,14 +407,35 @@ public class ChunkSectionPos extends Vec3i {
 		return this.getMinPos().add(8, 8, 8);
 	}
 
+	/**
+	 * To chunk pos.
+	 *
+	 * @return ChunkPos — результат операции
+	 */
 	public ChunkPos toChunkPos() {
 		return new ChunkPos(this.getSectionX(), this.getSectionZ());
 	}
 
+	/**
+	 * To long.
+	 *
+	 * @param pos pos
+	 *
+	 * @return long — результат операции
+	 */
 	public static long toLong(BlockPos pos) {
 		return asLong(getSectionCoord(pos.getX()), getSectionCoord(pos.getY()), getSectionCoord(pos.getZ()));
 	}
 
+	/**
+	 * As long.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return long — результат операции
+	 */
 	public static long asLong(int x, int y, int z) {
 		long l = 0L;
 		l |= (x & 4194303L) << 42;
@@ -246,10 +443,24 @@ public class ChunkSectionPos extends Vec3i {
 		return l | (z & 4194303L) << 20;
 	}
 
+	/**
+	 * As long.
+	 *
+	 * @return long — результат операции
+	 */
 	public long asLong() {
 		return asLong(this.getSectionX(), this.getSectionY(), this.getSectionZ());
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param i i
+	 * @param j j
+	 * @param k k
+	 *
+	 * @return ChunkSectionPos — результат операции
+	 */
 	public ChunkSectionPos add(int i, int j, int k) {
 		return i == 0 && j == 0 && k == 0 ? this : new ChunkSectionPos(
 				this.getSectionX() + i,
@@ -258,6 +469,11 @@ public class ChunkSectionPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * Stream blocks.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<BlockPos> streamBlocks() {
 		return BlockPos.stream(
 				this.getMinX(),
@@ -269,6 +485,14 @@ public class ChunkSectionPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param center center
+	 * @param radius radius
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<ChunkSectionPos> stream(ChunkSectionPos center, int radius) {
 		int i = center.getSectionX();
 		int j = center.getSectionY();
@@ -276,12 +500,34 @@ public class ChunkSectionPos extends Vec3i {
 		return stream(i - radius, j - radius, k - radius, i + radius, j + radius, k + radius);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param center center
+	 * @param radius radius
+	 * @param minY min y
+	 * @param maxY max y
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<ChunkSectionPos> stream(ChunkPos center, int radius, int minY, int maxY) {
 		int i = center.x;
 		int j = center.z;
 		return stream(i - radius, minY, j - radius, i + radius, maxY, j + radius);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param minX min x
+	 * @param minY min y
+	 * @param minZ min z
+	 * @param maxX max x
+	 * @param maxY max y
+	 * @param maxZ max z
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<ChunkSectionPos> stream(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 		return StreamSupport.stream(
 				new AbstractSpliterator<ChunkSectionPos>(
@@ -308,10 +554,22 @@ public class ChunkSectionPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * For each chunk section around.
+	 *
+	 * @param pos pos
+	 * @param consumer consumer
+	 */
 	public static void forEachChunkSectionAround(BlockPos pos, LongConsumer consumer) {
 		forEachChunkSectionAround(pos.getX(), pos.getY(), pos.getZ(), consumer);
 	}
 
+	/**
+	 * For each chunk section around.
+	 *
+	 * @param pos pos
+	 * @param consumer consumer
+	 */
 	public static void forEachChunkSectionAround(long pos, LongConsumer consumer) {
 		forEachChunkSectionAround(
 				BlockPos.unpackLongX(pos),
@@ -321,6 +579,14 @@ public class ChunkSectionPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * For each chunk section around.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param consumer consumer
+	 */
 	public static void forEachChunkSectionAround(int x, int y, int z, LongConsumer consumer) {
 		int i = getSectionCoord(x - 1);
 		int j = getSectionCoord(x + 1);

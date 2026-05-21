@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 
 import java.util.List;
 
+/**
+ * Запись chat suggestions s2 c packet.
+ */
 public record ChatSuggestionsS2CPacket(
 		ChatSuggestionsS2CPacket.Action action,
 		List<String> entries
@@ -32,6 +35,11 @@ public record ChatSuggestionsS2CPacket(
 		return PlayPackets.CUSTOM_CHAT_COMPLETIONS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onChatSuggestions(this);
 	}

@@ -16,6 +16,9 @@ import net.minecraft.world.chunk.ChunkSection;
 
 import java.util.function.BiConsumer;
 
+/**
+ * Класс chunk delta update s2 c packet.
+ */
 public class ChunkDeltaUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ChunkDeltaUpdateS2CPacket> CODEC = Packet.createCodec(
@@ -72,10 +75,20 @@ public class ChunkDeltaUpdateS2CPacket implements Packet<ClientPlayPacketListene
 		return PlayPackets.SECTION_BLOCKS_UPDATE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onChunkDeltaUpdate(this);
 	}
 
+	/**
+	 * Visit updates.
+	 *
+	 * @param visitor visitor
+	 */
 	public void visitUpdates(BiConsumer<BlockPos, BlockState> visitor) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 

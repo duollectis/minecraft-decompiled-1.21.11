@@ -16,6 +16,11 @@ import java.util.List;
  */
 public class ConfiguredFeatures {
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		OceanConfiguredFeatures.bootstrap(featureRegisterable);
 		UndergroundConfiguredFeatures.bootstrap(featureRegisterable);
@@ -73,6 +78,13 @@ public class ConfiguredFeatures {
 		return createRandomPatchFeatureConfig(feature, config, List.of(), 96);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param id id
+	 *
+	 * @return RegistryKey> — результат операции
+	 */
 	public static RegistryKey<ConfiguredFeature<?, ?>> of(String id) {
 		return RegistryKey.of(RegistryKeys.CONFIGURED_FEATURE, Identifier.ofVanilla(id));
 	}

@@ -214,6 +214,11 @@ public final class RenderSetup {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return RenderSetup — результат операции
+		 */
 		public RenderSetup build() {
 			return new RenderSetup(
 					this.pipeline,

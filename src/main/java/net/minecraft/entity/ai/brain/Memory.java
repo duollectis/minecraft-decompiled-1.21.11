@@ -19,16 +19,34 @@ public class Memory<T> {
 		this.expiry = expiry;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.isTimed()) {
 			this.expiry--;
 		}
 	}
 
+	/**
+	 * Permanent.
+	 *
+	 * @param value value
+	 *
+	 * @return Memory — результат операции
+	 */
 	public static <T> Memory<T> permanent(T value) {
 		return new Memory<>(value, Long.MAX_VALUE);
 	}
 
+	/**
+	 * Timed.
+	 *
+	 * @param value value
+	 * @param expiry expiry
+	 *
+	 * @return Memory — результат операции
+	 */
 	public static <T> Memory<T> timed(T value, long expiry) {
 		return new Memory<>(value, expiry);
 	}
@@ -55,6 +73,13 @@ public class Memory<T> {
 		return this.expiry != Long.MAX_VALUE;
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param codec codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<Memory<T>> createCodec(Codec<T> codec) {
 		return RecordCodecBuilder.create(
 				instance -> instance.group(

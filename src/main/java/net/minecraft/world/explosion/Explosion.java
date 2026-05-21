@@ -60,6 +60,11 @@ public interface Explosion {
 			this.destroysBlocks = destroysBlocks;
 		}
 
+		/**
+		 * Destroys blocks.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean destroysBlocks() {
 			return this.destroysBlocks;
 		}

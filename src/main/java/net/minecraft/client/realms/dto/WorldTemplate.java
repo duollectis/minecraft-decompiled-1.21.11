@@ -26,6 +26,13 @@ public record WorldTemplate(
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param node node
+	 *
+	 * @return @Nullable WorldTemplate — результат операции
+	 */
 	public static @Nullable WorldTemplate parse(JsonObject node) {
 		try {
 			String string = JsonUtils.getNullableStringOr("type", node, null);

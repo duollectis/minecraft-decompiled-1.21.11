@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс set camera entity s2 c packet.
+ */
 public class SetCameraEntityS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, SetCameraEntityS2CPacket> CODEC = Packet.createCodec(
@@ -34,6 +37,11 @@ public class SetCameraEntityS2CPacket implements Packet<ClientPlayPacketListener
 		return PlayPackets.SET_CAMERA;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onSetCameraEntity(this);
 	}

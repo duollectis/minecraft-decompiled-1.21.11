@@ -19,6 +19,13 @@ import java.util.Optional;
  */
 public class TakeJobSiteTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<VillagerEntity> create(float speed) {
 		return TaskTriggerer.task(
 				context -> context.group(

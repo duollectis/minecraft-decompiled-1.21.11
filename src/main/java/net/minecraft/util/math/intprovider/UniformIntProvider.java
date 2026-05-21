@@ -39,6 +39,14 @@ public class UniformIntProvider extends IntProvider {
 		this.max = max;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return UniformIntProvider — результат операции
+	 */
 	public static UniformIntProvider create(int min, int max) {
 		return new UniformIntProvider(min, max);
 	}

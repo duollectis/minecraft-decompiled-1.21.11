@@ -100,6 +100,9 @@ public class SkeletonEntity extends AbstractSkeletonEntity {
 		this.setConverting(true);
 	}
 
+	/**
+	 * Конвертирует to stray.
+	 */
 	protected void convertToStray() {
 		this.convertTo(
 				EntityType.STRAY, EntityConversionContext.create(this, true, true), stray -> {

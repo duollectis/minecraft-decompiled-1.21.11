@@ -69,22 +69,41 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		return Collections.unmodifiableList(this.children);
 	}
 
+	/**
+	 * Sort.
+	 *
+	 * @param comparator comparator
+	 */
 	protected void sort(Comparator<E> comparator) {
 		this.children.sort(comparator);
 		this.recalculateAllChildrenPositions();
 	}
 
+	/**
+	 * Swap entries on positions.
+	 *
+	 * @param pos1 pos1
+	 * @param pos2 pos2
+	 */
 	protected void swapEntriesOnPositions(int pos1, int pos2) {
 		Collections.swap(this.children, pos1, pos2);
 		this.recalculateAllChildrenPositions();
 		this.scrollTo(this.children.get(pos2));
 	}
 
+	/**
+	 * Очищает entries.
+	 */
 	protected void clearEntries() {
 		this.children.clear();
 		this.selected = null;
 	}
 
+	/**
+	 * Очищает entries except.
+	 *
+	 * @param entryToKeep entry to keep
+	 */
 	protected void clearEntriesExcept(E entryToKeep) {
 		this.children.removeIf(entry -> entry != entryToKeep);
 		if (this.selected != entryToKeep) {
@@ -92,6 +111,11 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		}
 	}
 
+	/**
+	 * Replace entries.
+	 *
+	 * @param collection collection
+	 */
 	public void replaceEntries(Collection<E> collection) {
 		this.clearEntries();
 
@@ -114,10 +138,25 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		return i;
 	}
 
+	/**
+	 * Добавляет entry.
+	 *
+	 * @param entry entry
+	 *
+	 * @return int — результат операции
+	 */
 	protected int addEntry(E entry) {
 		return this.addEntry(entry, this.itemHeight);
 	}
 
+	/**
+	 * Добавляет entry.
+	 *
+	 * @param entry entry
+	 * @param entryHeight entry height
+	 *
+	 * @return int — результат операции
+	 */
 	protected int addEntry(E entry, int entryHeight) {
 		entry.setX(this.getRowLeft());
 		entry.setWidth(this.getRowWidth());
@@ -127,10 +166,21 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		return this.children.size() - 1;
 	}
 
+	/**
+	 * Добавляет entry to top.
+	 *
+	 * @param entry entry
+	 */
 	protected void addEntryToTop(E entry) {
 		this.addEntryToTop(entry, this.itemHeight);
 	}
 
+	/**
+	 * Добавляет entry to top.
+	 *
+	 * @param entry entry
+	 * @param entryHeight entry height
+	 */
 	protected void addEntryToTop(E entry, int entryHeight) {
 		double d = this.getMaxScrollY() - this.getScrollY();
 		entry.setHeight(entryHeight);
@@ -150,6 +200,11 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		}
 	}
 
+	/**
+	 * Удаляет entry without scrolling.
+	 *
+	 * @param entry entry
+	 */
 	protected void removeEntryWithoutScrolling(E entry) {
 		double d = this.getMaxScrollY() - this.getScrollY();
 		this.removeEntry(entry);
@@ -174,14 +229,35 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		return null;
 	}
 
+	/**
+	 * Position.
+	 *
+	 * @param width width
+	 * @param layout layout
+	 */
 	public void position(int width, ThreePartsLayoutWidget layout) {
 		this.position(width, layout.getContentHeight(), layout.getHeaderHeight());
 	}
 
+	/**
+	 * Position.
+	 *
+	 * @param width width
+	 * @param height height
+	 * @param y y
+	 */
 	public void position(int width, int height, int y) {
 		this.position(width, height, 0, y);
 	}
 
+	/**
+	 * Position.
+	 *
+	 * @param width width
+	 * @param height height
+	 * @param x x
+	 * @param y y
+	 */
 	public void position(int width, int height, int x, int y) {
 		this.setDimensions(width, height);
 		this.setPosition(x, y);
@@ -215,6 +291,11 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		this.drawScrollbar(context, mouseX, mouseY);
 	}
 
+	/**
+	 * Draw header and footer separators.
+	 *
+	 * @param context context
+	 */
 	protected void drawHeaderAndFooterSeparators(DrawContext context) {
 		Identifier
 				identifier =
@@ -248,6 +329,11 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		);
 	}
 
+	/**
+	 * Draw menu list background.
+	 *
+	 * @param context context
+	 */
 	protected void drawMenuListBackground(DrawContext context) {
 		Identifier
 				identifier =
@@ -266,10 +352,20 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		);
 	}
 
+	/**
+	 * Включает scissor.
+	 *
+	 * @param context context
+	 */
 	protected void enableScissor(DrawContext context) {
 		context.enableScissor(this.getX(), this.getY(), this.getRight(), this.getBottom());
 	}
 
+	/**
+	 * Scroll to.
+	 *
+	 * @param entry entry
+	 */
 	protected void scrollTo(E entry) {
 		int i = entry.getY() - this.getY() - 2;
 		if (i < 0) {
@@ -282,6 +378,11 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		}
 	}
 
+	/**
+	 * Center scroll on.
+	 *
+	 * @param entry entry
+	 */
 	protected void centerScrollOn(E entry) {
 		int i = 0;
 
@@ -383,6 +484,14 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		return null;
 	}
 
+	/**
+	 * Отрисовывает list.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param deltaTicks delta ticks
+	 */
 	protected void renderList(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		for (E entry : this.children) {
 			if (entry.getY() + entry.getHeight() >= this.getY() && entry.getY() <= this.getBottom()) {
@@ -391,6 +500,15 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		}
 	}
 
+	/**
+	 * Отрисовывает entry.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param delta delta
+	 * @param entry entry
+	 */
 	protected void renderEntry(DrawContext context, int mouseX, int mouseY, float delta, E entry) {
 		if (this.isEntrySelectionAllowed() && this.getSelectedOrNull() == entry) {
 			int i = this.isFocused() ? -1 : -8355712;
@@ -400,6 +518,13 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		entry.render(context, mouseX, mouseY, Objects.equals(this.hoveredEntry, entry), delta);
 	}
 
+	/**
+	 * Draw selection highlight.
+	 *
+	 * @param context context
+	 * @param entry entry
+	 * @param color color
+	 */
 	protected void drawSelectionHighlight(DrawContext context, E entry, int color) {
 		int i = entry.getX();
 		int j = entry.getY();
@@ -440,10 +565,20 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		}
 	}
 
+	/**
+	 * Удаляет entries.
+	 *
+	 * @param entries entries
+	 */
 	protected void removeEntries(List<E> entries) {
 		entries.forEach(this::removeEntry);
 	}
 
+	/**
+	 * Удаляет entry.
+	 *
+	 * @param entry entry
+	 */
 	protected void removeEntry(E entry) {
 		boolean bl = this.children.remove(entry);
 		if (bl) {
@@ -462,6 +597,12 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 		entry.parentList = this;
 	}
 
+	/**
+	 * Append narrations.
+	 *
+	 * @param builder builder
+	 * @param entry entry
+	 */
 	protected void appendNarrations(NarrationMessageBuilder builder, E entry) {
 		List<E> list = this.children();
 		if (list.size() > 1) {
@@ -480,6 +621,13 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 
 		private final List<E> entries = Lists.newArrayList();
 
+		/**
+		 * Get.
+		 *
+		 * @param i i
+		 *
+		 * @return E — 
+		 */
 		public E get(int i) {
 			return this.entries.get(i);
 		}
@@ -489,17 +637,38 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 			return this.entries.size();
 		}
 
+		/**
+		 * Set.
+		 *
+		 * @param i i
+		 * @param entry entry
+		 *
+		 * @return E — результат операции
+		 */
 		public E set(int i, E entry) {
 			E entry2 = this.entries.set(i, entry);
 			EntryListWidget.this.setEntryParentList(entry);
 			return entry2;
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param i i
+		 * @param entry entry
+		 */
 		public void add(int i, E entry) {
 			this.entries.add(i, entry);
 			EntryListWidget.this.setEntryParentList(entry);
 		}
 
+		/**
+		 * Remove.
+		 *
+		 * @param i i
+		 *
+		 * @return E — результат операции
+		 */
 		public E remove(int i) {
 			return this.entries.remove(i);
 		}
@@ -528,6 +697,15 @@ public abstract class EntryListWidget<E extends EntryListWidget.Entry<E>> extend
 			return this.parentList.getFocused() == this;
 		}
 
+		/**
+		 * Render.
+		 *
+		 * @param context context
+		 * @param mouseX mouse x
+		 * @param mouseY mouse y
+		 * @param hovered hovered
+		 * @param deltaTicks delta ticks
+		 */
 		public abstract void render(DrawContext context, int mouseX, int mouseY, boolean hovered, float deltaTicks);
 
 		@Override

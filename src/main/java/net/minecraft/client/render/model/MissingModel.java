@@ -27,6 +27,11 @@ public class MissingModel {
 	private static final String TEXTURE_ID = "missingno";
 	public static final Identifier ID = Identifier.ofVanilla("builtin/missing");
 
+	/**
+	 * Create.
+	 *
+	 * @return UnbakedModel — результат операции
+	 */
 	public static UnbakedModel create() {
 		ModelElementFace.UV uV = new ModelElementFace.UV(0.0F, 0.0F, 16.0F, 16.0F);
 		Map<Direction, ModelElementFace>

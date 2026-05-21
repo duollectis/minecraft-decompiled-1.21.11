@@ -121,6 +121,9 @@ public class ChunkBuilder {
 		this.cameraPosition = cameraPosition;
 	}
 
+	/**
+	 * Upload.
+	 */
 	public void upload() {
 		Runnable runnable;
 		while ((runnable = this.uploadQueue.poll()) != null) {
@@ -133,10 +136,21 @@ public class ChunkBuilder {
 		}
 	}
 
+	/**
+	 * Rebuild.
+	 *
+	 * @param chunk chunk
+	 * @param builder builder
+	 */
 	public void rebuild(ChunkBuilder.BuiltChunk chunk, ChunkRendererRegionBuilder builder) {
 		chunk.rebuild(builder);
 	}
 
+	/**
+	 * Send.
+	 *
+	 * @param task task
+	 */
 	public void send(ChunkBuilder.BuiltChunk.Task task) {
 		if (!this.stopped) {
 			this.consecutiveExecutor.send(() -> {
@@ -148,6 +162,9 @@ public class ChunkBuilder {
 		}
 	}
 
+	/**
+	 * Проверяет возможность cel all tasks.
+	 */
 	public void cancelAllTasks() {
 		this.scheduler.cancelAll();
 	}
@@ -156,6 +173,9 @@ public class ChunkBuilder {
 		return this.scheduler.size() == 0 && this.uploadQueue.isEmpty();
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		this.stopped = true;
 		this.cancelAllTasks();
@@ -253,6 +273,11 @@ public class ChunkBuilder {
 					.isLightingEnabled(ChunkSectionPos.withZeroY(sectionPos));
 		}
 
+		/**
+		 * Определяет, следует ли build.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldBuild() {
 			return this.isChunkNonEmpty(ChunkSectionPos.offset(this.sectionPos, Direction.WEST))
 					&& this.isChunkNonEmpty(ChunkSectionPos.offset(this.sectionPos, Direction.NORTH))
@@ -327,6 +352,9 @@ public class ChunkBuilder {
 			return this.currentRenderData.get();
 		}
 
+		/**
+		 * Clear.
+		 */
 		public void clear() {
 			this.cancel();
 			this.currentRenderData.getAndSet(ChunkRenderData.HIDDEN).close();
@@ -343,21 +371,39 @@ public class ChunkBuilder {
 			return this.sectionPos;
 		}
 
+		/**
+		 * Schedule rebuild.
+		 *
+		 * @param important important
+		 */
 		public void scheduleRebuild(boolean important) {
 			boolean bl = this.needsRebuild;
 			this.needsRebuild = true;
 			this.needsImportantRebuild = important | (bl && this.needsImportantRebuild);
 		}
 
+		/**
+		 * Проверяет возможность cel rebuild.
+		 */
 		public void cancelRebuild() {
 			this.needsRebuild = false;
 			this.needsImportantRebuild = false;
 		}
 
+		/**
+		 * Needs rebuild.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean needsRebuild() {
 			return this.needsRebuild;
 		}
 
+		/**
+		 * Needs important rebuild.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean needsImportantRebuild() {
 			return this.needsRebuild && this.needsImportantRebuild;
 		}
@@ -366,6 +412,11 @@ public class ChunkBuilder {
 			return ChunkSectionPos.offset(this.sectionPos, direction);
 		}
 
+		/**
+		 * Schedule sort.
+		 *
+		 * @param builder builder
+		 */
 		public void scheduleSort(ChunkBuilder builder) {
 			if (this.getCurrentRenderData() instanceof ChunkRenderData chunkRenderData) {
 				this.sortTask = new ChunkBuilder.BuiltChunk.SortTask(chunkRenderData);
@@ -381,6 +432,9 @@ public class ChunkBuilder {
 			return this.sortTask != null && !this.sortTask.finished.get();
 		}
 
+		/**
+		 * Проверяет возможность cel.
+		 */
 		protected void cancel() {
 			if (this.rebuildTask != null) {
 				this.rebuildTask.cancel();
@@ -401,11 +455,21 @@ public class ChunkBuilder {
 			return this.rebuildTask;
 		}
 
+		/**
+		 * Schedule rebuild.
+		 *
+		 * @param builder builder
+		 */
 		public void scheduleRebuild(ChunkRendererRegionBuilder builder) {
 			ChunkBuilder.BuiltChunk.Task task = this.createRebuildTask(builder);
 			ChunkBuilder.this.send(task);
 		}
 
+		/**
+		 * Rebuild.
+		 *
+		 * @param builder builder
+		 */
 		public void rebuild(ChunkRendererRegionBuilder builder) {
 			ChunkBuilder.BuiltChunk.Task task = this.createRebuildTask(builder);
 			task.run(ChunkBuilder.this.buffers);
@@ -612,6 +676,9 @@ public class ChunkBuilder {
 
 			public abstract CompletableFuture<ChunkBuilder.Result> run(BlockBufferAllocatorStorage buffers);
 
+			/**
+			 * Проверяет возможность cel.
+			 */
 			public abstract void cancel();
 
 			protected abstract String getName();

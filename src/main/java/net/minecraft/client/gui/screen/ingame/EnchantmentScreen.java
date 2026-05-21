@@ -288,6 +288,9 @@ public class EnchantmentScreen extends HandledScreen<EnchantmentScreenHandler> {
 		}
 	}
 
+	/**
+	 * Do tick.
+	 */
 	public void doTick() {
 		ItemStack itemStack = this.handler.getSlot(0).getStack();
 		if (!ItemStack.areEqual(itemStack, this.stack)) {

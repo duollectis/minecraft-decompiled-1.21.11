@@ -13,6 +13,14 @@ public record ConnectedClientData(
 		boolean transferred
 ) {
 
+	/**
+	 * Создаёт default.
+	 *
+	 * @param profile profile
+	 * @param bl bl
+	 *
+	 * @return ConnectedClientData — результат операции
+	 */
 	public static ConnectedClientData createDefault(GameProfile profile, boolean bl) {
 		return new ConnectedClientData(profile, 0, SyncedClientOptions.createDefault(), bl);
 	}

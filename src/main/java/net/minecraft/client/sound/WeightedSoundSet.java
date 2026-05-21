@@ -66,6 +66,11 @@ public class WeightedSoundSet implements SoundContainer<Sound> {
 		}
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param container container
+	 */
 	public void add(SoundContainer<Sound> container) {
 		this.sounds.add(container);
 	}

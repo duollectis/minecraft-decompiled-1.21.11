@@ -77,6 +77,12 @@ public class ShaderProgram implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param uniforms uniforms
+	 * @param samplers samplers
+	 */
 	public void set(List<RenderPipeline.UniformDescription> uniforms, List<String> samplers) {
 		int i = 0;
 		int j = 0;

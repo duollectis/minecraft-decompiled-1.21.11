@@ -120,6 +120,11 @@ public record ChunkGenerationStep(
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ChunkGenerationStep — результат операции
+		 */
 		public ChunkGenerationStep build() {
 			return new ChunkGenerationStep(
 					this.targetStatus,

@@ -72,6 +72,11 @@ public class ChickenEntityRenderer extends MobEntityRenderer<ChickenEntity, Chic
 		       : chickenEntityRenderState.variant.modelAndTexture().asset().texturePath();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ChickenEntityRenderState — результат операции
+	 */
 	public ChickenEntityRenderState createRenderState() {
 		return new ChickenEntityRenderState();
 	}

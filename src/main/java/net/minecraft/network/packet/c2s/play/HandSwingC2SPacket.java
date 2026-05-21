@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Hand;
 
+/**
+ * Класс hand swing c2 s packet.
+ */
 public class HandSwingC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, HandSwingC2SPacket>
@@ -32,6 +35,11 @@ public class HandSwingC2SPacket implements Packet<ServerPlayPacketListener> {
 		return PlayPackets.SWING;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onHandSwing(this);
 	}

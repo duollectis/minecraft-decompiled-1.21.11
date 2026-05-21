@@ -36,6 +36,14 @@ public class FuelRegistry {
 		return item.isEmpty() ? 0 : this.fuelValues.getInt(item.getItem());
 	}
 
+	/**
+	 * Создаёт default.
+	 *
+	 * @param registries registries
+	 * @param enabledFeatures enabled features
+	 *
+	 * @return FuelRegistry — результат операции
+	 */
 	public static FuelRegistry createDefault(RegistryWrapper.WrapperLookup registries, FeatureSet enabledFeatures) {
 		return createDefault(registries, enabledFeatures, 200);
 	}
@@ -128,6 +136,11 @@ public class FuelRegistry {
 			this.enabledFeatures = enabledFeatures;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return FuelRegistry — результат операции
+		 */
 		public FuelRegistry build() {
 			return new FuelRegistry(this.fuelValues);
 		}

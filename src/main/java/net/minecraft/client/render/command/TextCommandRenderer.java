@@ -12,6 +12,12 @@ import net.minecraft.client.render.VertexConsumerProvider;
  */
 public class TextCommandRenderer {
 
+	/**
+	 * Render.
+	 *
+	 * @param queue queue
+	 * @param vertexConsumers vertex consumers
+	 */
 	public void render(BatchingRenderCommandQueue queue, VertexConsumerProvider.Immediate vertexConsumers) {
 		TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
 

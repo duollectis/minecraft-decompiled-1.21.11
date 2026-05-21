@@ -220,6 +220,14 @@ public class TripwireBlock extends Block {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли connect to.
+	 *
+	 * @param state state
+	 * @param facing facing
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldConnectTo(BlockState state, Direction facing) {
 		return state.isOf(this.hookBlock) ? state.get(TripwireHookBlock.FACING) == facing.getOpposite()
 		                                  : state.isOf(this);

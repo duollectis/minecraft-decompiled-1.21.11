@@ -14,6 +14,9 @@ public class Input {
 	public PlayerInput playerInput = PlayerInput.DEFAULT;
 	protected Vec2f movementVector = Vec2f.ZERO;
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 	}
 
@@ -25,6 +28,9 @@ public class Input {
 		return this.movementVector.y > 1.0E-5F;
 	}
 
+	/**
+	 * Jump.
+	 */
 	public void jump() {
 		this.playerInput = new PlayerInput(
 				this.playerInput.forward(),

@@ -113,6 +113,13 @@ public abstract class AbstractMinecartEntity extends VehicleEntity {
 		this.initPosition(x, y, z);
 	}
 
+	/**
+	 * Инициализирует position.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	public void initPosition(double x, double y, double z) {
 		this.setPosition(x, y, z);
 		this.lastX = x;
@@ -335,6 +342,15 @@ public abstract class AbstractMinecartEntity extends VehicleEntity {
 		return this.controller.getMaxSpeed(world);
 	}
 
+	/**
+	 * Обрабатывает событие activator rail.
+	 *
+	 * @param serverWorld server world
+	 * @param y y
+	 * @param z z
+	 * @param i i
+	 * @param bl bl
+	 */
 	public void onActivatorRail(ServerWorld serverWorld, int y, int z, int i, boolean bl) {
 	}
 
@@ -379,10 +395,20 @@ public abstract class AbstractMinecartEntity extends VehicleEntity {
 		this.controller.setLerpTargetVelocity(clientVelocity);
 	}
 
+	/**
+	 * Перемещает on rail.
+	 *
+	 * @param world world
+	 */
 	protected void moveOnRail(ServerWorld world) {
 		this.controller.moveOnRail(world);
 	}
 
+	/**
+	 * Перемещает off rail.
+	 *
+	 * @param world world
+	 */
 	protected void moveOffRail(ServerWorld world) {
 		double d = this.getMaxSpeed(world);
 		Vec3d vec3d = this.getVelocity();
@@ -397,6 +423,15 @@ public abstract class AbstractMinecartEntity extends VehicleEntity {
 		}
 	}
 
+	/**
+	 * Перемещает along track.
+	 *
+	 * @param pos pos
+	 * @param shape shape
+	 * @param remainingMovement remaining movement
+	 *
+	 * @return double — результат операции
+	 */
 	protected double moveAlongTrack(BlockPos pos, RailShape shape, double remainingMovement) {
 		return this.controller.moveAlongTrack(pos, shape, remainingMovement);
 	}
@@ -479,10 +514,24 @@ public abstract class AbstractMinecartEntity extends VehicleEntity {
 		}
 	}
 
+	/**
+	 * Will hit block at.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean willHitBlockAt(BlockPos pos) {
 		return this.getEntityWorld().getBlockState(pos).isSolidBlock(this.getEntityWorld(), pos);
 	}
 
+	/**
+	 * Применяет slowdown.
+	 *
+	 * @param velocity velocity
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	protected Vec3d applySlowdown(Vec3d velocity) {
 		double d = this.controller.getSpeedRetention();
 		Vec3d vec3d = velocity.multiply(d, 0.0, d);
@@ -623,6 +672,13 @@ public abstract class AbstractMinecartEntity extends VehicleEntity {
 		this.getDataTracker().set(BLOCK_OFFSET, offset);
 	}
 
+	/**
+	 * Are minecart improvements enabled.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean areMinecartImprovementsEnabled(World world) {
 		return world.getEnabledFeatures().contains(FeatureFlags.MINECART_IMPROVEMENTS);
 	}

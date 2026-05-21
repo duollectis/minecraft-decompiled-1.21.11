@@ -11,6 +11,13 @@ import java.util.List;
  */
 public class Tasks {
 
+	/**
+	 * Подбирает randomly.
+	 *
+	 * @param weightedTasks weighted tasks
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static <E extends LivingEntity> SingleTickTask<E> pickRandomly(List<Pair<? extends TaskRunnable<? super E>, Integer>> weightedTasks) {
 		return weighted(weightedTasks, CompositeTask.Order.SHUFFLED, CompositeTask.RunMode.RUN_ONE);
 	}

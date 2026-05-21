@@ -13,6 +13,13 @@ public class ContextParameter<T> {
 		this.id = id;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param id id
+	 *
+	 * @return ContextParameter — результат операции
+	 */
 	public static <T> ContextParameter<T> of(String id) {
 		return new ContextParameter<>(Identifier.ofVanilla(id));
 	}

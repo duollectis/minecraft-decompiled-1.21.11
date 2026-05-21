@@ -10,6 +10,9 @@ import net.minecraft.network.packet.s2c.common.StoreCookieS2CPacket;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Запись cookie response c2 s packet.
+ */
 public record CookieResponseC2SPacket(
 		Identifier key,
 		byte @Nullable [] payload
@@ -33,6 +36,11 @@ public record CookieResponseC2SPacket(
 		return CookiePackets.COOKIE_RESPONSE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverCookieResponsePacketListener server cookie response packet listener
+	 */
 	public void apply(ServerCookieResponsePacketListener serverCookieResponsePacketListener) {
 		serverCookieResponsePacketListener.onCookieResponse(this);
 	}

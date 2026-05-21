@@ -73,10 +73,24 @@ public abstract class LockableContainerBlockEntity extends BlockEntity implement
 
 	protected abstract Text getContainerName();
 
+	/**
+	 * Проверяет unlocked.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean checkUnlocked(PlayerEntity player) {
 		return this.lock.checkUnlocked(player);
 	}
 
+	/**
+	 * Обрабатывает locked.
+	 *
+	 * @param containerPos container pos
+	 * @param player player
+	 * @param name name
+	 */
 	public static void handleLocked(Vec3d containerPos, PlayerEntity player, Text name) {
 		World world = player.getEntityWorld();
 		player.sendMessage(Text.translatable("container.isLocked", name), true);
@@ -161,6 +175,14 @@ public abstract class LockableContainerBlockEntity extends BlockEntity implement
 		}
 	}
 
+	/**
+	 * Создаёт screen handler.
+	 *
+	 * @param syncId sync id
+	 * @param playerInventory player inventory
+	 *
+	 * @return ScreenHandler — результат операции
+	 */
 	protected abstract ScreenHandler createScreenHandler(int syncId, PlayerInventory playerInventory);
 
 	@Override

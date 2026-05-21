@@ -180,6 +180,9 @@ public abstract class SpellcastingIllagerEntity extends IllagerEntity {
 			}
 		}
 
+		/**
+		 * Cast spell.
+		 */
 		protected abstract void castSpell();
 
 		protected int getInitialCooldown() {
@@ -188,6 +191,11 @@ public abstract class SpellcastingIllagerEntity extends IllagerEntity {
 
 		protected abstract int getSpellTicks();
 
+		/**
+		 * Запускает time delay.
+		 *
+		 * @return int — результат операции
+		 */
 		protected abstract int startTimeDelay();
 
 		protected abstract @Nullable SoundEvent getSoundPrepare();

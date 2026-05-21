@@ -38,6 +38,12 @@ public class RecipeGroupButtonWidget extends TexturedButtonWidget {
 		this.tab = tab;
 	}
 
+	/**
+	 * Проверяет for new recipes.
+	 *
+	 * @param recipeBook recipe book
+	 * @param filteringCraftable filtering craftable
+	 */
 	public void checkForNewRecipes(ClientRecipeBook recipeBook, boolean filteringCraftable) {
 		RecipeResultCollection.RecipeFilterMode recipeFilterMode = filteringCraftable
 		                                                           ? RecipeResultCollection.RecipeFilterMode.CRAFTABLE
@@ -113,10 +119,16 @@ public class RecipeGroupButtonWidget extends TexturedButtonWidget {
 		return this.visible;
 	}
 
+	/**
+	 * Focus.
+	 */
 	public void focus() {
 		this.groupFocused = true;
 	}
 
+	/**
+	 * Unfocus.
+	 */
 	public void unfocus() {
 		this.groupFocused = false;
 	}

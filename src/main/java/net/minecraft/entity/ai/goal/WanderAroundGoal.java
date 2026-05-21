@@ -88,6 +88,9 @@ public class WanderAroundGoal extends Goal {
 		super.stop();
 	}
 
+	/**
+	 * Ignore chance once.
+	 */
 	public void ignoreChanceOnce() {
 		this.ignoringChance = true;
 	}

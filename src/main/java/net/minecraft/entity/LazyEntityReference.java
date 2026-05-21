@@ -29,10 +29,20 @@ public final class LazyEntityReference<StoredEntityType extends UniquelyIdentifi
 			.xmap(LazyEntityReference::new, LazyEntityReference::getUuid);
 	private Either<UUID, StoredEntityType> value;
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <Type extends UniquelyIdentifiable> Codec<LazyEntityReference<Type>> createCodec() {
 		return (Codec<LazyEntityReference<Type>>) CODEC;
 	}
 
+	/**
+	 * Создаёт packet codec.
+	 *
+	 * @return PacketCodec> — результат операции
+	 */
 	public static <Type extends UniquelyIdentifiable> PacketCodec<ByteBuf, LazyEntityReference<Type>> createPacketCodec() {
 		return (PacketCodec<ByteBuf, LazyEntityReference<Type>>) PACKET_CODEC;
 	}
@@ -45,10 +55,24 @@ public final class LazyEntityReference<StoredEntityType extends UniquelyIdentifi
 		this.value = Either.left(value);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param object object
+	 *
+	 * @return @Nullable LazyEntityReference — результат операции
+	 */
 	public static <T extends UniquelyIdentifiable> @Nullable LazyEntityReference<T> of(@Nullable T object) {
 		return object != null ? new LazyEntityReference<>(object) : null;
 	}
 
+	/**
+	 * Of u u i d.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return LazyEntityReference — результат операции
+	 */
 	public static <T extends UniquelyIdentifiable> LazyEntityReference<T> ofUUID(UUID uuid) {
 		return new LazyEntityReference<>(uuid);
 	}
@@ -92,14 +116,34 @@ public final class LazyEntityReference<StoredEntityType extends UniquelyIdentifi
 		return entity != null && clazz.isAssignableFrom(entity.getClass()) ? clazz.cast(entity) : null;
 	}
 
+	/**
+	 * Uuid equals.
+	 *
+	 * @param o o
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean uuidEquals(StoredEntityType o) {
 		return this.getUuid().equals(o.getUuid());
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param view view
+	 * @param key key
+	 */
 	public void writeData(WriteView view, String key) {
 		view.put(key, Uuids.INT_STREAM_CODEC, this.getUuid());
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param entityRef entity ref
+	 * @param view view
+	 * @param key key
+	 */
 	public static void writeData(@Nullable LazyEntityReference<?> entityRef, WriteView view, String key) {
 		if (entityRef != null) {
 			entityRef.writeData(view, key);

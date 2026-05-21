@@ -33,6 +33,11 @@ public class LecternBlockEntityRenderer implements BlockEntityRenderer<LecternBl
 		this.book = new BookModel(ctx.getLayerModelPart(EntityModelLayers.BOOK));
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return LecternBlockEntityRenderState — результат операции
+	 */
 	public LecternBlockEntityRenderState createRenderState() {
 		return new LecternBlockEntityRenderState();
 	}

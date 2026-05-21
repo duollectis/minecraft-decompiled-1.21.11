@@ -44,6 +44,13 @@ public class RecipePropertySet {
 		return RegistryKey.of(REGISTRY, Identifier.ofVanilla(id));
 	}
 
+	/**
+	 * Проверяет возможность use.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canUse(ItemStack stack) {
 		return this.usableItems.contains(stack.getRegistryEntry());
 	}

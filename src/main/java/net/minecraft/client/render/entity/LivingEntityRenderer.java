@@ -54,6 +54,13 @@ public abstract class LivingEntityRenderer<T extends LivingEntity, S extends Liv
 		this.shadowRadius = shadowRadius;
 	}
 
+	/**
+	 * Добавляет feature.
+	 *
+	 * @param feature feature
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected final boolean addFeature(FeatureRenderer<S, M> feature) {
 		return this.features.add(feature);
 	}
@@ -137,6 +144,13 @@ public abstract class LivingEntityRenderer<T extends LivingEntity, S extends Liv
 		super.render(livingEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
 	}
 
+	/**
+	 * Определяет, следует ли render features.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRenderFeatures(S state) {
 		return true;
 	}
@@ -192,6 +206,14 @@ public abstract class LivingEntityRenderer<T extends LivingEntity, S extends Liv
 		return state.shaking;
 	}
 
+	/**
+	 * Устанавливает up transforms.
+	 *
+	 * @param state state
+	 * @param matrices matrices
+	 * @param bodyYaw body yaw
+	 * @param baseHeight base height
+	 */
 	protected void setupTransforms(S state, MatrixStack matrices, float bodyYaw, float baseHeight) {
 		if (this.isShaking(state)) {
 			bodyYaw += (float) (Math.cos(MathHelper.floor(state.age) * 3.25F) * Math.PI * 0.4F);
@@ -235,6 +257,12 @@ public abstract class LivingEntityRenderer<T extends LivingEntity, S extends Liv
 		return 0.0F;
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param state state
+	 * @param matrices matrices
+	 */
 	protected void scale(S state, MatrixStack matrices) {
 	}
 
@@ -275,11 +303,25 @@ public abstract class LivingEntityRenderer<T extends LivingEntity, S extends Liv
 				&& !livingEntity.hasPassengers();
 	}
 
+	/**
+	 * Определяет, следует ли flip upside down.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldFlipUpsideDown(T entity) {
 		Text text = entity.getCustomName();
 		return text != null && shouldFlipUpsideDown(text.getString());
 	}
 
+	/**
+	 * Определяет, следует ли flip upside down.
+	 *
+	 * @param name name
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected static boolean shouldFlipUpsideDown(String name) {
 		return "Dinnerbone".equals(name) || "Grumm".equals(name);
 	}
@@ -288,6 +330,13 @@ public abstract class LivingEntityRenderer<T extends LivingEntity, S extends Liv
 		return super.getShadowRadius(livingEntityRenderState) * livingEntityRenderState.baseScale;
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param livingEntity living entity
+	 * @param livingEntityRenderState living entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T livingEntity, S livingEntityRenderState, float f) {
 		super.updateRenderState(livingEntity, livingEntityRenderState, f);
 		float g = MathHelper.lerpAngleDegrees(f, livingEntity.lastHeadYaw, livingEntity.headYaw);

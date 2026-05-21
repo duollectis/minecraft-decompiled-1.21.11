@@ -37,6 +37,15 @@ public class Model {
 		return ModelIds.getBlockSubModelId(block, this.variant.orElse(""));
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param block block
+	 * @param textures textures
+	 * @param modelCollector model collector
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier upload(Block block, TextureMap textures, BiConsumer<Identifier, ModelSupplier> modelCollector) {
 		return this.upload(ModelIds.getBlockSubModelId(block, this.variant.orElse("")), textures, modelCollector);
 	}
@@ -63,10 +72,28 @@ public class Model {
 		return this.upload(ModelIds.getBlockSubModelId(block, suffix), textures, modelCollector);
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param item item
+	 * @param textures textures
+	 * @param modelCollector model collector
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier upload(Item item, TextureMap textures, BiConsumer<Identifier, ModelSupplier> modelCollector) {
 		return this.upload(ModelIds.getItemSubModelId(item, this.variant.orElse("")), textures, modelCollector);
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param id id
+	 * @param textures textures
+	 * @param modelCollector model collector
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier upload(Identifier id, TextureMap textures, BiConsumer<Identifier, ModelSupplier> modelCollector) {
 		Map<TextureKey, Identifier> map = this.createTextureMap(textures);
 		modelCollector.accept(

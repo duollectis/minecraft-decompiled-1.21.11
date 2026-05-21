@@ -29,10 +29,22 @@ public class OcelotEntityRenderer extends AgeableMobEntityRenderer<OcelotEntity,
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return FelineEntityRenderState — результат операции
+	 */
 	public FelineEntityRenderState createRenderState() {
 		return new FelineEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param ocelotEntity ocelot entity
+	 * @param felineEntityRenderState feline entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(OcelotEntity ocelotEntity, FelineEntityRenderState felineEntityRenderState, float f) {
 		super.updateRenderState(ocelotEntity, felineEntityRenderState, f);
 		felineEntityRenderState.inSneakingPose = ocelotEntity.isInSneakingPose();

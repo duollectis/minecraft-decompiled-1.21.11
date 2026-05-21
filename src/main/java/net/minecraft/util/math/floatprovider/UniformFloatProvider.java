@@ -39,6 +39,14 @@ public class UniformFloatProvider extends FloatProvider {
 		this.max = max;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return UniformFloatProvider — результат операции
+	 */
 	public static UniformFloatProvider create(float min, float max) {
 		if (max <= min) {
 			throw new IllegalArgumentException("Max must exceed min");

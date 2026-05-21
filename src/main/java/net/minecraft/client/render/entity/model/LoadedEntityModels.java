@@ -31,6 +31,11 @@ public class LoadedEntityModels {
 		}
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return LoadedEntityModels — результат операции
+	 */
 	public static LoadedEntityModels copy() {
 		return new LoadedEntityModels(ImmutableMap.copyOf(EntityModels.getModels()));
 	}

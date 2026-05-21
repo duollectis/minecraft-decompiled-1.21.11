@@ -26,6 +26,13 @@ public record DamageResistantComponent(TagKey<DamageType> types) {
 			TagKey.packetCodec(RegistryKeys.DAMAGE_TYPE), DamageResistantComponent::types, DamageResistantComponent::new
 	);
 
+	/**
+	 * Resists.
+	 *
+	 * @param damageSource damage source
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean resists(DamageSource damageSource) {
 		return damageSource.isIn(this.types);
 	}

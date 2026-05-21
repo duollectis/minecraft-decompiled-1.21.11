@@ -30,6 +30,13 @@ public class BannedIpList extends ServerConfigList<String, BannedIpEntry> {
 		return this.contains(ip);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param address address
+	 *
+	 * @return @Nullable BannedIpEntry — 
+	 */
 	public @Nullable BannedIpEntry get(SocketAddress address) {
 		String string = this.stringifyAddress(address);
 		return this.get(string);
@@ -48,6 +55,13 @@ public class BannedIpList extends ServerConfigList<String, BannedIpEntry> {
 		return string;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param bannedIpEntry banned ip entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean add(BannedIpEntry bannedIpEntry) {
 		if (super.add(bannedIpEntry)) {
 			if (bannedIpEntry.getKey() != null) {
@@ -61,6 +75,13 @@ public class BannedIpList extends ServerConfigList<String, BannedIpEntry> {
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param string string
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean remove(String string) {
 		if (super.remove(string)) {
 			this.managementListener.onIpBanRemoved(string);

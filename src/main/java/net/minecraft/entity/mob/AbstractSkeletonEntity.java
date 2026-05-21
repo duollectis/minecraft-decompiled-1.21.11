@@ -135,6 +135,9 @@ public abstract class AbstractSkeletonEntity extends HostileEntity implements Ra
 		return entityData;
 	}
 
+	/**
+	 * Обновляет attack type.
+	 */
 	public void updateAttackType() {
 		if (this.getEntityWorld() != null && !this.getEntityWorld().isClient()) {
 			this.goalSelector.remove(this.meleeAttackGoal);

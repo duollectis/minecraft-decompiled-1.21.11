@@ -20,22 +20,56 @@ public record Brightness(int block, int sky) {
 	);
 	public static final Brightness FULL = new Brightness(15, 15);
 
+	/**
+	 * Pack.
+	 *
+	 * @param block block
+	 * @param sky sky
+	 *
+	 * @return int — результат операции
+	 */
 	public static int pack(int block, int sky) {
 		return block << 4 | sky << 20;
 	}
 
+	/**
+	 * Pack.
+	 *
+	 * @return int — результат операции
+	 */
 	public int pack() {
 		return pack(this.block, this.sky);
 	}
 
+	/**
+	 * Unpack block.
+	 *
+	 * @param packed packed
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackBlock(int packed) {
 		return packed >> 4 & 65535;
 	}
 
+	/**
+	 * Unpack sky.
+	 *
+	 * @param packed packed
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackSky(int packed) {
 		return packed >> 20 & 65535;
 	}
 
+	/**
+	 * Unpack.
+	 *
+	 * @param packed packed
+	 *
+	 * @return Brightness — результат операции
+	 */
 	public static Brightness unpack(int packed) {
 		return new Brightness(unpackBlock(packed), unpackSky(packed));
 	}

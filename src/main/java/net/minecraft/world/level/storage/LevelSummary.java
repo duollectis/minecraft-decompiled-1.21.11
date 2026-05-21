@@ -59,6 +59,11 @@ public class LevelSummary implements Comparable<LevelSummary> {
 		return this.iconPath;
 	}
 
+	/**
+	 * Requires conversion.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean requiresConversion() {
 		return this.requiresConversion;
 	}
@@ -71,6 +76,13 @@ public class LevelSummary implements Comparable<LevelSummary> {
 		return this.versionInfo.getLastPlayed();
 	}
 
+	/**
+	 * Compare to.
+	 *
+	 * @param levelSummary level summary
+	 *
+	 * @return int — результат операции
+	 */
 	public int compareTo(LevelSummary levelSummary) {
 		if (this.getLastPlayed() < levelSummary.getLastPlayed()) {
 			return 1;
@@ -106,10 +118,20 @@ public class LevelSummary implements Comparable<LevelSummary> {
 		return this.versionInfo;
 	}
 
+	/**
+	 * Определяет, следует ли prompt backup.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldPromptBackup() {
 		return this.getConversionWarning().promptsBackup();
 	}
 
+	/**
+	 * Would be downgraded.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean wouldBeDowngraded() {
 		return this.getConversionWarning() == LevelSummary.ConversionWarning.DOWNGRADE;
 	}
@@ -229,6 +251,11 @@ public class LevelSummary implements Comparable<LevelSummary> {
 			this.translationKeySuffix = translationKeySuffix;
 		}
 
+		/**
+		 * Prompts backup.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean promptsBackup() {
 			return this.backup;
 		}

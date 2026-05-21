@@ -31,6 +31,11 @@ public class BanIpCommand {
 			ALREADY_BANNED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.banip.failed"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("ban-ip")

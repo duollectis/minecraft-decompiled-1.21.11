@@ -68,9 +68,21 @@ public class StepAndDestroyBlockGoal extends MoveToTargetPosGoal {
 		this.counter = 0;
 	}
 
+	/**
+	 * Выполняет тик обновления для stepping.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	public void tickStepping(WorldAccess world, BlockPos pos) {
 	}
 
+	/**
+	 * Обрабатывает событие destroy block.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	public void onDestroyBlock(World world, BlockPos pos) {
 	}
 

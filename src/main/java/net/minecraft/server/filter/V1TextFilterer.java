@@ -47,6 +47,13 @@ public class V1TextFilterer extends AbstractTextFilterer {
 		this.readTimeout = readTimeout;
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param response response
+	 *
+	 * @return @Nullable AbstractTextFilterer — результат операции
+	 */
 	public static @Nullable AbstractTextFilterer load(String response) {
 		JsonObject jsonObject = JsonHelper.deserialize(response);
 		URI uRI = URI.create(JsonHelper.getString(jsonObject, "apiServer"));

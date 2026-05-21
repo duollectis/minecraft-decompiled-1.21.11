@@ -259,10 +259,18 @@ public interface Vibrations {
 			this.delay = delay;
 		}
 
+		/**
+		 * Выполняет тик обновления для delay.
+		 */
 		public void tickDelay() {
 			this.delay = Math.max(0, this.delay - 1);
 		}
 
+		/**
+		 * Определяет, следует ли spawn particle.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldSpawnParticle() {
 			return this.spawnParticle;
 		}

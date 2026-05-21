@@ -15,18 +15,49 @@ import java.util.function.Predicate;
  */
 public class LookAtMobTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param spawnGroup spawn group
+	 * @param maxDistance max distance
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(SpawnGroup spawnGroup, float maxDistance) {
 		return create(entity -> spawnGroup.equals(entity.getType().getSpawnGroup()), maxDistance);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param type type
+	 * @param maxDistance max distance
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<LivingEntity> create(EntityType<?> type, float maxDistance) {
 		return create(entity -> type.equals(entity.getType()), maxDistance);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param maxDistance max distance
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<LivingEntity> create(float maxDistance) {
 		return create(entity -> true, maxDistance);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param predicate predicate
+	 * @param maxDistance max distance
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<LivingEntity> create(Predicate<LivingEntity> predicate, float maxDistance) {
 		float f = maxDistance * maxDistance;
 		return TaskTriggerer.task(

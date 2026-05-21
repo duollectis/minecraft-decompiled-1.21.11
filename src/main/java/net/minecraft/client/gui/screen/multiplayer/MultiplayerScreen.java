@@ -266,10 +266,18 @@ public class MultiplayerScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Connect.
+	 *
+	 * @param entry entry
+	 */
 	public void connect(ServerInfo entry) {
 		ConnectScreen.connect(this, this.client, ServerAddress.parse(entry.address), entry, false, null);
 	}
 
+	/**
+	 * Обновляет button activation states.
+	 */
 	protected void updateButtonActivationStates() {
 		this.buttonJoin.active = false;
 		this.buttonEdit.active = false;

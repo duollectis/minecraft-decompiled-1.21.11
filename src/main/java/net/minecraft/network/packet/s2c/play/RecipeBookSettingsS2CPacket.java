@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.recipe.book.RecipeBookOptions;
 
+/**
+ * Запись recipe book settings s2 c packet.
+ */
 public record RecipeBookSettingsS2CPacket(RecipeBookOptions bookSettings) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, RecipeBookSettingsS2CPacket> CODEC = PacketCodec.tuple(
@@ -19,6 +22,11 @@ public record RecipeBookSettingsS2CPacket(RecipeBookOptions bookSettings) implem
 		return PlayPackets.RECIPE_BOOK_SETTINGS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onRecipeBookSettings(this);
 	}

@@ -120,6 +120,9 @@ public abstract class ServerCommonNetworkHandler implements ServerCommonPacketLi
 		this.disconnect(UNEXPECTED_QUERY_RESPONSE_TEXT);
 	}
 
+	/**
+	 * Base tick.
+	 */
 	protected void baseTick() {
 		Profilers.get().push("keepAlive");
 		long l = Util.getMeasuringTimeMs();
@@ -151,19 +154,36 @@ public abstract class ServerCommonNetworkHandler implements ServerCommonPacketLi
 		}
 	}
 
+	/**
+	 * Отключает flush.
+	 */
 	public void disableFlush() {
 		this.flushDisabled = true;
 	}
 
+	/**
+	 * Включает flush.
+	 */
 	public void enableFlush() {
 		this.flushDisabled = false;
 		this.connection.flush();
 	}
 
+	/**
+	 * Отправляет packet.
+	 *
+	 * @param packet packet
+	 */
 	public void sendPacket(Packet<?> packet) {
 		this.send(packet, null);
 	}
 
+	/**
+	 * Send.
+	 *
+	 * @param packet packet
+	 * @param channelFutureListener channel future listener
+	 */
 	public void send(Packet<?> packet, @Nullable ChannelFutureListener channelFutureListener) {
 		if (packet.transitionsNetworkState()) {
 			this.markTransitionTime();
@@ -182,10 +202,20 @@ public abstract class ServerCommonNetworkHandler implements ServerCommonPacketLi
 		}
 	}
 
+	/**
+	 * Disconnect.
+	 *
+	 * @param reason reason
+	 */
 	public void disconnect(Text reason) {
 		this.disconnect(new DisconnectionInfo(reason));
 	}
 
+	/**
+	 * Disconnect.
+	 *
+	 * @param disconnectionInfo disconnection info
+	 */
 	public void disconnect(DisconnectionInfo disconnectionInfo) {
 		this.connection.send(
 				new DisconnectS2CPacket(disconnectionInfo.reason()),
@@ -210,6 +240,13 @@ public abstract class ServerCommonNetworkHandler implements ServerCommonPacketLi
 		return this.latency;
 	}
 
+	/**
+	 * Создаёт client data.
+	 *
+	 * @param syncedOptions synced options
+	 *
+	 * @return ConnectedClientData — результат операции
+	 */
 	protected ConnectedClientData createClientData(SyncedClientOptions syncedOptions) {
 		return new ConnectedClientData(this.getProfile(), this.latency, syncedOptions, this.transferred);
 	}

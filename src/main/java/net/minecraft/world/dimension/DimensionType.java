@@ -182,10 +182,20 @@ public record DimensionType(
 		}
 	}
 
+	/**
+	 * Monster spawn light test.
+	 *
+	 * @return IntProvider — результат операции
+	 */
 	public IntProvider monsterSpawnLightTest() {
 		return this.monsterSettings.monsterSpawnLightTest();
 	}
 
+	/**
+	 * Monster spawn block light limit.
+	 *
+	 * @return int — результат операции
+	 */
 	public int monsterSpawnBlockLightLimit() {
 		return this.monsterSettings.monsterSpawnBlockLightLimit();
 	}

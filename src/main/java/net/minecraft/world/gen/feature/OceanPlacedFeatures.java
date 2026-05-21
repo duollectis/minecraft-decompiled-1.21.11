@@ -36,6 +36,11 @@ public class OceanPlacedFeatures {
 		);
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =

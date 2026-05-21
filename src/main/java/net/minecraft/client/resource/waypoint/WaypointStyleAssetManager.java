@@ -33,6 +33,13 @@ public class WaypointStyleAssetManager extends JsonDataLoader<WaypointStyleAsset
 		super(WaypointStyleAsset.CODEC, FINDER);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param map map
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(Map<Identifier, WaypointStyleAsset> map, ResourceManager resourceManager, Profiler profiler) {
 		this.registry = map.entrySet()
 		                   .stream()
@@ -44,6 +51,13 @@ public class WaypointStyleAssetManager extends JsonDataLoader<WaypointStyleAsset
 		                   ));
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 *
+	 * @return WaypointStyleAsset — 
+	 */
 	public WaypointStyleAsset get(RegistryKey<WaypointStyle> key) {
 		return this.registry.getOrDefault(key, MISSING);
 	}

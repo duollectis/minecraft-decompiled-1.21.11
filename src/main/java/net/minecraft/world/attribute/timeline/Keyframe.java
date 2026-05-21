@@ -9,6 +9,13 @@ import net.minecraft.util.dynamic.Codecs;
  */
 public record Keyframe<T>(int ticks, T value) {
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param valueCodec value codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<Keyframe<T>> createCodec(Codec<T> valueCodec) {
 		return RecordCodecBuilder.create(
 				instance -> instance

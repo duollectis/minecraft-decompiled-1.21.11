@@ -10,6 +10,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
+/**
+ * Класс splitter handler.
+ */
 public class SplitterHandler extends ByteToMessageDecoder {
 
 	private static final int LENGTH_BYTES = 3;
@@ -20,6 +23,11 @@ public class SplitterHandler extends ByteToMessageDecoder {
 		this.packetSizeLogger = packetSizeLogger;
 	}
 
+	/**
+	 * Обрабатывает r removed0.
+	 *
+	 * @param context context
+	 */
 	protected void handlerRemoved0(ChannelHandlerContext context) {
 		this.reusableBuf.release();
 	}
@@ -40,6 +48,13 @@ public class SplitterHandler extends ByteToMessageDecoder {
 		throw new CorruptedFrameException("length wider than 21-bit");
 	}
 
+	/**
+	 * Decode.
+	 *
+	 * @param ctx ctx
+	 * @param buf buf
+	 * @param bytes bytes
+	 */
 	protected void decode(ChannelHandlerContext ctx, ByteBuf buf, List<Object> bytes) {
 		buf.markReaderIndex();
 		this.reusableBuf.clear();

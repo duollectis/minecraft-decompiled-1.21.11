@@ -30,6 +30,11 @@ public class TriggerCommand {
 			Text.translatable("commands.trigger.failed.invalid")
 	);
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) CommandManager.literal("trigger")

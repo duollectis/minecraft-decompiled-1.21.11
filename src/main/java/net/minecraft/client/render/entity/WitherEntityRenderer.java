@@ -37,10 +37,21 @@ public class WitherEntityRenderer extends MobEntityRenderer<WitherEntity, Wither
 		return i > 0 && (i > 80 || i / 5 % 2 != 1) ? INVULNERABLE_TEXTURE : TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return WitherEntityRenderState — результат операции
+	 */
 	public WitherEntityRenderState createRenderState() {
 		return new WitherEntityRenderState();
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param witherEntityRenderState wither entity render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void scale(WitherEntityRenderState witherEntityRenderState, MatrixStack matrixStack) {
 		float f = 2.0F;
 		if (witherEntityRenderState.invulnerableTimer > 0.0F) {
@@ -50,6 +61,13 @@ public class WitherEntityRenderer extends MobEntityRenderer<WitherEntity, Wither
 		matrixStack.scale(f, f, f);
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param witherEntity wither entity
+	 * @param witherEntityRenderState wither entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(WitherEntity witherEntity, WitherEntityRenderState witherEntityRenderState, float f) {
 		super.updateRenderState(witherEntity, witherEntityRenderState, f);
 		int i = witherEntity.getInvulnerableTimer();

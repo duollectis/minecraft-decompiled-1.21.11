@@ -110,6 +110,14 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return this.getTitle();
 	}
 
+	/**
+	 * Отрисовывает with tooltip.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param deltaTicks delta ticks
+	 */
 	public final void renderWithTooltip(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		context.createNewRootLayer();
 		this.renderBackground(context, mouseX, mouseY, deltaTicks);
@@ -187,6 +195,9 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		}
 	}
 
+	/**
+	 * Blur.
+	 */
 	public void blur() {
 		GuiNavigationPath guiNavigationPath = this.getFocusedPath();
 		if (guiNavigationPath != null) {
@@ -195,15 +206,28 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Switch focus.
+	 *
+	 * @param path path
+	 */
 	protected void switchFocus(GuiNavigationPath path) {
 		this.blur();
 		path.setFocused(true);
 	}
 
+	/**
+	 * Определяет, следует ли close on esc.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldCloseOnEsc() {
 		return true;
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		this.client.setScreen(null);
 	}
@@ -213,6 +237,13 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return this.addSelectableChild(drawableElement);
 	}
 
+	/**
+	 * Добавляет drawable.
+	 *
+	 * @param drawable drawable
+	 *
+	 * @return T — результат операции
+	 */
 	protected <T extends Drawable> T addDrawable(T drawable) {
 		this.drawables.add(drawable);
 		return drawable;
@@ -224,6 +255,11 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return child;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param child child
+	 */
 	protected void remove(Element child) {
 		if (child instanceof Drawable) {
 			this.drawables.remove((Drawable) child);
@@ -240,6 +276,9 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		this.children.remove(child);
 	}
 
+	/**
+	 * Очищает children.
+	 */
 	protected void clearChildren() {
 		this.drawables.clear();
 		this.children.clear();
@@ -254,6 +293,12 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		);
 	}
 
+	/**
+	 * Insert text.
+	 *
+	 * @param text text
+	 * @param override override
+	 */
 	protected void insertText(String text, boolean override) {
 	}
 
@@ -320,6 +365,15 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		}
 	}
 
+	/**
+	 * Обрабатывает open uri.
+	 *
+	 * @param client client
+	 * @param screen screen
+	 * @param uri uri
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected static boolean handleOpenUri(MinecraftClient client, @Nullable Screen screen, URI uri) {
 		if (!client.options.getChatLinks().getValue()) {
 			return false;
@@ -344,10 +398,23 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		}
 	}
 
+	/**
+	 * Обрабатывает run command.
+	 *
+	 * @param player player
+	 * @param command command
+	 * @param screenAfterRun screen after run
+	 */
 	protected static void handleRunCommand(ClientPlayerEntity player, String command, @Nullable Screen screenAfterRun) {
 		player.networkHandler.runClickEventCommand(CommandManager.stripLeadingSlash(command), screenAfterRun);
 	}
 
+	/**
+	 * Init.
+	 *
+	 * @param width width
+	 * @param height height
+	 */
 	public final void init(int width, int height) {
 		this.width = width;
 		this.height = height;
@@ -369,6 +436,9 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		}
 	}
 
+	/**
+	 * Очищает and init.
+	 */
 	protected void clearAndInit() {
 		this.clearChildren();
 		this.blur();
@@ -389,18 +459,38 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return this.children;
 	}
 
+	/**
+	 * Init.
+	 */
 	protected void init() {
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 	}
 
+	/**
+	 * Удаляет d.
+	 */
 	public void removed() {
 	}
 
+	/**
+	 * Обрабатывает событие displayed.
+	 */
 	public void onDisplayed() {
 	}
 
+	/**
+	 * Отрисовывает background.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param deltaTicks delta ticks
+	 */
 	public void renderBackground(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		if (this.deferSubtitles()) {
 			this.renderInGameBackground(context);
@@ -417,6 +507,11 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		this.client.inGameHud.renderDeferredSubtitles();
 	}
 
+	/**
+	 * Применяет blur.
+	 *
+	 * @param context context
+	 */
 	protected void applyBlur(DrawContext context) {
 		float f = this.client.options.getMenuBackgroundBlurrinessValue();
 		if (f >= 1.0F) {
@@ -424,16 +519,36 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		}
 	}
 
+	/**
+	 * Отрисовывает panorama background.
+	 *
+	 * @param context context
+	 * @param deltaTicks delta ticks
+	 */
 	protected void renderPanoramaBackground(DrawContext context, float deltaTicks) {
 		this.client.gameRenderer
 				.getRotatingPanoramaRenderer()
 				.render(context, this.width, this.height, this.allowRotatingPanorama());
 	}
 
+	/**
+	 * Отрисовывает darkening.
+	 *
+	 * @param context context
+	 */
 	protected void renderDarkening(DrawContext context) {
 		this.renderDarkening(context, 0, 0, this.width, this.height);
 	}
 
+	/**
+	 * Отрисовывает darkening.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param height height
+	 */
 	protected void renderDarkening(DrawContext context, int x, int y, int width, int height) {
 		renderBackgroundTexture(
 				context,
@@ -461,36 +576,75 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		context.drawTexture(RenderPipelines.GUI_TEXTURED, texture, x, y, u, v, width, height, 32, 32);
 	}
 
+	/**
+	 * Отрисовывает in game background.
+	 *
+	 * @param context context
+	 */
 	public void renderInGameBackground(DrawContext context) {
 		context.fillGradient(0, 0, this.width, this.height, -1072689136, -804253680);
 	}
 
+	/**
+	 * Определяет, следует ли pause.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldPause() {
 		return true;
 	}
 
+	/**
+	 * Defer subtitles.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean deferSubtitles() {
 		return false;
 	}
 
+	/**
+	 * Allow rotating panorama.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean allowRotatingPanorama() {
 		return true;
 	}
 
+	/**
+	 * Keep open through portal.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean keepOpenThroughPortal() {
 		return this.shouldPause();
 	}
 
+	/**
+	 * Refresh widget positions.
+	 */
 	protected void refreshWidgetPositions() {
 		this.clearAndInit();
 	}
 
+	/**
+	 * Resize.
+	 *
+	 * @param width width
+	 * @param height height
+	 */
 	public void resize(int width, int height) {
 		this.width = width;
 		this.height = height;
 		this.refreshWidgetPositions();
 	}
 
+	/**
+	 * Добавляет crash report section.
+	 *
+	 * @param report report
+	 */
 	public void addCrashReportSection(CrashReport report) {
 		CrashReportSection crashReportSection = report.addElement("Affected screen", 1);
 		crashReportSection.add("Screen name", () -> this.getClass().getCanonicalName());
@@ -515,6 +669,11 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return true;
 	}
 
+	/**
+	 * Обрабатывает событие files dropped.
+	 *
+	 * @param paths paths
+	 */
 	public void onFilesDropped(List<Path> paths) {
 	}
 
@@ -533,14 +692,23 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		this.elementNarrationStartTime = startTimeMs;
 	}
 
+	/**
+	 * Применяет mouse move narrator delay.
+	 */
 	public void applyMouseMoveNarratorDelay() {
 		this.setScreenNarrationDelay(750L, false);
 	}
 
+	/**
+	 * Применяет mouse press scroll narrator delay.
+	 */
 	public void applyMousePressScrollNarratorDelay() {
 		this.setScreenNarrationDelay(200L, true);
 	}
 
+	/**
+	 * Применяет key press narrator delay.
+	 */
 	public void applyKeyPressNarratorDelay() {
 		this.setScreenNarrationDelay(200L, true);
 	}
@@ -549,6 +717,9 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return SharedConstants.UI_NARRATION || this.client.getNarratorManager().isActive();
 	}
 
+	/**
+	 * Обновляет narrator.
+	 */
 	public void updateNarrator() {
 		if (this.isNarratorActive()) {
 			long l = Util.getMeasuringTimeMs();
@@ -559,6 +730,11 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		}
 	}
 
+	/**
+	 * Narrate screen if narration enabled.
+	 *
+	 * @param onlyChangedNarrations only changed narrations
+	 */
 	public void narrateScreenIfNarrationEnabled(boolean onlyChangedNarrations) {
 		if (this.isNarratorActive()) {
 			this.narrateScreen(onlyChangedNarrations);
@@ -577,6 +753,11 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return true;
 	}
 
+	/**
+	 * Добавляет screen narrations.
+	 *
+	 * @param messageBuilder message builder
+	 */
 	protected void addScreenNarrations(NarrationMessageBuilder messageBuilder) {
 		messageBuilder.put(NarrationPart.TITLE, this.getNarratedTitle());
 		if (this.hasUsageText()) {
@@ -586,6 +767,11 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		this.addElementNarrations(messageBuilder);
 	}
 
+	/**
+	 * Добавляет element narrations.
+	 *
+	 * @param builder builder
+	 */
 	protected void addElementNarrations(NarrationMessageBuilder builder) {
 		List<? extends Selectable> list = this.selectables
 				.stream()
@@ -650,6 +836,11 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return selectedElementNarrationData != null ? selectedElementNarrationData : selectedElementNarrationData2;
 	}
 
+	/**
+	 * Refresh narrator.
+	 *
+	 * @param previouslyDisabled previously disabled
+	 */
 	public void refreshNarrator(boolean previouslyDisabled) {
 		if (previouslyDisabled) {
 			this.setScreenNarrationDelay(NARRATOR_MODE_CHANGE_DELAY, false);
@@ -664,10 +855,20 @@ public abstract class Screen extends AbstractParentElement implements Drawable {
 		return this.textRenderer;
 	}
 
+	/**
+	 * Shows status effects.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean showsStatusEffects() {
 		return false;
 	}
 
+	/**
+	 * Проверяет возможность interrupt other screen.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canInterruptOtherScreen() {
 		return this.shouldCloseOnEsc();
 	}

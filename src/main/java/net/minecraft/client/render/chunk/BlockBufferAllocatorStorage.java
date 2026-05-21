@@ -22,14 +22,27 @@ public class BlockBufferAllocatorStorage implements AutoCloseable {
 			BlockRenderLayer.class, blockRenderLayer -> new BufferAllocator(blockRenderLayer.getBufferSize())
 	);
 
+	/**
+	 * Get.
+	 *
+	 * @param layer layer
+	 *
+	 * @return BufferAllocator — 
+	 */
 	public BufferAllocator get(BlockRenderLayer layer) {
 		return this.allocators.get(layer);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.allocators.values().forEach(BufferAllocator::clear);
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.allocators.values().forEach(BufferAllocator::reset);
 	}

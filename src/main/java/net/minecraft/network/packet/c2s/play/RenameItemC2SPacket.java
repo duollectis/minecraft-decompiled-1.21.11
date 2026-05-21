@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс rename item c2 s packet.
+ */
 public class RenameItemC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, RenameItemC2SPacket>
@@ -31,6 +34,11 @@ public class RenameItemC2SPacket implements Packet<ServerPlayPacketListener> {
 		return PlayPackets.RENAME_ITEM;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onRenameItem(this);
 	}

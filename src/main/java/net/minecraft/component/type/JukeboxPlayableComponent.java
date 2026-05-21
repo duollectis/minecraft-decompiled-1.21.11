@@ -61,6 +61,16 @@ public record JukeboxPlayableComponent(LazyRegistryEntryReference<JukeboxSong> s
 		}
 	}
 
+	/**
+	 * Try play stack.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param stack stack
+	 * @param player player
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public static ActionResult tryPlayStack(World world, BlockPos pos, ItemStack stack, PlayerEntity player) {
 		JukeboxPlayableComponent jukeboxPlayableComponent = stack.get(DataComponentTypes.JUKEBOX_PLAYABLE);
 		if (jukeboxPlayableComponent == null) {

@@ -66,6 +66,14 @@ public class EnderChestBlockEntity extends BlockEntity implements LidOpenable {
 		super(BlockEntityType.ENDER_CHEST, pos, state);
 	}
 
+	/**
+	 * Client tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, EnderChestBlockEntity blockEntity) {
 		blockEntity.lidAnimator.step();
 	}
@@ -81,6 +89,11 @@ public class EnderChestBlockEntity extends BlockEntity implements LidOpenable {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие open.
+	 *
+	 * @param user user
+	 */
 	public void onOpen(ContainerUser user) {
 		if (!this.removed && !user.asLivingEntity().isSpectator()) {
 			this.stateManager.openContainer(
@@ -93,6 +106,11 @@ public class EnderChestBlockEntity extends BlockEntity implements LidOpenable {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие close.
+	 *
+	 * @param user user
+	 */
 	public void onClose(ContainerUser user) {
 		if (!this.removed && !user.asLivingEntity().isSpectator()) {
 			this.stateManager.closeContainer(
@@ -104,10 +122,20 @@ public class EnderChestBlockEntity extends BlockEntity implements LidOpenable {
 		}
 	}
 
+	/**
+	 * Проверяет возможность player use.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canPlayerUse(PlayerEntity player) {
 		return Inventory.canPlayerUse(this, player);
 	}
 
+	/**
+	 * Обрабатывает событие scheduled tick.
+	 */
 	public void onScheduledTick() {
 		if (!this.removed) {
 			this.stateManager.updateViewerCount(this.getWorld(), this.getPos(), this.getCachedState());

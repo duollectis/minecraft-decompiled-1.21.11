@@ -28,12 +28,26 @@ public interface AttributeValidator<Value> {
 
 	static AttributeValidator<Float> ranged(float min, float max) {
 		return new AttributeValidator<Float>() {
+			/**
+			 * Validate.
+			 *
+			 * @param float_ float_
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public DataResult<Float> validate(Float float_) {
 				return float_ >= min && float_ <= max ? DataResult.success(float_)
 				                                      : DataResult.error(() -> float_ + " is not in range [" + min
 				                                                               + "; " + max + "]");
 			}
 
+			/**
+			 * Clamp.
+			 *
+			 * @param float_ float_
+			 *
+			 * @return Float — результат операции
+			 */
 			public Float clamp(Float float_) {
 				return float_ >= min && float_ <= max ? float_ : MathHelper.clamp(float_, min, max);
 			}

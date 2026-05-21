@@ -33,6 +33,9 @@ public class MusicTracker {
 		this.musicFrequency = client.options.getMusicFrequency().getValue();
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		float f = this.client.getMusicVolume();
 		if (this.current != null && this.volume != f) {
@@ -78,6 +81,11 @@ public class MusicTracker {
 		return musicSound.replaceCurrentMusic() && !musicSound.sound().value().id().equals(soundInstance.getId());
 	}
 
+	/**
+	 * Play.
+	 *
+	 * @param musicSound music sound
+	 */
 	public void play(MusicSound musicSound) {
 		SoundEvent soundEvent = musicSound.sound().value();
 		this.current = PositionedSoundInstance.music(soundEvent);
@@ -93,6 +101,9 @@ public class MusicTracker {
 		this.timeUntilNextSong = Integer.MAX_VALUE;
 	}
 
+	/**
+	 * Try show toast.
+	 */
 	public void tryShowToast() {
 		if (!this.shownToast) {
 			this.client.getToastManager().onMusicTrackStart();
@@ -100,12 +111,20 @@ public class MusicTracker {
 		}
 	}
 
+	/**
+	 * Stop.
+	 *
+	 * @param type type
+	 */
 	public void stop(MusicSound type) {
 		if (this.isPlayingType(type)) {
 			this.stop();
 		}
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		if (this.current != null) {
 			this.client.getSoundManager().stop(this.current);

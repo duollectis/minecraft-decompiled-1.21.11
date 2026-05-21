@@ -968,6 +968,13 @@ public class RenderPipelines {
 			              .build()
 	);
 
+	/**
+	 * Register.
+	 *
+	 * @param pipeline pipeline
+	 *
+	 * @return RenderPipeline — результат операции
+	 */
 	public static RenderPipeline register(RenderPipeline pipeline) {
 		PIPELINES.put(pipeline.getLocation(), pipeline);
 		return pipeline;

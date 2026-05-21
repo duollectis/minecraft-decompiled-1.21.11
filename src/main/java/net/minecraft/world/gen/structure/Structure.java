@@ -57,6 +57,13 @@ public abstract class Structure {
 		return Structure.Config.CODEC.forGetter(feature -> feature.config);
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param featureCreator feature creator
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static <S extends Structure> MapCodec<S> createCodec(Function<Structure.Config, S> featureCreator) {
 		return RecordCodecBuilder.mapCodec(instance -> instance
 				.group(configCodecBuilder(instance))
@@ -83,6 +90,13 @@ public abstract class Structure {
 		return this.config.terrainAdaptation;
 	}
 
+	/**
+	 * Expand box if should adapt noise.
+	 *
+	 * @param box box
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public BlockBox expandBoxIfShouldAdaptNoise(BlockBox box) {
 		return this.getTerrainAdaptation() != StructureTerrainAdaptation.NONE ? box.expand(12) : box;
 	}
@@ -389,6 +403,11 @@ public abstract class Structure {
 			this(pos, Either.left(generator));
 		}
 
+		/**
+		 * Generate.
+		 *
+		 * @return StructurePiecesCollector — результат операции
+		 */
 		public StructurePiecesCollector generate() {
 			return (StructurePiecesCollector) this.generator.map(
 					generator -> {

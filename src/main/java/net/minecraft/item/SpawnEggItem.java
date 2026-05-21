@@ -173,6 +173,13 @@ public class SpawnEggItem extends Item {
 		return Objects.equals(this.getEntityType(stack), entityType);
 	}
 
+	/**
+	 * For entity.
+	 *
+	 * @param type type
+	 *
+	 * @return @Nullable SpawnEggItem — результат операции
+	 */
 	public static @Nullable SpawnEggItem forEntity(@Nullable EntityType<?> type) {
 		return SPAWN_EGGS.get(type);
 	}

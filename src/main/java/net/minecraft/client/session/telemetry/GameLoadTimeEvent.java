@@ -30,6 +30,11 @@ public class GameLoadTimeEvent {
 		this.ticker = ticker;
 	}
 
+	/**
+	 * Запускает timer.
+	 *
+	 * @param property property
+	 */
 	public synchronized void startTimer(TelemetryEventProperty<GameLoadTimeEvent.Measurement> property) {
 		this.addTimer(
 				property,
@@ -56,6 +61,11 @@ public class GameLoadTimeEvent {
 		this.stopwatches.computeIfAbsent(property, stopwatchProvider);
 	}
 
+	/**
+	 * Останавливает timer.
+	 *
+	 * @param property property
+	 */
 	public synchronized void stopTimer(TelemetryEventProperty<GameLoadTimeEvent.Measurement> property) {
 		Stopwatch stopwatch = this.stopwatches.get(property);
 		if (stopwatch == null) {
@@ -68,6 +78,11 @@ public class GameLoadTimeEvent {
 		}
 	}
 
+	/**
+	 * Send.
+	 *
+	 * @param sender sender
+	 */
 	public void send(TelemetrySender sender) {
 		sender.send(
 				TelemetryEventType.GAME_LOAD_TIMES,

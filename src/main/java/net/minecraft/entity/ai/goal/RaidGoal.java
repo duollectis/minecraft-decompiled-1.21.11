@@ -26,6 +26,9 @@ public class RaidGoal<T extends LivingEntity> extends ActiveTargetGoal<T> {
 		return this.cooldown;
 	}
 
+	/**
+	 * Decrease cooldown.
+	 */
 	public void decreaseCooldown() {
 		this.cooldown--;
 	}

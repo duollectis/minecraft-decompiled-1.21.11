@@ -120,6 +120,9 @@ public class WorldEnvironmentAttributeAccess implements EnvironmentAttributeAcce
 		);
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.entries.values().forEach(WorldEnvironmentAttributeAccess.Entry::tick);
 	}
@@ -246,6 +249,11 @@ public class WorldEnvironmentAttributeAccess implements EnvironmentAttributeAcce
 			this.timeBased(attribute, timeline.value().getModification(attribute, timeSupplier));
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return WorldEnvironmentAttributeAccess — результат операции
+		 */
 		public WorldEnvironmentAttributeAccess build() {
 			return new WorldEnvironmentAttributeAccess(this.modifications);
 		}
@@ -275,11 +283,19 @@ public class WorldEnvironmentAttributeAccess implements EnvironmentAttributeAcce
 			this.positional = positional;
 		}
 
+		/**
+		 * Tick.
+		 */
 		public void tick() {
 			this.cachedValue = null;
 			this.age++;
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @return Value — 
+		 */
 		public Value get() {
 			if (this.cachedValue != null) {
 				return this.cachedValue;

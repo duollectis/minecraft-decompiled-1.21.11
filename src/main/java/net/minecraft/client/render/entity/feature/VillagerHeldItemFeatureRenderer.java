@@ -44,6 +44,12 @@ public class VillagerHeldItemFeatureRenderer<S extends ItemHolderEntityRenderSta
 		}
 	}
 
+	/**
+	 * Применяет transforms.
+	 *
+	 * @param state state
+	 * @param matrices matrices
+	 */
 	protected void applyTransforms(S state, MatrixStack matrices) {
 		this.getContextModel().rotateArms(state, matrices);
 		matrices.multiply(RotationAxis.POSITIVE_X.rotation(0.75F));

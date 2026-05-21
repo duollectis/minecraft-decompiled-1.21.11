@@ -93,6 +93,11 @@ public interface Waypoint {
 			return registryKey == this.style && optional.isEmpty() ? this : new Waypoint.Config(registryKey, optional);
 		}
 
+		/**
+		 * Создаёт копию from.
+		 *
+		 * @param config config
+		 */
 		public void copyFrom(Waypoint.Config config) {
 			this.color = config.color;
 			this.style = config.style;

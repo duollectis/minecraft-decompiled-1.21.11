@@ -120,6 +120,15 @@ public class WallHangingSignBlock extends AbstractSignBlock {
 		return COLLISION_SHAPES_BY_AXIS.get(state.get(FACING).getAxis());
 	}
 
+	/**
+	 * Проверяет возможность attach at.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canAttachAt(BlockState state, WorldView world, BlockPos pos) {
 		Direction direction = state.get(FACING).rotateYClockwise();
 		Direction direction2 = state.get(FACING).rotateYCounterclockwise();
@@ -131,6 +140,16 @@ public class WallHangingSignBlock extends AbstractSignBlock {
 		);
 	}
 
+	/**
+	 * Проверяет возможность attach to.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param toPos to pos
+	 * @param direction direction
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canAttachTo(WorldView world, BlockState state, BlockPos toPos, Direction direction) {
 		BlockState blockState = world.getBlockState(toPos);
 		return blockState.isIn(BlockTags.WALL_HANGING_SIGNS)

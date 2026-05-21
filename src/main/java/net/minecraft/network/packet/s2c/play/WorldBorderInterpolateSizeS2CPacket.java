@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.border.WorldBorder;
 
+/**
+ * Класс world border interpolate size s2 c packet.
+ */
 public class WorldBorderInterpolateSizeS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, WorldBorderInterpolateSizeS2CPacket> CODEC = Packet.createCodec(
@@ -40,6 +43,11 @@ public class WorldBorderInterpolateSizeS2CPacket implements Packet<ClientPlayPac
 		return PlayPackets.SET_BORDER_LERP_SIZE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onWorldBorderInterpolateSize(this);
 	}

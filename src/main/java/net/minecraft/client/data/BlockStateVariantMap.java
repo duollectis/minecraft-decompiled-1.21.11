@@ -24,6 +24,12 @@ public abstract class BlockStateVariantMap<V> {
 
 	private final Map<PropertiesMap, V> variants = new HashMap<>();
 
+	/**
+	 * Register.
+	 *
+	 * @param properties properties
+	 * @param variant variant
+	 */
 	protected void register(PropertiesMap properties, V variant) {
 		V object = this.variants.put(properties, variant);
 		if (object != null) {
@@ -148,6 +154,13 @@ public abstract class BlockStateVariantMap<V> {
 			return this;
 		}
 
+		/**
+		 * Generate.
+		 *
+		 * @param variantFactory variant factory
+		 *
+		 * @return BlockStateVariantMap — результат операции
+		 */
 		public BlockStateVariantMap<V> generate(BiFunction<T1, T2, V> variantFactory) {
 			this.first
 					.getValues()
@@ -201,6 +214,13 @@ public abstract class BlockStateVariantMap<V> {
 			return this;
 		}
 
+		/**
+		 * Generate.
+		 *
+		 * @param variantFactory variant factory
+		 *
+		 * @return BlockStateVariantMap — результат операции
+		 */
 		public BlockStateVariantMap<V> generate(Function4<T1, T2, T3, T4, V> variantFactory) {
 			this.first
 					.getValues()
@@ -280,6 +300,13 @@ public abstract class BlockStateVariantMap<V> {
 			return this;
 		}
 
+		/**
+		 * Generate.
+		 *
+		 * @param variantFactory variant factory
+		 *
+		 * @return BlockStateVariantMap — результат операции
+		 */
 		public BlockStateVariantMap<V> generate(Function5<T1, T2, T3, T4, T5, V> variantFactory) {
 			this.first
 					.getValues()
@@ -342,6 +369,13 @@ public abstract class BlockStateVariantMap<V> {
 			return this;
 		}
 
+		/**
+		 * Generate.
+		 *
+		 * @param variantFactory variant factory
+		 *
+		 * @return BlockStateVariantMap — результат операции
+		 */
 		public BlockStateVariantMap<V> generate(Function<T1, V> variantFactory) {
 			this.property.getValues().forEach(value -> this.register((T1) value, variantFactory.apply((T1) value)));
 			return this;
@@ -384,6 +418,13 @@ public abstract class BlockStateVariantMap<V> {
 			return this;
 		}
 
+		/**
+		 * Generate.
+		 *
+		 * @param variantFactory variant factory
+		 *
+		 * @return BlockStateVariantMap — результат операции
+		 */
 		public BlockStateVariantMap<V> generate(Function3<T1, T2, T3, V> variantFactory) {
 			this.first
 					.getValues()

@@ -162,6 +162,11 @@ public class BrushableBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * Scheduled tick.
+	 *
+	 * @param world world
+	 */
 	public void scheduledTick(ServerWorld world) {
 		if (this.brushesCount != 0 && world.getTime() >= this.nextDustTime) {
 			int i = this.getDustedLevel();
@@ -217,6 +222,11 @@ public class BrushableBlockEntity extends BlockEntity {
 		return nbtCompound;
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}

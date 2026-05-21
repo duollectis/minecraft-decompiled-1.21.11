@@ -167,6 +167,13 @@ public interface Registry<T> extends Keyable, RegistryWrapper.Impl<T>, IndexedIt
 				return Registry.this.getRawId(registryEntry.value());
 			}
 
+			/**
+			 * Get.
+			 *
+			 * @param i i
+			 *
+			 * @return @Nullable RegistryEntry — 
+			 */
 			public @Nullable RegistryEntry<T> get(int i) {
 				return (RegistryEntry<T>) Registry.this.getEntry(i).orElse(null);
 			}

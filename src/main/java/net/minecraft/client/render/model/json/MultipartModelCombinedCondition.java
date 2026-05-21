@@ -61,6 +61,13 @@ public record MultipartModelCombinedCondition(
 			return this.name;
 		}
 
+		/**
+		 * Apply.
+		 *
+		 * @param conditions conditions
+		 *
+		 * @return Predicate — результат операции
+		 */
 		public abstract <V> Predicate<V> apply(List<Predicate<V>> conditions);
 	}
 }

@@ -80,6 +80,9 @@ public class LightmapTextureManager implements AutoCloseable {
 		this.buffer.close();
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.flickerIntensity = this.flickerIntensity
 				+ (this.random.nextFloat() - this.random.nextFloat()) * this.random.nextFloat()
@@ -93,6 +96,11 @@ public class LightmapTextureManager implements AutoCloseable {
 		return Math.max(0.0F, MathHelper.cos((entity.age - tickProgress) * (float) Math.PI * 0.025F) * f);
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param tickProgress tick progress
+	 */
 	public void update(float tickProgress) {
 		if (this.dirty) {
 			this.dirty = false;
@@ -195,6 +203,14 @@ public class LightmapTextureManager implements AutoCloseable {
 		return MathHelper.lerp(ambientLight, g, 1.0F);
 	}
 
+	/**
+	 * Pack.
+	 *
+	 * @param block block
+	 * @param sky sky
+	 *
+	 * @return int — результат операции
+	 */
 	public static int pack(int block, int sky) {
 		return block << 4 | sky << 20;
 	}
@@ -207,6 +223,14 @@ public class LightmapTextureManager implements AutoCloseable {
 		return light >>> 20 & 15;
 	}
 
+	/**
+	 * Применяет emission.
+	 *
+	 * @param light light
+	 * @param lightEmission light emission
+	 *
+	 * @return int — результат операции
+	 */
 	public static int applyEmission(int light, int lightEmission) {
 		if (lightEmission == 0) {
 			return light;

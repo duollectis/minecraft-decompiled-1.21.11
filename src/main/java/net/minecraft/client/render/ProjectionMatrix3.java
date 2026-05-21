@@ -39,6 +39,15 @@ public class ProjectionMatrix3 implements AutoCloseable {
 		this.slice = this.buffer.slice(0L, RenderSystem.PROJECTION_MATRIX_UBO_SIZE);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param width width
+	 * @param height height
+	 * @param fov fov
+	 *
+	 * @return GpuBufferSlice — результат операции
+	 */
 	public GpuBufferSlice set(int width, int height, float fov) {
 		if (this.width != width || this.height != height || this.fov != fov) {
 			Matrix4f matrix4f = this.getMatrix(width, height, fov);

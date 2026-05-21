@@ -34,6 +34,14 @@ public abstract class RedstoneController {
 		return pos.isOf(this.wire) ? pos.get(RedstoneWireBlock.POWER) : 0;
 	}
 
+	/**
+	 * Вычисляет wire power at.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return int — результат операции
+	 */
 	protected int calculateWirePowerAt(World world, BlockPos pos) {
 		int i = 0;
 

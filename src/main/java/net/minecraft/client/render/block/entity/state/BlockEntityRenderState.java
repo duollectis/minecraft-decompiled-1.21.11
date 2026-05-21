@@ -39,6 +39,11 @@ public class BlockEntityRenderState implements FabricRenderState {
 		state.crumblingOverlay = crumblingOverlay;
 	}
 
+	/**
+	 * Populate crash report.
+	 *
+	 * @param crashReportSection crash report section
+	 */
 	public void populateCrashReport(CrashReportSection crashReportSection) {
 		crashReportSection.add("BlockEntityRenderState", this.getClass().getCanonicalName());
 		crashReportSection.add("Position", this.pos);

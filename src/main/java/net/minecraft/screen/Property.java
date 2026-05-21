@@ -7,6 +7,14 @@ public abstract class Property {
 
 	private int oldValue;
 
+	/**
+	 * Create.
+	 *
+	 * @param delegate delegate
+	 * @param index index
+	 *
+	 * @return Property — результат операции
+	 */
 	public static Property create(PropertyDelegate delegate, int index) {
 		return new Property() {
 			@Override
@@ -21,6 +29,14 @@ public abstract class Property {
 		};
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param array array
+	 * @param index index
+	 *
+	 * @return Property — результат операции
+	 */
 	public static Property create(int[] array, int index) {
 		return new Property() {
 			@Override
@@ -35,6 +51,11 @@ public abstract class Property {
 		};
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @return Property — результат операции
+	 */
 	public static Property create() {
 		return new Property() {
 			private int value;
@@ -51,8 +72,18 @@ public abstract class Property {
 		};
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @return int — 
+	 */
 	public abstract int get();
 
+	/**
+	 * Set.
+	 *
+	 * @param value value
+	 */
 	public abstract void set(int value);
 
 	public boolean hasChanged() {

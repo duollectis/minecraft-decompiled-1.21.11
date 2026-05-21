@@ -39,6 +39,15 @@ public class RecordDumper {
 		this.type = type;
 	}
 
+	/**
+	 * Создаёт dump.
+	 *
+	 * @param samplers samplers
+	 * @param deviations deviations
+	 * @param result result
+	 *
+	 * @return Path — результат операции
+	 */
 	public Path createDump(Set<Sampler> samplers, Map<Sampler, List<Deviation>> deviations, ProfileResult result) {
 		try {
 			Files.createDirectories(DEBUG_PROFILING_DIRECTORY);

@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс clear title s2 c packet.
+ */
 public class ClearTitleS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ClearTitleS2CPacket>
@@ -31,10 +34,20 @@ public class ClearTitleS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.CLEAR_TITLES;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onTitleClear(this);
 	}
 
+	/**
+	 * Определяет, следует ли reset.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldReset() {
 		return this.reset;
 	}

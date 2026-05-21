@@ -72,16 +72,29 @@ public class NetworkSummaryEvent extends Event {
 			this.event.begin();
 		}
 
+		/**
+		 * Добавляет sent packet.
+		 *
+		 * @param bytes bytes
+		 */
 		public void addSentPacket(int bytes) {
 			this.sentPackets.incrementAndGet();
 			this.sentBytes.addAndGet(bytes);
 		}
 
+		/**
+		 * Добавляет received packet.
+		 *
+		 * @param bytes bytes
+		 */
 		public void addReceivedPacket(int bytes) {
 			this.receivedPackets.incrementAndGet();
 			this.receivedBytes.addAndGet(bytes);
 		}
 
+		/**
+		 * Commit.
+		 */
 		public void commit() {
 			this.event.sentBytes = this.sentBytes.get();
 			this.event.sentPackets = this.sentPackets.get();

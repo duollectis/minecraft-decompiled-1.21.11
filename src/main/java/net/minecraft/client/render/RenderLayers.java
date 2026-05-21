@@ -497,22 +497,51 @@ public class RenderLayers {
 			)
 	);
 
+	/**
+	 * Solid.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer solid() {
 		return SOLID;
 	}
 
+	/**
+	 * Cutout.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer cutout() {
 		return CUTOUT;
 	}
 
+	/**
+	 * Translucent moving block.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer translucentMovingBlock() {
 		return TRANSLUCENT_MOVING_BLOCK;
 	}
 
+	/**
+	 * Armor cutout no cull.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer armorCutoutNoCull(Identifier texture) {
 		return ARMOR_CUTOUT_NO_CULL.apply(texture);
 	}
 
+	/**
+	 * Armor decal cutout no cull.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer armorDecalCutoutNoCull(Identifier texture) {
 		RenderSetup renderSetup = RenderSetup.builder(RenderPipelines.ARMOR_DECAL_CUTOUT_NO_CULL)
 		                                     .texture("Sampler0", texture)
@@ -525,90 +554,251 @@ public class RenderLayers {
 		return RenderLayer.of("armor_decal_cutout_no_cull", renderSetup);
 	}
 
+	/**
+	 * Armor translucent.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer armorTranslucent(Identifier texture) {
 		return ARMOR_TRANSLUCENT.apply(texture);
 	}
 
+	/**
+	 * Entity solid.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entitySolid(Identifier texture) {
 		return ENTITY_SOLID.apply(texture);
 	}
 
+	/**
+	 * Entity solid z offset forward.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entitySolidZOffsetForward(Identifier texture) {
 		return ENTITY_SOLID_Z_OFFSET_FORWARD.apply(texture);
 	}
 
+	/**
+	 * Entity cutout.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityCutout(Identifier texture) {
 		return ENTITY_CUTOUT.apply(texture);
 	}
 
+	/**
+	 * Entity cutout no cull.
+	 *
+	 * @param texture texture
+	 * @param affectsOutline affects outline
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityCutoutNoCull(Identifier texture, boolean affectsOutline) {
 		return ENTITY_CUTOUT_NO_CULL.apply(texture, affectsOutline);
 	}
 
+	/**
+	 * Entity cutout no cull.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityCutoutNoCull(Identifier texture) {
 		return entityCutoutNoCull(texture, true);
 	}
 
+	/**
+	 * Entity cutout no cull z offset.
+	 *
+	 * @param texture texture
+	 * @param affectsOutline affects outline
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityCutoutNoCullZOffset(Identifier texture, boolean affectsOutline) {
 		return ENTITY_CUTOUT_NO_CULL_Z_OFFSET.apply(texture, affectsOutline);
 	}
 
+	/**
+	 * Entity cutout no cull z offset.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityCutoutNoCullZOffset(Identifier texture) {
 		return entityCutoutNoCullZOffset(texture, true);
 	}
 
+	/**
+	 * Item entity translucent cull.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer itemEntityTranslucentCull(Identifier texture) {
 		return ITEM_ENTITY_TRANSLUCENT_CULL.apply(texture);
 	}
 
+	/**
+	 * Entity translucent.
+	 *
+	 * @param texture texture
+	 * @param affectsOutline affects outline
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityTranslucent(Identifier texture, boolean affectsOutline) {
 		return ENTITY_TRANSLUCENT.apply(texture, affectsOutline);
 	}
 
+	/**
+	 * Entity translucent.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityTranslucent(Identifier texture) {
 		return entityTranslucent(texture, true);
 	}
 
+	/**
+	 * Entity translucent emissive.
+	 *
+	 * @param texture texture
+	 * @param affectsOutline affects outline
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityTranslucentEmissive(Identifier texture, boolean affectsOutline) {
 		return ENTITY_TRANSLUCENT_EMISSIVE.apply(texture, affectsOutline);
 	}
 
+	/**
+	 * Entity translucent emissive.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityTranslucentEmissive(Identifier texture) {
 		return entityTranslucentEmissive(texture, true);
 	}
 
+	/**
+	 * Entity smooth cutout.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entitySmoothCutout(Identifier texture) {
 		return ENTITY_SMOOTH_CUTOUT.apply(texture);
 	}
 
+	/**
+	 * Beacon beam.
+	 *
+	 * @param texture texture
+	 * @param translucent translucent
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer beaconBeam(Identifier texture, boolean translucent) {
 		return BEACON_BEAM.apply(texture, translucent);
 	}
 
+	/**
+	 * Entity decal.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityDecal(Identifier texture) {
 		return ENTITY_DECAL.apply(texture);
 	}
 
+	/**
+	 * Entity no outline.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityNoOutline(Identifier texture) {
 		return ENTITY_NO_OUTLINE.apply(texture);
 	}
 
+	/**
+	 * Entity shadow.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityShadow(Identifier texture) {
 		return ENTITY_SHADOW.apply(texture);
 	}
 
+	/**
+	 * Entity alpha.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityAlpha(Identifier texture) {
 		return ENTITY_ALPHA.apply(texture);
 	}
 
+	/**
+	 * Eyes.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer eyes(Identifier texture) {
 		return EYES.apply(texture);
 	}
 
+	/**
+	 * Entity translucent emissive no outline.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityTranslucentEmissiveNoOutline(Identifier texture) {
 		return ENTITY_TRANSLUCENT_EMISSIVE.apply(texture, false);
 	}
 
+	/**
+	 * Breeze wind.
+	 *
+	 * @param texture texture
+	 * @param du du
+	 * @param dv dv
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer breezeWind(Identifier texture, float du, float dv) {
 		return RenderLayer.of(
 				"breeze_wind",
@@ -621,6 +811,15 @@ public class RenderLayers {
 		);
 	}
 
+	/**
+	 * Energy swirl.
+	 *
+	 * @param texture texture
+	 * @param du du
+	 * @param dv dv
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer energySwirl(Identifier texture, float du, float dv) {
 		return RenderLayer.of(
 				"energy_swirl",
@@ -634,118 +833,279 @@ public class RenderLayers {
 		);
 	}
 
+	/**
+	 * Leash.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer leash() {
 		return LEASH;
 	}
 
+	/**
+	 * Water mask.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer waterMask() {
 		return WATER_MASK;
 	}
 
+	/**
+	 * Outline no cull.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer outlineNoCull(Identifier texture) {
 		return OUTLINE.apply(texture, false);
 	}
 
+	/**
+	 * Armor entity glint.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer armorEntityGlint() {
 		return ARMOR_ENTITY_GLINT;
 	}
 
+	/**
+	 * Glint translucent.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer glintTranslucent() {
 		return GLINT_TRANSLUCENT;
 	}
 
+	/**
+	 * Glint.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer glint() {
 		return GLINT;
 	}
 
+	/**
+	 * Entity glint.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer entityGlint() {
 		return ENTITY_GLINT;
 	}
 
+	/**
+	 * Crumbling.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer crumbling(Identifier texture) {
 		return CRUMBLING.apply(texture);
 	}
 
+	/**
+	 * Text.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer text(Identifier texture) {
 		return TEXT.apply(texture);
 	}
 
+	/**
+	 * Text background.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer textBackground() {
 		return TEXT_BACKGROUND;
 	}
 
+	/**
+	 * Text intensity.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer textIntensity(Identifier texture) {
 		return TEXT_INTENSITY.apply(texture);
 	}
 
+	/**
+	 * Text polygon offset.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer textPolygonOffset(Identifier texture) {
 		return TEXT_POLYGON_OFFSET.apply(texture);
 	}
 
+	/**
+	 * Text intensity polygon offset.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer textIntensityPolygonOffset(Identifier texture) {
 		return TEXT_INTENSITY_POLYGON_OFFSET.apply(texture);
 	}
 
+	/**
+	 * Text see through.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer textSeeThrough(Identifier texture) {
 		return TEXT_SEE_THROUGH.apply(texture);
 	}
 
+	/**
+	 * Text background see through.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer textBackgroundSeeThrough() {
 		return TEXT_BACKGROUND_SEE_THROUGH;
 	}
 
+	/**
+	 * Text intensity see through.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer textIntensitySeeThrough(Identifier texture) {
 		return TEXT_INTENSITY_SEE_THROUGH.apply(texture);
 	}
 
+	/**
+	 * Lightning.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer lightning() {
 		return LIGHTNING;
 	}
 
+	/**
+	 * Dragon rays.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer dragonRays() {
 		return DRAGON_RAYS;
 	}
 
+	/**
+	 * Dragon rays depth.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer dragonRaysDepth() {
 		return DRAGON_RAYS_DEPTH;
 	}
 
+	/**
+	 * Tripwire.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer tripwire() {
 		return TRIPWIRE;
 	}
 
+	/**
+	 * End portal.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer endPortal() {
 		return END_PORTAL;
 	}
 
+	/**
+	 * End gateway.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer endGateway() {
 		return END_GATEWAY;
 	}
 
+	/**
+	 * Lines.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer lines() {
 		return LINES;
 	}
 
+	/**
+	 * Lines translucent.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer linesTranslucent() {
 		return LINES_TRANSLUCENT;
 	}
 
+	/**
+	 * Secondary block outline.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer secondaryBlockOutline() {
 		return SECONDARY_BLOCK_OUTLINE;
 	}
 
+	/**
+	 * Debug filled box.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer debugFilledBox() {
 		return DEBUG_FILLED_BOX;
 	}
 
+	/**
+	 * Debug point.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer debugPoint() {
 		return DEBUG_POINT;
 	}
 
+	/**
+	 * Debug quads.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer debugQuads() {
 		return DEBUG_QUADS;
 	}
 
+	/**
+	 * Debug triangle fan.
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer debugTriangleFan() {
 		return DEBUG_TRIANGLE_FAN;
 	}
@@ -764,14 +1124,36 @@ public class RenderLayers {
 		);
 	}
 
+	/**
+	 * Weather.
+	 *
+	 * @param texture texture
+	 * @param depth depth
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer weather(Identifier texture, boolean depth) {
 		return (depth ? WEATHER_DEPTH : WEATHER_NO_DEPTH).apply(texture);
 	}
 
+	/**
+	 * Block screen effect.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer blockScreenEffect(Identifier texture) {
 		return BLOCK_SCREEN_EFFECT.apply(texture);
 	}
 
+	/**
+	 * Fire screen effect.
+	 *
+	 * @param texture texture
+	 *
+	 * @return RenderLayer — результат операции
+	 */
 	public static RenderLayer fireScreenEffect(Identifier texture) {
 		return FIRE_SCREEN_EFFECT.apply(texture);
 	}

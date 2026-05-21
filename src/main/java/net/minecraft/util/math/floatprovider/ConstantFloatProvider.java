@@ -15,6 +15,13 @@ public class ConstantFloatProvider extends FloatProvider {
 			.xmap(ConstantFloatProvider::create, ConstantFloatProvider::getValue);
 	private final float value;
 
+	/**
+	 * Create.
+	 *
+	 * @param value value
+	 *
+	 * @return ConstantFloatProvider — результат операции
+	 */
 	public static ConstantFloatProvider create(float value) {
 		return value == 0.0F ? ZERO : new ConstantFloatProvider(value);
 	}

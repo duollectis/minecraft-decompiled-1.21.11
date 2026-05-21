@@ -41,6 +41,13 @@ public class Backup extends ValueObject {
 		return ZonedDateTime.ofInstant(this.lastModifiedDate, ZoneId.systemDefault());
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param node node
+	 *
+	 * @return @Nullable Backup — результат операции
+	 */
 	public static @Nullable Backup parse(JsonElement node) {
 		JsonObject jsonObject = node.getAsJsonObject();
 

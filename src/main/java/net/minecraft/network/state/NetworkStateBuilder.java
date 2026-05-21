@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+/**
+ * Класс network state builder.
+ */
 public class NetworkStateBuilder<T extends PacketListener, B extends ByteBuf, C> {
 
 	final NetworkPhase phase;
@@ -104,6 +107,13 @@ public class NetworkStateBuilder<T extends PacketListener, B extends ByteBuf, C>
 		};
 	}
 
+	/**
+	 * Строит factory.
+	 *
+	 * @param context context
+	 *
+	 * @return NetworkStateFactory — результат операции
+	 */
 	public NetworkStateFactory<T, B> buildFactory(C context) {
 		final List<NetworkStateBuilder.PacketType<T, ?, B, C>> list = List.copyOf(this.packetTypes);
 		final PacketBundleHandler packetBundleHandler = this.bundleHandler;
@@ -126,6 +136,11 @@ public class NetworkStateBuilder<T extends PacketListener, B extends ByteBuf, C>
 		};
 	}
 
+	/**
+	 * Строит context aware factory.
+	 *
+	 * @return ContextAwareNetworkStateFactory — результат операции
+	 */
 	public ContextAwareNetworkStateFactory<T, B, C> buildContextAwareFactory() {
 		final List<NetworkStateBuilder.PacketType<T, ?, B, C>> list = List.copyOf(this.packetTypes);
 		final PacketBundleHandler packetBundleHandler = this.bundleHandler;

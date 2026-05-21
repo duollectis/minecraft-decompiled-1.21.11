@@ -81,6 +81,13 @@ public class RaycastContext {
 			this.predicate = predicate;
 		}
 
+		/**
+		 * Обрабатывает d.
+		 *
+		 * @param state state
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean handled(FluidState state) {
 			return this.predicate.test(state);
 		}

@@ -72,6 +72,13 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		}
 	}
 
+	/**
+	 * Добавляет entity.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean addEntity(T entity) {
 		return this.addEntity(entity, false);
 	}
@@ -106,14 +113,31 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		return entity.isPlayer() ? EntityTrackingStatus.TICKING : current;
 	}
 
+	/**
+	 * Определяет, следует ли tick test.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTickTest(ChunkPos pos) {
 		return ((EntityTrackingStatus) this.trackingStatuses.get(pos.toLong())).shouldTick();
 	}
 
+	/**
+	 * Загружает entities.
+	 *
+	 * @param entities entities
+	 */
 	public void loadEntities(Stream<T> entities) {
 		entities.forEach(entity -> this.addEntity((T) entity, true));
 	}
 
+	/**
+	 * Добавляет entities.
+	 *
+	 * @param entities entities
+	 */
 	public void addEntities(Stream<T> entities) {
 		entities.forEach(entity -> this.addEntity((T) entity, false));
 	}
@@ -136,11 +160,23 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		this.index.remove(entity);
 	}
 
+	/**
+	 * Обновляет tracking status.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param levelType level type
+	 */
 	public void updateTrackingStatus(ChunkPos chunkPos, ChunkLevelType levelType) {
 		EntityTrackingStatus entityTrackingStatus = EntityTrackingStatus.fromLevelType(levelType);
 		this.updateTrackingStatus(chunkPos, entityTrackingStatus);
 	}
 
+	/**
+	 * Обновляет tracking status.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param trackingStatus tracking status
+	 */
 	public void updateTrackingStatus(ChunkPos chunkPos, EntityTrackingStatus trackingStatus) {
 		long l = chunkPos.toLong();
 		if (trackingStatus == EntityTrackingStatus.HIDDEN) {
@@ -243,6 +279,9 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 				                                                                                                  pos));
 	}
 
+	/**
+	 * Загружает chunks.
+	 */
 	public void loadChunks() {
 		ChunkDataList<T> chunkDataList;
 		while ((chunkDataList = this.loadingQueue.poll()) != null) {
@@ -251,6 +290,9 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.loadChunks();
 		this.unloadChunks();
@@ -270,6 +312,9 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		return longSet;
 	}
 
+	/**
+	 * Save.
+	 */
 	public void save() {
 		this.getLoadedChunks().forEach(pos -> {
 			boolean bl = this.trackingStatuses.get(pos) == EntityTrackingStatus.HIDDEN;
@@ -282,6 +327,9 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		});
 	}
 
+	/**
+	 * Flush.
+	 */
 	public void flush() {
 		LongSet longSet = this.getLoadedChunks();
 
@@ -303,6 +351,13 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		this.dataAccess.close();
 	}
 
+	/**
+	 * Has.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean has(UUID uuid) {
 		return this.entityUuids.contains(uuid);
 	}
@@ -311,10 +366,24 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		return this.lookup;
 	}
 
+	/**
+	 * Определяет, следует ли tick.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTick(BlockPos pos) {
 		return ((EntityTrackingStatus) this.trackingStatuses.get(ChunkPos.toLong(pos))).shouldTick();
 	}
 
+	/**
+	 * Определяет, следует ли tick.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTick(ChunkPos pos) {
 		return ((EntityTrackingStatus) this.trackingStatuses.get(pos.toLong())).shouldTick();
 	}
@@ -323,6 +392,11 @@ public class ServerEntityManager<T extends EntityLike> implements AutoCloseable 
 		return this.managedStatuses.get(chunkPos) == ServerEntityManager.Status.LOADED;
 	}
 
+	/**
+	 * Dump.
+	 *
+	 * @param writer writer
+	 */
 	public void dump(Writer writer) throws IOException {
 		CsvWriter csvWriter = CsvWriter.makeHeader()
 		                               .addColumn("x")

@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс advancement tab c2 s packet.
+ */
 public class AdvancementTabC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, AdvancementTabC2SPacket> CODEC = Packet.createCodec(
@@ -23,10 +26,22 @@ public class AdvancementTabC2SPacket implements Packet<ServerPlayPacketListener>
 		this.tabToOpen = tab;
 	}
 
+	/**
+	 * Open.
+	 *
+	 * @param advancement advancement
+	 *
+	 * @return AdvancementTabC2SPacket — результат операции
+	 */
 	public static AdvancementTabC2SPacket open(AdvancementEntry advancement) {
 		return new AdvancementTabC2SPacket(AdvancementTabC2SPacket.Action.OPENED_TAB, advancement.id());
 	}
 
+	/**
+	 * Close.
+	 *
+	 * @return AdvancementTabC2SPacket — результат операции
+	 */
 	public static AdvancementTabC2SPacket close() {
 		return new AdvancementTabC2SPacket(AdvancementTabC2SPacket.Action.CLOSED_SCREEN, null);
 	}
@@ -53,6 +68,11 @@ public class AdvancementTabC2SPacket implements Packet<ServerPlayPacketListener>
 		return PlayPackets.SEEN_ADVANCEMENTS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onAdvancementTab(this);
 	}

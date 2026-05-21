@@ -17,6 +17,15 @@ public class TextVisitFactory {
 		return Character.isSurrogate(c) ? visitor.accept(index, style, 65533) : visitor.accept(index, style, c);
 	}
 
+	/**
+	 * Visit forwards.
+	 *
+	 * @param text text
+	 * @param style style
+	 * @param visitor visitor
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean visitForwards(String text, Style style, CharacterVisitor visitor) {
 		int i = text.length();
 
@@ -50,6 +59,15 @@ public class TextVisitFactory {
 		return true;
 	}
 
+	/**
+	 * Visit backwards.
+	 *
+	 * @param text text
+	 * @param style style
+	 * @param visitor visitor
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean visitBackwards(String text, Style style, CharacterVisitor visitor) {
 		int i = text.length();
 
@@ -81,10 +99,29 @@ public class TextVisitFactory {
 		return true;
 	}
 
+	/**
+	 * Visit formatted.
+	 *
+	 * @param text text
+	 * @param style style
+	 * @param visitor visitor
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean visitFormatted(String text, Style style, CharacterVisitor visitor) {
 		return visitFormatted(text, 0, style, visitor);
 	}
 
+	/**
+	 * Visit formatted.
+	 *
+	 * @param text text
+	 * @param startIndex start index
+	 * @param style style
+	 * @param visitor visitor
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean visitFormatted(String text, int startIndex, Style style, CharacterVisitor visitor) {
 		return visitFormatted(text, startIndex, style, style, visitor);
 	}
@@ -142,6 +179,15 @@ public class TextVisitFactory {
 		return true;
 	}
 
+	/**
+	 * Visit formatted.
+	 *
+	 * @param text text
+	 * @param style style
+	 * @param visitor visitor
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean visitFormatted(StringVisitable text, Style style, CharacterVisitor visitor) {
 		return text
 				.visit(
@@ -151,6 +197,13 @@ public class TextVisitFactory {
 				.isEmpty();
 	}
 
+	/**
+	 * Валидирует surrogates.
+	 *
+	 * @param text text
+	 *
+	 * @return String — результат операции
+	 */
 	public static String validateSurrogates(String text) {
 		StringBuilder stringBuilder = new StringBuilder();
 		visitForwards(
@@ -162,6 +215,13 @@ public class TextVisitFactory {
 		return stringBuilder.toString();
 	}
 
+	/**
+	 * Удаляет formatting codes.
+	 *
+	 * @param text text
+	 *
+	 * @return String — результат операции
+	 */
 	public static String removeFormattingCodes(StringVisitable text) {
 		StringBuilder stringBuilder = new StringBuilder();
 		visitFormatted(

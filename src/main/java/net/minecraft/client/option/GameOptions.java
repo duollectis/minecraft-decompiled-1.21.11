@@ -1169,6 +1169,11 @@ public class GameOptions {
 		return this.maxFps;
 	}
 
+	/**
+	 * Применяет graphics mode.
+	 *
+	 * @param mode mode
+	 */
 	public void applyGraphicsMode(GraphicsMode mode) {
 		this.applyingGraphicsMode = true;
 		mode.apply(this.client);
@@ -1219,6 +1224,11 @@ public class GameOptions {
 		return this.chunkBuilderMode;
 	}
 
+	/**
+	 * Refresh resource packs.
+	 *
+	 * @param resourcePackManager resource pack manager
+	 */
 	public void refreshResourcePacks(ResourcePackManager resourcePackManager) {
 		List<String> list = ImmutableList.copyOf(this.resourcePacks);
 		this.resourcePacks.clear();
@@ -1791,6 +1801,9 @@ public class GameOptions {
 		}
 	}
 
+	/**
+	 * Load.
+	 */
 	public void load() {
 		try {
 			if (!this.optionsFile.exists()) {
@@ -1940,6 +1953,9 @@ public class GameOptions {
 		return DataFixTypes.OPTIONS.update(this.client.getDataFixer(), nbt, i);
 	}
 
+	/**
+	 * Write.
+	 */
 	public void write() {
 		try (final PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(
 				new FileOutputStream(this.optionsFile),
@@ -1949,6 +1965,11 @@ public class GameOptions {
 			printWriter.println("version:" + SharedConstants.getGameVersion().dataVersion().id());
 			this.accept(
 					new GameOptions.Visitor() {
+						/**
+						 * Print.
+						 *
+						 * @param key key
+						 */
 						public void print(String key) {
 							printWriter.print(key);
 							printWriter.print(':');
@@ -2053,6 +2074,9 @@ public class GameOptions {
 		);
 	}
 
+	/**
+	 * Отправляет client settings.
+	 */
 	public void sendClientSettings() {
 		if (this.client.player != null) {
 			this.client.player.networkHandler.syncOptions(this.getSyncedOptions());
@@ -2076,10 +2100,20 @@ public class GameOptions {
 		return this.cloudRenderMode.getValue();
 	}
 
+	/**
+	 * Определяет, следует ли use native transport.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldUseNativeTransport() {
 		return this.useNativeTransport;
 	}
 
+	/**
+	 * Добавляет resource pack profiles to manager.
+	 *
+	 * @param manager manager
+	 */
 	public void addResourcePackProfilesToManager(ResourcePackManager manager) {
 		Set<String> set = Sets.newLinkedHashSet();
 		Iterator<String> iterator = this.resourcePacks.iterator();
@@ -2130,6 +2164,11 @@ public class GameOptions {
 		return this.optionsFile;
 	}
 
+	/**
+	 * Collect profiled options.
+	 *
+	 * @return String — результат операции
+	 */
 	public String collectProfiledOptions() {
 		final List<Pair<String, Object>> list = new ArrayList<>();
 		this.acceptProfiledOptions(new GameOptions.OptionVisitor() {

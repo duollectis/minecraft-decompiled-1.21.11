@@ -69,6 +69,9 @@ public class SoundExecutor extends ThreadExecutor<Runnable> {
 		LockSupport.park("waiting for tasks");
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		this.stopped = true;
 		this.cancelTasks();
@@ -82,6 +85,9 @@ public class SoundExecutor extends ThreadExecutor<Runnable> {
 		}
 	}
 
+	/**
+	 * Restart.
+	 */
 	public void restart() {
 		this.stopped = false;
 		this.thread = this.createThread();

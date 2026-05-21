@@ -21,6 +21,14 @@ public class ManagementServerEncryption {
 	private static final String PASSWORD_PROPERTY_NAME = "management.tls.keystore.password";
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Создаёт context.
+	 *
+	 * @param keystore keystore
+	 * @param password password
+	 *
+	 * @return SslContext — результат операции
+	 */
 	public static SslContext createContext(String keystore, String password) throws Exception {
 		if (keystore.isEmpty()) {
 			throw new IllegalArgumentException("TLS is enabled but keystore is not configured");
@@ -65,6 +73,9 @@ public class ManagementServerEncryption {
 		return SslContextBuilder.forServer(keyManagerFactory).trustManager(trustManagerFactory).build();
 	}
 
+	/**
+	 * Логирует instructions.
+	 */
 	public static void logInstructions() {
 		LOGGER.info("To use TLS for the management server, please follow these steps:");
 		LOGGER.info("1. Set the server property 'management-server-tls-enabled' to 'true' to enable TLS");

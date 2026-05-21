@@ -7,6 +7,9 @@ import net.minecraft.util.dynamic.Codecs;
 import java.security.PrivateKey;
 import java.time.Instant;
 
+/**
+ * Запись player key pair.
+ */
 public record PlayerKeyPair(PrivateKey privateKey, PlayerPublicKey publicKey, Instant refreshedAfter) {
 
 	public static final Codec<PlayerKeyPair> CODEC = RecordCodecBuilder.create(
@@ -20,6 +23,11 @@ public record PlayerKeyPair(PrivateKey privateKey, PlayerPublicKey publicKey, In
 			                    .apply(instance, PlayerKeyPair::new)
 	);
 
+	/**
+	 * Needs refreshing.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsRefreshing() {
 		return this.refreshedAfter.isBefore(Instant.now());
 	}

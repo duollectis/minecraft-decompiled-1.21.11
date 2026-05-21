@@ -313,6 +313,9 @@ public class ServerResourcePackLoader implements AutoCloseable {
 		this.client.reloadResources();
 	}
 
+	/**
+	 * Обрабатывает событие reload failure.
+	 */
 	public void onReloadFailure() {
 		if (this.reloadContext != null) {
 			this.reloadContext.onFailure(false);
@@ -326,6 +329,9 @@ public class ServerResourcePackLoader implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие forced reload failure.
+	 */
 	public void onForcedReloadFailure() {
 		if (this.reloadContext != null) {
 			this.reloadContext.onFailure(true);
@@ -334,6 +340,9 @@ public class ServerResourcePackLoader implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие reload success.
+	 */
 	public void onReloadSuccess() {
 		if (this.reloadContext != null) {
 			this.reloadContext.onSuccess();
@@ -346,19 +355,40 @@ public class ServerResourcePackLoader implements AutoCloseable {
 		                                                            : null;
 	}
 
+	/**
+	 * Добавляет resource pack.
+	 *
+	 * @param id id
+	 * @param url url
+	 * @param hash hash
+	 */
 	public void addResourcePack(UUID id, URL url, @Nullable String hash) {
 		HashCode hashCode = toHashCode(hash);
 		this.manager.addResourcePack(id, url, hashCode);
 	}
 
+	/**
+	 * Добавляет resource pack.
+	 *
+	 * @param id id
+	 * @param path path
+	 */
 	public void addResourcePack(UUID id, Path path) {
 		this.manager.addResourcePack(id, path);
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param id id
+	 */
 	public void remove(UUID id) {
 		this.manager.remove(id);
 	}
 
+	/**
+	 * Удаляет all.
+	 */
 	public void removeAll() {
 		this.manager.removeAll();
 	}
@@ -392,6 +422,12 @@ public class ServerResourcePackLoader implements AutoCloseable {
 		};
 	}
 
+	/**
+	 * Init.
+	 *
+	 * @param connection connection
+	 * @param acceptanceStatus acceptance status
+	 */
 	public void init(ClientConnection connection, ServerResourcePackManager.AcceptanceStatus acceptanceStatus) {
 		this.packSource = ResourcePackSource.SERVER;
 		this.packStateChangeCallback = getStateChangeCallback(connection);
@@ -407,16 +443,25 @@ public class ServerResourcePackLoader implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Инициализирует world pack.
+	 */
 	public void initWorldPack() {
 		this.packSource = ResourcePackSource.WORLD;
 		this.packStateChangeCallback = DEBUG_PACK_STATE_CHANGE_CALLBACK;
 		this.manager.acceptAll();
 	}
 
+	/**
+	 * Accept all.
+	 */
 	public void acceptAll() {
 		this.manager.acceptAll();
 	}
 
+	/**
+	 * Decline all.
+	 */
 	public void declineAll() {
 		this.manager.declineAll();
 	}
@@ -449,6 +494,9 @@ public class ServerResourcePackLoader implements AutoCloseable {
 		return completableFuture;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.manager.removeAll();
 		this.packStateChangeCallback = DEBUG_PACK_STATE_CHANGE_CALLBACK;

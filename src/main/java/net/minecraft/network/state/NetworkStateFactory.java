@@ -5,6 +5,9 @@ import net.minecraft.network.listener.PacketListener;
 
 import java.util.function.Function;
 
+/**
+ * Интерфейс network state factory.
+ */
 public interface NetworkStateFactory<T extends PacketListener, B extends ByteBuf> extends NetworkState.Factory {
 
 	NetworkState<T> bind(Function<ByteBuf, B> registryBinder);

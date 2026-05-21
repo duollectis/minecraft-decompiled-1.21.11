@@ -77,6 +77,11 @@ public class TooltipState {
 		);
 	}
 
+	/**
+	 * Append narrations.
+	 *
+	 * @param builder builder
+	 */
 	public void appendNarrations(NarrationMessageBuilder builder) {
 		if (this.tooltip != null) {
 			this.tooltip.appendNarrations(builder);

@@ -62,10 +62,25 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		}
 	}
 
+	/**
+	 * Supports.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean supports(BlockState state) {
 		return this.type.supports(state);
 	}
 
+	/**
+	 * Pos from nbt.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param nbt nbt
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos posFromNbt(ChunkPos chunkPos, NbtCompound nbt) {
 		int i = nbt.getInt("x", 0);
 		int j = nbt.getInt("y", 0);
@@ -93,21 +108,48 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		return this.world != null;
 	}
 
+	/**
+	 * Читает data.
+	 *
+	 * @param view view
+	 */
 	protected void readData(ReadView view) {
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param view view
+	 */
 	public final void read(ReadView view) {
 		this.readData(view);
 		this.components = view.<ComponentMap>read("components", ComponentMap.CODEC).orElse(ComponentMap.EMPTY);
 	}
 
+	/**
+	 * Читает componentless data.
+	 *
+	 * @param view view
+	 */
 	public final void readComponentlessData(ReadView view) {
 		this.readData(view);
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param view view
+	 */
 	protected void writeData(WriteView view) {
 	}
 
+	/**
+	 * Создаёт nbt with identifying data.
+	 *
+	 * @param registries registries
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public final NbtCompound createNbtWithIdentifyingData(RegistryWrapper.WrapperLookup registries) {
 		NbtCompound var4;
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
@@ -119,16 +161,33 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		return var4;
 	}
 
+	/**
+	 * Записывает full data.
+	 *
+	 * @param view view
+	 */
 	public void writeFullData(WriteView view) {
 		this.writeDataWithoutId(view);
 		this.writeIdentifyingData(view);
 	}
 
+	/**
+	 * Записывает data with id.
+	 *
+	 * @param view view
+	 */
 	public void writeDataWithId(WriteView view) {
 		this.writeDataWithoutId(view);
 		this.writeId(view);
 	}
 
+	/**
+	 * Создаёт nbt.
+	 *
+	 * @param registries registries
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public final NbtCompound createNbt(RegistryWrapper.WrapperLookup registries) {
 		NbtCompound var4;
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
@@ -140,11 +199,23 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		return var4;
 	}
 
+	/**
+	 * Записывает data without id.
+	 *
+	 * @param data data
+	 */
 	public void writeDataWithoutId(WriteView data) {
 		this.writeData(data);
 		data.put("components", ComponentMap.CODEC, this.components);
 	}
 
+	/**
+	 * Создаёт componentless nbt.
+	 *
+	 * @param registries registries
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public final NbtCompound createComponentlessNbt(RegistryWrapper.WrapperLookup registries) {
 		NbtCompound var4;
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getReporterContext(), LOGGER)) {
@@ -156,6 +227,11 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		return var4;
 	}
 
+	/**
+	 * Записывает componentless data.
+	 *
+	 * @param view view
+	 */
 	public void writeComponentlessData(WriteView view) {
 		this.writeData(view);
 	}
@@ -164,6 +240,12 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		writeId(view, this.getType());
 	}
 
+	/**
+	 * Записывает id.
+	 *
+	 * @param view view
+	 * @param type type
+	 */
 	public static void writeId(WriteView view, BlockEntityType<?> type) {
 		view.put("id", TYPE_CODEC, type);
 	}
@@ -222,12 +304,22 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		}
 	}
 
+	/**
+	 * Mark dirty.
+	 */
 	public void markDirty() {
 		if (this.world != null) {
 			markDirty(this.world, this.pos, this.cachedState);
 		}
 	}
 
+	/**
+	 * Mark dirty.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	protected static void markDirty(World world, BlockPos pos, BlockState state) {
 		world.markDirty(pos);
 		if (!state.isAir()) {
@@ -243,10 +335,22 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		return this.cachedState;
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return @Nullable Packet — результат операции
+	 */
 	public @Nullable Packet<ClientPlayPacketListener> toUpdatePacket() {
 		return null;
 	}
 
+	/**
+	 * To initial chunk data nbt.
+	 *
+	 * @param registries registries
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound toInitialChunkDataNbt(RegistryWrapper.WrapperLookup registries) {
 		return new NbtCompound();
 	}
@@ -255,24 +359,49 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		return this.removed;
 	}
 
+	/**
+	 * Mark removed.
+	 */
 	public void markRemoved() {
 		this.removed = true;
 	}
 
+	/**
+	 * Проверяет возможность cel removal.
+	 */
 	public void cancelRemoval() {
 		this.removed = false;
 	}
 
+	/**
+	 * Обрабатывает событие block replaced.
+	 *
+	 * @param pos pos
+	 * @param oldState old state
+	 */
 	public void onBlockReplaced(BlockPos pos, BlockState oldState) {
 		if (this instanceof Inventory inventory && this.world != null) {
 			ItemScatterer.spawn(this.world, pos, inventory);
 		}
 	}
 
+	/**
+	 * Обрабатывает событие synced block event.
+	 *
+	 * @param type type
+	 * @param data data
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean onSyncedBlockEvent(int type, int data) {
 		return false;
 	}
 
+	/**
+	 * Populate crash report.
+	 *
+	 * @param crashReportSection crash report section
+	 */
 	public void populateCrashReport(CrashReportSection crashReportSection) {
 		crashReportSection.add("Name", this::getNameForReport);
 		crashReportSection.add("Cached block", this.getCachedState()::toString);
@@ -299,13 +428,29 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		this.cachedState = state;
 	}
 
+	/**
+	 * Читает components.
+	 *
+	 * @param components components
+	 */
 	protected void readComponents(ComponentsAccess components) {
 	}
 
+	/**
+	 * Читает components.
+	 *
+	 * @param stack stack
+	 */
 	public final void readComponents(ItemStack stack) {
 		this.readComponents(stack.getDefaultComponents(), stack.getComponentChanges());
 	}
 
+	/**
+	 * Читает components.
+	 *
+	 * @param defaultComponents default components
+	 * @param components components
+	 */
 	public final void readComponents(ComponentMap defaultComponents, ComponentChanges components) {
 		final Set<ComponentType<?>> set = new HashSet<>();
 		set.add(DataComponentTypes.BLOCK_ENTITY_DATA);
@@ -328,13 +473,28 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		this.components = componentChanges.toAddedRemovedPair().added();
 	}
 
+	/**
+	 * Добавляет components.
+	 *
+	 * @param builder builder
+	 */
 	protected void addComponents(ComponentMap.Builder builder) {
 	}
 
 	@Deprecated
+	/**
+	 * Удаляет from copied stack data.
+	 *
+	 * @param view view
+	 */
 	public void removeFromCopiedStackData(WriteView view) {
 	}
 
+	/**
+	 * Создаёт component map.
+	 *
+	 * @return ComponentMap — результат операции
+	 */
 	public final ComponentMap createComponentMap() {
 		ComponentMap.Builder builder = ComponentMap.builder();
 		builder.addAll(this.components);
@@ -350,6 +510,14 @@ public abstract class BlockEntity implements DebugTrackable, RenderDataBlockEnti
 		this.components = components;
 	}
 
+	/**
+	 * Try parse custom name.
+	 *
+	 * @param view view
+	 * @param key key
+	 *
+	 * @return @Nullable Text — результат операции
+	 */
 	public static @Nullable Text tryParseCustomName(ReadView view, String key) {
 		return view.<Text>read(key, TextCodecs.CODEC).orElse(null);
 	}

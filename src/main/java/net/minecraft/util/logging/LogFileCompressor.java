@@ -38,6 +38,14 @@ public class LogFileCompressor {
 		this.extension = extension;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param directory directory
+	 * @param extension extension
+	 *
+	 * @return LogFileCompressor — результат операции
+	 */
 	public static LogFileCompressor create(Path directory, String extension) throws IOException {
 		Files.createDirectories(directory);
 		return new LogFileCompressor(directory, extension);
@@ -268,6 +276,11 @@ public class LogFileCompressor {
 	 */
 	public record Uncompressed(Path path, LogFileCompressor.LogId id) implements LogFileCompressor.LogFile {
 
+		/**
+		 * Open.
+		 *
+		 * @return FileChannel — результат операции
+		 */
 		public FileChannel open() throws IOException {
 			return FileChannel.open(this.path, StandardOpenOption.WRITE, StandardOpenOption.READ);
 		}

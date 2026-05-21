@@ -26,10 +26,24 @@ public record TagKey<T>(RegistryKey<? extends Registry<T>> registryRef, Identifi
 		this.id = id;
 	}
 
+	/**
+	 * Unprefixed codec.
+	 *
+	 * @param registryRef registry ref
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<TagKey<T>> unprefixedCodec(RegistryKey<? extends Registry<T>> registryRef) {
 		return Identifier.CODEC.xmap(id -> of(registryRef, id), TagKey::id);
 	}
 
+	/**
+	 * Codec.
+	 *
+	 * @param registryRef registry ref
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<TagKey<T>> codec(RegistryKey<? extends Registry<T>> registryRef) {
 		return Codec.STRING
 				.comapFlatMap(
@@ -41,10 +55,25 @@ public record TagKey<T>(RegistryKey<? extends Registry<T>> registryRef, Identifi
 				);
 	}
 
+	/**
+	 * Packet codec.
+	 *
+	 * @param registryRef registry ref
+	 *
+	 * @return PacketCodec> — результат операции
+	 */
 	public static <T> PacketCodec<ByteBuf, TagKey<T>> packetCodec(RegistryKey<? extends Registry<T>> registryRef) {
 		return Identifier.PACKET_CODEC.xmap(id -> of(registryRef, id), TagKey::id);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param registryRef registry ref
+	 * @param id id
+	 *
+	 * @return TagKey — результат операции
+	 */
 	public static <T> TagKey<T> of(RegistryKey<? extends Registry<T>> registryRef, Identifier id) {
 		return (TagKey<T>) INTERNER.intern(new TagKey<>(registryRef, id));
 	}
@@ -53,6 +82,13 @@ public record TagKey<T>(RegistryKey<? extends Registry<T>> registryRef, Identifi
 		return this.registryRef == registryRef;
 	}
 
+	/**
+	 * Try cast.
+	 *
+	 * @param registryRef registry ref
+	 *
+	 * @return Optional> — результат операции
+	 */
 	public <E> Optional<TagKey<E>> tryCast(RegistryKey<? extends Registry<E>> registryRef) {
 		return this.isOf(registryRef) ? Optional.of((TagKey<E>) this) : Optional.empty();
 	}

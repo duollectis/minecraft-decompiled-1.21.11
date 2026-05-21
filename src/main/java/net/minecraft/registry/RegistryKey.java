@@ -20,18 +20,47 @@ public class RegistryKey<T> {
 	private final Identifier registry;
 	private final Identifier value;
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param registry registry
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<RegistryKey<T>> createCodec(RegistryKey<? extends Registry<T>> registry) {
 		return Identifier.CODEC.xmap(id -> of(registry, id), RegistryKey::getValue);
 	}
 
+	/**
+	 * Создаёт packet codec.
+	 *
+	 * @param registry registry
+	 *
+	 * @return PacketCodec> — результат операции
+	 */
 	public static <T> PacketCodec<ByteBuf, RegistryKey<T>> createPacketCodec(RegistryKey<? extends Registry<T>> registry) {
 		return Identifier.PACKET_CODEC.xmap(id -> of(registry, id), RegistryKey::getValue);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param registry registry
+	 * @param value value
+	 *
+	 * @return RegistryKey — результат операции
+	 */
 	public static <T> RegistryKey<T> of(RegistryKey<? extends Registry<T>> registry, Identifier value) {
 		return of(registry.value, value);
 	}
 
+	/**
+	 * Of registry.
+	 *
+	 * @param registry registry
+	 *
+	 * @return RegistryKey> — результат операции
+	 */
 	public static <T> RegistryKey<Registry<T>> ofRegistry(Identifier registry) {
 		return of(RegistryKeys.ROOT, registry);
 	}
@@ -57,6 +86,13 @@ public class RegistryKey<T> {
 		return this.registry.equals(registry.getValue());
 	}
 
+	/**
+	 * Try cast.
+	 *
+	 * @param registryRef registry ref
+	 *
+	 * @return Optional> — результат операции
+	 */
 	public <E> Optional<RegistryKey<E>> tryCast(RegistryKey<? extends Registry<E>> registryRef) {
 		return this.isOf(registryRef) ? Optional.of((RegistryKey<E>) this) : Optional.empty();
 	}

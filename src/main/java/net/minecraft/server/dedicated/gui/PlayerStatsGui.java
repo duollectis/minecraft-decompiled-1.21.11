@@ -69,6 +69,9 @@ public class PlayerStatsGui extends JComponent {
 		}
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		this.timer.stop();
 	}

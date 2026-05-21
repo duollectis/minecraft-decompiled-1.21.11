@@ -7,6 +7,9 @@ import net.minecraft.network.packet.ConfigPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Запись accept code of conduct c2 s packet.
+ */
 public record AcceptCodeOfConductC2SPacket() implements Packet<ServerConfigurationPacketListener> {
 
 	public static final AcceptCodeOfConductC2SPacket INSTANCE = new AcceptCodeOfConductC2SPacket();
@@ -17,6 +20,11 @@ public record AcceptCodeOfConductC2SPacket() implements Packet<ServerConfigurati
 		return ConfigPackets.ACCEPT_CODE_OF_CONDUCT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverConfigurationPacketListener server configuration packet listener
+	 */
 	public void apply(ServerConfigurationPacketListener serverConfigurationPacketListener) {
 		serverConfigurationPacketListener.onAcceptCodeOfConduct(this);
 	}

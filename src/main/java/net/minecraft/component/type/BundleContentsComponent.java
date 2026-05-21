@@ -81,6 +81,13 @@ public final class BundleContentsComponent implements TooltipData {
 		}
 	}
 
+	/**
+	 * Проверяет возможность be bundled.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canBeBundled(ItemStack stack) {
 		return !stack.isEmpty() && stack.getItem().canBeNested();
 	}
@@ -93,22 +100,49 @@ public final class BundleContentsComponent implements TooltipData {
 		return Math.min(i, j - l);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param index index
+	 *
+	 * @return ItemStack — 
+	 */
 	public ItemStack get(int index) {
 		return this.stacks.get(index);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<ItemStack> stream() {
 		return this.stacks.stream().map(ItemStack::copy);
 	}
 
+	/**
+	 * Iterate.
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public Iterable<ItemStack> iterate() {
 		return this.stacks;
 	}
 
+	/**
+	 * Iterate copy.
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public Iterable<ItemStack> iterateCopy() {
 		return Lists.transform(this.stacks, ItemStack::copy);
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.stacks.size();
 	}
@@ -196,6 +230,13 @@ public final class BundleContentsComponent implements TooltipData {
 			return Math.max(fraction.divideBy(BundleContentsComponent.getOccupancy(stack)).intValue(), 0);
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param stack stack
+		 *
+		 * @return int — результат операции
+		 */
 		public int add(ItemStack stack) {
 			if (!BundleContentsComponent.canBeBundled(stack)) {
 				return 0;
@@ -226,6 +267,14 @@ public final class BundleContentsComponent implements TooltipData {
 			}
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param slot slot
+		 * @param player player
+		 *
+		 * @return int — результат операции
+		 */
 		public int add(Slot slot, PlayerEntity player) {
 			ItemStack itemStack = slot.getStack();
 			int i = this.getMaxAllowed(itemStack);
@@ -246,6 +295,11 @@ public final class BundleContentsComponent implements TooltipData {
 			return index < 0 || index >= this.stacks.size();
 		}
 
+		/**
+		 * Удаляет selected.
+		 *
+		 * @return @Nullable ItemStack — результат операции
+		 */
 		public @Nullable ItemStack removeSelected() {
 			if (this.stacks.isEmpty()) {
 				return null;
@@ -266,6 +320,11 @@ public final class BundleContentsComponent implements TooltipData {
 			return this.occupancy;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return BundleContentsComponent — результат операции
+		 */
 		public BundleContentsComponent build() {
 			return new BundleContentsComponent(List.copyOf(this.stacks), this.occupancy, this.selectedStackIndex);
 		}

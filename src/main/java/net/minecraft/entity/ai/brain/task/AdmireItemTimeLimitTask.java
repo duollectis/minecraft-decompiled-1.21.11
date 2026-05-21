@@ -10,6 +10,14 @@ import java.util.Optional;
  */
 public class AdmireItemTimeLimitTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param cooldown cooldown
+	 * @param timeLimit time limit
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(int cooldown, int timeLimit) {
 		return TaskTriggerer.task(
 				context -> context.group(

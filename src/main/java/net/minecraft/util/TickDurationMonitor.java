@@ -27,12 +27,20 @@ public class TickDurationMonitor {
 		this.overtime = overtime;
 	}
 
+	/**
+	 * Next profiler.
+	 *
+	 * @return Profiler — результат операции
+	 */
 	public Profiler nextProfiler() {
 		this.profiler = new ProfilerSystem(this.timeGetter, () -> this.tickCount, () -> true);
 		this.tickCount++;
 		return this.profiler;
 	}
 
+	/**
+	 * End tick.
+	 */
 	public void endTick() {
 		if (this.profiler != DummyProfiler.INSTANCE) {
 			ProfileResult profileResult = this.profiler.getResult();
@@ -47,6 +55,13 @@ public class TickDurationMonitor {
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param name name
+	 *
+	 * @return @Nullable TickDurationMonitor — результат операции
+	 */
 	public static @Nullable TickDurationMonitor create(String name) {
 		return SharedConstants.MONITOR_TICK_TIMES ? new TickDurationMonitor(
 				Util.nanoTimeSupplier,
@@ -55,6 +70,14 @@ public class TickDurationMonitor {
 		) : null;
 	}
 
+	/**
+	 * Выполняет тик обновления для profiler.
+	 *
+	 * @param profiler profiler
+	 * @param monitor monitor
+	 *
+	 * @return Profiler — результат операции
+	 */
 	public static Profiler tickProfiler(Profiler profiler, @Nullable TickDurationMonitor monitor) {
 		return monitor != null ? Profiler.union(monitor.nextProfiler(), profiler) : profiler;
 	}

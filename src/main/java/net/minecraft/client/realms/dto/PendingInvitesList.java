@@ -19,6 +19,13 @@ public record PendingInvitesList(List<PendingInvite> pendingInvites) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return PendingInvitesList — результат операции
+	 */
 	public static PendingInvitesList parse(String json) {
 		List<PendingInvite> list = new ArrayList<>();
 

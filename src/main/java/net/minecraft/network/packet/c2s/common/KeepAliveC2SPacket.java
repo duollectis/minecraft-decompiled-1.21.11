@@ -7,6 +7,9 @@ import net.minecraft.network.packet.CommonPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Класс keep alive c2 s packet.
+ */
 public class KeepAliveC2SPacket implements Packet<ServerCommonPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, KeepAliveC2SPacket>
@@ -31,6 +34,11 @@ public class KeepAliveC2SPacket implements Packet<ServerCommonPacketListener> {
 		return CommonPackets.KEEP_ALIVE_C2S;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverCommonPacketListener server common packet listener
+	 */
 	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
 		serverCommonPacketListener.onKeepAlive(this);
 	}

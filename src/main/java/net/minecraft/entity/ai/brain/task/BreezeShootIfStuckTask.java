@@ -31,15 +31,39 @@ public class BreezeShootIfStuckTask extends MultiTickTask<BreezeEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, BreezeEntity breezeEntity) {
 		return breezeEntity.hasVehicle() || breezeEntity.isTouchingWater()
 				|| breezeEntity.getStatusEffect(StatusEffects.LEVITATION) != null;
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		return false;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		breezeEntity.getBrain().remember(MemoryModuleType.BREEZE_SHOOT, Unit.INSTANCE, 60L);
 	}

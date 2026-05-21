@@ -94,14 +94,35 @@ public class BellBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * Client tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, BellBlockEntity blockEntity) {
 		tick(world, pos, state, blockEntity, BellBlockEntity::applyParticlesToRaiders);
 	}
 
+	/**
+	 * Server tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void serverTick(World world, BlockPos pos, BlockState state, BellBlockEntity blockEntity) {
 		tick(world, pos, state, blockEntity, BellBlockEntity::applyGlowToRaiders);
 	}
 
+	/**
+	 * Activate.
+	 *
+	 * @param direction direction
+	 */
 	public void activate(Direction direction) {
 		BlockPos blockPos = this.getPos();
 		this.lastSideHit = direction;

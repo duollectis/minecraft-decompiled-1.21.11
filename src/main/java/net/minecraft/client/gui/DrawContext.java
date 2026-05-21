@@ -101,6 +101,11 @@ public class DrawContext {
 		this.cursor = cursor;
 	}
 
+	/**
+	 * Применяет cursor to.
+	 *
+	 * @param window window
+	 */
 	public void applyCursorTo(Window window) {
 		window.setCursor(this.cursor);
 	}
@@ -113,10 +118,16 @@ public class DrawContext {
 		return this.client.getWindow().getScaledHeight();
 	}
 
+	/**
+	 * Создаёт new root layer.
+	 */
 	public void createNewRootLayer() {
 		this.state.createNewRootLayer();
 	}
 
+	/**
+	 * Применяет blur.
+	 */
 	public void applyBlur() {
 		this.state.applyBlur();
 	}
@@ -125,6 +136,14 @@ public class DrawContext {
 		return this.matrices;
 	}
 
+	/**
+	 * Draw horizontal line.
+	 *
+	 * @param x1 x1
+	 * @param x2 x2
+	 * @param y y
+	 * @param color color
+	 */
 	public void drawHorizontalLine(int x1, int x2, int y, int color) {
 		if (x2 < x1) {
 			int i = x1;
@@ -135,6 +154,14 @@ public class DrawContext {
 		this.fill(x1, y, x2 + 1, y + 1, color);
 	}
 
+	/**
+	 * Draw vertical line.
+	 *
+	 * @param x x
+	 * @param y1 y1
+	 * @param y2 y2
+	 * @param color color
+	 */
 	public void drawVerticalLine(int x, int y1, int y2, int color) {
 		if (y2 < y1) {
 			int i = y1;
@@ -145,23 +172,61 @@ public class DrawContext {
 		this.fill(x, y1 + 1, x + 1, y2, color);
 	}
 
+	/**
+	 * Включает scissor.
+	 *
+	 * @param x1 x1
+	 * @param y1 y1
+	 * @param x2 x2
+	 * @param y2 y2
+	 */
 	public void enableScissor(int x1, int y1, int x2, int y2) {
 		ScreenRect screenRect = new ScreenRect(x1, y1, x2 - x1, y2 - y1).transform(this.matrices);
 		this.scissorStack.push(screenRect);
 	}
 
+	/**
+	 * Отключает scissor.
+	 */
 	public void disableScissor() {
 		this.scissorStack.pop();
 	}
 
+	/**
+	 * Scissor contains.
+	 *
+	 * @param x x
+	 * @param y y
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean scissorContains(int x, int y) {
 		return this.scissorStack.contains(x, y);
 	}
 
+	/**
+	 * Fill.
+	 *
+	 * @param x1 x1
+	 * @param y1 y1
+	 * @param x2 x2
+	 * @param y2 y2
+	 * @param color color
+	 */
 	public void fill(int x1, int y1, int x2, int y2, int color) {
 		this.fill(RenderPipelines.GUI, x1, y1, x2, y2, color);
 	}
 
+	/**
+	 * Fill.
+	 *
+	 * @param pipeline pipeline
+	 * @param x1 x1
+	 * @param y1 y1
+	 * @param x2 x2
+	 * @param y2 y2
+	 * @param color color
+	 */
 	public void fill(RenderPipeline pipeline, int x1, int y1, int x2, int y2, int color) {
 		if (x1 < x2) {
 			int i = x1;
@@ -178,10 +243,30 @@ public class DrawContext {
 		this.fill(pipeline, TextureSetup.empty(), x1, y1, x2, y2, color, null);
 	}
 
+	/**
+	 * Fill gradient.
+	 *
+	 * @param startX start x
+	 * @param startY start y
+	 * @param endX end x
+	 * @param endY end y
+	 * @param colorStart color start
+	 * @param colorEnd color end
+	 */
 	public void fillGradient(int startX, int startY, int endX, int endY, int colorStart, int colorEnd) {
 		this.fill(RenderPipelines.GUI, TextureSetup.empty(), startX, startY, endX, endY, colorStart, colorEnd);
 	}
 
+	/**
+	 * Fill.
+	 *
+	 * @param pipeline pipeline
+	 * @param textureSetup texture setup
+	 * @param x1 x1
+	 * @param y1 y1
+	 * @param x2 x2
+	 * @param y2 y2
+	 */
 	public void fill(RenderPipeline pipeline, TextureSetup textureSetup, int x1, int y1, int x2, int y2) {
 		this.fill(pipeline, textureSetup, x1, y1, x2, y2, -1, null);
 	}
@@ -213,6 +298,15 @@ public class DrawContext {
 				);
 	}
 
+	/**
+	 * Draw selection.
+	 *
+	 * @param x1 x1
+	 * @param y1 y1
+	 * @param x2 x2
+	 * @param y2 y2
+	 * @param invert invert
+	 */
 	public void drawSelection(int x1, int y1, int x2, int y2, boolean invert) {
 		if (invert) {
 			this.fill(RenderPipelines.GUI_INVERT, x1, y1, x2, y2, -1);
@@ -221,23 +315,69 @@ public class DrawContext {
 		this.fill(RenderPipelines.GUI_TEXT_HIGHLIGHT, x1, y1, x2, y2, -16776961);
 	}
 
+	/**
+	 * Draw centered text with shadow.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param centerX center x
+	 * @param y y
+	 * @param color color
+	 */
 	public void drawCenteredTextWithShadow(TextRenderer textRenderer, String text, int centerX, int y, int color) {
 		this.drawTextWithShadow(textRenderer, text, centerX - textRenderer.getWidth(text) / 2, y, color);
 	}
 
+	/**
+	 * Draw centered text with shadow.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param centerX center x
+	 * @param y y
+	 * @param color color
+	 */
 	public void drawCenteredTextWithShadow(TextRenderer textRenderer, Text text, int centerX, int y, int color) {
 		OrderedText orderedText = text.asOrderedText();
 		this.drawTextWithShadow(textRenderer, orderedText, centerX - textRenderer.getWidth(orderedText) / 2, y, color);
 	}
 
+	/**
+	 * Draw centered text with shadow.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param centerX center x
+	 * @param y y
+	 * @param color color
+	 */
 	public void drawCenteredTextWithShadow(TextRenderer textRenderer, OrderedText text, int centerX, int y, int color) {
 		this.drawTextWithShadow(textRenderer, text, centerX - textRenderer.getWidth(text) / 2, y, color);
 	}
 
+	/**
+	 * Draw text with shadow.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 * @param color color
+	 */
 	public void drawTextWithShadow(TextRenderer textRenderer, @Nullable String text, int x, int y, int color) {
 		this.drawText(textRenderer, text, x, y, color, true);
 	}
 
+	/**
+	 * Draw text.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 * @param color color
+	 * @param shadow shadow
+	 */
 	public void drawText(TextRenderer textRenderer, @Nullable String text, int x, int y, int color, boolean shadow) {
 		if (text != null) {
 			this.drawText(
@@ -251,10 +391,29 @@ public class DrawContext {
 		}
 	}
 
+	/**
+	 * Draw text with shadow.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 * @param color color
+	 */
 	public void drawTextWithShadow(TextRenderer textRenderer, OrderedText text, int x, int y, int color) {
 		this.drawText(textRenderer, text, x, y, color, true);
 	}
 
+	/**
+	 * Draw text.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 * @param color color
+	 * @param shadow shadow
+	 */
 	public void drawText(TextRenderer textRenderer, OrderedText text, int x, int y, int color, boolean shadow) {
 		if (ColorHelper.getAlpha(color) != 0) {
 			this.state
@@ -275,10 +434,29 @@ public class DrawContext {
 		}
 	}
 
+	/**
+	 * Draw text with shadow.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 * @param color color
+	 */
 	public void drawTextWithShadow(TextRenderer textRenderer, Text text, int x, int y, int color) {
 		this.drawText(textRenderer, text, x, y, color, true);
 	}
 
+	/**
+	 * Draw text.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 * @param color color
+	 * @param shadow shadow
+	 */
 	public void drawText(TextRenderer textRenderer, Text text, int x, int y, int color, boolean shadow) {
 		this.drawText(textRenderer, text.asOrderedText(), x, y, color, shadow);
 	}
@@ -309,6 +487,16 @@ public class DrawContext {
 		}
 	}
 
+	/**
+	 * Draw text with background.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param color color
+	 */
 	public void drawTextWithBackground(TextRenderer textRenderer, Text text, int x, int y, int width, int color) {
 		int i = this.client.options.getTextBackgroundColor(0.0F);
 		if (i != 0) {
@@ -319,6 +507,15 @@ public class DrawContext {
 		this.drawText(textRenderer, text, x, y, color, true);
 	}
 
+	/**
+	 * Draw stroked rectangle.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param height height
+	 * @param color color
+	 */
 	public void drawStrokedRectangle(int x, int y, int width, int height, int color) {
 		this.fill(x, y, x + width, y + 1, color);
 		this.fill(x, y + height - 1, x + width, y + height, color);
@@ -326,6 +523,16 @@ public class DrawContext {
 		this.fill(x + width - 1, y + 1, x + width, y + height - 1, color);
 	}
 
+	/**
+	 * Draw gui texture.
+	 *
+	 * @param pipeline pipeline
+	 * @param sprite sprite
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param height height
+	 */
 	public void drawGuiTexture(RenderPipeline pipeline, Identifier sprite, int x, int y, int width, int height) {
 		this.drawGuiTexture(pipeline, sprite, x, y, width, height, -1);
 	}
@@ -429,6 +636,16 @@ public class DrawContext {
 		}
 	}
 
+	/**
+	 * Draw sprite stretched.
+	 *
+	 * @param pipeline pipeline
+	 * @param sprite sprite
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param height height
+	 */
 	public void drawSpriteStretched(RenderPipeline pipeline, Sprite sprite, int x, int y, int width, int height) {
 		this.drawSpriteStretched(pipeline, sprite, x, y, width, height, -1);
 	}
@@ -1035,22 +1252,61 @@ public class DrawContext {
 				);
 	}
 
+	/**
+	 * Draw item.
+	 *
+	 * @param item item
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawItem(ItemStack item, int x, int y) {
 		this.drawItem(this.client.player, this.client.world, item, x, y, 0);
 	}
 
+	/**
+	 * Draw item.
+	 *
+	 * @param stack stack
+	 * @param x x
+	 * @param y y
+	 * @param seed seed
+	 */
 	public void drawItem(ItemStack stack, int x, int y, int seed) {
 		this.drawItem(this.client.player, this.client.world, stack, x, y, seed);
 	}
 
+	/**
+	 * Draw item without entity.
+	 *
+	 * @param stack stack
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawItemWithoutEntity(ItemStack stack, int x, int y) {
 		this.drawItemWithoutEntity(stack, x, y, 0);
 	}
 
+	/**
+	 * Draw item without entity.
+	 *
+	 * @param stack stack
+	 * @param x x
+	 * @param y y
+	 * @param seed seed
+	 */
 	public void drawItemWithoutEntity(ItemStack stack, int x, int y, int seed) {
 		this.drawItem(null, this.client.world, stack, x, y, seed);
 	}
 
+	/**
+	 * Draw item.
+	 *
+	 * @param entity entity
+	 * @param stack stack
+	 * @param x x
+	 * @param y y
+	 * @param seed seed
+	 */
 	public void drawItem(LivingEntity entity, ItemStack stack, int x, int y, int seed) {
 		this.drawItem(entity, entity.getEntityWorld(), stack, x, y, seed);
 	}
@@ -1093,6 +1349,14 @@ public class DrawContext {
 		}
 	}
 
+	/**
+	 * Draw stack overlay.
+	 *
+	 * @param textRenderer text renderer
+	 * @param stack stack
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawStackOverlay(TextRenderer textRenderer, ItemStack stack, int x, int y) {
 		this.drawStackOverlay(textRenderer, stack, x, y, null);
 	}
@@ -1113,14 +1377,36 @@ public class DrawContext {
 		}
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawTooltip(Text text, int x, int y) {
 		this.drawTooltip(List.of(text.asOrderedText()), x, y);
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawTooltip(List<OrderedText> text, int x, int y) {
 		this.drawTooltip(this.client.textRenderer, text, HoveredTooltipPositioner.INSTANCE, x, y, false);
 	}
 
+	/**
+	 * Draw item tooltip.
+	 *
+	 * @param textRenderer text renderer
+	 * @param stack stack
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawItemTooltip(TextRenderer textRenderer, ItemStack stack, int x, int y) {
 		this.drawTooltip(
 				textRenderer,
@@ -1132,6 +1418,15 @@ public class DrawContext {
 		);
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param data data
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawTooltip(TextRenderer textRenderer, List<Text> text, Optional<TooltipData> data, int x, int y) {
 		this.drawTooltip(textRenderer, text, data, x, y, null);
 	}
@@ -1151,18 +1446,52 @@ public class DrawContext {
 		this.drawTooltip(textRenderer, list, x, y, HoveredTooltipPositioner.INSTANCE, texture, false);
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawTooltip(TextRenderer textRenderer, Text text, int x, int y) {
 		this.drawTooltip(textRenderer, text, x, y, null);
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 * @param texture texture
+	 */
 	public void drawTooltip(TextRenderer textRenderer, Text text, int x, int y, @Nullable Identifier texture) {
 		this.drawOrderedTooltip(textRenderer, List.of(text.asOrderedText()), x, y, texture);
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawTooltip(TextRenderer textRenderer, List<Text> text, int x, int y) {
 		this.drawTooltip(textRenderer, text, x, y, null);
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 * @param texture texture
+	 */
 	public void drawTooltip(TextRenderer textRenderer, List<Text> text, int x, int y, @Nullable Identifier texture) {
 		this.drawTooltip(
 				textRenderer,
@@ -1175,6 +1504,14 @@ public class DrawContext {
 		);
 	}
 
+	/**
+	 * Draw ordered tooltip.
+	 *
+	 * @param textRenderer text renderer
+	 * @param text text
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawOrderedTooltip(TextRenderer textRenderer, List<? extends OrderedText> text, int x, int y) {
 		this.drawOrderedTooltip(textRenderer, text, x, y, null);
 	}
@@ -1281,6 +1618,9 @@ public class DrawContext {
 		this.matrices.popMatrix();
 	}
 
+	/**
+	 * Draw deferred elements.
+	 */
 	public void drawDeferredElements() {
 		if (this.hoverStyle != null) {
 			this.drawHoverEvent(this.client.textRenderer, this.hoverStyle, this.mouseX, this.mouseY);
@@ -1340,6 +1680,14 @@ public class DrawContext {
 		}
 	}
 
+	/**
+	 * Draw hover event.
+	 *
+	 * @param textRenderer text renderer
+	 * @param style style
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	public void drawHoverEvent(TextRenderer textRenderer, @Nullable Style style, int mouseX, int mouseY) {
 		if (style != null) {
 			if (style.getHoverEvent() != null) {
@@ -1367,6 +1715,11 @@ public class DrawContext {
 		}
 	}
 
+	/**
+	 * Draw map.
+	 *
+	 * @param mapState map state
+	 */
 	public void drawMap(MapRenderState mapState) {
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		TextureManager textureManager = minecraftClient.getTextureManager();
@@ -1549,6 +1902,17 @@ public class DrawContext {
 				));
 	}
 
+	/**
+	 * Добавляет sign.
+	 *
+	 * @param model model
+	 * @param scale scale
+	 * @param woodType wood type
+	 * @param x1 x1
+	 * @param y1 y1
+	 * @param x2 x2
+	 * @param y2 y2
+	 */
 	public void addSign(Model.SinglePartModel model, float scale, WoodType woodType, int x1, int y1, int x2, int y2) {
 		this.state.addSpecialElement(new SignGuiElementRenderState(
 				model,
@@ -1562,6 +1926,15 @@ public class DrawContext {
 		));
 	}
 
+	/**
+	 * Добавляет profiler chart.
+	 *
+	 * @param chartData chart data
+	 * @param x1 x1
+	 * @param y1 y1
+	 * @param x2 x2
+	 * @param y2 y2
+	 */
 	public void addProfilerChart(List<ProfilerTiming> chartData, int x1, int y1, int x2, int y2) {
 		this.state.addSpecialElement(new ProfilerChartGuiElementRenderState(
 				chartData,
@@ -1638,6 +2011,13 @@ public class DrawContext {
 		ScissorStack() {
 		}
 
+		/**
+		 * Push.
+		 *
+		 * @param rect rect
+		 *
+		 * @return ScreenRect — результат операции
+		 */
 		public ScreenRect push(ScreenRect rect) {
 			ScreenRect screenRect = this.stack.peekLast();
 			if (screenRect != null) {
@@ -1651,6 +2031,11 @@ public class DrawContext {
 			}
 		}
 
+		/**
+		 * Pop.
+		 *
+		 * @return @Nullable ScreenRect — результат операции
+		 */
 		public @Nullable ScreenRect pop() {
 			if (this.stack.isEmpty()) {
 				throw new IllegalStateException("Scissor stack underflow");
@@ -1661,10 +2046,23 @@ public class DrawContext {
 			}
 		}
 
+		/**
+		 * Peek last.
+		 *
+		 * @return @Nullable ScreenRect — результат операции
+		 */
 		public @Nullable ScreenRect peekLast() {
 			return this.stack.peekLast();
 		}
 
+		/**
+		 * Contains.
+		 *
+		 * @param x x
+		 * @param y y
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean contains(int x, int y) {
 			return this.stack.isEmpty() ? true : this.stack.peek().contains(x, y);
 		}
@@ -1700,6 +2098,11 @@ public class DrawContext {
 			this.transformation = transformation;
 		}
 
+		/**
+		 * Accept.
+		 *
+		 * @param style style
+		 */
 		public void accept(Style style) {
 			if (this.hoverType.tooltip && style.getHoverEvent() != null) {
 				DrawContext.this.hoverStyle = style;

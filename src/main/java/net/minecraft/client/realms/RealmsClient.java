@@ -86,11 +86,23 @@ public class RealmsClient {
 	private static final String DISMISS_ENDPOINT = "/dismiss";
 	private static final CheckedGson JSON = new CheckedGson();
 
+	/**
+	 * Create.
+	 *
+	 * @return RealmsClient — результат операции
+	 */
 	public static RealmsClient create() {
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		return createRealmsClient(minecraftClient);
 	}
 
+	/**
+	 * Создаёт realms client.
+	 *
+	 * @param client client
+	 *
+	 * @return RealmsClient — результат операции
+	 */
 	public static RealmsClient createRealmsClient(MinecraftClient client) {
 		String string = client.getSession().getUsername();
 		String string2 = client.getSession().getSessionId();
@@ -153,6 +165,11 @@ public class RealmsClient {
 		}
 	}
 
+	/**
+	 * List worlds.
+	 *
+	 * @return RealmsServerList — результат операции
+	 */
 	public RealmsServerList listWorlds() throws RealmsServiceException {
 		String string = this.url("worlds");
 		if (RealmsMainScreen.isSnapshotRealmsEligible()) {
@@ -169,6 +186,13 @@ public class RealmsClient {
 		return RealmsServerList.parse(JSON, string2).servers();
 	}
 
+	/**
+	 * Создаёт prerelease server.
+	 *
+	 * @param parentWorldId parent world id
+	 *
+	 * @return RealmsServer — результат операции
+	 */
 	public RealmsServer createPrereleaseServer(Long parentWorldId) throws RealmsServiceException {
 		String string = String.valueOf(parentWorldId);
 		String
@@ -177,6 +201,11 @@ public class RealmsClient {
 		return RealmsServer.parse(JSON, this.execute(Request.post(string2, string)));
 	}
 
+	/**
+	 * List notifications.
+	 *
+	 * @return List — результат операции
+	 */
 	public List<RealmsNotification> listNotifications() throws RealmsServiceException {
 		String string = this.url("notifications");
 		String string2 = this.execute(Request.get(string));
@@ -195,11 +224,21 @@ public class RealmsClient {
 		return jsonArray;
 	}
 
+	/**
+	 * Mark notifications as seen.
+	 *
+	 * @param notifications notifications
+	 */
 	public void markNotificationsAsSeen(List<UUID> notifications) throws RealmsServiceException {
 		String string = this.url("notifications/seen");
 		this.execute(Request.post(string, JSON.toJson(toJsonArray(notifications))));
 	}
 
+	/**
+	 * Dismiss notifications.
+	 *
+	 * @param notifications notifications
+	 */
 	public void dismissNotifications(List<UUID> notifications) throws RealmsServiceException {
 		String string = this.url("notifications/dismiss");
 		this.execute(Request.post(string, JSON.toJson(toJsonArray(notifications))));
@@ -246,12 +285,26 @@ public class RealmsClient {
 		return RealmsServerPlayerList.parse(string2);
 	}
 
+	/**
+	 * Join.
+	 *
+	 * @param worldId world id
+	 *
+	 * @return RealmsServerAddress — результат операции
+	 */
 	public RealmsServerAddress join(long worldId) throws RealmsServiceException {
 		String string = this.url("worlds" + "/v1/$ID/join/pc".replace("$ID", worldId + ""));
 		String string2 = this.execute(Request.get(string, 5000, 30000));
 		return RealmsServerAddress.parse(JSON, string2);
 	}
 
+	/**
+	 * Инициализирует ialize world.
+	 *
+	 * @param worldId world id
+	 * @param name name
+	 * @param motd motd
+	 */
 	public void initializeWorld(long worldId, String name, String motd) throws RealmsServiceException {
 		RealmsDescriptionDto realmsDescriptionDto = new RealmsDescriptionDto(name, motd);
 		String string = this.url("worlds" + "/$WORLD_ID/initialize".replace("$WORLD_ID", String.valueOf(worldId)));
@@ -259,6 +312,11 @@ public class RealmsClient {
 		this.execute(Request.post(string, string2, 5000, 10000));
 	}
 
+	/**
+	 * Mco enabled.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean mcoEnabled() throws RealmsServiceException {
 		String string = this.url("mco/available");
 		String string2 = this.execute(Request.get(string));
@@ -277,6 +335,12 @@ public class RealmsClient {
 		}
 	}
 
+	/**
+	 * Uninvite.
+	 *
+	 * @param worldId world id
+	 * @param profileUuid profile uuid
+	 */
 	public void uninvite(long worldId, UUID profileUuid) throws RealmsServiceException {
 		String string = this.url(
 				"invites" + "/$WORLD_ID/invite/$UUID"
@@ -286,11 +350,24 @@ public class RealmsClient {
 		this.execute(Request.delete(string));
 	}
 
+	/**
+	 * Uninvite myself from.
+	 *
+	 * @param worldId world id
+	 */
 	public void uninviteMyselfFrom(long worldId) throws RealmsServiceException {
 		String string = this.url("invites" + "/$WORLD_ID".replace("$WORLD_ID", String.valueOf(worldId)));
 		this.execute(Request.delete(string));
 	}
 
+	/**
+	 * Invite.
+	 *
+	 * @param worldId world id
+	 * @param profileName profile name
+	 *
+	 * @return List — результат операции
+	 */
 	public List<PlayerInfo> invite(long worldId, String profileName) throws RealmsServiceException {
 		SentInvite sentInvite = new SentInvite();
 		sentInvite.profileName = profileName;
@@ -299,6 +376,13 @@ public class RealmsClient {
 		return RealmsServer.parse(JSON, string2).players;
 	}
 
+	/**
+	 * Backups for.
+	 *
+	 * @param worldId world id
+	 *
+	 * @return BackupList — результат операции
+	 */
 	public BackupList backupsFor(long worldId) throws RealmsServiceException {
 		String string = this.url("worlds" + "/$WORLD_ID/backups".replace("$WORLD_ID", String.valueOf(worldId)));
 		String string2 = this.execute(Request.get(string));
@@ -342,6 +426,14 @@ public class RealmsClient {
 		this.execute(Request.post(string, string2));
 	}
 
+	/**
+	 * Switch slot.
+	 *
+	 * @param worldId world id
+	 * @param slot slot
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean switchSlot(long worldId, int slot) throws RealmsServiceException {
 		String
 				string =
@@ -352,6 +444,12 @@ public class RealmsClient {
 		return Boolean.valueOf(string2);
 	}
 
+	/**
+	 * Restore world.
+	 *
+	 * @param worldId world id
+	 * @param backupId backup id
+	 */
 	public void restoreWorld(long worldId, String backupId) throws RealmsServiceException {
 		String
 				string =
@@ -372,6 +470,14 @@ public class RealmsClient {
 		return WorldTemplatePaginatedList.parse(string2);
 	}
 
+	/**
+	 * Put into minigame mode.
+	 *
+	 * @param worldId world id
+	 * @param minigameId minigame id
+	 *
+	 * @return Boolean — результат операции
+	 */
 	public Boolean putIntoMinigameMode(long worldId, String minigameId) throws RealmsServiceException {
 		String
 				string =
@@ -382,6 +488,14 @@ public class RealmsClient {
 		return Boolean.valueOf(this.execute(Request.put(string2, "")));
 	}
 
+	/**
+	 * Op.
+	 *
+	 * @param worldId world id
+	 * @param profileUuid profile uuid
+	 *
+	 * @return Ops — результат операции
+	 */
 	public Ops op(long worldId, UUID profileUuid) throws RealmsServiceException {
 		String
 				string =
@@ -392,6 +506,14 @@ public class RealmsClient {
 		return Ops.parse(this.execute(Request.post(string2, "")));
 	}
 
+	/**
+	 * Deop.
+	 *
+	 * @param worldId world id
+	 * @param profileUuid profile uuid
+	 *
+	 * @return Ops — результат операции
+	 */
 	public Ops deop(long worldId, UUID profileUuid) throws RealmsServiceException {
 		String
 				string =
@@ -402,18 +524,40 @@ public class RealmsClient {
 		return Ops.parse(this.execute(Request.delete(string2)));
 	}
 
+	/**
+	 * Open.
+	 *
+	 * @param worldId world id
+	 *
+	 * @return Boolean — результат операции
+	 */
 	public Boolean open(long worldId) throws RealmsServiceException {
 		String string = this.url("worlds" + "/$WORLD_ID/open".replace("$WORLD_ID", String.valueOf(worldId)));
 		String string2 = this.execute(Request.put(string, ""));
 		return Boolean.valueOf(string2);
 	}
 
+	/**
+	 * Close.
+	 *
+	 * @param worldId world id
+	 *
+	 * @return Boolean — результат операции
+	 */
 	public Boolean close(long worldId) throws RealmsServiceException {
 		String string = this.url("worlds" + "/$WORLD_ID/close".replace("$WORLD_ID", String.valueOf(worldId)));
 		String string2 = this.execute(Request.put(string, ""));
 		return Boolean.valueOf(string2);
 	}
 
+	/**
+	 * Сбрасывает world with template.
+	 *
+	 * @param worldId world id
+	 * @param worldTemplateId world template id
+	 *
+	 * @return Boolean — результат операции
+	 */
 	public Boolean resetWorldWithTemplate(long worldId, String worldTemplateId) throws RealmsServiceException {
 		RealmsWorldResetDto
 				realmsWorldResetDto =
@@ -423,16 +567,33 @@ public class RealmsClient {
 		return Boolean.valueOf(string2);
 	}
 
+	/**
+	 * Subscription for.
+	 *
+	 * @param worldId world id
+	 *
+	 * @return Subscription — результат операции
+	 */
 	public Subscription subscriptionFor(long worldId) throws RealmsServiceException {
 		String string = this.url("subscriptions" + "/$WORLD_ID".replace("$WORLD_ID", String.valueOf(worldId)));
 		String string2 = this.execute(Request.get(string));
 		return Subscription.parse(string2);
 	}
 
+	/**
+	 * Pending invites count.
+	 *
+	 * @return int — результат операции
+	 */
 	public int pendingInvitesCount() throws RealmsServiceException {
 		return this.pendingInvites().pendingInvites().size();
 	}
 
+	/**
+	 * Pending invites.
+	 *
+	 * @return PendingInvitesList — результат операции
+	 */
 	public PendingInvitesList pendingInvites() throws RealmsServiceException {
 		String string = this.url("invites/pending");
 		String string2 = this.execute(Request.get(string));
@@ -445,11 +606,24 @@ public class RealmsClient {
 		return this.client.getSocialInteractionsManager().isPlayerBlocked(invite.worldOwnerUuid());
 	}
 
+	/**
+	 * Accept invitation.
+	 *
+	 * @param invitationId invitation id
+	 */
 	public void acceptInvitation(String invitationId) throws RealmsServiceException {
 		String string = this.url("invites" + "/accept/$INVITATION_ID".replace("$INVITATION_ID", invitationId));
 		this.execute(Request.put(string, ""));
 	}
 
+	/**
+	 * Download.
+	 *
+	 * @param worldId world id
+	 * @param slotId slot id
+	 *
+	 * @return WorldDownload — результат операции
+	 */
 	public WorldDownload download(long worldId, int slotId) throws RealmsServiceException {
 		String string = this.url(
 				"worlds" + "/$WORLD_ID/slot/$SLOT_ID/download"
@@ -460,6 +634,13 @@ public class RealmsClient {
 		return WorldDownload.parse(string2);
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param worldId world id
+	 *
+	 * @return @Nullable UploadInfo — результат операции
+	 */
 	public @Nullable UploadInfo upload(long worldId) throws RealmsServiceException {
 		String string = this.url("worlds" + "/$WORLD_ID/backups/upload".replace("$WORLD_ID", String.valueOf(worldId)));
 		String string2 = UploadTokenCache.get(worldId);
@@ -473,11 +654,19 @@ public class RealmsClient {
 		return uploadInfo;
 	}
 
+	/**
+	 * Reject invitation.
+	 *
+	 * @param invitationId invitation id
+	 */
 	public void rejectInvitation(String invitationId) throws RealmsServiceException {
 		String string = this.url("invites" + "/reject/$INVITATION_ID".replace("$INVITATION_ID", invitationId));
 		this.execute(Request.put(string, ""));
 	}
 
+	/**
+	 * Agree to tos.
+	 */
 	public void agreeToTos() throws RealmsServiceException {
 		String string = this.url("mco/tos/agreed");
 		this.execute(Request.post(string, ""));
@@ -489,17 +678,32 @@ public class RealmsClient {
 		return RealmsNews.parse(string2);
 	}
 
+	/**
+	 * Отправляет ping results.
+	 *
+	 * @param pingResult ping result
+	 */
 	public void sendPingResults(PingResult pingResult) throws RealmsServiceException {
 		String string = this.url("regions/ping/stat");
 		this.execute(Request.post(string, JSON.toJson(pingResult)));
 	}
 
+	/**
+	 * Trial available.
+	 *
+	 * @return Boolean — результат операции
+	 */
 	public Boolean trialAvailable() throws RealmsServiceException {
 		String string = this.url("trial");
 		String string2 = this.execute(Request.get(string));
 		return Boolean.valueOf(string2);
 	}
 
+	/**
+	 * Delete world.
+	 *
+	 * @param worldId world id
+	 */
 	public void deleteWorld(long worldId) throws RealmsServiceException {
 		String string = this.url("worlds" + "/$WORLD_ID".replace("$WORLD_ID", String.valueOf(worldId)));
 		this.execute(Request.delete(string));

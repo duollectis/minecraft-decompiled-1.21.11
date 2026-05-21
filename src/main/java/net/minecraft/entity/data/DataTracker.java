@@ -62,14 +62,38 @@ public class DataTracker {
 		return (DataTracker.Entry<T>) this.entries[key.id()];
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param data data
+	 *
+	 * @return T — 
+	 */
 	public <T> T get(TrackedData<T> data) {
 		return this.getEntry(data).get();
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param key key
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void set(TrackedData<T> key, T value) {
 		this.set(key, value, false);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param key key
+	 * @param value value
+	 * @param force force
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void set(TrackedData<T> key, T value, boolean force) {
 		DataTracker.Entry<T> entry = this.getEntry(key);
 		if (force || ObjectUtils.notEqual(value, entry.get())) {
@@ -119,6 +143,11 @@ public class DataTracker {
 		return list;
 	}
 
+	/**
+	 * Записывает updated entries.
+	 *
+	 * @param entries entries
+	 */
 	public void writeUpdatedEntries(List<DataTracker.SerializedEntry<?>> entries) {
 		for (DataTracker.SerializedEntry<?> serializedEntry : entries) {
 			DataTracker.Entry<?> entry = this.entries[serializedEntry.id];
@@ -180,6 +209,11 @@ public class DataTracker {
 			}
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return DataTracker — результат операции
+		 */
 		public DataTracker build() {
 			for (int i = 0; i < this.entries.length; i++) {
 				if (this.entries[i] == null) {
@@ -212,10 +246,20 @@ public class DataTracker {
 			return this.data;
 		}
 
+		/**
+		 * Set.
+		 *
+		 * @param value value
+		 */
 		public void set(T value) {
 			this.value = value;
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @return T — 
+		 */
 		public T get() {
 			return this.value;
 		}
@@ -247,6 +291,11 @@ public class DataTracker {
 			return new DataTracker.SerializedEntry<>(data.id(), trackedDataHandler, trackedDataHandler.copy(value));
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 */
 		public void write(RegistryByteBuf buf) {
 			int i = TrackedDataHandlerRegistry.getId(this.handler);
 			if (i < 0) {

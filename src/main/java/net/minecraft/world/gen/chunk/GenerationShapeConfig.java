@@ -55,6 +55,16 @@ public record GenerationShapeConfig(int minimumY, int height, int horizontalSize
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param minimumY minimum y
+	 * @param height height
+	 * @param horizontalSize horizontal size
+	 * @param verticalSize vertical size
+	 *
+	 * @return GenerationShapeConfig — результат операции
+	 */
 	public static GenerationShapeConfig create(int minimumY, int height, int horizontalSize, int verticalSize) {
 		GenerationShapeConfig
 				generationShapeConfig =
@@ -65,14 +75,31 @@ public record GenerationShapeConfig(int minimumY, int height, int horizontalSize
 		return generationShapeConfig;
 	}
 
+	/**
+	 * Vertical cell block count.
+	 *
+	 * @return int — результат операции
+	 */
 	public int verticalCellBlockCount() {
 		return BiomeCoords.toBlock(this.verticalSize());
 	}
 
+	/**
+	 * Horizontal cell block count.
+	 *
+	 * @return int — результат операции
+	 */
 	public int horizontalCellBlockCount() {
 		return BiomeCoords.toBlock(this.horizontalSize());
 	}
 
+	/**
+	 * Trim height.
+	 *
+	 * @param world world
+	 *
+	 * @return GenerationShapeConfig — результат операции
+	 */
 	public GenerationShapeConfig trimHeight(HeightLimitView world) {
 		int i = Math.max(this.minimumY, world.getBottomY());
 		int j = Math.min(this.minimumY + this.height, world.getTopYInclusive() + 1) - i;

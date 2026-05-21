@@ -41,8 +41,23 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 	final IdType type;
 	final NbtCompound nbt;
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param typeCodec type codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<TypedEntityData<T>> createCodec(Codec<T> typeCodec) {
 		return new Codec<TypedEntityData<T>>() {
+			/**
+			 * Decode.
+			 *
+			 * @param ops ops
+			 * @param value value
+			 *
+			 * @return DataResult, V>> — результат операции
+			 */
 			public <V> DataResult<Pair<TypedEntityData<T>, V>> decode(DynamicOps<V> ops, V value) {
 				return NbtComponent.COMPOUND_CODEC
 						.decode(ops, value)
@@ -63,6 +78,15 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 						);
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param typedEntityData typed entity data
+			 * @param dynamicOps dynamic ops
+			 * @param object object
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <V> DataResult<V> encode(TypedEntityData<T> typedEntityData, DynamicOps<V> dynamicOps, V object) {
 				return typeCodec.encodeStart(toNbtOps((DynamicOps<T>) dynamicOps), typedEntityData.type).flatMap(id -> {
 					NbtCompound nbtCompound = typedEntityData.nbt.copy();
@@ -79,6 +103,13 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 		};
 	}
 
+	/**
+	 * Создаёт packet codec.
+	 *
+	 * @param typePacketCodec type packet codec
+	 *
+	 * @return PacketCodec> — результат операции
+	 */
 	public static <B extends ByteBuf, T> PacketCodec<B, TypedEntityData<T>> createPacketCodec(PacketCodec<B, T> typePacketCodec) {
 		return PacketCodec.tuple(
 				typePacketCodec,
@@ -94,6 +125,14 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 		this.nbt = stripId(nbt);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param type type
+	 * @param nbt nbt
+	 *
+	 * @return TypedEntityData — результат операции
+	 */
 	public static <T> TypedEntityData<T> create(T type, NbtCompound nbt) {
 		return new TypedEntityData<>(type, nbt);
 	}
@@ -113,6 +152,13 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 		return this.type;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param key key
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(String key) {
 		return this.nbt.contains(key);
 	}
@@ -138,6 +184,11 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 		return this.type + " " + this.nbt;
 	}
 
+	/**
+	 * Применяет to entity.
+	 *
+	 * @param entity entity
+	 */
 	public void applyToEntity(Entity entity) {
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(entity.getErrorReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, entity.getRegistryManager());
@@ -150,6 +201,14 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 		}
 	}
 
+	/**
+	 * Применяет to block entity.
+	 *
+	 * @param blockEntity block entity
+	 * @param registryLookup registry lookup
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean applyToBlockEntity(BlockEntity blockEntity, RegistryWrapper.WrapperLookup registryLookup) {
 		boolean exception;
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(blockEntity.getReporterContext(), LOGGER)) {
@@ -195,6 +254,11 @@ public final class TypedEntityData<IdType> implements TooltipAppender {
 		return this.nbt;
 	}
 
+	/**
+	 * Создаёт копию nbt without id.
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound copyNbtWithoutId() {
 		return this.nbt.copy();
 	}

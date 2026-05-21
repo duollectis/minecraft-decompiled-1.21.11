@@ -21,6 +21,11 @@ public class EndPlacedFeatures {
 	public static final RegistryKey<PlacedFeature> CHORUS_PLANT = PlacedFeatures.of("chorus_plant");
 	public static final RegistryKey<PlacedFeature> END_ISLAND_DECORATED = PlacedFeatures.of("end_island_decorated");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =

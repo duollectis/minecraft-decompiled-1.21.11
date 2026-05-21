@@ -482,6 +482,9 @@ public class Registries {
 		return registry;
 	}
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		init();
 		freezeRegistries();
@@ -521,6 +524,13 @@ public class Registries {
 		});
 	}
 
+	/**
+	 * Создаёт entry lookup.
+	 *
+	 * @param registry registry
+	 *
+	 * @return RegistryEntryLookup — результат операции
+	 */
 	public static <T> RegistryEntryLookup<T> createEntryLookup(Registry<T> registry) {
 		return ((MutableRegistry) registry).createMutableRegistryLookup();
 	}

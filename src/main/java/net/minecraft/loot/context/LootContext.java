@@ -45,10 +45,23 @@ public class LootContext {
 		return this.worldContext.getParameters().getOrThrow(parameter);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param parameter parameter
+	 *
+	 * @return @Nullable T — 
+	 */
 	public <T> @Nullable T get(ContextParameter<T> parameter) {
 		return this.worldContext.getParameters().getNullable(parameter);
 	}
 
+	/**
+	 * Drop.
+	 *
+	 * @param id id
+	 * @param lootConsumer loot consumer
+	 */
 	public void drop(Identifier id, Consumer<ItemStack> lootConsumer) {
 		this.worldContext.addDynamicDrops(id, lootConsumer);
 	}
@@ -57,10 +70,22 @@ public class LootContext {
 		return this.activeEntries.contains(entry);
 	}
 
+	/**
+	 * Mark active.
+	 *
+	 * @param entry entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean markActive(LootContext.Entry<?> entry) {
 		return this.activeEntries.add(entry);
 	}
 
+	/**
+	 * Mark inactive.
+	 *
+	 * @param entry entry
+	 */
 	public void markInactive(LootContext.Entry<?> entry) {
 		this.activeEntries.remove(entry);
 	}
@@ -147,6 +172,13 @@ public class LootContext {
 			return this.worldContext.getWorld();
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param randomId random id
+		 *
+		 * @return LootContext — результат операции
+		 */
 		public LootContext build(Optional<Identifier> randomId) {
 			ServerWorld serverWorld = this.getWorld();
 			MinecraftServer minecraftServer = serverWorld.getServer();

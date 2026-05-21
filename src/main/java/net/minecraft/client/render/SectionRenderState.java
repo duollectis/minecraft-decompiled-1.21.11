@@ -31,6 +31,12 @@ public record SectionRenderState(
 		GpuBufferSlice[] chunkSectionInfos
 ) {
 
+	/**
+	 * Отрисовывает section.
+	 *
+	 * @param group group
+	 * @param sampler sampler
+	 */
 	public void renderSection(BlockRenderLayerGroup group, GpuSampler sampler) {
 		RenderSystem.ShapeIndexBuffer shapeIndexBuffer = RenderSystem.getSequentialBuffer(VertexFormat.DrawMode.QUADS);
 		GpuBuffer

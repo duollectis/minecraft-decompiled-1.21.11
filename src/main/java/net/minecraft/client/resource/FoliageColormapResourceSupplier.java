@@ -19,6 +19,14 @@ public class FoliageColormapResourceSupplier extends SinglePreparationResourceRe
 
 	private static final Identifier FOLIAGE_COLORMAP = Identifier.ofVanilla("textures/colormap/foliage.png");
 
+	/**
+	 * Prepare.
+	 *
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 *
+	 * @return int[] — результат операции
+	 */
 	protected int[] prepare(ResourceManager resourceManager, Profiler profiler) {
 		try {
 			return RawTextureDataLoader.loadRawTextureData(resourceManager, FOLIAGE_COLORMAP);
@@ -28,6 +36,13 @@ public class FoliageColormapResourceSupplier extends SinglePreparationResourceRe
 		}
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param is is
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(int[] is, ResourceManager resourceManager, Profiler profiler) {
 		FoliageColors.setColorMap(is);
 	}

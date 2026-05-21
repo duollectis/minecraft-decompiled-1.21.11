@@ -11,6 +11,9 @@ import net.minecraft.util.Uuids;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Запись player remove s2 c packet.
+ */
 public record PlayerRemoveS2CPacket(List<UUID> profileIds) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, PlayerRemoveS2CPacket>
@@ -30,6 +33,11 @@ public record PlayerRemoveS2CPacket(List<UUID> profileIds) implements Packet<Cli
 		return PlayPackets.PLAYER_INFO_REMOVE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlayerRemove(this);
 	}

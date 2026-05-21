@@ -55,10 +55,22 @@ public class PandaEntityRenderer extends AgeableMobEntityRenderer<PandaEntity, P
 		return TEXTURES.getOrDefault(pandaEntityRenderState.gene, TEXTURES.get(PandaEntity.Gene.NORMAL));
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return PandaEntityRenderState — результат операции
+	 */
 	public PandaEntityRenderState createRenderState() {
 		return new PandaEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param pandaEntity panda entity
+	 * @param pandaEntityRenderState panda entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(PandaEntity pandaEntity, PandaEntityRenderState pandaEntityRenderState, float f) {
 		super.updateRenderState(pandaEntity, pandaEntityRenderState, f);
 		ItemHolderEntityRenderState.update(pandaEntity, pandaEntityRenderState, this.itemModelResolver);

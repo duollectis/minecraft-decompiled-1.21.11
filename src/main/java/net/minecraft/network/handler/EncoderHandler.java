@@ -12,6 +12,9 @@ import net.minecraft.network.state.NetworkState;
 import net.minecraft.util.profiling.jfr.FlightProfiler;
 import org.slf4j.Logger;
 
+/**
+ * Класс encoder handler.
+ */
 public class EncoderHandler<T extends PacketListener> extends MessageToByteEncoder<Packet<T>> {
 
 	private static final Logger LOGGER = LogUtils.getLogger();

@@ -22,6 +22,14 @@ public class ModelGrouper {
 	static final int NO_GROUP = -1;
 	private static final int FIRST_GROUP = 0;
 
+	/**
+	 * Group.
+	 *
+	 * @param colors colors
+	 * @param definition definition
+	 *
+	 * @return Object2IntMap — результат операции
+	 */
 	public static Object2IntMap<BlockState> group(BlockColors colors, BlockStatesLoader.LoadedModels definition) {
 		Map<Block, List<Property<?>>> map = new HashMap<>();
 		Map<ModelGrouper.GroupKey, Set<BlockState>> map2 = new HashMap<>();

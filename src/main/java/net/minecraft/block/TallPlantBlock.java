@@ -110,6 +110,14 @@ public class TallPlantBlock extends PlantBlock {
 		}
 	}
 
+	/**
+	 * Размещает at.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param pos pos
+	 * @param flags flags
+	 */
 	public static void placeAt(WorldAccess world, BlockState state, BlockPos pos, @Block.SetBlockStateFlag int flags) {
 		BlockPos blockPos = pos.up();
 		world.setBlockState(pos, withWaterloggedState(world, pos, state.with(HALF, DoubleBlockHalf.LOWER)), flags);
@@ -120,6 +128,15 @@ public class TallPlantBlock extends PlantBlock {
 		);
 	}
 
+	/**
+	 * With waterlogged state.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public static BlockState withWaterloggedState(WorldView world, BlockPos pos, BlockState state) {
 		return state.contains(Properties.WATERLOGGED) ? state.with(Properties.WATERLOGGED, world.isWater(pos)) : state;
 	}
@@ -150,6 +167,14 @@ public class TallPlantBlock extends PlantBlock {
 		super.afterBreak(world, player, pos, Blocks.AIR.getDefaultState(), blockEntity, tool);
 	}
 
+	/**
+	 * Обрабатывает событие break in creative.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param player player
+	 */
 	protected static void onBreakInCreative(World world, BlockPos pos, BlockState state, PlayerEntity player) {
 		DoubleBlockHalf doubleBlockHalf = state.get(HALF);
 		if (doubleBlockHalf == DoubleBlockHalf.UPPER) {

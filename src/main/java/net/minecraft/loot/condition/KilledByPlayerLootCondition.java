@@ -28,6 +28,13 @@ public class KilledByPlayerLootCondition implements LootCondition {
 		return Set.of(LootContextParameters.LAST_DAMAGE_PLAYER);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		return lootContext.hasParameter(LootContextParameters.LAST_DAMAGE_PLAYER);
 	}

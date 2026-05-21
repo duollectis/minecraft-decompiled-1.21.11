@@ -32,6 +32,13 @@ public class TelemetryLogManager implements AutoCloseable {
 		this.compressor = compressor;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param directory directory
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public static CompletableFuture<Optional<TelemetryLogManager>> create(Path directory) {
 		return CompletableFuture.supplyAsync(
 				() -> {

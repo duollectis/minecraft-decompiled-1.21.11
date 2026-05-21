@@ -27,6 +27,13 @@ public abstract class LootPoolEntry implements EntryCombiner {
 		this.conditionPredicate = Util.allOf(conditions);
 	}
 
+	/**
+	 * Добавляет conditions field.
+	 *
+	 * @param instance instance
+	 *
+	 * @return P1, List> — результат операции
+	 */
 	protected static <T extends LootPoolEntry> P1<Mu<T>, List<LootCondition>> addConditionsField(Instance<T> instance) {
 		return instance.group(LootCondition.CODEC
 				.listOf()
@@ -34,6 +41,11 @@ public abstract class LootPoolEntry implements EntryCombiner {
 				.forGetter(entry -> entry.conditions));
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param reporter reporter
+	 */
 	public void validate(LootTableReporter reporter) {
 		for (int i = 0; i < this.conditions.size(); i++) {
 			this.conditions
@@ -42,6 +54,13 @@ public abstract class LootPoolEntry implements EntryCombiner {
 		}
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param context context
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected final boolean test(LootContext context) {
 		return this.conditionPredicate.test(context);
 	}
@@ -59,6 +78,13 @@ public abstract class LootPoolEntry implements EntryCombiner {
 
 		protected abstract T getThisBuilder();
 
+		/**
+		 * Conditionally.
+		 *
+		 * @param builder builder
+		 *
+		 * @return T — результат операции
+		 */
 		public T conditionally(LootCondition.Builder builder) {
 			this.conditions.add(builder.build());
 			return this.getThisBuilder();
@@ -84,6 +110,11 @@ public abstract class LootPoolEntry implements EntryCombiner {
 			return new SequenceEntry.Builder(this, entry);
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return LootPoolEntry — результат операции
+		 */
 		public abstract LootPoolEntry build();
 	}
 }

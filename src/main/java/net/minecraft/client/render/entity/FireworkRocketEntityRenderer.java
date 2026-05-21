@@ -51,6 +51,11 @@ public class FireworkRocketEntityRenderer extends EntityRenderer<FireworkRocketE
 		super.render(fireworkRocketEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return FireworkRocketEntityRenderState — результат операции
+	 */
 	public FireworkRocketEntityRenderState createRenderState() {
 		return new FireworkRocketEntityRenderState();
 	}

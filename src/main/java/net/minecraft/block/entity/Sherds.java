@@ -61,6 +61,11 @@ public record Sherds(
 		}
 	}
 
+	/**
+	 * To list.
+	 *
+	 * @return List — результат операции
+	 */
 	public List<Item> toList() {
 		return Stream.of(this.back, this.left, this.right, this.front).map(item -> item.orElse(Items.BRICK)).toList();
 	}

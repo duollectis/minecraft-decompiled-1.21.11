@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс chunk render distance center s2 c packet.
+ */
 public class ChunkRenderDistanceCenterS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ChunkRenderDistanceCenterS2CPacket> CODEC = Packet.createCodec(
@@ -35,6 +38,11 @@ public class ChunkRenderDistanceCenterS2CPacket implements Packet<ClientPlayPack
 		return PlayPackets.SET_CHUNK_CACHE_CENTER;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onChunkRenderDistanceCenter(this);
 	}

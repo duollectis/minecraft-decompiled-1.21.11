@@ -64,6 +64,11 @@ public abstract class FallingBlock extends Block implements Falling {
 		}
 	}
 
+	/**
+	 * Configure falling block entity.
+	 *
+	 * @param entity entity
+	 */
 	protected void configureFallingBlockEntity(FallingBlockEntity entity) {
 	}
 
@@ -71,6 +76,13 @@ public abstract class FallingBlock extends Block implements Falling {
 		return 2;
 	}
 
+	/**
+	 * Проверяет возможность fall through.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canFallThrough(BlockState state) {
 		return state.isAir() || state.isIn(BlockTags.FIRE) || state.isLiquid() || state.isReplaceable();
 	}

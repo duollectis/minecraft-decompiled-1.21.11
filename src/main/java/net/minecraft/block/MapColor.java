@@ -90,6 +90,13 @@ public class MapColor {
 		return this == CLEAR ? 0 : ColorHelper.scaleRgb(ColorHelper.fullAlpha(this.color), brightness.brightness);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return MapColor — 
+	 */
 	public static MapColor get(int id) {
 		Preconditions.checkPositionIndex(id, COLORS.length, "material id");
 		return getUnchecked(id);

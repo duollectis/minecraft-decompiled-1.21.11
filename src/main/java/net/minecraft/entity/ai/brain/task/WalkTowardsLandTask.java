@@ -19,6 +19,14 @@ public class WalkTowardsLandTask {
 
 	private static final int TASK_COOLDOWN = 60;
 
+	/**
+	 * Create.
+	 *
+	 * @param range range
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<PathAwareEntity> create(int range, float speed) {
 		MutableLong mutableLong = new MutableLong(0L);
 		return TaskTriggerer.task(

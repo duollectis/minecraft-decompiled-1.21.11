@@ -107,6 +107,11 @@ public abstract class AbstractChunkHolder {
 		}
 	}
 
+	/**
+	 * Обновляет status.
+	 *
+	 * @param chunkLoadingManager chunk loading manager
+	 */
 	public void updateStatus(ServerChunkLoadingManager chunkLoadingManager) {
 		ChunkStatus chunkStatus = this.status;
 		ChunkStatus chunkStatus2 = ChunkLevels.getStatus(this.getLevel());
@@ -120,6 +125,11 @@ public abstract class AbstractChunkHolder {
 		}
 	}
 
+	/**
+	 * Replace with.
+	 *
+	 * @param chunk chunk
+	 */
 	public void replaceWith(WrapperProtoChunk chunk) {
 		CompletableFuture<OptionalChunk<Chunk>>
 				completableFuture =
@@ -279,8 +289,16 @@ public abstract class AbstractChunkHolder {
 		return chunkStatus == null || status.isLaterThan(chunkStatus);
 	}
 
+	/**
+	 * Combine saving future.
+	 *
+	 * @param savingFuture saving future
+	 */
 	protected abstract void combineSavingFuture(CompletableFuture<?> savingFuture);
 
+	/**
+	 * Increment ref count.
+	 */
 	public void incrementRefCount() {
 		if (this.refCount.getAndIncrement() == 0) {
 			this.referenceFuture = new CompletableFuture<>();
@@ -288,6 +306,9 @@ public abstract class AbstractChunkHolder {
 		}
 	}
 
+	/**
+	 * Decrement ref count.
+	 */
 	public void decrementRefCount() {
 		CompletableFuture<Void> completableFuture = this.referenceFuture;
 		int i = this.refCount.decrementAndGet();
@@ -343,6 +364,11 @@ public abstract class AbstractChunkHolder {
 	public abstract int getCompletedLevel();
 
 	@Debug
+	/**
+	 * Enumerate futures.
+	 *
+	 * @return List>>> — результат операции
+	 */
 	public List<Pair<ChunkStatus, @Nullable CompletableFuture<OptionalChunk<Chunk>>>> enumerateFutures() {
 		List<Pair<ChunkStatus, CompletableFuture<OptionalChunk<Chunk>>>> list = new ArrayList<>();
 

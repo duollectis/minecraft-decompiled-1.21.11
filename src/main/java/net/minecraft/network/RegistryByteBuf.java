@@ -5,6 +5,9 @@ import net.minecraft.registry.DynamicRegistryManager;
 
 import java.util.function.Function;
 
+/**
+ * Класс registry byte buf.
+ */
 public class RegistryByteBuf extends PacketByteBuf {
 
 	private final DynamicRegistryManager registryManager;
@@ -18,6 +21,13 @@ public class RegistryByteBuf extends PacketByteBuf {
 		return this.registryManager;
 	}
 
+	/**
+	 * Make factory.
+	 *
+	 * @param registryManager registry manager
+	 *
+	 * @return Function — результат операции
+	 */
 	public static Function<ByteBuf, RegistryByteBuf> makeFactory(DynamicRegistryManager registryManager) {
 		return buf -> new RegistryByteBuf(buf, registryManager);
 	}

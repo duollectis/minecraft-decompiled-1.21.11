@@ -28,6 +28,12 @@ public class RecipeResultCollection {
 		this.entries = entries;
 	}
 
+	/**
+	 * Populate recipes.
+	 *
+	 * @param finder finder
+	 * @param displayablePredicate displayable predicate
+	 */
 	public void populateRecipes(RecipeFinder finder, Predicate<RecipeDisplay> displayablePredicate) {
 		for (RecipeDisplayEntry recipeDisplayEntry : this.entries) {
 			boolean bl = displayablePredicate.test(recipeDisplayEntry.display());
@@ -63,6 +69,13 @@ public class RecipeResultCollection {
 		return this.entries;
 	}
 
+	/**
+	 * Filter.
+	 *
+	 * @param filterMode filter mode
+	 *
+	 * @return List — результат операции
+	 */
 	public List<RecipeDisplayEntry> filter(RecipeResultCollection.RecipeFilterMode filterMode) {
 		Predicate<NetworkRecipeId> predicate = switch (filterMode) {
 			case ANY -> this.displayableRecipes::contains;

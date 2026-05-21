@@ -33,6 +33,13 @@ public record ModStatus(ModStatus.Confidence confidence, String description) {
 		return this.confidence.modded;
 	}
 
+	/**
+	 * Combine.
+	 *
+	 * @param brand brand
+	 *
+	 * @return ModStatus — результат операции
+	 */
 	public ModStatus combine(ModStatus brand) {
 		return new ModStatus(
 				(ModStatus.Confidence) ObjectUtils.max(new ModStatus.Confidence[]{this.confidence, brand.confidence}),

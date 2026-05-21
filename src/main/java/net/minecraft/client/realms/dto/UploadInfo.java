@@ -26,6 +26,13 @@ public record UploadInfo(boolean worldClosed, @Nullable String token, URI upload
 	private static final int PORT = 8080;
 	private static final Pattern PROTOCOL_PATTERN = Pattern.compile("^[a-zA-Z][-a-zA-Z0-9+.]+:");
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return @Nullable UploadInfo — результат операции
+	 */
 	public static @Nullable UploadInfo parse(String json) {
 		try {
 			JsonObject jsonObject = LenientJsonParser.parse(json).getAsJsonObject();
@@ -84,6 +91,13 @@ public record UploadInfo(boolean worldClosed, @Nullable String token, URI upload
 		return matcher.find() ? url : "http://" + url;
 	}
 
+	/**
+	 * Создаёт request content.
+	 *
+	 * @param token token
+	 *
+	 * @return String — результат операции
+	 */
 	public static String createRequestContent(@Nullable String token) {
 		JsonObject jsonObject = new JsonObject();
 		if (token != null) {

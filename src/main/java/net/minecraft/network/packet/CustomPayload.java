@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Интерфейс custom payload.
+ */
 public interface CustomPayload {
 
 	CustomPayload.Id<? extends CustomPayload> getId();
@@ -49,10 +52,23 @@ public interface CustomPayload {
 				packetCodec.encode(value, (T) payload);
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param packetByteBuf packet byte buf
+			 * @param customPayload custom payload
+			 */
 			public void encode(B packetByteBuf, CustomPayload customPayload) {
 				this.encode(packetByteBuf, customPayload.getId(), customPayload);
 			}
 
+			/**
+			 * Decode.
+			 *
+			 * @param packetByteBuf packet byte buf
+			 *
+			 * @return CustomPayload — результат операции
+			 */
 			public CustomPayload decode(B packetByteBuf) {
 				Identifier identifier = packetByteBuf.readIdentifier();
 				return (CustomPayload) this.getCodec(identifier).decode(packetByteBuf);
@@ -60,14 +76,23 @@ public interface CustomPayload {
 		};
 	}
 
+	/**
+	 * Интерфейс codec factory.
+	 */
 	public interface CodecFactory<B extends PacketByteBuf> {
 
 		PacketCodec<B, ? extends CustomPayload> create(Identifier id);
 	}
 
+	/**
+	 * Запись id.
+	 */
 	public record Id<T extends CustomPayload>(Identifier id) {
 	}
 
+	/**
+	 * Запись type.
+	 */
 	public record Type<B extends PacketByteBuf, T extends CustomPayload>(
 			CustomPayload.Id<T> id,
 			PacketCodec<B, T> codec

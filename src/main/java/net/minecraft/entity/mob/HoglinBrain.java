@@ -42,6 +42,13 @@ public class HoglinBrain {
 	private static final float WALK_TO_ADULT_SPEED = 0.4F;
 	private static final float WANDER_SPEED = 0.6F;
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<HoglinEntity> brain) {
 		addCoreTasks(brain);
 		addIdleTasks(brain);
@@ -127,6 +134,11 @@ public class HoglinBrain {
 		);
 	}
 
+	/**
+	 * Refresh activities.
+	 *
+	 * @param hoglin hoglin
+	 */
 	protected static void refreshActivities(HoglinEntity hoglin) {
 		Brain<HoglinEntity> brain = hoglin.getBrain();
 		Activity activity = brain.getFirstPossibleNonCoreActivity().orElse(null);
@@ -139,6 +151,12 @@ public class HoglinBrain {
 		hoglin.setAttacking(brain.hasMemoryModule(MemoryModuleType.ATTACK_TARGET));
 	}
 
+	/**
+	 * Обрабатывает событие attacking.
+	 *
+	 * @param hoglin hoglin
+	 * @param target target
+	 */
 	protected static void onAttacking(HoglinEntity hoglin, LivingEntity target) {
 		if (!hoglin.isBaby()) {
 			if (target.getType() == EntityType.PIGLIN && hasMoreHoglinsAround(hoglin)) {
@@ -222,6 +240,13 @@ public class HoglinBrain {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие attacked.
+	 *
+	 * @param world world
+	 * @param hoglin hoglin
+	 * @param attacker attacker
+	 */
 	protected static void onAttacked(ServerWorld world, HoglinEntity hoglin, LivingEntity attacker) {
 		Brain<HoglinEntity> brain = hoglin.getBrain();
 		brain.forget(MemoryModuleType.PACIFIED);

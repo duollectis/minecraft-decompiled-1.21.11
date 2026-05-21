@@ -58,10 +58,25 @@ public abstract class AbstractPlantStemBlock extends AbstractPlantPartBlock impl
 		}
 	}
 
+	/**
+	 * Age.
+	 *
+	 * @param state state
+	 * @param random random
+	 *
+	 * @return BlockState — результат операции
+	 */
 	protected BlockState age(BlockState state, Random random) {
 		return state.cycle(AGE);
 	}
 
+	/**
+	 * With max age.
+	 *
+	 * @param state state
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public BlockState withMaxAge(BlockState state) {
 		return state.with(AGE, 25);
 	}
@@ -70,6 +85,14 @@ public abstract class AbstractPlantStemBlock extends AbstractPlantPartBlock impl
 		return state.get(AGE) == 25;
 	}
 
+	/**
+	 * Создаёт копию state.
+	 *
+	 * @param from from
+	 * @param to to
+	 *
+	 * @return BlockState — результат операции
+	 */
 	protected BlockState copyState(BlockState from, BlockState to) {
 		return to;
 	}
@@ -148,6 +171,13 @@ public abstract class AbstractPlantStemBlock extends AbstractPlantPartBlock impl
 
 	protected abstract int getGrowthLength(Random random);
 
+	/**
+	 * Choose stem state.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected abstract boolean chooseStemState(BlockState state);
 
 	@Override

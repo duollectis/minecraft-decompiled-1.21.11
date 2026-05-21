@@ -18,6 +18,9 @@ public class PlayerListGui extends JList<String> {
 		server.addServerGuiTickable(this::tick);
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.tick++ % 20 == 0) {
 			Vector<String> vector = new Vector<>();

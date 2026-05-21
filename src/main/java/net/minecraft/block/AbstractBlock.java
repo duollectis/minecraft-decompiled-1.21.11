@@ -111,6 +111,13 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return AbstractBlock.Settings.CODEC.fieldOf("properties").forGetter(AbstractBlock::getSettings);
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param blockFromSettings block from settings
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static <B extends Block> MapCodec<B> createCodec(Function<AbstractBlock.Settings, B> blockFromSettings) {
 		return RecordCodecBuilder.mapCodec(instance -> instance
 				.group(createSettingsCodec())
@@ -126,6 +133,14 @@ public abstract class AbstractBlock implements ToggleableFeature {
 	) {
 	}
 
+	/**
+	 * Проверяет возможность pathfind through.
+	 *
+	 * @param state state
+	 * @param type type
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canPathfindThrough(BlockState state, NavigationType type) {
 		switch (type) {
 			case LAND:
@@ -166,9 +181,26 @@ public abstract class AbstractBlock implements ToggleableFeature {
 	) {
 	}
 
+	/**
+	 * Обрабатывает событие block added.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param oldState old state
+	 * @param notify notify
+	 */
 	protected void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
 	}
 
+	/**
+	 * Обрабатывает событие state replaced.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param moved moved
+	 */
 	protected void onStateReplaced(BlockState state, ServerWorld world, BlockPos pos, boolean moved) {
 	}
 
@@ -202,6 +234,17 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие use.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param player player
+	 * @param hit hit
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
 		return ActionResult.PASS;
 	}
@@ -218,6 +261,17 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return ActionResult.PASS_TO_DEFAULT_BLOCK_ACTION;
 	}
 
+	/**
+	 * Обрабатывает событие synced block event.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param type type
+	 * @param data data
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean onSyncedBlockEvent(BlockState state, World world, BlockPos pos, int type, int data) {
 		return false;
 	}
@@ -230,6 +284,13 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return false;
 	}
 
+	/**
+	 * Emits redstone power.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean emitsRedstonePower(BlockState state) {
 		return false;
 	}
@@ -255,22 +316,61 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return this.requiredFeatures;
 	}
 
+	/**
+	 * Keep block entity when replaced with.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean keepBlockEntityWhenReplacedWith(BlockState state) {
 		return false;
 	}
 
+	/**
+	 * Rotate.
+	 *
+	 * @param state state
+	 * @param rotation rotation
+	 *
+	 * @return BlockState — результат операции
+	 */
 	protected BlockState rotate(BlockState state, BlockRotation rotation) {
 		return state;
 	}
 
+	/**
+	 * Mirror.
+	 *
+	 * @param state state
+	 * @param mirror mirror
+	 *
+	 * @return BlockState — результат операции
+	 */
 	protected BlockState mirror(BlockState state, BlockMirror mirror) {
 		return state;
 	}
 
+	/**
+	 * Проверяет возможность replace.
+	 *
+	 * @param state state
+	 * @param context context
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canReplace(BlockState state, ItemPlacementContext context) {
 		return state.isReplaceable() && (context.getStack().isEmpty() || !context.getStack().isOf(this.asItem()));
 	}
 
+	/**
+	 * Проверяет возможность bucket place.
+	 *
+	 * @param state state
+	 * @param fluid fluid
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canBucketPlace(BlockState state, Fluid fluid) {
 		return state.isReplaceable() || !state.isSolid();
 	}
@@ -324,6 +424,15 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return null;
 	}
 
+	/**
+	 * Проверяет возможность place at.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canPlaceAt(BlockState state, WorldView world, BlockPos pos) {
 		return true;
 	}
@@ -361,12 +470,38 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return this.getCollisionShape(state, world, pos, context);
 	}
 
+	/**
+	 * Random tick.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 */
 	protected void randomTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
 	}
 
+	/**
+	 * Scheduled tick.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 */
 	protected void scheduledTick(BlockState state, ServerWorld world, BlockPos pos, Random random) {
 	}
 
+	/**
+	 * Calc block breaking delta.
+	 *
+	 * @param state state
+	 * @param player player
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return float — результат операции
+	 */
 	protected float calcBlockBreakingDelta(BlockState state, PlayerEntity player, BlockView world, BlockPos pos) {
 		float f = state.getHardness(world, pos);
 		if (f == -1.0F) {
@@ -387,6 +522,14 @@ public abstract class AbstractBlock implements ToggleableFeature {
 	) {
 	}
 
+	/**
+	 * Обрабатывает событие block break start.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param player player
+	 */
 	protected void onBlockBreakStart(BlockState state, World world, BlockPos pos, PlayerEntity player) {
 	}
 
@@ -416,6 +559,14 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return this.translationKey;
 	}
 
+	/**
+	 * Обрабатывает событие projectile hit.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param hit hit
+	 * @param projectile projectile
+	 */
 	protected void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
 	}
 
@@ -437,8 +588,18 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		return new ItemStack(this.asItem());
 	}
 
+	/**
+	 * As item.
+	 *
+	 * @return Item — результат операции
+	 */
 	public abstract Item asItem();
 
+	/**
+	 * As block.
+	 *
+	 * @return Block — результат операции
+	 */
 	protected abstract Block asBlock();
 
 	public MapColor getDefaultMapColor() {
@@ -545,6 +706,9 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			}
 		}
 
+		/**
+		 * Инициализирует shape cache.
+		 */
 		public void initShapeCache() {
 			this.fluidState = this.owner.getFluidState(this.asBlockState());
 			this.ticksRandomly = this.owner.hasRandomTicks(this.asBlockState());
@@ -582,6 +746,11 @@ public abstract class AbstractBlock implements ToggleableFeature {
 		}
 
 		@Deprecated
+		/**
+		 * Blocks movement.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean blocksMovement() {
 			Block block = this.getBlock();
 			return block != Blocks.COBWEB && block != Blocks.BAMBOO_SAPLING && this.isSolid();
@@ -592,6 +761,15 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.solid;
 		}
 
+		/**
+		 * Allows spawning.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param type type
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean allowsSpawning(BlockView world, BlockPos pos, EntityType<?> type) {
 			return this.getBlock().settings.allowsSpawningPredicate.test(this.asBlockState(), world, pos, type);
 		}
@@ -612,6 +790,11 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.cullingShape;
 		}
 
+		/**
+		 * Exceeds cube.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean exceedsCube() {
 			return this.shapeCache == null || this.shapeCache.exceedsCube;
 		}
@@ -641,10 +824,24 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.mapColor;
 		}
 
+		/**
+		 * Rotate.
+		 *
+		 * @param rotation rotation
+		 *
+		 * @return BlockState — результат операции
+		 */
 		public BlockState rotate(BlockRotation rotation) {
 			return this.getBlock().rotate(this.asBlockState(), rotation);
 		}
 
+		/**
+		 * Mirror.
+		 *
+		 * @param mirror mirror
+		 *
+		 * @return BlockState — результат операции
+		 */
 		public BlockState mirror(BlockMirror mirror) {
 			return this.getBlock().mirror(this.asBlockState(), mirror);
 		}
@@ -665,6 +862,11 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.solidBlockPredicate.test(this.asBlockState(), world, pos);
 		}
 
+		/**
+		 * Emits redstone power.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean emitsRedstonePower() {
 			return this.getBlock().emitsRedstonePower(this.asBlockState());
 		}
@@ -685,6 +887,15 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.hardness;
 		}
 
+		/**
+		 * Calc block breaking delta.
+		 *
+		 * @param player player
+		 * @param world world
+		 * @param pos pos
+		 *
+		 * @return float — результат операции
+		 */
 		public float calcBlockBreakingDelta(PlayerEntity player, BlockView world, BlockPos pos) {
 			return this.getBlock().calcBlockBreakingDelta(this.asBlockState(), player, world, pos);
 		}
@@ -759,6 +970,16 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.offsetter != null;
 		}
 
+		/**
+		 * Обрабатывает событие synced block event.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param type type
+		 * @param data data
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean onSyncedBlockEvent(World world, BlockPos pos, int type, int data) {
 			return this.getBlock().onSyncedBlockEvent(this.asBlockState(), world, pos, type, data);
 		}
@@ -773,6 +994,13 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			this.getBlock().neighborUpdate(this.asBlockState(), world, pos, sourceBlock, wireOrientation, notify);
 		}
 
+		/**
+		 * Обновляет neighbors.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param flags flags
+		 */
 		public final void updateNeighbors(WorldAccess world, BlockPos pos, @Block.SetBlockStateFlag int flags) {
 			this.updateNeighbors(world, pos, flags, 512);
 		}
@@ -798,18 +1026,48 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			}
 		}
 
+		/**
+		 * Prepare.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param flags flags
+		 */
 		public final void prepare(WorldAccess world, BlockPos pos, @Block.SetBlockStateFlag int flags) {
 			this.prepare(world, pos, flags, 512);
 		}
 
+		/**
+		 * Prepare.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param flags flags
+		 * @param maxUpdateDepth max update depth
+		 */
 		public void prepare(WorldAccess world, BlockPos pos, @Block.SetBlockStateFlag int flags, int maxUpdateDepth) {
 			this.getBlock().prepare(this.asBlockState(), world, pos, flags, maxUpdateDepth);
 		}
 
+		/**
+		 * Обрабатывает событие block added.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param state state
+		 * @param notify notify
+		 */
 		public void onBlockAdded(World world, BlockPos pos, BlockState state, boolean notify) {
 			this.getBlock().onBlockAdded(this.asBlockState(), world, pos, state, notify);
 		}
 
+		/**
+		 * Обрабатывает событие state replaced.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param moved moved
+		 */
 		public void onStateReplaced(ServerWorld world, BlockPos pos, boolean moved) {
 			this.getBlock().onStateReplaced(this.asBlockState(), world, pos, moved);
 		}
@@ -823,10 +1081,24 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			this.getBlock().onExploded(this.asBlockState(), world, pos, explosion, stackMerger);
 		}
 
+		/**
+		 * Scheduled tick.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param random random
+		 */
 		public void scheduledTick(ServerWorld world, BlockPos pos, Random random) {
 			this.getBlock().scheduledTick(this.asBlockState(), world, pos, random);
 		}
 
+		/**
+		 * Random tick.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param random random
+		 */
 		public void randomTick(ServerWorld world, BlockPos pos, Random random) {
 			this.getBlock().randomTick(this.asBlockState(), world, pos, random);
 		}
@@ -841,6 +1113,14 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			this.getBlock().onEntityCollision(this.asBlockState(), world, pos, entity, entityCollisionHandler, bl);
 		}
 
+		/**
+		 * Обрабатывает событие stacks dropped.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param tool tool
+		 * @param dropExperience drop experience
+		 */
 		public void onStacksDropped(ServerWorld world, BlockPos pos, ItemStack tool, boolean dropExperience) {
 			this.getBlock().onStacksDropped(this.asBlockState(), world, pos, tool, dropExperience);
 		}
@@ -861,18 +1141,50 @@ public abstract class AbstractBlock implements ToggleableFeature {
 					.onUseWithItem(stack, this.asBlockState(), world, hit.getBlockPos(), player, hand, hit);
 		}
 
+		/**
+		 * Обрабатывает событие use.
+		 *
+		 * @param world world
+		 * @param player player
+		 * @param hit hit
+		 *
+		 * @return ActionResult — результат операции
+		 */
 		public ActionResult onUse(World world, PlayerEntity player, BlockHitResult hit) {
 			return this.getBlock().onUse(this.asBlockState(), world, hit.getBlockPos(), player, hit);
 		}
 
+		/**
+		 * Обрабатывает событие block break start.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param player player
+		 */
 		public void onBlockBreakStart(World world, BlockPos pos, PlayerEntity player) {
 			this.getBlock().onBlockBreakStart(this.asBlockState(), world, pos, player);
 		}
 
+		/**
+		 * Определяет, следует ли suffocate.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldSuffocate(BlockView world, BlockPos pos) {
 			return this.suffocationPredicate.test(this.asBlockState(), world, pos);
 		}
 
+		/**
+		 * Определяет, следует ли block vision.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldBlockVision(BlockView world, BlockPos pos) {
 			return this.blockVisionPredicate.test(this.asBlockState(), world, pos);
 		}
@@ -900,14 +1212,35 @@ public abstract class AbstractBlock implements ToggleableFeature {
 					);
 		}
 
+		/**
+		 * Проверяет возможность pathfind through.
+		 *
+		 * @param type type
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canPathfindThrough(NavigationType type) {
 			return this.getBlock().canPathfindThrough(this.asBlockState(), type);
 		}
 
+		/**
+		 * Проверяет возможность replace.
+		 *
+		 * @param context context
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canReplace(ItemPlacementContext context) {
 			return this.getBlock().canReplace(this.asBlockState(), context);
 		}
 
+		/**
+		 * Проверяет возможность bucket place.
+		 *
+		 * @param fluid fluid
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canBucketPlace(Fluid fluid) {
 			return this.getBlock().canBucketPlace(this.asBlockState(), fluid);
 		}
@@ -916,14 +1249,38 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.replaceable;
 		}
 
+		/**
+		 * Проверяет возможность place at.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canPlaceAt(WorldView world, BlockPos pos) {
 			return this.getBlock().canPlaceAt(this.asBlockState(), world, pos);
 		}
 
+		/**
+		 * Определяет, следует ли post process.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldPostProcess(BlockView world, BlockPos pos) {
 			return this.postProcessPredicate.test(this.asBlockState(), world, pos);
 		}
 
+		/**
+		 * Создаёт screen handler factory.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 *
+		 * @return @Nullable NamedScreenHandlerFactory — результат операции
+		 */
 		public @Nullable NamedScreenHandlerFactory createScreenHandlerFactory(World world, BlockPos pos) {
 			return this.getBlock().createScreenHandlerFactory(this.asBlockState(), world, pos);
 		}
@@ -944,6 +1301,11 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.isOf(blockEntry.value());
 		}
 
+		/**
+		 * Stream tags.
+		 *
+		 * @return Stream> — результат операции
+		 */
 		public Stream<TagKey<Block>> streamTags() {
 			return this.getBlock().getRegistryEntry().streamTags();
 		}
@@ -952,6 +1314,13 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.getBlock() instanceof BlockEntityProvider;
 		}
 
+		/**
+		 * Keep block entity when replaced with.
+		 *
+		 * @param state state
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean keepBlockEntityWhenReplacedWith(BlockState state) {
 			return this.getBlock().keepBlockEntityWhenReplacedWith(state);
 		}
@@ -969,6 +1338,13 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.getBlock() == block;
 		}
 
+		/**
+		 * Matches key.
+		 *
+		 * @param key key
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean matchesKey(RegistryKey<Block> key) {
 			return this.getBlock().getRegistryEntry().matchesKey(key);
 		}
@@ -989,6 +1365,14 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.getBlock().getSoundGroup(this.asBlockState());
 		}
 
+		/**
+		 * Обрабатывает событие projectile hit.
+		 *
+		 * @param world world
+		 * @param state state
+		 * @param hit hit
+		 * @param projectile projectile
+		 */
 		public void onProjectileHit(World world, BlockState state, BlockHitResult hit, ProjectileEntity projectile) {
 			this.getBlock().onProjectileHit(world, state, hit, projectile);
 		}
@@ -1011,6 +1395,11 @@ public abstract class AbstractBlock implements ToggleableFeature {
 			return this.getBlock().getPickStack(world, pos, this.asBlockState(), includeData);
 		}
 
+		/**
+		 * As block state.
+		 *
+		 * @return BlockState — результат операции
+		 */
 		protected abstract BlockState asBlockState();
 
 		public boolean isToolRequired() {

@@ -10,6 +10,9 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 
+/**
+ * Класс play sound s2 c packet.
+ */
 public class PlaySoundS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, PlaySoundS2CPacket>
@@ -72,6 +75,11 @@ public class PlaySoundS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.SOUND;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlaySound(this);
 	}

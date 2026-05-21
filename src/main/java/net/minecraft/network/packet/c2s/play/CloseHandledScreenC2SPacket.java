@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс close handled screen c2 s packet.
+ */
 public class CloseHandledScreenC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, CloseHandledScreenC2SPacket> CODEC = Packet.createCodec(
@@ -31,6 +34,11 @@ public class CloseHandledScreenC2SPacket implements Packet<ServerPlayPacketListe
 		return PlayPackets.CONTAINER_CLOSE_C2S;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onCloseHandledScreen(this);
 	}

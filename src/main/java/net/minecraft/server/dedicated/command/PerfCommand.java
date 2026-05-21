@@ -40,6 +40,11 @@ public class PerfCommand {
 			ALREADY_RUNNING_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.perf.alreadyRunning"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager

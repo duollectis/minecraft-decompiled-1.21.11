@@ -7,6 +7,9 @@ import net.minecraft.network.packet.c2s.play.*;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.util.Identifier;
 
+/**
+ * Класс play packets.
+ */
 public class PlayPackets {
 
 	public static final PacketType<BundleS2CPacket> BUNDLE = s2c("bundle");

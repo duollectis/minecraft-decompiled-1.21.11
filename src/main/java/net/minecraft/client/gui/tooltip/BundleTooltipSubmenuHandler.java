@@ -73,6 +73,12 @@ public class BundleTooltipSubmenuHandler implements TooltipSubmenuHandler {
 		}
 	}
 
+	/**
+	 * Reset.
+	 *
+	 * @param item item
+	 * @param slotId slot id
+	 */
 	public void reset(ItemStack item, int slotId) {
 		this.sendPacket(item, slotId, -1);
 	}

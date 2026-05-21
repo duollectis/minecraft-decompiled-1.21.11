@@ -32,6 +32,11 @@ public class DolphinEntityRenderer extends AgeableMobEntityRenderer<DolphinEntit
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return DolphinEntityRenderState — результат операции
+	 */
 	public DolphinEntityRenderState createRenderState() {
 		return new DolphinEntityRenderState();
 	}

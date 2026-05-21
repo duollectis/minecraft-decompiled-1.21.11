@@ -14,6 +14,9 @@ import net.minecraft.text.TextCodecs;
 
 import java.util.Optional;
 
+/**
+ * Запись scoreboard score update s2 c packet.
+ */
 public record ScoreboardScoreUpdateS2CPacket(
 		String scoreHolderName,
 		String objectiveName,
@@ -41,6 +44,11 @@ public record ScoreboardScoreUpdateS2CPacket(
 		return PlayPackets.SET_SCORE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onScoreboardScoreUpdate(this);
 	}

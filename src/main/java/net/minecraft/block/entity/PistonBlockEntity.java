@@ -286,6 +286,9 @@ public class PistonBlockEntity extends BlockEntity {
 		return this.pushedBlockState;
 	}
 
+	/**
+	 * Finish.
+	 */
 	public void finish() {
 		if (this.world != null && (this.lastProgress < 1.0F || this.world.isClient())) {
 			this.progress = 1.0F;
@@ -320,6 +323,14 @@ public class PistonBlockEntity extends BlockEntity {
 		return this.extending ? this.facing : this.facing.getOpposite();
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, PistonBlockEntity blockEntity) {
 		blockEntity.savedWorldTime = world.getTime();
 		blockEntity.lastProgress = blockEntity.progress;

@@ -35,6 +35,13 @@ public class DispenserBlockEntity extends LootableContainerBlockEntity {
 		return 9;
 	}
 
+	/**
+	 * Choose non empty slot.
+	 *
+	 * @param random random
+	 *
+	 * @return int — результат операции
+	 */
 	public int chooseNonEmptySlot(Random random) {
 		this.generateLoot(null);
 		int i = -1;
@@ -49,6 +56,13 @@ public class DispenserBlockEntity extends LootableContainerBlockEntity {
 		return i;
 	}
 
+	/**
+	 * Добавляет to first free slot.
+	 *
+	 * @param stack stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack addToFirstFreeSlot(ItemStack stack) {
 		int i = this.getMaxCount(stack);
 

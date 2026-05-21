@@ -146,6 +146,13 @@ public record Enchantment(
 		return this.definition.supportedItems();
 	}
 
+	/**
+	 * Slot matches.
+	 *
+	 * @param slot slot
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean slotMatches(EquipmentSlot slot) {
 		return this.definition.slots().stream().anyMatch(slotx -> slotx.matches(slot));
 	}
@@ -189,6 +196,14 @@ public record Enchantment(
 		return "Enchantment " + this.description.getString();
 	}
 
+	/**
+	 * Проверяет возможность be combined.
+	 *
+	 * @param first first
+	 * @param second second
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canBeCombined(RegistryEntry<Enchantment> first, RegistryEntry<Enchantment> second) {
 		return !first.equals(second) && !first.value().exclusiveSet.contains(second)
 				&& !second.value().exclusiveSet.contains(first);
@@ -251,10 +266,26 @@ public record Enchantment(
 		}
 	}
 
+	/**
+	 * Modify item damage.
+	 *
+	 * @param world world
+	 * @param level level
+	 * @param stack stack
+	 * @param itemDamage item damage
+	 */
 	public void modifyItemDamage(ServerWorld world, int level, ItemStack stack, MutableFloat itemDamage) {
 		this.modifyValue(EnchantmentEffectComponentTypes.ITEM_DAMAGE, world, level, stack, itemDamage);
 	}
 
+	/**
+	 * Modify ammo use.
+	 *
+	 * @param world world
+	 * @param level level
+	 * @param projectileStack projectile stack
+	 * @param ammoUse ammo use
+	 */
 	public void modifyAmmoUse(ServerWorld world, int level, ItemStack projectileStack, MutableFloat ammoUse) {
 		this.modifyValue(EnchantmentEffectComponentTypes.AMMO_USE, world, level, projectileStack, ammoUse);
 	}
@@ -268,6 +299,14 @@ public record Enchantment(
 		this.modifyValue(EnchantmentEffectComponentTypes.PROJECTILE_PIERCING, world, level, stack, projectilePiercing);
 	}
 
+	/**
+	 * Modify block experience.
+	 *
+	 * @param world world
+	 * @param level level
+	 * @param stack stack
+	 * @param blockExperience block experience
+	 */
 	public void modifyBlockExperience(ServerWorld world, int level, ItemStack stack, MutableFloat blockExperience) {
 		this.modifyValue(EnchantmentEffectComponentTypes.BLOCK_EXPERIENCE, world, level, stack, blockExperience);
 	}
@@ -308,6 +347,13 @@ public record Enchantment(
 		);
 	}
 
+	/**
+	 * Modify trident spin attack strength.
+	 *
+	 * @param random random
+	 * @param level level
+	 * @param tridentSpinAttackStrength trident spin attack strength
+	 */
 	public void modifyTridentSpinAttackStrength(Random random, int level, MutableFloat tridentSpinAttackStrength) {
 		this.modifyValue(
 				EnchantmentEffectComponentTypes.TRIDENT_SPIN_ATTACK_STRENGTH,
@@ -447,6 +493,14 @@ public record Enchantment(
 		}
 	}
 
+	/**
+	 * Обрабатывает событие piercing attack.
+	 *
+	 * @param world world
+	 * @param level level
+	 * @param context context
+	 * @param attacker attacker
+	 */
 	public void onPiercingAttack(ServerWorld world, int level, EnchantmentEffectContext context, Entity attacker) {
 		applyEffects(
 				this.getEffect(EnchantmentEffectComponentTypes.POST_PIERCING_ATTACK),
@@ -482,10 +536,25 @@ public record Enchantment(
 		);
 	}
 
+	/**
+	 * Modify crossbow charge time.
+	 *
+	 * @param random random
+	 * @param level level
+	 * @param crossbowChargeTime crossbow charge time
+	 */
 	public void modifyCrossbowChargeTime(Random random, int level, MutableFloat crossbowChargeTime) {
 		this.modifyValue(EnchantmentEffectComponentTypes.CROSSBOW_CHARGE_TIME, random, level, crossbowChargeTime);
 	}
 
+	/**
+	 * Modify value.
+	 *
+	 * @param type type
+	 * @param random random
+	 * @param level level
+	 * @param value value
+	 */
 	public void modifyValue(ComponentType<EnchantmentValueEffect> type, Random random, int level, MutableFloat value) {
 		EnchantmentValueEffect enchantmentValueEffect = this.effects.get(type);
 		if (enchantmentValueEffect != null) {
@@ -493,6 +562,14 @@ public record Enchantment(
 		}
 	}
 
+	/**
+	 * Обрабатывает событие tick.
+	 *
+	 * @param world world
+	 * @param level level
+	 * @param context context
+	 * @param user user
+	 */
 	public void onTick(ServerWorld world, int level, EnchantmentEffectContext context, Entity user) {
 		applyEffects(
 				this.getEffect(EnchantmentEffectComponentTypes.TICK),
@@ -501,6 +578,14 @@ public record Enchantment(
 		);
 	}
 
+	/**
+	 * Обрабатывает событие projectile spawned.
+	 *
+	 * @param world world
+	 * @param level level
+	 * @param context context
+	 * @param user user
+	 */
 	public void onProjectileSpawned(ServerWorld world, int level, EnchantmentEffectContext context, Entity user) {
 		applyEffects(
 				this.getEffect(EnchantmentEffectComponentTypes.PROJECTILE_SPAWNED),
@@ -586,6 +671,15 @@ public record Enchantment(
 		return new LootContext.Builder(lootWorldContext).build(Optional.empty());
 	}
 
+	/**
+	 * Создаёт enchanted item loot context.
+	 *
+	 * @param world world
+	 * @param level level
+	 * @param stack stack
+	 *
+	 * @return LootContext — результат операции
+	 */
 	public static LootContext createEnchantedItemLootContext(ServerWorld world, int level, ItemStack stack) {
 		LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
 				.add(LootContextParameters.TOOL, stack)
@@ -609,6 +703,16 @@ public record Enchantment(
 		return new LootContext.Builder(lootWorldContext).build(Optional.empty());
 	}
 
+	/**
+	 * Создаёт enchanted entity loot context.
+	 *
+	 * @param world world
+	 * @param level level
+	 * @param entity entity
+	 * @param pos pos
+	 *
+	 * @return LootContext — результат операции
+	 */
 	public static LootContext createEnchantedEntityLootContext(ServerWorld world, int level, Entity entity, Vec3d pos) {
 		LootWorldContext lootWorldContext = new LootWorldContext.Builder(world)
 				.add(LootContextParameters.THIS_ENTITY, entity)
@@ -695,6 +799,13 @@ public record Enchantment(
 		}
 	}
 
+	/**
+	 * Удаляет location based effects.
+	 *
+	 * @param level level
+	 * @param context context
+	 * @param user user
+	 */
 	public void removeLocationBasedEffects(int level, EnchantmentEffectContext context, LivingEntity user) {
 		EquipmentSlot equipmentSlot = context.slot();
 		if (equipmentSlot != null) {
@@ -806,6 +917,13 @@ public record Enchantment(
 			);
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param id id
+		 *
+		 * @return Enchantment — результат операции
+		 */
 		public Enchantment build(Identifier id) {
 			return new Enchantment(
 					Text.translatable(Util.createTranslationKey("enchantment", id)),
@@ -829,6 +947,13 @@ public record Enchantment(
 				                    .apply(instance, Enchantment.Cost::new)
 		);
 
+		/**
+		 * For level.
+		 *
+		 * @param level level
+		 *
+		 * @return int — результат операции
+		 */
 		public int forLevel(int level) {
 			return this.base + this.perLevelAboveFirst * (level - 1);
 		}

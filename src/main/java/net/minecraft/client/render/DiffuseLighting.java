@@ -64,6 +64,11 @@ public class DiffuseLighting implements AutoCloseable {
 		);
 	}
 
+	/**
+	 * Обновляет level buffer.
+	 *
+	 * @param cardinalLightType cardinal light type
+	 */
 	public void updateLevelBuffer(DimensionType.CardinalLightType cardinalLightType) {
 		switch (cardinalLightType) {
 			case DEFAULT:

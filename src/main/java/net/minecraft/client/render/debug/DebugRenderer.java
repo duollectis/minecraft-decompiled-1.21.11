@@ -34,6 +34,9 @@ public class DebugRenderer {
 		this.initRenderers();
 	}
 
+	/**
+	 * Инициализирует renderers.
+	 */
 	public void initRenderers() {
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		this.renderers.clear();
@@ -144,6 +147,15 @@ public class DebugRenderer {
 		this.renderers.add(new ChunkDebugRenderer(minecraftClient));
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param frustum frustum
+	 * @param cameraX camera x
+	 * @param cameraY camera y
+	 * @param cameraZ camera z
+	 * @param tickProgress tick progress
+	 */
 	public void render(Frustum frustum, double cameraX, double cameraY, double cameraZ, float tickProgress) {
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		DebugDataStore debugDataStore = minecraftClient.getNetworkHandler().getDebugDataStore();

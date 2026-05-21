@@ -46,6 +46,12 @@ public class JukeboxManager {
 		}
 	}
 
+	/**
+	 * Запускает playing.
+	 *
+	 * @param world world
+	 * @param song song
+	 */
 	public void startPlaying(WorldAccess world, RegistryEntry<JukeboxSong> song) {
 		this.song = song;
 		this.ticksSinceSongStarted = 0L;
@@ -54,6 +60,12 @@ public class JukeboxManager {
 		this.changeNotifier.notifyChange();
 	}
 
+	/**
+	 * Останавливает playing.
+	 *
+	 * @param world world
+	 * @param state state
+	 */
 	public void stopPlaying(WorldAccess world, @Nullable BlockState state) {
 		if (this.song != null) {
 			this.song = null;
@@ -64,6 +76,12 @@ public class JukeboxManager {
 		}
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param state state
+	 */
 	public void tick(WorldAccess world, @Nullable BlockState state) {
 		if (this.song != null) {
 			if (this.song.value().shouldStopPlaying(this.ticksSinceSongStarted)) {

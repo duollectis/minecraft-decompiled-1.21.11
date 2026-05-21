@@ -31,6 +31,11 @@ public class TeamMsgCommand {
 			NO_TEAM_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.teammsg.failed.noteam"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		LiteralCommandNode<ServerCommandSource> literalCommandNode = dispatcher.register(
 				(LiteralArgumentBuilder) CommandManager.literal("teammsg")

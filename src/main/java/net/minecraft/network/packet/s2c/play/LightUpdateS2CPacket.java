@@ -12,6 +12,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.BitSet;
 
+/**
+ * Класс light update s2 c packet.
+ */
 public class LightUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, LightUpdateS2CPacket>
@@ -49,6 +52,11 @@ public class LightUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.LIGHT_UPDATE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onLightUpdate(this);
 	}

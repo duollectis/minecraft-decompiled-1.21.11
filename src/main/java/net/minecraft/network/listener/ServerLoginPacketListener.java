@@ -6,6 +6,9 @@ import net.minecraft.network.packet.c2s.login.LoginHelloC2SPacket;
 import net.minecraft.network.packet.c2s.login.LoginKeyC2SPacket;
 import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
 
+/**
+ * Интерфейс server login packet listener.
+ */
 public interface ServerLoginPacketListener extends ServerCookieResponsePacketListener {
 
 	@Override

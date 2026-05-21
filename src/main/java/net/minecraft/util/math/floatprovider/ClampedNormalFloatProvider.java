@@ -36,6 +36,16 @@ public class ClampedNormalFloatProvider extends FloatProvider {
 	private final float min;
 	private final float max;
 
+	/**
+	 * Create.
+	 *
+	 * @param mean mean
+	 * @param deviation deviation
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return ClampedNormalFloatProvider — результат операции
+	 */
 	public static ClampedNormalFloatProvider create(float mean, float deviation, float min, float max) {
 		return new ClampedNormalFloatProvider(mean, deviation, min, max);
 	}
@@ -52,6 +62,17 @@ public class ClampedNormalFloatProvider extends FloatProvider {
 		return get(random, this.mean, this.deviation, this.min, this.max);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param random random
+	 * @param mean mean
+	 * @param deviation deviation
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return float — 
+	 */
 	public static float get(Random random, float mean, float deviation, float min, float max) {
 		return MathHelper.clamp(MathHelper.nextGaussian(random, mean, deviation), min, max);
 	}

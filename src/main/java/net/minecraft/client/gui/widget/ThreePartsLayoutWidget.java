@@ -114,30 +114,81 @@ public class ThreePartsLayoutWidget implements LayoutWidget {
 		this.body.setPosition(0, Math.min(k, l));
 	}
 
+	/**
+	 * Добавляет header.
+	 *
+	 * @param widget widget
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T addHeader(T widget) {
 		return this.header.add(widget);
 	}
 
+	/**
+	 * Добавляет header.
+	 *
+	 * @param widget widget
+	 * @param callback callback
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T addHeader(T widget, Consumer<Positioner> callback) {
 		return this.header.add(widget, callback);
 	}
 
+	/**
+	 * Добавляет header.
+	 *
+	 * @param text text
+	 * @param textRenderer text renderer
+	 */
 	public void addHeader(Text text, TextRenderer textRenderer) {
 		this.header.add(new TextWidget(text, textRenderer));
 	}
 
+	/**
+	 * Добавляет footer.
+	 *
+	 * @param widget widget
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T addFooter(T widget) {
 		return this.footer.add(widget);
 	}
 
+	/**
+	 * Добавляет footer.
+	 *
+	 * @param widget widget
+	 * @param callback callback
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T addFooter(T widget, Consumer<Positioner> callback) {
 		return this.footer.add(widget, callback);
 	}
 
+	/**
+	 * Добавляет body.
+	 *
+	 * @param widget widget
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T addBody(T widget) {
 		return this.body.add(widget);
 	}
 
+	/**
+	 * Добавляет body.
+	 *
+	 * @param widget widget
+	 * @param callback callback
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T addBody(T widget, Consumer<Positioner> callback) {
 		return this.body.add(widget, callback);
 	}

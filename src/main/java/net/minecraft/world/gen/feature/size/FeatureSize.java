@@ -18,6 +18,11 @@ public abstract class FeatureSize {
 	protected static final int MAX_HEIGHT = 16;
 	protected final OptionalInt minClippedHeight;
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @return RecordCodecBuilder — результат операции
+	 */
 	protected static <S extends FeatureSize> RecordCodecBuilder<S, OptionalInt> createCodec() {
 		return Codec.intRange(0, 80)
 		            .optionalFieldOf("min_clipped_height")

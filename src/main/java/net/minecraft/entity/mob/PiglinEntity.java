@@ -173,10 +173,24 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 		this.inventory.clearToList().forEach(stack -> this.dropStack(world, stack));
 	}
 
+	/**
+	 * Добавляет item.
+	 *
+	 * @param stack stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	protected ItemStack addItem(ItemStack stack) {
 		return this.inventory.addStack(stack);
 	}
 
+	/**
+	 * Проверяет возможность insert into inventory.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canInsertIntoInventory(ItemStack stack) {
 		return this.inventory.canInsert(stack);
 	}
@@ -419,10 +433,20 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 		return stack.getItem() == Items.CROSSBOW || stack.contains(DataComponentTypes.KINETIC_WEAPON);
 	}
 
+	/**
+	 * Equip to main hand.
+	 *
+	 * @param stack stack
+	 */
 	protected void equipToMainHand(ItemStack stack) {
 		this.equipLootStack(EquipmentSlot.MAINHAND, stack);
 	}
 
+	/**
+	 * Equip to off hand.
+	 *
+	 * @param stack stack
+	 */
 	protected void equipToOffHand(ItemStack stack) {
 		if (stack.isOf(PiglinBrain.BARTERING_ITEM)) {
 			this.equipStack(EquipmentSlot.OFFHAND, stack);
@@ -439,6 +463,13 @@ public class PiglinEntity extends AbstractPiglinEntity implements CrossbowUser, 
 				&& PiglinBrain.canGather(this, stack);
 	}
 
+	/**
+	 * Проверяет возможность equip stack.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canEquipStack(ItemStack stack) {
 		EquipmentSlot equipmentSlot = this.getPreferredEquipmentSlot(stack);
 		ItemStack itemStack = this.getEquippedStack(equipmentSlot);

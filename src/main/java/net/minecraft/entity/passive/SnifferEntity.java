@@ -124,6 +124,11 @@ public class SnifferEntity extends AnimalEntity {
 		return this.brain.getOptionalRegisteredMemory(MemoryModuleType.IS_TEMPTED).orElse(false);
 	}
 
+	/**
+	 * Проверяет возможность try to dig.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canTryToDig() {
 		return !this.isTempted()
 				&& !this.isPanicking()
@@ -204,6 +209,13 @@ public class SnifferEntity extends AnimalEntity {
 		this.scentingAnimationState.stop();
 	}
 
+	/**
+	 * Запускает state.
+	 *
+	 * @param state state
+	 *
+	 * @return SnifferEntity — результат операции
+	 */
 	public SnifferEntity startState(SnifferEntity.State state) {
 		switch (state) {
 			case IDLING:
@@ -245,6 +257,13 @@ public class SnifferEntity extends AnimalEntity {
 		return this;
 	}
 
+	/**
+	 * Finish digging.
+	 *
+	 * @param explored explored
+	 *
+	 * @return SnifferEntity — результат операции
+	 */
 	public SnifferEntity finishDigging(boolean explored) {
 		if (explored) {
 			this.addExploredPosition(this.getSteppingPos());

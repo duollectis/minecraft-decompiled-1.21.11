@@ -35,6 +35,11 @@ public record DimensionPadding(int bottom, int top) {
 		this(value, value);
 	}
 
+	/**
+	 * Padded by same distance.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean paddedBySameDistance() {
 		return this.top == this.bottom;
 	}

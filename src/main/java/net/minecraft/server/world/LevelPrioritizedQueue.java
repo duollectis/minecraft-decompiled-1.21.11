@@ -24,6 +24,13 @@ public class LevelPrioritizedQueue {
 		this.name = name;
 	}
 
+	/**
+	 * Обновляет level.
+	 *
+	 * @param fromLevel from level
+	 * @param pos pos
+	 * @param toLevel to level
+	 */
 	protected void updateLevel(int fromLevel, ChunkPos pos, int toLevel) {
 		if (fromLevel < LEVEL_COUNT) {
 			Long2ObjectLinkedOpenHashMap<List<Runnable>> long2ObjectLinkedOpenHashMap = this.values.get(fromLevel);
@@ -44,11 +51,24 @@ public class LevelPrioritizedQueue {
 		}
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param task task
+	 * @param pos pos
+	 * @param level level
+	 */
 	protected void add(Runnable task, long pos, int level) {
 		((List) this.values.get(level).computeIfAbsent(pos, chunkPos -> Lists.newArrayList())).add(task);
 		this.topPriority = Math.min(this.topPriority, level);
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param pos pos
+	 * @param removeElement remove element
+	 */
 	protected void remove(long pos, boolean removeElement) {
 		for (Long2ObjectLinkedOpenHashMap<List<Runnable>> long2ObjectLinkedOpenHashMap : this.values) {
 			List<Runnable> list = (List<Runnable>) long2ObjectLinkedOpenHashMap.get(pos);

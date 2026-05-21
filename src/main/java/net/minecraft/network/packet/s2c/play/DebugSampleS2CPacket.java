@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.profiler.log.DebugSampleType;
 
+/**
+ * Запись debug sample s2 c packet.
+ */
 public record DebugSampleS2CPacket(
 		long[] sample,
 		DebugSampleType debugSampleType
@@ -31,6 +34,11 @@ public record DebugSampleS2CPacket(
 		return PlayPackets.DEBUG_SAMPLE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onDebugSample(this);
 	}

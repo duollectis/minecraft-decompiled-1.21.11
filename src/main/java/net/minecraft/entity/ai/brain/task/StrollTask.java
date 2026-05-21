@@ -24,10 +24,25 @@ public class StrollTask {
 	private static final int DEFAULT_VERTICAL_RADIUS = 7;
 	private static final int[][] RADII = new int[][]{{1, 1}, {3, 3}, {5, 5}, {6, 5}, {7, 7}, {10, 7}};
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<PathAwareEntity> create(float speed) {
 		return create(speed, true);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 * @param strollInsideWater stroll inside water
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<PathAwareEntity> create(float speed, boolean strollInsideWater) {
 		return create(
 				speed,
@@ -36,14 +51,37 @@ public class StrollTask {
 		);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 * @param horizontalRadius horizontal radius
+	 * @param verticalRadius vertical radius
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<PathAwareEntity> create(float speed, int horizontalRadius, int verticalRadius) {
 		return create(speed, entity -> FuzzyTargeting.find(entity, horizontalRadius, verticalRadius), entity -> true);
 	}
 
+	/**
+	 * Создаёт solid targeting.
+	 *
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<PathAwareEntity> createSolidTargeting(float speed) {
 		return create(speed, entity -> findTargetPos(entity, 10, 7), entity -> true);
 	}
 
+	/**
+	 * Создаёт dynamic radius.
+	 *
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<PathAwareEntity> createDynamicRadius(float speed) {
 		return create(speed, StrollTask::findTargetPos, Entity::isTouchingWater);
 	}

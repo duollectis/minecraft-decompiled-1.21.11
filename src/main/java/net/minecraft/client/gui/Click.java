@@ -17,6 +17,11 @@ public record Click(double x, double y, MouseInput buttonInfo) implements Abstra
 	}
 
 	@MouseInput.ButtonCode
+	/**
+	 * Button.
+	 *
+	 * @return int — результат операции
+	 */
 	public int button() {
 		return this.buttonInfo().button();
 	}

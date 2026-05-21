@@ -46,12 +46,22 @@ public class ClientChunkLoadProgress implements ChunkLoadProgress {
 		this.chunkLoadMap = map;
 	}
 
+	/**
+	 * Запускает world loading.
+	 *
+	 * @param player player
+	 * @param world world
+	 * @param renderer renderer
+	 */
 	public void startWorldLoading(ClientPlayerEntity player, ClientWorld world, WorldRenderer renderer) {
 		LOGGER.debug("[ChunkLoadProgress] startWorldLoading — переход в состояние Start");
 		this.state =
 				new ClientChunkLoadProgress.Start(player, world, renderer, Util.getMeasuringTimeMs() + THIRTY_SECONDS);
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.state == null) {
 			return;
@@ -95,6 +105,9 @@ public class ClientChunkLoadProgress implements ChunkLoadProgress {
 		return false;
 	}
 
+	/**
+	 * Инициализирует ial chunks coming.
+	 */
 	public void initialChunksComing() {
 		if (this.state == null) {
 			return;

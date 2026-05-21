@@ -13,6 +13,14 @@ import java.util.Optional;
  */
 public class FindInteractionTargetTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param type type
+	 * @param maxDistance max distance
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(EntityType<?> type, int maxDistance) {
 		int i = maxDistance * maxDistance;
 		return TaskTriggerer.task(

@@ -217,6 +217,14 @@ public class CommandManager {
 		this.dispatcher.setConsumer(AbstractServerCommandSource.asResultConsumer());
 	}
 
+	/**
+	 * With command source.
+	 *
+	 * @param parseResults parse results
+	 * @param sourceMapper source mapper
+	 *
+	 * @return ParseResults — результат операции
+	 */
 	public static <S> ParseResults<S> withCommandSource(ParseResults<S> parseResults, UnaryOperator<S> sourceMapper) {
 		CommandContextBuilder<S> commandContextBuilder = parseResults.getContext();
 		CommandContextBuilder<S>
@@ -225,15 +233,34 @@ public class CommandManager {
 		return new ParseResults(commandContextBuilder2, parseResults.getReader(), parseResults.getExceptions());
 	}
 
+	/**
+	 * Разбирает and execute.
+	 *
+	 * @param source source
+	 * @param command command
+	 */
 	public void parseAndExecute(ServerCommandSource source, String command) {
 		command = stripLeadingSlash(command);
 		this.execute(this.dispatcher.parse(command, source), command);
 	}
 
+	/**
+	 * Strip leading slash.
+	 *
+	 * @param command command
+	 *
+	 * @return String — результат операции
+	 */
 	public static String stripLeadingSlash(String command) {
 		return command.startsWith("/") ? command.substring(1) : command;
 	}
 
+	/**
+	 * Execute.
+	 *
+	 * @param parseResults parse results
+	 * @param command command
+	 */
 	public void execute(ParseResults<ServerCommandSource> parseResults, String command) {
 		ServerCommandSource serverCommandSource = (ServerCommandSource) parseResults.getContext().getSource();
 		Profilers.get().push(() -> "/" + command);
@@ -354,6 +381,11 @@ public class CommandManager {
 		}
 	}
 
+	/**
+	 * Отправляет command tree.
+	 *
+	 * @param player player
+	 */
 	public void sendCommandTree(ServerPlayerEntity player) {
 		Map<CommandNode<ServerCommandSource>, CommandNode<ServerCommandSource>> map = new HashMap<>();
 		RootCommandNode<ServerCommandSource> rootCommandNode = new RootCommandNode();
@@ -385,10 +417,25 @@ public class CommandManager {
 		}
 	}
 
+	/**
+	 * Literal.
+	 *
+	 * @param literal literal
+	 *
+	 * @return LiteralArgumentBuilder — результат операции
+	 */
 	public static LiteralArgumentBuilder<ServerCommandSource> literal(String literal) {
 		return LiteralArgumentBuilder.literal(literal);
 	}
 
+	/**
+	 * Argument.
+	 *
+	 * @param name name
+	 * @param type type
+	 *
+	 * @return RequiredArgumentBuilder — результат операции
+	 */
 	public static <T> RequiredArgumentBuilder<ServerCommandSource, T> argument(String name, ArgumentType<T> type) {
 		return RequiredArgumentBuilder.argument(name, type);
 	}
@@ -409,6 +456,13 @@ public class CommandManager {
 		return this.dispatcher;
 	}
 
+	/**
+	 * Throw exception.
+	 *
+	 * @param parse parse
+	 *
+	 * @return void — результат операции
+	 */
 	public static <S> void throwException(ParseResults<S> parse) throws CommandSyntaxException {
 		CommandSyntaxException commandSyntaxException = getException(parse);
 		if (commandSyntaxException != null) {
@@ -434,6 +488,13 @@ public class CommandManager {
 		}
 	}
 
+	/**
+	 * Создаёт registry access.
+	 *
+	 * @param registries registries
+	 *
+	 * @return CommandRegistryAccess — результат операции
+	 */
 	public static CommandRegistryAccess createRegistryAccess(RegistryWrapper.WrapperLookup registries) {
 		return new CommandRegistryAccess() {
 			@Override
@@ -473,6 +534,9 @@ public class CommandManager {
 		};
 	}
 
+	/**
+	 * Проверяет missing.
+	 */
 	public static void checkMissing() {
 		CommandRegistryAccess commandRegistryAccess = createRegistryAccess(BuiltinRegistries.createWrapperLookup());
 		CommandDispatcher<ServerCommandSource>
@@ -499,10 +563,24 @@ public class CommandManager {
 		}
 	}
 
+	/**
+	 * Require permission level.
+	 *
+	 * @param check check
+	 *
+	 * @return PermissionSourcePredicate — результат операции
+	 */
 	public static <T extends PermissionSource> PermissionSourcePredicate<T> requirePermissionLevel(PermissionCheck check) {
 		return new PermissionSourcePredicate<>(check);
 	}
 
+	/**
+	 * Создаёт source.
+	 *
+	 * @param permissions permissions
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public static ServerCommandSource createSource(PermissionPredicate permissions) {
 		return new ServerCommandSource(
 				CommandOutput.DUMMY,

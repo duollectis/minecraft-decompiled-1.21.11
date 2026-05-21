@@ -25,6 +25,14 @@ record UnobstructedBlockPredicate(Vec3i offset) implements BlockPredicate {
 		return BlockPredicateType.UNOBSTRUCTED;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param structureWorldAccess structure world access
+	 * @param blockPos block pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
 		return structureWorldAccess.doesNotIntersectEntities(null, VoxelShapes.fullCube().offset(blockPos));
 	}

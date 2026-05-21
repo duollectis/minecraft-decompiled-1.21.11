@@ -163,6 +163,13 @@ public final class SpawnHelper {
 	}
 
 	@Debug
+	/**
+	 * Создаёт (спавнит) entities in chunk.
+	 *
+	 * @param group group
+	 * @param world world
+	 * @param pos pos
+	 */
 	public static void spawnEntitiesInChunk(SpawnGroup group, ServerWorld world, BlockPos pos) {
 		spawnEntitiesInChunk(
 				group,

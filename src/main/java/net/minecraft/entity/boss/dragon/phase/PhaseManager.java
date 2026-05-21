@@ -46,6 +46,13 @@ public class PhaseManager {
 		return Objects.requireNonNull(this.current);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param type type
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Phase> T create(PhaseType<T> type) {
 		int i = type.getTypeId();
 		Phase phase = this.phases[i];

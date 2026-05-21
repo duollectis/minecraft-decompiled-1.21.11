@@ -148,6 +148,11 @@ public abstract class AbstractSignEditScreen extends Screen {
 		return true;
 	}
 
+	/**
+	 * Отрисовывает sign background.
+	 *
+	 * @param context context
+	 */
 	protected abstract void renderSignBackground(DrawContext context);
 
 	protected abstract Vector3f getTextScale();

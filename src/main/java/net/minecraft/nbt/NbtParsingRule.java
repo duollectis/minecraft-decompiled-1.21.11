@@ -18,6 +18,13 @@ public class NbtParsingRule<T> implements ParsingRule<StringReader, Dynamic<?>> 
 		this.nbtReader = StringNbtReader.fromOps(ops);
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param parsingState parsing state
+	 *
+	 * @return @Nullable Dynamic — результат операции
+	 */
 	public @Nullable Dynamic<T> parse(ParsingState<StringReader> parsingState) {
 		parsingState.getReader().skipWhitespace();
 		int i = parsingState.getCursor();

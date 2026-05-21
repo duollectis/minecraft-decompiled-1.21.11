@@ -57,6 +57,11 @@ public class SignBlockEntity extends BlockEntity {
 		this.backText = this.createText();
 	}
 
+	/**
+	 * Создаёт text.
+	 *
+	 * @return SignText — результат операции
+	 */
 	protected SignText createText() {
 		return new SignText();
 	}
@@ -134,6 +139,13 @@ public class SignBlockEntity extends BlockEntity {
 		return text;
 	}
 
+	/**
+	 * Try change text.
+	 *
+	 * @param player player
+	 * @param front front
+	 * @param messages messages
+	 */
 	public void tryChangeText(PlayerEntity player, boolean front, List<FilteredMessage> messages) {
 		if (!this.isWaxed() && player.getUuid().equals(this.getEditor()) && this.world != null) {
 			this.changeText(text -> this.getTextWithMessages(player, messages, text), front);
@@ -145,6 +157,14 @@ public class SignBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * Change text.
+	 *
+	 * @param textChanger text changer
+	 * @param front front
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean changeText(UnaryOperator<SignText> textChanger, boolean front) {
 		SignText signText = this.getText(front);
 		return this.setText(textChanger.apply(signText), front);
@@ -196,10 +216,28 @@ public class SignBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * Проверяет возможность run command click event.
+	 *
+	 * @param front front
+	 * @param player player
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canRunCommandClickEvent(boolean front, PlayerEntity player) {
 		return this.isWaxed() && this.getText(front).hasRunCommandClickEvent(player);
 	}
 
+	/**
+	 * Run command click event.
+	 *
+	 * @param world world
+	 * @param player player
+	 * @param pos pos
+	 * @param front front
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean runCommandClickEvent(ServerWorld world, PlayerEntity player, BlockPos pos, boolean front) {
 		boolean bl = false;
 
@@ -249,6 +287,11 @@ public class SignBlockEntity extends BlockEntity {
 		);
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
@@ -291,6 +334,14 @@ public class SignBlockEntity extends BlockEntity {
 		return playerEntity == null || !playerEntity.canInteractWithBlockAt(this.getPos(), 4.0);
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, SignBlockEntity blockEntity) {
 		UUID uUID = blockEntity.getEditor();
 		if (uUID != null) {

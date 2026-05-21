@@ -36,6 +36,13 @@ public class RoarTask extends MultiTickTask<WardenEntity> {
 		);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
 		Brain<WardenEntity> brain = wardenEntity.getBrain();
 		brain.remember(MemoryModuleType.ROAR_SOUND_DELAY, Unit.INSTANCE, 25L);
@@ -48,10 +55,26 @@ public class RoarTask extends MultiTickTask<WardenEntity> {
 		wardenEntity.increaseAngerAt(livingEntity, 20, false);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
 		return true;
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
 		if (!wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.ROAR_SOUND_DELAY)
 				&& !wardenEntity.getBrain().hasMemoryModule(MemoryModuleType.ROAR_SOUND_COOLDOWN)) {
@@ -62,6 +85,13 @@ public class RoarTask extends MultiTickTask<WardenEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, WardenEntity wardenEntity, long l) {
 		if (wardenEntity.isInPose(EntityPose.ROARING)) {
 			wardenEntity.setPose(EntityPose.STANDING);

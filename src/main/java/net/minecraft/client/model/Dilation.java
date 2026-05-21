@@ -24,10 +24,26 @@ public class Dilation {
 		this(radius, radius, radius);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param radius radius
+	 *
+	 * @return Dilation — результат операции
+	 */
 	public Dilation add(float radius) {
 		return new Dilation(this.radiusX + radius, this.radiusY + radius, this.radiusZ + radius);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param radiusX radius x
+	 * @param radiusY radius y
+	 * @param radiusZ radius z
+	 *
+	 * @return Dilation — результат операции
+	 */
 	public Dilation add(float radiusX, float radiusY, float radiusZ) {
 		return new Dilation(this.radiusX + radiusX, this.radiusY + radiusY, this.radiusZ + radiusZ);
 	}

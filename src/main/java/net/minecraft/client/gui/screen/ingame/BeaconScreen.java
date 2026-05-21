@@ -203,6 +203,11 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 			this.renderExtra(context);
 		}
 
+		/**
+		 * Отрисовывает extra.
+		 *
+		 * @param context context
+		 */
 		protected abstract void renderExtra(DrawContext context);
 
 		public boolean isDisabled() {
@@ -299,6 +304,11 @@ public class BeaconScreen extends HandledScreen<BeaconScreenHandler> {
 			this.init(effect);
 		}
 
+		/**
+		 * Init.
+		 *
+		 * @param effect effect
+		 */
 		protected void init(RegistryEntry<StatusEffect> effect) {
 			this.effect = effect;
 			this.sprite = InGameHud.getEffectTexture(effect);

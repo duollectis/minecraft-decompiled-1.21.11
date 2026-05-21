@@ -27,6 +27,11 @@ public abstract class AbstractTextWidget extends ClickableWidget {
 		this.textRenderer = textRenderer;
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param textConsumer text consumer
+	 */
 	public abstract void draw(DrawnTextConsumer textConsumer);
 
 	@Override
@@ -78,6 +83,13 @@ public abstract class AbstractTextWidget extends ClickableWidget {
 		this.setWidth(this.getTextRenderer().getWidth(message.asOrderedText()));
 	}
 
+	/**
+	 * Обрабатывает событие click.
+	 *
+	 * @param clickedStyleConsumer clicked style consumer
+	 *
+	 * @return AbstractTextWidget — результат операции
+	 */
 	public AbstractTextWidget onClick(@Nullable Consumer<Style> clickedStyleConsumer) {
 		this.clickedStyleConsumer = clickedStyleConsumer;
 		return this;

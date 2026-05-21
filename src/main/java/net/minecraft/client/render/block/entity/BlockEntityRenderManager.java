@@ -67,6 +67,13 @@ public class BlockEntityRenderManager implements SynchronousResourceReloader {
 		this.playerSkinCache = playerSkinCache;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param blockEntity block entity
+	 *
+	 * @return @Nullable BlockEntityRenderer — 
+	 */
 	public <E extends BlockEntity, S extends BlockEntityRenderState> @Nullable BlockEntityRenderer<E, S> get(E blockEntity) {
 		return (BlockEntityRenderer<E, S>) this.renderers.get(blockEntity.getType());
 	}
@@ -77,6 +84,11 @@ public class BlockEntityRenderManager implements SynchronousResourceReloader {
 		return (BlockEntityRenderer<E, S>) this.renderers.get(renderState.type);
 	}
 
+	/**
+	 * Configure.
+	 *
+	 * @param camera camera
+	 */
 	public void configure(Camera camera) {
 		this.cameraPos = camera.getCameraPos();
 	}

@@ -15,6 +15,9 @@ import net.minecraft.util.Identifier;
 
 import java.util.List;
 
+/**
+ * Запись dynamic registries s2 c packet.
+ */
 public record DynamicRegistriesS2CPacket(
 		RegistryKey<? extends Registry<?>> registry,
 		List<SerializableRegistries.SerializedRegistryEntry> entries
@@ -38,6 +41,11 @@ public record DynamicRegistriesS2CPacket(
 		return ConfigPackets.REGISTRY_DATA;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientConfigurationPacketListener client configuration packet listener
+	 */
 	public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
 		clientConfigurationPacketListener.onDynamicRegistries(this);
 	}

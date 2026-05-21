@@ -14,6 +14,14 @@ import net.minecraft.world.poi.PointOfInterestStorage;
  */
 public class GoToCloserPointOfInterestTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 * @param completionRange completion range
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<VillagerEntity> create(float speed, int completionRange) {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET)).apply(

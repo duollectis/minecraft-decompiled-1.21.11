@@ -92,6 +92,12 @@ public record BlocksAttacksComponent(
 			BlocksAttacksComponent::new
 	);
 
+	/**
+	 * Play block sound.
+	 *
+	 * @param world world
+	 * @param from from
+	 */
 	public void playBlockSound(ServerWorld world, LivingEntity from) {
 		this.blockSound
 				.ifPresent(
@@ -137,6 +143,15 @@ public record BlocksAttacksComponent(
 		}
 	}
 
+	/**
+	 * Обрабатывает событие shield hit.
+	 *
+	 * @param world world
+	 * @param stack stack
+	 * @param entity entity
+	 * @param hand hand
+	 * @param itemDamage item damage
+	 */
 	public void onShieldHit(World world, ItemStack stack, LivingEntity entity, Hand hand, float itemDamage) {
 		if (entity instanceof PlayerEntity playerEntity) {
 			if (!world.isClient()) {
@@ -247,6 +262,13 @@ public record BlocksAttacksComponent(
 				DEFAULT =
 				new BlocksAttacksComponent.ItemDamage(1.0F, 0.0F, 1.0F);
 
+		/**
+		 * Calculate.
+		 *
+		 * @param itemDamage item damage
+		 *
+		 * @return int — результат операции
+		 */
 		public int calculate(float itemDamage) {
 			return itemDamage < this.threshold ? 0 : MathHelper.floor(this.base + this.factor * itemDamage);
 		}

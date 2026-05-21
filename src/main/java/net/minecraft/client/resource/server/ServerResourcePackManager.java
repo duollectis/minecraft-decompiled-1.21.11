@@ -50,6 +50,13 @@ public class ServerResourcePackManager {
 		}
 	}
 
+	/**
+	 * Добавляет resource pack.
+	 *
+	 * @param id id
+	 * @param url url
+	 * @param hashCode hash code
+	 */
 	public void addResourcePack(UUID id, URL url, @Nullable HashCode hashCode) {
 		if (this.acceptanceStatus == ServerResourcePackManager.AcceptanceStatus.DECLINED) {
 			this.stateChangeCallback.onFinish(id, PackStateChangeCallback.FinishState.DECLINED);
@@ -59,6 +66,12 @@ public class ServerResourcePackManager {
 		}
 	}
 
+	/**
+	 * Добавляет resource pack.
+	 *
+	 * @param id id
+	 * @param path path
+	 */
 	public void addResourcePack(UUID id, Path path) {
 		if (this.acceptanceStatus == ServerResourcePackManager.AcceptanceStatus.DECLINED) {
 			this.stateChangeCallback.onFinish(id, PackStateChangeCallback.FinishState.DECLINED);
@@ -104,6 +117,11 @@ public class ServerResourcePackManager {
 		return null;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param id id
+	 */
 	public void remove(UUID id) {
 		ServerResourcePackManager.PackEntry packEntry = this.get(id);
 		if (packEntry != null) {
@@ -112,6 +130,9 @@ public class ServerResourcePackManager {
 		}
 	}
 
+	/**
+	 * Удаляет all.
+	 */
 	public void removeAll() {
 		for (ServerResourcePackManager.PackEntry packEntry : this.packs) {
 			packEntry.discard(ServerResourcePackManager.DiscardReason.SERVER_REMOVED);
@@ -120,6 +141,9 @@ public class ServerResourcePackManager {
 		this.onPackChanged();
 	}
 
+	/**
+	 * Accept all.
+	 */
 	public void acceptAll() {
 		this.acceptanceStatus = ServerResourcePackManager.AcceptanceStatus.ALLOWED;
 
@@ -132,6 +156,9 @@ public class ServerResourcePackManager {
 		this.onPackChanged();
 	}
 
+	/**
+	 * Decline all.
+	 */
 	public void declineAll() {
 		this.acceptanceStatus = ServerResourcePackManager.AcceptanceStatus.DECLINED;
 
@@ -144,10 +171,16 @@ public class ServerResourcePackManager {
 		this.onPackChanged();
 	}
 
+	/**
+	 * Сбрасывает acceptance status.
+	 */
 	public void resetAcceptanceStatus() {
 		this.acceptanceStatus = ServerResourcePackManager.AcceptanceStatus.PENDING;
 	}
 
+	/**
+	 * Update.
+	 */
 	public void update() {
 		boolean bl = this.enqueueDownloads();
 		if (!bl) {
@@ -393,6 +426,11 @@ public class ServerResourcePackManager {
 			this.hashCode = hashCode;
 		}
 
+		/**
+		 * Discard.
+		 *
+		 * @param reason reason
+		 */
 		public void discard(ServerResourcePackManager.DiscardReason reason) {
 			if (this.discardReason == null) {
 				this.discardReason = reason;

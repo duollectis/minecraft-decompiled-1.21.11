@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.tick.TickManager;
 
+/**
+ * Запись update tick rate s2 c packet.
+ */
 public record UpdateTickRateS2CPacket(float tickRate, boolean isFrozen) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, UpdateTickRateS2CPacket> CODEC = Packet.createCodec(
@@ -18,6 +21,13 @@ public record UpdateTickRateS2CPacket(float tickRate, boolean isFrozen) implemen
 		this(buf.readFloat(), buf.readBoolean());
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param tickManager tick manager
+	 *
+	 * @return UpdateTickRateS2CPacket — результат операции
+	 */
 	public static UpdateTickRateS2CPacket create(TickManager tickManager) {
 		return new UpdateTickRateS2CPacket(tickManager.getTickRate(), tickManager.isFrozen());
 	}
@@ -32,6 +42,11 @@ public record UpdateTickRateS2CPacket(float tickRate, boolean isFrozen) implemen
 		return PlayPackets.TICKING_STATE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onUpdateTickRate(this);
 	}

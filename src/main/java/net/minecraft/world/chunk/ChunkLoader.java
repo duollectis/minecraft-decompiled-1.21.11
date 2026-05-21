@@ -38,6 +38,15 @@ public class ChunkLoader {
 		this.chunks = chunks;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param chunkLoadingManager chunk loading manager
+	 * @param targetStatus target status
+	 * @param pos pos
+	 *
+	 * @return ChunkLoader — результат операции
+	 */
 	public static ChunkLoader create(ChunkLoadingManager chunkLoadingManager, ChunkStatus targetStatus, ChunkPos pos) {
 		int i = ChunkGenerationSteps.GENERATION.get(targetStatus).getAdditionalLevel(ChunkStatus.EMPTY);
 		BoundedRegionArray<AbstractChunkHolder> boundedRegionArray = BoundedRegionArray.create(
@@ -46,6 +55,11 @@ public class ChunkLoader {
 		return new ChunkLoader(chunkLoadingManager, targetStatus, pos, boundedRegionArray);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @return @Nullable CompletableFuture — результат операции
+	 */
 	public @Nullable CompletableFuture<?> run() {
 		while (true) {
 			CompletableFuture<?> completableFuture = this.getLatestPendingFuture();
@@ -80,6 +94,9 @@ public class ChunkLoader {
 		this.currentlyLoadingStatus = chunkStatus;
 	}
 
+	/**
+	 * Mark pending disposal.
+	 */
 	public void markPendingDisposal() {
 		this.pendingDisposal = true;
 	}

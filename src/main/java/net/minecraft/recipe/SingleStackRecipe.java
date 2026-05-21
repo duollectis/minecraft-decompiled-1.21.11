@@ -43,10 +43,20 @@ public abstract class SingleStackRecipe implements Recipe<SingleStackRecipeInput
 		return this.group;
 	}
 
+	/**
+	 * Ingredient.
+	 *
+	 * @return Ingredient — результат операции
+	 */
 	public Ingredient ingredient() {
 		return this.ingredient;
 	}
 
+	/**
+	 * Result.
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	protected ItemStack result() {
 		return this.result;
 	}
@@ -60,6 +70,14 @@ public abstract class SingleStackRecipe implements Recipe<SingleStackRecipeInput
 		return this.ingredientPlacement;
 	}
 
+	/**
+	 * Craft.
+	 *
+	 * @param singleStackRecipeInput single stack recipe input
+	 * @param wrapperLookup wrapper lookup
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack craft(SingleStackRecipeInput singleStackRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
 		return this.result.copy();
 	}

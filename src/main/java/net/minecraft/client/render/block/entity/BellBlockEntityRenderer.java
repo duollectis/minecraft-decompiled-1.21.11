@@ -36,6 +36,11 @@ public class BellBlockEntityRenderer implements BlockEntityRenderer<BellBlockEnt
 		this.bellBody = new BellBlockModel(context.getLayerModelPart(EntityModelLayers.BELL));
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BellBlockEntityRenderState — результат операции
+	 */
 	public BellBlockEntityRenderState createRenderState() {
 		return new BellBlockEntityRenderState();
 	}

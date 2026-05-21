@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PlayPackets;
 
 import java.util.Set;
 
+/**
+ * Запись player position look s2 c packet.
+ */
 public record PlayerPositionLookS2CPacket(
 		int teleportId,
 		EntityPosition change,
@@ -27,6 +30,15 @@ public record PlayerPositionLookS2CPacket(
 			PlayerPositionLookS2CPacket::new
 	);
 
+	/**
+	 * Of.
+	 *
+	 * @param teleportId teleport id
+	 * @param pos pos
+	 * @param flags flags
+	 *
+	 * @return PlayerPositionLookS2CPacket — результат операции
+	 */
 	public static PlayerPositionLookS2CPacket of(int teleportId, EntityPosition pos, Set<PositionFlag> flags) {
 		return new PlayerPositionLookS2CPacket(teleportId, pos, flags);
 	}
@@ -36,6 +48,11 @@ public record PlayerPositionLookS2CPacket(
 		return PlayPackets.PLAYER_POSITION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlayerPositionLook(this);
 	}

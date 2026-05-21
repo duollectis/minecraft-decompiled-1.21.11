@@ -39,6 +39,14 @@ public class SpearFleeTask extends MultiTickTask<PathAwareEntity> {
 				.contains(DataComponentTypes.KINETIC_WEAPON);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, PathAwareEntity pathAwareEntity) {
 		if (this.shouldAttack(pathAwareEntity) && !pathAwareEntity.isUsingItem()) {
 			if (pathAwareEntity
@@ -82,12 +90,28 @@ public class SpearFleeTask extends MultiTickTask<PathAwareEntity> {
 		}
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		pathAwareEntity.setAttacking(true);
 		pathAwareEntity.getBrain().remember(MemoryModuleType.SPEAR_FLEEING_TIME, 0);
 		super.run(serverWorld, pathAwareEntity, l);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		return pathAwareEntity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.SPEAR_FLEEING_TIME).orElse(100)
 				< 100
@@ -99,6 +123,13 @@ public class SpearFleeTask extends MultiTickTask<PathAwareEntity> {
 				&& this.shouldAttack(pathAwareEntity);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		LivingEntity livingEntity = this.getAttackTarget(pathAwareEntity);
 		float
@@ -121,6 +152,13 @@ public class SpearFleeTask extends MultiTickTask<PathAwareEntity> {
 				               .startMovingTo(pos.x, pos.y, pos.z, f * this.speed));
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		pathAwareEntity.getNavigation().stop();
 		pathAwareEntity.setAttacking(false);

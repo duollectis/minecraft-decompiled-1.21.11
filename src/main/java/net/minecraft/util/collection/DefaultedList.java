@@ -16,14 +16,34 @@ public class DefaultedList<E> extends AbstractList<E> {
 	private final List<E> delegate;
 	private final @Nullable E initialElement;
 
+	/**
+	 * Of.
+	 *
+	 * @return DefaultedList — результат операции
+	 */
 	public static <E> DefaultedList<E> of() {
 		return new DefaultedList<>(Lists.newArrayList(), null);
 	}
 
+	/**
+	 * Of size.
+	 *
+	 * @param size size
+	 *
+	 * @return DefaultedList — результат операции
+	 */
 	public static <E> DefaultedList<E> ofSize(int size) {
 		return new DefaultedList<>(Lists.newArrayListWithCapacity(size), null);
 	}
 
+	/**
+	 * Of size.
+	 *
+	 * @param size size
+	 * @param defaultValue default value
+	 *
+	 * @return DefaultedList — результат операции
+	 */
 	public static <E> DefaultedList<E> ofSize(int size, E defaultValue) {
 		Objects.requireNonNull(defaultValue);
 		Object[] objects = new Object[size];
@@ -32,6 +52,14 @@ public class DefaultedList<E> extends AbstractList<E> {
 	}
 
 	@SafeVarargs
+	/**
+	 * Создаёт копию of.
+	 *
+	 * @param defaultValue default value
+	 * @param values values
+	 *
+	 * @return DefaultedList — результат операции
+	 */
 	public static <E> DefaultedList<E> copyOf(E defaultValue, E... values) {
 		return new DefaultedList<>(Arrays.asList(values), defaultValue);
 	}

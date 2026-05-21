@@ -43,10 +43,23 @@ public class FrogBrain {
 	private static final float TONGUE_SPEED = 3.5714288F;
 	private static final float TEMPT_SPEED = 1.25F;
 
+	/**
+	 * Cool down long jump.
+	 *
+	 * @param frog frog
+	 * @param random random
+	 */
 	protected static void coolDownLongJump(FrogEntity frog, Random random) {
 		frog.getBrain().remember(MemoryModuleType.LONG_JUMP_COOLING_DOWN, LONG_JUMP_COOLDOWN_RANGE.get(random));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<FrogEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -277,6 +290,11 @@ public class FrogBrain {
 		return !TargetUtil.hasBreedTarget(frog);
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param frog frog
+	 */
 	public static void updateActivities(FrogEntity frog) {
 		frog
 				.getBrain()

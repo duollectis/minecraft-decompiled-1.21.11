@@ -31,6 +31,14 @@ public class BiMapPalette<T> implements Palette<T> {
 		this.map = map;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param bits bits
+	 * @param values values
+	 *
+	 * @return Palette — результат операции
+	 */
 	public static <A> Palette<A> create(int bits, List<A> values) {
 		return new BiMapPalette<>(bits, values);
 	}

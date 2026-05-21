@@ -21,6 +21,14 @@ public class EntityAttachments {
 		this.points = points;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param width width
+	 * @param height height
+	 *
+	 * @return EntityAttachments — результат операции
+	 */
 	public static EntityAttachments of(float width, float height) {
 		return builder().build(width, height);
 	}
@@ -29,6 +37,15 @@ public class EntityAttachments {
 		return new EntityAttachments.Builder();
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param xScale x scale
+	 * @param yScale y scale
+	 * @param zScale z scale
+	 *
+	 * @return EntityAttachments — результат операции
+	 */
 	public EntityAttachments scale(float xScale, float yScale, float zScale) {
 		return new EntityAttachments(Util.mapEnum(
 				EntityAttachmentType.class, type -> {
@@ -108,6 +125,14 @@ public class EntityAttachments {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param width width
+		 * @param height height
+		 *
+		 * @return EntityAttachments — результат операции
+		 */
 		public EntityAttachments build(float width, float height) {
 			Map<EntityAttachmentType, List<Vec3d>> map = Util.mapEnum(
 					EntityAttachmentType.class, type -> {

@@ -100,6 +100,13 @@ public class RegistryBuilder {
 		 */
 		record WrapperInfoPair<T>(RegistryWrapper.Impl<T> lookup, RegistryOps.RegistryInfo<T> opsInfo) {
 
+			/**
+			 * Of.
+			 *
+			 * @param wrapper wrapper
+			 *
+			 * @return WrapperInfoPair — результат операции
+			 */
 			public static <T> WrapperInfoPair<T> of(RegistryWrapper.Impl<T> wrapper) {
 				return new WrapperInfoPair<>(
 						new RegistryBuilder.UntaggedDelegatingLookup<>(wrapper, wrapper),
@@ -107,6 +114,14 @@ public class RegistryBuilder {
 				);
 			}
 
+			/**
+			 * Of.
+			 *
+			 * @param owner owner
+			 * @param wrapper wrapper
+			 *
+			 * @return WrapperInfoPair — результат операции
+			 */
 			public static <T> WrapperInfoPair<T> of(RegistryBuilder.AnyOwner owner, RegistryWrapper.Impl<T> wrapper) {
 				return new WrapperInfoPair<>(
 						new RegistryBuilder.UntaggedDelegatingLookup<>(owner.downcast(), wrapper),
@@ -285,6 +300,11 @@ public class RegistryBuilder {
 	static class AnyOwner implements RegistryEntryOwner<Object> {
 
 		@SuppressWarnings("unchecked")
+		/**
+		 * Downcast.
+		 *
+		 * @return RegistryEntryOwner — результат операции
+		 */
 		public <T> RegistryEntryOwner<T> downcast() {
 			return (RegistryEntryOwner<T>) this;
 		}
@@ -430,6 +450,11 @@ public class RegistryBuilder {
 			);
 		}
 
+		/**
+		 * Создаёт registerable.
+		 *
+		 * @return Registerable — результат операции
+		 */
 		public <T> Registerable<T> createRegisterable() {
 			return new Registerable<T>() {
 				@Override
@@ -456,17 +481,26 @@ public class RegistryBuilder {
 			};
 		}
 
+		/**
+		 * Проверяет orphaned values.
+		 */
 		public void checkOrphanedValues() {
 			this.registeredValues.forEach((key, value) -> this.errors.add(new IllegalStateException(
 					"Orpaned value " + value.value + " for key " + key)));
 		}
 
+		/**
+		 * Проверяет unreferenced keys.
+		 */
 		public void checkUnreferencedKeys() {
 			for (RegistryKey<Object> registryKey : this.lookup.keysToEntries.keySet()) {
 				this.errors.add(new IllegalStateException("Unreferenced key: " + registryKey));
 			}
 		}
 
+		/**
+		 * Throw errors.
+		 */
 		public void throwErrors() {
 			if (!this.errors.isEmpty()) {
 				IllegalStateException

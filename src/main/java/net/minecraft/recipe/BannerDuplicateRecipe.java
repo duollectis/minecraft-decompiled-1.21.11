@@ -20,6 +20,14 @@ public class BannerDuplicateRecipe extends SpecialCraftingRecipe {
 		super(craftingRecipeCategory);
 	}
 
+	/**
+	 * Matches.
+	 *
+	 * @param craftingRecipeInput crafting recipe input
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
 		if (craftingRecipeInput.getStackCount() != 2) {
 			return false;
@@ -74,6 +82,14 @@ public class BannerDuplicateRecipe extends SpecialCraftingRecipe {
 		}
 	}
 
+	/**
+	 * Craft.
+	 *
+	 * @param craftingRecipeInput crafting recipe input
+	 * @param wrapperLookup wrapper lookup
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
 		for (int i = 0; i < craftingRecipeInput.size(); i++) {
 			ItemStack itemStack = craftingRecipeInput.getStackInSlot(i);

@@ -29,6 +29,13 @@ public class ContextMessageCollector {
 		this.leadingContextMessageCount = leadingContextMessageCount;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param log log
+	 * @param selections selections
+	 * @param consumer consumer
+	 */
 	public void add(ChatLog log, IntCollection selections, ContextMessageCollector.IndexedMessageConsumer consumer) {
 		IntSortedSet intSortedSet = new IntRBTreeSet(selections);
 
@@ -48,10 +55,22 @@ public class ContextMessageCollector {
 		}
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param message message
+	 */
 	public void add(SignedMessage message) {
 		this.contextMessages.add(new ContextMessageCollector.ContextMessage(message));
 	}
 
+	/**
+	 * Try link.
+	 *
+	 * @param message message
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean tryLink(SignedMessage message) {
 		boolean bl = false;
 		Iterator<ContextMessageCollector.ContextMessage> iterator = this.contextMessages.iterator();

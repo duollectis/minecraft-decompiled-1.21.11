@@ -36,6 +36,13 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 		ExecutorSampling.INSTANCE.add(this);
 	}
 
+	/**
+	 * Проверяет возможность execute.
+	 *
+	 * @param task task
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected abstract boolean canExecute(R task);
 
 	public boolean isOnThread() {
@@ -44,6 +51,11 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 
 	protected abstract Thread getThread();
 
+	/**
+	 * Определяет, следует ли execute async.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldExecuteAsync() {
 		return !this.isOnThread();
 	}
@@ -57,6 +69,13 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 		return this.name;
 	}
 
+	/**
+	 * Submit.
+	 *
+	 * @param task task
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public <V> CompletableFuture<V> submit(Supplier<V> task) {
 		return this.shouldExecuteAsync() ? CompletableFuture.supplyAsync(task, this)
 		                                 : CompletableFuture.completedFuture(task.get());
@@ -72,6 +91,13 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 	}
 
 	@CheckReturnValue
+	/**
+	 * Submit.
+	 *
+	 * @param task task
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Void> submit(Runnable task) {
 		if (this.shouldExecuteAsync()) {
 			return this.submitAsync(task);
@@ -82,6 +108,11 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 		}
 	}
 
+	/**
+	 * Submit and join.
+	 *
+	 * @param runnable runnable
+	 */
 	public void submitAndJoin(Runnable runnable) {
 		if (!this.isOnThread()) {
 			this.submitAsync(runnable).join();
@@ -108,14 +139,25 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 		}
 	}
 
+	/**
+	 * Execute sync.
+	 *
+	 * @param runnable runnable
+	 */
 	public void executeSync(Runnable runnable) {
 		this.execute(runnable);
 	}
 
+	/**
+	 * Проверяет возможность cel tasks.
+	 */
 	protected void cancelTasks() {
 		this.tasks.clear();
 	}
 
+	/**
+	 * Run tasks.
+	 */
 	protected void runTasks() {
 		while (this.runTask()) {
 		}
@@ -125,6 +167,11 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 		return this.executionsInProgress > 0;
 	}
 
+	/**
+	 * Run task.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean runTask() {
 		R runnable = this.tasks.peek();
 		if (runnable == null) {
@@ -139,6 +186,11 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 		}
 	}
 
+	/**
+	 * Run tasks.
+	 *
+	 * @param stopCondition stop condition
+	 */
 	public void runTasks(BooleanSupplier stopCondition) {
 		this.executionsInProgress++;
 
@@ -154,11 +206,19 @@ public abstract class ThreadExecutor<R extends Runnable> implements SampleableEx
 		}
 	}
 
+	/**
+	 * Wait for tasks.
+	 */
 	protected void waitForTasks() {
 		Thread.yield();
 		LockSupport.parkNanos("waiting for tasks", 100000L);
 	}
 
+	/**
+	 * Execute task.
+	 *
+	 * @param task task
+	 */
 	protected void executeTask(R task) {
 		try {
 			Zone zone = TracyClient.beginZone("Task", SharedConstants.isDevelopment);

@@ -76,6 +76,11 @@ public class SpawnArmorTrimsCommand {
 			pattern -> Text.stringifiedTranslatable("Invalid pattern", pattern)
 	);
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager

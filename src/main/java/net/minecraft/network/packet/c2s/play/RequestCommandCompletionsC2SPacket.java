@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс request command completions c2 s packet.
+ */
 public class RequestCommandCompletionsC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, RequestCommandCompletionsC2SPacket> CODEC = Packet.createCodec(
@@ -35,6 +38,11 @@ public class RequestCommandCompletionsC2SPacket implements Packet<ServerPlayPack
 		return PlayPackets.COMMAND_SUGGESTION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onRequestCommandCompletions(this);
 	}

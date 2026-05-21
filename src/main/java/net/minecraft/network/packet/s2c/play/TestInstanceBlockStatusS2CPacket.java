@@ -13,6 +13,9 @@ import net.minecraft.util.math.Vec3i;
 
 import java.util.Optional;
 
+/**
+ * Запись test instance block status s2 c packet.
+ */
 public record TestInstanceBlockStatusS2CPacket(
 		Text status,
 		Optional<Vec3i> size
@@ -31,6 +34,11 @@ public record TestInstanceBlockStatusS2CPacket(
 		return PlayPackets.TEST_INSTANCE_BLOCK_STATUS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onTestInstanceBlockStatus(this);
 	}

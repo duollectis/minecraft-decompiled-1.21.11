@@ -257,6 +257,9 @@ public class SpecialModelTypes {
 			CHRISTMAS_CHEST =
 			new ChestModelRenderer.Unbaked(ChestModelRenderer.CHRISTMAS_ID);
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		ID_MAPPER.put(Identifier.ofVanilla("bed"), BedModelRenderer.Unbaked.CODEC);
 		ID_MAPPER.put(Identifier.ofVanilla("banner"), BannerModelRenderer.Unbaked.CODEC);
@@ -273,6 +276,13 @@ public class SpecialModelTypes {
 		ID_MAPPER.put(Identifier.ofVanilla("hanging_sign"), HangingSignModelRenderer.Unbaked.CODEC);
 	}
 
+	/**
+	 * Строит block to model type map.
+	 *
+	 * @param bakeContext bake context
+	 *
+	 * @return Map> — результат операции
+	 */
 	public static Map<Block, SpecialModelRenderer<?>> buildBlockToModelTypeMap(SpecialModelRenderer.BakeContext bakeContext) {
 		Map<Block, SpecialModelRenderer.Unbaked> map = new HashMap<>(BLOCK_TO_MODEL_TYPE);
 		if (ChestBlockEntityRenderer.isAroundChristmas()) {

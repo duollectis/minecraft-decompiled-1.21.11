@@ -25,6 +25,7 @@ import net.minecraft.entity.RideableInventory;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.fluid.FluidState;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.ItemUsageContext;
 import net.minecraft.network.listener.ServerPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.*;
@@ -868,8 +869,10 @@ public class ClientPlayerInteractionManager {
 	}
 
 	/**
-	 * Внутренняя реализация взаимодействия с блоком.
-	 * Отправляет пакет на сервер и применяет оптимистичное обновление на клиенте.
+	 * Внутренняя реализация взаимодействия с блоком на стороне клиента.
+	 * Вызывается внутри {@link #sendSequencedPacket} — пакет уже создаётся снаружи.
+	 * Если {@code onUseWithItem} возвращает {@code PASS_TO_DEFAULT_BLOCK_ACTION},
+	 * вызывается {@code onUse} — стандартное действие блока (открытие сундука, нажатие кнопки и т.д.).
 	 *
 	 * @param player    игрок
 	 * @param hand      рука
@@ -877,26 +880,26 @@ public class ClientPlayerInteractionManager {
 	 * @return результат взаимодействия
 	 */
 	private ActionResult interactBlockInternal(ClientPlayerEntity player, Hand hand, BlockHitResult hitResult) {
-		BlockPos pos = hitResult.getBlockPos();
-		BlockState blockState = client.world.getBlockState(pos);
+		BlockState blockState = client.world.getBlockState(hitResult.getBlockPos());
+		ActionResult actionResult = blockState.onUseWithItem(player.getMainHandStack(), client.world, player, hand, hitResult);
 
-		MutableObject<ActionResult> resultHolder = new MutableObject<>();
+		if (actionResult instanceof ActionResult.PassToDefaultBlockAction) {
+			ActionResult useResult = blockState.onUse(client.world, player, hitResult);
 
-		sendSequencedPacket(
-				client.world, sequence -> {
-					PlayerInteractBlockC2SPacket packet = new PlayerInteractBlockC2SPacket(hand, hitResult, sequence);
-					resultHolder.setValue(blockState.onUseWithItem(
-							player.getMainHandStack(),
-							client.world,
-							player,
-							hand,
-							hitResult
-					));
-					return packet;
-				}
-		);
+			if (useResult.isAccepted()) {
+				return useResult;
+			}
+		} else if (actionResult.isAccepted()) {
+			return actionResult;
+		}
 
-		return resultHolder.getValue() == null ? ActionResult.PASS : resultHolder.getValue();
+		ItemStack stack = player.getStackInHand(hand);
+
+		if (stack.isEmpty() || player.getItemCooldownManager().isCoolingDown(stack)) {
+			return ActionResult.PASS;
+		}
+
+		return stack.useOnBlock(new ItemUsageContext(player, hand, hitResult));
 	}
 
 	/**

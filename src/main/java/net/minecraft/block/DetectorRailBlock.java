@@ -129,6 +129,14 @@ public class DetectorRailBlock extends AbstractRailBlock {
 		}
 	}
 
+	/**
+	 * Обновляет nearby rails.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param unpowering unpowering
+	 */
 	protected void updateNearbyRails(World world, BlockPos pos, BlockState state, boolean unpowering) {
 		RailPlacementHelper railPlacementHelper = new RailPlacementHelper(world, pos, state);
 

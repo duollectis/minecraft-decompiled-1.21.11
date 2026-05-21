@@ -43,6 +43,11 @@ public class CommandBossBar extends ServerBossBar {
 		this.playerUuids.add(player.getUuid());
 	}
 
+	/**
+	 * Добавляет player.
+	 *
+	 * @param uuid uuid
+	 */
 	public void addPlayer(UUID uuid) {
 		this.playerUuids.add(uuid);
 	}
@@ -77,6 +82,11 @@ public class CommandBossBar extends ServerBossBar {
 		this.setPercent(MathHelper.clamp((float) this.value / maxValue, 0.0F, 1.0F));
 	}
 
+	/**
+	 * To hoverable text.
+	 *
+	 * @return Text — результат операции
+	 */
 	public final Text toHoverableText() {
 		return Texts.bracketed(this.getName())
 		            .styled(
@@ -88,6 +98,13 @@ public class CommandBossBar extends ServerBossBar {
 		            );
 	}
 
+	/**
+	 * Добавляет players.
+	 *
+	 * @param players players
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean addPlayers(Collection<ServerPlayerEntity> players) {
 		Set<UUID> set = Sets.newHashSet();
 		Set<ServerPlayerEntity> set2 = Sets.newHashSet();
@@ -140,6 +157,14 @@ public class CommandBossBar extends ServerBossBar {
 		return !set.isEmpty() || !set2.isEmpty();
 	}
 
+	/**
+	 * From serialized.
+	 *
+	 * @param id id
+	 * @param serialized serialized
+	 *
+	 * @return CommandBossBar — результат операции
+	 */
 	public static CommandBossBar fromSerialized(Identifier id, CommandBossBar.Serialized serialized) {
 		CommandBossBar commandBossBar = new CommandBossBar(id, serialized.name);
 		commandBossBar.setVisible(serialized.visible);
@@ -169,12 +194,22 @@ public class CommandBossBar extends ServerBossBar {
 		);
 	}
 
+	/**
+	 * Обрабатывает событие player connect.
+	 *
+	 * @param player player
+	 */
 	public void onPlayerConnect(ServerPlayerEntity player) {
 		if (this.playerUuids.contains(player.getUuid())) {
 			this.addPlayer(player);
 		}
 	}
 
+	/**
+	 * Обрабатывает событие player disconnect.
+	 *
+	 * @param player player
+	 */
 	public void onPlayerDisconnect(ServerPlayerEntity player) {
 		super.removePlayer(player);
 	}

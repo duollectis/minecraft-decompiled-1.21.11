@@ -66,6 +66,13 @@ public class ParrotEntity extends TameableShoulderEntity implements Flutterer {
 			VARIANT =
 			DataTracker.registerData(ParrotEntity.class, TrackedDataHandlerRegistry.INTEGER);
 	private static final Predicate<MobEntity> CAN_IMITATE = new Predicate<MobEntity>() {
+		/**
+		 * Test.
+		 *
+		 * @param mobEntity mob entity
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean test(@Nullable MobEntity mobEntity) {
 			return mobEntity != null && ParrotEntity.MOB_SOUNDS.containsKey(mobEntity.getType());
 		}
@@ -226,6 +233,14 @@ public class ParrotEntity extends TameableShoulderEntity implements Flutterer {
 		this.flapProgress = this.flapProgress + this.flapSpeed * 2.0F;
 	}
 
+	/**
+	 * Imitate nearby mob.
+	 *
+	 * @param world world
+	 * @param parrot parrot
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean imitateNearbyMob(World world, Entity parrot) {
 		if (parrot.isAlive() && !parrot.isSilent() && world.random.nextInt(2) == 0) {
 			List<MobEntity>

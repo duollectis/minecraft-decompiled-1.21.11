@@ -41,19 +41,45 @@ public final class Pool<E> {
 		}
 	}
 
+	/**
+	 * Empty.
+	 *
+	 * @return Pool — результат операции
+	 */
 	public static <E> Pool<E> empty() {
 		return new Pool<>(List.of());
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param entry entry
+	 *
+	 * @return Pool — результат операции
+	 */
 	public static <E> Pool<E> of(E entry) {
 		return new Pool<>(List.of(new Weighted<>(entry, 1)));
 	}
 
 	@SafeVarargs
+	/**
+	 * Of.
+	 *
+	 * @param entries entries
+	 *
+	 * @return Pool — результат операции
+	 */
 	public static <E> Pool<E> of(Weighted<E>... entries) {
 		return new Pool<>(List.of(entries));
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param entries entries
+	 *
+	 * @return Pool — результат операции
+	 */
 	public static <E> Pool<E> of(List<Weighted<E>> entries) {
 		return new Pool<>(entries);
 	}
@@ -66,6 +92,13 @@ public final class Pool<E> {
 		return this.entries.isEmpty();
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param function function
+	 *
+	 * @return Pool — результат операции
+	 */
 	public <T> Pool<T> transform(Function<E, T> function) {
 		return new Pool(Lists.transform(this.entries, entry -> entry.transform(function)));
 	}
@@ -80,6 +113,13 @@ public final class Pool<E> {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param random random
+	 *
+	 * @return E — 
+	 */
 	public E get(Random random) {
 		if (this.content == null) {
 			throw new IllegalStateException("Weighted list has no elements");
@@ -94,26 +134,68 @@ public final class Pool<E> {
 		return this.entries;
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param entryCodec entry codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <E> Codec<Pool<E>> createCodec(Codec<E> entryCodec) {
 		return Weighted.createCodec(entryCodec).listOf().xmap(Pool::of, Pool::getEntries);
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param entryCodec entry codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <E> Codec<Pool<E>> createCodec(MapCodec<E> entryCodec) {
 		return Weighted.createCodec(entryCodec).listOf().xmap(Pool::of, Pool::getEntries);
 	}
 
+	/**
+	 * Создаёт non empty codec.
+	 *
+	 * @param entryCodec entry codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <E> Codec<Pool<E>> createNonEmptyCodec(Codec<E> entryCodec) {
 		return Codecs.nonEmptyList(Weighted.createCodec(entryCodec).listOf()).xmap(Pool::of, Pool::getEntries);
 	}
 
+	/**
+	 * Создаёт non empty codec.
+	 *
+	 * @param entryCodec entry codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <E> Codec<Pool<E>> createNonEmptyCodec(MapCodec<E> entryCodec) {
 		return Codecs.nonEmptyList(Weighted.createCodec(entryCodec).listOf()).xmap(Pool::of, Pool::getEntries);
 	}
 
+	/**
+	 * Создаёт packet codec.
+	 *
+	 * @param entryCodec entry codec
+	 *
+	 * @return PacketCodec> — результат операции
+	 */
 	public static <E, B extends ByteBuf> PacketCodec<B, Pool<E>> createPacketCodec(PacketCodec<B, E> entryCodec) {
 		return Weighted.createPacketCodec(entryCodec).collect(PacketCodecs.toList()).xmap(Pool::of, Pool::getEntries);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param value value
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(E value) {
 		for (Weighted<E> weighted : this.entries) {
 			if (weighted.value().equals(value)) {
@@ -159,6 +241,11 @@ public final class Pool<E> {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return Pool — результат операции
+		 */
 		public Pool<E> build() {
 			return new Pool<>(this.entries.build());
 		}

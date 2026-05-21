@@ -33,6 +33,13 @@ public record ItemAsset(
 		this(model, properties, null);
 	}
 
+	/**
+	 * With context swapper.
+	 *
+	 * @param contextSwapper context swapper
+	 *
+	 * @return ItemAsset — результат операции
+	 */
 	public ItemAsset withContextSwapper(ContextSwapper contextSwapper) {
 		return new ItemAsset(this.model, this.properties, contextSwapper);
 	}

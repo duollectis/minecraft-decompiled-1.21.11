@@ -63,6 +63,13 @@ public class ServerConfigHandler {
 		}
 	}
 
+	/**
+	 * Конвертирует banned players.
+	 *
+	 * @param server server
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean convertBannedPlayers(MinecraftServer server) {
 		final BannedPlayerList
 				bannedPlayerList =
@@ -81,6 +88,12 @@ public class ServerConfigHandler {
 				final Map<String, String[]> map = Maps.newHashMap();
 				processSimpleListFile(BANNED_PLAYERS_FILE, map);
 				ProfileLookupCallback profileLookupCallback = new ProfileLookupCallback() {
+					/**
+					 * Обрабатывает событие profile lookup succeeded.
+					 *
+					 * @param string string
+					 * @param uUID u u i d
+					 */
 					public void onProfileLookupSucceeded(String string, UUID uUID) {
 						PlayerConfigEntry playerConfigEntry = new PlayerConfigEntry(uUID, string);
 						server.getApiServices().nameToIdCache().add(playerConfigEntry);
@@ -107,6 +120,12 @@ public class ServerConfigHandler {
 						}
 					}
 
+					/**
+					 * Обрабатывает событие profile lookup failed.
+					 *
+					 * @param string string
+					 * @param exception exception
+					 */
 					public void onProfileLookupFailed(String string, Exception exception) {
 						ServerConfigHandler.LOGGER.warn(
 								"Could not lookup user banlist entry for {}",
@@ -140,6 +159,13 @@ public class ServerConfigHandler {
 		}
 	}
 
+	/**
+	 * Конвертирует banned ips.
+	 *
+	 * @param server server
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean convertBannedIps(MinecraftServer server) {
 		BannedIpList bannedIpList = new BannedIpList(PlayerManager.BANNED_IPS_FILE, new BlankManagementListener());
 		if (BANNED_IPS_FILE.exists() && BANNED_IPS_FILE.isFile()) {
@@ -179,6 +205,13 @@ public class ServerConfigHandler {
 		}
 	}
 
+	/**
+	 * Конвертирует operators.
+	 *
+	 * @param server server
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean convertOperators(MinecraftServer server) {
 		final OperatorList operatorList = new OperatorList(PlayerManager.OPERATORS_FILE, new BlankManagementListener());
 		if (OPERATORS_FILE.exists() && OPERATORS_FILE.isFile()) {
@@ -194,12 +227,24 @@ public class ServerConfigHandler {
 			try {
 				List<String> list = Files.readLines(OPERATORS_FILE, StandardCharsets.UTF_8);
 				ProfileLookupCallback profileLookupCallback = new ProfileLookupCallback() {
+					/**
+					 * Обрабатывает событие profile lookup succeeded.
+					 *
+					 * @param string string
+					 * @param uUID u u i d
+					 */
 					public void onProfileLookupSucceeded(String string, UUID uUID) {
 						PlayerConfigEntry playerConfigEntry = new PlayerConfigEntry(uUID, string);
 						server.getApiServices().nameToIdCache().add(playerConfigEntry);
 						operatorList.add(new OperatorEntry(playerConfigEntry, server.getOpPermissionLevel(), false));
 					}
 
+					/**
+					 * Обрабатывает событие profile lookup failed.
+					 *
+					 * @param string string
+					 * @param exception exception
+					 */
 					public void onProfileLookupFailed(String string, Exception exception) {
 						ServerConfigHandler.LOGGER.warn("Could not lookup oplist entry for {}", string, exception);
 						if (!(exception instanceof ProfileNotFoundException)) {
@@ -229,6 +274,13 @@ public class ServerConfigHandler {
 		}
 	}
 
+	/**
+	 * Конвертирует whitelist.
+	 *
+	 * @param server server
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean convertWhitelist(MinecraftServer server) {
 		final Whitelist whitelist = new Whitelist(PlayerManager.WHITELIST_FILE, new BlankManagementListener());
 		if (WHITE_LIST_FILE.exists() && WHITE_LIST_FILE.isFile()) {
@@ -244,12 +296,24 @@ public class ServerConfigHandler {
 			try {
 				List<String> list = Files.readLines(WHITE_LIST_FILE, StandardCharsets.UTF_8);
 				ProfileLookupCallback profileLookupCallback = new ProfileLookupCallback() {
+					/**
+					 * Обрабатывает событие profile lookup succeeded.
+					 *
+					 * @param string string
+					 * @param uUID u u i d
+					 */
 					public void onProfileLookupSucceeded(String string, UUID uUID) {
 						PlayerConfigEntry playerConfigEntry = new PlayerConfigEntry(uUID, string);
 						server.getApiServices().nameToIdCache().add(playerConfigEntry);
 						whitelist.add(new WhitelistEntry(playerConfigEntry));
 					}
 
+					/**
+					 * Обрабатывает событие profile lookup failed.
+					 *
+					 * @param string string
+					 * @param exception exception
+					 */
 					public void onProfileLookupFailed(String string, Exception exception) {
 						ServerConfigHandler.LOGGER.warn(
 								"Could not lookup user whitelist entry for {}",
@@ -294,12 +358,24 @@ public class ServerConfigHandler {
 			else if (!server.isSingleplayer() && server.isOnlineMode()) {
 				final List<PlayerConfigEntry> list = new ArrayList<>();
 				ProfileLookupCallback profileLookupCallback = new ProfileLookupCallback() {
+					/**
+					 * Обрабатывает событие profile lookup succeeded.
+					 *
+					 * @param string string
+					 * @param uUID u u i d
+					 */
 					public void onProfileLookupSucceeded(String string, UUID uUID) {
 						PlayerConfigEntry playerConfigEntry = new PlayerConfigEntry(uUID, string);
 						server.getApiServices().nameToIdCache().add(playerConfigEntry);
 						list.add(playerConfigEntry);
 					}
 
+					/**
+					 * Обрабатывает событие profile lookup failed.
+					 *
+					 * @param string string
+					 * @param exception exception
+					 */
 					public void onProfileLookupFailed(String string, Exception exception) {
 						ServerConfigHandler.LOGGER.warn(
 								"Could not lookup user whitelist entry for {}",
@@ -325,6 +401,13 @@ public class ServerConfigHandler {
 		}
 	}
 
+	/**
+	 * Конвертирует player files.
+	 *
+	 * @param minecraftServer minecraft server
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean convertPlayerFiles(MinecraftDedicatedServer minecraftServer) {
 		final File file = getLevelPlayersFolder(minecraftServer);
 		final File file2 = new File(file.getParentFile(), "playerdata");
@@ -346,12 +429,24 @@ public class ServerConfigHandler {
 			try {
 				final String[] strings = list.toArray(new String[list.size()]);
 				ProfileLookupCallback profileLookupCallback = new ProfileLookupCallback() {
+					/**
+					 * Обрабатывает событие profile lookup succeeded.
+					 *
+					 * @param string string
+					 * @param uUID u u i d
+					 */
 					public void onProfileLookupSucceeded(String string, UUID uUID) {
 						PlayerConfigEntry playerConfigEntry = new PlayerConfigEntry(uUID, string);
 						minecraftServer.getApiServices().nameToIdCache().add(playerConfigEntry);
 						this.convertPlayerFile(file2, this.getPlayerFileName(string), uUID.toString());
 					}
 
+					/**
+					 * Обрабатывает событие profile lookup failed.
+					 *
+					 * @param string string
+					 * @param exception exception
+					 */
 					public void onProfileLookupFailed(String string, Exception exception) {
 						ServerConfigHandler.LOGGER.warn("Could not lookup user uuid for {}", string, exception);
 						if (exception instanceof ProfileNotFoundException) {
@@ -421,6 +516,13 @@ public class ServerConfigHandler {
 		}
 	}
 
+	/**
+	 * Проверяет success.
+	 *
+	 * @param server server
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean checkSuccess(MinecraftServer server) {
 		boolean bl = checkListConversionSuccess();
 		return bl && checkPlayerConversionSuccess(server);

@@ -29,6 +29,11 @@ public class TextSearchableIterator<T> extends AbstractIterator<T> {
 		this.lastIndexComparator = lastIndexComparator;
 	}
 
+	/**
+	 * Вычисляет next.
+	 *
+	 * @return T — результат операции
+	 */
 	protected T computeNext() {
 		boolean bl = !this.idPathsIterator.hasNext();
 		boolean bl2 = !this.textsIterator.hasNext();

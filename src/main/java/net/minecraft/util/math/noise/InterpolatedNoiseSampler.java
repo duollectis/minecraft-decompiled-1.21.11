@@ -114,6 +114,13 @@ public class InterpolatedNoiseSampler implements DensityFunction.Base {
 		);
 	}
 
+	/**
+	 * Создаёт копию with random.
+	 *
+	 * @param random random
+	 *
+	 * @return InterpolatedNoiseSampler — результат операции
+	 */
 	public InterpolatedNoiseSampler copyWithRandom(Random random) {
 		return new InterpolatedNoiseSampler(
 				random,
@@ -198,6 +205,11 @@ public class InterpolatedNoiseSampler implements DensityFunction.Base {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Добавляет debug info.
+	 *
+	 * @param info info
+	 */
 	public void addDebugInfo(StringBuilder info) {
 		info.append("BlendedNoise{minLimitNoise=");
 		this.lowerInterpolatedNoise.addDebugInfo(info);

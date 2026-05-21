@@ -62,6 +62,14 @@ public class EndGatewayBlockEntity extends EndPortalBlockEntity {
 		this.exactTeleport = view.getBoolean("ExactTeleport", false);
 	}
 
+	/**
+	 * Client tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, EndGatewayBlockEntity blockEntity) {
 		blockEntity.age++;
 		if (blockEntity.needsCooldownBeforeTeleporting()) {
@@ -69,6 +77,14 @@ public class EndGatewayBlockEntity extends EndPortalBlockEntity {
 		}
 	}
 
+	/**
+	 * Server tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void serverTick(World world, BlockPos pos, BlockState state, EndGatewayBlockEntity blockEntity) {
 		boolean bl = blockEntity.isRecentlyGenerated();
 		boolean bl2 = blockEntity.needsCooldownBeforeTeleporting();
@@ -89,6 +105,11 @@ public class EndGatewayBlockEntity extends EndPortalBlockEntity {
 		return this.age < 200L;
 	}
 
+	/**
+	 * Needs cooldown before teleporting.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsCooldownBeforeTeleporting() {
 		return this.teleportCooldown > 0;
 	}
@@ -101,6 +122,11 @@ public class EndGatewayBlockEntity extends EndPortalBlockEntity {
 		return 1.0F - MathHelper.clamp((this.teleportCooldown - tickProgress) / 40.0F, 0.0F, 1.0F);
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}

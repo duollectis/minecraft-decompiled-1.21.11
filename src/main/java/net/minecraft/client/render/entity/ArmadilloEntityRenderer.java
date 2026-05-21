@@ -29,6 +29,11 @@ public class ArmadilloEntityRenderer extends AgeableMobEntityRenderer<ArmadilloE
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ArmadilloEntityRenderState — результат операции
+	 */
 	public ArmadilloEntityRenderState createRenderState() {
 		return new ArmadilloEntityRenderState();
 	}

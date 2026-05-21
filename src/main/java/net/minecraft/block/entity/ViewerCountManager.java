@@ -22,8 +22,22 @@ public abstract class ViewerCountManager {
 	private int viewerCount;
 	private double maxBlockInteractionRange;
 
+	/**
+	 * Обрабатывает событие container open.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	protected abstract void onContainerOpen(World world, BlockPos pos, BlockState state);
 
+	/**
+	 * Обрабатывает событие container close.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	protected abstract void onContainerClose(World world, BlockPos pos, BlockState state);
 
 	protected abstract void onViewerCountUpdate(
@@ -54,6 +68,14 @@ public abstract class ViewerCountManager {
 		this.maxBlockInteractionRange = Math.max(userInteractionRange, this.maxBlockInteractionRange);
 	}
 
+	/**
+	 * Закрывает container.
+	 *
+	 * @param user user
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	public void closeContainer(LivingEntity user, World world, BlockPos pos, BlockState state) {
 		int i = this.viewerCount--;
 		if (this.viewerCount == 0) {
@@ -80,6 +102,13 @@ public abstract class ViewerCountManager {
 		       : false;
 	}
 
+	/**
+	 * Обновляет viewer count.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	public void updateViewerCount(World world, BlockPos pos, BlockState state) {
 		List<ContainerUser> list = this.getViewingUsers(world, pos);
 		this.maxBlockInteractionRange = 0.0;

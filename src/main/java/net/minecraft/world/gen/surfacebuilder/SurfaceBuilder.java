@@ -191,11 +191,27 @@ public class SurfaceBuilder {
 		}
 	}
 
+	/**
+	 * Sample run depth.
+	 *
+	 * @param blockX block x
+	 * @param blockZ block z
+	 *
+	 * @return int — результат операции
+	 */
 	protected int sampleRunDepth(int blockX, int blockZ) {
 		double d = this.surfaceNoise.sample(blockX, 0.0, blockZ);
 		return (int) (d * 2.75 + 3.0 + this.randomDeriver.split(blockX, 0, blockZ).nextDouble() * 0.25);
 	}
 
+	/**
+	 * Sample secondary depth.
+	 *
+	 * @param blockX block x
+	 * @param blockZ block z
+	 *
+	 * @return double — результат операции
+	 */
 	protected double sampleSecondaryDepth(int blockX, int blockZ) {
 		return this.surfaceSecondaryNoise.sample(blockX, 0.0, blockZ);
 	}

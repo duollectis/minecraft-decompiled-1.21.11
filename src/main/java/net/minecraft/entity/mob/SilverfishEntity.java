@@ -147,6 +147,9 @@ public class SilverfishEntity extends HostileEntity {
 			this.silverfish = silverfish;
 		}
 
+		/**
+		 * Обрабатывает событие hurt.
+		 */
 		public void onHurt() {
 			if (this.delay == 0) {
 				this.delay = this.getTickCount(20);

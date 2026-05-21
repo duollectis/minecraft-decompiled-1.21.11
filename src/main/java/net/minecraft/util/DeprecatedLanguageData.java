@@ -31,6 +31,13 @@ public record DeprecatedLanguageData(List<String> removed, Map<String, String> r
 			                    .apply(instance, DeprecatedLanguageData::new)
 	);
 
+	/**
+	 * From input stream.
+	 *
+	 * @param stream stream
+	 *
+	 * @return DeprecatedLanguageData — результат операции
+	 */
 	public static DeprecatedLanguageData fromInputStream(InputStream stream) {
 		JsonElement jsonElement = StrictJsonParser.parse(new InputStreamReader(stream, StandardCharsets.UTF_8));
 		return (DeprecatedLanguageData) CODEC.parse(JsonOps.INSTANCE, jsonElement)
@@ -38,6 +45,13 @@ public record DeprecatedLanguageData(List<String> removed, Map<String, String> r
 				                                     "Failed to parse deprecated language data: " + error));
 	}
 
+	/**
+	 * From path.
+	 *
+	 * @param path path
+	 *
+	 * @return DeprecatedLanguageData — результат операции
+	 */
 	public static DeprecatedLanguageData fromPath(String path) {
 		try (InputStream inputStream = Language.class.getResourceAsStream(path)) {
 			return inputStream != null ? fromInputStream(inputStream) : NONE;
@@ -48,10 +62,20 @@ public record DeprecatedLanguageData(List<String> removed, Map<String, String> r
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @return DeprecatedLanguageData — результат операции
+	 */
 	public static DeprecatedLanguageData create() {
 		return fromPath("/assets/minecraft/lang/deprecated.json");
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param map map
+	 */
 	public void apply(Map<String, String> map) {
 		for (String string : this.removed) {
 			map.remove(string);

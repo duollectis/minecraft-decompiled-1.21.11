@@ -28,6 +28,12 @@ public class PlayerSkinGuiElementRenderer extends SpecialGuiElementRenderer<Play
 		return PlayerSkinGuiElementRenderState.class;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param playerSkinGuiElementRenderState player skin gui element render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void render(PlayerSkinGuiElementRenderState playerSkinGuiElementRenderState, MatrixStack matrixStack) {
 		MinecraftClient.getInstance().gameRenderer
 				.getDiffuseLighting()

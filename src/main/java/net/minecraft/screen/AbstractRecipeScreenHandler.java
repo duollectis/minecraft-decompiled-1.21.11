@@ -19,6 +19,11 @@ public abstract class AbstractRecipeScreenHandler extends ScreenHandler {
 			boolean craftAll, boolean creative, RecipeEntry<?> recipe, ServerWorld world, PlayerInventory inventory
 	);
 
+	/**
+	 * Populate recipe finder.
+	 *
+	 * @param finder finder
+	 */
 	public abstract void populateRecipeFinder(RecipeFinder finder);
 
 	public abstract RecipeBookType getCategory();

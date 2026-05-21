@@ -55,6 +55,11 @@ public class NautilusEntityRenderer<T extends AbstractNautilusEntity> extends Ag
 		return nautilusEntityRenderState.baby ? BABY_TEXTURE : TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return NautilusEntityRenderState — результат операции
+	 */
 	public NautilusEntityRenderState createRenderState() {
 		return new NautilusEntityRenderState();
 	}

@@ -90,6 +90,9 @@ public class AnimalMateGoal extends Goal {
 		return animalEntity;
 	}
 
+	/**
+	 * Breed.
+	 */
 	protected void breed() {
 		this.animal.breed(this.world, this.mate);
 	}

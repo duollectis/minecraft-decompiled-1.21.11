@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PlayPackets;
 
 import java.util.List;
 
+/**
+ * Запись inventory s2 c packet.
+ */
 public record InventoryS2CPacket(
 		int syncId,
 		int revision,
@@ -35,6 +38,11 @@ public record InventoryS2CPacket(
 		return PlayPackets.CONTAINER_SET_CONTENT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onInventory(this);
 	}

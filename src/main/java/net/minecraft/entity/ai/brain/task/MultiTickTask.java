@@ -57,6 +57,13 @@ public abstract class MultiTickTask<E extends LivingEntity> implements Task<E> {
 		}
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param time time
+	 */
 	protected void run(ServerWorld world, E entity, long time) {
 	}
 
@@ -70,6 +77,13 @@ public abstract class MultiTickTask<E extends LivingEntity> implements Task<E> {
 		}
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param time time
+	 */
 	protected void keepRunning(ServerWorld world, E entity, long time) {
 	}
 
@@ -79,9 +93,25 @@ public abstract class MultiTickTask<E extends LivingEntity> implements Task<E> {
 		this.finishRunning(world, entity, time);
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param time time
+	 */
 	protected void finishRunning(ServerWorld world, E entity, long time) {
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param time time
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld world, E entity, long time) {
 		return false;
 	}
@@ -90,6 +120,14 @@ public abstract class MultiTickTask<E extends LivingEntity> implements Task<E> {
 		return time > this.endTime;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld world, E entity) {
 		return true;
 	}

@@ -27,10 +27,24 @@ public record PredicatedStateProvider(BlockStateProvider fallback, List<Predicat
 			                    .apply(instance, PredicatedStateProvider::new)
 	);
 
+	/**
+	 * Of.
+	 *
+	 * @param stateProvider state provider
+	 *
+	 * @return PredicatedStateProvider — результат операции
+	 */
 	public static PredicatedStateProvider of(BlockStateProvider stateProvider) {
 		return new PredicatedStateProvider(stateProvider, List.of());
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param block block
+	 *
+	 * @return PredicatedStateProvider — результат операции
+	 */
 	public static PredicatedStateProvider of(Block block) {
 		return of(BlockStateProvider.of(block));
 	}

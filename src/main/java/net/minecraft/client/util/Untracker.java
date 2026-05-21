@@ -34,6 +34,11 @@ public class Untracker {
 		}
 	});
 
+	/**
+	 * Untrack.
+	 *
+	 * @param address address
+	 */
 	public static void untrack(long address) {
 		if (ALLOCATOR_UNTRACK != null) {
 			try {
@@ -45,6 +50,11 @@ public class Untracker {
 		}
 	}
 
+	/**
+	 * Untrack.
+	 *
+	 * @param pointer pointer
+	 */
 	public static void untrack(Pointer pointer) {
 		untrack(pointer.address());
 	}

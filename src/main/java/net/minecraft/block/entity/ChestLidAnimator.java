@@ -11,6 +11,9 @@ public class ChestLidAnimator {
 	private float progress;
 	private float lastProgress;
 
+	/**
+	 * Step.
+	 */
 	public void step() {
 		this.lastProgress = this.progress;
 		float f = 0.1F;

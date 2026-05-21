@@ -50,6 +50,11 @@ public class DebugCommand {
 			NO_RETURN_RUN_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.debug.function.noReturnRun"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager

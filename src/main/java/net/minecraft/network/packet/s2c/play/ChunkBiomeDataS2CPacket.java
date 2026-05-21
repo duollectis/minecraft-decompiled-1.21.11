@@ -14,6 +14,9 @@ import net.minecraft.world.chunk.WorldChunk;
 
 import java.util.List;
 
+/**
+ * Запись chunk biome data s2 c packet.
+ */
 public record ChunkBiomeDataS2CPacket(List<ChunkBiomeDataS2CPacket.Serialized> chunkBiomeData) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ChunkBiomeDataS2CPacket> CODEC = Packet.createCodec(
@@ -25,6 +28,13 @@ public record ChunkBiomeDataS2CPacket(List<ChunkBiomeDataS2CPacket.Serialized> c
 		this(buf.readList(ChunkBiomeDataS2CPacket.Serialized::new));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param chunks chunks
+	 *
+	 * @return ChunkBiomeDataS2CPacket — результат операции
+	 */
 	public static ChunkBiomeDataS2CPacket create(List<WorldChunk> chunks) {
 		return new ChunkBiomeDataS2CPacket(chunks.stream().map(ChunkBiomeDataS2CPacket.Serialized::new).toList());
 	}
@@ -38,10 +48,18 @@ public record ChunkBiomeDataS2CPacket(List<ChunkBiomeDataS2CPacket.Serialized> c
 		return PlayPackets.CHUNKS_BIOMES;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onChunkBiomeData(this);
 	}
 
+	/**
+	 * Запись serialized.
+	 */
 	public record Serialized(ChunkPos pos, byte[] buffer) {
 
 		public Serialized(WorldChunk chunk) {
@@ -63,6 +81,11 @@ public record ChunkBiomeDataS2CPacket(List<ChunkBiomeDataS2CPacket.Serialized> c
 			return i;
 		}
 
+		/**
+		 * To reading buf.
+		 *
+		 * @return PacketByteBuf — результат операции
+		 */
 		public PacketByteBuf toReadingBuf() {
 			return new PacketByteBuf(Unpooled.wrappedBuffer(this.buffer));
 		}
@@ -73,6 +96,12 @@ public record ChunkBiomeDataS2CPacket(List<ChunkBiomeDataS2CPacket.Serialized> c
 			return byteBuf;
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 * @param chunk chunk
+		 */
 		public static void write(PacketByteBuf buf, WorldChunk chunk) {
 			for (ChunkSection chunkSection : chunk.getSectionArray()) {
 				chunkSection.getBiomeContainer().writePacket(buf);
@@ -84,6 +113,11 @@ public record ChunkBiomeDataS2CPacket(List<ChunkBiomeDataS2CPacket.Serialized> c
 			}
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 */
 		public void write(PacketByteBuf buf) {
 			buf.writeChunkPos(this.pos);
 			buf.writeByteArray(this.buffer);

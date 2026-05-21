@@ -15,6 +15,13 @@ public class BlockTypes {
 			CODEC =
 			Registries.BLOCK_TYPE.getCodec().dispatchMap(Block::getCodec, Function.identity());
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static MapCodec<? extends Block> registerAndGetDefault(Registry<MapCodec<? extends Block>> registry) {
 		Registry.register(registry, "block", Block.CODEC);
 		Registry.register(registry, "air", AirBlock.CODEC);

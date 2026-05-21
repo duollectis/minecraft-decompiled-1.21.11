@@ -35,6 +35,12 @@ public class MessagesListAdder {
 		this.maxLogIndex = this.log.getMaxIndex();
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param minAmount min amount
+	 * @param messages messages
+	 */
 	public void add(int minAmount, MessagesListAdder.MessagesList messages) {
 		int i = 0;
 

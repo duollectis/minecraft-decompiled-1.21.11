@@ -15,10 +15,24 @@ import net.minecraft.world.World;
  */
 public class ItemScatterer {
 
+	/**
+	 * Spawn.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param inventory inventory
+	 */
 	public static void spawn(World world, BlockPos pos, Inventory inventory) {
 		spawn(world, (double) pos.getX(), (double) pos.getY(), (double) pos.getZ(), inventory);
 	}
 
+	/**
+	 * Spawn.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param inventory inventory
+	 */
 	public static void spawn(World world, Entity entity, Inventory inventory) {
 		spawn(world, entity.getX(), entity.getY(), entity.getZ(), inventory);
 	}
@@ -29,10 +43,26 @@ public class ItemScatterer {
 		}
 	}
 
+	/**
+	 * Spawn.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param stacks stacks
+	 */
 	public static void spawn(World world, BlockPos pos, DefaultedList<ItemStack> stacks) {
 		stacks.forEach(stack -> spawn(world, (double) pos.getX(), (double) pos.getY(), (double) pos.getZ(), stack));
 	}
 
+	/**
+	 * Spawn.
+	 *
+	 * @param world world
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param stack stack
+	 */
 	public static void spawn(World world, double x, double y, double z, ItemStack stack) {
 		double d = EntityType.ITEM.getWidth();
 		double e = 1.0 - d;
@@ -53,6 +83,13 @@ public class ItemScatterer {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие state replaced.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 */
 	public static void onStateReplaced(BlockState state, World world, BlockPos pos) {
 		world.updateComparators(pos, state.getBlock());
 	}

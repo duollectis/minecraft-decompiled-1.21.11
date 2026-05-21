@@ -40,10 +40,22 @@ public class GiantEntityRenderer extends MobEntityRenderer<GiantEntity, ZombieEn
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ZombieEntityRenderState — результат операции
+	 */
 	public ZombieEntityRenderState createRenderState() {
 		return new ZombieEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param giantEntity giant entity
+	 * @param zombieEntityRenderState zombie entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(GiantEntity giantEntity, ZombieEntityRenderState zombieEntityRenderState, float f) {
 		super.updateRenderState(giantEntity, zombieEntityRenderState, f);
 		BipedEntityRenderer.updateBipedRenderState(giantEntity, zombieEntityRenderState, f, this.itemModelResolver);

@@ -71,6 +71,11 @@ public class ChunkStatus {
 		return Registry.register(Registries.CHUNK_STATUS, id, new ChunkStatus(previous, heightMapTypes, chunkType));
 	}
 
+	/**
+	 * Создаёт ordered list.
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<ChunkStatus> createOrderedList() {
 		List<ChunkStatus> list = Lists.newArrayList();
 
@@ -104,6 +109,13 @@ public class ChunkStatus {
 		return this.chunkType;
 	}
 
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 *
+	 * @return ChunkStatus — результат операции
+	 */
 	public static ChunkStatus byId(String id) {
 		return Registries.CHUNK_STATUS.get(Identifier.tryParse(id));
 	}
@@ -128,6 +140,14 @@ public class ChunkStatus {
 		return this.getIndex() < other.getIndex();
 	}
 
+	/**
+	 * Max.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return ChunkStatus — результат операции
+	 */
 	public static ChunkStatus max(ChunkStatus a, ChunkStatus b) {
 		return a.isLaterThan(b) ? a : b;
 	}

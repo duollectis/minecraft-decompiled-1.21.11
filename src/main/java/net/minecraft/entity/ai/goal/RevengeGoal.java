@@ -79,6 +79,9 @@ public class RevengeGoal extends TrackTargetGoal {
 		super.start();
 	}
 
+	/**
+	 * Call same type for revenge.
+	 */
 	protected void callSameTypeForRevenge() {
 		double d = this.getFollowRange();
 		Box box = Box.from(this.mob.getEntityPos()).expand(d, 10.0, d);

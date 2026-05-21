@@ -416,6 +416,14 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 				&& this.getEntityWorld().getWorldBorder().contains(livingEntity.getBoundingBox());
 	}
 
+	/**
+	 * Добавляет darkness to close players.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param entity entity
+	 * @param range range
+	 */
 	public static void addDarknessToClosePlayers(ServerWorld world, Vec3d pos, @Nullable Entity entity, int range) {
 		StatusEffectInstance
 				statusEffectInstance =
@@ -456,15 +464,32 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 		return this.angerManager.getAngerFor(this.getTarget());
 	}
 
+	/**
+	 * Удаляет suspect.
+	 *
+	 * @param entity entity
+	 */
 	public void removeSuspect(Entity entity) {
 		this.angerManager.removeSuspect(entity);
 	}
 
+	/**
+	 * Increase anger at.
+	 *
+	 * @param entity entity
+	 */
 	public void increaseAngerAt(@Nullable Entity entity) {
 		this.increaseAngerAt(entity, 35, true);
 	}
 
 	@VisibleForTesting
+	/**
+	 * Increase anger at.
+	 *
+	 * @param entity entity
+	 * @param amount amount
+	 * @param listening listening
+	 */
 	public void increaseAngerAt(@Nullable Entity entity, int amount, boolean listening) {
 		if (!this.isAiDisabled() && this.isValidTarget(entity)) {
 			WardenBrain.resetDigCooldown(this);
@@ -527,6 +552,11 @@ public class WardenEntity extends HostileEntity implements Vibrations {
 		return bl;
 	}
 
+	/**
+	 * Обновляет attack target.
+	 *
+	 * @param target target
+	 */
 	public void updateAttackTarget(LivingEntity target) {
 		this.getBrain().forget(MemoryModuleType.ROAR_TARGET);
 		this.getBrain().remember(MemoryModuleType.ATTACK_TARGET, target);

@@ -46,6 +46,13 @@ public interface BlockStateModel extends FabricBlockStateModel {
 		private final Baker.ResolvableCacheKey<BlockStateModel>
 				cacheKey =
 				new Baker.ResolvableCacheKey<BlockStateModel>() {
+					/**
+					 * Compute.
+					 *
+					 * @param baker baker
+					 *
+					 * @return BlockStateModel — результат операции
+					 */
 					public BlockStateModel compute(Baker baker) {
 						return CachedUnbaked.this.delegate.bake(baker);
 					}

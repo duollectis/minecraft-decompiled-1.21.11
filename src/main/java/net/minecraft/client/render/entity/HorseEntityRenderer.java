@@ -76,10 +76,22 @@ public final class HorseEntityRenderer extends AbstractHorseEntityRenderer<Horse
 		return TEXTURES.get(horseEntityRenderState.color);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return HorseEntityRenderState — результат операции
+	 */
 	public HorseEntityRenderState createRenderState() {
 		return new HorseEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param horseEntity horse entity
+	 * @param horseEntityRenderState horse entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(HorseEntity horseEntity, HorseEntityRenderState horseEntityRenderState, float f) {
 		super.updateRenderState(horseEntity, horseEntityRenderState, f);
 		horseEntityRenderState.color = horseEntity.getHorseColor();

@@ -13,6 +13,9 @@ import net.minecraft.registry.DynamicRegistryManager;
 import net.minecraft.registry.RegistryOps;
 import net.minecraft.server.ServerMetadata;
 
+/**
+ * Запись query response s2 c packet.
+ */
 public record QueryResponseS2CPacket(ServerMetadata metadata) implements Packet<ClientQueryPacketListener> {
 
 	private static final RegistryOps<JsonElement> OPS = DynamicRegistryManager.EMPTY.getOps(JsonOps.INSTANCE);
@@ -27,6 +30,11 @@ public record QueryResponseS2CPacket(ServerMetadata metadata) implements Packet<
 		return StatusPackets.STATUS_RESPONSE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientQueryPacketListener client query packet listener
+	 */
 	public void apply(ClientQueryPacketListener clientQueryPacketListener) {
 		clientQueryPacketListener.onResponse(this);
 	}

@@ -73,6 +73,13 @@ public class LanternBlock extends Block implements Waterloggable {
 		return Block.sideCoversSmallSquare(world, pos.offset(direction), direction.getOpposite());
 	}
 
+	/**
+	 * Attached direction.
+	 *
+	 * @param state state
+	 *
+	 * @return Direction — результат операции
+	 */
 	protected static Direction attachedDirection(BlockState state) {
 		return state.get(HANGING) ? Direction.DOWN : Direction.UP;
 	}

@@ -33,6 +33,11 @@ public class VaultBlockEntityRenderer implements BlockEntityRenderer<VaultBlockE
 		this.itemModelManager = context.itemModelManager();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return VaultBlockEntityRenderState — результат операции
+	 */
 	public VaultBlockEntityRenderState createRenderState() {
 		return new VaultBlockEntityRenderState();
 	}

@@ -58,10 +58,16 @@ public class ChunkTicket {
 		return this.level;
 	}
 
+	/**
+	 * Refresh expiry.
+	 */
 	public void refreshExpiry() {
 		this.ticksLeft = this.type.expiryTicks();
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.type.canExpire()) {
 			this.ticksLeft--;

@@ -43,6 +43,15 @@ public class ChorusPlantBlock extends ConnectingBlock {
 		return withConnectionProperties(ctx.getWorld(), ctx.getBlockPos(), this.getDefaultState());
 	}
 
+	/**
+	 * With connection properties.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public static BlockState withConnectionProperties(BlockView world, BlockPos pos, BlockState state) {
 		BlockState blockState = world.getBlockState(pos.down());
 		BlockState blockState2 = world.getBlockState(pos.up());

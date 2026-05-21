@@ -48,6 +48,13 @@ public abstract class AbstractFurnaceBlock extends BlockWithEntity {
 		return ActionResult.SUCCESS;
 	}
 
+	/**
+	 * Открывает screen.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param player player
+	 */
 	protected abstract void openScreen(World world, BlockPos pos, PlayerEntity player);
 
 	@Override

@@ -42,10 +42,23 @@ public class BlockPos extends Vec3i {
 			)
 			.stable();
 	public static final PacketCodec<ByteBuf, BlockPos> PACKET_CODEC = new PacketCodec<ByteBuf, BlockPos>() {
+		/**
+		 * Decode.
+		 *
+		 * @param byteBuf byte buf
+		 *
+		 * @return BlockPos — результат операции
+		 */
 		public BlockPos decode(ByteBuf byteBuf) {
 			return PacketByteBuf.readBlockPos(byteBuf);
 		}
 
+		/**
+		 * Encode.
+		 *
+		 * @param byteBuf byte buf
+		 * @param blockPos block pos
+		 */
 		public void encode(ByteBuf byteBuf, BlockPos blockPos) {
 			PacketByteBuf.writeBlockPos(byteBuf, blockPos);
 		}
@@ -71,50 +84,142 @@ public class BlockPos extends Vec3i {
 		this(pos.getX(), pos.getY(), pos.getZ());
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param value value
+	 * @param direction direction
+	 *
+	 * @return long — результат операции
+	 */
 	public static long offset(long value, Direction direction) {
 		return add(value, direction.getOffsetX(), direction.getOffsetY(), direction.getOffsetZ());
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param value value
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return long — результат операции
+	 */
 	public static long add(long value, int x, int y, int z) {
 		return asLong(unpackLongX(value) + x, unpackLongY(value) + y, unpackLongZ(value) + z);
 	}
 
+	/**
+	 * Unpack long x.
+	 *
+	 * @param packedPos packed pos
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackLongX(long packedPos) {
 		return (int) (packedPos << 64 - BIT_SHIFT_X - SIZE_BITS_XZ >> 64 - SIZE_BITS_XZ);
 	}
 
+	/**
+	 * Unpack long y.
+	 *
+	 * @param packedPos packed pos
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackLongY(long packedPos) {
 		return (int) (packedPos << 64 - SIZE_BITS_Y >> 64 - SIZE_BITS_Y);
 	}
 
+	/**
+	 * Unpack long z.
+	 *
+	 * @param packedPos packed pos
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackLongZ(long packedPos) {
 		return (int) (packedPos << 64 - BIT_SHIFT_Z - SIZE_BITS_XZ >> 64 - SIZE_BITS_XZ);
 	}
 
+	/**
+	 * From long.
+	 *
+	 * @param packedPos packed pos
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos fromLong(long packedPos) {
 		return new BlockPos(unpackLongX(packedPos), unpackLongY(packedPos), unpackLongZ(packedPos));
 	}
 
+	/**
+	 * Of floored.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos ofFloored(double x, double y, double z) {
 		return new BlockPos(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z));
 	}
 
+	/**
+	 * Of floored.
+	 *
+	 * @param pos pos
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos ofFloored(Position pos) {
 		return ofFloored(pos.getX(), pos.getY(), pos.getZ());
 	}
 
+	/**
+	 * Min.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos min(BlockPos a, BlockPos b) {
 		return new BlockPos(Math.min(a.getX(), b.getX()), Math.min(a.getY(), b.getY()), Math.min(a.getZ(), b.getZ()));
 	}
 
+	/**
+	 * Max.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos max(BlockPos a, BlockPos b) {
 		return new BlockPos(Math.max(a.getX(), b.getX()), Math.max(a.getY(), b.getY()), Math.max(a.getZ(), b.getZ()));
 	}
 
+	/**
+	 * As long.
+	 *
+	 * @return long — результат операции
+	 */
 	public long asLong() {
 		return asLong(this.getX(), this.getY(), this.getZ());
 	}
 
+	/**
+	 * As long.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return long — результат операции
+	 */
 	public static long asLong(int x, int y, int z) {
 		long l = 0L;
 		l |= (x & BITS_X) << BIT_SHIFT_X;
@@ -122,31 +227,78 @@ public class BlockPos extends Vec3i {
 		return l | (z & BITS_Z) << BIT_SHIFT_Z;
 	}
 
+	/**
+	 * Удаляет chunk section local y.
+	 *
+	 * @param y y
+	 *
+	 * @return long — результат операции
+	 */
 	public static long removeChunkSectionLocalY(long y) {
 		return y & -16L;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param i i
+	 * @param j j
+	 * @param k k
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos add(int i, int j, int k) {
 		return i == 0 && j == 0 && k == 0 ? this : new BlockPos(this.getX() + i, this.getY() + j, this.getZ() + k);
 	}
 
+	/**
+	 * To center pos.
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d toCenterPos() {
 		return Vec3d.ofCenter(this);
 	}
 
+	/**
+	 * To bottom center pos.
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d toBottomCenterPos() {
 		return Vec3d.ofBottomCenter(this);
 	}
 
 	@Contract(pure = true)
+	/**
+	 * Add.
+	 *
+	 * @param vec3i vec3i
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos add(Vec3i vec3i) {
 		return this.add(vec3i.getX(), vec3i.getY(), vec3i.getZ());
 	}
 
+	/**
+	 * Subtract.
+	 *
+	 * @param vec3i vec3i
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos subtract(Vec3i vec3i) {
 		return this.add(-vec3i.getX(), -vec3i.getY(), -vec3i.getZ());
 	}
 
+	/**
+	 * Multiply.
+	 *
+	 * @param i i
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos multiply(int i) {
 		if (i == 1) {
 			return this;
@@ -156,54 +308,133 @@ public class BlockPos extends Vec3i {
 		}
 	}
 
+	/**
+	 * Up.
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos up() {
 		return this.offset(Direction.UP);
 	}
 
+	/**
+	 * Up.
+	 *
+	 * @param distance distance
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos up(int distance) {
 		return this.offset(Direction.UP, distance);
 	}
 
+	/**
+	 * Down.
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos down() {
 		return this.offset(Direction.DOWN);
 	}
 
+	/**
+	 * Down.
+	 *
+	 * @param i i
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos down(int i) {
 		return this.offset(Direction.DOWN, i);
 	}
 
+	/**
+	 * North.
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos north() {
 		return this.offset(Direction.NORTH);
 	}
 
+	/**
+	 * North.
+	 *
+	 * @param distance distance
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos north(int distance) {
 		return this.offset(Direction.NORTH, distance);
 	}
 
+	/**
+	 * South.
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos south() {
 		return this.offset(Direction.SOUTH);
 	}
 
+	/**
+	 * South.
+	 *
+	 * @param distance distance
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos south(int distance) {
 		return this.offset(Direction.SOUTH, distance);
 	}
 
+	/**
+	 * West.
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos west() {
 		return this.offset(Direction.WEST);
 	}
 
+	/**
+	 * West.
+	 *
+	 * @param distance distance
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos west(int distance) {
 		return this.offset(Direction.WEST, distance);
 	}
 
+	/**
+	 * East.
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos east() {
 		return this.offset(Direction.EAST);
 	}
 
+	/**
+	 * East.
+	 *
+	 * @param distance distance
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos east(int distance) {
 		return this.offset(Direction.EAST, distance);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param direction direction
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos offset(Direction direction) {
 		return new BlockPos(
 				this.getX() + direction.getOffsetX(),
@@ -212,6 +443,14 @@ public class BlockPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param direction direction
+	 * @param i i
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos offset(Direction direction, int i) {
 		return i == 0
 		       ? this
@@ -222,6 +461,14 @@ public class BlockPos extends Vec3i {
 		       );
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param axis axis
+	 * @param i i
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos offset(Direction.Axis axis, int i) {
 		if (i == 0) {
 			return this;
@@ -234,6 +481,13 @@ public class BlockPos extends Vec3i {
 		}
 	}
 
+	/**
+	 * Rotate.
+	 *
+	 * @param rotation rotation
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos rotate(BlockRotation rotation) {
 		return switch (rotation) {
 			case CLOCKWISE_90 -> new BlockPos(-this.getZ(), this.getY(), this.getX());
@@ -243,6 +497,13 @@ public class BlockPos extends Vec3i {
 		};
 	}
 
+	/**
+	 * Cross product.
+	 *
+	 * @param pos pos
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos crossProduct(Vec3i pos) {
 		return new BlockPos(
 				this.getY() * pos.getZ() - this.getZ() * pos.getY(),
@@ -251,10 +512,22 @@ public class BlockPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * With y.
+	 *
+	 * @param y y
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos withY(int y) {
 		return new BlockPos(this.getX(), y, this.getZ());
 	}
 
+	/**
+	 * To immutable.
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos toImmutable() {
 		return this;
 	}
@@ -263,6 +536,13 @@ public class BlockPos extends Vec3i {
 		return new BlockPos.Mutable(this.getX(), this.getY(), this.getZ());
 	}
 
+	/**
+	 * Clamp to within.
+	 *
+	 * @param pos pos
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d clampToWithin(Vec3d pos) {
 		return new Vec3d(
 				MathHelper.clamp(pos.x, (double) (this.getX() + 1.0E-5F), this.getX() + 1.0 - 1.0E-5F),
@@ -271,6 +551,16 @@ public class BlockPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * Iterate randomly.
+	 *
+	 * @param random random
+	 * @param count count
+	 * @param around around
+	 * @param range range
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public static Iterable<BlockPos> iterateRandomly(Random random, int count, BlockPos around, int range) {
 		return iterateRandomly(
 				random,
@@ -285,6 +575,13 @@ public class BlockPos extends Vec3i {
 	}
 
 	@Deprecated
+	/**
+	 * Stream south east square.
+	 *
+	 * @param pos pos
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<BlockPos> streamSouthEastSquare(BlockPos pos) {
 		return Stream.of(pos, pos.south(), pos.east(), pos.south().east());
 	}
@@ -306,6 +603,11 @@ public class BlockPos extends Vec3i {
 			final BlockPos.Mutable pos = new BlockPos.Mutable();
 			int remaining = count;
 
+			/**
+			 * Вычисляет next.
+			 *
+			 * @return BlockPos — результат операции
+			 */
 			protected BlockPos computeNext() {
 				if (this.remaining <= 0) {
 					return (BlockPos) this.endOfData();
@@ -321,6 +623,16 @@ public class BlockPos extends Vec3i {
 		};
 	}
 
+	/**
+	 * Iterate outwards.
+	 *
+	 * @param center center
+	 * @param rangeX range x
+	 * @param rangeY range y
+	 * @param rangeZ range z
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public static Iterable<BlockPos> iterateOutwards(BlockPos center, int rangeX, int rangeY, int rangeZ) {
 		int i = rangeX + rangeY + rangeZ;
 		int j = center.getX();
@@ -335,6 +647,11 @@ public class BlockPos extends Vec3i {
 			private int dy;
 			private boolean swapZ;
 
+			/**
+			 * Вычисляет next.
+			 *
+			 * @return BlockPos — результат операции
+			 */
 			protected BlockPos computeNext() {
 				if (this.swapZ) {
 					this.swapZ = false;
@@ -390,16 +707,41 @@ public class BlockPos extends Vec3i {
 		return Optional.empty();
 	}
 
+	/**
+	 * Stream outwards.
+	 *
+	 * @param center center
+	 * @param maxX max x
+	 * @param maxY max y
+	 * @param maxZ max z
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<BlockPos> streamOutwards(BlockPos center, int maxX, int maxY, int maxZ) {
 		return StreamSupport.stream(iterateOutwards(center, maxX, maxY, maxZ).spliterator(), false);
 	}
 
+	/**
+	 * Iterate.
+	 *
+	 * @param box box
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public static Iterable<BlockPos> iterate(Box box) {
 		BlockPos blockPos = ofFloored(box.minX, box.minY, box.minZ);
 		BlockPos blockPos2 = ofFloored(box.maxX, box.maxY, box.maxZ);
 		return iterate(blockPos, blockPos2);
 	}
 
+	/**
+	 * Iterate.
+	 *
+	 * @param start start
+	 * @param end end
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public static Iterable<BlockPos> iterate(BlockPos start, BlockPos end) {
 		return iterate(
 				Math.min(start.getX(), end.getX()),
@@ -411,10 +753,25 @@ public class BlockPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param start start
+	 * @param end end
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<BlockPos> stream(BlockPos start, BlockPos end) {
 		return StreamSupport.stream(iterate(start, end).spliterator(), false);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param box box
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<BlockPos> stream(BlockBox box) {
 		return stream(
 				Math.min(box.getMinX(), box.getMaxX()),
@@ -426,6 +783,13 @@ public class BlockPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param box box
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<BlockPos> stream(Box box) {
 		return stream(
 				MathHelper.floor(box.minX),
@@ -437,10 +801,34 @@ public class BlockPos extends Vec3i {
 		);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param startX start x
+	 * @param startY start y
+	 * @param startZ start z
+	 * @param endX end x
+	 * @param endY end y
+	 * @param endZ end z
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<BlockPos> stream(int startX, int startY, int startZ, int endX, int endY, int endZ) {
 		return StreamSupport.stream(iterate(startX, startY, startZ, endX, endY, endZ).spliterator(), false);
 	}
 
+	/**
+	 * Iterate.
+	 *
+	 * @param startX start x
+	 * @param startY start y
+	 * @param startZ start z
+	 * @param endX end x
+	 * @param endY end y
+	 * @param endZ end z
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public static Iterable<BlockPos> iterate(int startX, int startY, int startZ, int endX, int endY, int endZ) {
 		int i = endX - startX + 1;
 		int j = endY - startY + 1;
@@ -450,6 +838,11 @@ public class BlockPos extends Vec3i {
 			private final BlockPos.Mutable pos = new BlockPos.Mutable();
 			private int index;
 
+			/**
+			 * Вычисляет next.
+			 *
+			 * @return BlockPos — результат операции
+			 */
 			protected BlockPos computeNext() {
 				if (this.index == l) {
 					return (BlockPos) this.endOfData();
@@ -556,6 +949,14 @@ public class BlockPos extends Vec3i {
 		return i;
 	}
 
+	/**
+	 * Iterate collision order.
+	 *
+	 * @param bounds bounds
+	 * @param velocity velocity
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public static Iterable<BlockPos> iterateCollisionOrder(Box bounds, Vec3d velocity) {
 		Vec3d vec3d = bounds.getMinPos();
 		int i = MathHelper.floor(vec3d.getX());
@@ -568,6 +969,15 @@ public class BlockPos extends Vec3i {
 		return iterateCollisionOrder(i, j, k, l, m, n, velocity);
 	}
 
+	/**
+	 * Iterate collision order.
+	 *
+	 * @param start start
+	 * @param end end
+	 * @param velocity velocity
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public static Iterable<BlockPos> iterateCollisionOrder(BlockPos start, BlockPos end, Vec3d velocity) {
 		return iterateCollisionOrder(
 				start.getX(),
@@ -635,6 +1045,11 @@ public class BlockPos extends Vec3i {
 			private final int axis3y = direction3.getOffsetY();
 			private final int axis3z = direction3.getOffsetZ();
 
+			/**
+			 * Вычисляет next.
+			 *
+			 * @return BlockPos — результат операции
+			 */
 			protected BlockPos computeNext() {
 				if (this.done) {
 					return (BlockPos) this.endOfData();

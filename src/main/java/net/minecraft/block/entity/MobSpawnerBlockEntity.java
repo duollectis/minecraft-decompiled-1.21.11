@@ -53,14 +53,35 @@ public class MobSpawnerBlockEntity extends BlockEntity implements Spawner {
 		this.logic.writeData(view);
 	}
 
+	/**
+	 * Client tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, MobSpawnerBlockEntity blockEntity) {
 		blockEntity.logic.clientTick(world, pos);
 	}
 
+	/**
+	 * Server tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void serverTick(World world, BlockPos pos, BlockState state, MobSpawnerBlockEntity blockEntity) {
 		blockEntity.logic.serverTick((ServerWorld) world, pos);
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}

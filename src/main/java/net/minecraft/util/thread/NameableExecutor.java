@@ -13,6 +13,13 @@ import java.util.concurrent.TimeUnit;
  */
 public record NameableExecutor(ExecutorService service) implements Executor {
 
+	/**
+	 * Named.
+	 *
+	 * @param name name
+	 *
+	 * @return Executor — результат операции
+	 */
 	public Executor named(String name) {
 		if (SharedConstants.isDevelopment) {
 			return runnable -> this.service.execute(() -> {
@@ -84,6 +91,12 @@ public record NameableExecutor(ExecutorService service) implements Executor {
 		this.service.execute(wrapForTracy(runnable));
 	}
 
+	/**
+	 * Shutdown.
+	 *
+	 * @param time time
+	 * @param unit unit
+	 */
 	public void shutdown(long time, TimeUnit unit) {
 		this.service.shutdown();
 

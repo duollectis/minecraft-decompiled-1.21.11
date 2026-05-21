@@ -39,6 +39,13 @@ public record JsonUnbakedModel(
 			.registerTypeAdapter(ModelTransformation.class, new ModelTransformation.Deserializer())
 			.create();
 
+	/**
+	 * Deserialize.
+	 *
+	 * @param input input
+	 *
+	 * @return JsonUnbakedModel — результат операции
+	 */
 	public static JsonUnbakedModel deserialize(Reader input) {
 		return JsonHelper.deserialize(GSON, input, JsonUnbakedModel.class);
 	}
@@ -92,10 +99,25 @@ public record JsonUnbakedModel(
 			return JsonHelper.getString(json, "parent", "");
 		}
 
+		/**
+		 * Ambient occlusion from json.
+		 *
+		 * @param json json
+		 *
+		 * @return @Nullable Boolean — результат операции
+		 */
 		protected @Nullable Boolean ambientOcclusionFromJson(JsonObject json) {
 			return json.has("ambientocclusion") ? JsonHelper.getBoolean(json, "ambientocclusion") : null;
 		}
 
+		/**
+		 * Elements from json.
+		 *
+		 * @param context context
+		 * @param json json
+		 *
+		 * @return @Nullable Geometry — результат операции
+		 */
 		protected @Nullable Geometry elementsFromJson(JsonDeserializationContext context, JsonObject json) {
 			if (!json.has("elements")) {
 				return null;

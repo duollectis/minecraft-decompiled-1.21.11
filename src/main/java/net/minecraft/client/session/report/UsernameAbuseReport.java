@@ -30,6 +30,11 @@ public class UsernameAbuseReport extends AbuseReport {
 		return this.username;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return UsernameAbuseReport — результат операции
+	 */
 	public UsernameAbuseReport copy() {
 		UsernameAbuseReport
 				usernameAbuseReport =

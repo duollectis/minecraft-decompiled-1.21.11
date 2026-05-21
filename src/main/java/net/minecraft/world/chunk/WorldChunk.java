@@ -626,6 +626,11 @@ public class WorldChunk extends Chunk implements DebugTrackable {
 		}
 	}
 
+	/**
+	 * Загружает biome from packet.
+	 *
+	 * @param buf buf
+	 */
 	public void loadBiomeFromPacket(PacketByteBuf buf) {
 		for (ChunkSection chunkSection : this.sectionArray) {
 			chunkSection.readBiomePacket(buf);
@@ -783,6 +788,9 @@ public class WorldChunk extends Chunk implements DebugTrackable {
 		this.levelTypeProvider = levelTypeProvider;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.blockEntities.values().forEach(BlockEntity::markRemoved);
 		this.blockEntities.clear();
@@ -790,6 +798,9 @@ public class WorldChunk extends Chunk implements DebugTrackable {
 		this.blockEntityTickers.clear();
 	}
 
+	/**
+	 * Обновляет all block entities.
+	 */
 	public void updateAllBlockEntities() {
 		this.blockEntities.values().forEach(blockEntity -> {
 			if (this.world instanceof ServerWorld serverWorld) {

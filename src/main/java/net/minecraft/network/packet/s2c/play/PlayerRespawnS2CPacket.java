@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись player respawn s2 c packet.
+ */
 public record PlayerRespawnS2CPacket(
 		CommonPlayerSpawnInfo commonPlayerSpawnInfo,
 		byte flag
@@ -33,6 +36,11 @@ public record PlayerRespawnS2CPacket(
 		return PlayPackets.RESPAWN;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlayerRespawn(this);
 	}

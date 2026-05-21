@@ -36,6 +36,11 @@ public sealed interface AbstractNbtList extends Iterable<NbtElement>, NbtElement
 				return this.current < AbstractNbtList.this.size();
 			}
 
+			/**
+			 * Next.
+			 *
+			 * @return NbtElement — результат операции
+			 */
 			public NbtElement next() {
 				if (!this.hasNext()) {
 					throw new NoSuchElementException();

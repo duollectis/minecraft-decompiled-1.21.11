@@ -26,6 +26,13 @@ public class BlockEntityRendererFactories {
 		FACTORIES.put(type, factory);
 	}
 
+	/**
+	 * Reload.
+	 *
+	 * @param args args
+	 *
+	 * @return Map, BlockEntityRenderer> — результат операции
+	 */
 	public static Map<BlockEntityType<?>, BlockEntityRenderer<?, ?>> reload(BlockEntityRendererFactory.Context args) {
 		Builder<BlockEntityType<?>, BlockEntityRenderer<?, ?>> builder = ImmutableMap.builder();
 		FACTORIES.forEach((type, factory) -> {

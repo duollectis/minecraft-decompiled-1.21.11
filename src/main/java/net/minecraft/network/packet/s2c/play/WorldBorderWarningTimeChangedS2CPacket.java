@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.border.WorldBorder;
 
+/**
+ * Класс world border warning time changed s2 c packet.
+ */
 public class WorldBorderWarningTimeChangedS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, WorldBorderWarningTimeChangedS2CPacket> CODEC = Packet.createCodec(
@@ -32,6 +35,11 @@ public class WorldBorderWarningTimeChangedS2CPacket implements Packet<ClientPlay
 		return PlayPackets.SET_BORDER_WARNING_DELAY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onWorldBorderWarningTimeChanged(this);
 	}

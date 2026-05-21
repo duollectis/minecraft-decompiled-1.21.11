@@ -134,6 +134,9 @@ public class LabelCommandRenderer {
 			}
 		}
 
+		/**
+		 * Clear.
+		 */
 		public void clear() {
 			this.normalLabels.clear();
 			this.seethroughLabels.clear();

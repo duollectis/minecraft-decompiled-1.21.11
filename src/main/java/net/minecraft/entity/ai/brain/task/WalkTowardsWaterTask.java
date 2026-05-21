@@ -16,6 +16,14 @@ import org.apache.commons.lang3.mutable.MutableLong;
  */
 public class WalkTowardsWaterTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param range range
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<PathAwareEntity> create(int range, float speed) {
 		MutableLong mutableLong = new MutableLong(0L);
 		return TaskTriggerer.task(

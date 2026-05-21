@@ -37,6 +37,11 @@ public class EnchantingTableBlockEntityRenderer implements BlockEntityRenderer<E
 		this.book = new BookModel(ctx.getLayerModelPart(EntityModelLayers.BOOK));
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return EnchantingTableBlockEntityRenderState — результат операции
+	 */
 	public EnchantingTableBlockEntityRenderState createRenderState() {
 		return new EnchantingTableBlockEntityRenderState();
 	}

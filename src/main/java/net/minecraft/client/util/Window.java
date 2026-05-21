@@ -163,10 +163,20 @@ public final class Window implements AutoCloseable {
 		return GLX._getRefreshRate(this);
 	}
 
+	/**
+	 * Определяет, следует ли close.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldClose() {
 		return GLX._shouldClose(this);
 	}
 
+	/**
+	 * Accept error.
+	 *
+	 * @param consumer consumer
+	 */
 	public static void acceptError(BiConsumer<Integer, String> consumer) {
 		MemoryStack memoryStack = MemoryStack.stackPush();
 
@@ -278,6 +288,12 @@ public final class Window implements AutoCloseable {
 		throw new Window.GlErroredException(string);
 	}
 
+	/**
+	 * Логирует gl error.
+	 *
+	 * @param error error
+	 * @param description description
+	 */
 	public void logGlError(int error, long description) {
 		RenderSystem.assertOnRenderThread();
 		String string = MemoryUtil.memUTF8(description);
@@ -286,6 +302,9 @@ public final class Window implements AutoCloseable {
 		LOGGER.error("{}: {}", error, string);
 	}
 
+	/**
+	 * Логирует on gl error.
+	 */
 	public void logOnGlError() {
 		GLFWErrorCallback gLFWErrorCallback = GLFW.glfwSetErrorCallback(this.errorCallback);
 		if (gLFWErrorCallback != null) {
@@ -369,6 +388,11 @@ public final class Window implements AutoCloseable {
 		this.minimized = minimized;
 	}
 
+	/**
+	 * Swap buffers.
+	 *
+	 * @param capturer capturer
+	 */
 	public void swapBuffers(@Nullable TracyFrameCapturer capturer) {
 		RenderSystem.flipFrame(this, capturer);
 		if (this.fullscreen != this.currentFullscreen) {
@@ -389,6 +413,9 @@ public final class Window implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Применяет fullscreen video mode.
+	 */
 	public void applyFullscreenVideoMode() {
 		if (this.fullscreen && this.fullscreenVideoModeDirty) {
 			this.fullscreenVideoModeDirty = false;
@@ -445,6 +472,9 @@ public final class Window implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Toggle fullscreen.
+	 */
 	public void toggleFullscreen() {
 		this.fullscreen = !this.fullscreen;
 	}
@@ -470,6 +500,14 @@ public final class Window implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Вычисляет scale factor.
+	 *
+	 * @param guiScale gui scale
+	 * @param forceUnicodeFont force unicode font
+	 *
+	 * @return int — результат операции
+	 */
 	public int calculateScaleFactor(int guiScale, boolean forceUnicodeFont) {
 		int i = 1;
 

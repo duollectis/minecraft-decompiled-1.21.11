@@ -172,10 +172,24 @@ public interface EasingType {
 		 */
 		record Parameters(float a, float b, float c) {
 
+			/**
+			 * Apply.
+			 *
+			 * @param t t
+			 *
+			 * @return float — результат операции
+			 */
 			public float apply(float t) {
 				return ((this.a * t + this.b) * t + this.c) * t;
 			}
 
+			/**
+			 * Derivative.
+			 *
+			 * @param t t
+			 *
+			 * @return float — результат операции
+			 */
 			public float derivative(float t) {
 				return (3.0F * this.a * t + 2.0F * this.b) * t + this.c;
 			}

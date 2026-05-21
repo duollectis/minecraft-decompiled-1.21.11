@@ -52,6 +52,11 @@ public class CopperGolemStatueBlockEntityRenderer implements BlockEntityRenderer
 		);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return CopperGolemStatueBlockEntityRenderState — результат операции
+	 */
 	public CopperGolemStatueBlockEntityRenderState createRenderState() {
 		return new CopperGolemStatueBlockEntityRenderState();
 	}

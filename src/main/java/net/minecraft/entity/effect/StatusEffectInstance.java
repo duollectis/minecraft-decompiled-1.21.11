@@ -138,6 +138,11 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		return this.fading.calculate(entity, tickProgress);
 	}
 
+	/**
+	 * Создаёт particle.
+	 *
+	 * @return ParticleEffect — результат операции
+	 */
 	public ParticleEffect createParticle() {
 		return this.type.value().createParticle(this);
 	}
@@ -150,6 +155,13 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		this.showIcon = that.showIcon;
 	}
 
+	/**
+	 * Upgrade.
+	 *
+	 * @param that that
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean upgrade(StatusEffectInstance that) {
 		if (!this.type.equals(that.type)) {
 			LOGGER.warn("This method should only be called for matching effects!");
@@ -210,6 +222,13 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		return !this.isInfinite() && this.duration <= duration;
 	}
 
+	/**
+	 * With scaled duration.
+	 *
+	 * @param durationMultiplier duration multiplier
+	 *
+	 * @return StatusEffectInstance — результат операции
+	 */
 	public StatusEffectInstance withScaledDuration(float durationMultiplier) {
 		StatusEffectInstance statusEffectInstance = new StatusEffectInstance(this);
 		statusEffectInstance.duration =
@@ -220,6 +239,13 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		return statusEffectInstance;
 	}
 
+	/**
+	 * Map duration.
+	 *
+	 * @param mapper mapper
+	 *
+	 * @return int — результат операции
+	 */
 	public int mapDuration(Int2IntFunction mapper) {
 		return !this.isInfinite() && this.duration != 0 ? mapper.applyAsInt(this.duration) : this.duration;
 	}
@@ -240,14 +266,33 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		return this.ambient;
 	}
 
+	/**
+	 * Определяет, следует ли show particles.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowParticles() {
 		return this.showParticles;
 	}
 
+	/**
+	 * Определяет, следует ли show icon.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowIcon() {
 		return this.showIcon;
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param hiddenEffectCallback hidden effect callback
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean update(ServerWorld world, LivingEntity entity, Runnable hiddenEffectCallback) {
 		if (!this.isActive()) {
 			return false;
@@ -270,6 +315,9 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для client.
+	 */
 	public void tickClient() {
 		if (this.isActive()) {
 			this.updateDuration();
@@ -302,14 +350,34 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие applied.
+	 *
+	 * @param entity entity
+	 */
 	public void onApplied(LivingEntity entity) {
 		this.type.value().onApplied(entity, this.amplifier);
 	}
 
+	/**
+	 * Обрабатывает событие entity removal.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param reason reason
+	 */
 	public void onEntityRemoval(ServerWorld world, LivingEntity entity, Entity.RemovalReason reason) {
 		this.type.value().onEntityRemoval(world, entity, this.amplifier, reason);
 	}
 
+	/**
+	 * Обрабатывает событие entity damage.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param source source
+	 * @param amount amount
+	 */
 	public void onEntityDamage(ServerWorld world, LivingEntity entity, DamageSource source, float amount) {
 		this.type.value().onEntityDamage(world, entity, this.amplifier, source, amount);
 	}
@@ -371,6 +439,13 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		return 31 * i + (this.showIcon ? 1 : 0);
 	}
 
+	/**
+	 * Compare to.
+	 *
+	 * @param statusEffectInstance status effect instance
+	 *
+	 * @return int — результат операции
+	 */
 	public int compareTo(StatusEffectInstance statusEffectInstance) {
 		int i = 32147;
 		return (this.getDuration() <= 32147 || statusEffectInstance.getDuration() <= 32147) && (!this.isAmbient()
@@ -394,18 +469,38 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		                        .result();
 	}
 
+	/**
+	 * Play apply sound.
+	 *
+	 * @param entity entity
+	 */
 	public void playApplySound(LivingEntity entity) {
 		this.type.value().playApplySound(entity, this.amplifier);
 	}
 
+	/**
+	 * Equals.
+	 *
+	 * @param effect effect
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean equals(RegistryEntry<StatusEffect> effect) {
 		return this.type.equals(effect);
 	}
 
+	/**
+	 * Создаёт копию fading from.
+	 *
+	 * @param effect effect
+	 */
 	public void copyFadingFrom(StatusEffectInstance effect) {
 		this.fading.copyFrom(effect.fading);
 	}
 
+	/**
+	 * Skip fading.
+	 */
 	public void skipFading() {
 		this.fading.skipFading(this);
 	}
@@ -418,16 +513,31 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 		private float factor;
 		private float lastFactor;
 
+		/**
+		 * Skip fading.
+		 *
+		 * @param effect effect
+		 */
 		public void skipFading(StatusEffectInstance effect) {
 			this.factor = shouldFadeIn(effect) ? 1.0F : 0.0F;
 			this.lastFactor = this.factor;
 		}
 
+		/**
+		 * Создаёт копию from.
+		 *
+		 * @param fading fading
+		 */
 		public void copyFrom(StatusEffectInstance.Fading fading) {
 			this.factor = fading.factor;
 			this.lastFactor = fading.lastFactor;
 		}
 
+		/**
+		 * Update.
+		 *
+		 * @param effect effect
+		 */
 		public void update(StatusEffectInstance effect) {
 			this.lastFactor = this.factor;
 			boolean bl = shouldFadeIn(effect);
@@ -449,6 +559,14 @@ public class StatusEffectInstance implements Comparable<StatusEffectInstance> {
 			return !effect.isDurationBelow(effect.getEffectType().value().getFadeOutThresholdTicks());
 		}
 
+		/**
+		 * Calculate.
+		 *
+		 * @param entity entity
+		 * @param tickProgress tick progress
+		 *
+		 * @return float — результат операции
+		 */
 		public float calculate(LivingEntity entity, float tickProgress) {
 			if (entity.isRemoved()) {
 				this.lastFactor = this.factor;

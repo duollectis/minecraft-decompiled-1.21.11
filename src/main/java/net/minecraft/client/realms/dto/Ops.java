@@ -19,6 +19,13 @@ public record Ops(Set<String> ops) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return Ops — результат операции
+	 */
 	public static Ops parse(String json) {
 		Set<String> set = new HashSet<>();
 

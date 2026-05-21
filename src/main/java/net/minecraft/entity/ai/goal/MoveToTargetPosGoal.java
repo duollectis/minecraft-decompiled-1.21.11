@@ -67,6 +67,9 @@ public abstract class MoveToTargetPosGoal extends Goal {
 		this.safeWaitingTime = this.mob.getRandom().nextInt(this.mob.getRandom().nextInt(1200) + 1200) + 1200;
 	}
 
+	/**
+	 * Запускает moving to target.
+	 */
 	protected void startMovingToTarget() {
 		this.mob
 				.getNavigation()
@@ -109,6 +112,11 @@ public abstract class MoveToTargetPosGoal extends Goal {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли reset path.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldResetPath() {
 		return this.tryingTime % 40 == 0;
 	}
@@ -117,6 +125,11 @@ public abstract class MoveToTargetPosGoal extends Goal {
 		return this.reached;
 	}
 
+	/**
+	 * Ищет target pos.
+	 *
+	 * @return boolean — target pos
+	 */
 	protected boolean findTargetPos() {
 		int i = this.range;
 		int j = this.maxYDifference;

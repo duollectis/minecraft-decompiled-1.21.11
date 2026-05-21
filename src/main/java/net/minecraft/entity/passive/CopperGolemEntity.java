@@ -120,6 +120,9 @@ public class CopperGolemEntity extends GolemEntity implements ContainerUser, She
 		this.targetContainer = pos;
 	}
 
+	/**
+	 * Сбрасывает target container pos.
+	 */
 	public void resetTargetContainerPos() {
 		this.targetContainer = null;
 	}
@@ -386,6 +389,11 @@ public class CopperGolemEntity extends GolemEntity implements ContainerUser, She
 		}
 	}
 
+	/**
+	 * Обрабатывает событие spawn.
+	 *
+	 * @param oxidationLevel oxidation level
+	 */
 	public void onSpawn(Oxidizable.OxidationLevel oxidationLevel) {
 		this.setOxidationLevel(oxidationLevel);
 		this.playSpawnSound();
@@ -402,6 +410,9 @@ public class CopperGolemEntity extends GolemEntity implements ContainerUser, She
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
+	/**
+	 * Play spawn sound.
+	 */
 	public void playSpawnSound() {
 		this.playSoundIfNotSilent(SoundEvents.ENTITY_COPPER_GOLEM_SPAWN);
 	}

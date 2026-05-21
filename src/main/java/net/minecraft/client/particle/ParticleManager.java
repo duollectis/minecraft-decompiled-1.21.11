@@ -45,10 +45,23 @@ public class ParticleManager {
 		this.spriteManager = spriteManager;
 	}
 
+	/**
+	 * Добавляет emitter.
+	 *
+	 * @param entity entity
+	 * @param parameters parameters
+	 */
 	public void addEmitter(Entity entity, ParticleEffect parameters) {
 		this.newEmitterParticles.add(new EmitterParticle(this.world, entity, parameters));
 	}
 
+	/**
+	 * Добавляет emitter.
+	 *
+	 * @param entity entity
+	 * @param parameters parameters
+	 * @param maxAge max age
+	 */
 	public void addEmitter(Entity entity, ParticleEffect parameters, int maxAge) {
 		this.newEmitterParticles.add(new EmitterParticle(this.world, entity, parameters, maxAge));
 	}
@@ -91,6 +104,11 @@ public class ParticleManager {
 		);
 	}
 
+	/**
+	 * Добавляет particle.
+	 *
+	 * @param particle particle
+	 */
 	public void addParticle(Particle particle) {
 		Optional<ParticleGroup> optional = particle.getGroup();
 		if (optional.isPresent()) {
@@ -104,6 +122,9 @@ public class ParticleManager {
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.particles.forEach((textureSheet, particlex) -> {
 			Profilers.get().push(textureSheet.name());
@@ -146,10 +167,24 @@ public class ParticleManager {
 		}
 	}
 
+	/**
+	 * Добавляет to.
+	 *
+	 * @param group group
+	 * @param count count
+	 */
 	protected void addTo(ParticleGroup group, int count) {
 		this.groupCounts.addTo(group, count);
 	}
 
+	/**
+	 * Добавляет to batch.
+	 *
+	 * @param batch batch
+	 * @param frustum frustum
+	 * @param camera camera
+	 * @param tickProgress tick progress
+	 */
 	public void addToBatch(SubmittableBatch batch, Frustum frustum, Camera camera, float tickProgress) {
 		for (ParticleTextureSheet particleTextureSheet : PARTICLE_TEXTURE_SHEETS) {
 			ParticleRenderer<?> particleRenderer = this.particles.get(particleTextureSheet);
@@ -173,6 +208,9 @@ public class ParticleManager {
 		return this.groupCounts.getInt(group) < group.maxCount();
 	}
 
+	/**
+	 * Очищает particles.
+	 */
 	public void clearParticles() {
 		this.particles.clear();
 		this.newParticles.clear();

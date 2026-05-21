@@ -79,6 +79,14 @@ public class FleeTask<E extends PathAwareEntity> extends MultiTickTask<E> {
 		this.pathFinder = pathFinder;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, E pathAwareEntity) {
 		return pathAwareEntity.getBrain()
 		                      .getOptionalRegisteredMemory(MemoryModuleType.HURT_BY)
@@ -87,21 +95,51 @@ public class FleeTask<E extends PathAwareEntity> extends MultiTickTask<E> {
 				|| pathAwareEntity.getBrain().hasMemoryModule(MemoryModuleType.IS_PANICKING);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
 		return true;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, E pathAwareEntity, long l) {
 		pathAwareEntity.getBrain().remember(MemoryModuleType.IS_PANICKING, true);
 		pathAwareEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);
 		pathAwareEntity.getNavigation().stop();
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
 		Brain<?> brain = pathAwareEntity.getBrain();
 		brain.forget(MemoryModuleType.IS_PANICKING);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
 		if (pathAwareEntity.getNavigation().isIdle()) {
 			Vec3d vec3d = this.findTarget(pathAwareEntity, serverWorld);

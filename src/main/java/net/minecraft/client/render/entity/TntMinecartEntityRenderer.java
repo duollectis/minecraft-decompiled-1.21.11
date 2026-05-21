@@ -67,6 +67,11 @@ public class TntMinecartEntityRenderer extends AbstractMinecartEntityRenderer<Tn
 		orderedRenderCommandQueue.submitBlock(matrices, state, i, k, j);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return TntMinecartEntityRenderState — результат операции
+	 */
 	public TntMinecartEntityRenderState createRenderState() {
 		return new TntMinecartEntityRenderState();
 	}

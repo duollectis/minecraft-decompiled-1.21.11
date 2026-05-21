@@ -34,10 +34,25 @@ public record EquipmentDropChances(Map<EquipmentSlot, Float> byEquipment) {
 		return Util.mapEnum(EquipmentSlot.class, slot -> byEquipment.getOrDefault(slot, 0.085F));
 	}
 
+	/**
+	 * With guaranteed.
+	 *
+	 * @param slot slot
+	 *
+	 * @return EquipmentDropChances — результат операции
+	 */
 	public EquipmentDropChances withGuaranteed(EquipmentSlot slot) {
 		return this.withChance(slot, 2.0F);
 	}
 
+	/**
+	 * With chance.
+	 *
+	 * @param slot slot
+	 * @param chance chance
+	 *
+	 * @return EquipmentDropChances — результат операции
+	 */
 	public EquipmentDropChances withChance(EquipmentSlot slot, float chance) {
 		if (chance < 0.0F) {
 			throw new IllegalArgumentException("Tried to set invalid equipment chance " + chance + " for " + slot);
@@ -52,10 +67,24 @@ public record EquipmentDropChances(Map<EquipmentSlot, Float> byEquipment) {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param slot slot
+	 *
+	 * @return float — 
+	 */
 	public float get(EquipmentSlot slot) {
 		return this.byEquipment.getOrDefault(slot, 0.085F);
 	}
 
+	/**
+	 * Бросает s exactly.
+	 *
+	 * @param slot slot
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean dropsExactly(EquipmentSlot slot) {
 		return this.get(slot) > 1.0F;
 	}

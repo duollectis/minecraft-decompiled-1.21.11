@@ -16,6 +16,13 @@ import net.minecraft.world.event.GameEvent;
  */
 public class LayFrogSpawnTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param frogSpawn frog spawn
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(Block frogSpawn) {
 		return TaskTriggerer.task(
 				context -> context.group(

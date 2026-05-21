@@ -12,6 +12,9 @@ import net.minecraft.text.TextCodecs;
 
 import java.util.Optional;
 
+/**
+ * Запись server metadata s2 c packet.
+ */
 public record ServerMetadataS2CPacket(
 		Text description,
 		Optional<byte[]> favicon
@@ -30,6 +33,11 @@ public record ServerMetadataS2CPacket(
 		return PlayPackets.SERVER_DATA;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onServerMetadata(this);
 	}

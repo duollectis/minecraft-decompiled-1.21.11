@@ -75,6 +75,13 @@ public class PlayerHeadGlyphs {
 		this.playerSkinCache = playerSkinCache;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param source source
+	 *
+	 * @return GlyphProvider — 
+	 */
 	public GlyphProvider get(StyleSpriteSource.Player source) {
 		return (GlyphProvider) this.fetchingCache.getUnchecked(source);
 	}

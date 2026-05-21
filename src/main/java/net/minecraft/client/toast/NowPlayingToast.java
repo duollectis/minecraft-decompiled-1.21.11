@@ -40,6 +40,12 @@ public class NowPlayingToast implements Toast {
 		this.client = MinecraftClient.getInstance();
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param context context
+	 * @param textRenderer text renderer
+	 */
 	public static void draw(DrawContext context, TextRenderer textRenderer) {
 		String string = getCurrentMusicTranslationKey();
 		if (string != null) {
@@ -61,6 +67,9 @@ public class NowPlayingToast implements Toast {
 		return MinecraftClient.getInstance().getMusicTracker().getCurrentMusicTranslationKey();
 	}
 
+	/**
+	 * Tick.
+	 */
 	public static void tick() {
 		if (getCurrentMusicTranslationKey() != null) {
 			long l = System.currentTimeMillis();
@@ -76,6 +85,11 @@ public class NowPlayingToast implements Toast {
 		return translationKey == null ? Text.empty() : Text.translatable(translationKey.replace("/", "."));
 	}
 
+	/**
+	 * Show.
+	 *
+	 * @param options options
+	 */
 	public void show(GameOptions options) {
 		this.showing = true;
 		this.displayTimeMultiplier = options.getNotificationDisplayTime().getValue();

@@ -447,10 +447,25 @@ public class RedstoneWireBlock extends Block {
 		}
 	}
 
+	/**
+	 * Connects to.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected static boolean connectsTo(BlockState state) {
 		return connectsTo(state, null);
 	}
 
+	/**
+	 * Connects to.
+	 *
+	 * @param state state
+	 * @param dir dir
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected static boolean connectsTo(BlockState state, @Nullable Direction dir) {
 		if (state.isOf(Blocks.REDSTONE_WIRE)) {
 			return true;

@@ -15,6 +15,13 @@ public class ConstantIntProvider extends IntProvider {
 			Codec.INT.fieldOf("value").xmap(ConstantIntProvider::create, ConstantIntProvider::getValue);
 	private final int value;
 
+	/**
+	 * Create.
+	 *
+	 * @param value value
+	 *
+	 * @return ConstantIntProvider — результат операции
+	 */
 	public static ConstantIntProvider create(int value) {
 		return value == 0 ? ZERO : new ConstantIntProvider(value);
 	}

@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс enter combat s2 c packet.
+ */
 public class EnterCombatS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final EnterCombatS2CPacket INSTANCE = new EnterCombatS2CPacket();
@@ -20,6 +23,11 @@ public class EnterCombatS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.PLAYER_COMBAT_ENTER;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEnterCombat(this);
 	}

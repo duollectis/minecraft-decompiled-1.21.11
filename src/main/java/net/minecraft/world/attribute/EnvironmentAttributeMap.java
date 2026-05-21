@@ -66,15 +66,35 @@ public final class EnvironmentAttributeMap {
 		return (EnvironmentAttributeMap.Entry<Value, ?>) this.entries.get(key);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param key key
+	 * @param value value
+	 *
+	 * @return Value — результат операции
+	 */
 	public <Value> Value apply(EnvironmentAttribute<Value> key, Value value) {
 		EnvironmentAttributeMap.Entry<Value, ?> entry = this.getEntry(key);
 		return entry != null ? entry.apply(value) : value;
 	}
 
+	/**
+	 * Contains key.
+	 *
+	 * @param key key
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean containsKey(EnvironmentAttribute<?> key) {
 		return this.entries.containsKey(key);
 	}
 
+	/**
+	 * Key set.
+	 *
+	 * @return Set> — результат операции
+	 */
 	public Set<EnvironmentAttribute<?>> keySet() {
 		return this.entries.keySet();
 	}
@@ -124,6 +144,11 @@ public final class EnvironmentAttributeMap {
 			return this.with(key, EnvironmentAttributeModifier.override(), value);
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return EnvironmentAttributeMap — результат операции
+		 */
 		public EnvironmentAttributeMap build() {
 			return this.entries.isEmpty() ? EnvironmentAttributeMap.EMPTY
 			                              : new EnvironmentAttributeMap(Map.copyOf(this.entries));
@@ -174,6 +199,13 @@ public final class EnvironmentAttributeMap {
 			);
 		}
 
+		/**
+		 * Apply.
+		 *
+		 * @param value value
+		 *
+		 * @return Value — результат операции
+		 */
 		public Value apply(Value value) {
 			return this.modifier.apply(value, this.argument);
 		}

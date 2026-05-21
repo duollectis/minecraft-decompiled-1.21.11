@@ -191,6 +191,9 @@ public abstract class AbstractDonkeyEntity extends AbstractHorseEntity {
 		return Leashable.createQuadLeashOffsets(this, 0.04, 0.41, 0.18, 0.73);
 	}
 
+	/**
+	 * Play add chest sound.
+	 */
 	protected void playAddChestSound() {
 		this.playSound(
 				SoundEvents.ENTITY_DONKEY_CHEST,

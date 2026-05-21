@@ -19,6 +19,14 @@ public record MapDecorationsComponent(Map<String, MapDecorationsComponent.Decora
 			Codec.unboundedMap(Codec.STRING, MapDecorationsComponent.Decoration.CODEC)
 			     .xmap(MapDecorationsComponent::new, MapDecorationsComponent::decorations);
 
+	/**
+	 * With.
+	 *
+	 * @param id id
+	 * @param decoration decoration
+	 *
+	 * @return MapDecorationsComponent — результат операции
+	 */
 	public MapDecorationsComponent with(String id, MapDecorationsComponent.Decoration decoration) {
 		return new MapDecorationsComponent(Util.mapWith(this.decorations, id, decoration));
 	}

@@ -115,6 +115,15 @@ public class WaterPathNodeMaker extends PathNodeMaker {
 		return pathNode;
 	}
 
+	/**
+	 * Добавляет path node pos.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return PathNodeType — результат операции
+	 */
 	protected PathNodeType addPathNodePos(int x, int y, int z) {
 		return (PathNodeType) this.nodePosToType.computeIfAbsent(
 				BlockPos.asLong(x, y, z),

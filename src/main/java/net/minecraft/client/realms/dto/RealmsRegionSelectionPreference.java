@@ -31,6 +31,11 @@ public class RealmsRegionSelectionPreference implements RealmsSerializable {
 		this.preferredRegion = realmsRegion;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return RealmsRegionSelectionPreference — результат операции
+	 */
 	public RealmsRegionSelectionPreference copy() {
 		return new RealmsRegionSelectionPreference(this.selectionMethod, this.preferredRegion);
 	}

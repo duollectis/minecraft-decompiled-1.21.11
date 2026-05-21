@@ -10,6 +10,11 @@ import net.minecraft.village.VillagerProfession;
  */
 public class LoseJobOnSiteLossTask {
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<VillagerEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.JOB_SITE)).apply(

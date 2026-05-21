@@ -26,6 +26,11 @@ public class CowVariants {
 		return RegistryKey.of(RegistryKeys.COW_VARIANT, id);
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<CowVariant> registry) {
 		register(
 				registry,

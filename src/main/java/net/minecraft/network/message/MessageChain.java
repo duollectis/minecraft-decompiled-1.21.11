@@ -13,6 +13,9 @@ import java.time.Instant;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
+/**
+ * Класс message chain.
+ */
 public class MessageChain {
 
 	static final Logger LOGGER = LogUtils.getLogger();
@@ -112,6 +115,9 @@ public class MessageChain {
 	}
 
 	@FunctionalInterface
+	/**
+	 * Интерфейс packer.
+	 */
 	public interface Packer {
 
 		MessageChain.Packer NONE = body -> null;
@@ -120,6 +126,9 @@ public class MessageChain {
 	}
 
 	@FunctionalInterface
+	/**
+	 * Интерфейс unpacker.
+	 */
 	public interface Unpacker {
 
 		static MessageChain.Unpacker unsigned(UUID sender, BooleanSupplier secureProfileEnforced) {

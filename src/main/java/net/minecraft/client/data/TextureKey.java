@@ -58,10 +58,25 @@ public final class TextureKey {
 	private final String name;
 	private final @Nullable TextureKey parent;
 
+	/**
+	 * Of.
+	 *
+	 * @param name name
+	 *
+	 * @return TextureKey — результат операции
+	 */
 	public static TextureKey of(String name) {
 		return new TextureKey(name, null);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param name name
+	 * @param parent parent
+	 *
+	 * @return TextureKey — результат операции
+	 */
 	public static TextureKey of(String name, TextureKey parent) {
 		return new TextureKey(name, parent);
 	}

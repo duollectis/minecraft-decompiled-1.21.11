@@ -40,6 +40,13 @@ public class LookAroundTask extends MultiTickTask<MobEntity> {
 		}
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		Random random = mobEntity.getRandom();
 		float f = MathHelper.clamp(random.nextFloat() * this.pitchRange + this.minPitch, -90.0F, 90.0F);

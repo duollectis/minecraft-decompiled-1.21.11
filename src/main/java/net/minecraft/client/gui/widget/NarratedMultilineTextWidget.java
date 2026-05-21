@@ -111,6 +111,9 @@ public class NarratedMultilineTextWidget extends MultilineTextWidget {
 		return this.margin;
 	}
 
+	/**
+	 * Обновляет width.
+	 */
 	public void updateWidth() {
 		if (this.customWidth != -1) {
 			this.setWidth(this.customWidth);
@@ -121,6 +124,9 @@ public class NarratedMultilineTextWidget extends MultilineTextWidget {
 		}
 	}
 
+	/**
+	 * Обновляет height.
+	 */
 	public void updateHeight() {
 		int i = 9 * this.getTextRenderer().wrapLines(this.getMessage(), super.getWidth()).size();
 		this.setHeight(i + this.margin * 2);
@@ -208,6 +214,11 @@ public class NarratedMultilineTextWidget extends MultilineTextWidget {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return NarratedMultilineTextWidget — результат операции
+		 */
 		public NarratedMultilineTextWidget build() {
 			return new NarratedMultilineTextWidget(
 					this.text,

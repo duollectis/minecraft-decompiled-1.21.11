@@ -41,6 +41,13 @@ public class ItemModels {
 		return new BasicItemModel.Unbaked(model, List.of(tints));
 	}
 
+	/**
+	 * Constant tint source.
+	 *
+	 * @param value value
+	 *
+	 * @return TintSource — результат операции
+	 */
 	public static TintSource constantTintSource(int value) {
 		return new ConstantTintSource(value);
 	}
@@ -139,6 +146,11 @@ public class ItemModels {
 		return new SelectItemModel.Unbaked(new SelectItemModel.UnbakedSwitch<>(property, cases), Optional.empty());
 	}
 
+	/**
+	 * Using item property.
+	 *
+	 * @return BooleanProperty — результат операции
+	 */
 	public static BooleanProperty usingItemProperty() {
 		return new UsingItemProperty();
 	}

@@ -100,10 +100,22 @@ public class WardenEntityRenderer extends MobEntityRenderer<WardenEntity, Warden
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return WardenEntityRenderState — результат операции
+	 */
 	public WardenEntityRenderState createRenderState() {
 		return new WardenEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param wardenEntity warden entity
+	 * @param wardenEntityRenderState warden entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(WardenEntity wardenEntity, WardenEntityRenderState wardenEntityRenderState, float f) {
 		super.updateRenderState(wardenEntity, wardenEntityRenderState, f);
 		wardenEntityRenderState.tendrilAlpha = wardenEntity.getTendrilAlpha(f);

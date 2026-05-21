@@ -71,6 +71,13 @@ public class RecipeBookResults {
 		}
 	}
 
+	/**
+	 * Инициализирует ialize.
+	 *
+	 * @param client client
+	 * @param parentLeft parent left
+	 * @param parentTop parent top
+	 */
 	public void initialize(MinecraftClient client, int parentLeft, int parentTop) {
 		this.client = client;
 		this.recipeBook = client.player.getRecipeBook();
@@ -150,6 +157,16 @@ public class RecipeBookResults {
 		}
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param deltaTicks delta ticks
+	 */
 	public void draw(DrawContext context, int x, int y, int mouseX, int mouseY, float deltaTicks) {
 		if (this.pageCount > 1) {
 			Text text = Text.translatable("gui.recipebook.page", this.currentPage + 1, this.pageCount);
@@ -178,6 +195,13 @@ public class RecipeBookResults {
 		this.alternatesWidget.render(context, mouseX, mouseY, deltaTicks);
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawTooltip(DrawContext context, int x, int y) {
 		if (this.client.currentScreen != null && this.hoveredResultButton != null
 				&& !this.alternatesWidget.isVisible()) {
@@ -201,10 +225,25 @@ public class RecipeBookResults {
 		return this.resultCollection;
 	}
 
+	/**
+	 * Hide alternates.
+	 */
 	public void hideAlternates() {
 		this.alternatesWidget.setVisible(false);
 	}
 
+	/**
+	 * Mouse clicked.
+	 *
+	 * @param click click
+	 * @param left left
+	 * @param top top
+	 * @param width width
+	 * @param height height
+	 * @param doubled doubled
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean mouseClicked(Click click, int left, int top, int width, int height, boolean doubled) {
 		this.lastClickedRecipe = null;
 		this.resultCollection = null;
@@ -261,6 +300,11 @@ public class RecipeBookResults {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие recipe displayed.
+	 *
+	 * @param recipeId recipe id
+	 */
 	public void onRecipeDisplayed(NetworkRecipeId recipeId) {
 		this.recipeBookWidget.onRecipeDisplayed(recipeId);
 	}
@@ -269,6 +313,11 @@ public class RecipeBookResults {
 		return this.recipeBook;
 	}
 
+	/**
+	 * For each button.
+	 *
+	 * @param action action
+	 */
 	protected void forEachButton(Consumer<ClickableWidget> action) {
 		this.resultButtons.forEach(action);
 	}

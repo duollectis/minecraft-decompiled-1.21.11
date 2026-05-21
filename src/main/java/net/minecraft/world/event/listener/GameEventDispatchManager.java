@@ -25,6 +25,13 @@ public class GameEventDispatchManager {
 		this.world = world;
 	}
 
+	/**
+	 * Dispatch.
+	 *
+	 * @param event event
+	 * @param emitterPos emitter pos
+	 * @param emitter emitter
+	 */
 	public void dispatch(RegistryEntry<GameEvent> event, Vec3d emitterPos, GameEvent.Emitter emitter) {
 		int i = event.value().notificationRadius();
 		BlockPos blockPos = BlockPos.ofFloored(emitterPos);

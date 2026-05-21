@@ -95,6 +95,11 @@ public final class TrialSpawnerLogic {
 		return this.fullConfig.ominous.value();
 	}
 
+	/**
+	 * Читает data.
+	 *
+	 * @param view view
+	 */
 	public void readData(ReadView view) {
 		view.<TrialSpawnerData.Packed>read(TrialSpawnerData.Packed.CODEC).ifPresent(this.data::unpack);
 		this.fullConfig =
@@ -103,6 +108,11 @@ public final class TrialSpawnerLogic {
 						.orElse(TrialSpawnerLogic.FullConfig.DEFAULT);
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param view view
+	 */
 	public void writeData(WriteView view) {
 		view.put(TrialSpawnerData.Packed.CODEC, this.data.pack());
 		view.put(TrialSpawnerLogic.FullConfig.CODEC, this.fullConfig);
@@ -144,6 +154,9 @@ public final class TrialSpawnerLogic {
 		this.trialSpawner.setSpawnerState(world, spawnerState);
 	}
 
+	/**
+	 * Обновляет listeners.
+	 */
 	public void updateListeners() {
 		this.trialSpawner.updateListeners();
 	}
@@ -156,6 +169,13 @@ public final class TrialSpawnerLogic {
 		return this.entitySelector;
 	}
 
+	/**
+	 * Проверяет возможность activate.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canActivate(ServerWorld world) {
 		if (!world.getGameRules().getValue(GameRules.SPAWNER_BLOCKS_WORK)) {
 			return false;
@@ -170,6 +190,14 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
+	/**
+	 * Try spawn mob.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return Optional — результат операции
+	 */
 	public Optional<UUID> trySpawnMob(ServerWorld world, BlockPos pos) {
 		Random random = world.getRandom();
 		MobSpawnerEntry mobSpawnerEntry = this.data.getSpawnData(this, world.getRandom());
@@ -266,6 +294,13 @@ public final class TrialSpawnerLogic {
 		return var24;
 	}
 
+	/**
+	 * Eject loot table.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param lootTable loot table
+	 */
 	public void ejectLootTable(ServerWorld world, BlockPos pos, RegistryKey<LootTable> lootTable) {
 		LootTable lootTable2 = world.getServer().getReloadableRegistries().getLootTable(lootTable);
 		LootWorldContext lootWorldContext = new LootWorldContext.Builder(world).build(LootContextTypes.EMPTY);
@@ -288,6 +323,13 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для client.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param ominous ominous
+	 */
 	public void tickClient(World world, BlockPos pos, boolean ominous) {
 		TrialSpawnerState trialSpawnerState = this.getSpawnerState();
 		trialSpawnerState.emitParticles(world, pos, ominous);
@@ -318,6 +360,13 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для server.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param ominous ominous
+	 */
 	public void tickServer(ServerWorld world, BlockPos pos, boolean ominous) {
 		this.ominous = ominous;
 		TrialSpawnerState trialSpawnerState = this.getSpawnerState();
@@ -353,6 +402,14 @@ public final class TrialSpawnerLogic {
 				|| blockHitResult.getType() == HitResult.Type.MISS;
 	}
 
+	/**
+	 * Добавляет mob spawn particles.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 * @param particle particle
+	 */
 	public static void addMobSpawnParticles(World world, BlockPos pos, Random random, SimpleParticleType particle) {
 		for (int i = 0; i < 20; i++) {
 			double d = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
@@ -363,6 +420,13 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
+	/**
+	 * Добавляет trial omen particles.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 */
 	public static void addTrialOmenParticles(World world, BlockPos pos, Random random) {
 		for (int i = 0; i < 20; i++) {
 			double d = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 2.0;
@@ -393,6 +457,13 @@ public final class TrialSpawnerLogic {
 		}
 	}
 
+	/**
+	 * Добавляет eject item particles.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 */
 	public static void addEjectItemParticles(World world, BlockPos pos, Random random) {
 		for (int i = 0; i < 20; i++) {
 			double d = pos.getX() + 0.4 + random.nextDouble() * 0.2;
@@ -420,6 +491,9 @@ public final class TrialSpawnerLogic {
 
 	@Deprecated(forRemoval = true)
 	@VisibleForTesting
+	/**
+	 * Force activate.
+	 */
 	public void forceActivate() {
 		this.forceActivate = true;
 	}

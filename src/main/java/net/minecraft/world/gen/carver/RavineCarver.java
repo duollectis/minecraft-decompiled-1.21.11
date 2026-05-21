@@ -21,6 +21,14 @@ public class RavineCarver extends Carver<RavineCarverConfig> {
 		super(codec);
 	}
 
+	/**
+	 * Определяет, следует ли carve.
+	 *
+	 * @param ravineCarverConfig ravine carver config
+	 * @param random random
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldCarve(RavineCarverConfig ravineCarverConfig, Random random) {
 		return random.nextFloat() <= ravineCarverConfig.probability;
 	}

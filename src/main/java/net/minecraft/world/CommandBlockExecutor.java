@@ -48,6 +48,11 @@ public abstract class CommandBlockExecutor {
 		return this.lastOutput == null ? ScreenTexts.EMPTY : this.lastOutput;
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param view view
+	 */
 	public void writeData(WriteView view) {
 		view.putString("Command", this.command);
 		view.putInt("SuccessCount", this.successCount);
@@ -63,6 +68,11 @@ public abstract class CommandBlockExecutor {
 		}
 	}
 
+	/**
+	 * Читает data.
+	 *
+	 * @param view view
+	 */
 	public void readData(ReadView view) {
 		this.command = view.getString("Command", "");
 		this.successCount = view.getInt("SuccessCount", 0);
@@ -93,6 +103,13 @@ public abstract class CommandBlockExecutor {
 		return this.command;
 	}
 
+	/**
+	 * Execute.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean execute(ServerWorld world) {
 		if (world.getTime() == this.lastExecution) {
 			return false;
@@ -160,6 +177,11 @@ public abstract class CommandBlockExecutor {
 		this.customName = customName;
 	}
 
+	/**
+	 * Mark dirty.
+	 *
+	 * @param world world
+	 */
 	public abstract void markDirty(ServerWorld world);
 
 	public void setLastOutput(@Nullable Text lastOutput) {

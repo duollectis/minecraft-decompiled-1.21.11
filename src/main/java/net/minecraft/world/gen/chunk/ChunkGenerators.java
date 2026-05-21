@@ -8,6 +8,13 @@ import net.minecraft.registry.Registry;
  */
 public class ChunkGenerators {
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static MapCodec<? extends ChunkGenerator> registerAndGetDefault(Registry<MapCodec<? extends ChunkGenerator>> registry) {
 		Registry.register(registry, "noise", NoiseChunkGenerator.CODEC);
 		Registry.register(registry, "flat", FlatChunkGenerator.CODEC);

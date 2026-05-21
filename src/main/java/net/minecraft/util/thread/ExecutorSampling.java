@@ -20,10 +20,20 @@ public class ExecutorSampling {
 	private ExecutorSampling() {
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param executor executor
+	 */
 	public void add(SampleableExecutor executor) {
 		this.activeExecutors.put(executor, null);
 	}
 
+	/**
+	 * Создаёт samplers.
+	 *
+	 * @return List — результат операции
+	 */
 	public List<Sampler> createSamplers() {
 		Map<String, List<Sampler>> map = this.activeExecutors
 				.keySet()

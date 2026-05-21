@@ -173,6 +173,14 @@ public class ScaffoldingBlock extends Block implements Waterloggable {
 		return distance > 0 && !world.getBlockState(pos.down()).isOf(this);
 	}
 
+	/**
+	 * Вычисляет distance.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return int — результат операции
+	 */
 	public static int calculateDistance(BlockView world, BlockPos pos) {
 		BlockPos.Mutable mutable = pos.mutableCopy().move(Direction.DOWN);
 		BlockState blockState = world.getBlockState(mutable);

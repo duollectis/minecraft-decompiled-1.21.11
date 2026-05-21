@@ -402,6 +402,9 @@ public class BeeEntity extends AnimalEntity implements Angerable, Flutterer {
 		this.tickAngerLogic(world, false);
 	}
 
+	/**
+	 * Сбрасывает pollination ticks.
+	 */
 	public void resetPollinationTicks() {
 		this.ticksSincePollination = 0;
 	}
@@ -633,6 +636,14 @@ public class BeeEntity extends AnimalEntity implements Angerable, Flutterer {
 		return 0.4F;
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable BeeEntity — результат операции
+	 */
 	public @Nullable BeeEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		return EntityType.BEE.create(serverWorld, SpawnReason.BREEDING);
 	}
@@ -651,6 +662,9 @@ public class BeeEntity extends AnimalEntity implements Angerable, Flutterer {
 		return !this.isOnGround();
 	}
 
+	/**
+	 * Обрабатывает событие honey delivered.
+	 */
 	public void onHoneyDelivered() {
 		this.setHasNectar(false);
 		this.resetCropCounter();
@@ -1179,8 +1193,18 @@ public class BeeEntity extends AnimalEntity implements Angerable, Flutterer {
 	 */
 	abstract class NotAngryGoal extends Goal {
 
+		/**
+		 * Проверяет возможность bee start.
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public abstract boolean canBeeStart();
 
+		/**
+		 * Проверяет возможность bee continue.
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public abstract boolean canBeeContinue();
 
 		@Override

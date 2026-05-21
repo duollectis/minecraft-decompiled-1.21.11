@@ -28,6 +28,12 @@ public class SlimeEntityRenderer extends MobEntityRenderer<SlimeEntity, SlimeEnt
 		return slimeEntityRenderState.size * 0.25F;
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param slimeEntityRenderState slime entity render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void scale(SlimeEntityRenderState slimeEntityRenderState, MatrixStack matrixStack) {
 		float f = 0.999F;
 		matrixStack.scale(0.999F, 0.999F, 0.999F);
@@ -42,10 +48,22 @@ public class SlimeEntityRenderer extends MobEntityRenderer<SlimeEntity, SlimeEnt
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SlimeEntityRenderState — результат операции
+	 */
 	public SlimeEntityRenderState createRenderState() {
 		return new SlimeEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param slimeEntity slime entity
+	 * @param slimeEntityRenderState slime entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(SlimeEntity slimeEntity, SlimeEntityRenderState slimeEntityRenderState, float f) {
 		super.updateRenderState(slimeEntity, slimeEntityRenderState, f);
 		slimeEntityRenderState.stretch = MathHelper.lerp(f, slimeEntity.lastStretch, slimeEntity.stretch);

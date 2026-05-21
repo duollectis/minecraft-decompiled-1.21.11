@@ -25,11 +25,23 @@ public class DirectionalLayoutWidget implements LayoutWidget {
 		this.axis = axis;
 	}
 
+	/**
+	 * Spacing.
+	 *
+	 * @param spacing spacing
+	 *
+	 * @return DirectionalLayoutWidget — результат операции
+	 */
 	public DirectionalLayoutWidget spacing(int spacing) {
 		this.axis.setSpacing(this.grid, spacing);
 		return this;
 	}
 
+	/**
+	 * Создаёт копию positioner.
+	 *
+	 * @return Positioner — результат операции
+	 */
 	public Positioner copyPositioner() {
 		return this.grid.copyPositioner();
 	}
@@ -38,14 +50,37 @@ public class DirectionalLayoutWidget implements LayoutWidget {
 		return this.grid.getMainPositioner();
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 * @param positioner positioner
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget, Positioner positioner) {
 		return this.axis.add(this.grid, widget, this.currentIndex++, positioner);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget) {
 		return this.add(widget, this.copyPositioner());
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 * @param callback callback
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget, Consumer<Positioner> callback) {
 		return this.axis.add(this.grid, widget, this.currentIndex++, Util.make(this.copyPositioner(), callback));
 	}
@@ -90,10 +125,20 @@ public class DirectionalLayoutWidget implements LayoutWidget {
 		return this.grid.getY();
 	}
 
+	/**
+	 * Vertical.
+	 *
+	 * @return DirectionalLayoutWidget — результат операции
+	 */
 	public static DirectionalLayoutWidget vertical() {
 		return new DirectionalLayoutWidget(DirectionalLayoutWidget.DisplayAxis.VERTICAL);
 	}
 
+	/**
+	 * Horizontal.
+	 *
+	 * @return DirectionalLayoutWidget — результат операции
+	 */
 	public static DirectionalLayoutWidget horizontal() {
 		return new DirectionalLayoutWidget(DirectionalLayoutWidget.DisplayAxis.HORIZONTAL);
 	}
@@ -116,6 +161,16 @@ public class DirectionalLayoutWidget implements LayoutWidget {
 			}
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param grid grid
+		 * @param widget widget
+		 * @param index index
+		 * @param positioner positioner
+		 *
+		 * @return T — результат операции
+		 */
 		public <T extends Widget> T add(GridWidget grid, T widget, int index, Positioner positioner) {
 			return (T) (switch (this) {
 				case HORIZONTAL -> (Widget) grid.add(widget, 0, index, positioner);

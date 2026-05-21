@@ -6,6 +6,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс bundle s2 c packet.
+ */
 public class BundleS2CPacket extends BundlePacket<ClientPlayPacketListener> {
 
 	public BundleS2CPacket(Iterable<Packet<? super ClientPlayPacketListener>> iterable) {
@@ -17,6 +20,11 @@ public class BundleS2CPacket extends BundlePacket<ClientPlayPacketListener> {
 		return PlayPackets.BUNDLE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onBundle(this);
 	}

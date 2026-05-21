@@ -45,6 +45,14 @@ public class GlyphAtlasTexture extends AbstractTexture implements DynamicTexture
 		this.textRenderLayers = textRenderLayers;
 	}
 
+	/**
+	 * Bake.
+	 *
+	 * @param metrics metrics
+	 * @param glyph glyph
+	 *
+	 * @return @Nullable BakedGlyphImpl — результат операции
+	 */
 	public @Nullable BakedGlyphImpl bake(GlyphMetrics metrics, UploadableGlyph glyph) {
 		if (glyph.hasColor() != this.hasColor) {
 			return null;

@@ -34,10 +34,22 @@ public class LivingTargetCache {
 		this.targetPredicate = entity -> object2BooleanOpenHashMap.computeIfAbsent(entity, predicate);
 	}
 
+	/**
+	 * Empty.
+	 *
+	 * @return LivingTargetCache — результат операции
+	 */
 	public static LivingTargetCache empty() {
 		return EMPTY;
 	}
 
+	/**
+	 * Ищет first.
+	 *
+	 * @param predicate predicate
+	 *
+	 * @return Optional — first
+	 */
 	public Optional<LivingEntity> findFirst(Predicate<LivingEntity> predicate) {
 		for (LivingEntity livingEntity : this.entities) {
 			if (predicate.test(livingEntity) && this.targetPredicate.test(livingEntity)) {
@@ -48,18 +60,46 @@ public class LivingTargetCache {
 		return Optional.empty();
 	}
 
+	/**
+	 * Iterate.
+	 *
+	 * @param predicate predicate
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public Iterable<LivingEntity> iterate(Predicate<LivingEntity> predicate) {
 		return Iterables.filter(this.entities, entity -> predicate.test(entity) && this.targetPredicate.test(entity));
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param predicate predicate
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<LivingEntity> stream(Predicate<LivingEntity> predicate) {
 		return this.entities.stream().filter(entity -> predicate.test(entity) && this.targetPredicate.test(entity));
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(LivingEntity entity) {
 		return this.entities.contains(entity) && this.targetPredicate.test(entity);
 	}
 
+	/**
+	 * Any match.
+	 *
+	 * @param predicate predicate
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean anyMatch(Predicate<LivingEntity> predicate) {
 		for (LivingEntity livingEntity : this.entities) {
 			if (predicate.test(livingEntity) && this.targetPredicate.test(livingEntity)) {

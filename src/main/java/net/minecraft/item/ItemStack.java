@@ -131,6 +131,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 	public static final PacketCodec<RegistryByteBuf, ItemStack>
 			PACKET_CODEC =
 			new PacketCodec<RegistryByteBuf, ItemStack>() {
+				/**
+				 * Decode.
+				 *
+				 * @param registryByteBuf registry byte buf
+				 *
+				 * @return ItemStack — результат операции
+				 */
 				public ItemStack decode(RegistryByteBuf registryByteBuf) {
 					ItemStack itemStack = ItemStack.OPTIONAL_PACKET_CODEC.decode(registryByteBuf);
 					if (itemStack.isEmpty()) {
@@ -141,6 +148,12 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 					}
 				}
 
+				/**
+				 * Encode.
+				 *
+				 * @param registryByteBuf registry byte buf
+				 * @param itemStack item stack
+				 */
 				public void encode(RegistryByteBuf registryByteBuf, ItemStack itemStack) {
 					if (itemStack.isEmpty()) {
 						throw new EncoderException("Empty ItemStack not allowed");
@@ -165,6 +178,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 	final MergedComponentMap components;
 	private @Nullable Entity holder;
 
+	/**
+	 * Validate.
+	 *
+	 * @param stack stack
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public static DataResult<ItemStack> validate(ItemStack stack) {
 		DataResult<Unit> dataResult = validateComponents(stack.getComponents());
 		if (dataResult.isError()) {
@@ -180,6 +200,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 
 	private static PacketCodec<RegistryByteBuf, ItemStack> createOptionalPacketCodec(PacketCodec<RegistryByteBuf, ComponentChanges> componentsPacketCodec) {
 		return new PacketCodec<RegistryByteBuf, ItemStack>() {
+			/**
+			 * Decode.
+			 *
+			 * @param registryByteBuf registry byte buf
+			 *
+			 * @return ItemStack — результат операции
+			 */
 			public ItemStack decode(RegistryByteBuf registryByteBuf) {
 				int i = registryByteBuf.readVarInt();
 				if (i <= 0) {
@@ -192,6 +219,12 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 				}
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param registryByteBuf registry byte buf
+			 * @param itemStack item stack
+			 */
 			public void encode(RegistryByteBuf registryByteBuf, ItemStack itemStack) {
 				if (itemStack.isEmpty()) {
 					registryByteBuf.writeVarInt(0);
@@ -205,8 +238,22 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		};
 	}
 
+	/**
+	 * Создаёт extra validating packet codec.
+	 *
+	 * @param basePacketCodec base packet codec
+	 *
+	 * @return PacketCodec — результат операции
+	 */
 	public static PacketCodec<RegistryByteBuf, ItemStack> createExtraValidatingPacketCodec(PacketCodec<RegistryByteBuf, ItemStack> basePacketCodec) {
 		return new PacketCodec<RegistryByteBuf, ItemStack>() {
+			/**
+			 * Decode.
+			 *
+			 * @param registryByteBuf registry byte buf
+			 *
+			 * @return ItemStack — результат операции
+			 */
 			public ItemStack decode(RegistryByteBuf registryByteBuf) {
 				ItemStack itemStack = basePacketCodec.decode(registryByteBuf);
 				if (!itemStack.isEmpty()) {
@@ -217,6 +264,12 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 				return itemStack;
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param registryByteBuf registry byte buf
+			 * @param itemStack item stack
+			 */
 			public void encode(RegistryByteBuf registryByteBuf, ItemStack itemStack) {
 				basePacketCodec.encode(registryByteBuf, itemStack);
 			}
@@ -279,6 +332,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		this.components = new MergedComponentMap(ComponentMap.EMPTY);
 	}
 
+	/**
+	 * Валидирует components.
+	 *
+	 * @param components components
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public static DataResult<Unit> validateComponents(ComponentMap components) {
 		if (components.contains(DataComponentTypes.MAX_DAMAGE)
 				&& components.getOrDefault(DataComponentTypes.MAX_STACK_SIZE, 1) > 1) {
@@ -309,6 +369,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.isEmpty() || this.getItem().isEnabled(enabledFeatures);
 	}
 
+	/**
+	 * Split.
+	 *
+	 * @param amount amount
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack split(int amount) {
 		int i = Math.min(amount, this.getCount());
 		ItemStack itemStack = this.copyWithCount(i);
@@ -316,6 +383,11 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return itemStack;
 	}
 
+	/**
+	 * Создаёт копию and empty.
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack copyAndEmpty() {
 		if (this.isEmpty()) {
 			return EMPTY;
@@ -343,10 +415,24 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getItem() == item;
 	}
 
+	/**
+	 * Item matches.
+	 *
+	 * @param predicate predicate
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean itemMatches(Predicate<RegistryEntry<Item>> predicate) {
 		return predicate.test(this.getItem().getRegistryEntry());
 	}
 
+	/**
+	 * Item matches.
+	 *
+	 * @param itemEntry item entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean itemMatches(RegistryEntry<Item> itemEntry) {
 		return this.getItem().getRegistryEntry() == itemEntry;
 	}
@@ -355,10 +441,22 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return registryEntryList.contains(this.getRegistryEntry());
 	}
 
+	/**
+	 * Stream tags.
+	 *
+	 * @return Stream> — результат операции
+	 */
 	public Stream<TagKey<Item>> streamTags() {
 		return this.getItem().getRegistryEntry().streamTags();
 	}
 
+	/**
+	 * Использует on block.
+	 *
+	 * @param context context
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult useOnBlock(ItemUsageContext context) {
 		PlayerEntity playerEntity = context.getPlayer();
 		BlockPos blockPos = context.getBlockPos();
@@ -384,6 +482,15 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getItem().getMiningSpeed(this, state);
 	}
 
+	/**
+	 * Use.
+	 *
+	 * @param world world
+	 * @param user user
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult use(World world, PlayerEntity user, Hand hand) {
 		ItemStack itemStack = this.copy();
 		boolean bl = this.getMaxUseTime(user) <= 0;
@@ -398,6 +505,14 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		);
 	}
 
+	/**
+	 * Finish using.
+	 *
+	 * @param world world
+	 * @param user user
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack finishUsing(World world, LivingEntity user) {
 		ItemStack itemStack = this.copy();
 		ItemStack itemStack2 = this.getItem().finishUsing(this, world, user);
@@ -449,10 +564,20 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getOrDefault(DataComponentTypes.MAX_DAMAGE, 0);
 	}
 
+	/**
+	 * Определяет, следует ли break.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldBreak() {
 		return this.isDamageable() && this.getDamage() >= this.getMaxDamage();
 	}
 
+	/**
+	 * Will break next use.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean willBreakNextUse() {
 		return this.isDamageable() && this.getDamage() >= this.getMaxDamage() - 1;
 	}
@@ -495,6 +620,12 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Damage.
+	 *
+	 * @param amount amount
+	 * @param player player
+	 */
 	public void damage(int amount, PlayerEntity player) {
 		if (player instanceof ServerPlayerEntity serverPlayerEntity) {
 			int i = this.calculateDamage(amount, serverPlayerEntity.getEntityWorld(), serverPlayerEntity);
@@ -507,10 +638,24 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Damage.
+	 *
+	 * @param amount amount
+	 * @param entity entity
+	 * @param hand hand
+	 */
 	public void damage(int amount, LivingEntity entity, Hand hand) {
 		this.damage(amount, entity, hand.getEquipmentSlot());
 	}
 
+	/**
+	 * Damage.
+	 *
+	 * @param amount amount
+	 * @param entity entity
+	 * @param slot slot
+	 */
 	public void damage(int amount, LivingEntity entity, EquipmentSlot slot) {
 		if (entity.getEntityWorld() instanceof ServerWorld serverWorld) {
 			this.damage(
@@ -522,6 +667,16 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Damage.
+	 *
+	 * @param amount amount
+	 * @param itemAfterBreaking item after breaking
+	 * @param entity entity
+	 * @param slot slot
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack damage(int amount, ItemConvertible itemAfterBreaking, LivingEntity entity, EquipmentSlot slot) {
 		this.damage(amount, entity, slot);
 		if (this.isEmpty()) {
@@ -549,6 +704,15 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getItem().getItemBarColor(this);
 	}
 
+	/**
+	 * Обрабатывает событие stack clicked.
+	 *
+	 * @param slot slot
+	 * @param clickType click type
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean onStackClicked(Slot slot, ClickType clickType, PlayerEntity player) {
 		return this.getItem().onStackClicked(this, slot, clickType, player);
 	}
@@ -563,6 +727,14 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getItem().onClicked(this, stack, slot, clickType, player, cursorStackReference);
 	}
 
+	/**
+	 * Post hit.
+	 *
+	 * @param target target
+	 * @param user user
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean postHit(LivingEntity target, LivingEntity user) {
 		Item heldItem = this.getItem();
 		heldItem.postHit(this, target, user);
@@ -579,6 +751,12 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Post damage entity.
+	 *
+	 * @param target target
+	 * @param user user
+	 */
 	public void postDamageEntity(LivingEntity target, LivingEntity user) {
 		this.getItem().postDamageEntity(this, target, user);
 		WeaponComponent weaponComponent = this.get(DataComponentTypes.WEAPON);
@@ -587,6 +765,14 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Post mine.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param pos pos
+	 * @param miner miner
+	 */
 	public void postMine(World world, BlockState state, BlockPos pos, PlayerEntity miner) {
 		Item item = this.getItem();
 		if (item.postMine(this, world, state, pos, miner)) {
@@ -598,6 +784,15 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getItem().isCorrectForDrops(this, state);
 	}
 
+	/**
+	 * Использует on entity.
+	 *
+	 * @param user user
+	 * @param entity entity
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult useOnEntity(PlayerEntity user, LivingEntity entity, Hand hand) {
 		EquippableComponent equippableComponent = this.get(DataComponentTypes.EQUIPPABLE);
 		if (equippableComponent != null && equippableComponent.equipOnInteract()) {
@@ -610,6 +805,11 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getItem().useOnEntity(this, user, entity, hand);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack copy() {
 		if (this.isEmpty()) {
 			return EMPTY;
@@ -621,6 +821,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Создаёт копию with count.
+	 *
+	 * @param count count
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack copyWithCount(int count) {
 		if (this.isEmpty()) {
 			return EMPTY;
@@ -632,10 +839,25 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * With item.
+	 *
+	 * @param item item
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack withItem(ItemConvertible item) {
 		return this.copyComponentsToNewStack(item, this.getCount());
 	}
 
+	/**
+	 * Создаёт копию components to new stack.
+	 *
+	 * @param item item
+	 * @param count count
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack copyComponentsToNewStack(ItemConvertible item, int count) {
 		return this.isEmpty() ? EMPTY : this.copyComponentsToNewStackIgnoreEmpty(item, count);
 	}
@@ -644,6 +866,14 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return new ItemStack(item.asItem().getRegistryEntry(), count, this.components.getChanges());
 	}
 
+	/**
+	 * Are equal.
+	 *
+	 * @param left left
+	 * @param right right
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean areEqual(ItemStack left, ItemStack right) {
 		if (left == right) {
 			return true;
@@ -654,6 +884,14 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 	}
 
 	@Deprecated
+	/**
+	 * Stacks equal.
+	 *
+	 * @param left left
+	 * @param right right
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean stacksEqual(List<ItemStack> left, List<ItemStack> right) {
 		if (left.size() != right.size()) {
 			return false;
@@ -669,10 +907,26 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Are items equal.
+	 *
+	 * @param left left
+	 * @param right right
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean areItemsEqual(ItemStack left, ItemStack right) {
 		return left.isOf(right.getItem());
 	}
 
+	/**
+	 * Are items and components equal.
+	 *
+	 * @param stack stack
+	 * @param otherStack other stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean areItemsAndComponentsEqual(ItemStack stack, ItemStack otherStack) {
 		if (!stack.isOf(otherStack.getItem())) {
 			return false;
@@ -720,6 +974,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Создаёт optional codec.
+	 *
+	 * @param fieldName field name
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static MapCodec<ItemStack> createOptionalCodec(String fieldName) {
 		return CODEC
 				.lenientOptionalFieldOf(fieldName)
@@ -729,6 +990,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 				);
 	}
 
+	/**
+	 * Проверяет наличие h code.
+	 *
+	 * @param stack stack
+	 *
+	 * @return int — {@code true} если условие выполнено
+	 */
 	public static int hashCode(@Nullable ItemStack stack) {
 		if (stack != null) {
 			int i = 31 + stack.getItem().hashCode();
@@ -740,6 +1008,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 	}
 
 	@Deprecated
+	/**
+	 * List hash code.
+	 *
+	 * @param stacks stacks
+	 *
+	 * @return int — результат операции
+	 */
 	public static int listHashCode(List<ItemStack> stacks) {
 		int i = 0;
 
@@ -755,6 +1030,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getCount() + " " + this.getItem();
 	}
 
+	/**
+	 * Inventory tick.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param slot slot
+	 */
 	public void inventoryTick(World world, Entity entity, @Nullable EquipmentSlot slot) {
 		if (this.bobbingAnimationTime > 0) {
 			this.bobbingAnimationTime--;
@@ -765,11 +1047,22 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие craft by player.
+	 *
+	 * @param player player
+	 * @param amount amount
+	 */
 	public void onCraftByPlayer(PlayerEntity player, int amount) {
 		player.increaseStat(Stats.CRAFTED.getOrCreateStat(this.getItem()), amount);
 		this.getItem().onCraftByPlayer(this, player);
 	}
 
+	/**
+	 * Обрабатывает событие craft by crafter.
+	 *
+	 * @param world world
+	 */
 	public void onCraftByCrafter(World world) {
 		this.getItem().onCraft(this, world);
 	}
@@ -782,6 +1075,13 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getItem().getUseAction(this);
 	}
 
+	/**
+	 * Обрабатывает событие stopped using.
+	 *
+	 * @param world world
+	 * @param user user
+	 * @param remainingUseTicks remaining use ticks
+	 */
 	public void onStoppedUsing(World world, LivingEntity user, int remainingUseTicks) {
 		ItemStack itemStack = this.copy();
 		if (this.getItem().onStoppedUsing(this, world, user, remainingUseTicks)) {
@@ -792,6 +1092,12 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Emit use game event.
+	 *
+	 * @param user user
+	 * @param gameEvent game event
+	 */
 	public void emitUseGameEvent(Entity user, RegistryEntry.Reference<GameEvent> gameEvent) {
 		UseEffectsComponent useEffectsComponent = this.get(DataComponentTypes.USE_EFFECTS);
 		if (useEffectsComponent != null && useEffectsComponent.interactVibrations()) {
@@ -803,31 +1109,85 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getItem().isUsedOnRelease(this);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T> @Nullable T set(ComponentType<T> type, @Nullable T value) {
 		return this.components.set(type, value);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param component component
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T> @Nullable T set(Component<T> component) {
 		return this.components.set(component);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @param type type
+	 * @param from from
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void copy(ComponentType<T> type, ComponentsAccess from) {
 		this.set(type, from.get(type));
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param type type
+	 * @param defaultValue default value
+	 * @param change change
+	 * @param applier applier
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T, U> @Nullable T apply(ComponentType<T> type, T defaultValue, U change, BiFunction<T, U, T> applier) {
 		return this.set(type, applier.apply(this.getOrDefault(type, defaultValue), change));
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param type type
+	 * @param defaultValue default value
+	 * @param applier applier
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T> @Nullable T apply(ComponentType<T> type, T defaultValue, UnaryOperator<T> applier) {
 		T object = this.getOrDefault(type, defaultValue);
 		return this.set(type, applier.apply(object));
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param type type
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T> @Nullable T remove(ComponentType<? extends T> type) {
 		return this.components.remove(type);
 	}
 
+	/**
+	 * Применяет changes.
+	 *
+	 * @param changes changes
+	 */
 	public void applyChanges(ComponentChanges changes) {
 		ComponentChanges componentChanges = this.components.getChanges();
 		this.components.applyChanges(changes);
@@ -838,10 +1198,20 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Применяет unvalidated changes.
+	 *
+	 * @param changes changes
+	 */
 	public void applyUnvalidatedChanges(ComponentChanges changes) {
 		this.components.applyChanges(changes);
 	}
 
+	/**
+	 * Применяет components from.
+	 *
+	 * @param components components
+	 */
 	public void applyComponentsFrom(ComponentMap components) {
 		this.components.setAll(components);
 	}
@@ -1113,6 +1483,12 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Добавляет enchantment.
+	 *
+	 * @param enchantment enchantment
+	 * @param level level
+	 */
 	public void addEnchantment(RegistryEntry<Enchantment> enchantment, int level) {
 		EnchantmentHelper.apply(this, builder -> builder.add(enchantment, level));
 	}
@@ -1173,6 +1549,11 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		EnchantmentHelper.applyAttributeModifiers(this, slot, attributeModifierConsumer);
 	}
 
+	/**
+	 * To hoverable text.
+	 *
+	 * @return Text — результат операции
+	 */
 	public Text toHoverableText() {
 		MutableText mutableText = Text.empty().append(this.getName());
 		if (this.contains(DataComponentTypes.CUSTOM_NAME)) {
@@ -1193,11 +1574,25 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		return this.getOrDefault(DataComponentTypes.SWING_ANIMATION, SwingAnimationComponent.DEFAULT);
 	}
 
+	/**
+	 * Проверяет возможность place on.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canPlaceOn(CachedBlockPosition pos) {
 		BlockPredicatesComponent blockPredicatesComponent = this.get(DataComponentTypes.CAN_PLACE_ON);
 		return blockPredicatesComponent != null && blockPredicatesComponent.check(pos);
 	}
 
+	/**
+	 * Проверяет возможность break.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBreak(CachedBlockPosition pos) {
 		BlockPredicatesComponent blockPredicatesComponent = this.get(DataComponentTypes.CAN_BREAK);
 		return blockPredicatesComponent != null && blockPredicatesComponent.check(pos);
@@ -1219,32 +1614,68 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		this.count = count;
 	}
 
+	/**
+	 * Cap count.
+	 *
+	 * @param maxCount max count
+	 */
 	public void capCount(int maxCount) {
 		if (!this.isEmpty() && this.getCount() > maxCount) {
 			this.setCount(maxCount);
 		}
 	}
 
+	/**
+	 * Increment.
+	 *
+	 * @param amount amount
+	 */
 	public void increment(int amount) {
 		this.setCount(this.getCount() + amount);
 	}
 
+	/**
+	 * Decrement.
+	 *
+	 * @param amount amount
+	 */
 	public void decrement(int amount) {
 		this.increment(-amount);
 	}
 
+	/**
+	 * Decrement unless creative.
+	 *
+	 * @param amount amount
+	 * @param entity entity
+	 */
 	public void decrementUnlessCreative(int amount, @Nullable LivingEntity entity) {
 		if (entity == null || !entity.isInCreativeMode()) {
 			this.decrement(amount);
 		}
 	}
 
+	/**
+	 * Split unless creative.
+	 *
+	 * @param amount amount
+	 * @param entity entity
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack splitUnlessCreative(int amount, @Nullable LivingEntity entity) {
 		ItemStack itemStack = this.copyWithCount(amount);
 		this.decrementUnlessCreative(amount, entity);
 		return itemStack;
 	}
 
+	/**
+	 * Usage tick.
+	 *
+	 * @param world world
+	 * @param user user
+	 * @param remainingUseTicks remaining use ticks
+	 */
 	public void usageTick(World world, LivingEntity user, int remainingUseTicks) {
 		ConsumableComponent consumableComponent = this.get(DataComponentTypes.CONSUMABLE);
 		if (consumableComponent != null && consumableComponent.shouldSpawnParticlesAndPlaySounds(remainingUseTicks)) {
@@ -1260,20 +1691,49 @@ public final class ItemStack implements ComponentHolder, FabricItemStack {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие item entity destroyed.
+	 *
+	 * @param entity entity
+	 */
 	public void onItemEntityDestroyed(ItemEntity entity) {
 		this.getItem().onItemEntityDestroyed(entity);
 	}
 
+	/**
+	 * Takes damage from.
+	 *
+	 * @param source source
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean takesDamageFrom(DamageSource source) {
 		DamageResistantComponent damageResistantComponent = this.get(DataComponentTypes.DAMAGE_RESISTANT);
 		return damageResistantComponent == null || !damageResistantComponent.resists(source);
 	}
 
+	/**
+	 * Проверяет возможность repair with.
+	 *
+	 * @param ingredient ingredient
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canRepairWith(ItemStack ingredient) {
 		RepairableComponent repairableComponent = this.get(DataComponentTypes.REPAIRABLE);
 		return repairableComponent != null && repairableComponent.matches(ingredient);
 	}
 
+	/**
+	 * Проверяет возможность mine.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param player player
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canMine(BlockState state, World world, BlockPos pos, PlayerEntity player) {
 		return this.getItem().canMine(this, state, world, pos, player);
 	}

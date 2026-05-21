@@ -6,6 +6,9 @@ import net.minecraft.util.function.ValueLists;
 
 import java.util.function.IntFunction;
 
+/**
+ * Перечисление chat visibility.
+ */
 public enum ChatVisibility {
 	FULL(0, "options.chat.visibility.full"),
 	SYSTEM(1, "options.chat.visibility.system"),

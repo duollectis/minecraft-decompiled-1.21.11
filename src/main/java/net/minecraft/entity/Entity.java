@@ -303,6 +303,14 @@ public abstract class Entity
 		this.standingEyeHeight = this.dimensions.eyeHeight();
 	}
 
+	/**
+	 * Collides with state at pos.
+	 *
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean collidesWithStateAtPos(BlockPos pos, BlockState state) {
 		VoxelShape voxelShape = state.getCollisionShape(this.getEntityWorld(), pos, ShapeContext.of(this)).offset(pos);
 		return VoxelShapes.matchesAnywhere(
@@ -327,6 +335,9 @@ public abstract class Entity
 		return this.isAlive() && !this.isRemoved() && !this.isSpectator();
 	}
 
+	/**
+	 * Detach.
+	 */
 	public final void detach() {
 		if (this.hasPassengers()) {
 			this.removeAllPassengers();
@@ -337,6 +348,13 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Обновляет tracked position.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	public void updateTrackedPosition(double x, double y, double z) {
 		this.trackedPosition.setPos(new Vec3d(x, y, z));
 	}
@@ -349,6 +367,11 @@ public abstract class Entity
 		return this.type;
 	}
 
+	/**
+	 * Определяет, следует ли always sync absolute.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldAlwaysSyncAbsolute() {
 		return this.alwaysSyncAbsolute;
 	}
@@ -370,23 +393,50 @@ public abstract class Entity
 		return this.commandTags;
 	}
 
+	/**
+	 * Добавляет command tag.
+	 *
+	 * @param tag tag
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean addCommandTag(String tag) {
 		return this.commandTags.size() >= 1024 ? false : this.commandTags.add(tag);
 	}
 
+	/**
+	 * Удаляет command tag.
+	 *
+	 * @param tag tag
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean removeCommandTag(String tag) {
 		return this.commandTags.remove(tag);
 	}
 
+	/**
+	 * Kill.
+	 *
+	 * @param world world
+	 */
 	public void kill(ServerWorld world) {
 		this.remove(Entity.RemovalReason.KILLED);
 		this.emitGameEvent(GameEvent.ENTITY_DIE);
 	}
 
+	/**
+	 * Discard.
+	 */
 	public final void discard() {
 		this.remove(Entity.RemovalReason.DISCARDED);
 	}
 
+	/**
+	 * Инициализирует data tracker.
+	 *
+	 * @param builder builder
+	 */
 	protected abstract void initDataTracker(DataTracker.Builder builder);
 
 	public DataTracker getDataTracker() {
@@ -403,13 +453,26 @@ public abstract class Entity
 		return this.id;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param reason reason
+	 */
 	public void remove(Entity.RemovalReason reason) {
 		this.setRemoved(reason);
 	}
 
+	/**
+	 * Обрабатывает событие removed.
+	 */
 	public void onRemoved() {
 	}
 
+	/**
+	 * Обрабатывает событие remove.
+	 *
+	 * @param reason reason
+	 */
 	public void onRemove(Entity.RemovalReason reason) {
 	}
 
@@ -451,19 +514,40 @@ public abstract class Entity
 		this.setBoundingBox(this.calculateBoundingBox());
 	}
 
+	/**
+	 * Вычисляет bounding box.
+	 *
+	 * @return Box — результат операции
+	 */
 	protected final Box calculateBoundingBox() {
 		return this.calculateDefaultBoundingBox(this.pos);
 	}
 
+	/**
+	 * Вычисляет default bounding box.
+	 *
+	 * @param pos pos
+	 *
+	 * @return Box — результат операции
+	 */
 	protected Box calculateDefaultBoundingBox(Vec3d pos) {
 		return this.dimensions.getBoxAt(pos);
 	}
 
+	/**
+	 * Refresh position.
+	 */
 	protected void refreshPosition() {
 		this.lastPos = null;
 		this.setPosition(this.pos.x, this.pos.y, this.pos.z);
 	}
 
+	/**
+	 * Change look direction.
+	 *
+	 * @param cursorDeltaX cursor delta x
+	 * @param cursorDeltaY cursor delta y
+	 */
 	public void changeLookDirection(double cursorDeltaX, double cursorDeltaY) {
 		float f = (float) cursorDeltaY * 0.15F;
 		float g = (float) cursorDeltaX * 0.15F;
@@ -478,13 +562,22 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Before packets sent.
+	 */
 	public void beforePacketsSent() {
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.baseTick();
 	}
 
+	/**
+	 * Base tick.
+	 */
 	public void baseTick() {
 		Profiler profiler = Profilers.get();
 		profiler.push("entityBaseTick");
@@ -543,6 +636,9 @@ public abstract class Entity
 		profiler.pop();
 	}
 
+	/**
+	 * Выполняет тик обновления для last pos.
+	 */
 	protected void tickLastPos() {
 		if (this.lastPos == null) {
 			this.lastPos = this.getEntityPos();
@@ -556,12 +652,18 @@ public abstract class Entity
 		this.setFlag(0, onFire || this.hasVisualFire);
 	}
 
+	/**
+	 * Attempt tick in void.
+	 */
 	public void attemptTickInVoid() {
 		if (this.getY() < this.getEntityWorld().getBottomY() - 64) {
 			this.tickInVoid();
 		}
 	}
 
+	/**
+	 * Сбрасывает portal cooldown.
+	 */
 	public void resetPortalCooldown() {
 		this.portalCooldown = this.getDefaultPortalCooldown();
 	}
@@ -578,12 +680,18 @@ public abstract class Entity
 		return this.portalCooldown > 0;
 	}
 
+	/**
+	 * Выполняет тик обновления для portal cooldown.
+	 */
 	protected void tickPortalCooldown() {
 		if (this.hasPortalCooldown()) {
 			this.portalCooldown--;
 		}
 	}
 
+	/**
+	 * Ignite by lava.
+	 */
 	public void igniteByLava() {
 		if (!this.isFireImmune()) {
 			this.setOnFireFor(15.0F);
@@ -610,6 +718,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Определяет, следует ли play burn sound in lava.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldPlayBurnSoundInLava() {
 		return true;
 	}
@@ -634,14 +747,29 @@ public abstract class Entity
 		return this.fireTicks;
 	}
 
+	/**
+	 * Extinguish.
+	 */
 	public void extinguish() {
 		this.setFireTicks(Math.min(0, this.getFireTicks()));
 	}
 
+	/**
+	 * Выполняет тик обновления для in void.
+	 */
 	protected void tickInVoid() {
 		this.discard();
 	}
 
+	/**
+	 * Does not collide.
+	 *
+	 * @param offsetX offset x
+	 * @param offsetY offset y
+	 * @param offsetZ offset z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean doesNotCollide(double offsetX, double offsetY, double offsetZ) {
 		return this.doesNotCollide(this.getBoundingBox().offset(offsetX, offsetY, offsetZ));
 	}
@@ -669,6 +797,12 @@ public abstract class Entity
 		return this.supportingBlockPos.isPresent() && this.supportingBlockPos.get().equals(pos);
 	}
 
+	/**
+	 * Обновляет supporting block pos.
+	 *
+	 * @param onGround on ground
+	 * @param movement movement
+	 */
 	protected void updateSupportingBlockPos(boolean onGround, @Nullable Vec3d movement) {
 		if (onGround) {
 			Box box = this.getBoundingBox();
@@ -697,6 +831,12 @@ public abstract class Entity
 		return this.onGround;
 	}
 
+	/**
+	 * Move.
+	 *
+	 * @param type type
+	 * @param movement movement
+	 */
 	public void move(MovementType type, Vec3d movement) {
 		if (this.noClip) {
 			this.setPosition(this.getX() + movement.x, this.getY() + movement.y, this.getZ() + movement.z);
@@ -846,6 +986,9 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для block collision.
+	 */
 	protected void tickBlockCollision() {
 		this.currentlyCheckedCollisions.clear();
 		this.currentlyCheckedCollisions.addAll(this.queuedCollisionChecks);
@@ -879,12 +1022,18 @@ public abstract class Entity
 		this.queuedCollisionChecks.add(queuedCollisionCheck);
 	}
 
+	/**
+	 * Pop queued collision check.
+	 */
 	public void popQueuedCollisionCheck() {
 		if (!this.queuedCollisionChecks.isEmpty()) {
 			this.queuedCollisionChecks.removeLast();
 		}
 	}
 
+	/**
+	 * Очищает queued collision checks.
+	 */
 	protected void clearQueuedCollisionChecks() {
 		this.queuedCollisionChecks.clear();
 	}
@@ -893,6 +1042,12 @@ public abstract class Entity
 		return Math.abs(this.movement.horizontalLength()) > 1.0E-5F;
 	}
 
+	/**
+	 * Выполняет тик обновления для block collision.
+	 *
+	 * @param lastRenderPos last render pos
+	 * @param pos pos
+	 */
 	public void tickBlockCollision(Vec3d lastRenderPos, Vec3d pos) {
 		this.tickBlockCollisions(List.of(new Entity.QueuedCollisionCheck(lastRenderPos, pos)));
 	}
@@ -925,6 +1080,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Определяет, следует ли tick block collision.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldTickBlockCollision() {
 		return !this.isRemoved() && !this.noClip;
 	}
@@ -963,6 +1123,9 @@ public abstract class Entity
 		return false;
 	}
 
+	/**
+	 * Play extinguish sound.
+	 */
 	protected void playExtinguishSound() {
 		if (!this.world.isClient()) {
 			this.getEntityWorld()
@@ -979,6 +1142,9 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Extinguish with sound.
+	 */
 	public void extinguishWithSound() {
 		if (this.isOnFire()) {
 			this.playExtinguishSound();
@@ -987,6 +1153,9 @@ public abstract class Entity
 		this.extinguish();
 	}
 
+	/**
+	 * Добавляет air travel effects.
+	 */
 	protected void addAirTravelEffects() {
 		if (this.isFlappingWings()) {
 			this.addFlapEffects();
@@ -1059,10 +1228,25 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Adjust movement for sneaking.
+	 *
+	 * @param movement movement
+	 * @param type type
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	protected Vec3d adjustMovementForSneaking(Vec3d movement, MovementType type) {
 		return movement;
 	}
 
+	/**
+	 * Adjust movement for piston.
+	 *
+	 * @param movement movement
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	protected Vec3d adjustMovementForPiston(Vec3d movement) {
 		if (movement.lengthSquared() <= 1.0E-7) {
 			return movement;
@@ -1100,6 +1284,13 @@ public abstract class Entity
 		return offsetFactor;
 	}
 
+	/**
+	 * Calc distance from bottom collision.
+	 *
+	 * @param checkedDistance checked distance
+	 *
+	 * @return double — результат операции
+	 */
 	public double calcDistanceFromBottomCollision(double checkedDistance) {
 		Box box = this.getBoundingBox();
 		Box box2 = box.withMinY(box.minY - checkedDistance).withMaxY(box.minY);
@@ -1190,6 +1381,15 @@ public abstract class Entity
 		return adjustMovementForCollisions(movement, entityBoundingBox, list);
 	}
 
+	/**
+	 * Ищет collisions.
+	 *
+	 * @param entity entity
+	 * @param world world
+	 * @param box box
+	 *
+	 * @return List — collisions
+	 */
 	public static List<VoxelShape> findCollisions(@Nullable Entity entity, World world, Box box) {
 		List<VoxelShape> list = world.getEntityCollisions(entity, box);
 		return findCollisionsForMovement(entity, world, list, box);
@@ -1238,6 +1438,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Вычисляет next step sound distance.
+	 *
+	 * @return float — результат операции
+	 */
 	protected float calculateNextStepSoundDistance() {
 		return (int) this.distanceTraveled + 1;
 	}
@@ -1442,17 +1647,41 @@ public abstract class Entity
 				);
 	}
 
+	/**
+	 * Collides with fluid.
+	 *
+	 * @param state state
+	 * @param fluidPos fluid pos
+	 * @param oldPos old pos
+	 * @param newPos new pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean collidesWithFluid(FluidState state, BlockPos fluidPos, Vec3d oldPos, Vec3d newPos) {
 		Box box = state.getCollisionBox(this.getEntityWorld(), fluidPos);
 		return box != null && this.collides(oldPos, newPos, List.of(box));
 	}
 
+	/**
+	 * Collides.
+	 *
+	 * @param oldPos old pos
+	 * @param newPos new pos
+	 * @param boxes boxes
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean collides(Vec3d oldPos, Vec3d newPos, List<Box> boxes) {
 		Box box = this.calculateDefaultBoundingBox(oldPos);
 		Vec3d vec3d = newPos.subtract(oldPos);
 		return box.collides(vec3d, boxes);
 	}
 
+	/**
+	 * Обрабатывает событие block collision.
+	 *
+	 * @param state state
+	 */
 	protected void onBlockCollision(BlockState state) {
 	}
 
@@ -1468,10 +1697,21 @@ public abstract class Entity
 		return BlockPos.ofFloored(vec3d.x, i, vec3d.z);
 	}
 
+	/**
+	 * Emit game event.
+	 *
+	 * @param event event
+	 * @param entity entity
+	 */
 	public void emitGameEvent(RegistryEntry<GameEvent> event, @Nullable Entity entity) {
 		this.getEntityWorld().emitGameEvent(entity, event, this.pos);
 	}
 
+	/**
+	 * Emit game event.
+	 *
+	 * @param event event
+	 */
 	public void emitGameEvent(RegistryEntry<GameEvent> event) {
 		this.emitGameEvent(event, this);
 	}
@@ -1483,6 +1723,9 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Play swim sound.
+	 */
 	protected void playSwimSound() {
 		Entity entity = Objects.requireNonNullElse(this.getControllingPassenger(), this);
 		float f = entity == this ? 0.35F : 0.4F;
@@ -1503,12 +1746,23 @@ public abstract class Entity
 				       && !blockState.isIn(BlockTags.COMBINATION_STEP_SOUND_BLOCKS) ? pos : posAbove;
 	}
 
+	/**
+	 * Play combination step sounds.
+	 *
+	 * @param primaryState primary state
+	 * @param secondaryState secondary state
+	 */
 	protected void playCombinationStepSounds(BlockState primaryState, BlockState secondaryState) {
 		BlockSoundGroup blockSoundGroup = primaryState.getSoundGroup();
 		this.playSound(blockSoundGroup.getStepSound(), blockSoundGroup.getVolume() * 0.15F, blockSoundGroup.getPitch());
 		this.playSecondaryStepSound(secondaryState);
 	}
 
+	/**
+	 * Play secondary step sound.
+	 *
+	 * @param state state
+	 */
 	protected void playSecondaryStepSound(BlockState state) {
 		BlockSoundGroup blockSoundGroup = state.getSoundGroup();
 		this.playSound(
@@ -1518,6 +1772,12 @@ public abstract class Entity
 		);
 	}
 
+	/**
+	 * Play step sound.
+	 *
+	 * @param pos pos
+	 * @param state state
+	 */
 	protected void playStepSound(BlockPos pos, BlockState state) {
 		BlockSoundGroup blockSoundGroup = state.getSoundGroup();
 		this.playSound(blockSoundGroup.getStepSound(), blockSoundGroup.getVolume() * 0.15F, blockSoundGroup.getPitch());
@@ -1536,10 +1796,18 @@ public abstract class Entity
 		this.lastChimeAge = this.age;
 	}
 
+	/**
+	 * Play swim sound.
+	 *
+	 * @param volume volume
+	 */
 	protected void playSwimSound(float volume) {
 		this.playSound(this.getSwimSound(), volume, 1.0F + (this.random.nextFloat() - this.random.nextFloat()) * 0.4F);
 	}
 
+	/**
+	 * Добавляет flap effects.
+	 */
 	protected void addFlapEffects() {
 	}
 
@@ -1547,6 +1815,13 @@ public abstract class Entity
 		return false;
 	}
 
+	/**
+	 * Play sound.
+	 *
+	 * @param sound sound
+	 * @param volume volume
+	 * @param pitch pitch
+	 */
 	public void playSound(SoundEvent sound, float volume, float pitch) {
 		if (!this.isSilent()) {
 			this
@@ -1564,6 +1839,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Play sound if not silent.
+	 *
+	 * @param event event
+	 */
 	public void playSoundIfNotSilent(SoundEvent event) {
 		if (!this.isSilent()) {
 			this.playSound(event, 1.0F, 1.0F);
@@ -1594,6 +1874,9 @@ public abstract class Entity
 		return this.hasNoGravity() ? 0.0 : this.getGravity();
 	}
 
+	/**
+	 * Применяет gravity.
+	 */
 	protected void applyGravity() {
 		double d = this.getFinalGravity();
 		if (d != 0.0) {
@@ -1605,10 +1888,23 @@ public abstract class Entity
 		return Entity.MoveEffect.ALL;
 	}
 
+	/**
+	 * Occlude vibration signals.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean occludeVibrationSignals() {
 		return false;
 	}
 
+	/**
+	 * Обрабатывает fall.
+	 *
+	 * @param xDifference x difference
+	 * @param yDifference y difference
+	 * @param zDifference z difference
+	 * @param onGround on ground
+	 */
 	public final void handleFall(double xDifference, double yDifference, double zDifference, boolean onGround) {
 		if (!this.isRegionUnloaded()) {
 			this.updateSupportingBlockPos(onGround, new Vec3d(xDifference, yDifference, zDifference));
@@ -1618,6 +1914,14 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Fall.
+	 *
+	 * @param heightDifference height difference
+	 * @param onGround on ground
+	 * @param state state
+	 * @param landedPosition landed position
+	 */
 	protected void fall(double heightDifference, boolean onGround, BlockState state, BlockPos landedPosition) {
 		if (!this.isTouchingWater() && heightDifference < 0.0) {
 			this.fallDistance -= (float) heightDifference;
@@ -1647,6 +1951,15 @@ public abstract class Entity
 		return this.getType().isFireImmune();
 	}
 
+	/**
+	 * Обрабатывает fall damage.
+	 *
+	 * @param fallDistance fall distance
+	 * @param damagePerDistance damage per distance
+	 * @param damageSource damage source
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean handleFallDamage(double fallDistance, float damagePerDistance, DamageSource damageSource) {
 		if (this.type.isIn(EntityTypeTags.FALL_DAMAGE_IMMUNE)) {
 			return false;
@@ -1719,6 +2032,9 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Обновляет swimming.
+	 */
 	public void updateSwimming() {
 		if (this.isSwimming()) {
 			this.setSwimming(this.isSprinting() && this.isTouchingWater() && !this.hasVehicle());
@@ -1733,6 +2049,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Обновляет water state.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean updateWaterState() {
 		this.fluidHeight.clear();
 		this.checkWaterState();
@@ -1781,6 +2102,9 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Обрабатывает событие swimming start.
+	 */
 	protected void onSwimmingStart() {
 		Entity entity = Objects.requireNonNullElse(this.getControllingPassenger(), this);
 		float f = entity == this ? 0.2F : 0.9F;
@@ -1847,11 +2171,19 @@ public abstract class Entity
 		return this.getEntityWorld().getBlockState(this.getSteppingPos());
 	}
 
+	/**
+	 * Определяет, следует ли spawn sprinting particles.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSpawnSprintingParticles() {
 		return this.isSprinting() && !this.isTouchingWater() && !this.isSpectator() && !this.isInSneakingPose()
 				&& !this.isInLava() && this.isAlive();
 	}
 
+	/**
+	 * Создаёт (спавнит) sprinting particles.
+	 */
 	protected void spawnSprintingParticles() {
 		BlockPos landingPos = this.getLandingPos();
 		BlockState blockState = this.getEntityWorld().getBlockState(landingPos);
@@ -1889,11 +2221,26 @@ public abstract class Entity
 		return !this.firstUpdate && this.fluidHeight.getDouble(FluidTags.LAVA) > 0.0;
 	}
 
+	/**
+	 * Обновляет velocity.
+	 *
+	 * @param speed speed
+	 * @param movementInput movement input
+	 */
 	public void updateVelocity(float speed, Vec3d movementInput) {
 		Vec3d vec3d = movementInputToVelocity(movementInput, speed, this.getYaw());
 		this.setVelocity(this.getVelocity().add(vec3d));
 	}
 
+	/**
+	 * Перемещает ment input to velocity.
+	 *
+	 * @param movementInput movement input
+	 * @param speed speed
+	 * @param yaw yaw
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	protected static Vec3d movementInputToVelocity(Vec3d movementInput, float speed, float yaw) {
 		double d = movementInput.lengthSquared();
 		if (d < 1.0E-7) {
@@ -1914,6 +2261,15 @@ public abstract class Entity
 		       : 0.0F;
 	}
 
+	/**
+	 * Обновляет position and angles.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param yaw yaw
+	 * @param pitch pitch
+	 */
 	public void updatePositionAndAngles(double x, double y, double z, float yaw, float pitch) {
 		this.updatePosition(x, y, z);
 		this.setAngles(yaw, pitch);
@@ -1926,6 +2282,13 @@ public abstract class Entity
 		this.lastPitch = this.getPitch();
 	}
 
+	/**
+	 * Обновляет position.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	public void updatePosition(double x, double y, double z) {
 		double d = MathHelper.clamp(x, -3.0E7, 3.0E7);
 		double e = MathHelper.clamp(z, -3.0E7, 3.0E7);
@@ -1935,22 +2298,57 @@ public abstract class Entity
 		this.setPosition(d, y, e);
 	}
 
+	/**
+	 * Refresh position after teleport.
+	 *
+	 * @param pos pos
+	 */
 	public void refreshPositionAfterTeleport(Vec3d pos) {
 		this.refreshPositionAfterTeleport(pos.x, pos.y, pos.z);
 	}
 
+	/**
+	 * Refresh position after teleport.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	public void refreshPositionAfterTeleport(double x, double y, double z) {
 		this.refreshPositionAndAngles(x, y, z, this.getYaw(), this.getPitch());
 	}
 
+	/**
+	 * Refresh position and angles.
+	 *
+	 * @param pos pos
+	 * @param yaw yaw
+	 * @param pitch pitch
+	 */
 	public void refreshPositionAndAngles(BlockPos pos, float yaw, float pitch) {
 		this.refreshPositionAndAngles(pos.toBottomCenterPos(), yaw, pitch);
 	}
 
+	/**
+	 * Refresh position and angles.
+	 *
+	 * @param pos pos
+	 * @param yaw yaw
+	 * @param pitch pitch
+	 */
 	public void refreshPositionAndAngles(Vec3d pos, float yaw, float pitch) {
 		this.refreshPositionAndAngles(pos.x, pos.y, pos.z, yaw, pitch);
 	}
 
+	/**
+	 * Refresh position and angles.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param yaw yaw
+	 * @param pitch pitch
+	 */
 	public void refreshPositionAndAngles(double x, double y, double z, float yaw, float pitch) {
 		this.setPos(x, y, z);
 		this.setYaw(yaw);
@@ -1959,6 +2357,9 @@ public abstract class Entity
 		this.refreshPosition();
 	}
 
+	/**
+	 * Сбрасывает position.
+	 */
 	public final void resetPosition() {
 		this.updateLastPosition();
 		this.updateLastAngles();
@@ -1969,10 +2370,16 @@ public abstract class Entity
 		this.setLastAngles(yaw, pitch);
 	}
 
+	/**
+	 * Обновляет last position.
+	 */
 	protected void updateLastPosition() {
 		this.setLastPosition(this.pos);
 	}
 
+	/**
+	 * Обновляет last angles.
+	 */
 	public void updateLastAngles() {
 		this.setLastAngles(this.getYaw(), this.getPitch());
 	}
@@ -1992,6 +2399,13 @@ public abstract class Entity
 		return new Vec3d(this.lastRenderX, this.lastRenderY, this.lastRenderZ);
 	}
 
+	/**
+	 * Distance to.
+	 *
+	 * @param entity entity
+	 *
+	 * @return float — результат операции
+	 */
 	public float distanceTo(Entity entity) {
 		float f = (float) (this.getX() - entity.getX());
 		float g = (float) (this.getY() - entity.getY());
@@ -1999,6 +2413,15 @@ public abstract class Entity
 		return MathHelper.sqrt(f * f + g * g + h * h);
 	}
 
+	/**
+	 * Squared distance to.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return double — результат операции
+	 */
 	public double squaredDistanceTo(double x, double y, double z) {
 		double d = this.getX() - x;
 		double e = this.getY() - y;
@@ -2006,10 +2429,24 @@ public abstract class Entity
 		return d * d + e * e + f * f;
 	}
 
+	/**
+	 * Squared distance to.
+	 *
+	 * @param entity entity
+	 *
+	 * @return double — результат операции
+	 */
 	public double squaredDistanceTo(Entity entity) {
 		return this.squaredDistanceTo(entity.getEntityPos());
 	}
 
+	/**
+	 * Squared distance to.
+	 *
+	 * @param vector vector
+	 *
+	 * @return double — результат операции
+	 */
 	public double squaredDistanceTo(Vec3d vector) {
 		double d = this.getX() - vector.x;
 		double e = this.getY() - vector.y;
@@ -2017,9 +2454,19 @@ public abstract class Entity
 		return d * d + e * e + f * f;
 	}
 
+	/**
+	 * Обрабатывает событие player collision.
+	 *
+	 * @param player player
+	 */
 	public void onPlayerCollision(PlayerEntity player) {
 	}
 
+	/**
+	 * Push away from.
+	 *
+	 * @param entity entity
+	 */
 	public void pushAwayFrom(Entity entity) {
 		if (!this.isConnectedThroughVehicle(entity)) {
 			if (!entity.noClip && !this.noClip) {
@@ -2051,12 +2498,24 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Добавляет velocity.
+	 *
+	 * @param vec vec
+	 */
 	public void addVelocity(Vec3d vec) {
 		if (vec.isFinite()) {
 			this.addVelocity(vec.x, vec.y, vec.z);
 		}
 	}
 
+	/**
+	 * Добавляет velocity.
+	 *
+	 * @param deltaX delta x
+	 * @param deltaY delta y
+	 * @param deltaZ delta z
+	 */
 	public void addVelocity(double deltaX, double deltaY, double deltaZ) {
 		if (Double.isFinite(deltaX) && Double.isFinite(deltaY) && Double.isFinite(deltaZ)) {
 			this.setVelocity(this.getVelocity().add(deltaX, deltaY, deltaZ));
@@ -2064,11 +2523,20 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Schedule velocity update.
+	 */
 	protected void scheduleVelocityUpdate() {
 		this.knockedBack = true;
 	}
 
 	@Deprecated
+	/**
+	 * Server damage.
+	 *
+	 * @param source source
+	 * @param amount amount
+	 */
 	public final void serverDamage(DamageSource source, float amount) {
 		if (this.world instanceof ServerWorld serverWorld) {
 			this.damage(serverWorld, source, amount);
@@ -2076,13 +2544,37 @@ public abstract class Entity
 	}
 
 	@Deprecated
+	/**
+	 * Sided damage.
+	 *
+	 * @param source source
+	 * @param amount amount
+	 *
+	 * @return boolean — результат операции
+	 */
 	public final boolean sidedDamage(DamageSource source, float amount) {
 		return this.world instanceof ServerWorld serverWorld ? this.damage(serverWorld, source, amount)
 		                                                     : this.clientDamage(source);
 	}
 
+	/**
+	 * Damage.
+	 *
+	 * @param world world
+	 * @param source source
+	 * @param amount amount
+	 *
+	 * @return boolean — результат операции
+	 */
 	public abstract boolean damage(ServerWorld world, DamageSource source, float amount);
 
+	/**
+	 * Client damage.
+	 *
+	 * @param source source
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean clientDamage(DamageSource source) {
 		return false;
 	}
@@ -2152,6 +2644,15 @@ public abstract class Entity
 		return new Vec3d(d, e, f);
 	}
 
+	/**
+	 * Raycast.
+	 *
+	 * @param maxDistance max distance
+	 * @param tickProgress tick progress
+	 * @param includeFluids include fluids
+	 *
+	 * @return HitResult — результат операции
+	 */
 	public HitResult raycast(double maxDistance, float tickProgress, boolean includeFluids) {
 		Vec3d vec3d = this.getCameraPosVec(tickProgress);
 		Vec3d vec3d2 = this.getRotationVec(tickProgress);
@@ -2168,10 +2669,20 @@ public abstract class Entity
 		           );
 	}
 
+	/**
+	 * Проверяет возможность be hit by projectile.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBeHitByProjectile() {
 		return this.isAlive() && this.canHit();
 	}
 
+	/**
+	 * Проверяет возможность hit.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canHit() {
 		return false;
 	}
@@ -2180,12 +2691,27 @@ public abstract class Entity
 		return false;
 	}
 
+	/**
+	 * Обновляет killed advancement criterion.
+	 *
+	 * @param entityKilled entity killed
+	 * @param damageSource damage source
+	 */
 	public void updateKilledAdvancementCriterion(Entity entityKilled, DamageSource damageSource) {
 		if (entityKilled instanceof ServerPlayerEntity) {
 			Criteria.ENTITY_KILLED_PLAYER.trigger((ServerPlayerEntity) entityKilled, this, damageSource);
 		}
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param cameraX camera x
+	 * @param cameraY camera y
+	 * @param cameraZ camera z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRender(double cameraX, double cameraY, double cameraZ) {
 		double d = this.getX() - cameraX;
 		double e = this.getY() - cameraY;
@@ -2194,6 +2720,13 @@ public abstract class Entity
 		return this.shouldRender(g);
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param distance distance
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRender(double distance) {
 		double d = this.getBoundingBox().getAverageSideLength();
 		if (Double.isNaN(d)) {
@@ -2204,6 +2737,13 @@ public abstract class Entity
 		return distance < d * d;
 	}
 
+	/**
+	 * Сохраняет self data.
+	 *
+	 * @param view view
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean saveSelfData(WriteView view) {
 		if (this.removalReason != null && !this.removalReason.shouldSave()) {
 			return false;
@@ -2221,10 +2761,22 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Сохраняет data.
+	 *
+	 * @param view view
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean saveData(WriteView view) {
 		return this.hasVehicle() ? false : this.saveSelfData(view);
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param view view
+	 */
 	public void writeData(WriteView view) {
 		try {
 			if (this.vehicle != null) {
@@ -2301,6 +2853,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Читает data.
+	 *
+	 * @param view view
+	 */
 	public void readData(ReadView view) {
 		try {
 			Vec3d vec3d = view.<Vec3d>read("Pos", Vec3d.CODEC).orElse(Vec3d.ZERO);
@@ -2366,6 +2923,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Определяет, следует ли set position on load.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldSetPositionOnLoad() {
 		return true;
 	}
@@ -2376,18 +2938,53 @@ public abstract class Entity
 		return !entityType.isSaveable() ? null : identifier.toString();
 	}
 
+	/**
+	 * Читает custom data.
+	 *
+	 * @param view view
+	 */
 	protected abstract void readCustomData(ReadView view);
 
+	/**
+	 * Записывает custom data.
+	 *
+	 * @param view view
+	 */
 	protected abstract void writeCustomData(WriteView view);
 
+	/**
+	 * Бросает item.
+	 *
+	 * @param world world
+	 * @param item item
+	 *
+	 * @return @Nullable ItemEntity — результат операции
+	 */
 	public @Nullable ItemEntity dropItem(ServerWorld world, ItemConvertible item) {
 		return this.dropStack(world, new ItemStack(item), 0.0F);
 	}
 
+	/**
+	 * Бросает stack.
+	 *
+	 * @param world world
+	 * @param stack stack
+	 *
+	 * @return @Nullable ItemEntity — результат операции
+	 */
 	public @Nullable ItemEntity dropStack(ServerWorld world, ItemStack stack) {
 		return this.dropStack(world, stack, 0.0F);
 	}
 
+	/**
+	 * Бросает stack.
+	 *
+	 * @param world world
+	 * @param stack stack
+	 * @param offset offset
+	 *
+	 * @return @Nullable ItemEntity — результат операции
+	 */
 	public @Nullable ItemEntity dropStack(ServerWorld world, ItemStack stack, Vec3d offset) {
 		if (stack.isEmpty()) {
 			return null;
@@ -2408,6 +3005,15 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Бросает stack.
+	 *
+	 * @param world world
+	 * @param stack stack
+	 * @param yOffset y offset
+	 *
+	 * @return @Nullable ItemEntity — результат операции
+	 */
 	public @Nullable ItemEntity dropStack(ServerWorld world, ItemStack stack, float yOffset) {
 		return this.dropStack(world, stack, new Vec3d(0.0, yOffset, 0.0));
 	}
@@ -2439,6 +3045,14 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Interact.
+	 *
+	 * @param player player
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult interact(PlayerEntity player, Hand hand) {
 		if (!this.getEntityWorld().isClient()
 				&& player.shouldCancelInteraction()
@@ -2522,6 +3136,13 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Snip all held leashes.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean snipAllHeldLeashes(@Nullable PlayerEntity player) {
 		boolean bl = this.detachAllHeldLeashes(player);
 		if (bl && this.getEntityWorld() instanceof ServerWorld serverWorld) {
@@ -2536,6 +3157,13 @@ public abstract class Entity
 		return bl;
 	}
 
+	/**
+	 * Detach all held leashes.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean detachAllHeldLeashes(@Nullable PlayerEntity player) {
 		List<Leashable> list = Leashable.collectLeashablesHeldBy(this);
 		boolean bl = !list.isEmpty();
@@ -2585,6 +3213,13 @@ public abstract class Entity
 		return false;
 	}
 
+	/**
+	 * Collides with.
+	 *
+	 * @param other other
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean collidesWith(Entity other) {
 		return other.isCollidable(this) && !this.isConnectedThroughVehicle(other);
 	}
@@ -2593,6 +3228,9 @@ public abstract class Entity
 		return false;
 	}
 
+	/**
+	 * Выполняет тик обновления для riding.
+	 */
 	public void tickRiding() {
 		this.setVelocity(Vec3d.ZERO);
 		this.tick();
@@ -2601,18 +3239,34 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Обновляет passenger position.
+	 *
+	 * @param passenger passenger
+	 */
 	public final void updatePassengerPosition(Entity passenger) {
 		if (this.hasPassenger(passenger)) {
 			this.updatePassengerPosition(passenger, Entity::setPosition);
 		}
 	}
 
+	/**
+	 * Обновляет passenger position.
+	 *
+	 * @param passenger passenger
+	 * @param positionUpdater position updater
+	 */
 	protected void updatePassengerPosition(Entity passenger, Entity.PositionUpdater positionUpdater) {
 		Vec3d vec3d = this.getPassengerRidingPos(passenger);
 		Vec3d vec3d2 = passenger.getVehicleAttachmentPos(this);
 		positionUpdater.accept(passenger, vec3d.x - vec3d2.x, vec3d.y - vec3d2.y, vec3d.z - vec3d2.z);
 	}
 
+	/**
+	 * Обрабатывает событие passenger look around.
+	 *
+	 * @param passenger passenger
+	 */
 	public void onPassengerLookAround(Entity passenger) {
 	}
 
@@ -2633,6 +3287,13 @@ public abstract class Entity
 		return attachments.getPointOrDefault(EntityAttachmentType.PASSENGER, i, vehicle.yaw);
 	}
 
+	/**
+	 * Запускает riding.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public final boolean startRiding(Entity entity) {
 		return this.startRiding(entity, false, true);
 	}
@@ -2641,6 +3302,15 @@ public abstract class Entity
 		return this instanceof LivingEntity;
 	}
 
+	/**
+	 * Запускает riding.
+	 *
+	 * @param entity entity
+	 * @param force force
+	 * @param emitEvent emit event
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean startRiding(Entity entity, boolean force, boolean emitEvent) {
 		if (entity == this.vehicle) {
 			return false;
@@ -2681,16 +3351,29 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Проверяет возможность start riding.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canStartRiding(Entity entity) {
 		return !this.isSneaking() && this.ridingCooldown <= 0;
 	}
 
+	/**
+	 * Удаляет all passengers.
+	 */
 	public void removeAllPassengers() {
 		for (int i = this.passengerList.size() - 1; i >= 0; i--) {
 			((Entity) this.passengerList.get(i)).stopRiding();
 		}
 	}
 
+	/**
+	 * Dismount vehicle.
+	 */
 	public void dismountVehicle() {
 		if (this.vehicle != null) {
 			Entity entity = this.vehicle;
@@ -2703,10 +3386,18 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Останавливает riding.
+	 */
 	public void stopRiding() {
 		this.dismountVehicle();
 	}
 
+	/**
+	 * Добавляет passenger.
+	 *
+	 * @param passenger passenger
+	 */
 	protected void addPassenger(Entity passenger) {
 		if (passenger.getVehicle() != this) {
 			throw new IllegalStateException("Use x.startRiding(y), not y.addPassenger(x)");
@@ -2730,6 +3421,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Удаляет passenger.
+	 *
+	 * @param passenger passenger
+	 */
 	protected void removePassenger(Entity passenger) {
 		if (passenger.getVehicle() == this) {
 			throw new IllegalStateException("Use x.stopRiding(y), not y.removePassenger(x)");
@@ -2750,10 +3446,22 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Проверяет возможность add passenger.
+	 *
+	 * @param passenger passenger
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canAddPassenger(Entity passenger) {
 		return this.passengerList.isEmpty();
 	}
 
+	/**
+	 * Could accept passenger.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean couldAcceptPassenger() {
 		return true;
 	}
@@ -2762,14 +3470,32 @@ public abstract class Entity
 		return this.getInterpolator() != null && this.getInterpolator().isInterpolating();
 	}
 
+	/**
+	 * Обновляет tracked position and angles.
+	 *
+	 * @param pos pos
+	 * @param f f
+	 * @param g g
+	 */
 	public final void updateTrackedPositionAndAngles(Vec3d pos, float f, float g) {
 		this.updateTrackedPositionAndAngles(Optional.of(pos), Optional.of(f), Optional.of(g));
 	}
 
+	/**
+	 * Обновляет tracked angles.
+	 *
+	 * @param f f
+	 * @param g g
+	 */
 	public final void updateTrackedAngles(float f, float g) {
 		this.updateTrackedPositionAndAngles(Optional.empty(), Optional.of(f), Optional.of(g));
 	}
 
+	/**
+	 * Обновляет tracked position.
+	 *
+	 * @param vec3d vec3d
+	 */
 	public final void updateTrackedPosition(Vec3d vec3d) {
 		this.updateTrackedPositionAndAngles(Optional.of(vec3d), Optional.empty(), Optional.empty());
 	}
@@ -2798,6 +3524,12 @@ public abstract class Entity
 		return null;
 	}
 
+	/**
+	 * Обновляет tracked head rotation.
+	 *
+	 * @param yaw yaw
+	 * @param interpolationSteps interpolation steps
+	 */
 	public void updateTrackedHeadRotation(float yaw, int interpolationSteps) {
 		this.setHeadYaw(yaw);
 	}
@@ -2833,6 +3565,12 @@ public abstract class Entity
 		return Vec3d.fromPolar(this.getRotationClient());
 	}
 
+	/**
+	 * Try use portal.
+	 *
+	 * @param portal portal
+	 * @param pos pos
+	 */
 	public void tryUsePortal(Portal portal, BlockPos pos) {
 		if (this.hasPortalCooldown()) {
 			this.resetPortalCooldown();
@@ -2848,6 +3586,9 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для portal teleportation.
+	 */
 	protected void tickPortalTeleportation() {
 		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
 			this.tickPortalCooldown();
@@ -2885,9 +3626,19 @@ public abstract class Entity
 		this.setVelocity(clientVelocity);
 	}
 
+	/**
+	 * Обрабатывает событие damaged.
+	 *
+	 * @param damageSource damage source
+	 */
 	public void onDamaged(DamageSource damageSource) {
 	}
 
+	/**
+	 * Обрабатывает status.
+	 *
+	 * @param status status
+	 */
 	public void handleStatus(byte status) {
 		switch (status) {
 			case 53:
@@ -2895,6 +3646,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Animate damage.
+	 *
+	 * @param yaw yaw
+	 */
 	public void animateDamage(float yaw) {
 	}
 
@@ -2911,10 +3667,20 @@ public abstract class Entity
 		return !this.passengerList.isEmpty();
 	}
 
+	/**
+	 * Определяет, следует ли dismount underwater.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDismountUnderwater() {
 		return this.getType().isIn(EntityTypeTags.DISMOUNTS_UNDERWATER);
 	}
 
+	/**
+	 * Определяет, следует ли control vehicles.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldControlVehicles() {
 		return !this.getType().isIn(EntityTypeTags.NON_CONTROLLING_RIDER);
 	}
@@ -2927,10 +3693,20 @@ public abstract class Entity
 		return this.getFlag(1);
 	}
 
+	/**
+	 * Bypasses stepping effects.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean bypassesSteppingEffects() {
 		return this.isSneaking();
 	}
 
+	/**
+	 * Bypasses landing effects.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean bypassesLandingEffects() {
 		return this.isSneaking();
 	}
@@ -3005,6 +3781,11 @@ public abstract class Entity
 		return false;
 	}
 
+	/**
+	 * Обновляет event handler.
+	 *
+	 * @param callback callback
+	 */
 	public void updateEventHandler(BiConsumer<EntityGameEventHandler<?>, ServerWorld> callback) {
 	}
 
@@ -3054,6 +3835,9 @@ public abstract class Entity
 		this.dataTracker.set(AIR, air);
 	}
 
+	/**
+	 * Defrost.
+	 */
 	public void defrost() {
 		this.setFrozenTicks(0);
 	}
@@ -3079,6 +3863,12 @@ public abstract class Entity
 		return 140;
 	}
 
+	/**
+	 * Обрабатывает событие struck by lightning.
+	 *
+	 * @param world world
+	 * @param lightning lightning
+	 */
 	public void onStruckByLightning(ServerWorld world, LightningEntity lightning) {
 		this.setFireTicks(this.fireTicks + 1);
 		if (this.fireTicks == 0) {
@@ -3088,10 +3878,23 @@ public abstract class Entity
 		this.damage(world, this.getDamageSources().lightningBolt(), 5.0F);
 	}
 
+	/**
+	 * Обрабатывает событие bubble column surface collision.
+	 *
+	 * @param drag drag
+	 * @param pos pos
+	 */
 	public void onBubbleColumnSurfaceCollision(boolean drag, BlockPos pos) {
 		applyBubbleColumnSurfaceEffects(this, drag, pos);
 	}
 
+	/**
+	 * Применяет bubble column surface effects.
+	 *
+	 * @param entity entity
+	 * @param drag drag
+	 * @param pos pos
+	 */
 	protected static void applyBubbleColumnSurfaceEffects(Entity entity, boolean drag, BlockPos pos) {
 		Vec3d vec3d = entity.getVelocity();
 		double d;
@@ -3106,6 +3909,12 @@ public abstract class Entity
 		spawnBubbleColumnParticles(entity.world, pos);
 	}
 
+	/**
+	 * Создаёт (спавнит) bubble column particles.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected static void spawnBubbleColumnParticles(World world, BlockPos pos) {
 		if (world instanceof ServerWorld serverWorld) {
 			for (int i = 0; i < 2; i++) {
@@ -3135,10 +3944,21 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Обрабатывает событие bubble column collision.
+	 *
+	 * @param drag drag
+	 */
 	public void onBubbleColumnCollision(boolean drag) {
 		applyBubbleColumnEffects(this, drag);
 	}
 
+	/**
+	 * Применяет bubble column effects.
+	 *
+	 * @param entity entity
+	 * @param drag drag
+	 */
 	protected static void applyBubbleColumnEffects(Entity entity, boolean drag) {
 		Vec3d vec3d = entity.getVelocity();
 		double d;
@@ -3153,20 +3973,42 @@ public abstract class Entity
 		entity.onLanding();
 	}
 
+	/**
+	 * Обрабатывает событие killed other.
+	 *
+	 * @param world world
+	 * @param other other
+	 * @param damageSource damage source
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean onKilledOther(ServerWorld world, LivingEntity other, DamageSource damageSource) {
 		return true;
 	}
 
+	/**
+	 * Limit fall distance.
+	 */
 	public void limitFallDistance() {
 		if (this.getVelocity().getY() > -0.5 && this.fallDistance > 1.0) {
 			this.fallDistance = 1.0;
 		}
 	}
 
+	/**
+	 * Обрабатывает событие landing.
+	 */
 	public void onLanding() {
 		this.fallDistance = 0.0;
 	}
 
+	/**
+	 * Push out of blocks.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	protected void pushOutOfBlocks(double x, double y, double z) {
 		BlockPos flooredPos = BlockPos.ofFloored(x, y, z);
 		Vec3d vec3d = new Vec3d(x - flooredPos.getX(), y - flooredPos.getY(), z - flooredPos.getZ());
@@ -3206,6 +4048,12 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Slow movement.
+	 *
+	 * @param state state
+	 * @param multiplier multiplier
+	 */
 	public void slowMovement(BlockState state, Vec3d multiplier) {
 		this.onLanding();
 		this.movementMultiplier = multiplier;
@@ -3251,6 +4099,13 @@ public abstract class Entity
 		return true;
 	}
 
+	/**
+	 * Обрабатывает attack.
+	 *
+	 * @param attacker attacker
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean handleAttack(Entity attacker) {
 		return false;
 	}
@@ -3300,10 +4155,20 @@ public abstract class Entity
 		this.invulnerable = invulnerable;
 	}
 
+	/**
+	 * Создаёт копию position and rotation.
+	 *
+	 * @param entity entity
+	 */
 	public void copyPositionAndRotation(Entity entity) {
 		this.refreshPositionAndAngles(entity.getX(), entity.getY(), entity.getZ(), entity.getYaw(), entity.getPitch());
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param original original
+	 */
 	public void copyFrom(Entity original) {
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(this.getErrorReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, original.getRegistryManager());
@@ -3315,6 +4180,13 @@ public abstract class Entity
 		this.portalManager = original.portalManager;
 	}
 
+	/**
+	 * Телепортирует to.
+	 *
+	 * @param teleportTarget teleport target
+	 *
+	 * @return @Nullable Entity — результат операции
+	 */
 	public @Nullable Entity teleportTo(TeleportTarget teleportTarget) {
 		if (this.getEntityWorld() instanceof ServerWorld serverWorld && !this.isRemoved()) {
 			ServerWorld serverWorld2 = teleportTarget.world();
@@ -3389,6 +4261,12 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Телепортирует spectating players.
+	 *
+	 * @param teleportTarget teleport target
+	 * @param from from
+	 */
 	protected void teleportSpectatingPlayers(TeleportTarget teleportTarget, ServerWorld from) {
 		for (ServerPlayerEntity serverPlayerEntity : List.copyOf(from.getPlayers())) {
 			if (serverPlayerEntity.getCameraEntity() == this) {
@@ -3466,6 +4344,14 @@ public abstract class Entity
 		this.clearQueuedCollisionChecks();
 	}
 
+	/**
+	 * Rotate.
+	 *
+	 * @param yaw yaw
+	 * @param relativeYaw relative yaw
+	 * @param pitch pitch
+	 * @param relativePitch relative pitch
+	 */
 	public void rotate(float yaw, boolean relativeYaw, float pitch, boolean relativePitch) {
 		Set<PositionFlag> set = PositionFlag.ofRot(relativeYaw, relativePitch);
 		EntityPosition entityPosition = EntityPosition.fromEntity(this);
@@ -3477,12 +4363,20 @@ public abstract class Entity
 		this.updateLastAngles();
 	}
 
+	/**
+	 * Добавляет portal chunk ticket at.
+	 *
+	 * @param pos pos
+	 */
 	public void addPortalChunkTicketAt(BlockPos pos) {
 		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
 			serverWorld.getChunkManager().addTicket(ChunkTicketType.PORTAL, new ChunkPos(pos), 3);
 		}
 	}
 
+	/**
+	 * Удаляет from dimension.
+	 */
 	protected void removeFromDimension() {
 		this.setRemoved(Entity.RemovalReason.CHANGED_DIMENSION);
 		if (this instanceof Leashable leashable) {
@@ -3494,6 +4388,14 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Position in portal.
+	 *
+	 * @param portalAxis portal axis
+	 * @param portalRect portal rect
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d positionInPortal(Direction.Axis portalAxis, BlockLocating.Rectangle portalRect) {
 		return NetherPortal.entityPosInPortal(
 				portalRect,
@@ -3503,10 +4405,25 @@ public abstract class Entity
 		);
 	}
 
+	/**
+	 * Проверяет возможность use portals.
+	 *
+	 * @param allowVehicles allow vehicles
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canUsePortals(boolean allowVehicles) {
 		return (allowVehicles || !this.hasVehicle()) && this.isAlive();
 	}
 
+	/**
+	 * Проверяет возможность teleport between.
+	 *
+	 * @param from from
+	 * @param to to
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canTeleportBetween(World from, World to) {
 		if (from.getRegistryKey() == World.END && to.getRegistryKey() == World.OVERWORLD) {
 			for (Entity entity : this.getPassengerList()) {
@@ -3544,10 +4461,20 @@ public abstract class Entity
 		return 3;
 	}
 
+	/**
+	 * Проверяет возможность avoid traps.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canAvoidTraps() {
 		return false;
 	}
 
+	/**
+	 * Populate crash report.
+	 *
+	 * @param section section
+	 */
 	public void populateCrashReport(CrashReportSection section) {
 		section.add(
 				"Entity Type",
@@ -3574,6 +4501,11 @@ public abstract class Entity
 		section.add("Entity's Vehicle", () -> String.valueOf(this.getVehicle()));
 	}
 
+	/**
+	 * Does render on fire.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean doesRenderOnFire() {
 		return this.isOnFire() && !this.isSpectator();
 	}
@@ -3661,10 +4593,24 @@ public abstract class Entity
 		return entity != null;
 	}
 
+	/**
+	 * Request teleport and dismount.
+	 *
+	 * @param destX dest x
+	 * @param destY dest y
+	 * @param destZ dest z
+	 */
 	public void requestTeleportAndDismount(double destX, double destY, double destZ) {
 		this.requestTeleport(destX, destY, destZ);
 	}
 
+	/**
+	 * Request teleport.
+	 *
+	 * @param destX dest x
+	 * @param destY dest y
+	 * @param destZ dest z
+	 */
 	public void requestTeleport(double destX, double destY, double destZ) {
 		if (this.getEntityWorld() instanceof ServerWorld) {
 			this.refreshPositionAndAngles(destX, destY, destZ, this.getYaw(), this.getPitch());
@@ -3683,10 +4629,22 @@ public abstract class Entity
 		});
 	}
 
+	/**
+	 * Request teleport offset.
+	 *
+	 * @param offsetX offset x
+	 * @param offsetY offset y
+	 * @param offsetZ offset z
+	 */
 	public void requestTeleportOffset(double offsetX, double offsetY, double offsetZ) {
 		this.requestTeleport(this.getX() + offsetX, this.getY() + offsetY, this.getZ() + offsetZ);
 	}
 
+	/**
+	 * Определяет, следует ли render name.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRenderName() {
 		return this.isCustomNameVisible();
 	}
@@ -3703,6 +4661,9 @@ public abstract class Entity
 	}
 
 	@Deprecated
+	/**
+	 * Reinit dimensions.
+	 */
 	protected void reinitDimensions() {
 		EntityPose entityPose = this.getPose();
 		EntityDimensions entityDimensions = this.getDimensions(entityPose);
@@ -3710,6 +4671,9 @@ public abstract class Entity
 		this.standingEyeHeight = entityDimensions.eyeHeight();
 	}
 
+	/**
+	 * Вычисляет dimensions.
+	 */
 	public void calculateDimensions() {
 		EntityDimensions entityDimensions = this.dimensions;
 		EntityPose entityPose = this.getPose();
@@ -3730,6 +4694,13 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Recalculate dimensions.
+	 *
+	 * @param previous previous
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean recalculateDimensions(EntityDimensions previous) {
 		EntityDimensions entityDimensions = this.getDimensions(this.getPose());
 		Vec3d vec3d = this.getEntityPos().add(0.0, previous.height() / 2.0, 0.0);
@@ -3783,6 +4754,13 @@ public abstract class Entity
 		return new HoverEvent.ShowEntity(new HoverEvent.EntityContent(this.getType(), this.getUuid(), this.getName()));
 	}
 
+	/**
+	 * Проверяет возможность be spectated.
+	 *
+	 * @param spectator spectator
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBeSpectated(ServerPlayerEntity spectator) {
 		return true;
 	}
@@ -3809,6 +4787,15 @@ public abstract class Entity
 		return null;
 	}
 
+	/**
+	 * Выполняет взаимодействие с at.
+	 *
+	 * @param player player
+	 * @param hitPos hit pos
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult interactAt(PlayerEntity player, Vec3d hitPos, Hand hand) {
 		return ActionResult.PASS;
 	}
@@ -3817,12 +4804,29 @@ public abstract class Entity
 		return false;
 	}
 
+	/**
+	 * Обрабатывает событие started tracking by.
+	 *
+	 * @param player player
+	 */
 	public void onStartedTrackingBy(ServerPlayerEntity player) {
 	}
 
+	/**
+	 * Обрабатывает событие stopped tracking by.
+	 *
+	 * @param player player
+	 */
 	public void onStoppedTrackingBy(ServerPlayerEntity player) {
 	}
 
+	/**
+	 * Применяет rotation.
+	 *
+	 * @param rotation rotation
+	 *
+	 * @return float — результат операции
+	 */
 	public float applyRotation(BlockRotation rotation) {
 		float f = MathHelper.wrapDegrees(this.getYaw());
 
@@ -3834,6 +4838,13 @@ public abstract class Entity
 		};
 	}
 
+	/**
+	 * Применяет mirror.
+	 *
+	 * @param mirror mirror
+	 *
+	 * @return float — результат операции
+	 */
 	public float applyMirror(BlockMirror mirror) {
 		float f = MathHelper.wrapDegrees(this.getYaw());
 
@@ -3946,10 +4957,20 @@ public abstract class Entity
 		return livingEntity != null && livingEntity.isControlledByPlayer();
 	}
 
+	/**
+	 * Проверяет возможность move voluntarily.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canMoveVoluntarily() {
 		return this.isLogicalSideForUpdatingMovement();
 	}
 
+	/**
+	 * Проверяет возможность act voluntarily.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canActVoluntarily() {
 		return this.isLogicalSideForUpdatingMovement();
 	}
@@ -3962,6 +4983,13 @@ public abstract class Entity
 		return new Vec3d(f * d / h, 0.0, g * d / h);
 	}
 
+	/**
+	 * Обновляет passenger for dismount.
+	 *
+	 * @param passenger passenger
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d updatePassengerForDismount(LivingEntity passenger) {
 		return new Vec3d(this.getX(), this.getBoundingBox().maxY, this.getZ());
 	}
@@ -4000,6 +5028,12 @@ public abstract class Entity
 		);
 	}
 
+	/**
+	 * Look at.
+	 *
+	 * @param anchorPoint anchor point
+	 * @param target target
+	 */
 	public void lookAt(EntityAnchorArgumentType.EntityAnchor anchorPoint, Vec3d target) {
 		Vec3d vec3d = anchorPoint.positionAt(this);
 		double d = target.x - vec3d.x;
@@ -4013,10 +5047,25 @@ public abstract class Entity
 		this.lastYaw = this.getYaw();
 	}
 
+	/**
+	 * Lerp yaw.
+	 *
+	 * @param tickProgress tick progress
+	 *
+	 * @return float — результат операции
+	 */
 	public float lerpYaw(float tickProgress) {
 		return MathHelper.lerp(tickProgress, this.lastYaw, this.yaw);
 	}
 
+	/**
+	 * Обновляет movement in fluid.
+	 *
+	 * @param tag tag
+	 * @param speed speed
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean updateMovementInFluid(TagKey<Fluid> tag, double speed) {
 		if (this.isRegionUnloaded()) {
 			return false;
@@ -4111,6 +5160,13 @@ public abstract class Entity
 		return this.dimensions.height();
 	}
 
+	/**
+	 * Создаёт spawn packet.
+	 *
+	 * @param entityTrackerEntry entity tracker entry
+	 *
+	 * @return Packet — результат операции
+	 */
 	public Packet<ClientPlayPacketListener> createSpawnPacket(EntityTrackerEntry entityTrackerEntry) {
 		return new EntitySpawnS2CPacket(this, entityTrackerEntry);
 	}
@@ -4159,6 +5215,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Добавляет velocity internal.
+	 *
+	 * @param velocity velocity
+	 */
 	public void addVelocityInternal(Vec3d velocity) {
 		if (velocity.isFinite()) {
 			this.setVelocity(this.getVelocity().add(velocity));
@@ -4250,6 +5311,9 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Проверяет despawn.
+	 */
 	public void checkDespawn() {
 	}
 
@@ -4261,9 +5325,19 @@ public abstract class Entity
 		return false;
 	}
 
+	/**
+	 * Выполняет тик обновления для held leash.
+	 *
+	 * @param leashedEntity leashed entity
+	 */
 	public void tickHeldLeash(Leashable leashedEntity) {
 	}
 
+	/**
+	 * Обрабатывает событие held leash update.
+	 *
+	 * @param heldLeashable held leashable
+	 */
 	public void onHeldLeashUpdate(Leashable heldLeashable) {
 	}
 
@@ -4271,6 +5345,11 @@ public abstract class Entity
 		return this.getLerpedPos(tickProgress).add(0.0, this.standingEyeHeight * 0.7, 0.0);
 	}
 
+	/**
+	 * Обрабатывает событие spawn packet.
+	 *
+	 * @param packet packet
+	 */
 	public void onSpawnPacket(EntitySpawnS2CPacket packet) {
 		int i = packet.getEntityId();
 		double d = packet.getX();
@@ -4291,10 +5370,20 @@ public abstract class Entity
 		this.inPowderSnow = inPowderSnow;
 	}
 
+	/**
+	 * Проверяет возможность freeze.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canFreeze() {
 		return !this.getType().isIn(EntityTypeTags.FREEZE_IMMUNE_ENTITY_TYPES);
 	}
 
+	/**
+	 * Определяет, следует ли escape powder snow.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldEscapePowderSnow() {
 		return this.getFrozenTicks() > 0;
 	}
@@ -4330,6 +5419,11 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Проверяет возможность sprint as vehicle.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSprintAsVehicle() {
 		return false;
 	}
@@ -4338,6 +5432,11 @@ public abstract class Entity
 		return 0.0F;
 	}
 
+	/**
+	 * Обрабатывает событие exploded by.
+	 *
+	 * @param entity entity
+	 */
 	public void onExplodedBy(@Nullable Entity entity) {
 	}
 
@@ -4365,6 +5464,9 @@ public abstract class Entity
 		this.onRemove(reason);
 	}
 
+	/**
+	 * Unset removed.
+	 */
 	protected void unsetRemoved() {
 		this.removalReason = null;
 	}
@@ -4389,6 +5491,14 @@ public abstract class Entity
 		return false;
 	}
 
+	/**
+	 * Проверяет возможность modify at.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canModifyAt(ServerWorld world, BlockPos pos) {
 		return true;
 	}
@@ -4414,6 +5524,16 @@ public abstract class Entity
 		return this.getEntityWorld().getRegistryManager();
 	}
 
+	/**
+	 * Lerp pos and rotation.
+	 *
+	 * @param step step
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param yaw yaw
+	 * @param pitch pitch
+	 */
 	protected void lerpPosAndRotation(int step, double x, double y, double z, double yaw, double pitch) {
 		double d = 1.0 / step;
 		double e = MathHelper.lerp(d, this.getX(), x);
@@ -4447,11 +5567,21 @@ public abstract class Entity
 		return this.type.getLootTableKey();
 	}
 
+	/**
+	 * Создаёт копию components from.
+	 *
+	 * @param from from
+	 */
 	protected void copyComponentsFrom(ComponentsAccess from) {
 		this.copyComponentFrom(from, DataComponentTypes.CUSTOM_NAME);
 		this.copyComponentFrom(from, DataComponentTypes.CUSTOM_DATA);
 	}
 
+	/**
+	 * Создаёт копию components from.
+	 *
+	 * @param stack stack
+	 */
 	public final void copyComponentsFrom(ItemStack stack) {
 		this.copyComponentsFrom(stack.getComponents());
 	}
@@ -4468,6 +5598,14 @@ public abstract class Entity
 	}
 
 	@Contract("_,!null->!null;_,_->_")
+	/**
+	 * Cast component value.
+	 *
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	protected static <T> @Nullable T castComponentValue(ComponentType<T> type, @Nullable Object value) {
 		return (T) value;
 	}
@@ -4490,6 +5628,14 @@ public abstract class Entity
 		}
 	}
 
+	/**
+	 * Создаёт копию component from.
+	 *
+	 * @param from from
+	 * @param type type
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected <T> boolean copyComponentFrom(ComponentsAccess from, ComponentType<T> type) {
 		T object = from.get(type);
 		return object != null ? this.setApplicableComponent(type, object) : false;
@@ -4535,10 +5681,20 @@ public abstract class Entity
 			return this.events || this.sounds;
 		}
 
+		/**
+		 * Emits game events.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean emitsGameEvents() {
 			return this.events;
 		}
 
+		/**
+		 * Plays sounds.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean playsSounds() {
 			return this.sounds;
 		}
@@ -4585,10 +5741,20 @@ public abstract class Entity
 			this.save = save;
 		}
 
+		/**
+		 * Определяет, следует ли destroy.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldDestroy() {
 			return this.destroy;
 		}
 
+		/**
+		 * Определяет, следует ли save.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldSave() {
 			return this.save;
 		}

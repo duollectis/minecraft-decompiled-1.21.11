@@ -38,10 +38,24 @@ public class SymlinkWarningScreen extends Screen {
 		this.onClose = onClose;
 	}
 
+	/**
+	 * World.
+	 *
+	 * @param onClose on close
+	 *
+	 * @return Screen — результат операции
+	 */
 	public static Screen world(Runnable onClose) {
 		return new SymlinkWarningScreen(WORLD_TITLE, WORLD_MESSAGE, Urls.MINECRAFT_SYMLINKS, onClose);
 	}
 
+	/**
+	 * Pack.
+	 *
+	 * @param onClose on close
+	 *
+	 * @return Screen — результат операции
+	 */
 	public static Screen pack(Runnable onClose) {
 		return new SymlinkWarningScreen(PACK_TITLE, PACK_MESSAGE, Urls.MINECRAFT_SYMLINKS, onClose);
 	}

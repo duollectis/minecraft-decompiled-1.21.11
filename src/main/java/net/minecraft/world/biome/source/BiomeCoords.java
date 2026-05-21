@@ -13,6 +13,13 @@ public final class BiomeCoords {
 	private BiomeCoords() {
 	}
 
+	/**
+	 * From block.
+	 *
+	 * @param blockCoord block coord
+	 *
+	 * @return int — результат операции
+	 */
 	public static int fromBlock(int blockCoord) {
 		return blockCoord >> 2;
 	}
@@ -21,14 +28,35 @@ public final class BiomeCoords {
 		return i & 3;
 	}
 
+	/**
+	 * To block.
+	 *
+	 * @param biomeCoord biome coord
+	 *
+	 * @return int — результат операции
+	 */
 	public static int toBlock(int biomeCoord) {
 		return biomeCoord << 2;
 	}
 
+	/**
+	 * From chunk.
+	 *
+	 * @param chunkCoord chunk coord
+	 *
+	 * @return int — результат операции
+	 */
 	public static int fromChunk(int chunkCoord) {
 		return chunkCoord << 2;
 	}
 
+	/**
+	 * To chunk.
+	 *
+	 * @param biomeCoord biome coord
+	 *
+	 * @return int — результат операции
+	 */
 	public static int toChunk(int biomeCoord) {
 		return biomeCoord >> 2;
 	}

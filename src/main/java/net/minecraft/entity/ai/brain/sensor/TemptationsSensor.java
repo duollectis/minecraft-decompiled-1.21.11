@@ -31,6 +31,11 @@ public class TemptationsSensor extends Sensor<PathAwareEntity> {
 		this((entity, stack) -> predicate.test(stack));
 	}
 
+	/**
+	 * Breeding item.
+	 *
+	 * @return TemptationsSensor — результат операции
+	 */
 	public static TemptationsSensor breedingItem() {
 		return new TemptationsSensor((entity, stack) -> entity instanceof AnimalEntity animalEntity
 		                                                ? animalEntity.isBreedingItem(stack) : false);
@@ -40,6 +45,12 @@ public class TemptationsSensor extends Sensor<PathAwareEntity> {
 		this.predicate = predicate;
 	}
 
+	/**
+	 * Sense.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 */
 	protected void sense(ServerWorld serverWorld, PathAwareEntity pathAwareEntity) {
 		Brain<?> brain = pathAwareEntity.getBrain();
 		TargetPredicate

@@ -79,6 +79,13 @@ public class HoeItem extends Item {
 		}
 	}
 
+	/**
+	 * Создаёт till action.
+	 *
+	 * @param result result
+	 *
+	 * @return Consumer — результат операции
+	 */
 	public static Consumer<ItemUsageContext> createTillAction(BlockState result) {
 		return context -> {
 			context.getWorld().setBlockState(context.getBlockPos(), result, 11);
@@ -92,6 +99,14 @@ public class HoeItem extends Item {
 		};
 	}
 
+	/**
+	 * Создаёт till and drop action.
+	 *
+	 * @param result result
+	 * @param droppedItem dropped item
+	 *
+	 * @return Consumer — результат операции
+	 */
 	public static Consumer<ItemUsageContext> createTillAndDropAction(BlockState result, ItemConvertible droppedItem) {
 		return context -> {
 			context.getWorld().setBlockState(context.getBlockPos(), result, 11);
@@ -106,6 +121,13 @@ public class HoeItem extends Item {
 		};
 	}
 
+	/**
+	 * Проверяет возможность till farmland.
+	 *
+	 * @param context context
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canTillFarmland(ItemUsageContext context) {
 		return context.getSide() != Direction.DOWN && context
 				.getWorld()

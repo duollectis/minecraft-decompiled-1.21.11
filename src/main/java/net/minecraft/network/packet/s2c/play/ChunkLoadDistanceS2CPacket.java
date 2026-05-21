@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс chunk load distance s2 c packet.
+ */
 public class ChunkLoadDistanceS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ChunkLoadDistanceS2CPacket> CODEC = Packet.createCodec(
@@ -31,6 +34,11 @@ public class ChunkLoadDistanceS2CPacket implements Packet<ClientPlayPacketListen
 		return PlayPackets.SET_CHUNK_CACHE_RADIUS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onChunkLoadDistance(this);
 	}

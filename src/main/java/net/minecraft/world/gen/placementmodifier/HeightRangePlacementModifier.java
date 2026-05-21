@@ -30,14 +30,37 @@ public class HeightRangePlacementModifier extends PlacementModifier {
 		this.height = height;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param height height
+	 *
+	 * @return HeightRangePlacementModifier — результат операции
+	 */
 	public static HeightRangePlacementModifier of(HeightProvider height) {
 		return new HeightRangePlacementModifier(height);
 	}
 
+	/**
+	 * Uniform.
+	 *
+	 * @param minOffset min offset
+	 * @param maxOffset max offset
+	 *
+	 * @return HeightRangePlacementModifier — результат операции
+	 */
 	public static HeightRangePlacementModifier uniform(YOffset minOffset, YOffset maxOffset) {
 		return of(UniformHeightProvider.create(minOffset, maxOffset));
 	}
 
+	/**
+	 * Trapezoid.
+	 *
+	 * @param minOffset min offset
+	 * @param maxOffset max offset
+	 *
+	 * @return HeightRangePlacementModifier — результат операции
+	 */
 	public static HeightRangePlacementModifier trapezoid(YOffset minOffset, YOffset maxOffset) {
 		return of(TrapezoidHeightProvider.create(minOffset, maxOffset));
 	}

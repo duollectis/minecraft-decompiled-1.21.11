@@ -28,6 +28,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Класс periodic notification manager.
+ */
 public class PeriodicNotificationManager
 		extends SinglePreparationResourceReloader<Map<String, List<PeriodicNotificationManager.Entry>>>
 		implements AutoCloseable {

@@ -61,6 +61,15 @@ public class WallTorchBlock extends TorchBlock {
 		return canPlaceAt(world, pos, state.get(FACING));
 	}
 
+	/**
+	 * Проверяет возможность place at.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param facing facing
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canPlaceAt(WorldView world, BlockPos pos, Direction facing) {
 		BlockPos blockPos = pos.offset(facing.getOpposite());
 		BlockState blockState = world.getBlockState(blockPos);

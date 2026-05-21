@@ -25,6 +25,13 @@ public record MultipartModelComponent(Optional<MultipartModelCondition> selector
 			                    .apply(instance, MultipartModelComponent::new)
 	);
 
+	/**
+	 * Init.
+	 *
+	 * @param value value
+	 *
+	 * @return > Predicate — результат операции
+	 */
 	public <O, S extends State<O, S>> Predicate<S> init(StateManager<O, S> value) {
 		return this.selector
 				.<Predicate<S>>map(multipartModelCondition -> multipartModelCondition.instantiate(value))

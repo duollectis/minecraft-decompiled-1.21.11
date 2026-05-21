@@ -29,6 +29,9 @@ public final class Monitor {
 		this.populateVideoModes();
 	}
 
+	/**
+	 * Populate video modes.
+	 */
 	public void populateVideoModes() {
 		this.videoModes.clear();
 		Buffer buffer = GLFW.glfwGetVideoModes(this.handle);
@@ -50,6 +53,13 @@ public final class Monitor {
 		this.currentVideoMode = new VideoMode(gLFWVidMode);
 	}
 
+	/**
+	 * Ищет closest video mode.
+	 *
+	 * @param videoMode video mode
+	 *
+	 * @return VideoMode — closest video mode
+	 */
 	public VideoMode findClosestVideoMode(Optional<VideoMode> videoMode) {
 		if (videoMode.isPresent()) {
 			VideoMode videoMode2 = videoMode.get();
@@ -64,6 +74,13 @@ public final class Monitor {
 		return this.getCurrentVideoMode();
 	}
 
+	/**
+	 * Ищет closest video mode index.
+	 *
+	 * @param videoMode video mode
+	 *
+	 * @return int — closest video mode index
+	 */
 	public int findClosestVideoModeIndex(VideoMode videoMode) {
 		return this.videoModes.indexOf(videoMode);
 	}

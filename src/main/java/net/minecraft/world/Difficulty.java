@@ -47,10 +47,24 @@ public enum Difficulty implements StringIdentifiable {
 	}
 
 	@Deprecated
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 *
+	 * @return Difficulty — результат операции
+	 */
 	public static Difficulty byId(int id) {
 		return BY_ID.apply(id);
 	}
 
+	/**
+	 * By name.
+	 *
+	 * @param name name
+	 *
+	 * @return @Nullable Difficulty — результат операции
+	 */
 	public static @Nullable Difficulty byName(String name) {
 		return CODEC.byId(name);
 	}

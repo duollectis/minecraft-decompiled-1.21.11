@@ -38,10 +38,16 @@ public abstract class GameOptionsScreen extends Screen {
 		this.refreshWidgetPositions();
 	}
 
+	/**
+	 * Инициализирует header.
+	 */
 	protected void initHeader() {
 		this.layout.addHeader(this.title, this.textRenderer);
 	}
 
+	/**
+	 * Инициализирует body.
+	 */
 	protected void initBody() {
 		this.body = this.layout.addBody(new OptionListWidget(this.client, this.width, this));
 		this.addOptions();
@@ -51,8 +57,14 @@ public abstract class GameOptionsScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Добавляет options.
+	 */
 	protected abstract void addOptions();
 
+	/**
+	 * Инициализирует footer.
+	 */
 	protected void initFooter() {
 		this.layout.addFooter(ButtonWidget.builder(ScreenTexts.DONE, button -> this.close()).width(200).build());
 	}
@@ -79,6 +91,11 @@ public abstract class GameOptionsScreen extends Screen {
 		this.client.setScreen(this.parent);
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param option option
+	 */
 	public void update(SimpleOption<?> option) {
 		if (this.body != null) {
 			this.body.update(option);

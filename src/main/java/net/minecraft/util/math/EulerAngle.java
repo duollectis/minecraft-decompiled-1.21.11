@@ -25,10 +25,23 @@ public record EulerAngle(float pitch, float yaw, float roll) {
 					angle -> List.of(angle.pitch(), angle.yaw(), angle.roll())
 			);
 	public static final PacketCodec<ByteBuf, EulerAngle> PACKET_CODEC = new PacketCodec<ByteBuf, EulerAngle>() {
+		/**
+		 * Decode.
+		 *
+		 * @param byteBuf byte buf
+		 *
+		 * @return EulerAngle — результат операции
+		 */
 		public EulerAngle decode(ByteBuf byteBuf) {
 			return new EulerAngle(byteBuf.readFloat(), byteBuf.readFloat(), byteBuf.readFloat());
 		}
 
+		/**
+		 * Encode.
+		 *
+		 * @param byteBuf byte buf
+		 * @param eulerAngle euler angle
+		 */
 		public void encode(ByteBuf byteBuf, EulerAngle eulerAngle) {
 			byteBuf.writeFloat(eulerAngle.pitch);
 			byteBuf.writeFloat(eulerAngle.yaw);

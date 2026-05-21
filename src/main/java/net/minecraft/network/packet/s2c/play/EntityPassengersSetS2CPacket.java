@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PlayPackets;
 
 import java.util.List;
 
+/**
+ * Класс entity passengers set s2 c packet.
+ */
 public class EntityPassengersSetS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, EntityPassengersSetS2CPacket> CODEC = Packet.createCodec(
@@ -43,6 +46,11 @@ public class EntityPassengersSetS2CPacket implements Packet<ClientPlayPacketList
 		return PlayPackets.SET_PASSENGERS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntityPassengersSet(this);
 	}

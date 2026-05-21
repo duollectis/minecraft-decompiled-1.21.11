@@ -30,10 +30,24 @@ public class CountMultilayerPlacementModifier extends PlacementModifier {
 		this.count = count;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param count count
+	 *
+	 * @return CountMultilayerPlacementModifier — результат операции
+	 */
 	public static CountMultilayerPlacementModifier of(IntProvider count) {
 		return new CountMultilayerPlacementModifier(count);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param count count
+	 *
+	 * @return CountMultilayerPlacementModifier — результат операции
+	 */
 	public static CountMultilayerPlacementModifier of(int count) {
 		return of(ConstantIntProvider.create(count));
 	}

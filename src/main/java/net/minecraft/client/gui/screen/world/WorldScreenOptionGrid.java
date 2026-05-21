@@ -36,6 +36,9 @@ class WorldScreenOptionGrid {
 		return this.layout;
 	}
 
+	/**
+	 * Refresh.
+	 */
 	public void refresh() {
 		this.options.forEach(WorldScreenOptionGrid.Option::refresh);
 	}
@@ -83,6 +86,11 @@ class WorldScreenOptionGrid {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return WorldScreenOptionGrid — результат операции
+		 */
 		public WorldScreenOptionGrid build() {
 			GridWidget gridWidget = new GridWidget().setRowSpacing(this.rowSpacing);
 			gridWidget.add(EmptyWidget.ofWidth(this.width - 44), 0, 0);
@@ -113,6 +121,9 @@ class WorldScreenOptionGrid {
 	 */
 	record Option(CyclingButtonWidget<Boolean> button, BooleanSupplier getter, @Nullable BooleanSupplier toggleable) {
 
+		/**
+		 * Refresh.
+		 */
 		public void refresh() {
 			this.button.setValue(this.getter.getAsBoolean());
 			if (this.toggleable != null) {

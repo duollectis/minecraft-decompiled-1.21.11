@@ -23,6 +23,13 @@ public record FallLocation(String id) {
 	public static final FallLocation OTHER_CLIMBABLE = new FallLocation("other_climbable");
 	public static final FallLocation WATER = new FallLocation("water");
 
+	/**
+	 * From block state.
+	 *
+	 * @param state state
+	 *
+	 * @return FallLocation — результат операции
+	 */
 	public static FallLocation fromBlockState(BlockState state) {
 		if (state.isOf(Blocks.LADDER) || state.isIn(BlockTags.TRAPDOORS)) {
 			return LADDER;
@@ -41,6 +48,13 @@ public record FallLocation(String id) {
 		}
 	}
 
+	/**
+	 * From entity.
+	 *
+	 * @param entity entity
+	 *
+	 * @return @Nullable FallLocation — результат операции
+	 */
 	public static @Nullable FallLocation fromEntity(LivingEntity entity) {
 		Optional<BlockPos> optional = entity.getClimbingPos();
 		if (optional.isPresent()) {

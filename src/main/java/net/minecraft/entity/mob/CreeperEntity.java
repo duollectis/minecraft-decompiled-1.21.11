@@ -290,6 +290,9 @@ public class CreeperEntity extends HostileEntity {
 		return this.dataTracker.get(IGNITED);
 	}
 
+	/**
+	 * Ignite.
+	 */
 	public void ignite() {
 		this.dataTracker.set(IGNITED, true);
 	}

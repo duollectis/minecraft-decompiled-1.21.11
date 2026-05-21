@@ -49,6 +49,13 @@ public class BlockItem extends Item {
 		       : actionResult;
 	}
 
+	/**
+	 * Place.
+	 *
+	 * @param context context
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult place(ItemPlacementContext context) {
 		if (!this.getBlock().isEnabled(context.getWorld().getEnabledFeatures())) {
 			return ActionResult.FAIL;
@@ -154,16 +161,37 @@ public class BlockItem extends Item {
 		}
 	}
 
+	/**
+	 * Проверяет возможность place.
+	 *
+	 * @param context context
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canPlace(ItemPlacementContext context, BlockState state) {
 		PlayerEntity playerEntity = context.getPlayer();
 		return (!this.checkStatePlacement() || state.canPlaceAt(context.getWorld(), context.getBlockPos()))
 				&& context.getWorld().canPlace(state, context.getBlockPos(), ShapeContext.ofPlacement(playerEntity));
 	}
 
+	/**
+	 * Проверяет state placement.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean checkStatePlacement() {
 		return true;
 	}
 
+	/**
+	 * Place.
+	 *
+	 * @param context context
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean place(ItemPlacementContext context, BlockState state) {
 		return context.getWorld().setBlockState(context.getBlockPos(), state, 11);
 	}
@@ -216,6 +244,12 @@ public class BlockItem extends Item {
 		return this.block;
 	}
 
+	/**
+	 * Append blocks.
+	 *
+	 * @param map map
+	 * @param item item
+	 */
 	public void appendBlocks(Map<Block, Item> map, Item item) {
 		map.put(this.getBlock(), item);
 	}

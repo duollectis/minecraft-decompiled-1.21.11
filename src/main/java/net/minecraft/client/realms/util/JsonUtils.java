@@ -18,6 +18,15 @@ import java.util.function.Function;
  */
 public class JsonUtils {
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 * @param node node
+	 * @param deserializer deserializer
+	 *
+	 * @return T — 
+	 */
 	public static <T> T get(String key, JsonObject node, Function<JsonObject, T> deserializer) {
 		JsonElement jsonElement = node.get(key);
 		if (jsonElement == null || jsonElement.isJsonNull()) {

@@ -35,10 +35,16 @@ public class OversizedItemGuiElementRenderer extends SpecialGuiElementRenderer<O
 		return this.oversized;
 	}
 
+	/**
+	 * Очищает oversized.
+	 */
 	public void clearOversized() {
 		this.oversized = false;
 	}
 
+	/**
+	 * Очищает model.
+	 */
 	public void clearModel() {
 		this.modelKey = null;
 	}
@@ -89,6 +95,13 @@ public class OversizedItemGuiElementRenderer extends SpecialGuiElementRenderer<O
 		this.oversized = true;
 	}
 
+	/**
+	 * Определяет, следует ли bypass scaling.
+	 *
+	 * @param oversizedItemGuiElementRenderState oversized item gui element render state
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldBypassScaling(OversizedItemGuiElementRenderState oversizedItemGuiElementRenderState) {
 		KeyedItemRenderState keyedItemRenderState = oversizedItemGuiElementRenderState.guiItemRenderState().state();
 		return !keyedItemRenderState.isAnimated() && keyedItemRenderState.getModelKey().equals(this.modelKey);

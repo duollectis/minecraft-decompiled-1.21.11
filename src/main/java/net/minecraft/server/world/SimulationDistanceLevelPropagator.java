@@ -44,6 +44,9 @@ public class SimulationDistanceLevelPropagator extends ChunkPosDistanceLevelProp
 		}
 	}
 
+	/**
+	 * Обновляет levels.
+	 */
 	public void updateLevels() {
 		this.applyPendingUpdates(Integer.MAX_VALUE);
 	}

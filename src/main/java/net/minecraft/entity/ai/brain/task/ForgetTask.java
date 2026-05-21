@@ -10,6 +10,14 @@ import java.util.function.Predicate;
  */
 public class ForgetTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param condition condition
+	 * @param memory memory
+	 *
+	 * @return Task — результат операции
+	 */
 	public static <E extends LivingEntity> Task<E> create(Predicate<E> condition, MemoryModuleType<?> memory) {
 		return TaskTriggerer.task(context -> context.group(context.queryMemoryValue(memory)).apply(
 				context, queryResult -> (world, entity, time) -> {

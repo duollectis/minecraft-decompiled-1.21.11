@@ -10,6 +10,14 @@ import net.minecraft.util.math.MathHelper;
 public interface FloatModifier<Argument> extends EnvironmentAttributeModifier<Float, Argument> {
 
 	FloatModifier<BlendArgument> ALPHA_BLEND = new FloatModifier<BlendArgument>() {
+		/**
+		 * Apply.
+		 *
+		 * @param float_ float_
+		 * @param blendArgument blend argument
+		 *
+		 * @return Float — результат операции
+		 */
 		public Float apply(Float float_, BlendArgument blendArgument) {
 			return MathHelper.lerp(blendArgument.alpha(), float_, blendArgument.value());
 		}

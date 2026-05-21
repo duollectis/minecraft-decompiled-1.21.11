@@ -86,6 +86,16 @@ public class DecorationItem extends Item {
 		}
 	}
 
+	/**
+	 * Проверяет возможность place on.
+	 *
+	 * @param player player
+	 * @param side side
+	 * @param stack stack
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canPlaceOn(PlayerEntity player, Direction side, ItemStack stack, BlockPos pos) {
 		return !side.getAxis().isVertical() && player.canPlaceOn(pos, side, stack);
 	}

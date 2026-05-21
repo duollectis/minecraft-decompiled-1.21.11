@@ -12,6 +12,9 @@ import net.minecraft.network.packet.c2s.query.QueryRequestC2SPacket;
 import net.minecraft.network.packet.s2c.query.PingResultS2CPacket;
 import net.minecraft.network.packet.s2c.query.QueryResponseS2CPacket;
 
+/**
+ * Класс query states.
+ */
 public class QueryStates {
 
 	public static final NetworkStateFactory<ServerQueryPacketListener, ByteBuf> C2S_FACTORY = NetworkStateBuilder.c2s(

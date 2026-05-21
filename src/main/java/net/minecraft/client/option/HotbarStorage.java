@@ -55,6 +55,9 @@ public class HotbarStorage {
 		}
 	}
 
+	/**
+	 * Save.
+	 */
 	public void save() {
 		try {
 			NbtCompound nbtCompound = NbtHelper.putDataVersion(new NbtCompound());

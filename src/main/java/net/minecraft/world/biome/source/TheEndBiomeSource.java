@@ -34,6 +34,13 @@ public class TheEndBiomeSource extends BiomeSource {
 	private final RegistryEntry<Biome> smallIslandsBiome;
 	private final RegistryEntry<Biome> barrensBiome;
 
+	/**
+	 * Создаёт vanilla.
+	 *
+	 * @param biomeLookup biome lookup
+	 *
+	 * @return TheEndBiomeSource — результат операции
+	 */
 	public static TheEndBiomeSource createVanilla(RegistryEntryLookup<Biome> biomeLookup) {
 		return new TheEndBiomeSource(
 				biomeLookup.getOrThrow(BiomeKeys.THE_END),

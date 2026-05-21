@@ -48,6 +48,14 @@ public record BinomialLootNumberProvider(LootNumberProvider n, LootNumberProvide
 		return this.nextInt(context);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param n n
+	 * @param p p
+	 *
+	 * @return BinomialLootNumberProvider — результат операции
+	 */
 	public static BinomialLootNumberProvider create(int n, float p) {
 		return new BinomialLootNumberProvider(
 				ConstantLootNumberProvider.create(n),

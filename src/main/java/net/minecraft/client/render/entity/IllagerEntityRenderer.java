@@ -24,6 +24,13 @@ public abstract class IllagerEntityRenderer<T extends IllagerEntity, S extends I
 		this.addFeature(new HeadFeatureRenderer<>(this, ctx.getEntityModels(), ctx.getPlayerSkinCache()));
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param illagerEntity illager entity
+	 * @param illagerEntityRenderState illager entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T illagerEntity, S illagerEntityRenderState, float f) {
 		super.updateRenderState(illagerEntity, illagerEntityRenderState, f);
 		ArmedEntityRenderState.updateRenderState(illagerEntity, illagerEntityRenderState, this.itemModelResolver, f);

@@ -57,6 +57,13 @@ public class HappyGhastBrain {
 		return Brain.createProfile(MEMORY_MODULES, SENSORS);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<HappyGhastEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -123,6 +130,11 @@ public class HappyGhastBrain {
 		);
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param happyGhast happy ghast
+	 */
 	public static void updateActivities(HappyGhastEntity happyGhast) {
 		happyGhast.getBrain().resetPossibleActivities(ImmutableList.of(Activity.PANIC, Activity.IDLE));
 	}

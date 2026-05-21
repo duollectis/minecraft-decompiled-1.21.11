@@ -17,6 +17,12 @@ public class SymlinkFinder {
 		this.matcher = matcher;
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param path path
+	 * @param results results
+	 */
 	public void validate(Path path, List<SymlinkEntry> results) throws IOException {
 		Path path2 = Files.readSymbolicLink(path);
 		if (!this.matcher.matches(path2)) {
@@ -24,12 +30,27 @@ public class SymlinkFinder {
 		}
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param path path
+	 *
+	 * @return List — результат операции
+	 */
 	public List<SymlinkEntry> validate(Path path) throws IOException {
 		List<SymlinkEntry> list = new ArrayList<>();
 		this.validate(path, list);
 		return list;
 	}
 
+	/**
+	 * Collect.
+	 *
+	 * @param path path
+	 * @param resolveSymlink resolve symlink
+	 *
+	 * @return List — результат операции
+	 */
 	public List<SymlinkEntry> collect(Path path, boolean resolveSymlink) throws IOException {
 		List<SymlinkEntry> list = new ArrayList<>();
 
@@ -59,6 +80,12 @@ public class SymlinkFinder {
 		}
 	}
 
+	/**
+	 * Валидирует recursively.
+	 *
+	 * @param path path
+	 * @param results results
+	 */
 	public void validateRecursively(Path path, List<SymlinkEntry> results) throws IOException {
 		Files.walkFileTree(
 				path, new SimpleFileVisitor<Path>() {

@@ -43,6 +43,11 @@ public class TridentItem extends Item implements ProjectileItem {
 		super(settings);
 	}
 
+	/**
+	 * Создаёт attribute modifiers.
+	 *
+	 * @return AttributeModifiersComponent — результат операции
+	 */
 	public static AttributeModifiersComponent createAttributeModifiers() {
 		return AttributeModifiersComponent.builder()
 		                                  .add(
@@ -66,6 +71,11 @@ public class TridentItem extends Item implements ProjectileItem {
 		                                  .build();
 	}
 
+	/**
+	 * Создаёт tool component.
+	 *
+	 * @return ToolComponent — результат операции
+	 */
 	public static ToolComponent createToolComponent() {
 		return new ToolComponent(List.of(), 1.0F, 2, false);
 	}

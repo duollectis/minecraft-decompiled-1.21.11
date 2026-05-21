@@ -37,14 +37,38 @@ public class VillagerBreedTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		return this.isReadyToBreed(villagerEntity);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		return l <= this.breedEndTime && this.isReadyToBreed(villagerEntity);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		PassiveEntity
 				passiveEntity =
@@ -56,6 +80,13 @@ public class VillagerBreedTask extends MultiTickTask<VillagerEntity> {
 		this.breedEndTime = l + i;
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		VillagerEntity
 				villagerEntity2 =
@@ -95,6 +126,13 @@ public class VillagerBreedTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		villagerEntity.getBrain().forget(MemoryModuleType.BREED_TARGET);
 	}

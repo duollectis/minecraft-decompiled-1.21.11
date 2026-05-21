@@ -172,6 +172,13 @@ public class CandleCakeBlock extends AbstractCandleBlock {
 		return CANDLES_TO_CANDLE_CAKES.get(candle).getDefaultState();
 	}
 
+	/**
+	 * Проверяет возможность be lit.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canBeLit(BlockState state) {
 		return state.isIn(BlockTags.CANDLE_CAKES, statex -> statex.contains(LIT) && !state.get(LIT));
 	}

@@ -46,6 +46,14 @@ public class SmithingTrimRecipe implements SmithingRecipe {
 		this.pattern = pattern;
 	}
 
+	/**
+	 * Craft.
+	 *
+	 * @param smithingRecipeInput smithing recipe input
+	 * @param wrapperLookup wrapper lookup
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack craft(SmithingRecipeInput smithingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
 		return craft(wrapperLookup, smithingRecipeInput.base(), smithingRecipeInput.addition(), this.pattern);
 	}

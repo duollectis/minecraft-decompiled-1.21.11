@@ -368,6 +368,9 @@ public class BatchingRenderCommandQueue implements RenderCommandQueue {
 		return this.hasCommands;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.shadowPiecesCommands.clear();
 		this.fireCommands.clear();
@@ -384,6 +387,9 @@ public class BatchingRenderCommandQueue implements RenderCommandQueue {
 		this.modelPartCommands.clear();
 	}
 
+	/**
+	 * Обрабатывает событие next frame.
+	 */
 	public void onNextFrame() {
 		this.modelCommands.nextFrame();
 		this.modelPartCommands.nextFrame();

@@ -231,6 +231,12 @@ public class StructureLocator {
 		                                                     : StructurePresence.START_PRESENT;
 	}
 
+	/**
+	 * Cache.
+	 *
+	 * @param pos pos
+	 * @param structureStarts structure starts
+	 */
 	public void cache(ChunkPos pos, Map<Structure, StructureStart> structureStarts) {
 		long l = pos.toLong();
 		Object2IntMap<Structure> object2IntMap = new Object2IntOpenHashMap();
@@ -249,6 +255,12 @@ public class StructureLocator {
 				.forEach(generationPossibilityByChunkPos -> generationPossibilityByChunkPos.remove(pos));
 	}
 
+	/**
+	 * Increment references.
+	 *
+	 * @param pos pos
+	 * @param structure structure
+	 */
 	public void incrementReferences(ChunkPos pos, Structure structure) {
 		this.cachedStructuresByChunkPos.compute(
 				pos.toLong(), (posx, referencesByStructure) -> {

@@ -46,6 +46,13 @@ public abstract class AbstractSkeletonEntityRenderer<T extends AbstractSkeletonE
 		);
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param abstractSkeletonEntity abstract skeleton entity
+	 * @param skeletonEntityRenderState skeleton entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T abstractSkeletonEntity, S skeletonEntityRenderState, float f) {
 		super.updateRenderState(abstractSkeletonEntity, skeletonEntityRenderState, f);
 		skeletonEntityRenderState.attacking = abstractSkeletonEntity.isAttacking();

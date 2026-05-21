@@ -14,10 +14,25 @@ public class SleepManager {
 	private int total;
 	private int sleeping;
 
+	/**
+	 * Проверяет возможность skip night.
+	 *
+	 * @param percentage percentage
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSkipNight(int percentage) {
 		return this.sleeping >= this.getNightSkippingRequirement(percentage);
 	}
 
+	/**
+	 * Проверяет возможность reset time.
+	 *
+	 * @param percentage percentage
+	 * @param players players
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canResetTime(int percentage, List<ServerPlayerEntity> players) {
 		int i = (int) players.stream().filter(PlayerEntity::canResetTimeBySleeping).count();
 		return i >= this.getNightSkippingRequirement(percentage);
@@ -27,6 +42,9 @@ public class SleepManager {
 		return Math.max(1, MathHelper.ceil(this.total * percentage / 100.0F));
 	}
 
+	/**
+	 * Очищает sleeping.
+	 */
 	public void clearSleeping() {
 		this.sleeping = 0;
 	}
@@ -35,6 +53,13 @@ public class SleepManager {
 		return this.sleeping;
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param players players
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean update(List<ServerPlayerEntity> players) {
 		int i = this.total;
 		int j = this.sleeping;

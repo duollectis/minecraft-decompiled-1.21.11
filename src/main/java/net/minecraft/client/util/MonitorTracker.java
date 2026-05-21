@@ -95,6 +95,15 @@ public class MonitorTracker {
 		}
 	}
 
+	/**
+	 * Clamp.
+	 *
+	 * @param value value
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return int — результат операции
+	 */
 	public static int clamp(int value, int min, int max) {
 		if (value < min) {
 			return min;
@@ -104,6 +113,9 @@ public class MonitorTracker {
 		}
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		RenderSystem.assertOnRenderThread();
 		GLFWMonitorCallback gLFWMonitorCallback = GLFW.glfwSetMonitorCallback(null);

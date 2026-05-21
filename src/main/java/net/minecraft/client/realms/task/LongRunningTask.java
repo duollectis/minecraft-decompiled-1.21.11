@@ -22,6 +22,11 @@ public abstract class LongRunningTask implements Runnable {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private boolean aborted = false;
 
+	/**
+	 * Pause.
+	 *
+	 * @param seconds seconds
+	 */
 	protected static void pause(long seconds) {
 		try {
 			Thread.sleep(seconds * 1000L);
@@ -37,6 +42,11 @@ public abstract class LongRunningTask implements Runnable {
 		minecraftClient.execute(() -> minecraftClient.setScreen(screen));
 	}
 
+	/**
+	 * Error.
+	 *
+	 * @param message message
+	 */
 	protected void error(Text message) {
 		this.abortTask();
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
@@ -46,6 +56,11 @@ public abstract class LongRunningTask implements Runnable {
 		)));
 	}
 
+	/**
+	 * Error.
+	 *
+	 * @param exception exception
+	 */
 	protected void error(Exception exception) {
 		if (exception instanceof RealmsServiceException realmsServiceException) {
 			this.error(realmsServiceException.error.getText());
@@ -55,22 +70,41 @@ public abstract class LongRunningTask implements Runnable {
 		}
 	}
 
+	/**
+	 * Error.
+	 *
+	 * @param exception exception
+	 */
 	protected void error(RealmsServiceException exception) {
 		this.error(exception.error.getText());
 	}
 
 	public abstract Text getTitle();
 
+	/**
+	 * Aborted.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean aborted() {
 		return this.aborted;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 	}
 
+	/**
+	 * Init.
+	 */
 	public void init() {
 	}
 
+	/**
+	 * Abort task.
+	 */
 	public void abortTask() {
 		this.aborted = true;
 	}

@@ -124,6 +124,12 @@ public class VillagerResemblingModel extends EntityModel<VillagerEntityRenderSta
 		return this.head;
 	}
 
+	/**
+	 * Rotate arms.
+	 *
+	 * @param villagerEntityRenderState villager entity render state
+	 * @param matrixStack matrix stack
+	 */
 	public void rotateArms(VillagerEntityRenderState villagerEntityRenderState, MatrixStack matrixStack) {
 		this.root.applyTransform(matrixStack);
 		this.arms.applyTransform(matrixStack);

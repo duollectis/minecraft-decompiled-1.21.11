@@ -81,6 +81,13 @@ public record ChunkGenerationSteps(ImmutableList<ChunkGenerationStep> steps) {
 			.then(ChunkStatus.FULL, builder -> builder.task(ChunkGenerating::convertToFullChunk))
 			.build();
 
+	/**
+	 * Get.
+	 *
+	 * @param status status
+	 *
+	 * @return ChunkGenerationStep — 
+	 */
 	public ChunkGenerationStep get(ChunkStatus status) {
 		return (ChunkGenerationStep) this.steps.get(status.getIndex());
 	}
@@ -92,6 +99,11 @@ public record ChunkGenerationSteps(ImmutableList<ChunkGenerationStep> steps) {
 
 		private final List<ChunkGenerationStep> steps = new ArrayList<>();
 
+		/**
+		 * Build.
+		 *
+		 * @return ChunkGenerationSteps — результат операции
+		 */
 		public ChunkGenerationSteps build() {
 			return new ChunkGenerationSteps(ImmutableList.copyOf(this.steps));
 		}

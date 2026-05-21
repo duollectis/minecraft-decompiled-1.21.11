@@ -102,6 +102,11 @@ public class Enchantments {
 	public static final RegistryKey<Enchantment> MENDING = of("mending");
 	public static final RegistryKey<Enchantment> VANISHING_CURSE = of("vanishing_curse");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<Enchantment> registry) {
 		RegistryEntryLookup<DamageType> registryEntryLookup = registry.getRegistryLookup(RegistryKeys.DAMAGE_TYPE);
 		RegistryEntryLookup<Enchantment> registryEntryLookup2 = registry.getRegistryLookup(RegistryKeys.ENCHANTMENT);

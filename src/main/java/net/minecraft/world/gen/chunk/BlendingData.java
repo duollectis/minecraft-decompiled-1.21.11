@@ -78,6 +78,13 @@ public class BlendingData {
 		this.oldHeightLimit = HeightLimitView.create(i, j);
 	}
 
+	/**
+	 * From serialized.
+	 *
+	 * @param serialized serialized
+	 *
+	 * @return @Nullable BlendingData — результат операции
+	 */
 	public static @Nullable BlendingData fromSerialized(BlendingData.@Nullable Serialized serialized) {
 		return serialized == null ? null : new BlendingData(
 				serialized.minSection(),
@@ -343,6 +350,14 @@ public class BlendingData {
 		}
 	}
 
+	/**
+	 * Accept biomes.
+	 *
+	 * @param biomeX biome x
+	 * @param biomeY biome y
+	 * @param biomeZ biome z
+	 * @param consumer consumer
+	 */
 	protected void acceptBiomes(int biomeX, int biomeY, int biomeZ, BlendingData.BiomeConsumer consumer) {
 		if (biomeY >= BiomeCoords.fromBlock(this.oldHeightLimit.getBottomY())
 				&& biomeY <= BiomeCoords.fromBlock(this.oldHeightLimit.getTopYInclusive())) {
@@ -360,6 +375,13 @@ public class BlendingData {
 		}
 	}
 
+	/**
+	 * Accept heights.
+	 *
+	 * @param biomeX biome x
+	 * @param biomeZ biome z
+	 * @param consumer consumer
+	 */
 	protected void acceptHeights(int biomeX, int biomeZ, BlendingData.HeightConsumer consumer) {
 		for (int i = 0; i < this.surfaceHeights.length; i++) {
 			double d = this.surfaceHeights[i];

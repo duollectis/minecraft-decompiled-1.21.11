@@ -59,10 +59,22 @@ public class CowEntityRenderer extends MobEntityRenderer<CowEntity, CowEntityRen
 		                                                                                   .texturePath();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return CowEntityRenderState — результат операции
+	 */
 	public CowEntityRenderState createRenderState() {
 		return new CowEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param cowEntity cow entity
+	 * @param cowEntityRenderState cow entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(CowEntity cowEntity, CowEntityRenderState cowEntityRenderState, float f) {
 		super.updateRenderState(cowEntity, cowEntityRenderState, f);
 		cowEntityRenderState.variant = cowEntity.getVariant().value();

@@ -17,6 +17,14 @@ public record NbtFloat(float value) implements AbstractNbtNumber {
 	private static final int SIZE = 12;
 	public static final NbtFloat ZERO = new NbtFloat(0.0F);
 	public static final NbtType<NbtFloat> TYPE = new NbtType.OfFixedSize<NbtFloat>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtFloat — результат операции
+		 */
 		public NbtFloat read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 			return NbtFloat.of(readFloat(dataInput, nbtSizeTracker));
 		}
@@ -53,6 +61,13 @@ public record NbtFloat(float value) implements AbstractNbtNumber {
 		this.value = value;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param value value
+	 *
+	 * @return NbtFloat — результат операции
+	 */
 	public static NbtFloat of(float value) {
 		return value == 0.0F ? ZERO : new NbtFloat(value);
 	}
@@ -77,6 +92,11 @@ public record NbtFloat(float value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return NbtFloat — результат операции
+	 */
 	public NbtFloat copy() {
 		return this;
 	}

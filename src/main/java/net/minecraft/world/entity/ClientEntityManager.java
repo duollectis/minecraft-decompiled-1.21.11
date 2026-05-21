@@ -33,6 +33,11 @@ public class ClientEntityManager<T extends EntityLike> {
 		this.lookup = new SimpleEntityLookup<>(this.index, this.cache);
 	}
 
+	/**
+	 * Запускает ticking.
+	 *
+	 * @param pos pos
+	 */
 	public void startTicking(ChunkPos pos) {
 		long l = pos.toLong();
 		this.tickingChunkSections.add(l);
@@ -44,6 +49,11 @@ public class ClientEntityManager<T extends EntityLike> {
 		});
 	}
 
+	/**
+	 * Останавливает ticking.
+	 *
+	 * @param pos pos
+	 */
 	public void stopTicking(ChunkPos pos) {
 		long l = pos.toLong();
 		this.tickingChunkSections.remove(l);
@@ -59,6 +69,11 @@ public class ClientEntityManager<T extends EntityLike> {
 		return this.lookup;
 	}
 
+	/**
+	 * Добавляет entity.
+	 *
+	 * @param entity entity
+	 */
 	public void addEntity(T entity) {
 		this.index.add(entity);
 		long l = ChunkSectionPos.toLong(entity.getBlockPos());

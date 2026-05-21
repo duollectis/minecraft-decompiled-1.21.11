@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.StatusPackets;
 
+/**
+ * Класс query request c2 s packet.
+ */
 public class QueryRequestC2SPacket implements Packet<ServerQueryPacketListener> {
 
 	public static final QueryRequestC2SPacket INSTANCE = new QueryRequestC2SPacket();
@@ -20,6 +23,11 @@ public class QueryRequestC2SPacket implements Packet<ServerQueryPacketListener> 
 		return StatusPackets.STATUS_REQUEST;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverQueryPacketListener server query packet listener
+	 */
 	public void apply(ServerQueryPacketListener serverQueryPacketListener) {
 		serverQueryPacketListener.onRequest(this);
 	}

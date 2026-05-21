@@ -345,6 +345,14 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
+	/**
+	 * Crash.
+	 *
+	 * @param exception exception
+	 * @param details details
+	 *
+	 * @return CrashException — результат операции
+	 */
 	public CrashException crash(IllegalStateException exception, String details) {
 		StringBuilder stringBuilder = new StringBuilder();
 		Consumer<ChunkHolder> consumer = chunkHolder -> chunkHolder.enumerateFutures()
@@ -381,6 +389,13 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		return new CrashException(crashReport);
 	}
 
+	/**
+	 * Make chunk entities tickable.
+	 *
+	 * @param holder holder
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public CompletableFuture<OptionalChunk<WorldChunk>> makeChunkEntitiesTickable(ChunkHolder holder) {
 		return this
 				.getRegion(holder, 2, distance -> ChunkStatus.FULL)
@@ -447,6 +462,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
+	/**
+	 * Save.
+	 *
+	 * @param flush flush
+	 */
 	protected void save(boolean flush) {
 		if (flush) {
 			List<ChunkHolder>
@@ -489,6 +509,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param shouldKeepTicking should keep ticking
+	 */
 	protected void tick(BooleanSupplier shouldKeepTicking) {
 		Profiler profiler = Profilers.get();
 		profiler.push("poi");
@@ -501,6 +526,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		profiler.pop();
 	}
 
+	/**
+	 * Определяет, следует ли delay shutdown.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDelayShutdown() {
 		return this.lightingProvider.hasUpdates()
 				|| !this.chunksToUnload.isEmpty()
@@ -591,6 +621,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		});
 	}
 
+	/**
+	 * Обновляет holder map.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean updateHolderMap() {
 		if (!this.chunkHolderListDirty) {
 			return false;
@@ -760,6 +795,13 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		this.loaders.clear();
 	}
 
+	/**
+	 * Make chunk tickable.
+	 *
+	 * @param holder holder
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public CompletableFuture<OptionalChunk<WorldChunk>> makeChunkTickable(ChunkHolder holder) {
 		CompletableFuture<OptionalChunk<List<Chunk>>>
 				completableFuture =
@@ -798,6 +840,13 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		this.world.getSubscriptionTracker().trackChunk(chunk);
 	}
 
+	/**
+	 * Make chunk accessible.
+	 *
+	 * @param holder holder
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public CompletableFuture<OptionalChunk<WorldChunk>> makeChunkAccessible(ChunkHolder holder) {
 		return this.getRegion(holder, 1, ChunkLevels::getStatusForAdditionalLevel)
 		           .thenApply(optionalChunks -> optionalChunks.map(chunks -> (WorldChunk) chunks.get(
@@ -1186,6 +1235,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		player.setWatchedSection(chunkSectionPos);
 	}
 
+	/**
+	 * Обновляет position.
+	 *
+	 * @param player player
+	 */
 	public void updatePosition(ServerPlayerEntity player) {
 		ObjectIterator chunkSectionPos = this.entityTrackers.values().iterator();
 
@@ -1279,6 +1333,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		return builder.build();
 	}
 
+	/**
+	 * Загружает entity.
+	 *
+	 * @param entity entity
+	 */
 	protected void loadEntity(Entity entity) {
 		if (!(entity instanceof EnderDragonPart)) {
 			EntityType<?> entityType = entity.getType();
@@ -1313,6 +1372,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
+	/**
+	 * Unload entity.
+	 *
+	 * @param entity entity
+	 */
 	protected void unloadEntity(Entity entity) {
 		if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
 			this.handlePlayerAddedOrRemoved(serverPlayerEntity, false);
@@ -1334,6 +1398,9 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для entity movement.
+	 */
 	protected void tickEntityMovement() {
 		for (ServerPlayerEntity serverPlayerEntity : this.playerChunkWatchingManager.getPlayersWatchingChunk()) {
 			this.sendWatchPackets(serverPlayerEntity);
@@ -1379,6 +1446,12 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
+	/**
+	 * Отправляет to other nearby players.
+	 *
+	 * @param entity entity
+	 * @param packet packet
+	 */
 	public void sendToOtherNearbyPlayers(Entity entity, Packet<? super ClientPlayPacketListener> packet) {
 		ServerChunkLoadingManager.EntityTracker
 				entityTracker =
@@ -1401,6 +1474,12 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
+	/**
+	 * Отправляет to nearby players.
+	 *
+	 * @param entity entity
+	 * @param packet packet
+	 */
 	protected void sendToNearbyPlayers(Entity entity, Packet<? super ClientPlayPacketListener> packet) {
 		ServerChunkLoadingManager.EntityTracker
 				entityTracker =
@@ -1417,6 +1496,12 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		return entityTracker != null ? !entityTracker.listeners.isEmpty() : false;
 	}
 
+	/**
+	 * For each entity tracked by.
+	 *
+	 * @param player player
+	 * @param action action
+	 */
 	public void forEachEntityTrackedBy(ServerPlayerEntity player, Consumer<Entity> action) {
 		ObjectIterator var3 = this.entityTrackers.values().iterator();
 
@@ -1430,6 +1515,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		}
 	}
 
+	/**
+	 * Отправляет chunk biome packets.
+	 *
+	 * @param chunks chunks
+	 */
 	public void sendChunkBiomePackets(List<Chunk> chunks) {
 		Map<ServerPlayerEntity, List<WorldChunk>> map = new HashMap<>();
 
@@ -1463,6 +1553,12 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		this.chunkStatusChangeListener.onChunkStatusChange(chunkPos, levelType);
 	}
 
+	/**
+	 * Force lighting.
+	 *
+	 * @param centerPos center pos
+	 * @param radius radius
+	 */
 	public void forceLighting(ChunkPos centerPos, int radius) {
 		int i = radius + 1;
 		ChunkPos.stream(centerPos, i).forEach(pos -> {
@@ -1473,6 +1569,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 		});
 	}
 
+	/**
+	 * For each chunk.
+	 *
+	 * @param action action
+	 */
 	public void forEachChunk(Consumer<WorldChunk> action) {
 		ObjectIterator var2 = this.chunkHolders.values().iterator();
 
@@ -1554,12 +1655,20 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 			}
 		}
 
+		/**
+		 * Останавливает tracking.
+		 */
 		public void stopTracking() {
 			for (PlayerAssociatedNetworkHandler playerAssociatedNetworkHandler : this.listeners) {
 				this.entry.stopTracking(playerAssociatedNetworkHandler.getPlayer());
 			}
 		}
 
+		/**
+		 * Останавливает tracking.
+		 *
+		 * @param player player
+		 */
 		public void stopTracking(ServerPlayerEntity player) {
 			if (this.listeners.remove(player.networkHandler)) {
 				this.entry.stopTracking(player);
@@ -1569,6 +1678,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 			}
 		}
 
+		/**
+		 * Обновляет tracked status.
+		 *
+		 * @param player player
+		 */
 		public void updateTrackedStatus(ServerPlayerEntity player) {
 			if (player != this.entity) {
 				Vec3d vec3d = player.getEntityPos().subtract(this.entity.getEntityPos());
@@ -1618,6 +1732,11 @@ public class ServerChunkLoadingManager extends VersionedChunkStorage implements 
 			return this.adjustTrackingDistance(i);
 		}
 
+		/**
+		 * Обновляет tracked status.
+		 *
+		 * @param players players
+		 */
 		public void updateTrackedStatus(List<ServerPlayerEntity> players) {
 			for (ServerPlayerEntity serverPlayerEntity : players) {
 				this.updateTrackedStatus(serverPlayerEntity);

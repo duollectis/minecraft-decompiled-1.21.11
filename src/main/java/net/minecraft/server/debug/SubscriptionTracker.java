@@ -54,6 +54,11 @@ public class SubscriptionTracker {
 		this.subscriptions.add(this.trackedVillageSections);
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param subscriberTracker subscriber tracker
+	 */
 	public void tick(SubscriberTracker subscriberTracker) {
 		this.subscribedTypes = subscriberTracker.getSubscribedTypes();
 		boolean bl = this.subscribedTypes.isEmpty();
@@ -91,6 +96,11 @@ public class SubscriptionTracker {
 		return (TrackedSubscription.UpdateTrackedSubscription<T>) this.subscriptionsByTypes.get(type);
 	}
 
+	/**
+	 * Track chunk.
+	 *
+	 * @param chunk chunk
+	 */
 	public void trackChunk(WorldChunk chunk) {
 		if (!this.stopped) {
 			chunk.registerTracking(
@@ -108,6 +118,11 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Untrack chunk.
+	 *
+	 * @param chunkPos chunk pos
+	 */
 	public void untrackChunk(ChunkPos chunkPos) {
 		if (!this.stopped) {
 			for (TrackedSubscription.UpdateTrackedSubscription<?> updateTrackedSubscription : this.subscriptionsByTypes.values()) {
@@ -116,6 +131,11 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Track block entity.
+	 *
+	 * @param blockEntity block entity
+	 */
 	public void trackBlockEntity(BlockEntity blockEntity) {
 		if (!this.stopped) {
 			blockEntity.registerTracking(
@@ -132,6 +152,11 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Untrack block entity.
+	 *
+	 * @param pos pos
+	 */
 	public void untrackBlockEntity(BlockPos pos) {
 		if (!this.stopped) {
 			for (TrackedSubscription.UpdateTrackedSubscription<?> updateTrackedSubscription : this.subscriptionsByTypes.values()) {
@@ -140,6 +165,11 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Track entity.
+	 *
+	 * @param entity entity
+	 */
 	public void trackEntity(Entity entity) {
 		if (!this.stopped) {
 			entity.registerTracking(
@@ -156,6 +186,11 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Untrack entity.
+	 *
+	 * @param entity entity
+	 */
 	public void untrackEntity(Entity entity) {
 		if (!this.stopped) {
 			for (TrackedSubscription.UpdateTrackedSubscription<?> updateTrackedSubscription : this.subscriptionsByTypes.values()) {
@@ -164,6 +199,12 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Отправляет initial if subscribed.
+	 *
+	 * @param player player
+	 * @param chunkPos chunk pos
+	 */
 	public void sendInitialIfSubscribed(ServerPlayerEntity player, ChunkPos chunkPos) {
 		if (!this.stopped) {
 			for (TrackedSubscription<?> trackedSubscription : this.subscriptions) {
@@ -172,6 +213,12 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Отправляет initial if subscribed.
+	 *
+	 * @param player player
+	 * @param entity entity
+	 */
 	public void sendInitialIfSubscribed(ServerPlayerEntity player, Entity entity) {
 		if (!this.stopped) {
 			for (TrackedSubscription<?> trackedSubscription : this.subscriptions) {
@@ -180,6 +227,11 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие poi added.
+	 *
+	 * @param poi poi
+	 */
 	public void onPoiAdded(PointOfInterest poi) {
 		if (!this.stopped) {
 			this.trackedPoi.onPoiAdded(this.world, poi);
@@ -187,12 +239,22 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие poi updated.
+	 *
+	 * @param pos pos
+	 */
 	public void onPoiUpdated(BlockPos pos) {
 		if (!this.stopped) {
 			this.trackedPoi.onPoiUpdated(this.world, pos);
 		}
 	}
 
+	/**
+	 * Обрабатывает событие poi removed.
+	 *
+	 * @param pos pos
+	 */
 	public void onPoiRemoved(BlockPos pos) {
 		if (!this.stopped) {
 			this.trackedPoi.onPoiRemoved(this.world, pos);
@@ -204,6 +266,15 @@ public class SubscriptionTracker {
 		return this.subscribedTypes.contains(type);
 	}
 
+	/**
+	 * Отправляет block debug data.
+	 *
+	 * @param pos pos
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void sendBlockDebugData(BlockPos pos, DebugSubscriptionType<T> type, T value) {
 		if (this.isSubscribed(type)) {
 			this.sendToTrackingPlayers(
@@ -214,6 +285,14 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Удаляет block debug data.
+	 *
+	 * @param pos pos
+	 * @param type type
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void removeBlockDebugData(BlockPos pos, DebugSubscriptionType<T> type) {
 		if (this.isSubscribed(type)) {
 			this.sendToTrackingPlayers(
@@ -224,6 +303,15 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Отправляет entity debug data.
+	 *
+	 * @param entity entity
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void sendEntityDebugData(Entity entity, DebugSubscriptionType<T> type, T value) {
 		if (this.isSubscribed(type)) {
 			this.sendToTrackingPlayers(
@@ -234,6 +322,14 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Удаляет entity debug data.
+	 *
+	 * @param entity entity
+	 * @param type type
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void removeEntityDebugData(Entity entity, DebugSubscriptionType<T> type) {
 		if (this.isSubscribed(type)) {
 			this.sendToTrackingPlayers(
@@ -244,6 +340,15 @@ public class SubscriptionTracker {
 		}
 	}
 
+	/**
+	 * Отправляет event debug data.
+	 *
+	 * @param pos pos
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void sendEventDebugData(BlockPos pos, DebugSubscriptionType<T> type, T value) {
 		if (this.isSubscribed(type)) {
 			this.sendToTrackingPlayers(new ChunkPos(pos), type, new EventDebugS2CPacket(type.valueFor(value)));

@@ -26,6 +26,12 @@ public record PlayerInput(
 	public static final PacketCodec<PacketByteBuf, PlayerInput>
 			PACKET_CODEC =
 			new PacketCodec<PacketByteBuf, PlayerInput>() {
+				/**
+				 * Encode.
+				 *
+				 * @param packetByteBuf packet byte buf
+				 * @param playerInput player input
+				 */
 				public void encode(PacketByteBuf packetByteBuf, PlayerInput playerInput) {
 					byte b = 0;
 					b = (byte) (b | (playerInput.forward() ? 1 : 0));
@@ -38,6 +44,13 @@ public record PlayerInput(
 					packetByteBuf.writeByte(b);
 				}
 
+				/**
+				 * Decode.
+				 *
+				 * @param packetByteBuf packet byte buf
+				 *
+				 * @return PlayerInput — результат операции
+				 */
 				public PlayerInput decode(PacketByteBuf packetByteBuf) {
 					byte b = packetByteBuf.readByte();
 					boolean bl = (b & 1) != 0;

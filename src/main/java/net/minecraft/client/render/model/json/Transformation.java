@@ -22,6 +22,12 @@ public record Transformation(Vector3fc rotation, Vector3fc translation, Vector3f
 			IDENTITY =
 			new Transformation(new Vector3f(), new Vector3f(), new Vector3f(1.0F, 1.0F, 1.0F));
 
+	/**
+	 * Apply.
+	 *
+	 * @param leftHanded left handed
+	 * @param entry entry
+	 */
 	public void apply(boolean leftHanded, MatrixStack.Entry entry) {
 		if (this == IDENTITY) {
 			entry.translate(-0.5F, -0.5F, -0.5F);

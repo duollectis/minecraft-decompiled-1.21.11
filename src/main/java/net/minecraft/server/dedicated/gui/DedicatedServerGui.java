@@ -34,6 +34,13 @@ public class DedicatedServerGui extends JComponent {
 	private final Collection<Runnable> stopTasks = Lists.newArrayList();
 	final AtomicBoolean stopped = new AtomicBoolean();
 
+	/**
+	 * Create.
+	 *
+	 * @param server server
+	 *
+	 * @return DedicatedServerGui — результат операции
+	 */
 	public static DedicatedServerGui create(MinecraftDedicatedServer server) {
 		try {
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
@@ -77,6 +84,11 @@ public class DedicatedServerGui extends JComponent {
 		}
 	}
 
+	/**
+	 * Добавляет stop task.
+	 *
+	 * @param task task
+	 */
 	public void addStopTask(Runnable task) {
 		this.stopTasks.add(task);
 	}
@@ -132,10 +144,16 @@ public class DedicatedServerGui extends JComponent {
 		return jPanel;
 	}
 
+	/**
+	 * Start.
+	 */
 	public void start() {
 		this.consoleUpdateThread.start();
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		if (!this.stopped.getAndSet(true)) {
 			this.runStopTasks();
@@ -146,6 +164,13 @@ public class DedicatedServerGui extends JComponent {
 		this.stopTasks.forEach(Runnable::run);
 	}
 
+	/**
+	 * Append to console.
+	 *
+	 * @param textArea text area
+	 * @param scrollPane scroll pane
+	 * @param message message
+	 */
 	public void appendToConsole(JTextArea textArea, JScrollPane scrollPane, String message) {
 		if (!SwingUtilities.isEventDispatchThread()) {
 			SwingUtilities.invokeLater(() -> this.appendToConsole(textArea, scrollPane, message));

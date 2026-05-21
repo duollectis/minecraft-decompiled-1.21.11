@@ -321,11 +321,21 @@ public class FireBlock extends AbstractFireBlock {
 		builder.add(AGE, NORTH, EAST, SOUTH, WEST, UP);
 	}
 
+	/**
+	 * Регистрирует flammable block.
+	 *
+	 * @param block block
+	 * @param burnChance burn chance
+	 * @param spreadChance spread chance
+	 */
 	public void registerFlammableBlock(Block block, int burnChance, int spreadChance) {
 		this.burnChances.put(block, burnChance);
 		this.spreadChances.put(block, spreadChance);
 	}
 
+	/**
+	 * Регистрирует default flammables.
+	 */
 	public static void registerDefaultFlammables() {
 		FireBlock fireBlock = (FireBlock) Blocks.FIRE;
 		fireBlock.registerFlammableBlock(Blocks.OAK_PLANKS, 5, 20);

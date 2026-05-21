@@ -70,6 +70,15 @@ public class TabButtonWidget extends ClickableWidget.InactivityIndicatingWidget 
 		this.setCursor(context);
 	}
 
+	/**
+	 * Отрисовывает background texture.
+	 *
+	 * @param context context
+	 * @param left left
+	 * @param top top
+	 * @param right right
+	 * @param bottom bottom
+	 */
 	protected void renderBackgroundTexture(DrawContext context, int left, int top, int right, int bottom) {
 		Screen.renderBackgroundTexture(
 				context,

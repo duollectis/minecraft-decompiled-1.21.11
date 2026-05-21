@@ -22,6 +22,14 @@ public class I18n {
 		I18n.language = language;
 	}
 
+	/**
+	 * Translate.
+	 *
+	 * @param key key
+	 * @param args args
+	 *
+	 * @return String — результат операции
+	 */
 	public static String translate(String key, Object... args) {
 		String string = language.get(key);
 

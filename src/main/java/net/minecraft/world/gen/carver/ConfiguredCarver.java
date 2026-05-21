@@ -32,6 +32,13 @@ public record ConfiguredCarver<WC extends CarverConfig>(Carver<WC> carver, WC co
 			LIST_CODEC =
 			RegistryCodecs.entryList(RegistryKeys.CONFIGURED_CARVER, CODEC);
 
+	/**
+	 * Определяет, следует ли carve.
+	 *
+	 * @param random random
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldCarve(Random random) {
 		return this.carver.shouldCarve(this.config, random);
 	}

@@ -17,6 +17,9 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.UUID;
 
+/**
+ * Класс entity spawn s2 c packet.
+ */
 public class EntitySpawnS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, EntitySpawnS2CPacket>
@@ -129,6 +132,11 @@ public class EntitySpawnS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.ADD_ENTITY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntitySpawn(this);
 	}

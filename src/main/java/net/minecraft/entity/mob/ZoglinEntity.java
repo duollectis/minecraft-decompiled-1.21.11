@@ -238,6 +238,9 @@ public class ZoglinEntity extends HostileEntity implements Hoglin {
 		return (Brain<ZoglinEntity>) super.getBrain();
 	}
 
+	/**
+	 * Выполняет тик обновления для brain.
+	 */
 	protected void tickBrain() {
 		Activity activity = this.brain.getFirstPossibleNonCoreActivity().orElse(null);
 		this.brain.resetPossibleActivities(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
@@ -322,6 +325,9 @@ public class ZoglinEntity extends HostileEntity implements Hoglin {
 		this.playSound(SoundEvents.ENTITY_ZOGLIN_STEP, 0.15F, 1.0F);
 	}
 
+	/**
+	 * Play angry sound.
+	 */
 	protected void playAngrySound() {
 		this.playSound(SoundEvents.ENTITY_ZOGLIN_ANGRY);
 	}

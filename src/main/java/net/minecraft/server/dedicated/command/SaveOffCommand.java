@@ -16,6 +16,11 @@ public class SaveOffCommand {
 			ALREADY_OFF_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.save.alreadyOff"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("save-off")

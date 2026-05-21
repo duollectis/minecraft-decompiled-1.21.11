@@ -14,6 +14,9 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Arrays;
 
+/**
+ * Класс login key c2 s packet.
+ */
 public class LoginKeyC2SPacket implements Packet<ServerLoginPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, LoginKeyC2SPacket>
@@ -42,14 +45,34 @@ public class LoginKeyC2SPacket implements Packet<ServerLoginPacketListener> {
 		return LoginPackets.KEY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverLoginPacketListener server login packet listener
+	 */
 	public void apply(ServerLoginPacketListener serverLoginPacketListener) {
 		serverLoginPacketListener.onKey(this);
 	}
 
+	/**
+	 * Decrypt secret key.
+	 *
+	 * @param privateKey private key
+	 *
+	 * @return SecretKey — результат операции
+	 */
 	public SecretKey decryptSecretKey(PrivateKey privateKey) throws NetworkEncryptionException {
 		return NetworkEncryptionUtils.decryptSecretKey(privateKey, this.encryptedSecretKey);
 	}
 
+	/**
+	 * Verify signed nonce.
+	 *
+	 * @param nonce nonce
+	 * @param privateKey private key
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean verifySignedNonce(byte[] nonce, PrivateKey privateKey) {
 		try {
 			return Arrays.equals(nonce, NetworkEncryptionUtils.decrypt(privateKey, this.nonce));

@@ -247,6 +247,13 @@ public class StatusEffects {
 		return Registry.registerReference(Registries.STATUS_EFFECT, Identifier.ofVanilla(id), statusEffect);
 	}
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return RegistryEntry — результат операции
+	 */
 	public static RegistryEntry<StatusEffect> registerAndGetDefault(Registry<StatusEffect> registry) {
 		return SPEED;
 	}

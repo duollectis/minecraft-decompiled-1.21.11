@@ -96,15 +96,39 @@ public class TexturedModel {
 		return this.textures;
 	}
 
+	/**
+	 * Textures.
+	 *
+	 * @param texturesConsumer textures consumer
+	 *
+	 * @return TexturedModel — результат операции
+	 */
 	public TexturedModel textures(Consumer<TextureMap> texturesConsumer) {
 		texturesConsumer.accept(this.textures);
 		return this;
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param block block
+	 * @param writer writer
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier upload(Block block, BiConsumer<Identifier, ModelSupplier> writer) {
 		return this.model.upload(block, this.textures, writer);
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param block block
+	 * @param suffix suffix
+	 * @param writer writer
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier upload(Block block, String suffix, BiConsumer<Identifier, ModelSupplier> writer) {
 		return this.model.upload(block, suffix, this.textures, writer);
 	}

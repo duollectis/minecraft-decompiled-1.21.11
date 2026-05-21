@@ -45,6 +45,11 @@ public class FeatureDebugLogger {
 		                                                                                                   }
 	                                                                                                   });
 
+	/**
+	 * Increment total chunks count.
+	 *
+	 * @param world world
+	 */
 	public static void incrementTotalChunksCount(ServerWorld world) {
 		try {
 			((FeatureDebugLogger.Features) FEATURES.get(world)).chunksWithFeatures().increment();
@@ -72,11 +77,17 @@ public class FeatureDebugLogger {
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	public static void clear() {
 		FEATURES.invalidateAll();
 		LOGGER.debug("Cleared feature counts");
 	}
 
+	/**
+	 * Dump.
+	 */
 	public static void dump() {
 		LOGGER.debug("Logging feature counts:");
 		FEATURES.asMap()

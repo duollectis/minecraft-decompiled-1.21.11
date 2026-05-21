@@ -516,6 +516,11 @@ public class CloneCommand {
 			this.allowsOverlap = allowsOverlap;
 		}
 
+		/**
+		 * Allows overlap.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean allowsOverlap() {
 			return this.allowsOverlap;
 		}

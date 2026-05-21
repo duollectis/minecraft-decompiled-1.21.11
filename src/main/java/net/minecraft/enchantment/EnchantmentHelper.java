@@ -81,10 +81,23 @@ public class EnchantmentHelper {
 		}
 	}
 
+	/**
+	 * Проверяет возможность have enchantments.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canHaveEnchantments(ItemStack stack) {
 		return stack.contains(getEnchantmentsComponentType(stack));
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param stack stack
+	 * @param enchantments enchantments
+	 */
 	public static void set(ItemStack stack, ItemEnchantmentsComponent enchantments) {
 		stack.set(getEnchantmentsComponentType(stack), enchantments);
 	}
@@ -164,6 +177,12 @@ public class EnchantmentHelper {
 		return itemStack;
 	}
 
+	/**
+	 * For each enchantment.
+	 *
+	 * @param stack stack
+	 * @param consumer consumer
+	 */
 	public static void forEachEnchantment(ItemStack stack, EnchantmentHelper.Consumer consumer) {
 		ItemEnchantmentsComponent
 				itemEnchantmentsComponent =
@@ -296,6 +315,13 @@ public class EnchantmentHelper {
 		return mutableFloat.floatValue();
 	}
 
+	/**
+	 * Обрабатывает событие target damaged.
+	 *
+	 * @param world world
+	 * @param target target
+	 * @param damageSource damage source
+	 */
 	public static void onTargetDamaged(ServerWorld world, Entity target, DamageSource damageSource) {
 		if (damageSource.getAttacker() instanceof LivingEntity livingEntity) {
 			onTargetDamaged(world, target, damageSource, livingEntity.getWeaponStack());
@@ -305,6 +331,12 @@ public class EnchantmentHelper {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие attack.
+	 *
+	 * @param world world
+	 * @param attacker attacker
+	 */
 	public static void onAttack(ServerWorld world, Entity attacker) {
 		if (attacker instanceof LivingEntity livingEntity) {
 			forEachEnchantment(
@@ -387,6 +419,12 @@ public class EnchantmentHelper {
 		}
 	}
 
+	/**
+	 * Применяет location based effects.
+	 *
+	 * @param world world
+	 * @param user user
+	 */
 	public static void applyLocationBasedEffects(ServerWorld world, LivingEntity user) {
 		forEachEnchantment(
 				user,
@@ -412,6 +450,11 @@ public class EnchantmentHelper {
 		);
 	}
 
+	/**
+	 * Удаляет location based effects.
+	 *
+	 * @param user user
+	 */
 	public static void removeLocationBasedEffects(LivingEntity user) {
 		forEachEnchantment(
 				user,
@@ -419,6 +462,13 @@ public class EnchantmentHelper {
 		);
 	}
 
+	/**
+	 * Удаляет location based effects.
+	 *
+	 * @param stack stack
+	 * @param user user
+	 * @param slot slot
+	 */
 	public static void removeLocationBasedEffects(ItemStack stack, LivingEntity user, EquipmentSlot slot) {
 		forEachEnchantment(
 				stack,
@@ -428,6 +478,12 @@ public class EnchantmentHelper {
 		);
 	}
 
+	/**
+	 * Обрабатывает событие tick.
+	 *
+	 * @param world world
+	 * @param user user
+	 */
 	public static void onTick(ServerWorld world, LivingEntity user) {
 		forEachEnchantment(
 				user,
@@ -858,6 +914,12 @@ public class EnchantmentHelper {
 		}
 	}
 
+	/**
+	 * Удаляет conflicts.
+	 *
+	 * @param possibleEntries possible entries
+	 * @param pickedEntry picked entry
+	 */
 	public static void removeConflicts(List<EnchantmentLevelEntry> possibleEntries, EnchantmentLevelEntry pickedEntry) {
 		possibleEntries.removeIf(entry -> !Enchantment.canBeCombined(pickedEntry.enchantment(), entry.enchantment()));
 	}

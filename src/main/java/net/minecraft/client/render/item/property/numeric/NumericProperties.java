@@ -22,6 +22,9 @@ public class NumericProperties {
 			                                                               codec -> codec
 	                                                               );
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		ID_MAPPER.put(Identifier.ofVanilla("custom_model_data"), CustomModelDataFloatProperty.CODEC);
 		ID_MAPPER.put(Identifier.ofVanilla("bundle/fullness"), BundleFullnessProperty.CODEC);

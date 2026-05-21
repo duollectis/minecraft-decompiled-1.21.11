@@ -39,6 +39,11 @@ public enum SideChainPart implements StringIdentifiable {
 		return this != CENTER;
 	}
 
+	/**
+	 * Connect to right.
+	 *
+	 * @return SideChainPart — результат операции
+	 */
 	public SideChainPart connectToRight() {
 		return switch (this) {
 			case UNCONNECTED, LEFT -> LEFT;
@@ -46,6 +51,11 @@ public enum SideChainPart implements StringIdentifiable {
 		};
 	}
 
+	/**
+	 * Connect to left.
+	 *
+	 * @return SideChainPart — результат операции
+	 */
 	public SideChainPart connectToLeft() {
 		return switch (this) {
 			case UNCONNECTED, RIGHT -> RIGHT;
@@ -53,6 +63,11 @@ public enum SideChainPart implements StringIdentifiable {
 		};
 	}
 
+	/**
+	 * Disconnect from right.
+	 *
+	 * @return SideChainPart — результат операции
+	 */
 	public SideChainPart disconnectFromRight() {
 		return switch (this) {
 			case UNCONNECTED, LEFT -> UNCONNECTED;
@@ -60,6 +75,11 @@ public enum SideChainPart implements StringIdentifiable {
 		};
 	}
 
+	/**
+	 * Disconnect from left.
+	 *
+	 * @return SideChainPart — результат операции
+	 */
 	public SideChainPart disconnectFromLeft() {
 		return switch (this) {
 			case UNCONNECTED, RIGHT -> UNCONNECTED;

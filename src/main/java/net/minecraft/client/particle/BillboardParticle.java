@@ -54,6 +54,13 @@ public abstract class BillboardParticle extends Particle {
 		return BillboardParticle.Rotator.ALL_AXIS;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param submittable submittable
+	 * @param camera camera
+	 * @param tickProgress tick progress
+	 */
 	public void render(BillboardParticleSubmittable submittable, Camera camera, float tickProgress) {
 		Quaternionf quaternionf = new Quaternionf();
 		this.getRotator().setRotation(quaternionf, camera, tickProgress);
@@ -119,6 +126,11 @@ public abstract class BillboardParticle extends Particle {
 		return ParticleTextureSheet.SINGLE_QUADS;
 	}
 
+	/**
+	 * Обновляет sprite.
+	 *
+	 * @param spriteProvider sprite provider
+	 */
 	public void updateSprite(SpriteProvider spriteProvider) {
 		if (!this.dead) {
 			this.setSprite(spriteProvider.getSprite(this.age, this.maxAge));

@@ -88,8 +88,23 @@ public abstract class ClickableWidget implements Drawable, Element, Widget, Sele
 		return Text.translatable("gui.narrate.button", message);
 	}
 
+	/**
+	 * Отрисовывает widget.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param deltaTicks delta ticks
+	 */
 	protected abstract void renderWidget(DrawContext context, int mouseX, int mouseY, float deltaTicks);
 
+	/**
+	 * Draw text with margin.
+	 *
+	 * @param drawer drawer
+	 * @param text text
+	 * @param marginX margin x
+	 */
 	protected void drawTextWithMargin(DrawnTextConsumer drawer, Text text, int marginX) {
 		int i = this.getX() + marginX;
 		int j = this.getX() + this.getWidth() - marginX;
@@ -98,12 +113,30 @@ public abstract class ClickableWidget implements Drawable, Element, Widget, Sele
 		drawer.text(text, i, j, k, l);
 	}
 
+	/**
+	 * Обрабатывает событие click.
+	 *
+	 * @param click click
+	 * @param doubled doubled
+	 */
 	public void onClick(Click click, boolean doubled) {
 	}
 
+	/**
+	 * Обрабатывает событие release.
+	 *
+	 * @param click click
+	 */
 	public void onRelease(Click click) {
 	}
 
+	/**
+	 * Обрабатывает событие drag.
+	 *
+	 * @param click click
+	 * @param offsetX offset x
+	 * @param offsetY offset y
+	 */
 	protected void onDrag(Click click, double offsetX, double offsetY) {
 	}
 
@@ -167,10 +200,20 @@ public abstract class ClickableWidget implements Drawable, Element, Widget, Sele
 		return this.isInteractable() && this.isInBounds(mouseX, mouseY);
 	}
 
+	/**
+	 * Play down sound.
+	 *
+	 * @param soundManager sound manager
+	 */
 	public void playDownSound(SoundManager soundManager) {
 		playClickSound(soundManager);
 	}
 
+	/**
+	 * Play click sound.
+	 *
+	 * @param soundManager sound manager
+	 */
 	public static void playClickSound(SoundManager soundManager) {
 		soundManager.play(PositionedSoundInstance.master(SoundEvents.UI_BUTTON_CLICK, 1.0F));
 	}
@@ -243,8 +286,18 @@ public abstract class ClickableWidget implements Drawable, Element, Widget, Sele
 		this.tooltip.appendNarrations(builder);
 	}
 
+	/**
+	 * Append clickable narrations.
+	 *
+	 * @param builder builder
+	 */
 	protected abstract void appendClickableNarrations(NarrationMessageBuilder builder);
 
+	/**
+	 * Append default narrations.
+	 *
+	 * @param builder builder
+	 */
 	protected void appendDefaultNarrations(NarrationMessageBuilder builder) {
 		builder.put(NarrationPart.TITLE, this.getNarrationMessage());
 		if (this.active) {
@@ -326,6 +379,13 @@ public abstract class ClickableWidget implements Drawable, Element, Widget, Sele
 
 		private Text inactiveMessage;
 
+		/**
+		 * Make inactive.
+		 *
+		 * @param text text
+		 *
+		 * @return Text — результат операции
+		 */
 		public static Text makeInactive(Text text) {
 			return Texts.withStyle(text, Style.EMPTY.withColor(-6250336));
 		}

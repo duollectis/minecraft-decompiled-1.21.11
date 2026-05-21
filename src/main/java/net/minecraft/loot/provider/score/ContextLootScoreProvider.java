@@ -25,6 +25,13 @@ public record ContextLootScoreProvider(LootContext.EntityReference target) imple
 	public static final Codec<ContextLootScoreProvider> INLINE_CODEC = LootContext.EntityReference.CODEC
 			.xmap(ContextLootScoreProvider::new, ContextLootScoreProvider::target);
 
+	/**
+	 * Create.
+	 *
+	 * @param target target
+	 *
+	 * @return LootScoreProvider — результат операции
+	 */
 	public static LootScoreProvider create(LootContext.EntityReference target) {
 		return new ContextLootScoreProvider(target);
 	}

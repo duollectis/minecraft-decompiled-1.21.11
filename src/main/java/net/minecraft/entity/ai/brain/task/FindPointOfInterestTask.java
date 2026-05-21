@@ -219,6 +219,13 @@ public class FindPointOfInterestTask {
 			return time - this.previousAttemptAt < 400L;
 		}
 
+		/**
+		 * Определяет, следует ли retry.
+		 *
+		 * @param time time
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldRetry(long time) {
 			return time >= this.nextScheduledAttemptAt;
 		}

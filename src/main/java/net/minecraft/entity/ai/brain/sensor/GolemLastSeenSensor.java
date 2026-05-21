@@ -36,6 +36,11 @@ public class GolemLastSeenSensor extends Sensor<LivingEntity> {
 		return ImmutableSet.of(MemoryModuleType.MOBS);
 	}
 
+	/**
+	 * Sense iron golem.
+	 *
+	 * @param entity entity
+	 */
 	public static void senseIronGolem(LivingEntity entity) {
 		Optional<List<LivingEntity>> optional = entity.getBrain().getOptionalRegisteredMemory(MemoryModuleType.MOBS);
 		if (!optional.isEmpty()) {
@@ -48,6 +53,11 @@ public class GolemLastSeenSensor extends Sensor<LivingEntity> {
 		}
 	}
 
+	/**
+	 * Remember iron golem.
+	 *
+	 * @param entity entity
+	 */
 	public static void rememberIronGolem(LivingEntity entity) {
 		entity.getBrain().remember(MemoryModuleType.GOLEM_DETECTED_RECENTLY, true, 599L);
 	}

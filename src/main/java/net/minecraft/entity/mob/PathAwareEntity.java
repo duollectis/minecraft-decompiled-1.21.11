@@ -56,6 +56,11 @@ public abstract class PathAwareEntity extends MobEntity {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли follow leash.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldFollowLeash() {
 		return true;
 	}

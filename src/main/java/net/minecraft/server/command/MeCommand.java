@@ -11,6 +11,11 @@ import net.minecraft.server.PlayerManager;
  */
 public class MeCommand {
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) CommandManager

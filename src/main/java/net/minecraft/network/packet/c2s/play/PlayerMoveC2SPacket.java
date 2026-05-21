@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * Класс player move c2 s packet.
+ */
 public abstract class PlayerMoveC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	private static final int CHANGE_POSITION_FLAG = 1;
@@ -96,14 +99,29 @@ public abstract class PlayerMoveC2SPacket implements Packet<ServerPlayPacketList
 		return this.onGround;
 	}
 
+	/**
+	 * Horizontal collision.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean horizontalCollision() {
 		return this.horizontalCollision;
 	}
 
+	/**
+	 * Changes position.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean changesPosition() {
 		return this.changePosition;
 	}
 
+	/**
+	 * Changes look.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean changesLook() {
 		return this.changeLook;
 	}

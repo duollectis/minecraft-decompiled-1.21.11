@@ -123,6 +123,13 @@ public class SmithingTemplateItem extends Item {
 		this.emptyAdditionsSlotTextures = emptyAdditionsSlotTextures;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param settings settings
+	 *
+	 * @return SmithingTemplateItem — результат операции
+	 */
 	public static SmithingTemplateItem of(Item.Settings settings) {
 		return new SmithingTemplateItem(
 				ARMOR_TRIM_APPLIES_TO_TEXT,
@@ -135,6 +142,13 @@ public class SmithingTemplateItem extends Item {
 		);
 	}
 
+	/**
+	 * Создаёт netherite upgrade.
+	 *
+	 * @param settings settings
+	 *
+	 * @return SmithingTemplateItem — результат операции
+	 */
 	public static SmithingTemplateItem createNetheriteUpgrade(Item.Settings settings) {
 		return new SmithingTemplateItem(
 				NETHERITE_UPGRADE_APPLIES_TO_TEXT,

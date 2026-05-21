@@ -120,6 +120,14 @@ public class LightBlock extends Block implements Waterloggable {
 		return addNbtForLevel(super.getPickStack(world, pos, state, includeData), state.get(LEVEL_15));
 	}
 
+	/**
+	 * Добавляет nbt for level.
+	 *
+	 * @param stack stack
+	 * @param level level
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public static ItemStack addNbtForLevel(ItemStack stack, int level) {
 		stack.set(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT.with(LEVEL_15, level));
 		return stack;

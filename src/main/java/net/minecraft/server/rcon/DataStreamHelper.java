@@ -18,35 +18,73 @@ public class DataStreamHelper {
 		this.dataOutputStream = new DataOutputStream(this.byteArrayOutputStream);
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param values values
+	 */
 	public void write(byte[] values) throws IOException {
 		this.dataOutputStream.write(values, 0, values.length);
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param value value
+	 */
 	public void writeBytes(String value) throws IOException {
 		this.dataOutputStream.write(value.getBytes(StandardCharsets.UTF_8));
 		this.dataOutputStream.write(0);
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param value value
+	 */
 	public void write(int value) throws IOException {
 		this.dataOutputStream.write(value);
 	}
 
+	/**
+	 * Записывает short.
+	 *
+	 * @param value value
+	 */
 	public void writeShort(short value) throws IOException {
 		this.dataOutputStream.writeShort(Short.reverseBytes(value));
 	}
 
+	/**
+	 * Записывает int.
+	 *
+	 * @param value value
+	 */
 	public void writeInt(int value) throws IOException {
 		this.dataOutputStream.writeInt(Integer.reverseBytes(value));
 	}
 
+	/**
+	 * Записывает float.
+	 *
+	 * @param value value
+	 */
 	public void writeFloat(float value) throws IOException {
 		this.dataOutputStream.writeInt(Integer.reverseBytes(Float.floatToIntBits(value)));
 	}
 
+	/**
+	 * Bytes.
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public byte[] bytes() {
 		return this.byteArrayOutputStream.toByteArray();
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.byteArrayOutputStream.reset();
 	}

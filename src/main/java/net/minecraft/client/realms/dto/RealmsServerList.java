@@ -18,6 +18,14 @@ public record RealmsServerList(@SerializedName("servers") List<RealmsServer> ser
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param gson gson
+	 * @param json json
+	 *
+	 * @return RealmsServerList — результат операции
+	 */
 	public static RealmsServerList parse(CheckedGson gson, String json) {
 		try {
 			RealmsServerList realmsServerList = gson.fromJson(json, RealmsServerList.class);

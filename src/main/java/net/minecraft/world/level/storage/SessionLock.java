@@ -22,6 +22,13 @@ public class SessionLock implements AutoCloseable {
 	private final FileLock lock;
 	private static final ByteBuffer SNOWMAN;
 
+	/**
+	 * Create.
+	 *
+	 * @param path path
+	 *
+	 * @return SessionLock — результат операции
+	 */
 	public static SessionLock create(Path path) throws IOException {
 		Path path2 = path.resolve("session.lock");
 		PathUtil.createDirectories(path);

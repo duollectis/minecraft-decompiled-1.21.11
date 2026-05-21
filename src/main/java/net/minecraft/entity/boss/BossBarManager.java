@@ -27,16 +27,36 @@ public class BossBarManager {
 			Codec.unboundedMap(Identifier.CODEC, CommandBossBar.Serialized.CODEC);
 	private final Map<Identifier, CommandBossBar> commandBossBars = Maps.newHashMap();
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable CommandBossBar — 
+	 */
 	public @Nullable CommandBossBar get(Identifier id) {
 		return this.commandBossBars.get(id);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param id id
+	 * @param displayName display name
+	 *
+	 * @return CommandBossBar — результат операции
+	 */
 	public CommandBossBar add(Identifier id, Text displayName) {
 		CommandBossBar commandBossBar = new CommandBossBar(id, displayName);
 		this.commandBossBars.put(id, commandBossBar);
 		return commandBossBar;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param bossBar boss bar
+	 */
 	public void remove(CommandBossBar bossBar) {
 		this.commandBossBars.remove(bossBar.getId());
 	}
@@ -49,6 +69,13 @@ public class BossBarManager {
 		return this.commandBossBars.values();
 	}
 
+	/**
+	 * To nbt.
+	 *
+	 * @param registries registries
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound toNbt(RegistryWrapper.WrapperLookup registries) {
 		Map<Identifier, CommandBossBar.Serialized>
 				map =
@@ -56,6 +83,12 @@ public class BossBarManager {
 		return (NbtCompound) CODEC.encodeStart(registries.getOps(NbtOps.INSTANCE), map).getOrThrow();
 	}
 
+	/**
+	 * Читает nbt.
+	 *
+	 * @param nbt nbt
+	 * @param registries registries
+	 */
 	public void readNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registries) {
 		Map<Identifier, CommandBossBar.Serialized> map = CODEC.parse(registries.getOps(NbtOps.INSTANCE), nbt)
 		                                                      .resultOrPartial(error -> LOGGER.error(
@@ -66,12 +99,22 @@ public class BossBarManager {
 		map.forEach((id, serialized) -> this.commandBossBars.put(id, CommandBossBar.fromSerialized(id, serialized)));
 	}
 
+	/**
+	 * Обрабатывает событие player connect.
+	 *
+	 * @param player player
+	 */
 	public void onPlayerConnect(ServerPlayerEntity player) {
 		for (CommandBossBar commandBossBar : this.commandBossBars.values()) {
 			commandBossBar.onPlayerConnect(player);
 		}
 	}
 
+	/**
+	 * Обрабатывает событие player disconnect.
+	 *
+	 * @param player player
+	 */
 	public void onPlayerDisconnect(ServerPlayerEntity player) {
 		for (CommandBossBar commandBossBar : this.commandBossBars.values()) {
 			commandBossBar.onPlayerDisconnect(player);

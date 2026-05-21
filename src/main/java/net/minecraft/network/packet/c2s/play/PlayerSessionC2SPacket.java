@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись player session c2 s packet.
+ */
 public record PlayerSessionC2SPacket(PublicPlayerSession.Serialized chatSession) implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, PlayerSessionC2SPacket>
@@ -27,6 +30,11 @@ public record PlayerSessionC2SPacket(PublicPlayerSession.Serialized chatSession)
 		return PlayPackets.CHAT_SESSION_UPDATE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onPlayerSession(this);
 	}

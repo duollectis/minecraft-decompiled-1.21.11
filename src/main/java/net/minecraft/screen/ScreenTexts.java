@@ -37,38 +37,101 @@ public class ScreenTexts {
 	public static final Text ELLIPSIS = Text.literal("...");
 	public static final Text SPACE = space();
 
+	/**
+	 * Space.
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText space() {
 		return Text.literal(" ");
 	}
 
+	/**
+	 * Days.
+	 *
+	 * @param days days
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText days(long days) {
 		return Text.translatable("gui.days", days);
 	}
 
+	/**
+	 * Hours.
+	 *
+	 * @param hours hours
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText hours(long hours) {
 		return Text.translatable("gui.hours", hours);
 	}
 
+	/**
+	 * Minutes.
+	 *
+	 * @param minutes minutes
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText minutes(long minutes) {
 		return Text.translatable("gui.minutes", minutes);
 	}
 
+	/**
+	 * Обрабатывает событие or off.
+	 *
+	 * @param on on
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text onOrOff(boolean on) {
 		return on ? ON : OFF;
 	}
 
+	/**
+	 * Return to menu or disconnect.
+	 *
+	 * @param singleplayer singleplayer
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text returnToMenuOrDisconnect(boolean singleplayer) {
 		return singleplayer ? RETURN_TO_MENU : DISCONNECT;
 	}
 
+	/**
+	 * Compose toggle text.
+	 *
+	 * @param text text
+	 * @param value value
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText composeToggleText(Text text, boolean value) {
 		return Text.translatable(value ? "options.on.composed" : "options.off.composed", text);
 	}
 
+	/**
+	 * Compose generic option text.
+	 *
+	 * @param text text
+	 * @param value value
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText composeGenericOptionText(Text text, Text value) {
 		return Text.translatable("options.generic_value", text, value);
 	}
 
+	/**
+	 * Join sentences.
+	 *
+	 * @param sentences sentences
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText joinSentences(Text... sentences) {
 		MutableText mutableText = Text.empty();
 
@@ -82,10 +145,24 @@ public class ScreenTexts {
 		return mutableText;
 	}
 
+	/**
+	 * Join lines.
+	 *
+	 * @param texts texts
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text joinLines(Text... texts) {
 		return joinLines(Arrays.asList(texts));
 	}
 
+	/**
+	 * Join lines.
+	 *
+	 * @param texts texts
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text joinLines(Collection<? extends Text> texts) {
 		return Texts.join(texts, LINE_BREAK);
 	}

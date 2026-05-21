@@ -230,6 +230,13 @@ public abstract class Feature<FC extends FeatureConfig> {
 		world.setBlockState(pos, state, 3);
 	}
 
+	/**
+	 * Not in block tag predicate.
+	 *
+	 * @param tag tag
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static Predicate<BlockState> notInBlockTagPredicate(TagKey<Block> tag) {
 		return state -> !state.isIn(tag);
 	}
@@ -245,6 +252,13 @@ public abstract class Feature<FC extends FeatureConfig> {
 		}
 	}
 
+	/**
+	 * Generate.
+	 *
+	 * @param context context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public abstract boolean generate(FeatureContext<FC> context);
 
 	public boolean generateIfValid(
@@ -297,6 +311,12 @@ public abstract class Feature<FC extends FeatureConfig> {
 		return testAdjacentStates(posToState, pos, AbstractBlock.AbstractBlockState::isAir);
 	}
 
+	/**
+	 * Mark blocks above for post processing.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected void markBlocksAboveForPostProcessing(StructureWorldAccess world, BlockPos pos) {
 		BlockPos.Mutable mutable = pos.mutableCopy();
 

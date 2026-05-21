@@ -22,6 +22,12 @@ public class GameTestDebugRenderer {
 	private static final float MARKER_BOX_SIZE = 0.02F;
 	private final Map<BlockPos, GameTestDebugRenderer.Marker> markers = Maps.newHashMap();
 
+	/**
+	 * Добавляет marker.
+	 *
+	 * @param absolutePos absolute pos
+	 * @param relativePos relative pos
+	 */
 	public void addMarker(BlockPos absolutePos, BlockPos relativePos) {
 		String string = relativePos.toShortString();
 		this.markers.put(
@@ -30,10 +36,16 @@ public class GameTestDebugRenderer {
 		);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.markers.clear();
 	}
 
+	/**
+	 * Render.
+	 */
 	public void render() {
 		long l = Util.getMeasuringTimeMs();
 		this.markers.entrySet().removeIf(marker -> l > marker.getValue().removalTime);

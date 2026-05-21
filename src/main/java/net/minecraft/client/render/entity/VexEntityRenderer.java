@@ -33,10 +33,22 @@ public class VexEntityRenderer extends MobEntityRenderer<VexEntity, VexEntityRen
 		return vexEntityRenderState.charging ? CHARGING_TEXTURE : TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return VexEntityRenderState — результат операции
+	 */
 	public VexEntityRenderState createRenderState() {
 		return new VexEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param vexEntity vex entity
+	 * @param vexEntityRenderState vex entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(VexEntity vexEntity, VexEntityRenderState vexEntityRenderState, float f) {
 		super.updateRenderState(vexEntity, vexEntityRenderState, f);
 		ArmedEntityRenderState.updateRenderState(vexEntity, vexEntityRenderState, this.itemModelResolver, f);

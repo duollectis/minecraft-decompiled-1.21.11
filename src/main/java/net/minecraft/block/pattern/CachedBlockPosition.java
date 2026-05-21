@@ -51,6 +51,13 @@ public class CachedBlockPosition {
 		return this.pos;
 	}
 
+	/**
+	 * Matches block state.
+	 *
+	 * @param state state
+	 *
+	 * @return Predicate — результат операции
+	 */
 	public static Predicate<@Nullable CachedBlockPosition> matchesBlockState(Predicate<BlockState> state) {
 		return pos -> pos != null && state.test(pos.getBlockState());
 	}

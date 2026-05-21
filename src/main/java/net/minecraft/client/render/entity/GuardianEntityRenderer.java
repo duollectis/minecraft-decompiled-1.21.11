@@ -39,6 +39,17 @@ public class GuardianEntityRenderer extends MobEntityRenderer<GuardianEntity, Gu
 		super(ctx, new GuardianEntityModel(ctx.getPart(layer)), shadowRadius);
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param guardianEntity guardian entity
+	 * @param frustum frustum
+	 * @param d d
+	 * @param e e
+	 * @param f f
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRender(GuardianEntity guardianEntity, Frustum frustum, double d, double e, double f) {
 		if (super.shouldRender(guardianEntity, frustum, d, e, f)) {
 			return true;
@@ -172,6 +183,11 @@ public class GuardianEntityRenderer extends MobEntityRenderer<GuardianEntity, Gu
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return GuardianEntityRenderState — результат операции
+	 */
 	public GuardianEntityRenderState createRenderState() {
 		return new GuardianEntityRenderState();
 	}

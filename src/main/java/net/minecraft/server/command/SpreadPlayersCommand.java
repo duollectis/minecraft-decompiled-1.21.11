@@ -64,6 +64,11 @@ public class SpreadPlayersCommand {
 			)
 	);
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("spreadplayers")
@@ -427,11 +432,26 @@ public class SpreadPlayersCommand {
 			return Math.sqrt(this.x * this.x + this.z * this.z);
 		}
 
+		/**
+		 * Subtract.
+		 *
+		 * @param other other
+		 */
 		public void subtract(SpreadPlayersCommand.Pile other) {
 			this.x = this.x - other.x;
 			this.z = this.z - other.z;
 		}
 
+		/**
+		 * Clamp.
+		 *
+		 * @param minX min x
+		 * @param minZ min z
+		 * @param maxX max x
+		 * @param maxZ max z
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean clamp(double minX, double minZ, double maxX, double maxZ) {
 			boolean bl = false;
 			if (this.x < minX) {

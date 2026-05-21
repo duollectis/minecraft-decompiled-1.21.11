@@ -26,6 +26,11 @@ public class ChannelList implements FloatConsumer {
 		this.buffer = BufferUtils.createByteBuffer(size);
 	}
 
+	/**
+	 * Accept.
+	 *
+	 * @param value value
+	 */
 	public void accept(float value) {
 		if (this.buffer.remaining() == 0) {
 			this.buffer.flip();

@@ -35,6 +35,13 @@ public abstract class TrunkPlacer {
 	protected final int firstRandomHeight;
 	protected final int secondRandomHeight;
 
+	/**
+	 * Fill trunk placer fields.
+	 *
+	 * @param instance instance
+	 *
+	 * @return P3, Integer, Integer, Integer> — результат операции
+	 */
 	protected static <P extends TrunkPlacer> P3<Mu<P>, Integer, Integer, Integer> fillTrunkPlacerFields(Instance<P> instance) {
 		return instance.group(
 				Codec.intRange(0, 32).fieldOf("base_height").forGetter(placer -> placer.baseHeight),
@@ -123,10 +130,26 @@ public abstract class TrunkPlacer {
 		}
 	}
 
+	/**
+	 * Проверяет возможность replace.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canReplace(TestableWorld world, BlockPos pos) {
 		return TreeFeature.canReplace(world, pos);
 	}
 
+	/**
+	 * Проверяет возможность replace or is log.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canReplaceOrIsLog(TestableWorld world, BlockPos pos) {
 		return this.canReplace(world, pos) || world.testBlockState(pos, state -> state.isIn(BlockTags.LOGS));
 	}

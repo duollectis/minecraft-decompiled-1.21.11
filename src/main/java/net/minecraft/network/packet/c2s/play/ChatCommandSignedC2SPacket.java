@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PlayPackets;
 
 import java.time.Instant;
 
+/**
+ * Запись chat command signed c2 s packet.
+ */
 public record ChatCommandSignedC2SPacket(
 		String command,
 		Instant timestamp,
@@ -46,6 +49,11 @@ public record ChatCommandSignedC2SPacket(
 		return PlayPackets.CHAT_COMMAND_SIGNED;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onChatCommandSigned(this);
 	}

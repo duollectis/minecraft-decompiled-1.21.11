@@ -16,6 +16,14 @@ public class ChunkRendererRegionBuilder {
 
 	private final Long2ObjectMap<RenderedChunk> renderedChunksByPos = new Long2ObjectOpenHashMap();
 
+	/**
+	 * Build.
+	 *
+	 * @param world world
+	 * @param sectionPos section pos
+	 *
+	 * @return ChunkRendererRegion — результат операции
+	 */
 	public ChunkRendererRegion build(World world, long sectionPos) {
 		int i = ChunkSectionPos.unpackX(sectionPos);
 		int j = ChunkSectionPos.unpackY(sectionPos);

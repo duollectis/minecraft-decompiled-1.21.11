@@ -51,6 +51,9 @@ public class InGameOverlayRenderer {
 		this.vertexConsumers = vertexConsumers;
 	}
 
+	/**
+	 * Выполняет тик обновления для floating item timer.
+	 */
 	public void tickFloatingItemTimer() {
 		if (this.floatingItemTimer > 0) {
 			this.floatingItemTimer--;
@@ -60,6 +63,13 @@ public class InGameOverlayRenderer {
 		}
 	}
 
+	/**
+	 * Отрисовывает overlays.
+	 *
+	 * @param sleeping sleeping
+	 * @param tickProgress tick progress
+	 * @param queue queue
+	 */
 	public void renderOverlays(boolean sleeping, float tickProgress, OrderedRenderCommandQueue queue) {
 		MatrixStack matrixStack = new MatrixStack();
 		PlayerEntity playerEntity = this.client.player;
@@ -136,6 +146,9 @@ public class InGameOverlayRenderer {
 		}
 	}
 
+	/**
+	 * Очищает floating item.
+	 */
 	public void clearFloatingItem() {
 		this.floatingItem = null;
 	}

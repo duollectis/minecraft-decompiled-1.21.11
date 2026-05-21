@@ -23,6 +23,11 @@ public class ParchedEntityRenderer extends AbstractSkeletonEntityRenderer<Parche
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SkeletonEntityRenderState — результат операции
+	 */
 	public SkeletonEntityRenderState createRenderState() {
 		return new SkeletonEntityRenderState();
 	}

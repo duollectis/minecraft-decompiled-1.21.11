@@ -16,10 +16,20 @@ public record SimpleFramebufferFactory(
 		int clearColor
 ) implements ClosableFactory<Framebuffer> {
 
+	/**
+	 * Create.
+	 *
+	 * @return Framebuffer — результат операции
+	 */
 	public Framebuffer create() {
 		return new SimpleFramebuffer(null, this.width, this.height, this.useDepth);
 	}
 
+	/**
+	 * Prepare.
+	 *
+	 * @param framebuffer framebuffer
+	 */
 	public void prepare(Framebuffer framebuffer) {
 		if (this.useDepth) {
 			RenderSystem.getDevice()
@@ -39,6 +49,11 @@ public record SimpleFramebufferFactory(
 		}
 	}
 
+	/**
+	 * Close.
+	 *
+	 * @param framebuffer framebuffer
+	 */
 	public void close(Framebuffer framebuffer) {
 		framebuffer.delete();
 	}

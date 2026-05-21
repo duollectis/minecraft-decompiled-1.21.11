@@ -24,6 +24,11 @@ public class EndLightFlashManager {
 	private float pitch;
 	private float yaw;
 
+	/**
+	 * Tick.
+	 *
+	 * @param time time
+	 */
 	public void tick(long time) {
 		this.update(time);
 		this.lastSkyFactor = this.nextSkyFactor;
@@ -61,6 +66,11 @@ public class EndLightFlashManager {
 		return MathHelper.lerp(tickProgress, this.lastSkyFactor, this.nextSkyFactor);
 	}
 
+	/**
+	 * Определяет, следует ли flash.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldFlash() {
 		return this.nextSkyFactor > 0.0F && this.lastSkyFactor <= 0.0F;
 	}

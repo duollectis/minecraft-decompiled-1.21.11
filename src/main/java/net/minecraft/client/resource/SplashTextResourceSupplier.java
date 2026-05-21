@@ -44,6 +44,14 @@ public class SplashTextResourceSupplier extends SinglePreparationResourceReloade
 		return Text.literal(text).setStyle(SPLASH_TEXT_STYLE);
 	}
 
+	/**
+	 * Prepare.
+	 *
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 *
+	 * @return List — результат операции
+	 */
 	protected List<Text> prepare(ResourceManager resourceManager, Profiler profiler) {
 		try {
 			List var4;
@@ -66,10 +74,22 @@ public class SplashTextResourceSupplier extends SinglePreparationResourceReloade
 		}
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param list list
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(List<Text> list, ResourceManager resourceManager, Profiler profiler) {
 		this.splashTexts = List.copyOf(list);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @return @Nullable SplashTextRenderer — 
+	 */
 	public @Nullable SplashTextRenderer get() {
 		MonthDay monthDay = Holidays.now();
 		if (monthDay.equals(Holidays.CHRISTMAS_EVE)) {

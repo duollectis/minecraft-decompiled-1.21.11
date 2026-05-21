@@ -58,6 +58,12 @@ public abstract class Sensor<E extends LivingEntity> {
 		this(20);
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 */
 	public final void tick(ServerWorld world, E entity) {
 		if (--this.lastSenseTime <= 0L) {
 			this.lastSenseTime = this.senseInterval;
@@ -76,16 +82,40 @@ public abstract class Sensor<E extends LivingEntity> {
 		ATTACKABLE_TARGET_PREDICATE_IGNORE_VISIBILITY_OR_DISTANCE_SCALING.setBaseMaxDistance(d);
 	}
 
+	/**
+	 * Sense.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 */
 	protected abstract void sense(ServerWorld world, E entity);
 
 	public abstract Set<MemoryModuleType<?>> getOutputMemoryModules();
 
+	/**
+	 * Test target predicate.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param target target
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean testTargetPredicate(ServerWorld world, LivingEntity entity, LivingEntity target) {
 		return entity.getBrain().hasMemoryModuleWithValue(MemoryModuleType.ATTACK_TARGET, target)
 		       ? TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.test(world, entity, target)
 		       : TARGET_PREDICATE.test(world, entity, target);
 	}
 
+	/**
+	 * Test attackable target predicate.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param target target
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean testAttackableTargetPredicate(ServerWorld world, LivingEntity entity, LivingEntity target) {
 		return entity.getBrain().hasMemoryModuleWithValue(MemoryModuleType.ATTACK_TARGET, target)
 		       ? ATTACKABLE_TARGET_PREDICATE_IGNORE_DISTANCE_SCALING.test(world, entity, target)

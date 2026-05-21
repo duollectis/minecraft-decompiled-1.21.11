@@ -26,14 +26,30 @@ public class HungerManager {
 		this.saturationLevel = MathHelper.clamp(saturation + this.saturationLevel, 0.0F, (float) this.foodLevel);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param food food
+	 * @param saturationModifier saturation modifier
+	 */
 	public void add(int food, float saturationModifier) {
 		this.addInternal(food, HungerConstants.calculateSaturation(food, saturationModifier));
 	}
 
+	/**
+	 * Eat.
+	 *
+	 * @param foodComponent food component
+	 */
 	public void eat(FoodComponent foodComponent) {
 		this.addInternal(foodComponent.nutrition(), foodComponent.saturation());
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param player player
+	 */
 	public void update(ServerPlayerEntity player) {
 		ServerWorld serverWorld = player.getEntityWorld();
 		Difficulty difficulty = serverWorld.getDifficulty();
@@ -81,6 +97,11 @@ public class HungerManager {
 		}
 	}
 
+	/**
+	 * Читает data.
+	 *
+	 * @param view view
+	 */
 	public void readData(ReadView view) {
 		this.foodLevel = view.getInt("foodLevel", 20);
 		this.foodTickTimer = view.getInt("foodTickTimer", 0);
@@ -88,6 +109,11 @@ public class HungerManager {
 		this.exhaustion = view.getFloat("foodExhaustionLevel", 0.0F);
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param view view
+	 */
 	public void writeData(WriteView view) {
 		view.putInt("foodLevel", this.foodLevel);
 		view.putInt("foodTickTimer", this.foodTickTimer);
@@ -99,6 +125,11 @@ public class HungerManager {
 		return this.foodLevel;
 	}
 
+	/**
+	 * Проверяет возможность sprint.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSprint() {
 		return this.getFoodLevel() > 6.0F;
 	}
@@ -107,6 +138,11 @@ public class HungerManager {
 		return this.foodLevel < 20;
 	}
 
+	/**
+	 * Добавляет exhaustion.
+	 *
+	 * @param exhaustion exhaustion
+	 */
 	public void addExhaustion(float exhaustion) {
 		this.exhaustion = Math.min(this.exhaustion + exhaustion, 40.0F);
 	}

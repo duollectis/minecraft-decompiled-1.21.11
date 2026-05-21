@@ -156,6 +156,11 @@ public class FishingBobberEntityRenderer extends EntityRenderer<FishingBobberEnt
 		buffer.vertex(matrices, f, g, h).color(-16777216).normal(matrices, i, j, k).lineWidth(getMinimumLineWidth);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return FishingBobberEntityState — результат операции
+	 */
 	public FishingBobberEntityState createRenderState() {
 		return new FishingBobberEntityState();
 	}
@@ -179,6 +184,13 @@ public class FishingBobberEntityRenderer extends EntityRenderer<FishingBobberEnt
 		}
 	}
 
+	/**
+	 * Проверяет возможность be culled.
+	 *
+	 * @param fishingBobberEntity fishing bobber entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canBeCulled(FishingBobberEntity fishingBobberEntity) {
 		return false;
 	}

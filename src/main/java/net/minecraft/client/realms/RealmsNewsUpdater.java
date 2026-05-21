@@ -30,6 +30,11 @@ public class RealmsNewsUpdater {
 		return this.newsLink;
 	}
 
+	/**
+	 * Обновляет news.
+	 *
+	 * @param news news
+	 */
 	public void updateNews(RealmsNews news) {
 		RealmsPersistence.RealmsPersistenceData realmsPersistenceData = this.checkLinkUpdated(news);
 		this.hasUnreadNews = realmsPersistenceData.hasUnreadNews;

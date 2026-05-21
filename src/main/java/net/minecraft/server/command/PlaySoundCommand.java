@@ -35,6 +35,11 @@ public class PlaySoundCommand {
 			FAILED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.playsound.failed"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		RequiredArgumentBuilder<ServerCommandSource, Identifier>
 				requiredArgumentBuilder =

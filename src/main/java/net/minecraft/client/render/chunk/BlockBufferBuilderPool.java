@@ -26,6 +26,13 @@ public class BlockBufferBuilderPool {
 		this.availableBuilderCount = this.availableBuilders.size();
 	}
 
+	/**
+	 * Allocate.
+	 *
+	 * @param max max
+	 *
+	 * @return BlockBufferBuilderPool — результат операции
+	 */
 	public static BlockBufferBuilderPool allocate(int max) {
 		int
 				i =
@@ -53,6 +60,11 @@ public class BlockBufferBuilderPool {
 		return new BlockBufferBuilderPool(list);
 	}
 
+	/**
+	 * Acquire.
+	 *
+	 * @return @Nullable BlockBufferAllocatorStorage — результат операции
+	 */
 	public @Nullable BlockBufferAllocatorStorage acquire() {
 		BlockBufferAllocatorStorage blockBufferAllocatorStorage = this.availableBuilders.poll();
 		if (blockBufferAllocatorStorage != null) {
@@ -64,6 +76,11 @@ public class BlockBufferBuilderPool {
 		}
 	}
 
+	/**
+	 * Release.
+	 *
+	 * @param builders builders
+	 */
 	public void release(BlockBufferAllocatorStorage builders) {
 		this.availableBuilders.add(builders);
 		this.availableBuilderCount = this.availableBuilders.size();

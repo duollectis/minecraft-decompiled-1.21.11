@@ -9,6 +9,9 @@ import net.minecraft.network.packet.c2s.config.SelectKnownPacksC2SPacket;
 import net.minecraft.network.packet.s2c.config.*;
 import net.minecraft.util.Identifier;
 
+/**
+ * Класс config packets.
+ */
 public class ConfigPackets {
 
 	public static final PacketType<CodeOfConductS2CPacket> CODE_OF_CONDUCT = s2c("code_of_conduct");

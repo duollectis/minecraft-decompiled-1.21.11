@@ -112,6 +112,9 @@ public class StatsScreen extends Screen {
 		this.client.getNetworkHandler().sendPacket(new ClientStatusC2SPacket(ClientStatusC2SPacket.Mode.REQUEST_STATS));
 	}
 
+	/**
+	 * Обрабатывает событие stats ready.
+	 */
 	public void onStatsReady() {
 		if (this.downloadingStats) {
 			if (this.tabNavigationWidget != null) {
@@ -510,6 +513,11 @@ public class StatsScreen extends Screen {
 			}
 		}
 
+		/**
+		 * Select stat type.
+		 *
+		 * @param statType stat type
+		 */
 		protected void selectStatType(StatType<?> statType) {
 			if (statType != this.selectedStatType) {
 				this.selectedStatType = statType;
@@ -526,6 +534,11 @@ public class StatsScreen extends Screen {
 			this.sortStats(this.comparator);
 		}
 
+		/**
+		 * Sort stats.
+		 *
+		 * @param comparator comparator
+		 */
 		protected void sortStats(Comparator<StatsScreen.ItemStatsListWidget.StatEntry> comparator) {
 			List<StatsScreen.ItemStatsListWidget.StatEntry> list = this.getStatEntries();
 			list.sort(comparator);
@@ -804,6 +817,15 @@ public class StatsScreen extends Screen {
 				}
 			}
 
+			/**
+			 * Render.
+			 *
+			 * @param context context
+			 * @param stat stat
+			 * @param x x
+			 * @param y y
+			 * @param white white
+			 */
 			protected void render(DrawContext context, @Nullable Stat<?> stat, int x, int y, boolean white) {
 				Text
 						text =

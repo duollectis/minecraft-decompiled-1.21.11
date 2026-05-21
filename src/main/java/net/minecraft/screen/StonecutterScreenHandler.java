@@ -111,6 +111,11 @@ public class StonecutterScreenHandler extends ScreenHandler {
 		return this.availableRecipes.size();
 	}
 
+	/**
+	 * Проверяет возможность craft.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canCraft() {
 		return this.inputSlot.hasStack() && !this.availableRecipes.isEmpty();
 	}

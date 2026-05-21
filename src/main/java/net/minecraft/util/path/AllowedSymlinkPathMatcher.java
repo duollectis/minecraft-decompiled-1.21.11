@@ -26,6 +26,13 @@ public class AllowedSymlinkPathMatcher implements PathMatcher {
 		this.allowedEntries = allowedEntries;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param fileSystem file system
+	 *
+	 * @return PathMatcher — 
+	 */
 	public PathMatcher get(FileSystem fileSystem) {
 		return this.matcherCache.computeIfAbsent(
 				fileSystem.provider().getScheme(), scheme -> {
@@ -59,6 +66,13 @@ public class AllowedSymlinkPathMatcher implements PathMatcher {
 		return this.get(path.getFileSystem()).matches(path);
 	}
 
+	/**
+	 * From reader.
+	 *
+	 * @param reader reader
+	 *
+	 * @return AllowedSymlinkPathMatcher — результат операции
+	 */
 	public static AllowedSymlinkPathMatcher fromReader(BufferedReader reader) {
 		return new AllowedSymlinkPathMatcher(reader
 				.lines()
@@ -71,6 +85,13 @@ public class AllowedSymlinkPathMatcher implements PathMatcher {
 	 */
 	public record Entry(AllowedSymlinkPathMatcher.EntryType type, String pattern) {
 
+		/**
+		 * Compile.
+		 *
+		 * @param fileSystem file system
+		 *
+		 * @return PathMatcher — результат операции
+		 */
 		public PathMatcher compile(FileSystem fileSystem) {
 			return this.type().compile(fileSystem, this.pattern);
 		}

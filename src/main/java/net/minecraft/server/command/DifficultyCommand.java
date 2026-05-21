@@ -17,6 +17,11 @@ public class DifficultyCommand {
 			difficulty -> Text.stringifiedTranslatable("commands.difficulty.failure", difficulty)
 	);
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		LiteralArgumentBuilder<ServerCommandSource> literalArgumentBuilder = CommandManager.literal("difficulty");
 
@@ -51,6 +56,14 @@ public class DifficultyCommand {
 		);
 	}
 
+	/**
+	 * Execute.
+	 *
+	 * @param source source
+	 * @param difficulty difficulty
+	 *
+	 * @return int — результат операции
+	 */
 	public static int execute(ServerCommandSource source, Difficulty difficulty) throws CommandSyntaxException {
 		MinecraftServer minecraftServer = source.getServer();
 		if (minecraftServer.getSaveProperties().getDifficulty() == difficulty) {

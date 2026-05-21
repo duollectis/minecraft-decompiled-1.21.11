@@ -18,6 +18,11 @@ public class SimpleModelSupplier implements ModelSupplier {
 		this.parent = parent;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @return JsonElement — 
+	 */
 	public JsonElement get() {
 		JsonObject jsonObject = new JsonObject();
 		jsonObject.addProperty("parent", this.parent.toString());

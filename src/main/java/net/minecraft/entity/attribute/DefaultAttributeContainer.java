@@ -67,6 +67,13 @@ public class DefaultAttributeContainer {
 		return new DefaultAttributeContainer.Builder();
 	}
 
+	/**
+	 * Has.
+	 *
+	 * @param attribute attribute
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean has(RegistryEntry<EntityAttribute> attribute) {
 		return this.instances.containsKey(attribute);
 	}
@@ -110,6 +117,11 @@ public class DefaultAttributeContainer {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return DefaultAttributeContainer — результат операции
+		 */
 		public DefaultAttributeContainer build() {
 			this.unmodifiable = true;
 			return new DefaultAttributeContainer(this.instances.buildKeepingLast());

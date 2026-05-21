@@ -29,10 +29,22 @@ public class GoatEntityRenderer extends AgeableMobEntityRenderer<GoatEntity, Goa
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return GoatEntityRenderState — результат операции
+	 */
 	public GoatEntityRenderState createRenderState() {
 		return new GoatEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param goatEntity goat entity
+	 * @param goatEntityRenderState goat entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(GoatEntity goatEntity, GoatEntityRenderState goatEntityRenderState, float f) {
 		super.updateRenderState(goatEntity, goatEntityRenderState, f);
 		goatEntityRenderState.hasLeftHorn = goatEntity.hasLeftHorn();

@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Запись set test block c2 s packet.
+ */
 public record SetTestBlockC2SPacket(
 		BlockPos position,
 		TestBlockMode mode,
@@ -31,6 +34,11 @@ public record SetTestBlockC2SPacket(
 		return PlayPackets.SET_TEST_BLOCK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onSetTestBlock(this);
 	}

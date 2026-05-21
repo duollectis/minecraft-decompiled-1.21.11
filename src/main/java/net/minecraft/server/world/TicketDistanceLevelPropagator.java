@@ -45,6 +45,13 @@ class TicketDistanceLevelPropagator extends ChunkPosDistanceLevelPropagator {
 		}
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param distance distance
+	 *
+	 * @return int — результат операции
+	 */
 	public int update(int distance) {
 		return this.applyPendingUpdates(distance);
 	}

@@ -7,6 +7,9 @@ public abstract class PersistentState {
 
 	private boolean dirty;
 
+	/**
+	 * Mark dirty.
+	 */
 	public void markDirty() {
 		this.setDirty(true);
 	}

@@ -269,6 +269,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 	}
 
 	@Contract(pure = true)
+	/**
+	 * Создаёт equipment.
+	 *
+	 * @return EntityEquipment — результат операции
+	 */
 	protected EntityEquipment createEquipment() {
 		return new EntityEquipment();
 	}
@@ -281,6 +286,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return Brain.createProfile(ImmutableList.of(), ImmutableList.of());
 	}
 
+	/**
+	 * Десериализует brain.
+	 *
+	 * @param dynamic dynamic
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected Brain<?> deserializeBrain(Dynamic<?> dynamic) {
 		return this.createBrainProfile().deserialize(dynamic);
 	}
@@ -290,6 +302,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		this.damage(world, this.getDamageSources().genericKill(), Float.MAX_VALUE);
 	}
 
+	/**
+	 * Проверяет возможность target.
+	 *
+	 * @param type type
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canTarget(EntityType<?> type) {
 		return true;
 	}
@@ -373,6 +392,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Проверяет возможность breathe in water.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBreatheInWater() {
 		return this.getType().isIn(EntityTypeTags.CAN_BREATHE_UNDER_WATER);
 	}
@@ -499,6 +523,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		profiler.pop();
 	}
 
+	/**
+	 * Определяет, следует ли drown.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldDrown() {
 		return this.getAir() <= -20;
 	}
@@ -516,6 +545,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return 0.0F;
 	}
 
+	/**
+	 * Удаляет powder snow slow.
+	 */
 	protected void removePowderSnowSlow() {
 		EntityAttributeInstance entityAttributeInstance = this.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
 		if (entityAttributeInstance != null) {
@@ -525,6 +557,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Добавляет powder snow slow if needed.
+	 */
 	protected void addPowderSnowSlowIfNeeded() {
 		if (!this.getLandingBlockState().isAir()) {
 			int i = this.getFrozenTicks();
@@ -548,6 +583,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Применяет movement effects.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected void applyMovementEffects(ServerWorld world, BlockPos pos) {
 		EnchantmentHelper.applyLocationBasedEffects(world, this);
 	}
@@ -566,14 +607,29 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		                                  : this.clampScale((float) attributeContainer.getValue(EntityAttributes.SCALE));
 	}
 
+	/**
+	 * Clamp scale.
+	 *
+	 * @param scale scale
+	 *
+	 * @return float — результат операции
+	 */
 	protected float clampScale(float scale) {
 		return scale;
 	}
 
+	/**
+	 * Определяет, следует ли swim in fluids.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSwimInFluids() {
 		return true;
 	}
 
+	/**
+	 * Обновляет post death.
+	 */
 	protected void updatePostDeath() {
 		this.deathTime++;
 		if (this.deathTime >= 20 && !this.getEntityWorld().isClient() && !this.isRemoved()) {
@@ -582,10 +638,22 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Определяет, следует ли drop experience.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDropExperience() {
 		return !this.isBaby();
 	}
 
+	/**
+	 * Определяет, следует ли drop loot.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldDropLoot(ServerWorld world) {
 		return !this.isBaby() && world.getGameRules().getValue(GameRules.DO_MOB_LOOT);
 	}
@@ -615,6 +683,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return 0;
 	}
 
+	/**
+	 * Определяет, следует ли always drop experience.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldAlwaysDropExperience() {
 		return false;
 	}
@@ -662,6 +735,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return this.lastAttackTime;
 	}
 
+	/**
+	 * Обрабатывает событие attacking.
+	 *
+	 * @param target target
+	 */
 	public void onAttacking(Entity target) {
 		if (target instanceof LivingEntity) {
 			this.attacking = (LivingEntity) target;
@@ -693,6 +771,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return true;
 	}
 
+	/**
+	 * Обрабатывает событие equip stack.
+	 *
+	 * @param slot slot
+	 * @param oldStack old stack
+	 * @param newStack new stack
+	 */
 	public void onEquipStack(EquipmentSlot slot, ItemStack oldStack, ItemStack newStack) {
 		if (!this.getEntityWorld().isClient() && !this.isSpectator()) {
 			if (!ItemStack.areItemsAndComponentsEqual(oldStack, newStack) && !this.firstUpdate) {
@@ -746,6 +831,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Обрабатывает событие removal.
+	 *
+	 * @param world world
+	 * @param reason reason
+	 */
 	protected void onRemoval(ServerWorld world, Entity.RemovalReason reason) {
 		for (StatusEffectInstance statusEffectInstance : this.getStatusEffects()) {
 			statusEffectInstance.onEntityRemoval(world, this, reason);
@@ -795,6 +886,15 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Бросает item.
+	 *
+	 * @param stack stack
+	 * @param dropAtSelf drop at self
+	 * @param retainOwnership retain ownership
+	 *
+	 * @return @Nullable ItemEntity — результат операции
+	 */
 	public @Nullable ItemEntity dropItem(ItemStack stack, boolean dropAtSelf, boolean retainOwnership) {
 		if (stack.isEmpty()) {
 			return null;
@@ -874,6 +974,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		this.handleEffectsChanged();
 	}
 
+	/**
+	 * Выполняет тик обновления для status effects.
+	 */
 	protected void tickStatusEffects() {
 		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
 			Iterator<RegistryEntry<StatusEffect>> iterator = this.activeStatusEffects.keySet().iterator();
@@ -932,6 +1035,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Обновляет potion visibility.
+	 */
 	protected void updatePotionVisibility() {
 		if (this.activeStatusEffects.isEmpty()) {
 			this.clearPotionSwirls();
@@ -991,11 +1097,23 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return d;
 	}
 
+	/**
+	 * Проверяет возможность target.
+	 *
+	 * @param target target
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canTarget(LivingEntity target) {
 		return target instanceof PlayerEntity && this.getEntityWorld().getDifficulty() == Difficulty.PEACEFUL ? false
 		                                                                                                      : target.canTakeDamage();
 	}
 
+	/**
+	 * Проверяет возможность take damage.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canTakeDamage() {
 		return !this.isInvulnerable() && this.isPartOfGame();
 	}
@@ -1004,6 +1122,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return !this.isSpectator() && this.isAlive();
 	}
 
+	/**
+	 * Contains only ambient effects.
+	 *
+	 * @param effects effects
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean containsOnlyAmbientEffects(Collection<StatusEffectInstance> effects) {
 		for (StatusEffectInstance statusEffectInstance : effects) {
 			if (statusEffectInstance.shouldShowParticles() && !statusEffectInstance.isAmbient()) {
@@ -1014,10 +1139,18 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return true;
 	}
 
+	/**
+	 * Очищает potion swirls.
+	 */
 	protected void clearPotionSwirls() {
 		this.dataTracker.set(POTION_SWIRLS, List.of());
 	}
 
+	/**
+	 * Очищает status effects.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean clearStatusEffects() {
 		if (this.getEntityWorld().isClient()) {
 			return false;
@@ -1054,10 +1187,25 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return statusEffectInstance != null ? statusEffectInstance.getFadeFactor(this, tickProgress) : 0.0F;
 	}
 
+	/**
+	 * Добавляет status effect.
+	 *
+	 * @param effect effect
+	 *
+	 * @return boolean — результат операции
+	 */
 	public final boolean addStatusEffect(StatusEffectInstance effect) {
 		return this.addStatusEffect(effect, null);
 	}
 
+	/**
+	 * Добавляет status effect.
+	 *
+	 * @param effect effect
+	 * @param source source
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean addStatusEffect(StatusEffectInstance effect, @Nullable Entity source) {
 		if (!this.canHaveStatusEffect(effect)) {
 			return false;
@@ -1081,6 +1229,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Проверяет возможность have status effect.
+	 *
+	 * @param effect effect
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canHaveStatusEffect(StatusEffectInstance effect) {
 		if (this.getType().isIn(EntityTypeTags.IMMUNE_TO_INFESTED)) {
 			return !effect.equals(StatusEffects.INFESTED);
@@ -1112,10 +1267,24 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return this.getType().isIn(EntityTypeTags.INVERTED_HEALING_AND_HARM);
 	}
 
+	/**
+	 * Удаляет status effect internal.
+	 *
+	 * @param effect effect
+	 *
+	 * @return @Nullable StatusEffectInstance — результат операции
+	 */
 	public final @Nullable StatusEffectInstance removeStatusEffectInternal(RegistryEntry<StatusEffect> effect) {
 		return this.activeStatusEffects.remove(effect);
 	}
 
+	/**
+	 * Удаляет status effect.
+	 *
+	 * @param effect effect
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean removeStatusEffect(RegistryEntry<StatusEffect> effect) {
 		StatusEffectInstance statusEffectInstance = this.removeStatusEffectInternal(effect);
 		if (statusEffectInstance != null) {
@@ -1127,6 +1296,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Обрабатывает событие status effect applied.
+	 *
+	 * @param effect effect
+	 * @param source source
+	 */
 	protected void onStatusEffectApplied(StatusEffectInstance effect, @Nullable Entity source) {
 		if (!this.getEntityWorld().isClient()) {
 			this.effectsChanged = true;
@@ -1135,6 +1310,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Отправляет effect to controlling player.
+	 *
+	 * @param effect effect
+	 */
 	public void sendEffectToControllingPlayer(StatusEffectInstance effect) {
 		for (Entity entity : this.getPassengerList()) {
 			if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
@@ -1147,6 +1327,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Обрабатывает событие status effect upgraded.
+	 *
+	 * @param effect effect
+	 * @param reapplyEffect reapply effect
+	 * @param source source
+	 */
 	protected void onStatusEffectUpgraded(StatusEffectInstance effect, boolean reapplyEffect, @Nullable Entity source) {
 		if (!this.getEntityWorld().isClient()) {
 			this.effectsChanged = true;
@@ -1161,6 +1348,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Обрабатывает событие status effects removed.
+	 *
+	 * @param effects effects
+	 */
 	protected void onStatusEffectsRemoved(Collection<StatusEffectInstance> effects) {
 		if (!this.getEntityWorld().isClient()) {
 			this.effectsChanged = true;
@@ -1192,6 +1384,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		set.clear();
 	}
 
+	/**
+	 * Обновляет attribute.
+	 *
+	 * @param attribute attribute
+	 */
 	protected void updateAttribute(RegistryEntry<EntityAttribute> attribute) {
 		if (attribute.matches(EntityAttributes.MAX_HEALTH)) {
 			float f = this.getMaxHealth();
@@ -1220,6 +1417,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Heal.
+	 *
+	 * @param amount amount
+	 */
 	public void heal(float amount) {
 		float f = this.getHealth();
 		if (f > 0.0F) {
@@ -1444,6 +1646,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Become angry.
+	 *
+	 * @param damageSource damage source
+	 */
 	protected void becomeAngry(DamageSource damageSource) {
 		if (damageSource.getAttacker() instanceof LivingEntity livingEntity
 				&& !damageSource.isIn(DamageTypeTags.NO_ANGER)
@@ -1473,10 +1680,21 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return LazyEntityReference.getPlayerEntity(this.attackingPlayer, this.getEntityWorld());
 	}
 
+	/**
+	 * Take shield hit.
+	 *
+	 * @param world world
+	 * @param attacker attacker
+	 */
 	protected void takeShieldHit(ServerWorld world, LivingEntity attacker) {
 		attacker.knockback(this);
 	}
 
+	/**
+	 * Knockback.
+	 *
+	 * @param target target
+	 */
 	protected void knockback(LivingEntity target) {
 		target.takeKnockback(0.5, target.getX() - this.getX(), target.getZ() - this.getZ());
 	}
@@ -1523,10 +1741,20 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return this.lastDamageSource;
 	}
 
+	/**
+	 * Play hurt sound.
+	 *
+	 * @param damageSource damage source
+	 */
 	protected void playHurtSound(DamageSource damageSource) {
 		this.playSound(this.getHurtSound(damageSource));
 	}
 
+	/**
+	 * Play sound.
+	 *
+	 * @param sound sound
+	 */
 	public void playSound(@Nullable SoundEvent sound) {
 		if (sound != null) {
 			this.playSound(sound, this.getSoundVolume(), this.getSoundPitch());
@@ -1554,6 +1782,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Обрабатывает событие death.
+	 *
+	 * @param damageSource damage source
+	 */
 	public void onDeath(DamageSource damageSource) {
 		if (!this.isRemoved() && !this.dead) {
 			Entity entity = damageSource.getAttacker();
@@ -1587,6 +1820,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Обрабатывает событие killed by.
+	 *
+	 * @param adversary adversary
+	 */
 	protected void onKilledBy(@Nullable LivingEntity adversary) {
 		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
 			boolean var6 = false;
@@ -1617,6 +1855,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Drop.
+	 *
+	 * @param world world
+	 * @param damageSource damage source
+	 */
 	protected void drop(ServerWorld world, DamageSource damageSource) {
 		boolean bl = this.playerHitTimer > 0;
 		if (this.shouldDropLoot(world)) {
@@ -1628,9 +1872,20 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		this.dropExperience(world, damageSource.getAttacker());
 	}
 
+	/**
+	 * Бросает inventory.
+	 *
+	 * @param world world
+	 */
 	protected void dropInventory(ServerWorld world) {
 	}
 
+	/**
+	 * Бросает experience.
+	 *
+	 * @param world world
+	 * @param attacker attacker
+	 */
 	protected void dropExperience(ServerWorld world, @Nullable Entity attacker) {
 		if (!this.isExperienceDroppingDisabled()
 				&& (
@@ -1642,6 +1897,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Бросает equipment.
+	 *
+	 * @param world world
+	 * @param source source
+	 * @param causedByPlayer caused by player
+	 */
 	protected void dropEquipment(ServerWorld world, DamageSource source, boolean causedByPlayer) {
 	}
 
@@ -1656,6 +1918,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		       : f / 2.0F;
 	}
 
+	/**
+	 * Бросает loot.
+	 *
+	 * @param world world
+	 * @param damageSource damage source
+	 * @param causedByPlayer caused by player
+	 */
 	protected void dropLoot(ServerWorld world, DamageSource damageSource, boolean causedByPlayer) {
 		Optional<RegistryKey<LootTable>> optional = this.getLootTableKey();
 		if (!optional.isEmpty()) {
@@ -1766,6 +2035,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Take knockback.
+	 *
+	 * @param strength strength
+	 * @param x x
+	 * @param z z
+	 */
 	public void takeKnockback(double strength, double x, double z) {
 		strength *= 1.0 - this.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE);
 		if (!(strength <= 0.0)) {
@@ -1786,6 +2062,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Tilt screen.
+	 *
+	 * @param deltaX delta x
+	 * @param deltaZ delta z
+	 */
 	public void tiltScreen(double deltaX, double deltaZ) {
 	}
 
@@ -1801,6 +2083,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return distance > 4 ? this.getFallSounds().big() : this.getFallSounds().small();
 	}
 
+	/**
+	 * Отключает experience dropping.
+	 */
 	public void disableExperienceDropping() {
 		this.experienceDroppingDisabled = true;
 	}
@@ -1830,6 +2115,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 				.computeIfAbsent(slot, slotx -> new Reference2ObjectArrayMap());
 	}
 
+	/**
+	 * Использует attack enchantment effects.
+	 */
 	public void useAttackEnchantmentEffects() {
 		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
 			EnchantmentHelper.onAttack(serverWorld, this);
@@ -1936,6 +2224,14 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Вычисляет fall damage.
+	 *
+	 * @param fallDistance fall distance
+	 * @param damagePerDistance damage per distance
+	 *
+	 * @return int — результат операции
+	 */
 	protected int computeFallDamage(double fallDistance, float damagePerDistance) {
 		if (this.getType().isIn(EntityTypeTags.FALL_DAMAGE_IMMUNE)) {
 			return 0;
@@ -1951,6 +2247,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return fallDistance + 1.0E-6 - this.getAttributeValue(EntityAttributes.SAFE_FALL_DISTANCE);
 	}
 
+	/**
+	 * Play block fall sound.
+	 */
 	protected void playBlockFallSound() {
 		if (!this.isSilent()) {
 			int i = MathHelper.floor(this.getX());
@@ -1978,12 +2277,31 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return MathHelper.floor(this.getAttributeValue(EntityAttributes.ARMOR));
 	}
 
+	/**
+	 * Наносит урон armor.
+	 *
+	 * @param source source
+	 * @param amount amount
+	 */
 	public void damageArmor(DamageSource source, float amount) {
 	}
 
+	/**
+	 * Наносит урон helmet.
+	 *
+	 * @param source source
+	 * @param amount amount
+	 */
 	public void damageHelmet(DamageSource source, float amount) {
 	}
 
+	/**
+	 * Наносит урон equipment.
+	 *
+	 * @param source source
+	 * @param amount amount
+	 * @param slots slots
+	 */
 	protected void damageEquipment(DamageSource source, float amount, EquipmentSlot... slots) {
 		if (!(amount <= 0.0F)) {
 			int i = (int) Math.max(1.0F, amount / 4.0F);
@@ -1999,6 +2317,14 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Применяет armor to damage.
+	 *
+	 * @param source source
+	 * @param amount amount
+	 *
+	 * @return float — результат операции
+	 */
 	protected float applyArmorToDamage(DamageSource source, float amount) {
 		if (!source.isIn(DamageTypeTags.BYPASSES_ARMOR)) {
 			this.damageArmor(source, amount);
@@ -2015,6 +2341,14 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return amount;
 	}
 
+	/**
+	 * Modify applied damage.
+	 *
+	 * @param source source
+	 * @param amount amount
+	 *
+	 * @return float — результат операции
+	 */
 	protected float modifyAppliedDamage(DamageSource source, float amount) {
 		if (source.isIn(DamageTypeTags.BYPASSES_EFFECTS)) {
 			return amount;
@@ -2064,6 +2398,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Применяет damage.
+	 *
+	 * @param world world
+	 * @param source source
+	 * @param amount amount
+	 */
 	protected void applyDamage(ServerWorld world, DamageSource source, float amount) {
 		if (!this.isInvulnerableTo(world, source)) {
 			amount = this.applyArmorToDamage(source, amount);
@@ -2139,10 +2480,21 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Swing hand.
+	 *
+	 * @param hand hand
+	 */
 	public void swingHand(Hand hand) {
 		this.swingHand(hand, false);
 	}
 
+	/**
+	 * Swing hand.
+	 *
+	 * @param hand hand
+	 * @param fromServerPlayer from server player
+	 */
 	public void swingHand(Hand hand, boolean fromServerPlayer) {
 		if (!this.handSwinging || this.handSwingTicks >= this.getHandSwingDuration() / 2 || this.handSwingTicks < 0) {
 			this.handSwingTicks = -1;
@@ -2272,6 +2624,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		                                         + tickProgress;
 	}
 
+	/**
+	 * Добавляет death particles.
+	 */
 	public void addDeathParticles() {
 		for (int i = 0; i < 20; i++) {
 			double d = this.random.nextGaussian() * 0.02;
@@ -2333,6 +2688,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		this.serverDamage(this.getDamageSources().outOfWorld(), 4.0F);
 	}
 
+	/**
+	 * Выполняет тик обновления для hand swing.
+	 */
 	protected void tickHandSwing() {
 		int i = this.getHandSwingDuration();
 		if (this.handSwinging) {
@@ -2430,6 +2788,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return !this.getEquippedStack(slot).isEmpty();
 	}
 
+	/**
+	 * Проверяет возможность use slot.
+	 *
+	 * @param slot slot
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canUseSlot(EquipmentSlot slot) {
 		return true;
 	}
@@ -2438,6 +2803,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return this.equipment.get(slot);
 	}
 
+	/**
+	 * Equip stack.
+	 *
+	 * @param slot slot
+	 * @param stack stack
+	 */
 	public void equipStack(EquipmentSlot slot, ItemStack stack) {
 		this.onEquipStack(slot, this.equipment.put(slot, stack), stack);
 	}
@@ -2550,6 +2921,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 	}
 
 	@VisibleForTesting
+	/**
+	 * Jump.
+	 */
 	public void jump() {
 		float f = this.getJumpVelocity();
 		if (!(f <= 1.0E-5F)) {
@@ -2564,10 +2938,18 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Knock downwards.
+	 */
 	protected void knockDownwards() {
 		this.setVelocity(this.getVelocity().add(0.0, -0.04F, 0.0));
 	}
 
+	/**
+	 * Swim upward.
+	 *
+	 * @param fluid fluid
+	 */
 	protected void swimUpward(TagKey<Fluid> fluid) {
 		this.setVelocity(this.getVelocity().add(0.0, 0.04F, 0.0));
 	}
@@ -2576,6 +2958,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return 0.8F;
 	}
 
+	/**
+	 * Проверяет возможность walk on fluid.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canWalkOnFluid(FluidState state) {
 		return false;
 	}
@@ -2591,6 +2980,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		                                                              : this.getFinalGravity();
 	}
 
+	/**
+	 * Travel.
+	 *
+	 * @param movementInput movement input
+	 */
 	public void travel(Vec3d movementInput) {
 		if (this.isTravellingInFluid(this.getEntityWorld().getFluidState(this.getBlockPos()))) {
 			this.travelInFluid(movementInput);
@@ -2607,10 +3001,24 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return (this.isTouchingWater() || this.isInLava()) && this.shouldSwimInFluids() && !this.canWalkOnFluid(state);
 	}
 
+	/**
+	 * Travel flying.
+	 *
+	 * @param movementInput movement input
+	 * @param speed speed
+	 */
 	protected void travelFlying(Vec3d movementInput, float speed) {
 		this.travelFlying(movementInput, 0.02F, 0.02F, speed);
 	}
 
+	/**
+	 * Travel flying.
+	 *
+	 * @param movementInput movement input
+	 * @param inWaterSpeed in water speed
+	 * @param inLavaSpeed in lava speed
+	 * @param regularSpeed regular speed
+	 */
 	protected void travelFlying(Vec3d movementInput, float inWaterSpeed, float inLavaSpeed, float regularSpeed) {
 		if (this.isTouchingWater()) {
 			this.updateVelocity(inWaterSpeed, movementInput);
@@ -2671,6 +3079,14 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Travel in water.
+	 *
+	 * @param movementInput movement input
+	 * @param gravity gravity
+	 * @param falling falling
+	 * @param y y
+	 */
 	protected void travelInWater(Vec3d movementInput, double gravity, boolean falling, double y) {
 		float f = this.isSprinting() ? 0.9F : this.getBaseWaterMovementSpeedMultiplier();
 		float g = 0.02F;
@@ -2750,6 +3166,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Останавливает gliding.
+	 */
 	public void stopGliding() {
 		this.setFlag(7, true);
 		this.setFlag(7, false);
@@ -2808,6 +3227,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для controlled.
+	 *
+	 * @param controllingPlayer controlling player
+	 * @param movementInput movement input
+	 */
 	protected void tickControlled(PlayerEntity controllingPlayer, Vec3d movementInput) {
 	}
 
@@ -2819,6 +3244,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return this.getMovementSpeed();
 	}
 
+	/**
+	 * Обновляет limbs.
+	 *
+	 * @param flutter flutter
+	 */
 	public void updateLimbs(boolean flutter) {
 		float
 				f =
@@ -2835,6 +3265,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Обновляет limbs.
+	 *
+	 * @param posDelta pos delta
+	 */
 	protected void updateLimbs(float posDelta) {
 		float f = Math.min(posDelta * 4.0F, 1.0F);
 		this.limbAnimator.updateLimbs(f, 0.4F, this.isBaby() ? 3.0F : 1.0F);
@@ -2854,6 +3289,15 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return vec3d;
 	}
 
+	/**
+	 * Применяет fluid moving speed.
+	 *
+	 * @param gravity gravity
+	 * @param falling falling
+	 * @param motion motion
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d applyFluidMovingSpeed(double gravity, boolean falling, Vec3d motion) {
 		if (gravity != 0.0 && !this.isSprinting()) {
 			double d;
@@ -2907,11 +3351,26 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		this.movementSpeed = movementSpeed;
 	}
 
+	/**
+	 * Try attack.
+	 *
+	 * @param world world
+	 * @param target target
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean tryAttack(ServerWorld world, Entity target) {
 		this.onAttacking(target);
 		return false;
 	}
 
+	/**
+	 * Knockback target.
+	 *
+	 * @param target target
+	 * @param strength strength
+	 * @param playerTargetVelocity player target velocity
+	 */
 	public void knockbackTarget(Entity target, float strength, Vec3d playerTargetVelocity) {
 		if (strength > 0.0F && target instanceof LivingEntity livingEntity) {
 			livingEntity.takeKnockback(
@@ -2923,6 +3382,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Play attack sound.
+	 */
 	protected void playAttackSound() {
 	}
 
@@ -3053,6 +3515,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Запускает piercing cooldown.
+	 *
+	 * @param target target
+	 */
 	public void startPiercingCooldown(Entity target) {
 		if (this.piercingCooldowns != null) {
 			this.piercingCooldowns.put(target, this.getEntityWorld().getTime());
@@ -3113,6 +3580,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Before player attack.
+	 */
 	public void beforePlayerAttack() {
 	}
 
@@ -3171,6 +3641,14 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return map;
 	}
 
+	/**
+	 * Are items different.
+	 *
+	 * @param stack stack
+	 * @param stack2 stack2
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areItemsDifferent(ItemStack stack, ItemStack stack2) {
 		return !ItemStack.areEqual(stack2, stack);
 	}
@@ -3204,6 +3682,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 				.sendToOtherNearbyPlayers(this, new EntityEquipmentUpdateS2CPacket(this.getId(), list));
 	}
 
+	/**
+	 * Turn head.
+	 *
+	 * @param bodyRotation body rotation
+	 */
 	protected void turnHead(float bodyRotation) {
 		float f = MathHelper.wrapDegrees(bodyRotation - this.bodyYaw);
 		this.bodyYaw += f * 0.3F;
@@ -3218,6 +3701,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return 50.0F;
 	}
 
+	/**
+	 * Выполняет тик обновления для movement.
+	 */
 	public void tickMovement() {
 		if (this.jumpingCooldown > 0) {
 			this.jumpingCooldown--;
@@ -3364,11 +3850,19 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для movement input.
+	 */
 	protected void tickMovementInput() {
 		this.sidewaysSpeed *= 0.98F;
 		this.forwardSpeed *= 0.98F;
 	}
 
+	/**
+	 * Hurt by water.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean hurtByWater() {
 		return false;
 	}
@@ -3377,6 +3871,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return this.jumping;
 	}
 
+	/**
+	 * Выполняет тик обновления для gliding.
+	 */
 	protected void tickGliding() {
 		this.limitFallDistance();
 		if (!this.getEntityWorld().isClient()) {
@@ -3404,6 +3901,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Проверяет возможность glide.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canGlide() {
 		if (!this.isOnGround() && !this.hasVehicle() && !this.hasStatusEffect(StatusEffects.LEVITATION)) {
 			for (EquipmentSlot equipmentSlot : EquipmentSlot.VALUES) {
@@ -3419,9 +3921,15 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для new ai.
+	 */
 	protected void tickNewAi() {
 	}
 
+	/**
+	 * Выполняет тик обновления для cramming.
+	 */
 	protected void tickCramming() {
 		List<Entity> list = this.getEntityWorld().getCrammedEntities(this, this.getBoundingBox());
 		if (!list.isEmpty()) {
@@ -3448,6 +3956,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для riptide.
+	 *
+	 * @param a a
+	 * @param b b
+	 */
 	protected void tickRiptide(Box a, Box b) {
 		Box box = a.union(b);
 		List<Entity> list = this.getEntityWorld().getOtherEntities(this, box);
@@ -3472,10 +3986,20 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Push away.
+	 *
+	 * @param entity entity
+	 */
 	protected void pushAway(Entity entity) {
 		entity.pushAwayFrom(this);
 	}
 
+	/**
+	 * Attack living entity.
+	 *
+	 * @param target target
+	 */
 	protected void attackLivingEntity(LivingEntity target) {
 	}
 
@@ -3513,6 +4037,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		this.jumping = jumping;
 	}
 
+	/**
+	 * Trigger item picked up by entity criteria.
+	 *
+	 * @param item item
+	 */
 	public void triggerItemPickedUpByEntityCriteria(ItemEntity item) {
 		Entity entity = item.getOwner();
 		if (entity instanceof ServerPlayerEntity) {
@@ -3520,6 +4049,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Отправляет pickup.
+	 *
+	 * @param item item
+	 * @param count count
+	 */
 	public void sendPickup(Entity item, int count) {
 		if (!item.isRemoved()
 				&& !this.getEntityWorld().isClient()
@@ -3535,6 +4070,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Проверяет возможность see.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSee(Entity entity) {
 		return this.canSee(
 				entity,
@@ -3610,6 +4152,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return positionInPortal(super.positionInPortal(portalAxis, portalRect));
 	}
 
+	/**
+	 * Position in portal.
+	 *
+	 * @param pos pos
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d positionInPortal(Vec3d pos) {
 		return new Vec3d(pos.x, pos.y, 0.0);
 	}
@@ -3626,12 +4175,21 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		this.absorptionAmount = absorptionAmount;
 	}
 
+	/**
+	 * Enter combat.
+	 */
 	public void enterCombat() {
 	}
 
+	/**
+	 * End combat.
+	 */
 	public void endCombat() {
 	}
 
+	/**
+	 * Mark effects dirty.
+	 */
 	protected void markEffectsDirty() {
 		this.effectsChanged = true;
 	}
@@ -3694,6 +4252,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для item stack usage.
+	 *
+	 * @param stack stack
+	 */
 	protected void tickItemStackUsage(ItemStack stack) {
 		stack.usageTick(this.getEntityWorld(), this, this.getItemUseTimeLeft());
 		if (--this.itemUseTimeLeft == 0 && !this.getEntityWorld().isClient() && !stack.isUsedOnRelease()) {
@@ -3774,6 +4337,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return MathHelper.lerp(tickProgress, this.lastBodyYaw, this.bodyYaw);
 	}
 
+	/**
+	 * Создаёт (спавнит) item particles.
+	 *
+	 * @param stack stack
+	 * @param count count
+	 */
 	public void spawnItemParticles(ItemStack stack, int count) {
 		for (int i = 0; i < count; i++) {
 			Vec3d vec3d = new Vec3d((this.random.nextFloat() - 0.5) * 0.1, this.random.nextFloat() * 0.1 + 0.1, 0.0);
@@ -3797,6 +4366,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Consume item.
+	 */
 	protected void consumeItem() {
 		if (!this.getEntityWorld().isClient() || this.isUsingItem()) {
 			Hand hand = this.getActiveHand();
@@ -3816,6 +4388,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Give or drop stack.
+	 *
+	 * @param stack stack
+	 */
 	public void giveOrDropStack(ItemStack stack) {
 	}
 
@@ -3835,6 +4412,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return !this.isUsingItem() ? 0.0F : this.getItemUseTime() + baseTime;
 	}
 
+	/**
+	 * Останавливает using item.
+	 */
 	public void stopUsingItem() {
 		ItemStack itemStack = this.getStackInHand(this.getActiveHand());
 		if (!this.activeItemStack.isEmpty() && ItemStack.areItemsEqual(itemStack, this.activeItemStack)) {
@@ -3848,6 +4428,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		this.clearActiveItem();
 	}
 
+	/**
+	 * Очищает active item.
+	 */
 	public void clearActiveItem() {
 		if (!this.getEntityWorld().isClient()) {
 			boolean bl = this.isUsingItem();
@@ -3900,6 +4483,16 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return this.glidingTicks;
 	}
 
+	/**
+	 * Teleport.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param particleEffects particle effects
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean teleport(double x, double y, double z, boolean particleEffects) {
 		double d = this.getX();
 		double e = this.getY();
@@ -3959,6 +4552,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 	public void setNearbySongPlaying(BlockPos songPosition, boolean playing) {
 	}
 
+	/**
+	 * Проверяет возможность pick up loot.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canPickUpLoot() {
 		return false;
 	}
@@ -3988,6 +4586,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		);
 	}
 
+	/**
+	 * Would not suffocate in pose.
+	 *
+	 * @param pose pose
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean wouldNotSuffocateInPose(EntityPose pose) {
 		Box box = this.getDimensions(pose).getBoxAt(this.getEntityPos());
 		return this.getEntityWorld().isBlockSpaceEmpty(this, box);
@@ -4006,6 +4611,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		this.dataTracker.set(SLEEPING_POSITION, Optional.of(pos));
 	}
 
+	/**
+	 * Очищает sleeping position.
+	 */
 	public void clearSleepingPosition() {
 		this.dataTracker.set(SLEEPING_POSITION, Optional.empty());
 	}
@@ -4014,6 +4622,11 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return this.getSleepingPosition().isPresent();
 	}
 
+	/**
+	 * Sleep.
+	 *
+	 * @param pos pos
+	 */
 	public void sleep(BlockPos pos) {
 		if (this.hasVehicle()) {
 			this.stopRiding();
@@ -4042,6 +4655,9 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 				.orElse(false);
 	}
 
+	/**
+	 * Wake up.
+	 */
 	public void wakeUp() {
 		this.getSleepingPosition().filter(this.getEntityWorld()::isChunkLoaded).ifPresent(pos -> {
 			BlockState blockState = this.getEntityWorld().getBlockState(pos);
@@ -4109,6 +4725,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		};
 	}
 
+	/**
+	 * Отправляет equipment break status.
+	 *
+	 * @param item item
+	 * @param slot slot
+	 */
 	public void sendEquipmentBreakStatus(Item item, EquipmentSlot slot) {
 		this.getEntityWorld().sendEntityStatus(this, getEquipmentBreakStatus(slot));
 		this.onEquipmentRemoved(this.getEquippedStack(slot), slot, this.attributes);
@@ -4126,6 +4748,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		EnchantmentHelper.removeLocationBasedEffects(removedEquipment, this, slot);
 	}
 
+	/**
+	 * Проверяет возможность equip from dispenser.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public final boolean canEquipFromDispenser(ItemStack stack) {
 		if (this.isAlive() && !this.isSpectator()) {
 			EquippableComponent equippableComponent = stack.get(DataComponentTypes.EQUIPPABLE);
@@ -4144,6 +4773,13 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		}
 	}
 
+	/**
+	 * Проверяет возможность dispenser equip slot.
+	 *
+	 * @param slot slot
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canDispenserEquipSlot(EquipmentSlot slot) {
 		return true;
 	}
@@ -4154,6 +4790,14 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		                                                                                  : EquipmentSlot.MAINHAND;
 	}
 
+	/**
+	 * Проверяет возможность equip.
+	 *
+	 * @param stack stack
+	 * @param slot slot
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public final boolean canEquip(ItemStack stack, EquipmentSlot slot) {
 		EquippableComponent equippableComponent = stack.get(DataComponentTypes.EQUIPPABLE);
 		return equippableComponent == null
@@ -4273,6 +4917,12 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 				));
 	}
 
+	/**
+	 * Lerp head yaw.
+	 *
+	 * @param headTrackingIncrements head tracking increments
+	 * @param serverHeadYaw server head yaw
+	 */
 	protected void lerpHeadYaw(int headTrackingIncrements, double serverHeadYaw) {
 		this.headYaw =
 				(float) MathHelper.lerpAngleDegrees(1.0 / headTrackingIncrements, (double) this.headYaw, serverHeadYaw);
@@ -4291,6 +4941,14 @@ public abstract class LivingEntity extends Entity implements Attackable, ServerW
 		return this.isAlwaysInvulnerableTo(source) || EnchantmentHelper.isInvulnerableTo(world, this, source);
 	}
 
+	/**
+	 * Проверяет возможность glide with.
+	 *
+	 * @param stack stack
+	 * @param slot slot
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canGlideWith(ItemStack stack, EquipmentSlot slot) {
 		if (!stack.contains(DataComponentTypes.GLIDER)) {
 			return false;

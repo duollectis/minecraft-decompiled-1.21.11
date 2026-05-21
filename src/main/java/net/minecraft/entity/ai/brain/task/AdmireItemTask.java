@@ -10,6 +10,13 @@ import net.minecraft.entity.mob.PiglinBrain;
  */
 public class AdmireItemTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param duration duration
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(int duration) {
 		return TaskTriggerer.task(
 				context -> context.group(

@@ -3,6 +3,9 @@ package net.minecraft.network.packet;
 import net.minecraft.network.NetworkSide;
 import net.minecraft.util.Identifier;
 
+/**
+ * Запись packet type.
+ */
 public record PacketType<T extends Packet<?>>(NetworkSide side, Identifier id) {
 
 	@Override

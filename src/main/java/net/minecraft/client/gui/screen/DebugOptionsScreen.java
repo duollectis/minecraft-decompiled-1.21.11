@@ -134,6 +134,9 @@ public class DebugOptionsScreen extends Screen {
 	 */
 	public abstract static class AbstractEntry extends ElementListWidget.Entry<DebugOptionsScreen.AbstractEntry> {
 
+		/**
+		 * Init.
+		 */
 		public abstract void init();
 	}
 
@@ -389,10 +392,18 @@ public class DebugOptionsScreen extends Screen {
 			return 350;
 		}
 
+		/**
+		 * Init.
+		 */
 		public void init() {
 			this.children().forEach(DebugOptionsScreen.AbstractEntry::init);
 		}
 
+		/**
+		 * Fill entries.
+		 *
+		 * @param searchString search string
+		 */
 		public void fillEntries(String searchString) {
 			this.clearEntries();
 			List<Map.Entry<Identifier, DebugHudEntry>> list = new ArrayList<>(DebugHudEntries.getEntries().entrySet());

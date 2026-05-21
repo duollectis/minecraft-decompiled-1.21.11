@@ -15,6 +15,14 @@ public class TimeHelper {
 	public static final long HOUR_IN_SECONDS = TimeUnit.HOURS.toSeconds(1L);
 	public static final int MINUTE_IN_SECONDS = (int) TimeUnit.MINUTES.toSeconds(1L);
 
+	/**
+	 * Between seconds.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return UniformIntProvider — результат операции
+	 */
 	public static UniformIntProvider betweenSeconds(int min, int max) {
 		return UniformIntProvider.create(min * 20, max * 20);
 	}

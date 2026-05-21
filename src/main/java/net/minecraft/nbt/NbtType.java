@@ -40,6 +40,14 @@ public interface NbtType<T extends NbtElement> {
 				return new IOException("Invalid tag id: " + type);
 			}
 
+			/**
+			 * Read.
+			 *
+			 * @param dataInput data input
+			 * @param nbtSizeTracker nbt size tracker
+			 *
+			 * @return NbtEnd — результат операции
+			 */
 			public NbtEnd read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 				throw this.createException();
 			}

@@ -31,6 +31,9 @@ public class LockHelper {
 		this.name = name;
 	}
 
+	/**
+	 * Lock.
+	 */
 	public void lock() {
 		boolean bl = false;
 
@@ -58,6 +61,9 @@ public class LockHelper {
 		}
 	}
 
+	/**
+	 * Unlock.
+	 */
 	public void unlock() {
 		try {
 			this.lock.lock();
@@ -76,6 +82,14 @@ public class LockHelper {
 		}
 	}
 
+	/**
+	 * Crash.
+	 *
+	 * @param message message
+	 * @param thread thread
+	 *
+	 * @return CrashException — результат операции
+	 */
 	public static CrashException crash(String message, @Nullable Thread thread) {
 		String string = Stream.of(Thread.currentThread(), thread)
 		                      .filter(Objects::nonNull)

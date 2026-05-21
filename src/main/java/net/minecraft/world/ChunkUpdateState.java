@@ -25,6 +25,13 @@ public class ChunkUpdateState extends PersistentState {
 			                    .apply(instance, ChunkUpdateState::new)
 	);
 
+	/**
+	 * Создаёт state type.
+	 *
+	 * @param id id
+	 *
+	 * @return PersistentStateType — результат операции
+	 */
 	public static PersistentStateType<ChunkUpdateState> createStateType(String id) {
 		return new PersistentStateType<>(
 				id,
@@ -43,12 +50,24 @@ public class ChunkUpdateState extends PersistentState {
 		this(new LongOpenHashSet(), new LongOpenHashSet());
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param pos pos
+	 */
 	public void add(long pos) {
 		this.all.add(pos);
 		this.remaining.add(pos);
 		this.markDirty();
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(long pos) {
 		return this.all.contains(pos);
 	}
@@ -57,6 +76,11 @@ public class ChunkUpdateState extends PersistentState {
 		return this.remaining.contains(pos);
 	}
 
+	/**
+	 * Mark resolved.
+	 *
+	 * @param pos pos
+	 */
 	public void markResolved(long pos) {
 		if (this.remaining.remove(pos)) {
 			this.markDirty();

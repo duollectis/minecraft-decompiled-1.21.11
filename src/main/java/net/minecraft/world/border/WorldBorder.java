@@ -47,14 +47,35 @@ public class WorldBorder extends PersistentState {
 		this.properties = properties;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(BlockPos pos) {
 		return this.contains(pos.getX(), pos.getZ());
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(Vec3d pos) {
 		return this.contains(pos.x, pos.z);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param chunkPos chunk pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(ChunkPos chunkPos) {
 		return this.contains(chunkPos.getStartX(), chunkPos.getStartZ()) && this.contains(
 				chunkPos.getEndX(),
@@ -62,6 +83,13 @@ public class WorldBorder extends PersistentState {
 		);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param box box
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(Box box) {
 		return this.contains(box.minX, box.minZ, box.maxX - 1.0E-5F, box.maxZ - 1.0E-5F);
 	}
@@ -70,31 +98,87 @@ public class WorldBorder extends PersistentState {
 		return this.contains(minX, minZ) && this.contains(maxX, maxZ);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(double x, double z) {
 		return this.contains(x, z, 0.0);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param x x
+	 * @param z z
+	 * @param margin margin
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(double x, double z, double margin) {
 		return x >= this.getBoundWest() - margin && x < this.getBoundEast() + margin
 				&& z >= this.getBoundNorth() - margin && z < this.getBoundSouth() + margin;
 	}
 
+	/**
+	 * Clamp floored.
+	 *
+	 * @param pos pos
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos clampFloored(BlockPos pos) {
 		return this.clampFloored(pos.getX(), pos.getY(), pos.getZ());
 	}
 
+	/**
+	 * Clamp floored.
+	 *
+	 * @param pos pos
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos clampFloored(Vec3d pos) {
 		return this.clampFloored(pos.getX(), pos.getY(), pos.getZ());
 	}
 
+	/**
+	 * Clamp floored.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos clampFloored(double x, double y, double z) {
 		return BlockPos.ofFloored(this.clamp(x, y, z));
 	}
 
+	/**
+	 * Clamp.
+	 *
+	 * @param pos pos
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d clamp(Vec3d pos) {
 		return this.clamp(pos.x, pos.y, pos.z);
 	}
 
+	/**
+	 * Clamp.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d clamp(double x, double y, double z) {
 		return new Vec3d(
 				MathHelper.clamp(x, this.getBoundWest(), this.getBoundEast() - 1.0E-5F),
@@ -107,6 +191,11 @@ public class WorldBorder extends PersistentState {
 		return this.getDistanceInsideBorder(entity.getX(), entity.getZ());
 	}
 
+	/**
+	 * As voxel shape.
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public VoxelShape asVoxelShape() {
 		return this.area.asVoxelShape();
 	}
@@ -121,6 +210,14 @@ public class WorldBorder extends PersistentState {
 		return Math.min(h, e);
 	}
 
+	/**
+	 * Проверяет возможность collide.
+	 *
+	 * @param entity entity
+	 * @param box box
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canCollide(Entity entity, Box box) {
 		double d = Math.max(MathHelper.absMax(box.getLengthX(), box.getLengthZ()), 1.0);
 		return this.getDistanceInsideBorder(entity) < d * 2.0 && this.contains(entity.getX(), entity.getZ(), d);
@@ -202,6 +299,14 @@ public class WorldBorder extends PersistentState {
 		}
 	}
 
+	/**
+	 * Interpolate size.
+	 *
+	 * @param fromSize from size
+	 * @param toSize to size
+	 * @param timeDuration time duration
+	 * @param timeStart time start
+	 */
 	public void interpolateSize(double fromSize, double toSize, long timeDuration, long timeStart) {
 		this.area = (WorldBorder.Area) (fromSize == toSize
 		                                ? new WorldBorder.StaticArea(toSize)
@@ -218,10 +323,20 @@ public class WorldBorder extends PersistentState {
 		return Lists.newArrayList(this.listeners);
 	}
 
+	/**
+	 * Добавляет listener.
+	 *
+	 * @param listener listener
+	 */
 	public void addListener(WorldBorderListener listener) {
 		this.listeners.add(listener);
 	}
 
+	/**
+	 * Удаляет listener.
+	 *
+	 * @param listener listener
+	 */
 	public void removeListener(WorldBorderListener listener) {
 		this.listeners.remove(listener);
 	}
@@ -291,10 +406,18 @@ public class WorldBorder extends PersistentState {
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.area = this.area.getAreaInstance();
 	}
 
+	/**
+	 * Ensure initialized.
+	 *
+	 * @param time time
+	 */
 	public void ensureInitialized(long time) {
 		if (!this.initialized) {
 			this.setCenter(this.properties.centerX(), this.properties.centerZ());

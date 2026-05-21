@@ -20,6 +20,13 @@ public class DataCache<C extends DataCache.CacheContext<C>, D> {
 		this.dataFunction = dataFunction;
 	}
 
+	/**
+	 * Compute.
+	 *
+	 * @param context context
+	 *
+	 * @return D — результат операции
+	 */
 	public D compute(C context) {
 		if (context == this.context && this.data != null) {
 			return this.data;
@@ -33,6 +40,9 @@ public class DataCache<C extends DataCache.CacheContext<C>, D> {
 		}
 	}
 
+	/**
+	 * Clean.
+	 */
 	public void clean() {
 		this.data = null;
 		this.context = null;

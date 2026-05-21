@@ -34,6 +34,12 @@ public class HoglinSpecificSensor extends Sensor<HoglinEntity> {
 		);
 	}
 
+	/**
+	 * Sense.
+	 *
+	 * @param serverWorld server world
+	 * @param hoglinEntity hoglin entity
+	 */
 	protected void sense(ServerWorld serverWorld, HoglinEntity hoglinEntity) {
 		Brain<?> brain = hoglinEntity.getBrain();
 		brain.remember(MemoryModuleType.NEAREST_REPELLENT, this.findNearestWarpedFungus(serverWorld, hoglinEntity));

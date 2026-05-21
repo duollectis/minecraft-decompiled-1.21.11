@@ -22,11 +22,21 @@ public class SaddledComponent {
 		this.boostTime = boostTime;
 	}
 
+	/**
+	 * Boost.
+	 */
 	public void boost() {
 		this.boosted = true;
 		this.boostedTime = 0;
 	}
 
+	/**
+	 * Boost.
+	 *
+	 * @param random random
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean boost(Random random) {
 		if (this.boosted) {
 			return false;
@@ -39,6 +49,9 @@ public class SaddledComponent {
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для boost.
+	 */
 	public void tickBoost() {
 		if (this.boosted && this.boostedTime++ > this.getBoostTime()) {
 			this.boosted = false;

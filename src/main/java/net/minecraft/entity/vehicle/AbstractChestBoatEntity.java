@@ -167,6 +167,11 @@ public abstract class AbstractChestBoatEntity extends AbstractBoatEntity impleme
 		}
 	}
 
+	/**
+	 * Generate loot.
+	 *
+	 * @param player player
+	 */
 	public void generateLoot(@Nullable PlayerEntity player) {
 		this.generateInventoryLoot(player);
 	}

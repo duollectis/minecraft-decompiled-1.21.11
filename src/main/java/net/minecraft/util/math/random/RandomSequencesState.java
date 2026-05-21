@@ -76,6 +76,11 @@ public class RandomSequencesState extends PersistentState {
 		return new RandomSequence(l, includeSequenceId ? Optional.of(id) : Optional.empty());
 	}
 
+	/**
+	 * For each sequence.
+	 *
+	 * @param consumer consumer
+	 */
 	public void forEachSequence(BiConsumer<Identifier, RandomSequence> consumer) {
 		this.sequences.forEach(consumer);
 	}
@@ -86,16 +91,36 @@ public class RandomSequencesState extends PersistentState {
 		this.includeSequenceId = includeSequenceId;
 	}
 
+	/**
+	 * Сбрасывает all.
+	 *
+	 * @return int — результат операции
+	 */
 	public int resetAll() {
 		int i = this.sequences.size();
 		this.sequences.clear();
 		return i;
 	}
 
+	/**
+	 * Reset.
+	 *
+	 * @param id id
+	 * @param worldSeed world seed
+	 */
 	public void reset(Identifier id, long worldSeed) {
 		this.sequences.put(id, this.createSequence(id, worldSeed));
 	}
 
+	/**
+	 * Reset.
+	 *
+	 * @param id id
+	 * @param worldSeed world seed
+	 * @param salt salt
+	 * @param includeWorldSeed include world seed
+	 * @param includeSequenceId include sequence id
+	 */
 	public void reset(Identifier id, long worldSeed, int salt, boolean includeWorldSeed, boolean includeSequenceId) {
 		this.sequences.put(id, this.createSequence(id, worldSeed, salt, includeWorldSeed, includeSequenceId));
 	}

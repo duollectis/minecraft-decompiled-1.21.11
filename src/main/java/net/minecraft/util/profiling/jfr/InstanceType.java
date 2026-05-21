@@ -15,6 +15,13 @@ public enum InstanceType {
 		this.name = name;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param server server
+	 *
+	 * @return InstanceType — 
+	 */
 	public static InstanceType get(MinecraftServer server) {
 		return server.isDedicated() ? SERVER : CLIENT;
 	}

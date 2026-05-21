@@ -77,6 +77,11 @@ public class ShulkerBulletEntityRenderer extends EntityRenderer<ShulkerBulletEnt
 		super.render(shulkerBulletEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ShulkerBulletEntityRenderState — результат операции
+	 */
 	public ShulkerBulletEntityRenderState createRenderState() {
 		return new ShulkerBulletEntityRenderState();
 	}

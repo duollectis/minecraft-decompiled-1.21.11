@@ -29,10 +29,22 @@ public class WitchEntityRenderer extends MobEntityRenderer<WitchEntity, WitchEnt
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return WitchEntityRenderState — результат операции
+	 */
 	public WitchEntityRenderState createRenderState() {
 		return new WitchEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param witchEntity witch entity
+	 * @param witchEntityRenderState witch entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(WitchEntity witchEntity, WitchEntityRenderState witchEntityRenderState, float f) {
 		super.updateRenderState(witchEntity, witchEntityRenderState, f);
 		ItemHolderEntityRenderState.update(witchEntity, witchEntityRenderState, this.itemModelResolver);

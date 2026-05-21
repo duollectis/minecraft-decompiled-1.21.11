@@ -107,6 +107,9 @@ public class DataPackContents {
 		                           );
 	}
 
+	/**
+	 * Применяет pending tag loads.
+	 */
 	public void applyPendingTagLoads() {
 		this.pendingTagLoads.forEach(Registry.PendingTagLoad::apply);
 	}

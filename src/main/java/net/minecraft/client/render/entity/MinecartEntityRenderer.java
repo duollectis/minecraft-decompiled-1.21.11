@@ -16,6 +16,11 @@ public class MinecartEntityRenderer extends AbstractMinecartEntityRenderer<Abstr
 		super(context, entityModelLayer);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return MinecartEntityRenderState — результат операции
+	 */
 	public MinecartEntityRenderState createRenderState() {
 		return new MinecartEntityRenderState();
 	}

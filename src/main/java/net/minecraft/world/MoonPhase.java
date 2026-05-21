@@ -31,6 +31,11 @@ public enum MoonPhase implements StringIdentifiable {
 		return this.index;
 	}
 
+	/**
+	 * Phase ticks.
+	 *
+	 * @return int — результат операции
+	 */
 	public int phaseTicks() {
 		return this.index * 24000;
 	}

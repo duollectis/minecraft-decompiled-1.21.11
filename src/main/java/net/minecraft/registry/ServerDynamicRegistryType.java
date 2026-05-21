@@ -16,6 +16,11 @@ public enum ServerDynamicRegistryType {
 			STATIC_REGISTRY_MANAGER =
 			DynamicRegistryManager.of(Registries.REGISTRIES);
 
+	/**
+	 * Создаёт combined dynamic registries.
+	 *
+	 * @return CombinedDynamicRegistries — результат операции
+	 */
 	public static CombinedDynamicRegistries<ServerDynamicRegistryType> createCombinedDynamicRegistries() {
 		return new CombinedDynamicRegistries<>(VALUES).with(STATIC, STATIC_REGISTRY_MANAGER);
 	}

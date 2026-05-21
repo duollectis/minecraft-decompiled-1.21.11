@@ -26,6 +26,9 @@ import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Класс message handler.
+ */
 public class MessageHandler {
 
 	private static final Text
@@ -40,6 +43,9 @@ public class MessageHandler {
 		this.client = client;
 	}
 
+	/**
+	 * Обрабатывает delayed messages.
+	 */
 	public void processDelayedMessages() {
 		if (this.client.isPaused()) {
 			if (this.chatDelay > 0L) {
@@ -73,6 +79,9 @@ public class MessageHandler {
 		this.chatDelay = l;
 	}
 
+	/**
+	 * Process.
+	 */
 	public void process() {
 		this.delayedMessages.remove().accept();
 	}
@@ -81,12 +90,22 @@ public class MessageHandler {
 		return this.delayedMessages.size();
 	}
 
+	/**
+	 * Обрабатывает all.
+	 */
 	public void processAll() {
 		this.delayedMessages.forEach(MessageHandler.ProcessableMessage::accept);
 		this.delayedMessages.clear();
 		this.lastProcessTime = 0L;
 	}
 
+	/**
+	 * Удаляет delayed message.
+	 *
+	 * @param signature signature
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean removeDelayedMessage(MessageSignatureData signature) {
 		return this.delayedMessages.removeIf(message -> signature.equals(message.signature()));
 	}
@@ -104,6 +123,13 @@ public class MessageHandler {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие chat message.
+	 *
+	 * @param message message
+	 * @param sender sender
+	 * @param params params
+	 */
 	public void onChatMessage(SignedMessage message, GameProfile sender, MessageType.Parameters params) {
 		boolean bl = this.client.options.getOnlyShowSecureChat().getValue();
 		SignedMessage signedMessage = bl ? message.withoutUnsigned() : message;
@@ -150,6 +176,12 @@ public class MessageHandler {
 		);
 	}
 
+	/**
+	 * Обрабатывает событие profileless message.
+	 *
+	 * @param content content
+	 * @param params params
+	 */
 	public void onProfilelessMessage(Text content, MessageType.Parameters params) {
 		Instant instant = Instant.now();
 		this.process(
@@ -225,6 +257,12 @@ public class MessageHandler {
 		chatLog.add(ReceivedMessage.of(message, timestamp));
 	}
 
+	/**
+	 * Обрабатывает событие game message.
+	 *
+	 * @param message message
+	 * @param overlay overlay
+	 */
 	public void onGameMessage(Text message, boolean overlay) {
 		if (!this.client.options.getHideMatchedNames().getValue()
 				|| !this.client.shouldBlockMessages(this.extractSender(message))) {
@@ -259,6 +297,11 @@ public class MessageHandler {
 	@Environment(EnvType.CLIENT)
 	record ProcessableMessage(@Nullable MessageSignatureData signature, BooleanSupplier handler) {
 
+		/**
+		 * Accept.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean accept() {
 			return this.handler.getAsBoolean();
 		}

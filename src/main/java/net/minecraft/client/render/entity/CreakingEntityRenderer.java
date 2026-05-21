@@ -37,10 +37,22 @@ public class CreakingEntityRenderer<T extends CreakingEntity> extends MobEntityR
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return CreakingEntityRenderState — результат операции
+	 */
 	public CreakingEntityRenderState createRenderState() {
 		return new CreakingEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param creakingEntity creaking entity
+	 * @param creakingEntityRenderState creaking entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T creakingEntity, CreakingEntityRenderState creakingEntityRenderState, float f) {
 		super.updateRenderState(creakingEntity, creakingEntityRenderState, f);
 		creakingEntityRenderState.attackAnimationState.copyFrom(creakingEntity.attackAnimationState);

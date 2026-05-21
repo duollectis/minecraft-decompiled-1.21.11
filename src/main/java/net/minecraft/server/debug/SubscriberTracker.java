@@ -25,6 +25,9 @@ public class SubscriberTracker {
 		return this.subscribers.getOrDefault(type, List.of());
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.subscribers.values().forEach(List::clear);
 
@@ -39,6 +42,12 @@ public class SubscriberTracker {
 		this.subscribers.values().removeIf(List::isEmpty);
 	}
 
+	/**
+	 * Send.
+	 *
+	 * @param type type
+	 * @param packet packet
+	 */
 	public void send(DebugSubscriptionType<?> type, Packet<?> packet) {
 		for (ServerPlayerEntity serverPlayerEntity : this.getSubscribers(type)) {
 			serverPlayerEntity.networkHandler.sendPacket(packet);
@@ -53,6 +62,13 @@ public class SubscriberTracker {
 		return !this.getSubscribers(type).isEmpty();
 	}
 
+	/**
+	 * Проверяет возможность subscribe.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSubscribe(ServerPlayerEntity player) {
 		PlayerConfigEntry playerConfigEntry = player.getPlayerConfigEntry();
 		return SharedConstants.isDevelopment && this.server.isHost(playerConfigEntry) ? true : this.server

@@ -48,6 +48,13 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 	final AbstractTextFilterer.HashIgnorer hashIgnorer;
 	final ExecutorService threadPool;
 
+	/**
+	 * New thread pool.
+	 *
+	 * @param threadCount thread count
+	 *
+	 * @return ExecutorService — результат операции
+	 */
 	protected static ExecutorService newThreadPool(int threadCount) {
 		return Executors.newFixedThreadPool(threadCount, THREAD_FACTORY);
 	}
@@ -74,6 +81,13 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 		return endpoints != null ? JsonHelper.getString(endpoints, key, defaultPath) : defaultPath;
 	}
 
+	/**
+	 * Создаёт text filter.
+	 *
+	 * @param properties properties
+	 *
+	 * @return @Nullable AbstractTextFilterer — результат операции
+	 */
 	public static @Nullable AbstractTextFilterer createTextFilter(ServerPropertiesHandler properties) {
 		String string = properties.textFilteringConfig;
 		if (StringHelper.isBlank(string)) {
@@ -146,6 +160,11 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 		this.threadPool.shutdownNow();
 	}
 
+	/**
+	 * Discard rest of input.
+	 *
+	 * @param stream stream
+	 */
 	protected void discardRestOfInput(InputStream stream) throws IOException {
 		byte[] bs = new byte[1024];
 
@@ -176,6 +195,14 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 		return var5;
 	}
 
+	/**
+	 * Открывает connection.
+	 *
+	 * @param request request
+	 * @param url url
+	 *
+	 * @return HttpURLConnection — результат операции
+	 */
 	protected HttpURLConnection openConnection(JsonObject request, URL url) throws IOException {
 		HttpURLConnection httpURLConnection = this.openConnection(url);
 		this.addAuthentication(httpURLConnection);
@@ -223,12 +250,24 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Добавляет authentication.
+	 *
+	 * @param connection connection
+	 */
 	protected abstract void addAuthentication(HttpURLConnection connection);
 
 	protected int getReadTimeout() {
 		return 2000;
 	}
 
+	/**
+	 * Открывает connection.
+	 *
+	 * @param url url
+	 *
+	 * @return HttpURLConnection — результат операции
+	 */
 	protected HttpURLConnection openConnection(URL url) throws IOException {
 		HttpURLConnection httpURLConnection = (HttpURLConnection) url.openConnection();
 		httpURLConnection.setConnectTimeout(15000);
@@ -246,6 +285,13 @@ public abstract class AbstractTextFilterer implements AutoCloseable {
 		return httpURLConnection;
 	}
 
+	/**
+	 * Создаёт filterer.
+	 *
+	 * @param profile profile
+	 *
+	 * @return TextStream — результат операции
+	 */
 	public TextStream createFilterer(GameProfile profile) {
 		return new AbstractTextFilterer.StreamImpl(profile);
 	}

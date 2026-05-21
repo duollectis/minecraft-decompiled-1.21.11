@@ -27,6 +27,13 @@ public record SentTelemetryEvent(TelemetryEventType type, PropertyMap properties
 		this.properties = properties;
 	}
 
+	/**
+	 * Создаёт event.
+	 *
+	 * @param session session
+	 *
+	 * @return TelemetryEvent — результат операции
+	 */
 	public TelemetryEvent createEvent(TelemetrySession session) {
 		return this.type.createEvent(session, this.properties);
 	}

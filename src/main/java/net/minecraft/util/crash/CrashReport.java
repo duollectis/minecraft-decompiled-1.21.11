@@ -57,6 +57,11 @@ public class CrashReport {
 		return stringBuilder.toString();
 	}
 
+	/**
+	 * Добавляет details.
+	 *
+	 * @param crashReportBuilder crash report builder
+	 */
 	public void addDetails(StringBuilder crashReportBuilder) {
 		if ((this.stackTrace == null || this.stackTrace.length <= 0) && !this.otherSections.isEmpty()) {
 			this.stackTrace =
@@ -117,6 +122,14 @@ public class CrashReport {
 		return var4;
 	}
 
+	/**
+	 * As string.
+	 *
+	 * @param type type
+	 * @param extraInfo extra info
+	 *
+	 * @return String — результат операции
+	 */
 	public String asString(ReportType type, List<String> extraInfo) {
 		StringBuilder stringBuilder = new StringBuilder();
 		type.addHeaderAndNugget(stringBuilder, extraInfo);
@@ -139,6 +152,13 @@ public class CrashReport {
 		return stringBuilder.toString();
 	}
 
+	/**
+	 * As string.
+	 *
+	 * @param type type
+	 *
+	 * @return String — результат операции
+	 */
 	public String asString(ReportType type) {
 		return this.asString(type, List.of());
 	}
@@ -147,6 +167,15 @@ public class CrashReport {
 		return this.file;
 	}
 
+	/**
+	 * Записывает to file.
+	 *
+	 * @param path path
+	 * @param type type
+	 * @param extraInfo extra info
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean writeToFile(Path path, ReportType type, List<String> extraInfo) {
 		if (this.file != null) {
 			return false;
@@ -171,6 +200,14 @@ public class CrashReport {
 		}
 	}
 
+	/**
+	 * Записывает to file.
+	 *
+	 * @param path path
+	 * @param type type
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean writeToFile(Path path, ReportType type) {
 		return this.writeToFile(path, type, List.of());
 	}
@@ -179,10 +216,25 @@ public class CrashReport {
 		return this.systemDetailsSection;
 	}
 
+	/**
+	 * Добавляет element.
+	 *
+	 * @param name name
+	 *
+	 * @return CrashReportSection — результат операции
+	 */
 	public CrashReportSection addElement(String name) {
 		return this.addElement(name, 1);
 	}
 
+	/**
+	 * Добавляет element.
+	 *
+	 * @param name name
+	 * @param ignoredStackTraceCallCount ignored stack trace call count
+	 *
+	 * @return CrashReportSection — результат операции
+	 */
 	public CrashReportSection addElement(String name, int ignoredStackTraceCallCount) {
 		CrashReportSection crashReportSection = new CrashReportSection(name);
 		if (this.hasStackTrace) {
@@ -217,6 +269,14 @@ public class CrashReport {
 		return crashReportSection;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param cause cause
+	 * @param title title
+	 *
+	 * @return CrashReport — результат операции
+	 */
 	public static CrashReport create(Throwable cause, String title) {
 		while (cause instanceof CompletionException && cause.getCause() != null) {
 			cause = cause.getCause();
@@ -233,6 +293,9 @@ public class CrashReport {
 		return crashReport;
 	}
 
+	/**
+	 * Инициализирует crash report.
+	 */
 	public static void initCrashReport() {
 		CrashMemoryReserve.reserveMemory();
 		new CrashReport("Don't panic!", new Throwable()).asString(ReportType.MINECRAFT_CRASH_REPORT);

@@ -175,7 +175,13 @@ public abstract class SliderWidget extends ClickableWidget.InactivityIndicatingW
 		super.playDownSound(MinecraftClient.getInstance().getSoundManager());
 	}
 
+	/**
+	 * Обновляет message.
+	 */
 	protected abstract void updateMessage();
 
+	/**
+	 * Применяет value.
+	 */
 	protected abstract void applyValue();
 }

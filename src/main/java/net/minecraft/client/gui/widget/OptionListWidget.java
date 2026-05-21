@@ -33,10 +33,20 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 		this.optionsScreen = optionsScreen;
 	}
 
+	/**
+	 * Добавляет single option entry.
+	 *
+	 * @param option option
+	 */
 	public void addSingleOptionEntry(SimpleOption<?> option) {
 		this.addEntry(OptionListWidget.WidgetEntry.create(this.client.options, option, this.optionsScreen));
 	}
 
+	/**
+	 * Добавляет all.
+	 *
+	 * @param options options
+	 */
 	public void addAll(SimpleOption<?>... options) {
 		for (int i = 0; i < options.length; i += 2) {
 			SimpleOption<?> simpleOption = i < options.length - 1 ? options[i + 1] : null;
@@ -49,12 +59,23 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 		}
 	}
 
+	/**
+	 * Добавляет all.
+	 *
+	 * @param widgets widgets
+	 */
 	public void addAll(List<ClickableWidget> widgets) {
 		for (int i = 0; i < widgets.size(); i += 2) {
 			this.addWidgetEntry(widgets.get(i), i < widgets.size() - 1 ? widgets.get(i + 1) : null);
 		}
 	}
 
+	/**
+	 * Добавляет widget entry.
+	 *
+	 * @param firstWidget first widget
+	 * @param secondWidget second widget
+	 */
 	public void addWidgetEntry(ClickableWidget firstWidget, @Nullable ClickableWidget secondWidget) {
 		this.addEntry(OptionListWidget.WidgetEntry.create(firstWidget, secondWidget, this.optionsScreen));
 	}
@@ -67,6 +88,11 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 		this.addEntry(OptionListWidget.WidgetEntry.create(firstWidget, option, secondWidget, this.optionsScreen));
 	}
 
+	/**
+	 * Добавляет header.
+	 *
+	 * @param title title
+	 */
 	public void addHeader(Text title) {
 		int i = 9;
 		int j = this.children().isEmpty() ? 0 : i * 2;
@@ -91,6 +117,9 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 		return null;
 	}
 
+	/**
+	 * Применяет all pending values.
+	 */
 	public void applyAllPendingValues() {
 		for (OptionListWidget.Component component : this.children()) {
 			if (component instanceof OptionListWidget.WidgetEntry widgetEntry) {
@@ -104,6 +133,11 @@ public class OptionListWidget extends ElementListWidget<OptionListWidget.Compone
 		}
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param simpleOption simple option
+	 */
 	public void update(SimpleOption<?> simpleOption) {
 		for (OptionListWidget.Component component : this.children()) {
 			if (component instanceof OptionListWidget.WidgetEntry widgetEntry) {

@@ -20,6 +20,13 @@ public abstract class NumeralParsingRule implements ParsingRule<StringReader, St
 		this.unexpectedUnderscoreException = unexpectedUnderscoreException;
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param parsingState parsing state
+	 *
+	 * @return @Nullable String — результат операции
+	 */
 	public @Nullable String parse(ParsingState<StringReader> parsingState) {
 		StringReader stringReader = parsingState.getReader();
 		stringReader.skipWhitespace();
@@ -46,5 +53,12 @@ public abstract class NumeralParsingRule implements ParsingRule<StringReader, St
 		}
 	}
 
+	/**
+	 * Accepts.
+	 *
+	 * @param c c
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected abstract boolean accepts(char c);
 }

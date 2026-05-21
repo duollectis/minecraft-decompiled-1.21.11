@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Запись game test highlight pos s2 c packet.
+ */
 public record GameTestHighlightPosS2CPacket(
 		BlockPos absolutePos,
 		BlockPos relativePos
@@ -26,6 +29,11 @@ public record GameTestHighlightPosS2CPacket(
 		return PlayPackets.GAME_TEST_HIGHLIGHT_POS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onGameTestHighlightPos(this);
 	}

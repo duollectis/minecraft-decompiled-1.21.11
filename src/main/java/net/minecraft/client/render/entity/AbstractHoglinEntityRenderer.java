@@ -29,10 +29,22 @@ public abstract class AbstractHoglinEntityRenderer<T extends MobEntity & Hoglin>
 		);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return HoglinEntityRenderState — результат операции
+	 */
 	public HoglinEntityRenderState createRenderState() {
 		return new HoglinEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param mobEntity mob entity
+	 * @param hoglinEntityRenderState hoglin entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T mobEntity, HoglinEntityRenderState hoglinEntityRenderState, float f) {
 		super.updateRenderState(mobEntity, hoglinEntityRenderState, f);
 		hoglinEntityRenderState.movementCooldownTicks = mobEntity.getMovementCooldownTicks();

@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись world time update s2 c packet.
+ */
 public record WorldTimeUpdateS2CPacket(
 		long time,
 		long timeOfDay,
@@ -29,6 +32,11 @@ public record WorldTimeUpdateS2CPacket(
 		return PlayPackets.SET_TIME;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onWorldTimeUpdate(this);
 	}

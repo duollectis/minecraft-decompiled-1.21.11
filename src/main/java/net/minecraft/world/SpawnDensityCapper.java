@@ -31,6 +31,12 @@ public class SpawnDensityCapper {
 				.computeIfAbsent(chunkPos.toLong(), pos -> this.chunkLoadingManager.getPlayersWatchingChunk(chunkPos));
 	}
 
+	/**
+	 * Increase density.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param spawnGroup spawn group
+	 */
 	public void increaseDensity(ChunkPos chunkPos, SpawnGroup spawnGroup) {
 		for (ServerPlayerEntity serverPlayerEntity : this.getMobSpawnablePlayers(chunkPos)) {
 			this.playersToDensityCap
@@ -39,6 +45,14 @@ public class SpawnDensityCapper {
 		}
 	}
 
+	/**
+	 * Проверяет возможность spawn.
+	 *
+	 * @param spawnGroup spawn group
+	 * @param chunkPos chunk pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSpawn(SpawnGroup spawnGroup, ChunkPos chunkPos) {
 		for (ServerPlayerEntity serverPlayerEntity : this.getMobSpawnablePlayers(chunkPos)) {
 			SpawnDensityCapper.DensityCap densityCap = this.playersToDensityCap.get(serverPlayerEntity);
@@ -59,10 +73,22 @@ public class SpawnDensityCapper {
 				spawnGroupsToDensity =
 				new Object2IntOpenHashMap(SpawnGroup.values().length);
 
+		/**
+		 * Increase density.
+		 *
+		 * @param spawnGroup spawn group
+		 */
 		public void increaseDensity(SpawnGroup spawnGroup) {
 			this.spawnGroupsToDensity.computeInt(spawnGroup, (group, density) -> density == null ? 1 : density + 1);
 		}
 
+		/**
+		 * Проверяет возможность spawn.
+		 *
+		 * @param spawnGroup spawn group
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canSpawn(SpawnGroup spawnGroup) {
 			return this.spawnGroupsToDensity.getOrDefault(spawnGroup, 0) < spawnGroup.getCapacity();
 		}

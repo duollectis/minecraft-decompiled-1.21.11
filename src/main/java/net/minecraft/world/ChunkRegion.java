@@ -96,6 +96,14 @@ public class ChunkRegion implements StructureWorldAccess {
 		this.biomeAccess = new BiomeAccess(this, BiomeAccess.hashSeed(this.seed));
 	}
 
+	/**
+	 * Needs blending.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param checkRadius check radius
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsBlending(ChunkPos chunkPos, int checkRadius) {
 		return this.world.getChunkManager().chunkLoadingManager.needsBlending(chunkPos, checkRadius);
 	}

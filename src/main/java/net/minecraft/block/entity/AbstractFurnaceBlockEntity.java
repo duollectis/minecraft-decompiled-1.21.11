@@ -144,6 +144,14 @@ public abstract class AbstractFurnaceBlockEntity extends LockableContainerBlockE
 		view.put("RecipesUsed", CODEC, this.recipesUsed);
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(ServerWorld world, BlockPos pos, BlockState state, AbstractFurnaceBlockEntity blockEntity) {
 		boolean bl = blockEntity.isBurning();
 		boolean bl2 = false;
@@ -387,6 +395,11 @@ public abstract class AbstractFurnaceBlockEntity extends LockableContainerBlockE
 	public void unlockLastRecipe(PlayerEntity player, List<ItemStack> ingredients) {
 	}
 
+	/**
+	 * Бросает experience for recipes used.
+	 *
+	 * @param player player
+	 */
 	public void dropExperienceForRecipesUsed(ServerPlayerEntity player) {
 		List<RecipeEntry<?>>
 				list =

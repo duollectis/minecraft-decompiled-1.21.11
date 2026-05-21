@@ -33,6 +33,11 @@ public class ShearsItem extends Item {
 		super(settings);
 	}
 
+	/**
+	 * Создаёт tool component.
+	 *
+	 * @return ToolComponent — результат операции
+	 */
 	public static ToolComponent createToolComponent() {
 		RegistryEntryLookup<Block> registryEntryLookup = Registries.createEntryLookup(Registries.BLOCK);
 		return new ToolComponent(

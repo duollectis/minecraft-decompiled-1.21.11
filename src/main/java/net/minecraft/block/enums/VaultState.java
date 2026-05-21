@@ -164,6 +164,14 @@ public enum VaultState implements StringIdentifiable {
 	) {
 	}
 
+	/**
+	 * Обрабатывает событие changed from.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param config config
+	 * @param sharedData shared data
+	 */
 	protected void onChangedFrom(ServerWorld world, BlockPos pos, VaultConfig config, VaultSharedData sharedData) {
 	}
 

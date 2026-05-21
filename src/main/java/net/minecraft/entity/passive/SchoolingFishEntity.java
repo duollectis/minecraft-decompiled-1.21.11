@@ -48,12 +48,22 @@ public abstract class SchoolingFishEntity extends FishEntity {
 		return this.leader != null && this.leader.isAlive();
 	}
 
+	/**
+	 * Join group of.
+	 *
+	 * @param groupLeader group leader
+	 *
+	 * @return SchoolingFishEntity — результат операции
+	 */
 	public SchoolingFishEntity joinGroupOf(SchoolingFishEntity groupLeader) {
 		this.leader = groupLeader;
 		groupLeader.increaseGroupSize();
 		return groupLeader;
 	}
 
+	/**
+	 * Leave group.
+	 */
 	public void leaveGroup() {
 		this.leader.decreaseGroupSize();
 		this.leader = null;
@@ -67,6 +77,11 @@ public abstract class SchoolingFishEntity extends FishEntity {
 		this.groupSize--;
 	}
 
+	/**
+	 * Проверяет возможность have more fish in group.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canHaveMoreFishInGroup() {
 		return this.hasOtherFishInGroup() && this.groupSize < this.getMaxGroupSize();
 	}
@@ -94,12 +109,20 @@ public abstract class SchoolingFishEntity extends FishEntity {
 		return this.squaredDistanceTo(this.leader) <= 121.0;
 	}
 
+	/**
+	 * Перемещает toward leader.
+	 */
 	public void moveTowardLeader() {
 		if (this.hasLeader()) {
 			this.getNavigation().startMovingTo(this.leader, 1.0);
 		}
 	}
 
+	/**
+	 * Pull in other fish.
+	 *
+	 * @param fish fish
+	 */
 	public void pullInOtherFish(Stream<? extends SchoolingFishEntity> fish) {
 		fish
 				.limit(this.getMaxGroupSize() - this.groupSize)

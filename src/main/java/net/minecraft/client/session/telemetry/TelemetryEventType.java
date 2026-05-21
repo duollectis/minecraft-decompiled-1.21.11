@@ -129,6 +129,14 @@ public class TelemetryEventType {
 		return this.optional;
 	}
 
+	/**
+	 * Создаёт event.
+	 *
+	 * @param session session
+	 * @param properties properties
+	 *
+	 * @return TelemetryEvent — результат операции
+	 */
 	public TelemetryEvent createEvent(TelemetrySession session, PropertyMap properties) {
 		TelemetryEvent telemetryEvent = session.createNewEvent(this.exportKey);
 
@@ -195,6 +203,11 @@ public class TelemetryEventType {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return TelemetryEventType — результат операции
+		 */
 		public TelemetryEventType build() {
 			TelemetryEventType
 					telemetryEventType =

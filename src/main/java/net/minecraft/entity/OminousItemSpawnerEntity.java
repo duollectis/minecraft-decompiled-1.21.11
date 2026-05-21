@@ -39,6 +39,14 @@ public class OminousItemSpawnerEntity extends Entity {
 		this.noClip = true;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param world world
+	 * @param stack stack
+	 *
+	 * @return OminousItemSpawnerEntity — результат операции
+	 */
 	public static OminousItemSpawnerEntity create(World world, ItemStack stack) {
 		OminousItemSpawnerEntity
 				ominousItemSpawnerEntity =
@@ -166,6 +174,9 @@ public class OminousItemSpawnerEntity extends Entity {
 		return true;
 	}
 
+	/**
+	 * Добавляет particles.
+	 */
 	public void addParticles() {
 		Vec3d vec3d = this.getEntityPos();
 		int i = this.random.nextBetween(1, 3);

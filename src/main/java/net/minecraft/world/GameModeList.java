@@ -16,10 +16,24 @@ public record GameModeList(List<GameMode> gameModes) {
 			CODEC =
 			GameMode.CODEC.listOf().xmap(GameModeList::new, GameModeList::gameModes);
 
+	/**
+	 * Of.
+	 *
+	 * @param gameModes game modes
+	 *
+	 * @return GameModeList — результат операции
+	 */
 	public static GameModeList of(GameMode... gameModes) {
 		return new GameModeList(Arrays.stream(gameModes).toList());
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param gameMode game mode
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(GameMode gameMode) {
 		return this.gameModes.contains(gameMode);
 	}

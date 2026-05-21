@@ -67,6 +67,13 @@ public abstract class BipedEntityRenderer<T extends MobEntity, S extends BipedEn
 		}
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param mobEntity mob entity
+	 * @param bipedEntityRenderState biped entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T mobEntity, S bipedEntityRenderState, float f) {
 		super.updateRenderState(mobEntity, bipedEntityRenderState, f);
 		updateBipedRenderState(mobEntity, bipedEntityRenderState, f, this.itemModelResolver);

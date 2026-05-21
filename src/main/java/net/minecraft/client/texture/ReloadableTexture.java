@@ -28,6 +28,11 @@ public abstract class ReloadableTexture extends AbstractTexture {
 		return this.textureId;
 	}
 
+	/**
+	 * Reload.
+	 *
+	 * @param textureContents texture contents
+	 */
 	public void reload(TextureContents textureContents) {
 		boolean bl = textureContents.clamp();
 		boolean bl2 = textureContents.blur();
@@ -40,6 +45,11 @@ public abstract class ReloadableTexture extends AbstractTexture {
 		}
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param image image
+	 */
 	protected void load(NativeImage image) {
 		GpuDevice gpuDevice = RenderSystem.getDevice();
 		this.close();
@@ -57,5 +67,12 @@ public abstract class ReloadableTexture extends AbstractTexture {
 		gpuDevice.createCommandEncoder().writeToTexture(this.glTexture, image);
 	}
 
+	/**
+	 * Загружает contents.
+	 *
+	 * @param resourceManager resource manager
+	 *
+	 * @return TextureContents — результат операции
+	 */
 	public abstract TextureContents loadContents(ResourceManager resourceManager) throws IOException;
 }

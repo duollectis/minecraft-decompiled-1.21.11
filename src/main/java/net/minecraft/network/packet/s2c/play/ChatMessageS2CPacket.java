@@ -17,6 +17,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.UUID;
 
+/**
+ * Запись chat message s2 c packet.
+ */
 public record ChatMessageS2CPacket(
 		int globalIndex,
 		UUID sender,
@@ -61,6 +64,11 @@ public record ChatMessageS2CPacket(
 		return PlayPackets.PLAYER_CHAT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onChatMessage(this);
 	}

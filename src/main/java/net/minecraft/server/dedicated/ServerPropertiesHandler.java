@@ -226,10 +226,25 @@ public class ServerPropertiesHandler extends AbstractPropertiesHandler<ServerPro
 		);
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param path path
+	 *
+	 * @return ServerPropertiesHandler — результат операции
+	 */
 	public static ServerPropertiesHandler load(Path path) {
 		return new ServerPropertiesHandler(loadProperties(path));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param dynamicRegistryManager dynamic registry manager
+	 * @param properties properties
+	 *
+	 * @return ServerPropertiesHandler — результат операции
+	 */
 	protected ServerPropertiesHandler create(DynamicRegistryManager dynamicRegistryManager, Properties properties) {
 		return new ServerPropertiesHandler(properties);
 	}
@@ -313,6 +328,13 @@ public class ServerPropertiesHandler extends AbstractPropertiesHandler<ServerPro
 		return new DataPackSettings(list, list2);
 	}
 
+	/**
+	 * Разбирает permission level.
+	 *
+	 * @param value value
+	 *
+	 * @return @Nullable LeveledPermissionPredicate — результат операции
+	 */
 	public static @Nullable LeveledPermissionPredicate parsePermissionLevel(String value) {
 		try {
 			PermissionLevel permissionLevel = PermissionLevel.fromLevel(Integer.parseInt(value));
@@ -323,10 +345,24 @@ public class ServerPropertiesHandler extends AbstractPropertiesHandler<ServerPro
 		}
 	}
 
+	/**
+	 * Permission level to string.
+	 *
+	 * @param level level
+	 *
+	 * @return String — результат операции
+	 */
 	public static String permissionLevelToString(LeveledPermissionPredicate level) {
 		return Integer.toString(level.getLevel().getLevel());
 	}
 
+	/**
+	 * Создаёт dimensions registry holder.
+	 *
+	 * @param registries registries
+	 *
+	 * @return DimensionOptionsRegistryHolder — результат операции
+	 */
 	public DimensionOptionsRegistryHolder createDimensionsRegistryHolder(RegistryWrapper.WrapperLookup registries) {
 		return this.worldGenProperties.createDimensionsRegistryHolder(registries);
 	}
@@ -340,6 +376,13 @@ public class ServerPropertiesHandler extends AbstractPropertiesHandler<ServerPro
 				"default", WorldPresets.DEFAULT, "largebiomes", WorldPresets.LARGE_BIOMES
 		);
 
+		/**
+		 * Создаёт dimensions registry holder.
+		 *
+		 * @param registries registries
+		 *
+		 * @return DimensionOptionsRegistryHolder — результат операции
+		 */
 		public DimensionOptionsRegistryHolder createDimensionsRegistryHolder(RegistryWrapper.WrapperLookup registries) {
 			RegistryWrapper<WorldPreset> registryWrapper = registries.getOrThrow(RegistryKeys.WORLD_PRESET);
 			RegistryEntry.Reference<WorldPreset> reference = registryWrapper.getOptional(WorldPresets.DEFAULT)

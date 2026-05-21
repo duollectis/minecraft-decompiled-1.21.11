@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.debug.DebugSubscriptionType;
 
+/**
+ * Запись chunk value debug s2 c packet.
+ */
 public record ChunkValueDebugS2CPacket(
 		ChunkPos chunkPos,
 		DebugSubscriptionType.OptionalValue<?> update
@@ -27,6 +30,11 @@ public record ChunkValueDebugS2CPacket(
 		return PlayPackets.CHUNK_VALUE_DEBUG;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onChunkValueDebug(this);
 	}

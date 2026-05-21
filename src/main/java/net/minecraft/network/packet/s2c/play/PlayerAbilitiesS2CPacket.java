@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс player abilities s2 c packet.
+ */
 public class PlayerAbilitiesS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, PlayerAbilitiesS2CPacket> CODEC = Packet.createCodec(
@@ -71,6 +74,11 @@ public class PlayerAbilitiesS2CPacket implements Packet<ClientPlayPacketListener
 		return PlayPackets.PLAYER_ABILITIES_S2C;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlayerAbilities(this);
 	}
@@ -83,6 +91,11 @@ public class PlayerAbilitiesS2CPacket implements Packet<ClientPlayPacketListener
 		return this.flying;
 	}
 
+	/**
+	 * Allow flying.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean allowFlying() {
 		return this.allowFlying;
 	}

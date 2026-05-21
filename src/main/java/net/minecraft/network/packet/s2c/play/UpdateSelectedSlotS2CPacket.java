@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись update selected slot s2 c packet.
+ */
 public record UpdateSelectedSlotS2CPacket(int slot) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<ByteBuf, UpdateSelectedSlotS2CPacket> CODEC = PacketCodec.tuple(
@@ -19,6 +22,11 @@ public record UpdateSelectedSlotS2CPacket(int slot) implements Packet<ClientPlay
 		return PlayPackets.SET_CARRIED_ITEM_S2C;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onUpdateSelectedSlot(this);
 	}

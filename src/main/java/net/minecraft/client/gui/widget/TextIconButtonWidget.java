@@ -50,6 +50,13 @@ public abstract class TextIconButtonWidget extends ButtonWidget {
 		this.texture = textures;
 	}
 
+	/**
+	 * Draw icon.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 */
 	protected void drawIcon(DrawContext context, int x, int y) {
 		context.drawGuiTexture(
 				RenderPipelines.GUI_TEXTURED,
@@ -128,6 +135,11 @@ public abstract class TextIconButtonWidget extends ButtonWidget {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return TextIconButtonWidget — результат операции
+		 */
 		public TextIconButtonWidget build() {
 			if (this.texture == null) {
 				throw new IllegalStateException("Sprite not set");

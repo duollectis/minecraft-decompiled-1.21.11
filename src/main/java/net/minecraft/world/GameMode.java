@@ -101,15 +101,37 @@ public enum GameMode implements StringIdentifiable {
 		return this == SURVIVAL || this == ADVENTURE;
 	}
 
+	/**
+	 * By index.
+	 *
+	 * @param index index
+	 *
+	 * @return GameMode — результат операции
+	 */
 	public static GameMode byIndex(int index) {
 		return INDEX_MAPPER.apply(index);
 	}
 
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 *
+	 * @return GameMode — результат операции
+	 */
 	public static GameMode byId(String id) {
 		return byId(id, SURVIVAL);
 	}
 
 	@Contract("_,!null->!null;_,null->_")
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 * @param fallback fallback
+	 *
+	 * @return @Nullable GameMode — результат операции
+	 */
 	public static @Nullable GameMode byId(String id, @Nullable GameMode fallback) {
 		GameMode gameMode = CODEC.byId(id);
 		return gameMode != null ? gameMode : fallback;

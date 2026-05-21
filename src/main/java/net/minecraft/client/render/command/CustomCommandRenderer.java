@@ -17,6 +17,12 @@ import java.util.Map.Entry;
  */
 public class CustomCommandRenderer {
 
+	/**
+	 * Render.
+	 *
+	 * @param queue queue
+	 * @param vertexConsumers vertex consumers
+	 */
 	public void render(BatchingRenderCommandQueue queue, VertexConsumerProvider.Immediate vertexConsumers) {
 		CustomCommandRenderer.Commands commands = queue.getCustomCommands();
 
@@ -38,6 +44,13 @@ public class CustomCommandRenderer {
 		final Map<RenderLayer, List<OrderedRenderCommandQueueImpl.CustomCommand>> customCommands = new HashMap<>();
 		private final Set<RenderLayer> customRenderLayers = new ObjectOpenHashSet();
 
+		/**
+		 * Add.
+		 *
+		 * @param matrices matrices
+		 * @param renderLayer render layer
+		 * @param custom custom
+		 */
 		public void add(MatrixStack matrices, RenderLayer renderLayer, OrderedRenderCommandQueue.Custom custom) {
 			List<OrderedRenderCommandQueueImpl.CustomCommand>
 					list =
@@ -45,6 +58,9 @@ public class CustomCommandRenderer {
 			list.add(new OrderedRenderCommandQueueImpl.CustomCommand(matrices.peek().copy(), custom));
 		}
 
+		/**
+		 * Clear.
+		 */
 		public void clear() {
 			for (Entry<RenderLayer, List<OrderedRenderCommandQueueImpl.CustomCommand>> entry : this.customCommands.entrySet()) {
 				if (!entry.getValue().isEmpty()) {
@@ -54,6 +70,9 @@ public class CustomCommandRenderer {
 			}
 		}
 
+		/**
+		 * Next frame.
+		 */
 		public void nextFrame() {
 			this.customCommands.keySet().removeIf(renderLayer -> !this.customRenderLayers.contains(renderLayer));
 			this.customRenderLayers.clear();

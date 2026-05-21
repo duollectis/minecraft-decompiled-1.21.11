@@ -68,6 +68,9 @@ public class ChatHud {
 		this.messageHistory.addAll(client.getCommandHistoryManager().getHistory());
 	}
 
+	/**
+	 * Выполняет тик обновления для removal queue if exists.
+	 */
 	public void tickRemovalQueueIfExists() {
 		if (!this.removalQueue.isEmpty()) {
 			this.tickRemovalQueue();
@@ -112,6 +115,14 @@ public class ChatHud {
 		context.getMatrices().popMatrix();
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param textConsumer text consumer
+	 * @param windowHeight window height
+	 * @param currentTick current tick
+	 * @param expanded expanded
+	 */
 	public void render(DrawnTextConsumer textConsumer, int windowHeight, int currentTick, boolean expanded) {
 		this.render(new ChatHud.Forwarder(textConsumer), windowHeight, currentTick, expanded);
 	}
@@ -212,6 +223,11 @@ public class ChatHud {
 		return this.client.options.getChatVisibility().getValue() == ChatVisibility.HIDDEN;
 	}
 
+	/**
+	 * Clear.
+	 *
+	 * @param clearHistory clear history
+	 */
 	public void clear(boolean clearHistory) {
 		this.client.getMessageHandler().processAll();
 		this.removalQueue.clear();
@@ -223,6 +239,11 @@ public class ChatHud {
 		}
 	}
 
+	/**
+	 * Добавляет message.
+	 *
+	 * @param message message
+	 */
 	public void addMessage(Text message) {
 		this.addMessage(
 				message,
@@ -293,6 +314,11 @@ public class ChatHud {
 		                                                                      == null : false);
 	}
 
+	/**
+	 * Удаляет message.
+	 *
+	 * @param signature signature
+	 */
 	public void removeMessage(MessageSignatureData signature) {
 		ChatHud.RemovalQueuedMessage removalQueuedMessage = this.queueForRemoval(signature);
 		if (removalQueuedMessage != null) {
@@ -325,6 +351,9 @@ public class ChatHud {
 		return new ChatHudLine(original.creationTick(), DELETED_MARKER_TEXT, null, MessageIndicator.system());
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.resetScroll();
 		this.refresh();
@@ -342,6 +371,11 @@ public class ChatHud {
 		return this.messageHistory;
 	}
 
+	/**
+	 * Добавляет to message history.
+	 *
+	 * @param message message
+	 */
 	public void addToMessageHistory(String message) {
 		if (!message.equals(this.messageHistory.peekLast())) {
 			if (this.messageHistory.size() >= 100) {
@@ -356,11 +390,19 @@ public class ChatHud {
 		}
 	}
 
+	/**
+	 * Сбрасывает scroll.
+	 */
 	public void resetScroll() {
 		this.scrolledLines = 0;
 		this.hasUnreadNewMessages = false;
 	}
 
+	/**
+	 * Scroll.
+	 *
+	 * @param scroll scroll
+	 */
 	public void scroll(int scroll) {
 		this.scrolledLines += scroll;
 		int i = this.visibleMessages.size();
@@ -417,15 +459,31 @@ public class ChatHud {
 		return (int) (9.0 * (this.client.options.getChatLineSpacing().getValue() + 1.0));
 	}
 
+	/**
+	 * Сохраняет draft.
+	 *
+	 * @param text text
+	 */
 	public void saveDraft(String text) {
 		boolean bl = text.startsWith("/");
 		this.draft = new ChatHud.Draft(text, bl ? ChatHud.ChatMethod.COMMAND : ChatHud.ChatMethod.MESSAGE);
 	}
 
+	/**
+	 * Discard draft.
+	 */
 	public void discardDraft() {
 		this.draft = null;
 	}
 
+	/**
+	 * Создаёт screen.
+	 *
+	 * @param method method
+	 * @param factory factory
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends ChatScreen> T createScreen(ChatHud.ChatMethod method, ChatScreen.Factory<T> factory) {
 		return this.draft != null && method.shouldKeepDraft(this.draft)
 		       ? factory.create(this.draft.text(), true)
@@ -446,6 +504,11 @@ public class ChatHud {
 		}
 	}
 
+	/**
+	 * Удаляет screen.
+	 *
+	 * @return @Nullable ChatScreen — результат операции
+	 */
 	public @Nullable ChatScreen removeScreen() {
 		ChatScreen chatScreen = this.screen;
 		this.screen = null;
@@ -460,6 +523,11 @@ public class ChatHud {
 		);
 	}
 
+	/**
+	 * Restore chat state.
+	 *
+	 * @param state state
+	 */
 	public void restoreChatState(ChatHud.ChatState state) {
 		this.messageHistory.clear();
 		this.messageHistory.addAll(state.messageHistory);
@@ -521,6 +589,13 @@ public class ChatHud {
 			return this.replacement;
 		}
 
+		/**
+		 * Определяет, следует ли keep draft.
+		 *
+		 * @param draft draft
+		 *
+		 * @return boolean — результат операции
+		 */
 		public abstract boolean shouldKeepDraft(ChatHud.Draft draft);
 	}
 
@@ -693,6 +768,11 @@ public class ChatHud {
 			this.context.fill(x1, y1, x2, y2, color);
 		}
 
+		/**
+		 * Accept.
+		 *
+		 * @param style style
+		 */
 		public void accept(Style style) {
 			this.style = style;
 		}

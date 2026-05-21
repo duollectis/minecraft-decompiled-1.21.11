@@ -17,10 +17,25 @@ public record SpawnConditionSelectors(List<VariantSelectorProvider.Selector<Spaw
 			                                .listOf()
 			                                .xmap(SpawnConditionSelectors::new, SpawnConditionSelectors::selectors);
 
+	/**
+	 * Создаёт single.
+	 *
+	 * @param condition condition
+	 * @param priority priority
+	 *
+	 * @return SpawnConditionSelectors — результат операции
+	 */
 	public static SpawnConditionSelectors createSingle(SpawnCondition condition, int priority) {
 		return new SpawnConditionSelectors(VariantSelectorProvider.createSingle(condition, priority));
 	}
 
+	/**
+	 * Создаёт fallback.
+	 *
+	 * @param priority priority
+	 *
+	 * @return SpawnConditionSelectors — результат операции
+	 */
 	public static SpawnConditionSelectors createFallback(int priority) {
 		return new SpawnConditionSelectors(VariantSelectorProvider.createFallback(priority));
 	}

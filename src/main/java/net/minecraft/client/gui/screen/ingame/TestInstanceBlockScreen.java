@@ -271,6 +271,12 @@ public class TestInstanceBlockScreen extends Screen {
 		return optional.isPresent();
 	}
 
+	/**
+	 * Обрабатывает status.
+	 *
+	 * @param status status
+	 * @param size size
+	 */
 	public void handleStatus(Text status, Optional<Vec3i> size) {
 		MutableText mutableText = Text.empty();
 		this.testInstanceBlockEntity

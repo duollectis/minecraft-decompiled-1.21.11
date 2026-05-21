@@ -94,6 +94,14 @@ public class CampfireBlockEntity extends BlockEntity implements Clearable {
 		}
 	}
 
+	/**
+	 * Unlit server tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param campfire campfire
+	 */
 	public static void unlitServerTick(World world, BlockPos pos, BlockState state, CampfireBlockEntity campfire) {
 		boolean bl = false;
 
@@ -110,6 +118,14 @@ public class CampfireBlockEntity extends BlockEntity implements Clearable {
 		}
 	}
 
+	/**
+	 * Client tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param campfire campfire
+	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, CampfireBlockEntity campfire) {
 		Random random = world.random;
 		if (random.nextFloat() < 0.11F) {
@@ -181,6 +197,11 @@ public class CampfireBlockEntity extends BlockEntity implements Clearable {
 		view.putIntArray("CookingTotalTimes", this.cookingTotalTimes);
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
@@ -197,6 +218,15 @@ public class CampfireBlockEntity extends BlockEntity implements Clearable {
 		return var4;
 	}
 
+	/**
+	 * Добавляет item.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean addItem(ServerWorld world, @Nullable LivingEntity entity, ItemStack stack) {
 		for (int i = 0; i < this.itemsBeingCooked.size(); i++) {
 			ItemStack itemStack = this.itemsBeingCooked.get(i);

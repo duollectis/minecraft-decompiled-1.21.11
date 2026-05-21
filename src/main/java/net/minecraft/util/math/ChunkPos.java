@@ -27,10 +27,23 @@ public class ChunkPos {
 			)
 			.stable();
 	public static final PacketCodec<ByteBuf, ChunkPos> PACKET_CODEC = new PacketCodec<ByteBuf, ChunkPos>() {
+		/**
+		 * Decode.
+		 *
+		 * @param byteBuf byte buf
+		 *
+		 * @return ChunkPos — результат операции
+		 */
 		public ChunkPos decode(ByteBuf byteBuf) {
 			return PacketByteBuf.readChunkPos(byteBuf);
 		}
 
+		/**
+		 * Encode.
+		 *
+		 * @param byteBuf byte buf
+		 * @param chunkPos chunk pos
+		 */
 		public void encode(ByteBuf byteBuf, ChunkPos chunkPos) {
 			PacketByteBuf.writeChunkPos(byteBuf, chunkPos);
 		}
@@ -69,10 +82,26 @@ public class ChunkPos {
 		this.z = (int) (pos >> 32);
 	}
 
+	/**
+	 * From region.
+	 *
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return ChunkPos — результат операции
+	 */
 	public static ChunkPos fromRegion(int x, int z) {
 		return new ChunkPos(x << 5, z << 5);
 	}
 
+	/**
+	 * From region center.
+	 *
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return ChunkPos — результат операции
+	 */
 	public static ChunkPos fromRegionCenter(int x, int z) {
 		return new ChunkPos((x << 5) + 31, (z << 5) + 31);
 	}
@@ -85,14 +114,34 @@ public class ChunkPos {
 		return MathHelper.chebyshevDistance(i, j) <= MAX_COORDINATE;
 	}
 
+	/**
+	 * To long.
+	 *
+	 * @return long — результат операции
+	 */
 	public long toLong() {
 		return toLong(this.x, this.z);
 	}
 
+	/**
+	 * To long.
+	 *
+	 * @param chunkX chunk x
+	 * @param chunkZ chunk z
+	 *
+	 * @return long — результат операции
+	 */
 	public static long toLong(int chunkX, int chunkZ) {
 		return chunkX & 4294967295L | (chunkZ & 4294967295L) << 32;
 	}
 
+	/**
+	 * To long.
+	 *
+	 * @param pos pos
+	 *
+	 * @return long — результат операции
+	 */
 	public static long toLong(BlockPos pos) {
 		return toLong(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
 	}
@@ -110,6 +159,14 @@ public class ChunkPos {
 		return hashCode(this.x, this.z);
 	}
 
+	/**
+	 * Проверяет наличие h code.
+	 *
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return int — {@code true} если условие выполнено
+	 */
 	public static int hashCode(int x, int z) {
 		int i = 1664525 * x + 1013904223;
 		int j = 1664525 * (z ^ -559038737) + 1013904223;
@@ -182,6 +239,13 @@ public class ChunkPos {
 		return new BlockPos(this.getCenterX(), y, this.getCenterZ());
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(BlockPos pos) {
 		return pos.getX() >= this.getStartX() && pos.getZ() >= this.getStartZ() && pos.getX() <= this.getEndX()
 				&& pos.getZ() <= this.getEndZ();
@@ -218,6 +282,14 @@ public class ChunkPos {
 		return i * i + j * j;
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param center center
+	 * @param radius radius
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<ChunkPos> stream(ChunkPos center, int radius) {
 		return stream(
 				new ChunkPos(center.x - radius, center.z - radius),
@@ -225,6 +297,14 @@ public class ChunkPos {
 		);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @param pos1 pos1
+	 * @param pos2 pos2
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<ChunkPos> stream(ChunkPos pos1, ChunkPos pos2) {
 		int i = Math.abs(pos1.x - pos2.x) + 1;
 		int j = Math.abs(pos1.z - pos2.z) + 1;

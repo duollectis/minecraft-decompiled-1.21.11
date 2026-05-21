@@ -110,6 +110,11 @@ public class ChatScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли not save draft.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldNotSaveDraft() {
 		return this.closeReason != ChatScreen.CloseReason.INTERRUPTED
 				&& (this.closeReason != ChatScreen.CloseReason.INTENTIONAL || !this.client.options
@@ -323,6 +328,12 @@ public class ChatScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Отправляет message.
+	 *
+	 * @param chatText chat text
+	 * @param addToHistory add to history
+	 */
 	public void sendMessage(String chatText, boolean addToHistory) {
 		chatText = this.normalize(chatText);
 		if (!chatText.isEmpty()) {
@@ -339,6 +350,13 @@ public class ChatScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Normalize.
+	 *
+	 * @param chatText chat text
+	 *
+	 * @return String — результат операции
+	 */
 	public String normalize(String chatText) {
 		return StringHelper.truncateChat(StringUtils.normalizeSpace(chatText.trim()));
 	}

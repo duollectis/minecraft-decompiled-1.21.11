@@ -90,6 +90,15 @@ public record SerializedChunk(
 	public static final String BLOCK_LIGHT_KEY = "BlockLight";
 	public static final String SKY_LIGHT_KEY = "SkyLight";
 
+	/**
+	 * From nbt.
+	 *
+	 * @param world world
+	 * @param palettesFactory palettes factory
+	 * @param nbt nbt
+	 *
+	 * @return SerializedChunk — результат операции
+	 */
 	public static SerializedChunk fromNbt(HeightLimitView world, PalettesFactory palettesFactory, NbtCompound nbt) {
 		if (nbt.getString("Status").isEmpty()) {
 			return null;
@@ -387,6 +396,14 @@ public record SerializedChunk(
 		);
 	}
 
+	/**
+	 * From chunk.
+	 *
+	 * @param world world
+	 * @param chunk chunk
+	 *
+	 * @return SerializedChunk — результат операции
+	 */
 	public static SerializedChunk fromChunk(ServerWorld world, Chunk chunk) {
 		if (!chunk.isSerializable()) {
 			throw new IllegalArgumentException("Chunk can't be serialized: " + chunk);
@@ -485,6 +502,11 @@ public record SerializedChunk(
 		}
 	}
 
+	/**
+	 * Serialize.
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound serialize() {
 		NbtCompound nbtCompound = NbtHelper.putDataVersion(new NbtCompound());
 		nbtCompound.putInt("xPos", this.chunkPos.x);

@@ -17,6 +17,11 @@ public class CompositeManagementListener implements ManagementListener {
 
 	private final List<ManagementListener> listeners = Lists.newArrayList();
 
+	/**
+	 * Добавляет listener.
+	 *
+	 * @param listener listener
+	 */
 	public void addListener(ManagementListener listener) {
 		this.listeners.add(listener);
 	}

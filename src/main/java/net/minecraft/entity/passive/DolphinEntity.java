@@ -89,6 +89,14 @@ public class DolphinEntity extends WaterAnimalEntity {
 		return super.initialize(world, difficulty, spawnReason, entityData2);
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable DolphinEntity — результат операции
+	 */
 	public @Nullable DolphinEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		return EntityType.DOLPHIN.create(serverWorld, SpawnReason.BREEDING);
 	}

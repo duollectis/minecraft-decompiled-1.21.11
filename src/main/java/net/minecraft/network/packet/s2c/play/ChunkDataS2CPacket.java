@@ -13,6 +13,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.BitSet;
 
+/**
+ * Класс chunk data s2 c packet.
+ */
 public class ChunkDataS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, ChunkDataS2CPacket>
@@ -55,6 +58,11 @@ public class ChunkDataS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.LEVEL_CHUNK_WITH_LIGHT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onChunkData(this);
 	}

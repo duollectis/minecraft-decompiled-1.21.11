@@ -20,6 +20,14 @@ public abstract class FloatProvider implements FloatSupplier {
 			            ? Either.left(((ConstantFloatProvider) provider).getValue()) : Either.right(provider)
 	);
 
+	/**
+	 * Создаёт validated codec.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<FloatProvider> createValidatedCodec(float min, float max) {
 		return VALUE_CODEC.validate(
 				provider -> {

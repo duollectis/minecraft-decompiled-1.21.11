@@ -68,6 +68,11 @@ public interface TrackedSlot {
 			}
 		}
 
+		/**
+		 * Создаёт копию from.
+		 *
+		 * @param slot slot
+		 */
 		public void copyFrom(TrackedSlot.Impl slot) {
 			this.receivedStack = slot.receivedStack;
 			this.receivedHash = slot.receivedHash;

@@ -140,10 +140,18 @@ public class GuiRenderer implements AutoCloseable {
 		this.specialElementRenderers = builder.buildOrThrow();
 	}
 
+	/**
+	 * Increment frame.
+	 */
 	public void incrementFrame() {
 		this.frame++;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param fogBuffer fog buffer
+	 */
 	public void render(GpuBufferSlice fogBuffer) {
 		this.prepare();
 		this.renderPreparedDraws(fogBuffer);

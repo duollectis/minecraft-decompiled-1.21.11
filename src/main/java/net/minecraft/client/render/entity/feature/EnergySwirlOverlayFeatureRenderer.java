@@ -52,6 +52,13 @@ public abstract class EnergySwirlOverlayFeatureRenderer<S extends EntityRenderSt
 		}
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected abstract boolean shouldRender(S state);
 
 	protected abstract float getEnergySwirlX(float partialAge);

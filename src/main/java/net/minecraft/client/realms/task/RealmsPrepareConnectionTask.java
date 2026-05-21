@@ -143,6 +143,13 @@ public class RealmsPrepareConnectionTask extends LongRunningTask {
 		throw new TimeoutException();
 	}
 
+	/**
+	 * Создаёт connecting screen.
+	 *
+	 * @param address address
+	 *
+	 * @return RealmsLongRunningMcoTaskScreen — результат операции
+	 */
 	public RealmsLongRunningMcoTaskScreen createConnectingScreen(RealmsServerAddress address) {
 		return new RealmsConnectingScreen(
 				this.lastScreen,

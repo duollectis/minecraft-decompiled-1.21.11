@@ -78,6 +78,11 @@ public class TagPacketSerializer {
 			this.contents = contents;
 		}
 
+		/**
+		 * Записывает buf.
+		 *
+		 * @param buf buf
+		 */
 		public void writeBuf(PacketByteBuf buf) {
 			buf.writeMap(this.contents, PacketByteBuf::writeIdentifier, PacketByteBuf::writeIntList);
 		}
@@ -93,6 +98,11 @@ public class TagPacketSerializer {
 			return this.contents.isEmpty();
 		}
 
+		/**
+		 * Size.
+		 *
+		 * @return int — результат операции
+		 */
 		public int size() {
 			return this.contents.size();
 		}

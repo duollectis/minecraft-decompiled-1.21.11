@@ -132,6 +132,14 @@ public class AdvancementWidget {
 		       ? this.tab.getWidget(advancement.getAdvancementEntry()) : null;
 	}
 
+	/**
+	 * Отрисовывает lines.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param border border
+	 */
 	public void renderLines(DrawContext context, int x, int y, boolean border) {
 		if (this.parent != null) {
 			int i = x + this.parent.x + 13;
@@ -162,6 +170,13 @@ public class AdvancementWidget {
 		}
 	}
 
+	/**
+	 * Отрисовывает widgets.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 */
 	public void renderWidgets(DrawContext context, int x, int y) {
 		if (!this.display.isHidden() || this.progress != null && this.progress.isDone()) {
 			float f = this.progress == null ? 0.0F : this.progress.getProgressBarPercentage();
@@ -197,10 +212,25 @@ public class AdvancementWidget {
 		this.progress = progress;
 	}
 
+	/**
+	 * Добавляет child.
+	 *
+	 * @param widget widget
+	 */
 	public void addChild(AdvancementWidget widget) {
 		this.children.add(widget);
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param context context
+	 * @param originX origin x
+	 * @param originY origin y
+	 * @param alpha alpha
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawTooltip(DrawContext context, int originX, int originY, float alpha, int x, int y) {
 		TextRenderer textRenderer = this.client.textRenderer;
 		int i = 9 * this.title.size() + 9 + 8;
@@ -337,6 +367,16 @@ public class AdvancementWidget {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param originX origin x
+	 * @param originY origin y
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRender(int originX, int originY, int mouseX, int mouseY) {
 		if (!this.display.isHidden() || this.progress != null && this.progress.isDone()) {
 			int i = originX + this.x;
@@ -350,6 +390,9 @@ public class AdvancementWidget {
 		}
 	}
 
+	/**
+	 * Добавляет to tree.
+	 */
 	public void addToTree() {
 		if (this.parent == null && this.advancement.getParent() != null) {
 			this.parent = this.getParent(this.advancement);

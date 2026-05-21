@@ -12,10 +12,24 @@ import java.io.Reader;
  */
 public class LenientJsonParser {
 
+	/**
+	 * Parse.
+	 *
+	 * @param reader reader
+	 *
+	 * @return JsonElement — результат операции
+	 */
 	public static JsonElement parse(Reader reader) throws JsonIOException, JsonSyntaxException {
 		return JsonParser.parseReader(reader);
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return JsonElement — результат операции
+	 */
 	public static JsonElement parse(String json) throws JsonSyntaxException {
 		return JsonParser.parseString(json);
 	}

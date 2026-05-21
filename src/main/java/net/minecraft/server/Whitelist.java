@@ -24,6 +24,13 @@ public class Whitelist extends ServerConfigList<PlayerConfigEntry, WhitelistEntr
 		return this.contains(playerConfigEntry);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param whitelistEntry whitelist entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean add(WhitelistEntry whitelistEntry) {
 		if (super.add(whitelistEntry)) {
 			if (whitelistEntry.getKey() != null) {
@@ -37,6 +44,13 @@ public class Whitelist extends ServerConfigList<PlayerConfigEntry, WhitelistEntr
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param playerConfigEntry player config entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean remove(PlayerConfigEntry playerConfigEntry) {
 		if (super.remove(playerConfigEntry)) {
 			this.managementListener.onAllowlistRemoved(playerConfigEntry);
@@ -69,6 +83,13 @@ public class Whitelist extends ServerConfigList<PlayerConfigEntry, WhitelistEntr
 				.toArray(String[]::new);
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param playerConfigEntry player config entry
+	 *
+	 * @return String — результат операции
+	 */
 	protected String toString(PlayerConfigEntry playerConfigEntry) {
 		return playerConfigEntry.id().toString();
 	}

@@ -20,6 +20,15 @@ public class FuzzyPositions {
 
 	private static final int GAUSS_RANGE = 10;
 
+	/**
+	 * Local fuzz.
+	 *
+	 * @param random random
+	 * @param horizontalRange horizontal range
+	 * @param verticalRange vertical range
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos localFuzz(Random random, int horizontalRange, int verticalRange) {
 		int i = random.nextInt(2 * horizontalRange + 1) - horizontalRange;
 		int j = random.nextInt(2 * verticalRange + 1) - verticalRange;
@@ -55,6 +64,15 @@ public class FuzzyPositions {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Up while.
+	 *
+	 * @param pos pos
+	 * @param maxY max y
+	 * @param condition condition
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos upWhile(BlockPos pos, int maxY, Predicate<BlockPos> condition) {
 		if (!condition.test(pos)) {
 			return pos;
@@ -71,6 +89,16 @@ public class FuzzyPositions {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Up while.
+	 *
+	 * @param pos pos
+	 * @param extraAbove extra above
+	 * @param max max
+	 * @param condition condition
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos upWhile(BlockPos pos, int extraAbove, int max, Predicate<BlockPos> condition) {
 		if (extraAbove < 0) {
 			throw new IllegalArgumentException("aboveSolidAmount was " + extraAbove + ", expected >= 0");
@@ -99,10 +127,26 @@ public class FuzzyPositions {
 		}
 	}
 
+	/**
+	 * Guess best path target.
+	 *
+	 * @param entity entity
+	 * @param factory factory
+	 *
+	 * @return @Nullable Vec3d — результат операции
+	 */
 	public static @Nullable Vec3d guessBestPathTarget(PathAwareEntity entity, Supplier<@Nullable BlockPos> factory) {
 		return guessBest(factory, entity::getPathfindingFavor);
 	}
 
+	/**
+	 * Guess best.
+	 *
+	 * @param factory factory
+	 * @param scorer scorer
+	 *
+	 * @return @Nullable Vec3d — результат операции
+	 */
 	public static @Nullable Vec3d guessBest(Supplier<@Nullable BlockPos> factory, ToDoubleFunction<BlockPos> scorer) {
 		double d = Double.NEGATIVE_INFINITY;
 		BlockPos blockPos = null;
@@ -121,6 +165,16 @@ public class FuzzyPositions {
 		return blockPos != null ? Vec3d.ofBottomCenter(blockPos) : null;
 	}
 
+	/**
+	 * Toward target.
+	 *
+	 * @param entity entity
+	 * @param horizontalRange horizontal range
+	 * @param random random
+	 * @param fuzz fuzz
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos towardTarget(PathAwareEntity entity, double horizontalRange, Random random, BlockPos fuzz) {
 		double d = fuzz.getX();
 		double e = fuzz.getZ();

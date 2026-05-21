@@ -54,6 +54,11 @@ public class HappyGhastRidingSoundInstance extends MovingSoundInstance {
 		return true;
 	}
 
+	/**
+	 * Определяет, следует ли switch to min volume.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldSwitchToMinVolume() {
 		return this.wasSubmerged != this.vehicle.isSubmergedInWater();
 	}

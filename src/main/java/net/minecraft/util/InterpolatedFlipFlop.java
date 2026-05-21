@@ -22,6 +22,11 @@ public class InterpolatedFlipFlop {
 		this(frames, EasingType.LINEAR);
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param active active
+	 */
 	public void tick(boolean active) {
 		this.previous = this.current;
 		if (active) {

@@ -30,10 +30,25 @@ public class Tooltip implements Narratable {
 		this.narration = narration;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param content content
+	 * @param narration narration
+	 *
+	 * @return Tooltip — результат операции
+	 */
 	public static Tooltip of(Text content, @Nullable Text narration) {
 		return new Tooltip(content, narration);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param content content
+	 *
+	 * @return Tooltip — результат операции
+	 */
 	public static Tooltip of(Text content) {
 		return new Tooltip(content, content);
 	}
@@ -55,6 +70,14 @@ public class Tooltip implements Narratable {
 		return this.lines;
 	}
 
+	/**
+	 * Wrap lines.
+	 *
+	 * @param client client
+	 * @param text text
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<OrderedText> wrapLines(MinecraftClient client, Text text) {
 		return client.textRenderer.wrapLines(text, 170);
 	}

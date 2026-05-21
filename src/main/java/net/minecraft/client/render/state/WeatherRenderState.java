@@ -19,6 +19,9 @@ public class WeatherRenderState implements FabricRenderState {
 	public float intensity;
 	public int radius;
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.rainPieces.clear();
 		this.snowPieces.clear();

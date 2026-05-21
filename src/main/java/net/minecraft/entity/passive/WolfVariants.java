@@ -89,6 +89,11 @@ public class WolfVariants {
 		);
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<WolfVariant> registry) {
 		register(registry, PALE, "wolf", SpawnConditionSelectors.createFallback(0));
 		register(registry, SPOTTED, "wolf_spotted", BiomeTags.IS_SAVANNA);

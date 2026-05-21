@@ -60,6 +60,14 @@ public class CarverDebugConfig {
 		return new CarverDebugConfig(false, airState, waterState, lavaState, barrierState);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param debugMode debug mode
+	 * @param debugState debug state
+	 *
+	 * @return CarverDebugConfig — результат операции
+	 */
 	public static CarverDebugConfig create(boolean debugMode, BlockState debugState) {
 		return new CarverDebugConfig(
 				debugMode,

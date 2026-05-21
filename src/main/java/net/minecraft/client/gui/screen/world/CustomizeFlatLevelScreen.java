@@ -192,6 +192,9 @@ public class CustomizeFlatLevelScreen extends Screen {
 			CustomizeFlatLevelScreen.this.updateRemoveLayerButton();
 		}
 
+		/**
+		 * Обновляет layers.
+		 */
 		public void updateLayers() {
 			int i = this.children().indexOf(this.getSelectedOrNull());
 			this.clearEntries();

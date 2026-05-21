@@ -37,6 +37,11 @@ public abstract class WaterAnimalEntity extends PassiveEntity {
 		return 1 + this.random.nextInt(3);
 	}
 
+	/**
+	 * Выполняет тик обновления для breathing.
+	 *
+	 * @param air air
+	 */
 	protected void tickBreathing(int air) {
 		if (this.isAlive() && !this.isTouchingWater()) {
 			this.setAir(air - 1);

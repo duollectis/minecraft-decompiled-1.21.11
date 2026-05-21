@@ -6,6 +6,9 @@ import net.minecraft.network.message.ChatVisibility;
 import net.minecraft.particle.ParticlesMode;
 import net.minecraft.util.Arm;
 
+/**
+ * Запись synced client options.
+ */
 public record SyncedClientOptions(
 		String language,
 		int viewDistance,
@@ -34,6 +37,11 @@ public record SyncedClientOptions(
 		);
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param buf buf
+	 */
 	public void write(PacketByteBuf buf) {
 		buf.writeString(this.language);
 		buf.writeByte(this.viewDistance);
@@ -46,6 +54,11 @@ public record SyncedClientOptions(
 		buf.writeEnumConstant(this.particleStatus);
 	}
 
+	/**
+	 * Создаёт default.
+	 *
+	 * @return SyncedClientOptions — результат операции
+	 */
 	public static SyncedClientOptions createDefault() {
 		return new SyncedClientOptions(
 				"en_us",

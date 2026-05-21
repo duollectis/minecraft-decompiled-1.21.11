@@ -68,6 +68,11 @@ public class OreConfiguredFeatures {
 			ConfiguredFeatures.of("ore_copper_large");
 	public static final RegistryKey<ConfiguredFeature<?, ?>> ORE_CLAY = ConfiguredFeatures.of("ore_clay");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		RuleTest ruleTest = new TagMatchRuleTest(BlockTags.BASE_STONE_OVERWORLD);
 		RuleTest ruleTest2 = new TagMatchRuleTest(BlockTags.STONE_ORE_REPLACEABLES);

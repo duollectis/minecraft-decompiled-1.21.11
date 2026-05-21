@@ -124,6 +124,15 @@ public class VineBlock extends Block {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли connect to.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldConnectTo(BlockView world, BlockPos pos, Direction direction) {
 		return MultifaceBlock.canGrowOn(world, direction, pos, world.getBlockState(pos));
 	}

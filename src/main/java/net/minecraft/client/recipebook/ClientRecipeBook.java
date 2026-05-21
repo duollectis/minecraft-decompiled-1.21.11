@@ -26,15 +26,28 @@ public class ClientRecipeBook extends RecipeBook {
 	private Map<RecipeBookGroup, List<RecipeResultCollection>> resultsByCategory = Map.of();
 	private List<RecipeResultCollection> orderedResults = List.of();
 
+	/**
+	 * Add.
+	 *
+	 * @param entry entry
+	 */
 	public void add(RecipeDisplayEntry entry) {
 		this.recipes.put(entry.id(), entry);
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param recipeId recipe id
+	 */
 	public void remove(NetworkRecipeId recipeId) {
 		this.recipes.remove(recipeId);
 		this.highlightedRecipes.remove(recipeId);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.recipes.clear();
 		this.highlightedRecipes.clear();
@@ -44,14 +57,27 @@ public class ClientRecipeBook extends RecipeBook {
 		return this.highlightedRecipes.contains(recipeId);
 	}
 
+	/**
+	 * Unmark highlighted.
+	 *
+	 * @param recipeId recipe id
+	 */
 	public void unmarkHighlighted(NetworkRecipeId recipeId) {
 		this.highlightedRecipes.remove(recipeId);
 	}
 
+	/**
+	 * Mark highlighted.
+	 *
+	 * @param recipeId recipe id
+	 */
 	public void markHighlighted(NetworkRecipeId recipeId) {
 		this.highlightedRecipes.add(recipeId);
 	}
 
+	/**
+	 * Refresh.
+	 */
 	public void refresh() {
 		Map<RecipeBookCategory, List<List<RecipeDisplayEntry>>> map = toGroupedMap(this.recipes.values());
 		Map<RecipeBookGroup, List<RecipeResultCollection>> map2 = new HashMap<>();

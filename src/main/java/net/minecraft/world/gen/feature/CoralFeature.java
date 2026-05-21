@@ -39,8 +39,28 @@ public abstract class CoralFeature extends Feature<DefaultFeatureConfig> {
 		);
 	}
 
+	/**
+	 * Generate coral.
+	 *
+	 * @param world world
+	 * @param random random
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected abstract boolean generateCoral(WorldAccess world, Random random, BlockPos pos, BlockState state);
 
+	/**
+	 * Generate coral piece.
+	 *
+	 * @param world world
+	 * @param random random
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean generateCoralPiece(WorldAccess world, Random random, BlockPos pos, BlockState state) {
 		BlockPos blockPos = pos.up();
 		BlockState blockState = world.getBlockState(pos);

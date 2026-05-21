@@ -1,5 +1,8 @@
 package net.minecraft.network.packet.c2s.handshake;
 
+/**
+ * Перечисление connection intent.
+ */
 public enum ConnectionIntent {
 	STATUS,
 	LOGIN,
@@ -9,6 +12,13 @@ public enum ConnectionIntent {
 	private static final int LOGIN_ID = 2;
 	private static final int TRANSFER_ID = 3;
 
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 *
+	 * @return ConnectionIntent — результат операции
+	 */
 	public static ConnectionIntent byId(int id) {
 		return switch (id) {
 			case 1 -> STATUS;

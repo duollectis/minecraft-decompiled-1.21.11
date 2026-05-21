@@ -28,6 +28,11 @@ public class CodEntityRenderer extends MobEntityRenderer<CodEntity, LivingEntity
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return LivingEntityRenderState — результат операции
+	 */
 	public LivingEntityRenderState createRenderState() {
 		return new LivingEntityRenderState();
 	}

@@ -360,10 +360,24 @@ public class EntityModelLayers {
 		);
 	}
 
+	/**
+	 * Создаёт standing sign.
+	 *
+	 * @param type type
+	 *
+	 * @return EntityModelLayer — результат операции
+	 */
 	public static EntityModelLayer createStandingSign(WoodType type) {
 		return create("sign/standing/" + type.name(), "main");
 	}
 
+	/**
+	 * Создаёт wall sign.
+	 *
+	 * @param type type
+	 *
+	 * @return EntityModelLayer — результат операции
+	 */
 	public static EntityModelLayer createWallSign(WoodType type) {
 		return create("sign/wall/" + type.name(), "main");
 	}

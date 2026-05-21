@@ -130,22 +130,62 @@ public record TelemetryEventProperty<T>(
 		return new TelemetryEventProperty<>(id, exportKey, codec, exporter);
 	}
 
+	/**
+	 * Of boolean.
+	 *
+	 * @param id id
+	 * @param exportKey export key
+	 *
+	 * @return TelemetryEventProperty — результат операции
+	 */
 	public static TelemetryEventProperty<Boolean> ofBoolean(String id, String exportKey) {
 		return of(id, exportKey, Codec.BOOL, TelemetryPropertyContainer::addProperty);
 	}
 
+	/**
+	 * Of string.
+	 *
+	 * @param id id
+	 * @param exportKey export key
+	 *
+	 * @return TelemetryEventProperty — результат операции
+	 */
 	public static TelemetryEventProperty<String> ofString(String id, String exportKey) {
 		return of(id, exportKey, Codec.STRING, TelemetryPropertyContainer::addProperty);
 	}
 
+	/**
+	 * Of integer.
+	 *
+	 * @param id id
+	 * @param exportKey export key
+	 *
+	 * @return TelemetryEventProperty — результат операции
+	 */
 	public static TelemetryEventProperty<Integer> ofInteger(String id, String exportKey) {
 		return of(id, exportKey, Codec.INT, TelemetryPropertyContainer::addProperty);
 	}
 
+	/**
+	 * Of long.
+	 *
+	 * @param id id
+	 * @param exportKey export key
+	 *
+	 * @return TelemetryEventProperty — результат операции
+	 */
 	public static TelemetryEventProperty<Long> ofLong(String id, String exportKey) {
 		return of(id, exportKey, Codec.LONG, TelemetryPropertyContainer::addProperty);
 	}
 
+	/**
+	 * Of uuid.
+	 *
+	 * @param id id
+	 * @param exportKey export key
+	 *
+	 * @return TelemetryEventProperty — результат операции
+	 */
 	public static TelemetryEventProperty<UUID> ofUuid(String id, String exportKey) {
 		return of(
 				id,
@@ -164,6 +204,14 @@ public record TelemetryEventProperty<T>(
 		);
 	}
 
+	/**
+	 * Of long list.
+	 *
+	 * @param id id
+	 * @param exportKey export key
+	 *
+	 * @return TelemetryEventProperty — результат операции
+	 */
 	public static TelemetryEventProperty<LongList> ofLongList(String id, String exportKey) {
 		return of(
 				id,
@@ -176,6 +224,12 @@ public record TelemetryEventProperty<T>(
 		);
 	}
 
+	/**
+	 * Добавляет to.
+	 *
+	 * @param map map
+	 * @param container container
+	 */
 	public void addTo(PropertyMap map, TelemetryPropertyContainer container) {
 		T object = map.get(this);
 		if (object != null) {

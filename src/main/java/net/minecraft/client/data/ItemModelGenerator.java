@@ -73,18 +73,46 @@ public class ItemModelGenerator {
 		this.modelCollector = modelCollector;
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param item item
+	 */
 	public final void register(Item item) {
 		this.output.accept(item, ItemModels.basic(ModelIds.getItemModelId(item)));
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param item item
+	 * @param model model
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public final Identifier upload(Item item, Model model) {
 		return model.upload(ModelIds.getItemModelId(item), TextureMap.layer0(item), this.modelCollector);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param item item
+	 * @param model model
+	 */
 	public final void register(Item item, Model model) {
 		this.output.accept(item, ItemModels.basic(this.upload(item, model)));
 	}
 
+	/**
+	 * Регистрирует sub model.
+	 *
+	 * @param item item
+	 * @param suffix suffix
+	 * @param model model
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public final Identifier registerSubModel(Item item, String suffix, Model model) {
 		return model.upload(
 				ModelIds.getItemSubModelId(item, suffix),
@@ -93,18 +121,47 @@ public class ItemModelGenerator {
 		);
 	}
 
+	/**
+	 * Upload with texture source.
+	 *
+	 * @param item item
+	 * @param textureSourceItem texture source item
+	 * @param model model
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public final Identifier uploadWithTextureSource(Item item, Item textureSourceItem, Model model) {
 		return model.upload(ModelIds.getItemModelId(item), TextureMap.layer0(textureSourceItem), this.modelCollector);
 	}
 
+	/**
+	 * Регистрирует with texture source.
+	 *
+	 * @param item item
+	 * @param textureSourceItem texture source item
+	 * @param model model
+	 */
 	public final void registerWithTextureSource(Item item, Item textureSourceItem, Model model) {
 		this.output.accept(item, ItemModels.basic(this.uploadWithTextureSource(item, textureSourceItem, model)));
 	}
 
+	/**
+	 * Регистрирует with tinted overlay.
+	 *
+	 * @param item item
+	 * @param tint tint
+	 */
 	public final void registerWithTintedOverlay(Item item, TintSource tint) {
 		this.registerWithTintedLayer(item, "_overlay", tint);
 	}
 
+	/**
+	 * Регистрирует with tinted layer.
+	 *
+	 * @param item item
+	 * @param layer1Suffix layer1 suffix
+	 * @param tint tint
+	 */
 	public final void registerWithTintedLayer(Item item, String layer1Suffix, TintSource tint) {
 		Identifier
 				identifier =
@@ -112,6 +169,12 @@ public class ItemModelGenerator {
 		this.output.accept(item, ItemModels.tinted(identifier, UNTINTED, tint));
 	}
 
+	/**
+	 * Регистрирует dyeable with overlay.
+	 *
+	 * @param item item
+	 * @param i i
+	 */
 	public final void registerDyeableWithOverlay(Item item, int i) {
 		Identifier identifier = TextureMap.getId(item);
 		Identifier identifier2 = TextureMap.getSubId(item, "_overlay");
@@ -145,6 +208,11 @@ public class ItemModelGenerator {
 		return list;
 	}
 
+	/**
+	 * Регистрирует compass.
+	 *
+	 * @param item item
+	 */
 	public final void registerCompass(Item item) {
 		List<RangeDispatchItemModel.Entry> list = this.createCompassRangeDispatchEntries(item);
 		this.output
@@ -166,6 +234,11 @@ public class ItemModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует recovery compass.
+	 *
+	 * @param item item
+	 */
 	public final void registerRecoveryCompass(Item item) {
 		this.output
 				.accept(
@@ -178,6 +251,11 @@ public class ItemModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует clock.
+	 *
+	 * @param clock clock
+	 */
 	public final void registerClock(Item clock) {
 		List<RangeDispatchItemModel.Entry> list = new ArrayList<>();
 		ItemModel.Unbaked unbaked = ItemModels.basic(this.registerSubModel(clock, "_00", Models.GENERATED));
@@ -213,14 +291,40 @@ public class ItemModelGenerator {
 				);
 	}
 
+	/**
+	 * Upload two layers.
+	 *
+	 * @param item item
+	 * @param layer0 layer0
+	 * @param layer1 layer1
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public final Identifier uploadTwoLayers(Item item, Identifier layer0, Identifier layer1) {
 		return Models.GENERATED_TWO_LAYERS.upload(item, TextureMap.layered(layer0, layer1), this.modelCollector);
 	}
 
+	/**
+	 * Upload armor.
+	 *
+	 * @param id id
+	 * @param layer0 layer0
+	 * @param layer1 layer1
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public final Identifier uploadArmor(Identifier id, Identifier layer0, Identifier layer1) {
 		return Models.GENERATED_TWO_LAYERS.upload(id, TextureMap.layered(layer0, layer1), this.modelCollector);
 	}
 
+	/**
+	 * Upload armor.
+	 *
+	 * @param id id
+	 * @param layer0 layer0
+	 * @param layer1 layer1
+	 * @param layer2 layer2
+	 */
 	public final void uploadArmor(Identifier id, Identifier layer0, Identifier layer1, Identifier layer2) {
 		Models.GENERATED_THREE_LAYERS.upload(id, TextureMap.layered(layer0, layer1, layer2), this.modelCollector);
 	}
@@ -271,6 +375,11 @@ public class ItemModelGenerator {
 		this.output.accept(item, ItemModels.select(new TrimMaterialProperty(), unbaked2, list));
 	}
 
+	/**
+	 * Регистрирует bundle.
+	 *
+	 * @param item item
+	 */
 	public final void registerBundle(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(this.upload(item, Models.GENERATED));
 		Identifier identifier = this.uploadOpenBundleModel(item, Models.TEMPLATE_BUNDLE_OPEN_BACK, "_open_back");
@@ -293,11 +402,25 @@ public class ItemModelGenerator {
 		);
 	}
 
+	/**
+	 * Upload open bundle model.
+	 *
+	 * @param item item
+	 * @param model model
+	 * @param textureSuffix texture suffix
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public final Identifier uploadOpenBundleModel(Item item, Model model, String textureSuffix) {
 		Identifier identifier = TextureMap.getSubId(item, textureSuffix);
 		return model.upload(item, TextureMap.layer0(identifier), this.modelCollector);
 	}
 
+	/**
+	 * Регистрирует bow.
+	 *
+	 * @param item item
+	 */
 	public final void registerBow(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(ModelIds.getItemModelId(item));
 		ItemModel.Unbaked unbaked2 = ItemModels.basic(this.registerSubModel(item, "_pulling_0", Models.BOW));
@@ -320,6 +443,11 @@ public class ItemModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует crossbow.
+	 *
+	 * @param item item
+	 */
 	public final void registerCrossbow(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(ModelIds.getItemModelId(item));
 		ItemModel.Unbaked unbaked2 = ItemModels.basic(this.registerSubModel(item, "_pulling_0", Models.CROSSBOW));
@@ -357,12 +485,22 @@ public class ItemModelGenerator {
 		this.output.accept(item, ItemModels.condition(property, onTrue, onFalse));
 	}
 
+	/**
+	 * Регистрирует with broken condition.
+	 *
+	 * @param item item
+	 */
 	public final void registerWithBrokenCondition(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(this.upload(item, Models.GENERATED));
 		ItemModel.Unbaked unbaked2 = ItemModels.basic(this.registerSubModel(item, "_broken", Models.GENERATED));
 		this.registerCondition(item, new BrokenProperty(), unbaked2, unbaked);
 	}
 
+	/**
+	 * Регистрирует brush.
+	 *
+	 * @param item item
+	 */
 	public final void registerBrush(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(ModelIds.getItemModelId(item));
 		ItemModel.Unbaked unbaked2 = ItemModels.basic(ModelIds.getItemSubModelId(item, "_brushing_0"));
@@ -382,18 +520,33 @@ public class ItemModelGenerator {
 				);
 	}
 
+	/**
+	 * Регистрирует fishing rod.
+	 *
+	 * @param item item
+	 */
 	public final void registerFishingRod(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(this.upload(item, Models.HANDHELD_ROD));
 		ItemModel.Unbaked unbaked2 = ItemModels.basic(this.registerSubModel(item, "_cast", Models.HANDHELD_ROD));
 		this.registerCondition(item, new FishingRodCastProperty(), unbaked2, unbaked);
 	}
 
+	/**
+	 * Регистрирует goat horn.
+	 *
+	 * @param item item
+	 */
 	public final void registerGoatHorn(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(ModelIds.getItemModelId(item));
 		ItemModel.Unbaked unbaked2 = ItemModels.basic(ModelIds.getMinecraftNamespacedItem("tooting_goat_horn"));
 		this.registerCondition(item, ItemModels.usingItemProperty(), unbaked2, unbaked);
 	}
 
+	/**
+	 * Регистрирует shield.
+	 *
+	 * @param item item
+	 */
 	public final void registerShield(Item item) {
 		ItemModel.Unbaked
 				unbaked =
@@ -422,12 +575,22 @@ public class ItemModelGenerator {
 		);
 	}
 
+	/**
+	 * Регистрирует with in hand model.
+	 *
+	 * @param item item
+	 */
 	public final void registerWithInHandModel(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(this.upload(item, Models.GENERATED));
 		ItemModel.Unbaked unbaked2 = ItemModels.basic(ModelIds.getItemSubModelId(item, "_in_hand"));
 		this.output.accept(item, createModelWithInHandVariant(unbaked, unbaked2));
 	}
 
+	/**
+	 * Регистрирует trident.
+	 *
+	 * @param item item
+	 */
 	public final void registerTrident(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(this.upload(item, Models.GENERATED));
 		ItemModel.Unbaked
@@ -440,6 +603,11 @@ public class ItemModelGenerator {
 		this.output.accept(item, createModelWithInHandVariant(unbaked, unbaked4));
 	}
 
+	/**
+	 * Регистрирует spear.
+	 *
+	 * @param item item
+	 */
 	public final void registerSpear(Item item) {
 		ItemModel.Unbaked unbaked = ItemModels.basic(this.upload(item, Models.GENERATED));
 		ItemModel.Unbaked unbaked2 = ItemModels.basic(
@@ -456,10 +624,21 @@ public class ItemModelGenerator {
 		);
 	}
 
+	/**
+	 * Регистрирует potion tinted.
+	 *
+	 * @param item item
+	 * @param model model
+	 */
 	public final void registerPotionTinted(Item item, Identifier model) {
 		this.output.accept(item, ItemModels.tinted(model, new PotionTintSource()));
 	}
 
+	/**
+	 * Регистрирует potion.
+	 *
+	 * @param item item
+	 */
 	public final void registerPotion(Item item) {
 		Identifier
 				identifier =
@@ -471,6 +650,11 @@ public class ItemModelGenerator {
 		this.registerPotionTinted(item, identifier);
 	}
 
+	/**
+	 * Регистрирует tipped arrow.
+	 *
+	 * @param item item
+	 */
 	public final void registerTippedArrow(Item item) {
 		Identifier
 				identifier =
@@ -482,11 +666,22 @@ public class ItemModelGenerator {
 		this.registerPotionTinted(item, identifier);
 	}
 
+	/**
+	 * Регистрирует dyeable.
+	 *
+	 * @param item item
+	 * @param defaultColor default color
+	 */
 	public final void registerDyeable(Item item, int defaultColor) {
 		Identifier identifier = this.upload(item, Models.GENERATED);
 		this.output.accept(item, ItemModels.tinted(identifier, new DyeTintSource(defaultColor)));
 	}
 
+	/**
+	 * Регистрирует with dyeable overlay.
+	 *
+	 * @param item item
+	 */
 	public final void registerWithDyeableOverlay(Item item) {
 		Identifier identifier = TextureMap.getId(item);
 		Identifier identifier2 = TextureMap.getSubId(item, "_overlay");
@@ -508,6 +703,9 @@ public class ItemModelGenerator {
 				);
 	}
 
+	/**
+	 * Register.
+	 */
 	public void register() {
 		this.register(Items.ACACIA_BOAT, Models.GENERATED);
 		this.register(Items.CHERRY_BOAT, Models.GENERATED);

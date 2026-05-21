@@ -159,6 +159,9 @@ public class SectionBuilder {
 		public ChunkOcclusionData chunkOcclusionData = new ChunkOcclusionData();
 		public BuiltBuffer.@Nullable SortState translucencySortingData;
 
+		/**
+		 * Close.
+		 */
 		public void close() {
 			this.buffers.values().forEach(BuiltBuffer::close);
 		}

@@ -9,6 +9,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс game state change s2 c packet.
+ */
 public class GameStateChangeS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, GameStateChangeS2CPacket> CODEC = Packet.createCodec(
@@ -61,6 +64,11 @@ public class GameStateChangeS2CPacket implements Packet<ClientPlayPacketListener
 		return PlayPackets.GAME_EVENT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onGameStateChange(this);
 	}

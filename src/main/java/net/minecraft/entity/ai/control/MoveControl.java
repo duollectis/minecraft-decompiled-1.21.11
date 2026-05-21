@@ -41,6 +41,14 @@ public class MoveControl implements Control {
 		return this.speed;
 	}
 
+	/**
+	 * Перемещает to.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param speed speed
+	 */
 	public void moveTo(double x, double y, double z, double speed) {
 		this.targetX = x;
 		this.targetY = y;
@@ -51,6 +59,12 @@ public class MoveControl implements Control {
 		}
 	}
 
+	/**
+	 * Strafe to.
+	 *
+	 * @param forward forward
+	 * @param sideways sideways
+	 */
 	public void strafeTo(float forward, float sideways) {
 		this.state = MoveControl.State.STRAFE;
 		this.forwardMovement = forward;
@@ -58,6 +72,9 @@ public class MoveControl implements Control {
 		this.speed = 0.25;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.state == MoveControl.State.STRAFE) {
 			float f = (float) this.entity.getAttributeValue(EntityAttributes.MOVEMENT_SPEED);
@@ -144,6 +161,15 @@ public class MoveControl implements Control {
 		return true;
 	}
 
+	/**
+	 * Wrap degrees.
+	 *
+	 * @param from from
+	 * @param to to
+	 * @param max max
+	 *
+	 * @return float — результат операции
+	 */
 	protected float wrapDegrees(float from, float to, float max) {
 		float f = MathHelper.wrapDegrees(to - from);
 		if (f > max) {

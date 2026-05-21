@@ -48,6 +48,11 @@ public class ClientDataPackManager {
 		return list;
 	}
 
+	/**
+	 * Создаёт resource manager.
+	 *
+	 * @return LifecycledResourceManager — результат операции
+	 */
 	public LifecycledResourceManager createResourceManager() {
 		List<ResourcePack> list = this.packManager.createResourcePacks();
 		return new LifecycledResourceManagerImpl(ResourceType.SERVER_DATA, list);

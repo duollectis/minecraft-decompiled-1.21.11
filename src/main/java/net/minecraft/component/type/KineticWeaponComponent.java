@@ -102,6 +102,11 @@ public record KineticWeaponComponent(
 		return entity.getKineticAttackMovement().multiply(20.0);
 	}
 
+	/**
+	 * Play sound.
+	 *
+	 * @param entity entity
+	 */
 	public void playSound(Entity entity) {
 		this.sound
 				.ifPresent(
@@ -119,6 +124,11 @@ public record KineticWeaponComponent(
 				);
 	}
 
+	/**
+	 * Play hit sound.
+	 *
+	 * @param entity entity
+	 */
 	public void playHitSound(Entity entity) {
 		this.hitSound.ifPresent(hitSound -> entity
 				.getEntityWorld()
@@ -131,6 +141,14 @@ public record KineticWeaponComponent(
 				.orElse(0);
 	}
 
+	/**
+	 * Usage tick.
+	 *
+	 * @param stack stack
+	 * @param remainingUseTicks remaining use ticks
+	 * @param user user
+	 * @param slot slot
+	 */
 	public void usageTick(ItemStack stack, int remainingUseTicks, LivingEntity user, EquipmentSlot slot) {
 		int i = stack.getMaxUseTime(user) - remainingUseTicks;
 		if (i >= this.delayTicks) {

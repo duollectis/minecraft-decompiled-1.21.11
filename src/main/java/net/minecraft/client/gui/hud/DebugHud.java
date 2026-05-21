@@ -134,11 +134,19 @@ public class DebugHud {
 		}
 	}
 
+	/**
+	 * Сбрасывает chunk.
+	 */
 	public void resetChunk() {
 		this.chunkFuture = null;
 		this.chunk = null;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 */
 	public void render(DrawContext context) {
 		GameOptions gameOptions = this.client.options;
 		if (this.client.isFinishedLoading() && (!gameOptions.hudHidden || this.client.currentScreen != null)) {
@@ -413,24 +421,47 @@ public class DebugHud {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли show debug hud.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowDebugHud() {
 		DebugHudProfile debugHudProfile = this.client.debugHudEntryList;
 		return (debugHudProfile.isF3Enabled() || !debugHudProfile.getVisibleEntries().isEmpty())
 				&& (!this.client.options.hudHidden || this.client.currentScreen != null);
 	}
 
+	/**
+	 * Определяет, следует ли show rendering chart.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowRenderingChart() {
 		return this.client.debugHudEntryList.isF3Enabled() && this.renderingChartVisible;
 	}
 
+	/**
+	 * Определяет, следует ли show packet size and ping charts.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowPacketSizeAndPingCharts() {
 		return this.client.debugHudEntryList.isF3Enabled() && this.packetSizeAndPingChartsVisible;
 	}
 
+	/**
+	 * Определяет, следует ли render tick charts.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRenderTickCharts() {
 		return this.client.debugHudEntryList.isF3Enabled() && this.renderingAndTickChartsVisible;
 	}
 
+	/**
+	 * Toggle packet size and ping charts.
+	 */
 	public void togglePacketSizeAndPingCharts() {
 		this.packetSizeAndPingChartsVisible =
 				!this.client.debugHudEntryList.isF3Enabled() || !this.packetSizeAndPingChartsVisible;
@@ -440,6 +471,9 @@ public class DebugHud {
 		}
 	}
 
+	/**
+	 * Toggle rendering and tick charts.
+	 */
 	public void toggleRenderingAndTickCharts() {
 		this.renderingAndTickChartsVisible =
 				!this.client.debugHudEntryList.isF3Enabled() || !this.renderingAndTickChartsVisible;
@@ -449,6 +483,9 @@ public class DebugHud {
 		}
 	}
 
+	/**
+	 * Toggle rendering chart.
+	 */
 	public void toggleRenderingChart() {
 		this.renderingChartVisible = !this.client.debugHudEntryList.isF3Enabled() || !this.renderingChartVisible;
 		if (this.renderingChartVisible) {
@@ -456,6 +493,11 @@ public class DebugHud {
 		}
 	}
 
+	/**
+	 * Push to frame log.
+	 *
+	 * @param value value
+	 */
 	public void pushToFrameLog(long value) {
 		this.frameNanosLog.push(value);
 	}
@@ -476,6 +518,12 @@ public class DebugHud {
 		return this.pieChart;
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param values values
+	 * @param type type
+	 */
 	public void set(long[] values, DebugSampleType type) {
 		MultiValueDebugSampleLogImpl multiValueDebugSampleLogImpl = this.receivedDebugSamples.get(type);
 		if (multiValueDebugSampleLogImpl != null) {
@@ -483,12 +531,20 @@ public class DebugHud {
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.tickNanosLog.clear();
 		this.pingLog.clear();
 		this.packetSizeLog.clear();
 	}
 
+	/**
+	 * Отрисовывает debug crosshair.
+	 *
+	 * @param camera camera
+	 */
 	public void renderDebugCrosshair(Camera camera) {
 		Matrix4fStack matrix4fStack = RenderSystem.getModelViewStack();
 		matrix4fStack.pushMatrix();

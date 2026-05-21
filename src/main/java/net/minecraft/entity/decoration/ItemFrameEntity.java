@@ -282,6 +282,11 @@ public class ItemFrameEntity extends AbstractDecorationEntity {
 		return stack.get(DataComponentTypes.MAP_ID);
 	}
 
+	/**
+	 * Contains map.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean containsMap() {
 		return this.getHeldItemStack().contains(DataComponentTypes.MAP_ID);
 	}

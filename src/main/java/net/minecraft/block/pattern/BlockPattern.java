@@ -112,6 +112,14 @@ public class BlockPattern {
 		return null;
 	}
 
+	/**
+	 * Make cache.
+	 *
+	 * @param world world
+	 * @param forceLoad force load
+	 *
+	 * @return LoadingCache — результат операции
+	 */
 	public static LoadingCache<BlockPos, CachedBlockPosition> makeCache(WorldView world, boolean forceLoad) {
 		return CacheBuilder.newBuilder().build(new BlockPattern.BlockStateCacheLoader(world, forceLoad));
 	}
@@ -152,6 +160,13 @@ public class BlockPattern {
 			this.forceLoad = forceLoad;
 		}
 
+		/**
+		 * Load.
+		 *
+		 * @param blockPos block pos
+		 *
+		 * @return CachedBlockPosition — результат операции
+		 */
 		public CachedBlockPosition load(BlockPos blockPos) {
 			return new CachedBlockPosition(this.world, blockPos, this.forceLoad);
 		}
@@ -212,6 +227,15 @@ public class BlockPattern {
 			return this.depth;
 		}
 
+		/**
+		 * Translate.
+		 *
+		 * @param offsetLeft offset left
+		 * @param offsetDown offset down
+		 * @param offsetForwards offset forwards
+		 *
+		 * @return CachedBlockPosition — результат операции
+		 */
 		public CachedBlockPosition translate(int offsetLeft, int offsetDown, int offsetForwards) {
 			return (CachedBlockPosition) this.cache
 					.getUnchecked(BlockPattern.translate(

@@ -138,6 +138,12 @@ public abstract class AbstractPressurePlateBlock extends Block {
 		}
 	}
 
+	/**
+	 * Обновляет neighbors.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected void updateNeighbors(World world, BlockPos pos) {
 		world.updateNeighbors(pos, this);
 		world.updateNeighbors(pos.down(), this);

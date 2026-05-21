@@ -23,6 +23,14 @@ public class UploadCompressor {
 	private final BooleanSupplier cancellationSupplier;
 	private final Path directory;
 
+	/**
+	 * Compress.
+	 *
+	 * @param directory directory
+	 * @param cancellationSupplier cancellation supplier
+	 *
+	 * @return File — результат операции
+	 */
 	public static File compress(Path directory, BooleanSupplier cancellationSupplier) throws IOException {
 		return new UploadCompressor(directory, cancellationSupplier).run();
 	}

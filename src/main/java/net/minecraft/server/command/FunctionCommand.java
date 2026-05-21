@@ -58,6 +58,13 @@ public class FunctionCommand {
 	static final FunctionCommand.ResultConsumer<ServerCommandSource>
 			RESULT_REPORTER =
 			new FunctionCommand.ResultConsumer<ServerCommandSource>() {
+				/**
+				 * Accept.
+				 *
+				 * @param serverCommandSource server command source
+				 * @param identifier identifier
+				 * @param i i
+				 */
 				public void accept(ServerCommandSource serverCommandSource, Identifier identifier, int i) {
 					serverCommandSource.sendFeedback(
 							() -> Text.translatable(
@@ -69,6 +76,11 @@ public class FunctionCommand {
 				}
 			};
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		LiteralArgumentBuilder<ServerCommandSource> literalArgumentBuilder = CommandManager.literal("with");
 
@@ -143,6 +155,13 @@ public class FunctionCommand {
 		}
 	}
 
+	/**
+	 * Создаёт function command source.
+	 *
+	 * @param source source
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public static ServerCommandSource createFunctionCommandSource(ServerCommandSource source) {
 		return source.withSilent().withAdditionalPermissions(LeveledPermissionPredicate.GAMEMASTERS);
 	}
@@ -286,6 +305,11 @@ public class FunctionCommand {
 					boolean successful;
 					int returnValue;
 
+					/**
+					 * Обрабатывает событие success.
+					 *
+					 * @param returnValue return value
+					 */
 					public void onSuccess(int returnValue) {
 						this.successful = true;
 						this.returnValue += returnValue;

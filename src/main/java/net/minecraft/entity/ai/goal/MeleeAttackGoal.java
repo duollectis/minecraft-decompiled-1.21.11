@@ -139,6 +139,11 @@ public class MeleeAttackGoal extends Goal {
 		}
 	}
 
+	/**
+	 * Attack.
+	 *
+	 * @param target target
+	 */
 	protected void attack(LivingEntity target) {
 		if (this.canAttack(target)) {
 			this.resetCooldown();
@@ -147,6 +152,9 @@ public class MeleeAttackGoal extends Goal {
 		}
 	}
 
+	/**
+	 * Сбрасывает cooldown.
+	 */
 	protected void resetCooldown() {
 		this.cooldown = this.getTickCount(20);
 	}
@@ -155,6 +163,13 @@ public class MeleeAttackGoal extends Goal {
 		return this.cooldown <= 0;
 	}
 
+	/**
+	 * Проверяет возможность attack.
+	 *
+	 * @param target target
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canAttack(LivingEntity target) {
 		return this.isCooledDown() && this.mob.isInAttackRange(target) && this.mob.getVisibilityCache().canSee(target);
 	}

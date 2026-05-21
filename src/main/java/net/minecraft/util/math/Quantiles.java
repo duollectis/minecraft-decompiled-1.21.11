@@ -21,14 +21,35 @@ public class Quantiles {
 	private Quantiles() {
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param values values
+	 *
+	 * @return Map — результат операции
+	 */
 	public static Map<Integer, Double> create(long[] values) {
 		return values.length == 0 ? Map.of() : reverseMap(QUANTILE_POINTS.compute(values));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param values values
+	 *
+	 * @return Map — результат операции
+	 */
 	public static Map<Integer, Double> create(int[] values) {
 		return values.length == 0 ? Map.of() : reverseMap(QUANTILE_POINTS.compute(values));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param values values
+	 *
+	 * @return Map — результат операции
+	 */
 	public static Map<Integer, Double> create(double[] values) {
 		return values.length == 0 ? Map.of() : reverseMap(QUANTILE_POINTS.compute(values));
 	}

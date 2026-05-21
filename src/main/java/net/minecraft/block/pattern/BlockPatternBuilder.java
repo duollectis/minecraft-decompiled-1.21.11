@@ -28,6 +28,13 @@ public class BlockPatternBuilder {
 		this.charMap.put(' ', pos -> true);
 	}
 
+	/**
+	 * Aisle.
+	 *
+	 * @param pattern pattern
+	 *
+	 * @return BlockPatternBuilder — результат операции
+	 */
 	public BlockPatternBuilder aisle(String... pattern) {
 		if (!ArrayUtils.isEmpty(pattern) && !StringUtils.isEmpty(pattern[0])) {
 			if (this.aisles.isEmpty()) {
@@ -65,16 +72,34 @@ public class BlockPatternBuilder {
 		}
 	}
 
+	/**
+	 * Start.
+	 *
+	 * @return BlockPatternBuilder — результат операции
+	 */
 	public static BlockPatternBuilder start() {
 		return new BlockPatternBuilder();
 	}
 
+	/**
+	 * Where.
+	 *
+	 * @param key key
+	 * @param predicate predicate
+	 *
+	 * @return BlockPatternBuilder — результат операции
+	 */
 	public BlockPatternBuilder where(char key, Predicate<@Nullable CachedBlockPosition> predicate) {
 		this.charMap.put(key, predicate);
 		this.keysMissingPredicates.remove(key);
 		return this;
 	}
 
+	/**
+	 * Build.
+	 *
+	 * @return BlockPattern — результат операции
+	 */
 	public BlockPattern build() {
 		return new BlockPattern(this.bakePredicates());
 	}

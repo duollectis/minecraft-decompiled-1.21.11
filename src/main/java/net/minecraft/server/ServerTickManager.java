@@ -43,6 +43,13 @@ public class ServerTickManager extends TickManager {
 		this.server.getPlayerManager().sendToAll(TickStepS2CPacket.create(this));
 	}
 
+	/**
+	 * Step.
+	 *
+	 * @param ticks ticks
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean step(int ticks) {
 		if (!this.isFrozen()) {
 			return false;
@@ -54,6 +61,11 @@ public class ServerTickManager extends TickManager {
 		}
 	}
 
+	/**
+	 * Останавливает stepping.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean stopStepping() {
 		if (this.stepTicks > 0) {
 			this.stepTicks = 0;
@@ -65,6 +77,11 @@ public class ServerTickManager extends TickManager {
 		}
 	}
 
+	/**
+	 * Останавливает sprinting.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean stopSprinting() {
 		if (this.sprintTicks > 0L) {
 			this.finishSprinting();
@@ -75,6 +92,13 @@ public class ServerTickManager extends TickManager {
 		}
 	}
 
+	/**
+	 * Запускает sprint.
+	 *
+	 * @param ticks ticks
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean startSprint(int ticks) {
 		boolean bl = this.sprintTicks > 0L;
 		this.sprintTime = 0L;
@@ -100,6 +124,11 @@ public class ServerTickManager extends TickManager {
 		this.server.updateAutosaveTicks();
 	}
 
+	/**
+	 * Sprint.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean sprint() {
 		if (!this.shouldTick) {
 			return false;
@@ -115,6 +144,9 @@ public class ServerTickManager extends TickManager {
 		}
 	}
 
+	/**
+	 * Обновляет sprint time.
+	 */
 	public void updateSprintTime() {
 		this.sprintTime = this.sprintTime + (System.nanoTime() - this.sprintStartTime);
 	}
@@ -126,6 +158,11 @@ public class ServerTickManager extends TickManager {
 		this.sendUpdateTickRatePacket();
 	}
 
+	/**
+	 * Отправляет packets.
+	 *
+	 * @param player player
+	 */
 	public void sendPackets(ServerPlayerEntity player) {
 		player.networkHandler.sendPacket(UpdateTickRateS2CPacket.create(this));
 		player.networkHandler.sendPacket(TickStepS2CPacket.create(this));

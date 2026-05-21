@@ -251,10 +251,23 @@ public class UnihexFont implements Font {
 		);
 		public static final Codec<UnihexFont.Dimensions> CODEC = MAP_CODEC.codec();
 
+		/**
+		 * Packed value.
+		 *
+		 * @return int — результат операции
+		 */
 		public int packedValue() {
 			return pack(this.left, this.right);
 		}
 
+		/**
+		 * Pack.
+		 *
+		 * @param left left
+		 * @param right right
+		 *
+		 * @return int — результат операции
+		 */
 		public static int pack(int left, int right) {
 			return (left & 0xFF) << 8 | right & 0xFF;
 		}
@@ -487,6 +500,11 @@ public class UnihexFont implements Font {
 	 */
 	record UnicodeTextureGlyph(UnihexFont.BitmapGlyph contents, int left, int right) implements Glyph {
 
+		/**
+		 * Width.
+		 *
+		 * @return int — результат операции
+		 */
 		public int width() {
 			return this.right - this.left + 1;
 		}

@@ -31,14 +31,36 @@ public class RandomOffsetPlacementModifier extends PlacementModifier {
 	private final IntProvider spreadXz;
 	private final IntProvider spreadY;
 
+	/**
+	 * Of.
+	 *
+	 * @param spreadXz spread xz
+	 * @param spreadY spread y
+	 *
+	 * @return RandomOffsetPlacementModifier — результат операции
+	 */
 	public static RandomOffsetPlacementModifier of(IntProvider spreadXz, IntProvider spreadY) {
 		return new RandomOffsetPlacementModifier(spreadXz, spreadY);
 	}
 
+	/**
+	 * Vertically.
+	 *
+	 * @param spreadY spread y
+	 *
+	 * @return RandomOffsetPlacementModifier — результат операции
+	 */
 	public static RandomOffsetPlacementModifier vertically(IntProvider spreadY) {
 		return new RandomOffsetPlacementModifier(ConstantIntProvider.create(0), spreadY);
 	}
 
+	/**
+	 * Horizontally.
+	 *
+	 * @param spreadXz spread xz
+	 *
+	 * @return RandomOffsetPlacementModifier — результат операции
+	 */
 	public static RandomOffsetPlacementModifier horizontally(IntProvider spreadXz) {
 		return new RandomOffsetPlacementModifier(spreadXz, ConstantIntProvider.create(0));
 	}

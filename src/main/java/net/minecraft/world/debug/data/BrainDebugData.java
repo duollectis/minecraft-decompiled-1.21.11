@@ -66,6 +66,11 @@ public record BrainDebugData(
 		);
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param buf buf
+	 */
 	public void write(PacketByteBuf buf) {
 		buf.writeString(this.name);
 		buf.writeString(this.profession);
@@ -83,6 +88,14 @@ public record BrainDebugData(
 		buf.writeCollection(this.potentialPois, BlockPos.PACKET_CODEC);
 	}
 
+	/**
+	 * From entity.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 *
+	 * @return BrainDebugData — результат операции
+	 */
 	public static BrainDebugData fromEntity(ServerWorld world, LivingEntity entity) {
 		String string = NameGenerator.name(entity);
 		String string2;
@@ -204,10 +217,24 @@ public record BrainDebugData(
 		};
 	}
 
+	/**
+	 * Poi contains.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean poiContains(BlockPos pos) {
 		return this.pois.contains(pos);
 	}
 
+	/**
+	 * Potential poi contains.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean potentialPoiContains(BlockPos pos) {
 		return this.potentialPois.contains(pos);
 	}

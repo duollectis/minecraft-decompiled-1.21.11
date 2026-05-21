@@ -27,6 +27,15 @@ public class TextReorderingProcessor {
 		return this.string;
 	}
 
+	/**
+	 * Process.
+	 *
+	 * @param start start
+	 * @param length length
+	 * @param reverse reverse
+	 *
+	 * @return List — результат операции
+	 */
 	public List<OrderedText> process(int start, int length, boolean reverse) {
 		if (length == 0) {
 			return ImmutableList.of();
@@ -62,6 +71,13 @@ public class TextReorderingProcessor {
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param visitable visitable
+	 *
+	 * @return TextReorderingProcessor — результат операции
+	 */
 	public static TextReorderingProcessor create(StringVisitable visitable) {
 		return create(visitable, codePoint -> codePoint, string -> string);
 	}

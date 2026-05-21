@@ -12,6 +12,9 @@ import net.minecraft.entity.mob.ZombieVillagerEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Класс zombie villager entity renderer.
+ */
 public class ZombieVillagerEntityRenderer
 		extends BipedEntityRenderer<ZombieVillagerEntity, ZombieVillagerRenderState, ZombieVillagerEntityModel<ZombieVillagerRenderState>> {
 
@@ -58,6 +61,11 @@ public class ZombieVillagerEntityRenderer
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ZombieVillagerRenderState — результат операции
+	 */
 	public ZombieVillagerRenderState createRenderState() {
 		return new ZombieVillagerRenderState();
 	}

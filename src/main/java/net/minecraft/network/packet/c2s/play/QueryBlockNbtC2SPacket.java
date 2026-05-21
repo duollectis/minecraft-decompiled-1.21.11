@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Класс query block nbt c2 s packet.
+ */
 public class QueryBlockNbtC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, QueryBlockNbtC2SPacket>
@@ -36,6 +39,11 @@ public class QueryBlockNbtC2SPacket implements Packet<ServerPlayPacketListener> 
 		return PlayPackets.BLOCK_ENTITY_TAG_QUERY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onQueryBlockNbt(this);
 	}

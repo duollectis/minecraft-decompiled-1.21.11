@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс update difficulty lock c2 s packet.
+ */
 public class UpdateDifficultyLockC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, UpdateDifficultyLockC2SPacket> CODEC = Packet.createCodec(
@@ -31,6 +34,11 @@ public class UpdateDifficultyLockC2SPacket implements Packet<ServerPlayPacketLis
 		return PlayPackets.LOCK_DIFFICULTY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onUpdateDifficultyLock(this);
 	}

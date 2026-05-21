@@ -28,6 +28,11 @@ public class PhantomEntityRenderer extends MobEntityRenderer<PhantomEntity, Phan
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return PhantomEntityRenderState — результат операции
+	 */
 	public PhantomEntityRenderState createRenderState() {
 		return new PhantomEntityRenderState();
 	}
@@ -43,6 +48,12 @@ public class PhantomEntityRenderer extends MobEntityRenderer<PhantomEntity, Phan
 		phantomEntityRenderState.size = phantomEntity.getPhantomSize();
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param phantomEntityRenderState phantom entity render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void scale(PhantomEntityRenderState phantomEntityRenderState, MatrixStack matrixStack) {
 		float f = 1.0F + 0.15F * phantomEntityRenderState.size;
 		matrixStack.scale(f, f, f);

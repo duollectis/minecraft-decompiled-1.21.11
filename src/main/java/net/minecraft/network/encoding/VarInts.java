@@ -2,6 +2,9 @@ package net.minecraft.network.encoding;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * Класс var ints.
+ */
 public class VarInts {
 
 	public static final int MAX_BYTES = 5;
@@ -19,10 +22,24 @@ public class VarInts {
 		return 5;
 	}
 
+	/**
+	 * Определяет, следует ли continue read.
+	 *
+	 * @param b b
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldContinueRead(byte b) {
 		return (b & 128) == 128;
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param buf buf
+	 *
+	 * @return int — результат операции
+	 */
 	public static int read(ByteBuf buf) {
 		int i = 0;
 		int j = 0;
@@ -40,6 +57,14 @@ public class VarInts {
 		return i;
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param buf buf
+	 * @param i i
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public static ByteBuf write(ByteBuf buf, int i) {
 		while ((i & -128) != 0) {
 			buf.writeByte(i & 127 | 128);

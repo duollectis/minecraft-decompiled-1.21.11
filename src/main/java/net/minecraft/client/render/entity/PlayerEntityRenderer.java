@@ -73,6 +73,13 @@ public class PlayerEntityRenderer<AvatarlikeEntity extends PlayerLikeEntity & Cl
 		this.addFeature(new StuckStingersFeatureRenderer<>(this, ctx));
 	}
 
+	/**
+	 * Определяет, следует ли render features.
+	 *
+	 * @param playerEntityRenderState player entity render state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRenderFeatures(PlayerEntityRenderState playerEntityRenderState) {
 		return !playerEntityRenderState.spectator;
 	}
@@ -156,6 +163,12 @@ public class PlayerEntityRenderer<AvatarlikeEntity extends PlayerLikeEntity & Cl
 		return playerEntityRenderState.skinTextures.body().texturePath();
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param playerEntityRenderState player entity render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void scale(PlayerEntityRenderState playerEntityRenderState, MatrixStack matrixStack) {
 		float f = 0.9375F;
 		matrixStack.scale(0.9375F, 0.9375F, 0.9375F);
@@ -199,6 +212,11 @@ public class PlayerEntityRenderer<AvatarlikeEntity extends PlayerLikeEntity & Cl
 		matrixStack.pop();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return PlayerEntityRenderState — результат операции
+	 */
 	public PlayerEntityRenderState createRenderState() {
 		return new PlayerEntityRenderState();
 	}
@@ -396,6 +414,13 @@ public class PlayerEntityRenderer<AvatarlikeEntity extends PlayerLikeEntity & Cl
 		}
 	}
 
+	/**
+	 * Определяет, следует ли flip upside down.
+	 *
+	 * @param playerLikeEntity player like entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldFlipUpsideDown(AvatarlikeEntity playerLikeEntity) {
 		if (playerLikeEntity.isModelPartVisible(PlayerModelPart.CAPE)) {
 			return playerLikeEntity instanceof PlayerEntity playerEntity ? shouldFlipUpsideDown(playerEntity)
@@ -406,6 +431,13 @@ public class PlayerEntityRenderer<AvatarlikeEntity extends PlayerLikeEntity & Cl
 		}
 	}
 
+	/**
+	 * Определяет, следует ли flip upside down.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldFlipUpsideDown(PlayerEntity player) {
 		return shouldFlipUpsideDown(player.getGameProfile().name());
 	}

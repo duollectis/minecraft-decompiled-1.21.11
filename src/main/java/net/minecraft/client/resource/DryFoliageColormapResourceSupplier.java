@@ -19,6 +19,14 @@ public class DryFoliageColormapResourceSupplier extends SinglePreparationResourc
 
 	private static final Identifier DRY_FOLIAGE_COLORMAP = Identifier.ofVanilla("textures/colormap/dry_foliage.png");
 
+	/**
+	 * Prepare.
+	 *
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 *
+	 * @return int[] — результат операции
+	 */
 	protected int[] prepare(ResourceManager resourceManager, Profiler profiler) {
 		try {
 			return RawTextureDataLoader.loadRawTextureData(resourceManager, DRY_FOLIAGE_COLORMAP);
@@ -28,6 +36,13 @@ public class DryFoliageColormapResourceSupplier extends SinglePreparationResourc
 		}
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param is is
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(int[] is, ResourceManager resourceManager, Profiler profiler) {
 		DryFoliageColors.setColorMap(is);
 	}

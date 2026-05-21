@@ -19,6 +19,13 @@ public final class PatternParsingRule implements ParsingRule<StringReader, Strin
 		this.exception = exception;
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param parsingState parsing state
+	 *
+	 * @return String — результат операции
+	 */
 	public String parse(ParsingState<StringReader> parsingState) {
 		StringReader stringReader = parsingState.getReader();
 		String string = stringReader.getString();

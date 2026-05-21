@@ -31,10 +31,24 @@ public enum TriState implements StringIdentifiable {
 		this.name = name;
 	}
 
+	/**
+	 * Of boolean.
+	 *
+	 * @param value value
+	 *
+	 * @return TriState — результат операции
+	 */
 	public static TriState ofBoolean(boolean value) {
 		return value ? TRUE : FALSE;
 	}
 
+	/**
+	 * As boolean.
+	 *
+	 * @param fallback fallback
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean asBoolean(boolean fallback) {
 		return switch (this) {
 			case TRUE -> true;

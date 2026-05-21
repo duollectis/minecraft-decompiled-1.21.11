@@ -5,6 +5,9 @@ import net.minecraft.network.listener.PacketListener;
 
 import java.util.function.Function;
 
+/**
+ * Интерфейс context aware network state factory.
+ */
 public interface ContextAwareNetworkStateFactory<T extends PacketListener, B extends ByteBuf, C> extends NetworkState.Factory {
 
 	NetworkState<T> bind(Function<ByteBuf, B> registryBinder, C context);

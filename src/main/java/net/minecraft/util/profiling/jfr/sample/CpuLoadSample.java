@@ -7,6 +7,13 @@ import jdk.jfr.consumer.RecordedEvent;
  */
 public record CpuLoadSample(double jvm, double userJvm, double system) {
 
+	/**
+	 * From event.
+	 *
+	 * @param event event
+	 *
+	 * @return CpuLoadSample — результат операции
+	 */
 	public static CpuLoadSample fromEvent(RecordedEvent event) {
 		return new CpuLoadSample(
 				event.getFloat("jvmSystem"),

@@ -55,6 +55,11 @@ public record PiercingWeaponComponent(
 			PiercingWeaponComponent::new
 	);
 
+	/**
+	 * Play sound.
+	 *
+	 * @param entity entity
+	 */
 	public void playSound(Entity entity) {
 		this.sound
 				.ifPresent(
@@ -72,6 +77,11 @@ public record PiercingWeaponComponent(
 				);
 	}
 
+	/**
+	 * Play hit sound.
+	 *
+	 * @param entity entity
+	 */
 	public void playHitSound(Entity entity) {
 		this.hitSound
 				.ifPresent(
@@ -89,6 +99,14 @@ public record PiercingWeaponComponent(
 				);
 	}
 
+	/**
+	 * Проверяет возможность hit.
+	 *
+	 * @param attacker attacker
+	 * @param target target
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canHit(Entity attacker, Entity target) {
 		if (target.isInvulnerable() || !target.isAlive()) {
 			return false;
@@ -108,6 +126,12 @@ public record PiercingWeaponComponent(
 		}
 	}
 
+	/**
+	 * Stab.
+	 *
+	 * @param attacker attacker
+	 * @param slot slot
+	 */
 	public void stab(LivingEntity attacker, EquipmentSlot slot) {
 		float f = (float) attacker.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
 		AttackRangeComponent attackRangeComponent = attacker.getAttackRange();

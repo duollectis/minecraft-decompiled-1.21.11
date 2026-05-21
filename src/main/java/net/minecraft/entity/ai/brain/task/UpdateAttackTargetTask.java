@@ -12,6 +12,13 @@ import java.util.Optional;
  */
 public class UpdateAttackTargetTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param targetGetter target getter
+	 *
+	 * @return Task — результат операции
+	 */
 	public static <E extends MobEntity> Task<E> create(UpdateAttackTargetTask.TargetGetter<E> targetGetter) {
 		return create((world, entity) -> true, targetGetter);
 	}

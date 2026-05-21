@@ -51,6 +51,13 @@ public class PositionInterpolator {
 		return this.data.step > 0 ? this.data.pitch : this.entity.getPitch();
 	}
 
+	/**
+	 * Refresh position and angles.
+	 *
+	 * @param pow pow
+	 * @param yaw yaw
+	 * @param pitch pitch
+	 */
 	public void refreshPositionAndAngles(Vec3d pow, float yaw, float pitch) {
 		if (this.lerpDuration == 0) {
 			this.entity.refreshPositionAndAngles(pow, yaw, pitch);
@@ -80,6 +87,9 @@ public class PositionInterpolator {
 		this.lerpDuration = lerpDuration;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (!this.isInterpolating()) {
 			this.clear();
@@ -115,6 +125,9 @@ public class PositionInterpolator {
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.data.step = 0;
 		this.lastPos = null;
@@ -138,14 +151,28 @@ public class PositionInterpolator {
 			this.pitch = pitch;
 		}
 
+		/**
+		 * Tick.
+		 */
 		public void tick() {
 			this.step--;
 		}
 
+		/**
+		 * Добавляет pos.
+		 *
+		 * @param pos pos
+		 */
 		public void addPos(Vec3d pos) {
 			this.pos = this.pos.add(pos);
 		}
 
+		/**
+		 * Добавляет rotation.
+		 *
+		 * @param yaw yaw
+		 * @param pitch pitch
+		 */
 		public void addRotation(float yaw, float pitch) {
 			this.yaw += yaw;
 			this.pitch += pitch;

@@ -16,6 +16,13 @@ public record ParsedSelector(String comp_3067, EntitySelector comp_3068) {
 			CODEC =
 			Codec.STRING.comapFlatMap(ParsedSelector::parse, ParsedSelector::comp_3067);
 
+	/**
+	 * Parse.
+	 *
+	 * @param selector selector
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public static DataResult<ParsedSelector> parse(String selector) {
 		try {
 			EntitySelectorReader entitySelectorReader = new EntitySelectorReader(new StringReader(selector), true);

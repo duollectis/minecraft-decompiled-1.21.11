@@ -83,5 +83,10 @@ public abstract class AbstractBeeSoundInstance extends MovingSoundInstance {
 
 	protected abstract MovingSoundInstance getReplacement();
 
+	/**
+	 * Определяет, следует ли replace.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected abstract boolean shouldReplace();
 }

@@ -82,6 +82,13 @@ public abstract class LeavesBlock extends Block implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли decay.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldDecay(BlockState state) {
 		return !state.get(PERSISTENT) && state.get(DISTANCE) == 7;
 	}
@@ -185,6 +192,13 @@ public abstract class LeavesBlock extends Block implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Создаёт (спавнит) leaf particle.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 */
 	protected abstract void spawnLeafParticle(World world, BlockPos pos, Random random);
 
 	@Override

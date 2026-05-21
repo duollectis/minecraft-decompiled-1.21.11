@@ -179,6 +179,11 @@ public class PopupScreen extends Screen {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return PopupScreen — результат операции
+		 */
 		public PopupScreen build() {
 			if (this.buttons.isEmpty()) {
 				throw new IllegalStateException("Popup must have at least one button");

@@ -8,6 +8,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
+/**
+ * Класс packet bundler.
+ */
 public class PacketBundler extends MessageToMessageDecoder<Packet<?>> {
 
 	private final PacketBundleHandler handler;

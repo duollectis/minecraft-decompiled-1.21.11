@@ -1,5 +1,8 @@
 package net.minecraft.network.handler;
 
+/**
+ * Класс handler names.
+ */
 public class HandlerNames {
 
 	public static final String DECOMPRESS = "decompress";

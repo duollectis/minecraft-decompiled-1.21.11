@@ -46,6 +46,13 @@ public class QuickPlayLogger {
 		this.path = MinecraftClient.getInstance().runDirectory.toPath().resolve(relativePath);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param relativePath relative path
+	 *
+	 * @return QuickPlayLogger — результат операции
+	 */
 	public static QuickPlayLogger create(@Nullable String relativePath) {
 		return relativePath == null ? NOOP : new QuickPlayLogger(relativePath);
 	}
@@ -54,6 +61,11 @@ public class QuickPlayLogger {
 		this.world = new QuickPlayLogger.QuickPlayWorld(worldType, id, name);
 	}
 
+	/**
+	 * Save.
+	 *
+	 * @param client client
+	 */
 	public void save(MinecraftClient client) {
 		if (client.interactionManager != null && this.world != null) {
 			Util.getIoWorkerExecutor()

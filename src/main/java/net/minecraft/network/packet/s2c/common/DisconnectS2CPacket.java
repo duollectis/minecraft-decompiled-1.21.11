@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
+/**
+ * Запись disconnect s2 c packet.
+ */
 public record DisconnectS2CPacket(Text reason) implements Packet<ClientCommonPacketListener> {
 
 	public static final PacketCodec<ByteBuf, DisconnectS2CPacket>
@@ -20,6 +23,11 @@ public record DisconnectS2CPacket(Text reason) implements Packet<ClientCommonPac
 		return CommonPackets.DISCONNECT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onDisconnect(this);
 	}

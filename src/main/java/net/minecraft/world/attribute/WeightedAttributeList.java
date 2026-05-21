@@ -15,15 +15,34 @@ public class WeightedAttributeList {
 
 	private final Reference2DoubleArrayMap<EnvironmentAttributeMap> entries = new Reference2DoubleArrayMap();
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.entries.clear();
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param weight weight
+	 * @param attributes attributes
+	 *
+	 * @return WeightedAttributeList — результат операции
+	 */
 	public WeightedAttributeList add(double weight, EnvironmentAttributeMap attributes) {
 		this.entries.mergeDouble(attributes, weight, Double::sum);
 		return this;
 	}
 
+	/**
+	 * Interpolate.
+	 *
+	 * @param attribute attribute
+	 * @param defaultValue default value
+	 *
+	 * @return Value — результат операции
+	 */
 	public <Value> Value interpolate(EnvironmentAttribute<Value> attribute, Value defaultValue) {
 		if (this.entries.isEmpty()) {
 			return defaultValue;

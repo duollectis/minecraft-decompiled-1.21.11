@@ -43,10 +43,22 @@ public class LlamaEntityRenderer extends AgeableMobEntityRenderer<LlamaEntity, L
 		};
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return LlamaEntityRenderState — результат операции
+	 */
 	public LlamaEntityRenderState createRenderState() {
 		return new LlamaEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param llamaEntity llama entity
+	 * @param llamaEntityRenderState llama entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(LlamaEntity llamaEntity, LlamaEntityRenderState llamaEntityRenderState, float f) {
 		super.updateRenderState(llamaEntity, llamaEntityRenderState, f);
 		llamaEntityRenderState.variant = llamaEntity.getVariant();

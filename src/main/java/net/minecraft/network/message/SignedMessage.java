@@ -18,6 +18,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/**
+ * Запись signed message.
+ */
 public record SignedMessage(
 		MessageLink link,
 		@Nullable MessageSignatureData signature,
@@ -55,21 +58,48 @@ public record SignedMessage(
 	public static final Duration SERVERBOUND_TIME_TO_LIVE = Duration.ofMinutes(5L);
 	public static final Duration CLIENTBOUND_TIME_TO_LIVE = SERVERBOUND_TIME_TO_LIVE.plus(Duration.ofMinutes(2L));
 
+	/**
+	 * Of unsigned.
+	 *
+	 * @param content content
+	 *
+	 * @return SignedMessage — результат операции
+	 */
 	public static SignedMessage ofUnsigned(String content) {
 		return ofUnsigned(NIL_UUID, content);
 	}
 
+	/**
+	 * Of unsigned.
+	 *
+	 * @param sender sender
+	 * @param content content
+	 *
+	 * @return SignedMessage — результат операции
+	 */
 	public static SignedMessage ofUnsigned(UUID sender, String content) {
 		MessageBody messageBody = MessageBody.ofUnsigned(content);
 		MessageLink messageLink = MessageLink.of(sender);
 		return new SignedMessage(messageLink, null, messageBody, null, FilterMask.PASS_THROUGH);
 	}
 
+	/**
+	 * With unsigned content.
+	 *
+	 * @param unsignedContent unsigned content
+	 *
+	 * @return SignedMessage — результат операции
+	 */
 	public SignedMessage withUnsignedContent(Text unsignedContent) {
 		Text text = !unsignedContent.equals(Text.literal(this.getSignedContent())) ? unsignedContent : null;
 		return new SignedMessage(this.link, this.signature, this.signedBody, text, this.filterMask);
 	}
 
+	/**
+	 * Without unsigned.
+	 *
+	 * @return SignedMessage — результат операции
+	 */
 	public SignedMessage withoutUnsigned() {
 		return this.unsignedContent != null ? new SignedMessage(
 				this.link,
@@ -80,6 +110,13 @@ public record SignedMessage(
 		) : this;
 	}
 
+	/**
+	 * With filter mask.
+	 *
+	 * @param filterMask filter mask
+	 *
+	 * @return SignedMessage — результат операции
+	 */
 	public SignedMessage withFilterMask(FilterMask filterMask) {
 		return this.filterMask.equals(filterMask) ? this : new SignedMessage(
 				this.link,
@@ -90,10 +127,22 @@ public record SignedMessage(
 		);
 	}
 
+	/**
+	 * With filter mask enabled.
+	 *
+	 * @param enabled enabled
+	 *
+	 * @return SignedMessage — результат операции
+	 */
 	public SignedMessage withFilterMaskEnabled(boolean enabled) {
 		return this.withFilterMask(enabled ? this.filterMask : FilterMask.PASS_THROUGH);
 	}
 
+	/**
+	 * Strip signature.
+	 *
+	 * @return SignedMessage — результат операции
+	 */
 	public SignedMessage stripSignature() {
 		MessageBody messageBody = MessageBody.ofUnsigned(this.getSignedContent());
 		MessageLink messageLink = MessageLink.of(this.getSender());
@@ -107,6 +156,13 @@ public record SignedMessage(
 		body.update(updater);
 	}
 
+	/**
+	 * Verify.
+	 *
+	 * @param verifier verifier
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean verify(SignatureVerifier verifier) {
 		return this.signature != null && this.signature.verify(
 				verifier,
@@ -150,6 +206,13 @@ public record SignedMessage(
 		return this.signature != null;
 	}
 
+	/**
+	 * Проверяет возможность verify from.
+	 *
+	 * @param sender sender
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canVerifyFrom(UUID sender) {
 		return this.hasSignature() && this.link.sender().equals(sender);
 	}
@@ -158,6 +221,13 @@ public record SignedMessage(
 		return this.filterMask.isFullyFiltered();
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param message message
+	 *
+	 * @return String — результат операции
+	 */
 	public static String toString(SignedMessage message) {
 		return "'"
 				+ message.signedBody.content()

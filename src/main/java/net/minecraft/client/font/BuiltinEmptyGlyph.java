@@ -50,6 +50,13 @@ public enum BuiltinEmptyGlyph implements GlyphMetrics {
 		return this.image.getWidth() + 1;
 	}
 
+	/**
+	 * Bake.
+	 *
+	 * @param glyphBaker glyph baker
+	 *
+	 * @return @Nullable BakedGlyphImpl — результат операции
+	 */
 	public @Nullable BakedGlyphImpl bake(GlyphBaker glyphBaker) {
 		return glyphBaker.bake(
 				this,

@@ -790,6 +790,9 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		}
 	}
 
+	/**
+	 * Обновляет window title.
+	 */
 	public void updateWindowTitle() {
 		this.window.setTitle(this.getWindowTitle());
 	}
@@ -886,6 +889,11 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		);
 	}
 
+	/**
+	 * Обрабатывает событие shader resource reload failure.
+	 *
+	 * @param exception exception
+	 */
 	public void onShaderResourceReloadFailure(Exception exception) {
 		if (!this.resourcePackManager.hasOptionalProfilesEnabled()) {
 			if (this.resourcePackManager.getEnabledIds().size() <= 1) {
@@ -901,6 +909,9 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		}
 	}
 
+	/**
+	 * Run.
+	 */
 	public void run() {
 		this.thread = Thread.currentThread();
 		if (Runtime.getRuntime().availableProcessors() > 4) {
@@ -952,6 +963,9 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		}
 	}
 
+	/**
+	 * Обрабатывает событие font options changed.
+	 */
 	public void onFontOptionsChanged() {
 		this.fontManager.setActiveFilters(this.options);
 	}
@@ -987,6 +1001,11 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		}
 	}
 
+	/**
+	 * Выводит crash report.
+	 *
+	 * @param crashReport crash report
+	 */
 	public void printCrashReport(CrashReport crashReport) {
 		CrashMemoryReserve.releaseMemory();
 		CrashReport crashReport2 = this.addDetailsToCrashReport(crashReport);
@@ -994,6 +1013,14 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		printCrashReport(this, this.runDirectory, crashReport2);
 	}
 
+	/**
+	 * Сохраняет crash report.
+	 *
+	 * @param runDir run dir
+	 * @param crashReport crash report
+	 *
+	 * @return int — результат операции
+	 */
 	public static int saveCrashReport(File runDir, CrashReport crashReport) {
 		Path path = runDir.toPath().resolve("crash-reports");
 		Path path2 = path.resolve("crash-" + Util.getFormattedCurrentTime() + "-client.txt");
@@ -1013,6 +1040,13 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		}
 	}
 
+	/**
+	 * Выводит crash report.
+	 *
+	 * @param client client
+	 * @param runDirectory run directory
+	 * @param crashReport crash report
+	 */
 	public static void printCrashReport(@Nullable MinecraftClient client, File runDirectory, CrashReport crashReport) {
 		int i = saveCrashReport(runDirectory, crashReport);
 		if (client != null) {
@@ -1022,10 +1056,20 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		System.exit(i);
 	}
 
+	/**
+	 * Forces unicode font.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean forcesUnicodeFont() {
 		return this.options.getForceUnicodeFont().getValue();
 	}
 
+	/**
+	 * Reload resources.
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Void> reloadResources() {
 		return this.reloadResources(false, null);
 	}
@@ -1140,6 +1184,11 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return this.levelStorage;
 	}
 
+	/**
+	 * Открывает chat screen.
+	 *
+	 * @param method method
+	 */
 	public void openChatScreen(ChatHud.ChatMethod method) {
 		MinecraftClient.ChatRestriction chatRestriction = this.getChatRestriction();
 		if (!chatRestriction.allowsChat(this.isInSingleplayer())) {
@@ -1228,6 +1277,9 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		this.overlay = overlay;
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		try {
 			LOGGER.info("Stopping!");
@@ -1537,6 +1589,13 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		System.gc();
 	}
 
+	/**
+	 * Toggle debug profiler.
+	 *
+	 * @param chatMessageSender chat message sender
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean toggleDebugProfiler(Consumer<Text> chatMessageSender) {
 		if (this.recorder.isActive()) {
 			this.stopRecorder();
@@ -1676,6 +1735,9 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return path;
 	}
 
+	/**
+	 * Schedule stop.
+	 */
 	public void scheduleStop() {
 		this.running = false;
 	}
@@ -1684,6 +1746,11 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return this.running;
 	}
 
+	/**
+	 * Открывает game menu.
+	 *
+	 * @param pauseOnly pause only
+	 */
 	public void openGameMenu(boolean pauseOnly) {
 		if (this.currentScreen == null) {
 			boolean bl = this.isIntegratedServerRunning() && !this.server.isRemote();
@@ -1887,6 +1954,9 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return this.musicTracker;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.uptimeInTicks++;
 		if (this.world != null && !this.paused) {
@@ -2213,6 +2283,11 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return this.profileKeys;
 	}
 
+	/**
+	 * Создаёт integrated server loader.
+	 *
+	 * @return IntegratedServerLoader — результат операции
+	 */
 	public IntegratedServerLoader createIntegratedServerLoader() {
 		return new IntegratedServerLoader(this, this.levelStorage);
 	}
@@ -2311,11 +2386,21 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		this.integratedServerConnection = clientConnection;
 	}
 
+	/**
+	 * Join world.
+	 *
+	 * @param world world
+	 */
 	public void joinWorld(ClientWorld world) {
 		this.world = world;
 		this.resetWorld(world);
 	}
 
+	/**
+	 * Disconnect.
+	 *
+	 * @param reasonText reason text
+	 */
 	public void disconnect(Text reasonText) {
 		boolean bl = this.isInSingleplayer();
 		ServerInfo serverInfo = this.getCurrentServerEntry();
@@ -2342,22 +2427,46 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		}
 	}
 
+	/**
+	 * Disconnect with saving screen.
+	 */
 	public void disconnectWithSavingScreen() {
 		this.disconnectWithScreen(new MessageScreen(SAVING_LEVEL_TEXT), false);
 	}
 
+	/**
+	 * Disconnect with progress screen.
+	 */
 	public void disconnectWithProgressScreen() {
 		this.disconnectWithProgress(true);
 	}
 
+	/**
+	 * Disconnect with progress.
+	 *
+	 * @param bl bl
+	 */
 	public void disconnectWithProgress(boolean bl) {
 		this.disconnect(new ProgressScreen(true), false, bl);
 	}
 
+	/**
+	 * Disconnect with screen.
+	 *
+	 * @param screen screen
+	 * @param bl bl
+	 */
 	public void disconnectWithScreen(Screen screen, boolean bl) {
 		this.disconnect(screen, bl, true);
 	}
 
+	/**
+	 * Disconnect.
+	 *
+	 * @param disconnectionScreen disconnection screen
+	 * @param transferring transferring
+	 * @param bl bl
+	 */
 	public void disconnect(Screen disconnectionScreen, boolean transferring, boolean bl) {
 		ClientPlayNetworkHandler clientPlayNetworkHandler = this.getNetworkHandler();
 		if (clientPlayNetworkHandler != null) {
@@ -2408,11 +2517,19 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		}
 	}
 
+	/**
+	 * Обрабатывает событие disconnected.
+	 */
 	public void onDisconnected() {
 		this.serverResourcePackLoader.clear();
 		this.runTasks();
 	}
 
+	/**
+	 * Enter reconfiguration.
+	 *
+	 * @param reconfigurationScreen reconfiguration screen
+	 */
 	public void enterReconfiguration(Screen reconfigurationScreen) {
 		ClientPlayNetworkHandler clientPlayNetworkHandler = this.getNetworkHandler();
 		if (clientPlayNetworkHandler != null) {
@@ -2502,6 +2619,13 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return profileResult != null && profileResult.actions().contains(ProfileActionType.FORCED_NAME_CHANGE);
 	}
 
+	/**
+	 * Определяет, следует ли block messages.
+	 *
+	 * @param sender sender
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldBlockMessages(UUID sender) {
 		return this.getChatRestriction().allowsChat(false)
 		       ? this.socialInteractionsManager.isPlayerMuted(sender)
@@ -2526,6 +2650,11 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return this.isDemo;
 	}
 
+	/**
+	 * Проверяет возможность switch game mode.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public final boolean canSwitchGameMode() {
 		return this.player != null && this.interactionManager != null;
 	}
@@ -2538,6 +2667,11 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return !instance.options.hudHidden;
 	}
 
+	/**
+	 * Использует s improved transparency.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean usesImprovedTransparency() {
 		return !instance.gameRenderer.isRenderingPanorama() && instance.options.getImprovedTransparency().getValue();
 	}
@@ -2561,6 +2695,13 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		}
 	}
 
+	/**
+	 * Добавляет details to crash report.
+	 *
+	 * @param report report
+	 *
+	 * @return CrashReport — результат операции
+	 */
 	public CrashReport addDetailsToCrashReport(CrashReport report) {
 		SystemDetails systemDetails = report.getSystemDetailsSection();
 
@@ -2689,12 +2830,22 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return instance;
 	}
 
+	/**
+	 * Reload resources concurrently.
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Void> reloadResourcesConcurrently() {
 		return this
 				.<CompletableFuture<Void>>submit((Supplier<CompletableFuture<Void>>) this::reloadResources)
 				.thenCompose(future -> future);
 	}
 
+	/**
+	 * Ensure abuse report context.
+	 *
+	 * @param environment environment
+	 */
 	public void ensureAbuseReportContext(ReporterEnvironment environment) {
 		if (!this.abuseReportContext.environmentEquals(environment)) {
 			this.abuseReportContext = AbuseReportContext.create(environment, this.userApiService);
@@ -2722,6 +2873,13 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return integratedServer != null && !integratedServer.isRemote();
 	}
 
+	/**
+	 * Uuid equals.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean uuidEquals(UUID uuid) {
 		return uuid.equals(this.getSession().getUuidOrNull());
 	}
@@ -2940,6 +3098,13 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		this.windowFocused = focused;
 	}
 
+	/**
+	 * Take panorama.
+	 *
+	 * @param directory directory
+	 *
+	 * @return Text — результат операции
+	 */
 	public Text takePanorama(File directory) {
 		int i = 4;
 		int j = 4096;
@@ -3064,10 +3229,18 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return this.bakedModelManager.getEntityModelsSupplier().get();
 	}
 
+	/**
+	 * Определяет, следует ли filter text.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldFilterText() {
 		return this.getUserProperties().flag(UserFlag.PROFANITY_FILTER_ENABLED);
 	}
 
+	/**
+	 * Загружает block list.
+	 */
 	public void loadBlockList() {
 		this.socialInteractionsManager.loadBlockList();
 		this.getProfileKeys().fetchKeyPair();
@@ -3128,6 +3301,11 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 		return this.itemModelManager;
 	}
 
+	/**
+	 * Проверяет возможность current screen interrupt other screen.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canCurrentScreenInterruptOtherScreen() {
 		return (this.currentScreen == null || this.currentScreen.canInterruptOtherScreen()) && !this.disconnecting;
 	}
@@ -3191,6 +3369,13 @@ public class MinecraftClient extends ReentrantThreadExecutor<Runnable> implement
 			return this.description;
 		}
 
+		/**
+		 * Allows chat.
+		 *
+		 * @param singlePlayer single player
+		 *
+		 * @return boolean — результат операции
+		 */
 		public abstract boolean allowsChat(boolean singlePlayer);
 	}
 

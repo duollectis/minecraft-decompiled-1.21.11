@@ -82,6 +82,13 @@ public record AttackRangeComponent(
 			AttackRangeComponent::new
 	);
 
+	/**
+	 * Default for entity.
+	 *
+	 * @param entity entity
+	 *
+	 * @return AttackRangeComponent — результат операции
+	 */
 	public static AttackRangeComponent defaultForEntity(LivingEntity entity) {
 		return new AttackRangeComponent(
 				0.0F,

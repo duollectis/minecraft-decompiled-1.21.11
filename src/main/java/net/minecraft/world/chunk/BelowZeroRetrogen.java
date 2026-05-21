@@ -69,6 +69,11 @@ public final class BelowZeroRetrogen {
 		this.missingBedrock = missingBedrock.orElse(EMPTY_MISSING_BEDROCK_BIT_SET);
 	}
 
+	/**
+	 * Replace old bedrock.
+	 *
+	 * @param chunk chunk
+	 */
 	public static void replaceOldBedrock(ProtoChunk chunk) {
 		int i = 4;
 		BlockPos.iterate(0, 0, 0, 15, 4, 15).forEach(pos -> {
@@ -78,6 +83,11 @@ public final class BelowZeroRetrogen {
 		});
 	}
 
+	/**
+	 * Fill columns with air if missing bedrock.
+	 *
+	 * @param chunk chunk
+	 */
 	public void fillColumnsWithAirIfMissingBedrock(ProtoChunk chunk) {
 		HeightLimitView heightLimitView = chunk.getHeightLimitView();
 		int i = heightLimitView.getBottomY();

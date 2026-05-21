@@ -35,6 +35,15 @@ public class NoiseBasedCountPlacementModifier extends AbstractCountPlacementModi
 		this.noiseOffset = noiseOffset;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param noiseToCountRatio noise to count ratio
+	 * @param noiseFactor noise factor
+	 * @param noiseOffset noise offset
+	 *
+	 * @return NoiseBasedCountPlacementModifier — результат операции
+	 */
 	public static NoiseBasedCountPlacementModifier of(int noiseToCountRatio, double noiseFactor, double noiseOffset) {
 		return new NoiseBasedCountPlacementModifier(noiseToCountRatio, noiseFactor, noiseOffset);
 	}

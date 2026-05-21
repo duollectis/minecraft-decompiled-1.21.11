@@ -62,6 +62,12 @@ public abstract class MobSpawnerLogic {
 		return world.isPlayerInRange(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, this.requiredPlayerRange);
 	}
 
+	/**
+	 * Client tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	public void clientTick(World world, BlockPos pos) {
 		if (!this.isPlayerInRange(world, pos)) {
 			this.lastRotation = this.rotation;
@@ -82,6 +88,12 @@ public abstract class MobSpawnerLogic {
 		}
 	}
 
+	/**
+	 * Server tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	public void serverTick(ServerWorld world, BlockPos pos) {
 		if (this.isPlayerInRange(world, pos) && world.areSpawnerBlocksEnabled()) {
 			if (this.spawnDelay == -1) {
@@ -250,6 +262,13 @@ public abstract class MobSpawnerLogic {
 		this.sendStatus(world, pos, 1);
 	}
 
+	/**
+	 * Читает data.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param view view
+	 */
 	public void readData(@Nullable World world, BlockPos pos, ReadView view) {
 		this.spawnDelay = view.getShort("Delay", (short) 20);
 		view
@@ -267,6 +286,11 @@ public abstract class MobSpawnerLogic {
 		this.renderedEntity = null;
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param view view
+	 */
 	public void writeData(WriteView view) {
 		view.putShort("Delay", (short) this.spawnDelay);
 		view.putShort("MinSpawnDelay", (short) this.minSpawnDelay);
@@ -300,6 +324,14 @@ public abstract class MobSpawnerLogic {
 		return this.renderedEntity;
 	}
 
+	/**
+	 * Обрабатывает status.
+	 *
+	 * @param world world
+	 * @param status status
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean handleStatus(World world, int status) {
 		if (status == 1) {
 			if (world.isClient()) {
@@ -327,6 +359,13 @@ public abstract class MobSpawnerLogic {
 		}
 	}
 
+	/**
+	 * Отправляет status.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param status status
+	 */
 	public abstract void sendStatus(World world, BlockPos pos, int status);
 
 	public double getRotation() {

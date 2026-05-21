@@ -41,16 +41,32 @@ public class ChunkDataSender {
 		this.local = local;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param chunk chunk
+	 */
 	public void add(WorldChunk chunk) {
 		this.chunks.add(chunk.getPos().toLong());
 	}
 
+	/**
+	 * Unload.
+	 *
+	 * @param player player
+	 * @param pos pos
+	 */
 	public void unload(ServerPlayerEntity player, ChunkPos pos) {
 		if (!this.chunks.remove(pos.toLong()) && player.isAlive()) {
 			player.networkHandler.sendPacket(new UnloadChunkS2CPacket(pos));
 		}
 	}
 
+	/**
+	 * Отправляет chunk batches.
+	 *
+	 * @param player player
+	 */
 	public void sendChunkBatches(ServerPlayerEntity player) {
 		if (this.unacknowledgedBatches < this.maxUnacknowledgedBatches) {
 			float f = Math.max(1.0F, this.desiredBatchSize);
@@ -118,6 +134,11 @@ public class ChunkDataSender {
 		return list;
 	}
 
+	/**
+	 * Обрабатывает событие acknowledge chunks.
+	 *
+	 * @param desiredBatchSize desired batch size
+	 */
 	public void onAcknowledgeChunks(float desiredBatchSize) {
 		this.unacknowledgedBatches--;
 		this.desiredBatchSize =

@@ -9,6 +9,11 @@ import net.minecraft.server.world.ServerWorld;
  */
 public record BlockPointer(ServerWorld world, BlockPos pos, BlockState state, DispenserBlockEntity blockEntity) {
 
+	/**
+	 * Center pos.
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d centerPos() {
 		return this.pos.toCenterPos();
 	}

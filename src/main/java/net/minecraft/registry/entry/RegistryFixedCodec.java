@@ -20,6 +20,13 @@ public final class RegistryFixedCodec<E> implements Codec<RegistryEntry<E>> {
 
 	private final RegistryKey<? extends Registry<E>> registry;
 
+	/**
+	 * Of.
+	 *
+	 * @param registry registry
+	 *
+	 * @return RegistryFixedCodec — результат операции
+	 */
 	public static <E> RegistryFixedCodec<E> of(RegistryKey<? extends Registry<E>> registry) {
 		return new RegistryFixedCodec<>(registry);
 	}
@@ -28,6 +35,15 @@ public final class RegistryFixedCodec<E> implements Codec<RegistryEntry<E>> {
 		this.registry = registry;
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param registryEntry registry entry
+	 * @param dynamicOps dynamic ops
+	 * @param object object
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public <T> DataResult<T> encode(RegistryEntry<E> registryEntry, DynamicOps<T> dynamicOps, T object) {
 		if (dynamicOps instanceof RegistryOps<?> registryOps) {
 			Optional<RegistryEntryOwner<E>> optional = registryOps.getOwner(this.registry);
@@ -52,6 +68,14 @@ public final class RegistryFixedCodec<E> implements Codec<RegistryEntry<E>> {
 		return DataResult.error(() -> "Can't access registry " + this.registry);
 	}
 
+	/**
+	 * Decode.
+	 *
+	 * @param ops ops
+	 * @param input input
+	 *
+	 * @return DataResult, T>> — результат операции
+	 */
 	public <T> DataResult<Pair<RegistryEntry<E>, T>> decode(DynamicOps<T> ops, T input) {
 		if (ops instanceof RegistryOps<?> registryOps) {
 			Optional<RegistryEntryLookup<E>> optional = registryOps.getEntryLookup(this.registry);

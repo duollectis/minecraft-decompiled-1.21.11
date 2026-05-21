@@ -14,6 +14,9 @@ import net.minecraft.world.World;
 
 import java.util.Set;
 
+/**
+ * Запись game join s2 c packet.
+ */
 public record GameJoinS2CPacket(
 		int playerEntityId,
 		boolean hardcore,
@@ -67,6 +70,11 @@ public record GameJoinS2CPacket(
 		return PlayPackets.LOGIN;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onGameJoin(this);
 	}

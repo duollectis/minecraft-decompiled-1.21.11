@@ -17,10 +17,24 @@ public class RangedApproachTask {
 
 	private static final int WEAPON_REACH_REDUCTION = 1;
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<MobEntity> create(float speed) {
 		return create(entity -> speed);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<MobEntity> create(Function<LivingEntity, Float> speed) {
 		return TaskTriggerer.task(
 				context -> context.group(

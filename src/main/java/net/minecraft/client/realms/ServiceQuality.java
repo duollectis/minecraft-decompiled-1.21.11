@@ -31,6 +31,13 @@ public enum ServiceQuality {
 		this.icon = Identifier.ofVanilla(icon);
 	}
 
+	/**
+	 * By index.
+	 *
+	 * @param index index
+	 *
+	 * @return @Nullable ServiceQuality — результат операции
+	 */
 	public static @Nullable ServiceQuality byIndex(int index) {
 		for (ServiceQuality serviceQuality : values()) {
 			if (serviceQuality.getIndex() == index) {
@@ -57,10 +64,23 @@ public enum ServiceQuality {
 
 		private static final Logger LOGGER = LogUtils.getLogger();
 
+		/**
+		 * Write.
+		 *
+		 * @param jsonWriter json writer
+		 * @param serviceQuality service quality
+		 */
 		public void write(JsonWriter jsonWriter, ServiceQuality serviceQuality) throws IOException {
 			jsonWriter.value(serviceQuality.index);
 		}
 
+		/**
+		 * Read.
+		 *
+		 * @param jsonReader json reader
+		 *
+		 * @return ServiceQuality — результат операции
+		 */
 		public ServiceQuality read(JsonReader jsonReader) throws IOException {
 			int i = jsonReader.nextInt();
 			ServiceQuality serviceQuality = ServiceQuality.byIndex(i);

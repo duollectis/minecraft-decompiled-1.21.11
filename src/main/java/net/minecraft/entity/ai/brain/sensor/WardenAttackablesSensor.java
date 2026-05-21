@@ -27,6 +27,12 @@ public class WardenAttackablesSensor extends NearestLivingEntitiesSensor<WardenE
 		));
 	}
 
+	/**
+	 * Sense.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 */
 	protected void sense(ServerWorld serverWorld, WardenEntity wardenEntity) {
 		super.sense(serverWorld, wardenEntity);
 		findNearestTarget(wardenEntity, entityx -> entityx.getType() == EntityType.PLAYER)

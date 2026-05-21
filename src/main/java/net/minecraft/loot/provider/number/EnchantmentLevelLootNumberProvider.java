@@ -30,6 +30,13 @@ public record EnchantmentLevelLootNumberProvider(EnchantmentLevelBasedValue amou
 		return LootNumberProviderTypes.ENCHANTMENT_LEVEL;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param amount amount
+	 *
+	 * @return EnchantmentLevelLootNumberProvider — результат операции
+	 */
 	public static EnchantmentLevelLootNumberProvider create(EnchantmentLevelBasedValue amount) {
 		return new EnchantmentLevelLootNumberProvider(amount);
 	}

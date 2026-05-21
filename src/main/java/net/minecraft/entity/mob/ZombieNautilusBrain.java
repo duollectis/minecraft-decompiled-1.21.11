@@ -60,6 +60,13 @@ public class ZombieNautilusBrain {
 		return Brain.createProfile(MEMORY_MODULES, SENSORS);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<ZombieNautilusEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -139,6 +146,11 @@ public class ZombieNautilusBrain {
 		);
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param nautilus nautilus
+	 */
 	public static void updateActivities(ZombieNautilusEntity nautilus) {
 		nautilus.getBrain().resetPossibleActivities(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
 	}

@@ -221,6 +221,12 @@ public abstract class PlayerManager {
 		serverPlayNetworkHandler.enableFlush();
 	}
 
+	/**
+	 * Отправляет scoreboard.
+	 *
+	 * @param scoreboard scoreboard
+	 * @param player player
+	 */
 	protected void sendScoreboard(ServerScoreboard scoreboard, ServerPlayerEntity player) {
 		Set<ScoreboardObjective> set = Sets.newHashSet();
 
@@ -289,6 +295,13 @@ public abstract class PlayerManager {
 		});
 	}
 
+	/**
+	 * Загружает player data.
+	 *
+	 * @param player player
+	 *
+	 * @return Optional — результат операции
+	 */
 	public Optional<NbtCompound> loadPlayerData(PlayerConfigEntry player) {
 		NbtCompound nbtCompound = this.server.getSaveProperties().getPlayerData();
 		if (this.server.isHost(player) && nbtCompound != null) {
@@ -300,6 +313,11 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Сохраняет player data.
+	 *
+	 * @param player player
+	 */
 	protected void savePlayerData(ServerPlayerEntity player) {
 		this.saveHandler.savePlayerData(player);
 		ServerStatHandler serverStatHandler = this.statisticsMap.get(player.getUuid());
@@ -313,6 +331,11 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param player player
+	 */
 	public void remove(ServerPlayerEntity player) {
 		ServerWorld serverWorld = player.getEntityWorld();
 		player.incrementStat(Stats.LEAVE_GAME);
@@ -350,6 +373,14 @@ public abstract class PlayerManager {
 		this.sendToAll(new PlayerRemoveS2CPacket(List.of(player.getUuid())));
 	}
 
+	/**
+	 * Проверяет can join.
+	 *
+	 * @param address address
+	 * @param configEntry config entry
+	 *
+	 * @return @Nullable Text — результат операции
+	 */
 	public @Nullable Text checkCanJoin(SocketAddress address, PlayerConfigEntry configEntry) {
 		if (this.bannedProfiles.contains(configEntry)) {
 			BannedPlayerEntry bannedPlayerEntry = this.bannedProfiles.get(configEntry);
@@ -389,6 +420,13 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Disconnect duplicate logins.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean disconnectDuplicateLogins(UUID uuid) {
 		Set<ServerPlayerEntity> set = Sets.newIdentityHashSet();
 
@@ -511,16 +549,32 @@ public abstract class PlayerManager {
 		return serverPlayerEntity;
 	}
 
+	/**
+	 * Отправляет status effects.
+	 *
+	 * @param player player
+	 */
 	public void sendStatusEffects(ServerPlayerEntity player) {
 		this.sendStatusEffects(player, player.networkHandler);
 	}
 
+	/**
+	 * Отправляет status effects.
+	 *
+	 * @param entity entity
+	 * @param networkHandler network handler
+	 */
 	public void sendStatusEffects(LivingEntity entity, ServerPlayNetworkHandler networkHandler) {
 		for (StatusEffectInstance statusEffectInstance : entity.getStatusEffects()) {
 			networkHandler.sendPacket(new EntityStatusEffectS2CPacket(entity.getId(), statusEffectInstance, false));
 		}
 	}
 
+	/**
+	 * Отправляет command tree.
+	 *
+	 * @param player player
+	 */
 	public void sendCommandTree(ServerPlayerEntity player) {
 		LeveledPermissionPredicate
 				leveledPermissionPredicate =
@@ -528,6 +582,9 @@ public abstract class PlayerManager {
 		this.sendCommandTree(player, leveledPermissionPredicate);
 	}
 
+	/**
+	 * Обновляет player latency.
+	 */
 	public void updatePlayerLatency() {
 		if (++this.latencyUpdateTimer > 600) {
 			this.sendToAll(new PlayerListS2CPacket(
@@ -538,12 +595,23 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Отправляет to all.
+	 *
+	 * @param packet packet
+	 */
 	public void sendToAll(Packet<?> packet) {
 		for (ServerPlayerEntity serverPlayerEntity : this.players) {
 			serverPlayerEntity.networkHandler.sendPacket(packet);
 		}
 	}
 
+	/**
+	 * Отправляет to dimension.
+	 *
+	 * @param packet packet
+	 * @param dimension dimension
+	 */
 	public void sendToDimension(Packet<?> packet, RegistryKey<World> dimension) {
 		for (ServerPlayerEntity serverPlayerEntity : this.players) {
 			if (serverPlayerEntity.getEntityWorld().getRegistryKey() == dimension) {
@@ -552,6 +620,12 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Отправляет to team.
+	 *
+	 * @param source source
+	 * @param message message
+	 */
 	public void sendToTeam(PlayerEntity source, Text message) {
 		AbstractTeam abstractTeam = source.getScoreboardTeam();
 		if (abstractTeam != null) {
@@ -564,6 +638,12 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Отправляет to other teams.
+	 *
+	 * @param source source
+	 * @param message message
+	 */
 	public void sendToOtherTeams(PlayerEntity source, Text message) {
 		AbstractTeam abstractTeam = source.getScoreboardTeam();
 		if (abstractTeam == null) {
@@ -597,6 +677,11 @@ public abstract class PlayerManager {
 		return this.bannedIps;
 	}
 
+	/**
+	 * Добавляет to operators.
+	 *
+	 * @param player player
+	 */
 	public void addToOperators(PlayerConfigEntry player) {
 		this.addToOperators(player, Optional.empty(), Optional.empty());
 	}
@@ -620,6 +705,11 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Удаляет from operators.
+	 *
+	 * @param player player
+	 */
 	public void removeFromOperators(PlayerConfigEntry player) {
 		if (this.ops.remove(player)) {
 			ServerPlayerEntity serverPlayerEntity = this.getPlayer(player.id());
@@ -689,6 +779,9 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Сохраняет all player data.
+	 */
 	public void saveAllPlayerData() {
 		for (int i = 0; i < this.players.size(); i++) {
 			this.savePlayerData(this.players.get(i));
@@ -711,9 +804,18 @@ public abstract class PlayerManager {
 		return this.ops.getNames();
 	}
 
+	/**
+	 * Reload whitelist.
+	 */
 	public void reloadWhitelist() {
 	}
 
+	/**
+	 * Отправляет world info.
+	 *
+	 * @param player player
+	 * @param world world
+	 */
 	public void sendWorldInfo(ServerPlayerEntity player, ServerWorld world) {
 		WorldBorder worldBorder = world.getWorldBorder();
 		player.networkHandler.sendPacket(new WorldBorderInitializeS2CPacket(worldBorder));
@@ -743,6 +845,11 @@ public abstract class PlayerManager {
 		this.server.getTickManager().sendPackets(player);
 	}
 
+	/**
+	 * Отправляет player status.
+	 *
+	 * @param player player
+	 */
 	public void sendPlayerStatus(ServerPlayerEntity player) {
 		player.playerScreenHandler.syncState();
 		player.markHealthDirty();
@@ -793,16 +900,32 @@ public abstract class PlayerManager {
 		this.cheatsAllowed = cheatsAllowed;
 	}
 
+	/**
+	 * Disconnect all players.
+	 */
 	public void disconnectAllPlayers() {
 		for (int i = 0; i < this.players.size(); i++) {
 			this.players.get(i).networkHandler.disconnect(Text.translatable("multiplayer.disconnect.server_shutdown"));
 		}
 	}
 
+	/**
+	 * Broadcast.
+	 *
+	 * @param message message
+	 * @param overlay overlay
+	 */
 	public void broadcast(Text message, boolean overlay) {
 		this.broadcast(message, player -> message, overlay);
 	}
 
+	/**
+	 * Broadcast.
+	 *
+	 * @param message message
+	 * @param playerMessageFactory player message factory
+	 * @param overlay overlay
+	 */
 	public void broadcast(Text message, Function<ServerPlayerEntity, Text> playerMessageFactory, boolean overlay) {
 		this.server.sendMessage(message);
 
@@ -814,10 +937,24 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Broadcast.
+	 *
+	 * @param message message
+	 * @param source source
+	 * @param params params
+	 */
 	public void broadcast(SignedMessage message, ServerCommandSource source, MessageType.Parameters params) {
 		this.broadcast(message, source::shouldFilterText, source.getPlayer(), params);
 	}
 
+	/**
+	 * Broadcast.
+	 *
+	 * @param message message
+	 * @param sender sender
+	 * @param params params
+	 */
 	public void broadcast(SignedMessage message, ServerPlayerEntity sender, MessageType.Parameters params) {
 		this.broadcast(message, sender::shouldFilterMessagesSentTo, sender, params);
 	}
@@ -848,6 +985,13 @@ public abstract class PlayerManager {
 		return message.hasSignature() && !message.isExpiredOnServer(Instant.now());
 	}
 
+	/**
+	 * Создаёт stat handler.
+	 *
+	 * @param player player
+	 *
+	 * @return ServerStatHandler — результат операции
+	 */
 	public ServerStatHandler createStatHandler(PlayerEntity player) {
 		GameProfile gameProfile = player.getGameProfile();
 		return this.statisticsMap.computeIfAbsent(
@@ -939,10 +1083,20 @@ public abstract class PlayerManager {
 		return null;
 	}
 
+	/**
+	 * Проверяет возможность bypass player limit.
+	 *
+	 * @param configEntry config entry
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBypassPlayerLimit(PlayerConfigEntry configEntry) {
 		return false;
 	}
 
+	/**
+	 * Обрабатывает событие data packs reloaded.
+	 */
 	public void onDataPacksReloaded() {
 		for (PlayerAdvancementTracker playerAdvancementTracker : this.advancementTrackers.values()) {
 			playerAdvancementTracker.reload(this.server.getAdvancementLoader());
@@ -960,6 +1114,11 @@ public abstract class PlayerManager {
 		}
 	}
 
+	/**
+	 * Are cheats allowed.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areCheatsAllowed() {
 		return this.cheatsAllowed;
 	}

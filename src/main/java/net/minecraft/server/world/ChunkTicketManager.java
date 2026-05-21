@@ -113,6 +113,9 @@ public class ChunkTicketManager extends PersistentState {
 		}
 	}
 
+	/**
+	 * Promote to real tickets.
+	 */
 	public void promoteToRealTickets() {
 		ObjectIterator var1 = Long2ObjectMaps.fastIterable(this.savedTickets).iterator();
 
@@ -139,6 +142,11 @@ public class ChunkTicketManager extends PersistentState {
 		return !this.tickets.isEmpty();
 	}
 
+	/**
+	 * Определяет, следует ли reset idle timeout.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldResetIdleTimeout() {
 		ObjectIterator var1 = this.tickets.values().iterator();
 
@@ -163,15 +171,36 @@ public class ChunkTicketManager extends PersistentState {
 		return (List<ChunkTicket>) this.tickets.computeIfAbsent(pos, chunkPos -> new ObjectArrayList(4));
 	}
 
+	/**
+	 * Добавляет ticket.
+	 *
+	 * @param type type
+	 * @param pos pos
+	 * @param radius radius
+	 */
 	public void addTicket(ChunkTicketType type, ChunkPos pos, int radius) {
 		ChunkTicket chunkTicket = new ChunkTicket(type, ChunkLevels.getLevelFromType(ChunkLevelType.FULL) - radius);
 		this.addTicket(pos.toLong(), chunkTicket);
 	}
 
+	/**
+	 * Добавляет ticket.
+	 *
+	 * @param ticket ticket
+	 * @param pos pos
+	 */
 	public void addTicket(ChunkTicket ticket, ChunkPos pos) {
 		this.addTicket(pos.toLong(), ticket);
 	}
 
+	/**
+	 * Добавляет ticket.
+	 *
+	 * @param pos pos
+	 * @param ticket ticket
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean addTicket(long pos, ChunkTicket ticket) {
 		List<ChunkTicket> list = this.getTicketsMutable(pos);
 
@@ -241,15 +270,36 @@ public class ChunkTicketManager extends PersistentState {
 		}
 	}
 
+	/**
+	 * Удаляет ticket.
+	 *
+	 * @param type type
+	 * @param pos pos
+	 * @param radius radius
+	 */
 	public void removeTicket(ChunkTicketType type, ChunkPos pos, int radius) {
 		ChunkTicket chunkTicket = new ChunkTicket(type, ChunkLevels.getLevelFromType(ChunkLevelType.FULL) - radius);
 		this.removeTicket(pos.toLong(), chunkTicket);
 	}
 
+	/**
+	 * Удаляет ticket.
+	 *
+	 * @param ticket ticket
+	 * @param pos pos
+	 */
 	public void removeTicket(ChunkTicket ticket, ChunkPos pos) {
 		this.removeTicket(pos.toLong(), ticket);
 	}
 
+	/**
+	 * Удаляет ticket.
+	 *
+	 * @param pos pos
+	 * @param ticket ticket
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean removeTicket(long pos, ChunkTicket ticket) {
 		List<ChunkTicket> list = (List<ChunkTicket>) this.tickets.get(pos);
 		if (list == null) {
@@ -308,6 +358,11 @@ public class ChunkTicketManager extends PersistentState {
 		return chunkTicket == null ? "no_ticket" : chunkTicket.toString();
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param chunkLoadingManager chunk loading manager
+	 */
 	public void tick(ServerChunkLoadingManager chunkLoadingManager) {
 		this.removeTicketsIf(
 				(ticket, pos) -> {
@@ -336,6 +391,9 @@ public class ChunkTicketManager extends PersistentState {
 		}
 	}
 
+	/**
+	 * Shutdown.
+	 */
 	public void shutdown() {
 		this.removeTicketsIf((ticket, pos) -> ticket.getType() != ChunkTicketType.UNKNOWN, this.savedTickets);
 	}
@@ -403,6 +461,12 @@ public class ChunkTicketManager extends PersistentState {
 		}
 	}
 
+	/**
+	 * Обновляет level.
+	 *
+	 * @param level level
+	 * @param type type
+	 */
 	public void updateLevel(int level, ChunkTicketType type) {
 		List<Pair<ChunkTicket, Long>> list = new ArrayList<>();
 		ObjectIterator var4 = this.tickets.long2ObjectEntrySet().iterator();

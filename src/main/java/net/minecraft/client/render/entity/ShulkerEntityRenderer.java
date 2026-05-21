@@ -40,6 +40,17 @@ public class ShulkerEntityRenderer extends MobEntityRenderer<ShulkerEntity, Shul
 		return shulkerEntityRenderState.renderPositionOffset;
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param shulkerEntity shulker entity
+	 * @param frustum frustum
+	 * @param d d
+	 * @param e e
+	 * @param f f
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRender(ShulkerEntity shulkerEntity, Frustum frustum, double d, double e, double f) {
 		if (super.shouldRender(shulkerEntity, frustum, d, e, f)) {
 			return true;
@@ -70,6 +81,11 @@ public class ShulkerEntityRenderer extends MobEntityRenderer<ShulkerEntity, Shul
 		return getTexture(shulkerEntityRenderState.color);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ShulkerEntityRenderState — результат операции
+	 */
 	public ShulkerEntityRenderState createRenderState() {
 		return new ShulkerEntityRenderState();
 	}

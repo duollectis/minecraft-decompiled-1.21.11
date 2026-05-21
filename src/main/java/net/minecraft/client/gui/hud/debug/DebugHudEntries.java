@@ -114,6 +114,14 @@ public class DebugHudEntries {
 		return register(Identifier.ofVanilla(id), entry);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param id id
+	 * @param entry entry
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public static Identifier register(Identifier id, DebugHudEntry entry) {
 		ENTRIES.put(id, entry);
 		return id;
@@ -123,6 +131,13 @@ public class DebugHudEntries {
 		return Map.copyOf(ENTRIES);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable DebugHudEntry — 
+	 */
 	public static @Nullable DebugHudEntry get(Identifier id) {
 		return ENTRIES.get(id);
 	}

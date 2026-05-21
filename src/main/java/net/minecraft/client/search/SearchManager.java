@@ -47,6 +47,9 @@ public class SearchManager {
 		this.reloaders.put(key, reloader);
 	}
 
+	/**
+	 * Refresh.
+	 */
 	public void refresh() {
 		for (Runnable runnable : this.reloaders.values()) {
 			runnable.run();
@@ -63,6 +66,12 @@ public class SearchManager {
 		             .filter(string -> !string.isEmpty());
 	}
 
+	/**
+	 * Добавляет recipe output reloader.
+	 *
+	 * @param recipeBook recipe book
+	 * @param world world
+	 */
 	public void addRecipeOutputReloader(ClientRecipeBook recipeBook, World world) {
 		this.addReloader(
 				RECIPE_OUTPUT,
@@ -103,6 +112,11 @@ public class SearchManager {
 		return this.recipeOutputReloadFuture.join();
 	}
 
+	/**
+	 * Добавляет item tag reloader.
+	 *
+	 * @param stacks stacks
+	 */
 	public void addItemTagReloader(List<ItemStack> stacks) {
 		this.addReloader(
 				ITEM_TAG,
@@ -121,6 +135,12 @@ public class SearchManager {
 		return this.itemTagReloadFuture.join();
 	}
 
+	/**
+	 * Добавляет item tooltip reloader.
+	 *
+	 * @param registries registries
+	 * @param stacks stacks
+	 */
 	public void addItemTooltipReloader(RegistryWrapper.WrapperLookup registries, List<ItemStack> stacks) {
 		this.addReloader(
 				ITEM_TOOLTIP,

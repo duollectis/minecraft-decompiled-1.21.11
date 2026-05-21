@@ -18,6 +18,14 @@ public final class NbtIntArray implements AbstractNbtList {
 
 	private static final int SIZE = 24;
 	public static final NbtType<NbtIntArray> TYPE = new NbtType.OfVariableSize<NbtIntArray>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtIntArray — результат операции
+		 */
 		public NbtIntArray read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 			return new NbtIntArray(readIntArray(dataInput, nbtSizeTracker));
 		}
@@ -93,6 +101,11 @@ public final class NbtIntArray implements AbstractNbtList {
 		return stringNbtWriter.getString();
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return NbtIntArray — результат операции
+	 */
 	public NbtIntArray copy() {
 		int[] is = new int[this.value.length];
 		System.arraycopy(this.value, 0, is, 0, this.value.length);
@@ -123,6 +136,13 @@ public final class NbtIntArray implements AbstractNbtList {
 		return this.value.length;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param i i
+	 *
+	 * @return NbtInt — 
+	 */
 	public NbtInt get(int i) {
 		return NbtInt.of(this.value[i]);
 	}
@@ -149,6 +169,13 @@ public final class NbtIntArray implements AbstractNbtList {
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param i i
+	 *
+	 * @return NbtInt — результат операции
+	 */
 	public NbtInt remove(int i) {
 		int j = this.value[i];
 		this.value = ArrayUtils.remove(this.value, i);

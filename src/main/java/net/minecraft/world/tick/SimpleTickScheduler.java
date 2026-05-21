@@ -46,6 +46,13 @@ public class SimpleTickScheduler<T> implements SerializableTickScheduler<T>, Bas
 		return List.copyOf(this.scheduledTicks);
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param ticks ticks
+	 *
+	 * @return SimpleTickScheduler — результат операции
+	 */
 	public static <T> SimpleTickScheduler<T> tick(List<Tick<T>> ticks) {
 		SimpleTickScheduler<T> simpleTickScheduler = new SimpleTickScheduler<>();
 		ticks.forEach(simpleTickScheduler::scheduleTick);

@@ -20,6 +20,9 @@ public class ItemModelTypes {
 			CODEC =
 			ID_MAPPER.getCodec(Identifier.CODEC).dispatch(ItemModel.Unbaked::getCodec, codec -> codec);
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		ID_MAPPER.put(Identifier.ofVanilla("empty"), EmptyItemModel.Unbaked.CODEC);
 		ID_MAPPER.put(Identifier.ofVanilla("model"), BasicItemModel.Unbaked.CODEC);

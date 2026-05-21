@@ -72,6 +72,14 @@ public class CreakingHeartBlockEntity extends BlockEntity {
 		super(BlockEntityType.CREAKING_HEART, pos, state);
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, CreakingHeartBlockEntity blockEntity) {
 		blockEntity.ticks++;
 		if (world instanceof ServerWorld serverWorld) {
@@ -275,6 +283,11 @@ public class CreakingHeartBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
@@ -284,6 +297,9 @@ public class CreakingHeartBlockEntity extends BlockEntity {
 		return this.createComponentlessNbt(registries);
 	}
 
+	/**
+	 * Обрабатывает событие puppet damage.
+	 */
 	public void onPuppetDamage() {
 		if (this.getCreakingPuppet().orElse(null) instanceof CreakingEntity creakingEntity) {
 			if (this.world instanceof ServerWorld serverWorld) {
@@ -399,6 +415,11 @@ public class CreakingHeartBlockEntity extends BlockEntity {
 		this.killPuppet(null);
 	}
 
+	/**
+	 * Уничтожает puppet.
+	 *
+	 * @param damageSource damage source
+	 */
 	public void killPuppet(@Nullable DamageSource damageSource) {
 		if (this.getCreakingPuppet().orElse(null) instanceof CreakingEntity creakingEntity) {
 			if (damageSource == null) {
@@ -422,6 +443,11 @@ public class CreakingHeartBlockEntity extends BlockEntity {
 		return this.comparatorOutput;
 	}
 
+	/**
+	 * Calc comparator output.
+	 *
+	 * @return int — результат операции
+	 */
 	public int calcComparatorOutput() {
 		if (this.creakingPuppet != null && !this.getCreakingPuppet().isEmpty()) {
 			double d = this.getDistanceToPuppet();

@@ -218,6 +218,14 @@ public class OreFeature extends Feature<OreFeatureConfig> {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли not discard.
+	 *
+	 * @param random random
+	 * @param chance chance
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected static boolean shouldNotDiscard(Random random, float chance) {
 		if (chance <= 0.0F) {
 			return true;

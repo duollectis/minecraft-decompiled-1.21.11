@@ -179,6 +179,11 @@ public class SocialInteractionsPlayerListEntry extends ElementListWidget.Entry<S
 		}
 	}
 
+	/**
+	 * Обновляет has draft report.
+	 *
+	 * @param context context
+	 */
 	public void updateHasDraftReport(AbuseReportContext context) {
 		this.hasDraftReport = context.draftPlayerUuidEquals(this.uuid);
 	}

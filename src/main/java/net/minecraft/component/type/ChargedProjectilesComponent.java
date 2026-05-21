@@ -38,14 +38,35 @@ public final class ChargedProjectilesComponent implements TooltipAppender {
 		this.projectiles = projectiles;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param projectile projectile
+	 *
+	 * @return ChargedProjectilesComponent — результат операции
+	 */
 	public static ChargedProjectilesComponent of(ItemStack projectile) {
 		return new ChargedProjectilesComponent(List.of(projectile.copy()));
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param projectiles projectiles
+	 *
+	 * @return ChargedProjectilesComponent — результат операции
+	 */
 	public static ChargedProjectilesComponent of(List<ItemStack> projectiles) {
 		return new ChargedProjectilesComponent(List.copyOf(Lists.transform(projectiles, ItemStack::copy)));
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param item item
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(Item item) {
 		for (ItemStack itemStack : this.projectiles) {
 			if (itemStack.isOf(item)) {

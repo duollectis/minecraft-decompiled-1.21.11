@@ -9,6 +9,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись set player inventory s2 c packet.
+ */
 public record SetPlayerInventoryS2CPacket(int slot, ItemStack contents) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, SetPlayerInventoryS2CPacket> CODEC = PacketCodec.tuple(
@@ -24,6 +27,11 @@ public record SetPlayerInventoryS2CPacket(int slot, ItemStack contents) implemen
 		return PlayPackets.SET_PLAYER_INVENTORY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onSetPlayerInventory(this);
 	}

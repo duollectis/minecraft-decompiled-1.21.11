@@ -112,6 +112,12 @@ public class LootPool {
 		}
 	}
 
+	/**
+	 * Добавляет generated loot.
+	 *
+	 * @param lootConsumer loot consumer
+	 * @param context context
+	 */
 	public void addGeneratedLoot(Consumer<ItemStack> lootConsumer, LootContext context) {
 		if (this.predicate.test(context)) {
 			Consumer<ItemStack> consumer = LootFunction.apply(this.javaFunctions, lootConsumer, context);
@@ -126,6 +132,11 @@ public class LootPool {
 		}
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param reporter reporter
+	 */
 	public void validate(LootTableReporter reporter) {
 		for (int i = 0; i < this.conditions.size(); i++) {
 			this.conditions
@@ -198,6 +209,11 @@ public class LootPool {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return LootPool — результат операции
+		 */
 		public LootPool build() {
 			return new LootPool(
 					this.entries.build(),

@@ -20,6 +20,11 @@ public class PileConfiguredFeatures {
 	public static final RegistryKey<ConfiguredFeature<?, ?>> PILE_ICE = ConfiguredFeatures.of("pile_ice");
 	public static final RegistryKey<ConfiguredFeature<?, ?>> PILE_PUMPKIN = ConfiguredFeatures.of("pile_pumpkin");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		ConfiguredFeatures.register(
 				featureRegisterable,

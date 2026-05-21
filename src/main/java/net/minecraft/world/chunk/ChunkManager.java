@@ -33,8 +33,22 @@ public abstract class ChunkManager implements ChunkProvider, AutoCloseable {
 
 	public abstract @Nullable Chunk getChunk(int x, int z, ChunkStatus leastStatus, boolean create);
 
+	/**
+	 * Tick.
+	 *
+	 * @param shouldKeepTicking should keep ticking
+	 * @param tickChunks tick chunks
+	 */
 	public abstract void tick(BooleanSupplier shouldKeepTicking, boolean tickChunks);
 
+	/**
+	 * Обрабатывает событие section status changed.
+	 *
+	 * @param x x
+	 * @param sectionY section y
+	 * @param z z
+	 * @param previouslyEmpty previously empty
+	 */
 	public void onSectionStatusChanged(int x, int sectionY, int z, boolean previouslyEmpty) {
 	}
 

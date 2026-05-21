@@ -85,6 +85,13 @@ public record TrialSpawnerConfig(
 		return new TrialSpawnerConfig.Builder();
 	}
 
+	/**
+	 * With spawn potential.
+	 *
+	 * @param entityType entity type
+	 *
+	 * @return TrialSpawnerConfig — результат операции
+	 */
 	public TrialSpawnerConfig withSpawnPotential(EntityType<?> entityType) {
 		NbtCompound nbtCompound = new NbtCompound();
 		nbtCompound.putString("id", Registries.ENTITY_TYPE.getId(entityType).toString());
@@ -167,6 +174,11 @@ public record TrialSpawnerConfig(
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return TrialSpawnerConfig — результат операции
+		 */
 		public TrialSpawnerConfig build() {
 			return new TrialSpawnerConfig(
 					this.spawnRange,

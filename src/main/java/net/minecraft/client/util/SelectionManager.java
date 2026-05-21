@@ -43,6 +43,13 @@ public class SelectionManager {
 		this.putCursorAtEnd();
 	}
 
+	/**
+	 * Make clipboard getter.
+	 *
+	 * @param client client
+	 *
+	 * @return Supplier — результат операции
+	 */
 	public static Supplier<String> makeClipboardGetter(MinecraftClient client) {
 		return () -> getClipboard(client);
 	}
@@ -51,6 +58,13 @@ public class SelectionManager {
 		return Formatting.strip(client.keyboard.getClipboard().replaceAll("\\r", ""));
 	}
 
+	/**
+	 * Make clipboard setter.
+	 *
+	 * @param client client
+	 *
+	 * @return Consumer — результат операции
+	 */
 	public static Consumer<String> makeClipboardSetter(MinecraftClient client) {
 		return clipboardString -> setClipboard(client, clipboardString);
 	}
@@ -59,6 +73,13 @@ public class SelectionManager {
 		client.keyboard.setClipboard(clipboard);
 	}
 
+	/**
+	 * Insert.
+	 *
+	 * @param input input
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean insert(CharInput input) {
 		if (input.isValidChar()) {
 			this.insert(this.stringGetter.get(), input.asString());
@@ -67,6 +88,13 @@ public class SelectionManager {
 		return true;
 	}
 
+	/**
+	 * Обрабатывает special key.
+	 *
+	 * @param input input
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean handleSpecialKey(KeyInput input) {
 		if (input.isSelectAll()) {
 			this.selectAll();
@@ -142,6 +170,11 @@ public class SelectionManager {
 		}
 	}
 
+	/**
+	 * Insert.
+	 *
+	 * @param string string
+	 */
 	public void insert(String string) {
 		this.insert(this.stringGetter.get(), string);
 	}
@@ -152,6 +185,13 @@ public class SelectionManager {
 		}
 	}
 
+	/**
+	 * Перемещает cursor.
+	 *
+	 * @param offset offset
+	 * @param shiftDown shift down
+	 * @param selectionType selection type
+	 */
 	public void moveCursor(int offset, boolean shiftDown, SelectionManager.SelectionType selectionType) {
 		switch (selectionType) {
 			case CHARACTER:
@@ -162,24 +202,52 @@ public class SelectionManager {
 		}
 	}
 
+	/**
+	 * Перемещает cursor.
+	 *
+	 * @param offset offset
+	 */
 	public void moveCursor(int offset) {
 		this.moveCursor(offset, false);
 	}
 
+	/**
+	 * Перемещает cursor.
+	 *
+	 * @param offset offset
+	 * @param shiftDown shift down
+	 */
 	public void moveCursor(int offset, boolean shiftDown) {
 		this.selectionStart = Util.moveCursor(this.stringGetter.get(), this.selectionStart, offset);
 		this.updateSelectionRange(shiftDown);
 	}
 
+	/**
+	 * Перемещает cursor past word.
+	 *
+	 * @param offset offset
+	 */
 	public void moveCursorPastWord(int offset) {
 		this.moveCursorPastWord(offset, false);
 	}
 
+	/**
+	 * Перемещает cursor past word.
+	 *
+	 * @param offset offset
+	 * @param shiftDown shift down
+	 */
 	public void moveCursorPastWord(int offset, boolean shiftDown) {
 		this.selectionStart = TextHandler.moveCursorByWords(this.stringGetter.get(), offset, this.selectionStart, true);
 		this.updateSelectionRange(shiftDown);
 	}
 
+	/**
+	 * Delete.
+	 *
+	 * @param offset offset
+	 * @param selectionType selection type
+	 */
 	public void delete(int offset, SelectionManager.SelectionType selectionType) {
 		switch (selectionType) {
 			case CHARACTER:
@@ -190,11 +258,21 @@ public class SelectionManager {
 		}
 	}
 
+	/**
+	 * Delete word.
+	 *
+	 * @param offset offset
+	 */
 	public void deleteWord(int offset) {
 		int i = TextHandler.moveCursorByWords(this.stringGetter.get(), offset, this.selectionStart, true);
 		this.delete(i - this.selectionStart);
 	}
 
+	/**
+	 * Delete.
+	 *
+	 * @param offset offset
+	 */
 	public void delete(int offset) {
 		String string = this.stringGetter.get();
 		if (!string.isEmpty()) {
@@ -216,21 +294,33 @@ public class SelectionManager {
 		}
 	}
 
+	/**
+	 * Cut.
+	 */
 	public void cut() {
 		String string = this.stringGetter.get();
 		this.clipboardSetter.accept(this.getSelectedText(string));
 		this.stringSetter.accept(this.deleteSelectedText(string));
 	}
 
+	/**
+	 * Paste.
+	 */
 	public void paste() {
 		this.insert(this.stringGetter.get(), this.clipboardGetter.get());
 		this.selectionEnd = this.selectionStart;
 	}
 
+	/**
+	 * Copy.
+	 */
 	public void copy() {
 		this.clipboardSetter.accept(this.getSelectedText(this.stringGetter.get()));
 	}
 
+	/**
+	 * Select all.
+	 */
 	public void selectAll() {
 		this.selectionEnd = 0;
 		this.selectionStart = this.stringGetter.get().length();
@@ -255,19 +345,35 @@ public class SelectionManager {
 		}
 	}
 
+	/**
+	 * Перемещает cursor to start.
+	 */
 	public void moveCursorToStart() {
 		this.moveCursorToStart(false);
 	}
 
+	/**
+	 * Перемещает cursor to start.
+	 *
+	 * @param shiftDown shift down
+	 */
 	public void moveCursorToStart(boolean shiftDown) {
 		this.selectionStart = 0;
 		this.updateSelectionRange(shiftDown);
 	}
 
+	/**
+	 * Put cursor at end.
+	 */
 	public void putCursorAtEnd() {
 		this.moveCursorToEnd(false);
 	}
 
+	/**
+	 * Перемещает cursor to end.
+	 *
+	 * @param shiftDown shift down
+	 */
 	public void moveCursorToEnd(boolean shiftDown) {
 		this.selectionStart = this.stringGetter.get().length();
 		this.updateSelectionRange(shiftDown);
@@ -277,10 +383,21 @@ public class SelectionManager {
 		return this.selectionStart;
 	}
 
+	/**
+	 * Перемещает cursor to.
+	 *
+	 * @param position position
+	 */
 	public void moveCursorTo(int position) {
 		this.moveCursorTo(position, true);
 	}
 
+	/**
+	 * Перемещает cursor to.
+	 *
+	 * @param position position
+	 * @param shiftDown shift down
+	 */
 	public void moveCursorTo(int position, boolean shiftDown) {
 		this.selectionStart = this.clampCursorPosition(position);
 		this.updateSelectionRange(shiftDown);

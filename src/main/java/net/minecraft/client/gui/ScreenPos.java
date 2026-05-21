@@ -11,6 +11,15 @@ import net.minecraft.client.gui.navigation.NavigationDirection;
  */
 public record ScreenPos(int x, int y) {
 
+	/**
+	 * Of.
+	 *
+	 * @param axis axis
+	 * @param sameAxis same axis
+	 * @param otherAxis other axis
+	 *
+	 * @return ScreenPos — результат операции
+	 */
 	public static ScreenPos of(NavigationAxis axis, int sameAxis, int otherAxis) {
 		return switch (axis) {
 			case HORIZONTAL -> new ScreenPos(sameAxis, otherAxis);
@@ -18,6 +27,13 @@ public record ScreenPos(int x, int y) {
 		};
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param direction direction
+	 *
+	 * @return ScreenPos — результат операции
+	 */
 	public ScreenPos add(NavigationDirection direction) {
 		return switch (direction) {
 			case DOWN -> new ScreenPos(this.x, this.y + 1);

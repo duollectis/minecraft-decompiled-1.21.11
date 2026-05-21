@@ -49,10 +49,25 @@ public class BreedTask extends MultiTickTask<AnimalEntity> {
 		this.approachDistance = approachDistance;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, AnimalEntity animalEntity) {
 		return animalEntity.isInLove() && this.findBreedTarget(animalEntity).isPresent();
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
 		AnimalEntity animalEntity2 = this.findBreedTarget(animalEntity).get();
 		animalEntity.getBrain().remember(MemoryModuleType.BREED_TARGET, animalEntity2);
@@ -62,6 +77,15 @@ public class BreedTask extends MultiTickTask<AnimalEntity> {
 		this.breedTime = l + i;
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
 		if (!this.hasBreedTarget(animalEntity)) {
 			return false;
@@ -77,6 +101,13 @@ public class BreedTask extends MultiTickTask<AnimalEntity> {
 		}
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
 		AnimalEntity animalEntity2 = this.getBreedTarget(animalEntity);
 		TargetUtil.lookAtAndWalkTowardsEachOther(animalEntity, animalEntity2, this.speed, this.approachDistance);
@@ -89,6 +120,13 @@ public class BreedTask extends MultiTickTask<AnimalEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param animalEntity animal entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, AnimalEntity animalEntity, long l) {
 		animalEntity.getBrain().forget(MemoryModuleType.BREED_TARGET);
 		animalEntity.getBrain().forget(MemoryModuleType.WALK_TARGET);

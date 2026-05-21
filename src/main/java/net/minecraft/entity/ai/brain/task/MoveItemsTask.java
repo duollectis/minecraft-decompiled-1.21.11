@@ -93,16 +93,40 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		this.navigationState = MoveItemsTask.NavigationState.TRAVELLING;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		if (pathAwareEntity.getNavigation() instanceof MobNavigation mobNavigation) {
 			mobNavigation.setSkipRetarget(true);
 		}
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, PathAwareEntity pathAwareEntity) {
 		return !pathAwareEntity.isLeashed();
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		return pathAwareEntity
 				.getBrain()
@@ -117,6 +141,13 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		return false;
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		boolean bl = this.tick(serverWorld, pathAwareEntity);
 		if (this.targetStorage == null) {
@@ -163,6 +194,13 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для travelling.
+	 *
+	 * @param storage storage
+	 * @param world world
+	 * @param entity entity
+	 */
 	protected void tickTravelling(MoveItemsTask.Storage storage, World world, PathAwareEntity entity) {
 		if (this.isWithinRange(3.0, storage, world, entity, this.atCenterY(entity)) && this.matchesStoragePredicate(
 				storage,
@@ -182,6 +220,13 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		return this.atCenterY(entity, entity.getEntityPos());
 	}
 
+	/**
+	 * Выполняет тик обновления для interacting.
+	 *
+	 * @param storage storage
+	 * @param world world
+	 * @param entity entity
+	 */
 	protected void tickInteracting(MoveItemsTask.Storage storage, World world, PathAwareEntity entity) {
 		if (!this.isWithinRange(2.0, storage, world, entity, this.atCenterY(entity))) {
 			this.transitionToTravelling(entity);
@@ -455,6 +500,13 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		return entity.getNavigation().getCurrentPath() != null && entity.getNavigation().getCurrentPath().isFinished();
 	}
 
+	/**
+	 * Mark visited.
+	 *
+	 * @param entity entity
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected void markVisited(PathAwareEntity entity, World world, BlockPos pos) {
 		Set<GlobalPos> set = new HashSet<>(getVisitedPositions(entity));
 		set.add(new GlobalPos(world.getRegistryKey(), pos));
@@ -466,6 +518,13 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		}
 	}
 
+	/**
+	 * Mark unreachable.
+	 *
+	 * @param entity entity
+	 * @param world world
+	 * @param blockPos block pos
+	 */
 	protected void markUnreachable(PathAwareEntity entity, World world, BlockPos blockPos) {
 		Set<GlobalPos> set = new HashSet<>(getVisitedPositions(entity));
 		set.remove(new GlobalPos(world.getRegistryKey(), blockPos));
@@ -626,6 +685,11 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		return itemStack;
 	}
 
+	/**
+	 * Invalidate target storage.
+	 *
+	 * @param entity entity
+	 */
 	protected void invalidateTargetStorage(PathAwareEntity entity) {
 		this.interactionTicks = 0;
 		this.targetStorage = null;
@@ -633,6 +697,11 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		entity.getBrain().forget(MemoryModuleType.WALK_TARGET);
 	}
 
+	/**
+	 * Сбрасывает visited positions.
+	 *
+	 * @param entity entity
+	 */
 	protected void resetVisitedPositions(PathAwareEntity entity) {
 		this.invalidateTargetStorage(entity);
 		entity.getBrain().forget(MemoryModuleType.VISITED_BLOCK_POSITIONS);
@@ -646,6 +715,13 @@ public class MoveItemsTask extends MultiTickTask<PathAwareEntity> {
 		entity.getBrain().forget(MemoryModuleType.UNREACHABLE_TRANSPORT_BLOCK_POSITIONS);
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		this.transitionToTravelling(pathAwareEntity);
 		if (pathAwareEntity.getNavigation() instanceof MobNavigation mobNavigation) {

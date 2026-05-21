@@ -386,10 +386,20 @@ public class WitherEntity extends HostileEntity implements RangedAttackMob {
 		}
 	}
 
+	/**
+	 * Проверяет возможность destroy.
+	 *
+	 * @param block block
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canDestroy(BlockState block) {
 		return !block.isAir() && !block.isIn(BlockTags.WITHER_IMMUNE);
 	}
 
+	/**
+	 * Обрабатывает событие summoned.
+	 */
 	public void onSummoned() {
 		this.setInvulTimer(220);
 		this.bossBar.setPercent(0.0F);

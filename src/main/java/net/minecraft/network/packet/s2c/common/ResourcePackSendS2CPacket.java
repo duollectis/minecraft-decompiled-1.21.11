@@ -14,6 +14,9 @@ import net.minecraft.util.Uuids;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Запись resource pack send s2 c packet.
+ */
 public record ResourcePackSendS2CPacket(
 		UUID id,
 		String url,
@@ -55,6 +58,11 @@ public record ResourcePackSendS2CPacket(
 		return CommonPackets.RESOURCE_PACK_PUSH;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onResourcePackSend(this);
 	}

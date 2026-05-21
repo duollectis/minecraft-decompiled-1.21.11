@@ -133,6 +133,11 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 		}
 	}
 
+	/**
+	 * After using.
+	 *
+	 * @param offer offer
+	 */
 	protected abstract void afterUsing(TradeOffer offer);
 
 	@Override
@@ -157,6 +162,9 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 		return sold ? SoundEvents.ENTITY_VILLAGER_YES : SoundEvents.ENTITY_VILLAGER_NO;
 	}
 
+	/**
+	 * Play celebrate sound.
+	 */
 	public void playCelebrateSound() {
 		this.playSound(SoundEvents.ENTITY_VILLAGER_CELEBRATE);
 	}
@@ -187,6 +195,9 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 		return super.teleportTo(teleportTarget);
 	}
 
+	/**
+	 * Сбрасывает customer.
+	 */
 	protected void resetCustomer() {
 		this.setCustomer(null);
 	}
@@ -197,6 +208,11 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 		this.resetCustomer();
 	}
 
+	/**
+	 * Produce particles.
+	 *
+	 * @param parameters parameters
+	 */
 	protected void produceParticles(ParticleEffect parameters) {
 		for (int i = 0; i < 5; i++) {
 			double d = this.random.nextGaussian() * 0.02;
@@ -233,6 +249,11 @@ public abstract class MerchantEntity extends PassiveEntity implements InventoryO
 		                                           : super.getStackReference(slot);
 	}
 
+	/**
+	 * Fill recipes.
+	 *
+	 * @param world world
+	 */
 	protected abstract void fillRecipes(ServerWorld world);
 
 	protected void fillRecipesFromPool(

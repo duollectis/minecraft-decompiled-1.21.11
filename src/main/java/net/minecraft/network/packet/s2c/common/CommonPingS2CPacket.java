@@ -7,6 +7,9 @@ import net.minecraft.network.packet.CommonPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Класс common ping s2 c packet.
+ */
 public class CommonPingS2CPacket implements Packet<ClientCommonPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, CommonPingS2CPacket>
@@ -31,6 +34,11 @@ public class CommonPingS2CPacket implements Packet<ClientCommonPacketListener> {
 		return CommonPackets.PING;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onPing(this);
 	}

@@ -57,6 +57,15 @@ public class Camera implements TrackedWaypoint.YawProvider {
 			environmentAttributeInterpolator =
 			new EnvironmentAttributeInterpolator();
 
+	/**
+	 * Update.
+	 *
+	 * @param area area
+	 * @param focusedEntity focused entity
+	 * @param thirdPerson third person
+	 * @param inverseView inverse view
+	 * @param tickProgress tick progress
+	 */
 	public void update(World area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickProgress) {
 		this.ready = true;
 		this.area = area;
@@ -119,6 +128,9 @@ public class Camera implements TrackedWaypoint.YawProvider {
 		}
 	}
 
+	/**
+	 * Обновляет eye height.
+	 */
 	public void updateEyeHeight() {
 		if (this.focusedEntity != null) {
 			this.lastCameraY = this.cameraY;
@@ -155,6 +167,13 @@ public class Camera implements TrackedWaypoint.YawProvider {
 		return distance;
 	}
 
+	/**
+	 * Перемещает by.
+	 *
+	 * @param surge surge
+	 * @param heave heave
+	 * @param sway sway
+	 */
 	protected void moveBy(float surge, float heave, float sway) {
 		Vector3f vector3f = new Vector3f(sway, heave, -surge).rotate(this.rotation);
 		this.setPos(new Vec3d(this.pos.x + vector3f.x, this.pos.y + vector3f.y, this.pos.z + vector3f.z));
@@ -297,6 +316,9 @@ public class Camera implements TrackedWaypoint.YawProvider {
 		return this.diagonalPlane;
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.area = null;
 		this.focusedEntity = null;

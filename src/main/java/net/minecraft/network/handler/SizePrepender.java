@@ -8,10 +8,20 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import net.minecraft.network.encoding.VarInts;
 
 @Sharable
+/**
+ * Класс size prepender.
+ */
 public class SizePrepender extends MessageToByteEncoder<ByteBuf> {
 
 	public static final int MAX_PREPEND_LENGTH = 3;
 
+	/**
+	 * Encode.
+	 *
+	 * @param channelHandlerContext channel handler context
+	 * @param byteBuf byte buf
+	 * @param byteBuf2 byte buf2
+	 */
 	protected void encode(ChannelHandlerContext channelHandlerContext, ByteBuf byteBuf, ByteBuf byteBuf2) {
 		int i = byteBuf.readableBytes();
 		int j = VarInts.getSizeInBytes(i);

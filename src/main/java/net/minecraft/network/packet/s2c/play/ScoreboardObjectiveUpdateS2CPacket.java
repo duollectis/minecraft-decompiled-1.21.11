@@ -16,6 +16,9 @@ import net.minecraft.text.TextCodecs;
 
 import java.util.Optional;
 
+/**
+ * Класс scoreboard objective update s2 c packet.
+ */
 public class ScoreboardObjectiveUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, ScoreboardObjectiveUpdateS2CPacket> CODEC = Packet.createCodec(
@@ -68,6 +71,11 @@ public class ScoreboardObjectiveUpdateS2CPacket implements Packet<ClientPlayPack
 		return PlayPackets.SET_OBJECTIVE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onScoreboardObjectiveUpdate(this);
 	}

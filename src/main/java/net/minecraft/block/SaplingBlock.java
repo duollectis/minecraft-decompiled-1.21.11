@@ -53,6 +53,14 @@ public class SaplingBlock extends PlantBlock implements Fertilizable {
 		}
 	}
 
+	/**
+	 * Generate.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param random random
+	 */
 	public void generate(ServerWorld world, BlockPos pos, BlockState state, Random random) {
 		if (state.get(STAGE) == 0) {
 			world.setBlockState(pos, state.cycle(STAGE), 260);

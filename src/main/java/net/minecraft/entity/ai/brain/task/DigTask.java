@@ -26,14 +26,38 @@ public class DigTask<E extends WardenEntity> extends MultiTickTask<E> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, E wardenEntity, long l) {
 		return wardenEntity.getRemovalReason() == null;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, E wardenEntity) {
 		return wardenEntity.isOnGround() || wardenEntity.isTouchingWater() || wardenEntity.isInLava();
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, E wardenEntity, long l) {
 		if (wardenEntity.isOnGround()) {
 			wardenEntity.setPose(EntityPose.DIGGING);
@@ -45,6 +69,13 @@ public class DigTask<E extends WardenEntity> extends MultiTickTask<E> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, E wardenEntity, long l) {
 		if (wardenEntity.getRemovalReason() == null) {
 			wardenEntity.remove(Entity.RemovalReason.DISCARDED);

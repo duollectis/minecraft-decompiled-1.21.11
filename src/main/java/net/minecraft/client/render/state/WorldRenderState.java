@@ -27,6 +27,9 @@ public class WorldRenderState implements FabricRenderState {
 	public final SkyRenderState skyRenderState = new SkyRenderState();
 	public long time;
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.entityRenderStates.clear();
 		this.blockEntityRenderStates.clear();

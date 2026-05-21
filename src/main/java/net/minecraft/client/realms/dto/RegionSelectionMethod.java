@@ -36,10 +36,23 @@ public enum RegionSelectionMethod {
 
 		private static final Logger LOGGER = LogUtils.getLogger();
 
+		/**
+		 * Write.
+		 *
+		 * @param jsonWriter json writer
+		 * @param regionSelectionMethod region selection method
+		 */
 		public void write(JsonWriter jsonWriter, RegionSelectionMethod regionSelectionMethod) throws IOException {
 			jsonWriter.value(regionSelectionMethod.index);
 		}
 
+		/**
+		 * Read.
+		 *
+		 * @param jsonReader json reader
+		 *
+		 * @return RegionSelectionMethod — результат операции
+		 */
 		public RegionSelectionMethod read(JsonReader jsonReader) throws IOException {
 			int i = jsonReader.nextInt();
 

@@ -35,10 +35,27 @@ public class ChunkNibbleArray {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return int — 
+	 */
 	public int get(int x, int y, int z) {
 		return this.get(getIndex(x, y, z));
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param value value
+	 */
 	public void set(int x, int y, int z, int value) {
 		this.set(getIndex(x, y, z), value);
 	}
@@ -75,6 +92,11 @@ public class ChunkNibbleArray {
 		return i >> 1;
 	}
 
+	/**
+	 * Clear.
+	 *
+	 * @param defaultValue default value
+	 */
 	public void clear(int defaultValue) {
 		this.defaultValue = defaultValue;
 		this.bytes = null;
@@ -90,6 +112,11 @@ public class ChunkNibbleArray {
 		return b;
 	}
 
+	/**
+	 * As byte array.
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public byte[] asByteArray() {
 		if (this.bytes == null) {
 			this.bytes = new byte[2048];
@@ -101,6 +128,11 @@ public class ChunkNibbleArray {
 		return this.bytes;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return ChunkNibbleArray — результат операции
+	 */
 	public ChunkNibbleArray copy() {
 		return this.bytes == null ? new ChunkNibbleArray(this.defaultValue)
 		                          : new ChunkNibbleArray((byte[]) this.bytes.clone());
@@ -125,6 +157,13 @@ public class ChunkNibbleArray {
 	}
 
 	@Debug
+	/**
+	 * Bottom to string.
+	 *
+	 * @param unused unused
+	 *
+	 * @return String — результат операции
+	 */
 	public String bottomToString(int unused) {
 		StringBuilder stringBuilder = new StringBuilder();
 

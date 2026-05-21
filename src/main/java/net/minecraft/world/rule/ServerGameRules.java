@@ -34,10 +34,22 @@ public final class ServerGameRules {
 		return new ServerGameRules(new Reference2ObjectOpenHashMap(ruleValues));
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @return ServerGameRules — результат операции
+	 */
 	public static ServerGameRules of() {
 		return new ServerGameRules(new Reference2ObjectOpenHashMap());
 	}
 
+	/**
+	 * Of default.
+	 *
+	 * @param rules rules
+	 *
+	 * @return ServerGameRules — результат операции
+	 */
 	public static ServerGameRules ofDefault(Stream<GameRule<?>> rules) {
 		Reference2ObjectOpenHashMap<GameRule<?>, Object>
 				reference2ObjectOpenHashMap =
@@ -46,30 +58,76 @@ public final class ServerGameRules {
 		return new ServerGameRules(reference2ObjectOpenHashMap);
 	}
 
+	/**
+	 * Создаёт копию of.
+	 *
+	 * @param rules rules
+	 *
+	 * @return ServerGameRules — результат операции
+	 */
 	public static ServerGameRules copyOf(ServerGameRules rules) {
 		return new ServerGameRules(new Reference2ObjectOpenHashMap(rules.ruleValues));
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param rule rule
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(GameRule<?> rule) {
 		return this.ruleValues.containsKey(rule);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param rule rule
+	 *
+	 * @return @Nullable T — 
+	 */
 	public <T> @Nullable T get(GameRule<T> rule) {
 		return (T) this.ruleValues.get(rule);
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param rule rule
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void put(GameRule<T> rule, T value) {
 		this.ruleValues.put(rule, value);
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param rule rule
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T> @Nullable T remove(GameRule<T> rule) {
 		return (T) this.ruleValues.remove(rule);
 	}
 
+	/**
+	 * Key set.
+	 *
+	 * @return Set> — результат операции
+	 */
 	public Set<GameRule<?>> keySet() {
 		return this.ruleValues.keySet();
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.ruleValues.size();
 	}
@@ -79,12 +137,25 @@ public final class ServerGameRules {
 		return this.ruleValues.toString();
 	}
 
+	/**
+	 * With override.
+	 *
+	 * @param override override
+	 *
+	 * @return ServerGameRules — результат операции
+	 */
 	public ServerGameRules withOverride(ServerGameRules override) {
 		ServerGameRules serverGameRules = copyOf(this);
 		serverGameRules.copyFrom(override, rule -> true);
 		return serverGameRules;
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param rules rules
+	 * @param predicate predicate
+	 */
 	public void copyFrom(ServerGameRules rules, Predicate<GameRule<?>> predicate) {
 		for (GameRule<?> gameRule : rules.keySet()) {
 			if (predicate.test(gameRule)) {
@@ -132,6 +203,11 @@ public final class ServerGameRules {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ServerGameRules — результат операции
+		 */
 		public ServerGameRules build() {
 			return new ServerGameRules(this.ruleValues);
 		}

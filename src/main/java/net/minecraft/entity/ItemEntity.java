@@ -260,6 +260,14 @@ public class ItemEntity extends Entity implements Ownable {
 		}
 	}
 
+	/**
+	 * Проверяет возможность merge.
+	 *
+	 * @param stack1 stack1
+	 * @param stack2 stack2
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canMerge(ItemStack stack1, ItemStack stack2) {
 		return stack2.getCount() + stack1.getCount() > stack2.getMaxCount() ? false
 		                                                                    : ItemStack.areItemsAndComponentsEqual(
@@ -268,6 +276,15 @@ public class ItemEntity extends Entity implements Ownable {
 		                                                                    );
 	}
 
+	/**
+	 * Merge.
+	 *
+	 * @param stack1 stack1
+	 * @param stack2 stack2
+	 * @param maxCount max count
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public static ItemStack merge(ItemStack stack1, ItemStack stack2, int maxCount) {
 		int i = Math.min(Math.min(stack1.getMaxCount(), maxCount) - stack1.getCount(), stack2.getCount());
 		ItemStack itemStack = stack1.copyWithCount(stack1.getCount() + i);
@@ -438,6 +455,9 @@ public class ItemEntity extends Entity implements Ownable {
 		this.pickupDelay = 10;
 	}
 
+	/**
+	 * Сбрасывает pickup delay.
+	 */
 	public void resetPickupDelay() {
 		this.pickupDelay = 0;
 	}
@@ -450,6 +470,11 @@ public class ItemEntity extends Entity implements Ownable {
 		this.pickupDelay = pickupDelay;
 	}
 
+	/**
+	 * Проверяет возможность not pickup.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean cannotPickup() {
 		return this.pickupDelay > 0;
 	}

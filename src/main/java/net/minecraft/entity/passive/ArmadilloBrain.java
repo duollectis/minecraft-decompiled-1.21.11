@@ -81,6 +81,13 @@ public class ArmadilloBrain {
 		return Brain.createProfile(MEMORY_MODULE_TYPES, SENSOR_TYPES);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<ArmadilloEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -174,6 +181,11 @@ public class ArmadilloBrain {
 		);
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param armadillo armadillo
+	 */
 	public static void updateActivities(ArmadilloEntity armadillo) {
 		armadillo.getBrain().resetPossibleActivities(ImmutableList.of(Activity.PANIC, Activity.IDLE));
 	}
@@ -193,6 +205,13 @@ public class ArmadilloBrain {
 			super(Map.of(), RUN_TIME_IN_TICKS);
 		}
 
+		/**
+		 * Keep running.
+		 *
+		 * @param serverWorld server world
+		 * @param armadilloEntity armadillo entity
+		 * @param l l
+		 */
 		protected void keepRunning(ServerWorld serverWorld, ArmadilloEntity armadilloEntity, long l) {
 			super.keepRunning(serverWorld, armadilloEntity, l);
 			if (this.ticksUntilPeek > 0) {
@@ -236,18 +255,49 @@ public class ArmadilloBrain {
 			return ArmadilloEntity.State.SCARED.getLengthInTicks() + entity.getRandom().nextBetween(100, 400);
 		}
 
+		/**
+		 * Определяет, следует ли run.
+		 *
+		 * @param serverWorld server world
+		 * @param armadilloEntity armadillo entity
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldRun(ServerWorld serverWorld, ArmadilloEntity armadilloEntity) {
 			return armadilloEntity.isOnGround();
 		}
 
+		/**
+		 * Определяет, следует ли keep running.
+		 *
+		 * @param serverWorld server world
+		 * @param armadilloEntity armadillo entity
+		 * @param l l
+		 *
+		 * @return boolean — результат операции
+		 */
 		protected boolean shouldKeepRunning(ServerWorld serverWorld, ArmadilloEntity armadilloEntity, long l) {
 			return armadilloEntity.getState().shouldRunRollUpTask();
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param armadilloEntity armadillo entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, ArmadilloEntity armadilloEntity, long l) {
 			armadilloEntity.startRolling();
 		}
 
+		/**
+		 * Finish running.
+		 *
+		 * @param serverWorld server world
+		 * @param armadilloEntity armadillo entity
+		 * @param l l
+		 */
 		protected void finishRunning(ServerWorld serverWorld, ArmadilloEntity armadilloEntity, long l) {
 			if (!armadilloEntity.canRollUp()) {
 				armadilloEntity.unroll();
@@ -264,6 +314,13 @@ public class ArmadilloBrain {
 			super(f, entity -> DamageTypeTags.PANIC_ENVIRONMENTAL_CAUSES);
 		}
 
+		/**
+		 * Run.
+		 *
+		 * @param serverWorld server world
+		 * @param armadilloEntity armadillo entity
+		 * @param l l
+		 */
 		protected void run(ServerWorld serverWorld, ArmadilloEntity armadilloEntity, long l) {
 			armadilloEntity.unroll();
 			super.run(serverWorld, armadilloEntity, l);

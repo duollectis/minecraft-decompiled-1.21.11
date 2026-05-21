@@ -19,18 +19,42 @@ public class LinkedBlockPosHashSet extends LongLinkedOpenHashSet {
 		this.buffer = new LinkedBlockPosHashSet.Storage(expectedSize / 64, loadFactor);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param posLong pos long
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean add(long posLong) {
 		return this.buffer.add(posLong);
 	}
 
+	/**
+	 * Rem.
+	 *
+	 * @param posLong pos long
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean rem(long posLong) {
 		return this.buffer.rem(posLong);
 	}
 
+	/**
+	 * Удаляет first long.
+	 *
+	 * @return long — результат операции
+	 */
 	public long removeFirstLong() {
 		return this.buffer.removeFirstLong();
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		throw new UnsupportedOperationException();
 	}
@@ -77,6 +101,13 @@ public class LinkedBlockPosHashSet extends LongLinkedOpenHashSet {
 			return key | (long) (valueLength >>> 0 & 3) << 0;
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param posLong pos long
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean add(long posLong) {
 			long l = getKey(posLong);
 			int i = getBlockOffset(posLong);
@@ -134,6 +165,13 @@ public class LinkedBlockPosHashSet extends LongLinkedOpenHashSet {
 			return bl;
 		}
 
+		/**
+		 * Rem.
+		 *
+		 * @param posLong pos long
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean rem(long posLong) {
 			long l = getKey(posLong);
 			int i = getBlockOffset(posLong);
@@ -207,6 +245,11 @@ public class LinkedBlockPosHashSet extends LongLinkedOpenHashSet {
 			}
 		}
 
+		/**
+		 * Удаляет first long.
+		 *
+		 * @return long — результат операции
+		 */
 		public long removeFirstLong() {
 			if (this.size == 0) {
 				throw new NoSuchElementException();
@@ -225,6 +268,11 @@ public class LinkedBlockPosHashSet extends LongLinkedOpenHashSet {
 			}
 		}
 
+		/**
+		 * Rehash.
+		 *
+		 * @param newN new n
+		 */
 		protected void rehash(int newN) {
 			if (newN > this.expectedSize) {
 				super.rehash(newN);

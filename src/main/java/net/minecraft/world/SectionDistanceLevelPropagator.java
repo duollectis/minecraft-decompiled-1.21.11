@@ -64,6 +64,13 @@ public abstract class SectionDistanceLevelPropagator extends LevelPropagator {
 
 	protected abstract int getInitialLevel(long id);
 
+	/**
+	 * Update.
+	 *
+	 * @param id id
+	 * @param level level
+	 * @param decrease decrease
+	 */
 	public void update(long id, int level, boolean decrease) {
 		this.updateLevel(Long.MAX_VALUE, id, level, decrease);
 	}

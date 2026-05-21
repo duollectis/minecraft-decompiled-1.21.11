@@ -27,6 +27,14 @@ public record MapBannerMarker(BlockPos pos, DyeColor color, Optional<Text> name)
 			                    .apply(instance, MapBannerMarker::new)
 	);
 
+	/**
+	 * From world block.
+	 *
+	 * @param blockView block view
+	 * @param blockPos block pos
+	 *
+	 * @return @Nullable MapBannerMarker — результат операции
+	 */
 	public static @Nullable MapBannerMarker fromWorldBlock(BlockView blockView, BlockPos blockPos) {
 		if (blockView.getBlockEntity(blockPos) instanceof BannerBlockEntity bannerBlockEntity) {
 			DyeColor dyeColor = bannerBlockEntity.getColorForState();

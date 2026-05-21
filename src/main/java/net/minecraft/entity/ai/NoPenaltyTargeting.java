@@ -10,6 +10,15 @@ import org.jspecify.annotations.Nullable;
  */
 public class NoPenaltyTargeting {
 
+	/**
+	 * Find.
+	 *
+	 * @param entity entity
+	 * @param horizontalRange horizontal range
+	 * @param verticalRange vertical range
+	 *
+	 * @return @Nullable Vec3d — 
+	 */
 	public static @Nullable Vec3d find(PathAwareEntity entity, int horizontalRange, int verticalRange) {
 		boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
 		return FuzzyPositions.guessBestPathTarget(

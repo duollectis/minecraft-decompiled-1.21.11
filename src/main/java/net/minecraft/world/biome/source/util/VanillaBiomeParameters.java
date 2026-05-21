@@ -206,6 +206,11 @@ public final class VanillaBiomeParameters {
 		);
 	}
 
+	/**
+	 * Записывает overworld biome parameters.
+	 *
+	 * @param parameters parameters
+	 */
 	public void writeOverworldBiomeParameters(Consumer<Pair<MultiNoiseUtil.NoiseHypercube, RegistryKey<Biome>>> parameters) {
 		if (SharedConstants.DEBUG_BIOME_SOURCE) {
 			this.writeDebug(parameters);

@@ -31,6 +31,13 @@ public class SalmonEntityRenderer extends MobEntityRenderer<SalmonEntity, Salmon
 		this.largeModel = new SalmonEntityModel(context.getPart(EntityModelLayers.SALMON_LARGE));
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param salmonEntity salmon entity
+	 * @param salmonEntityRenderState salmon entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(SalmonEntity salmonEntity, SalmonEntityRenderState salmonEntityRenderState, float f) {
 		super.updateRenderState(salmonEntity, salmonEntityRenderState, f);
 		salmonEntityRenderState.variant = salmonEntity.getVariant();
@@ -40,6 +47,11 @@ public class SalmonEntityRenderer extends MobEntityRenderer<SalmonEntity, Salmon
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SalmonEntityRenderState — результат операции
+	 */
 	public SalmonEntityRenderState createRenderState() {
 		return new SalmonEntityRenderState();
 	}

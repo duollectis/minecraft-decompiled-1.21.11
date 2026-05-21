@@ -51,6 +51,15 @@ public class TrapezoidFloatProvider extends FloatProvider {
 	private final float max;
 	private final float plateau;
 
+	/**
+	 * Create.
+	 *
+	 * @param min min
+	 * @param max max
+	 * @param plateau plateau
+	 *
+	 * @return TrapezoidFloatProvider — результат операции
+	 */
 	public static TrapezoidFloatProvider create(float min, float max, float plateau) {
 		return new TrapezoidFloatProvider(min, max, plateau);
 	}

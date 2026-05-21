@@ -304,6 +304,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.environmentAttributeAccess;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param shouldKeepTicking should keep ticking
+	 */
 	public void tick(BooleanSupplier shouldKeepTicking) {
 		Profiler profiler = Profilers.get();
 		this.inBlockTick = true;
@@ -435,6 +440,9 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.chunkManager.chunkLoadingManager.getLevelManager().shouldTickBlocks(chunkPos);
 	}
 
+	/**
+	 * Выполняет тик обновления для time.
+	 */
 	protected void tickTime() {
 		if (this.shouldTickTime) {
 			long l = this.properties.getTime() + 1L;
@@ -456,6 +464,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.getTimeOfDay() / 24000L;
 	}
 
+	/**
+	 * Выполняет тик обновления для spawners.
+	 *
+	 * @param spawnMonsters spawn monsters
+	 */
 	public void tickSpawners(boolean spawnMonsters) {
 		for (SpecialSpawner specialSpawner : this.spawners) {
 			specialSpawner.spawn(this, spawnMonsters);
@@ -471,6 +484,12 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 				.forEach(player -> player.wakeUp(false, false));
 	}
 
+	/**
+	 * Выполняет тик обновления для chunk.
+	 *
+	 * @param chunk chunk
+	 * @param randomTickSpeed random tick speed
+	 */
 	public void tickChunk(WorldChunk chunk, int randomTickSpeed) {
 		ChunkPos chunkPos = chunk.getPos();
 		int i = chunkPos.getStartX();
@@ -522,6 +541,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		profiler.pop();
 	}
 
+	/**
+	 * Выполняет тик обновления для thunder.
+	 *
+	 * @param chunk chunk
+	 */
 	public void tickThunder(WorldChunk chunk) {
 		ChunkPos chunkPos = chunk.getPos();
 		boolean bl = this.isRaining();
@@ -559,6 +583,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 	}
 
 	@VisibleForTesting
+	/**
+	 * Выполняет тик обновления для ice and snow.
+	 *
+	 * @param pos pos
+	 */
 	public void tickIceAndSnow(BlockPos pos) {
 		BlockPos blockPos = this.getTopPosition(Heightmap.Type.MOTION_BLOCKING, pos);
 		BlockPos blockPos2 = blockPos.down();
@@ -668,6 +697,9 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		}
 	}
 
+	/**
+	 * Обновляет sleeping players.
+	 */
 	public void updateSleepingPlayers() {
 		if (!this.players.isEmpty() && this.sleepManager.update(this.players)) {
 			this.sendSleepingStatus();
@@ -828,6 +860,9 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 	}
 
 	@VisibleForTesting
+	/**
+	 * Сбрасывает weather.
+	 */
 	public void resetWeather() {
 		this.worldProperties.setRainTime(0);
 		this.worldProperties.setRaining(false);
@@ -835,6 +870,9 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		this.worldProperties.setThundering(false);
 	}
 
+	/**
+	 * Сбрасывает idle timeout.
+	 */
 	public void resetIdleTimeout() {
 		this.idleTimeout = 0;
 	}
@@ -854,6 +892,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для entity.
+	 *
+	 * @param entity entity
+	 */
 	public void tickEntity(Entity entity) {
 		entity.resetPosition();
 		Profiler profiler = Profilers.get();
@@ -887,6 +930,12 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		}
 	}
 
+	/**
+	 * Обрабатывает событие state replaced with commands.
+	 *
+	 * @param pos pos
+	 * @param oldState old state
+	 */
 	public void onStateReplacedWithCommands(BlockPos pos, BlockState oldState) {
 		BlockState blockState = this.getBlockState(pos);
 		Block block = blockState.getBlock();
@@ -909,6 +958,13 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		);
 	}
 
+	/**
+	 * Save.
+	 *
+	 * @param progressListener progress listener
+	 * @param flush flush
+	 * @param savingDisabled saving disabled
+	 */
 	public void save(@Nullable ProgressListener progressListener, boolean flush, boolean savingDisabled) {
 		ServerChunkManager serverChunkManager = this.getChunkManager();
 		if (!savingDisabled) {
@@ -1015,10 +1071,22 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.addEntity(entity);
 	}
 
+	/**
+	 * Try load entity.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean tryLoadEntity(Entity entity) {
 		return this.addEntity(entity);
 	}
 
+	/**
+	 * Обрабатывает событие dimension changed.
+	 *
+	 * @param entity entity
+	 */
 	public void onDimensionChanged(Entity entity) {
 		if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
 			this.addPlayer(serverPlayerEntity);
@@ -1028,10 +1096,20 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		}
 	}
 
+	/**
+	 * Обрабатывает событие player connected.
+	 *
+	 * @param player player
+	 */
 	public void onPlayerConnected(ServerPlayerEntity player) {
 		this.addPlayer(player);
 	}
 
+	/**
+	 * Обрабатывает событие player respawned.
+	 *
+	 * @param player player
+	 */
 	public void onPlayerRespawned(ServerPlayerEntity player) {
 		this.addPlayer(player);
 	}
@@ -1060,6 +1138,13 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		}
 	}
 
+	/**
+	 * Создаёт (спавнит) new entity and passengers.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean spawnNewEntityAndPassengers(Entity entity) {
 		if (entity.streamSelfAndPassengers().map(Entity::getUuid).anyMatch(this.entityManager::has)) {
 			return false;
@@ -1070,12 +1155,23 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		}
 	}
 
+	/**
+	 * Unload entities.
+	 *
+	 * @param chunk chunk
+	 */
 	public void unloadEntities(WorldChunk chunk) {
 		chunk.clear();
 		chunk.removeChunkTickSchedulers(this);
 		this.subscriptionTracker.untrackChunk(chunk.getPos());
 	}
 
+	/**
+	 * Удаляет player.
+	 *
+	 * @param player player
+	 * @param reason reason
+	 */
 	public void removePlayer(ServerPlayerEntity player, Entity.RemovalReason reason) {
 		player.remove(reason);
 	}
@@ -1643,10 +1739,21 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.getServer().getOverworld().getPersistentStateManager().get(MapState.createStateType(id));
 	}
 
+	/**
+	 * Put map state.
+	 *
+	 * @param id id
+	 * @param state state
+	 */
 	public void putMapState(MapIdComponent id, MapState state) {
 		this.getServer().getOverworld().getPersistentStateManager().set(MapState.createStateType(id), state);
 	}
 
+	/**
+	 * Increase and get map id.
+	 *
+	 * @return MapIdComponent — результат операции
+	 */
 	public MapIdComponent increaseAndGetMapId() {
 		return this
 				.getServer()
@@ -1738,10 +1845,22 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.getRaidAt(pos) != null;
 	}
 
+	/**
+	 * Обрабатывает interaction.
+	 *
+	 * @param interaction interaction
+	 * @param entity entity
+	 * @param observer observer
+	 */
 	public void handleInteraction(EntityInteraction interaction, Entity entity, InteractionObserver observer) {
 		observer.onInteractionWith(interaction, entity);
 	}
 
+	/**
+	 * Dump.
+	 *
+	 * @param path path
+	 */
 	public void dump(Path path) throws IOException {
 		ServerChunkLoadingManager serverChunkLoadingManager = this.getChunkManager().chunkLoadingManager;
 
@@ -1846,6 +1965,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 	}
 
 	@VisibleForTesting
+	/**
+	 * Очищает updates in area.
+	 *
+	 * @param box box
+	 */
 	public void clearUpdatesInArea(BlockBox box) {
 		this.syncedBlockEventQueue.removeIf(event -> box.contains(event.pos()));
 	}
@@ -1855,6 +1979,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return 1.0F;
 	}
 
+	/**
+	 * Iterate entities.
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public Iterable<Entity> iterateEntities() {
 		return this.getEntityLookup().iterate();
 	}
@@ -1929,18 +2058,38 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.entityManager.getLookup();
 	}
 
+	/**
+	 * Загружает entities.
+	 *
+	 * @param entities entities
+	 */
 	public void loadEntities(Stream<Entity> entities) {
 		this.entityManager.loadEntities(entities);
 	}
 
+	/**
+	 * Добавляет entities.
+	 *
+	 * @param entities entities
+	 */
 	public void addEntities(Stream<Entity> entities) {
 		this.entityManager.addEntities(entities);
 	}
 
+	/**
+	 * Отключает tick schedulers.
+	 *
+	 * @param chunk chunk
+	 */
 	public void disableTickSchedulers(WorldChunk chunk) {
 		chunk.disableTickSchedulers(this.getTime());
 	}
 
+	/**
+	 * Cache structures.
+	 *
+	 * @param chunk chunk
+	 */
 	public void cacheStructures(Chunk chunk) {
 		this.server.execute(() -> this.structureLocator.cache(chunk.getPos(), chunk.getStructureStarts()));
 	}
@@ -1949,6 +2098,12 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.pathNodeTypeCache;
 	}
 
+	/**
+	 * Загружает chunks.
+	 *
+	 * @param center center
+	 * @param radius radius
+	 */
 	public void loadChunks(ChunkPos center, int radius) {
 		List<ChunkPos> list = ChunkPos.stream(center, radius).toList();
 		this.server.runTasks(() -> {
@@ -1964,6 +2119,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		});
 	}
 
+	/**
+	 * Определяет, следует ли spawn monsters.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSpawnMonsters() {
 		return this.getLevelProperties().getDifficulty() != Difficulty.PEACEFUL
 				&& this.getGameRules().getValue(GameRules.DO_MOB_SPAWNING)
@@ -1989,29 +2149,71 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.isChunkLoaded(chunkPos) && this.chunkManager.isTickingFutureReady(chunkPos);
 	}
 
+	/**
+	 * Определяет, следует ли tick entity at.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTickEntityAt(BlockPos pos) {
 		return this.entityManager.shouldTick(pos) && this.chunkManager.chunkLoadingManager
 				.getLevelManager()
 				.shouldTickEntities(ChunkPos.toLong(pos));
 	}
 
+	/**
+	 * Определяет, следует ли tick test at.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTickTestAt(ChunkPos pos) {
 		return this.entityManager.shouldTickTest(pos) && this.entityManager.isLoaded(pos.toLong());
 	}
 
+	/**
+	 * Определяет, следует ли tick block at.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTickBlockAt(BlockPos pos) {
 		return this.shouldTickChunkAt(new ChunkPos(pos));
 	}
 
+	/**
+	 * Определяет, следует ли tick chunk at.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTickChunkAt(ChunkPos pos) {
 		return this.chunkManager.chunkLoadingManager.shouldTick(pos);
 	}
 
+	/**
+	 * Проверяет возможность fire spread.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canFireSpread(BlockPos pos) {
 		int i = this.getGameRules().getValue(GameRules.FIRE_SPREAD_RADIUS_AROUND_PLAYER);
 		return i == -1 || this.chunkManager.chunkLoadingManager.isAnyNonSpectatorWithin(pos, i);
 	}
 
+	/**
+	 * Проверяет возможность spawn entities at.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSpawnEntitiesAt(ChunkPos pos) {
 		return this.entityManager.shouldTick(pos) && this.getWorldBorder().contains(pos);
 	}
@@ -2076,10 +2278,20 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 		return this.getGameRules().getValue(GameRules.PVP);
 	}
 
+	/**
+	 * Are command blocks enabled.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areCommandBlocksEnabled() {
 		return this.getGameRules().getValue(GameRules.COMMAND_BLOCKS_WORK);
 	}
 
+	/**
+	 * Are spawner blocks enabled.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areSpawnerBlocksEnabled() {
 		return this.getGameRules().getValue(GameRules.SPAWNER_BLOCKS_WORK);
 	}
@@ -2089,12 +2301,22 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 	 */
 	final class ServerEntityHandler implements EntityHandler<Entity> {
 
+		/**
+		 * Create.
+		 *
+		 * @param entity entity
+		 */
 		public void create(Entity entity) {
 			if (entity instanceof ServerWaypoint serverWaypoint && serverWaypoint.hasWaypoint()) {
 				ServerWorld.this.getWaypointHandler().onTrack(serverWaypoint);
 			}
 		}
 
+		/**
+		 * Destroy.
+		 *
+		 * @param entity entity
+		 */
 		public void destroy(Entity entity) {
 			if (entity instanceof ServerWaypoint serverWaypoint) {
 				ServerWorld.this.getWaypointHandler().onUntrack(serverWaypoint);
@@ -2103,14 +2325,29 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 			ServerWorld.this.getScoreboard().clearDeadEntity(entity);
 		}
 
+		/**
+		 * Запускает ticking.
+		 *
+		 * @param entity entity
+		 */
 		public void startTicking(Entity entity) {
 			ServerWorld.this.entityList.add(entity);
 		}
 
+		/**
+		 * Останавливает ticking.
+		 *
+		 * @param entity entity
+		 */
 		public void stopTicking(Entity entity) {
 			ServerWorld.this.entityList.remove(entity);
 		}
 
+		/**
+		 * Запускает tracking.
+		 *
+		 * @param entity entity
+		 */
 		public void startTracking(Entity entity) {
 			ServerWorld.this.getChunkManager().loadEntity(entity);
 			if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
@@ -2147,6 +2384,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 			entity.updateEventHandler(EntityGameEventHandler::onEntitySetPosCallback);
 		}
 
+		/**
+		 * Останавливает tracking.
+		 *
+		 * @param entity entity
+		 */
 		public void stopTracking(Entity entity) {
 			ServerWorld.this.getChunkManager().unloadEntity(entity);
 			if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
@@ -2177,6 +2419,11 @@ public class ServerWorld extends World implements EntityLookupView, StructureWor
 			ServerWorld.this.subscriptionTracker.untrackEntity(entity);
 		}
 
+		/**
+		 * Обновляет load status.
+		 *
+		 * @param entity entity
+		 */
 		public void updateLoadStatus(Entity entity) {
 			entity.updateEventHandler(EntityGameEventHandler::onEntitySetPos);
 		}

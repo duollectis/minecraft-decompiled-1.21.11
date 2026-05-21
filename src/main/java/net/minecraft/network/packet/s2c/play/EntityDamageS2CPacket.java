@@ -16,6 +16,9 @@ import net.minecraft.world.World;
 
 import java.util.Optional;
 
+/**
+ * Запись entity damage s2 c packet.
+ */
 public record EntityDamageS2CPacket(
 		int entityId,
 		RegistryEntry<DamageType> sourceType,
@@ -76,10 +79,22 @@ public record EntityDamageS2CPacket(
 		return PlayPackets.DAMAGE_EVENT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntityDamage(this);
 	}
 
+	/**
+	 * Создаёт damage source.
+	 *
+	 * @param world world
+	 *
+	 * @return DamageSource — результат операции
+	 */
 	public DamageSource createDamageSource(World world) {
 		if (this.sourcePosition.isPresent()) {
 			return new DamageSource(this.sourceType, this.sourcePosition.get());

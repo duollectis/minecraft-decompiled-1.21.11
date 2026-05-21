@@ -34,6 +34,15 @@ public class CraftingRecipeInput implements RecipeInput {
 		this.stackCount = i;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param width width
+	 * @param height height
+	 * @param stacks stacks
+	 *
+	 * @return CraftingRecipeInput — результат операции
+	 */
 	public static CraftingRecipeInput create(int width, int height, List<ItemStack> stacks) {
 		return createPositioned(width, height, stacks).input();
 	}

@@ -94,6 +94,11 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		this.addTooltipSubmenuHandler(new BundleTooltipSubmenuHandler(this.client));
 	}
 
+	/**
+	 * Добавляет tooltip submenu handler.
+	 *
+	 * @param handler handler
+	 */
 	protected void addTooltipSubmenuHandler(TooltipSubmenuHandler handler) {
 		this.tooltipSubmenuHandlers.add(handler);
 	}
@@ -105,6 +110,14 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		this.renderLetGoTouchStack(context);
 	}
 
+	/**
+	 * Отрисовывает main.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param deltaTicks delta ticks
+	 */
 	public void renderMain(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
 		int i = this.x;
 		int j = this.y;
@@ -124,6 +137,13 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		context.getMatrices().popMatrix();
 	}
 
+	/**
+	 * Отрисовывает cursor stack.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	public void renderCursorStack(DrawContext context, int mouseX, int mouseY) {
 		ItemStack itemStack = this.touchDragStack.isEmpty() ? this.handler.getCursorStack() : this.touchDragStack;
 		if (!itemStack.isEmpty()) {
@@ -145,6 +165,11 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		}
 	}
 
+	/**
+	 * Отрисовывает let go touch stack.
+	 *
+	 * @param context context
+	 */
 	public void renderLetGoTouchStack(DrawContext context) {
 		if (this.letGoTouchStack != null) {
 			float
@@ -166,6 +191,13 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		}
 	}
 
+	/**
+	 * Draw slots.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	protected void drawSlots(DrawContext context, int mouseX, int mouseY) {
 		for (Slot slot : this.handler.slots) {
 			if (slot.isEnabled()) {
@@ -225,6 +257,13 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		}
 	}
 
+	/**
+	 * Draw mouseover tooltip.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 */
 	protected void drawMouseoverTooltip(DrawContext context, int x, int y) {
 		if (this.focusedSlot != null && this.focusedSlot.hasStack()) {
 			ItemStack itemStack = this.focusedSlot.getStack();
@@ -254,6 +293,13 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		context.drawStackOverlay(this.textRenderer, stack, x, y - (this.touchDragStack.isEmpty() ? 0 : 8), amountText);
 	}
 
+	/**
+	 * Draw foreground.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	protected void drawForeground(DrawContext context, int mouseX, int mouseY) {
 		context.drawText(this.textRenderer, this.title, this.titleX, this.titleY, -12566464, false);
 		context.drawText(
@@ -266,8 +312,24 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		);
 	}
 
+	/**
+	 * Draw background.
+	 *
+	 * @param context context
+	 * @param deltaTicks delta ticks
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	protected abstract void drawBackground(DrawContext context, float deltaTicks, int mouseX, int mouseY);
 
+	/**
+	 * Draw slot.
+	 *
+	 * @param context context
+	 * @param slot slot
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	protected void drawSlot(DrawContext context, Slot slot, int mouseX, int mouseY) {
 		int i = slot.x;
 		int j = slot.y;
@@ -673,6 +735,9 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		return true;
 	}
 
+	/**
+	 * End touch drag.
+	 */
 	public void endTouchDrag() {
 		this.touchDragStack = ItemStack.EMPTY;
 		this.touchDragSlotStart = null;
@@ -700,6 +765,14 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		}
 	}
 
+	/**
+	 * Обрабатывает событие mouse click.
+	 *
+	 * @param slot slot
+	 * @param slotId slot id
+	 * @param button button
+	 * @param actionType action type
+	 */
 	protected void onMouseClick(Slot slot, int slotId, int button, SlotActionType actionType) {
 		if (slot != null) {
 			slotId = slot.id;
@@ -719,6 +792,13 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		}
 	}
 
+	/**
+	 * Обрабатывает событие slot changed state.
+	 *
+	 * @param slotId slot id
+	 * @param handlerId handler id
+	 * @param newState new state
+	 */
 	protected void onSlotChangedState(int slotId, int handlerId, boolean newState) {
 		this.client.interactionManager.slotChangedState(slotId, handlerId, newState);
 	}
@@ -752,6 +832,13 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		}
 	}
 
+	/**
+	 * Обрабатывает hotbar key pressed.
+	 *
+	 * @param keyInput key input
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean handleHotbarKeyPressed(KeyInput keyInput) {
 		if (this.handler.getCursorStack().isEmpty() && this.focusedSlot != null) {
 			if (this.client.options.swapHandsKey.matchesKey(keyInput)) {
@@ -798,6 +885,9 @@ public abstract class HandledScreen<T extends ScreenHandler> extends Screen impl
 		}
 	}
 
+	/**
+	 * Обрабатывает d screen tick.
+	 */
 	protected void handledScreenTick() {
 	}
 

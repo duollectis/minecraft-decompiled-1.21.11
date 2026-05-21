@@ -32,14 +32,30 @@ public class GoalSelector {
 	private final Set<PrioritizedGoal> goals = new ObjectLinkedOpenHashSet();
 	private final EnumSet<Goal.Control> disabledControls = EnumSet.noneOf(Goal.Control.class);
 
+	/**
+	 * Add.
+	 *
+	 * @param priority priority
+	 * @param goal goal
+	 */
 	public void add(int priority, Goal goal) {
 		this.goals.add(new PrioritizedGoal(priority, goal));
 	}
 
+	/**
+	 * Clear.
+	 *
+	 * @param predicate predicate
+	 */
 	public void clear(Predicate<Goal> predicate) {
 		this.goals.removeIf(goal -> predicate.test(goal.getGoal()));
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param goal goal
+	 */
 	public void remove(Goal goal) {
 		for (PrioritizedGoal prioritizedGoal : this.goals) {
 			if (prioritizedGoal.getGoal() == goal && prioritizedGoal.isRunning()) {
@@ -70,6 +86,9 @@ public class GoalSelector {
 		return true;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		Profiler profiler = Profilers.get();
 		profiler.push("goalCleanup");
@@ -105,6 +124,11 @@ public class GoalSelector {
 		this.tickGoals(true);
 	}
 
+	/**
+	 * Выполняет тик обновления для goals.
+	 *
+	 * @param tickAll tick all
+	 */
 	public void tickGoals(boolean tickAll) {
 		Profiler profiler = Profilers.get();
 		profiler.push("goalTick");
@@ -122,10 +146,20 @@ public class GoalSelector {
 		return this.goals;
 	}
 
+	/**
+	 * Отключает control.
+	 *
+	 * @param control control
+	 */
 	public void disableControl(Goal.Control control) {
 		this.disabledControls.add(control);
 	}
 
+	/**
+	 * Включает control.
+	 *
+	 * @param control control
+	 */
 	public void enableControl(Goal.Control control) {
 		this.disabledControls.remove(control);
 	}

@@ -13,6 +13,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.screen.sync.ItemStackHash;
 
+/**
+ * Запись click slot c2 s packet.
+ */
 public record ClickSlotC2SPacket(
 		int syncId,
 		int revision,
@@ -72,6 +75,11 @@ public record ClickSlotC2SPacket(
 		return PlayPackets.CONTAINER_CLICK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onClickSlot(this);
 	}

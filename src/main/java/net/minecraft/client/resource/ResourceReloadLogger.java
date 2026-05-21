@@ -24,6 +24,12 @@ public class ResourceReloadLogger {
 	private ResourceReloadLogger.@Nullable ReloadState reloadState;
 	private int reloadCount;
 
+	/**
+	 * Reload.
+	 *
+	 * @param reason reason
+	 * @param packs packs
+	 */
 	public void reload(ResourceReloadLogger.ReloadReason reason, List<ResourcePack> packs) {
 		this.reloadCount++;
 		if (this.reloadState != null && !this.reloadState.finished) {
@@ -37,6 +43,11 @@ public class ResourceReloadLogger {
 				);
 	}
 
+	/**
+	 * Recover.
+	 *
+	 * @param throwable throwable
+	 */
 	public void recover(Throwable throwable) {
 		if (this.reloadState == null) {
 			LOGGER.warn("Trying to signal reload recovery, but nothing was started");
@@ -47,6 +58,9 @@ public class ResourceReloadLogger {
 		this.reloadState.recovery = new ResourceReloadLogger.RecoveryEntry(throwable);
 	}
 
+	/**
+	 * Finish.
+	 */
 	public void finish() {
 		if (this.reloadState == null) {
 			LOGGER.warn("Trying to finish reload, but nothing was started");
@@ -56,6 +70,11 @@ public class ResourceReloadLogger {
 		}
 	}
 
+	/**
+	 * Добавляет reload section.
+	 *
+	 * @param report report
+	 */
 	public void addReloadSection(CrashReport report) {
 		CrashReportSection crashReportSection = report.addElement("Last reload");
 		crashReportSection.add("Reload number", this.reloadCount);
@@ -76,6 +95,11 @@ public class ResourceReloadLogger {
 			this.throwable = throwable;
 		}
 
+		/**
+		 * Добавляет recovery section.
+		 *
+		 * @param section section
+		 */
 		public void addRecoverySection(CrashReportSection section) {
 			section.add("Recovery", "Yes");
 			section.add(
@@ -120,6 +144,11 @@ public class ResourceReloadLogger {
 			this.packs = packs;
 		}
 
+		/**
+		 * Добавляет reload section.
+		 *
+		 * @param section section
+		 */
 		public void addReloadSection(CrashReportSection section) {
 			section.add("Reload reason", this.reason.name);
 			section.add("Finished", this.finished ? "Yes" : "No");

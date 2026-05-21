@@ -48,6 +48,13 @@ public class TextRenderer {
 		return this.fonts.getGlyphs(source);
 	}
 
+	/**
+	 * Mirror.
+	 *
+	 * @param text text
+	 *
+	 * @return String — результат операции
+	 */
 	public String mirror(String text) {
 		try {
 			Bidi bidi = new Bidi(new ArabicShaping(8).shape(text), 127);
@@ -211,15 +218,40 @@ public class TextRenderer {
 		return MathHelper.ceil(this.handler.getWidth(text));
 	}
 
+	/**
+	 * Trim to width.
+	 *
+	 * @param text text
+	 * @param maxWidth max width
+	 * @param backwards backwards
+	 *
+	 * @return String — результат операции
+	 */
 	public String trimToWidth(String text, int maxWidth, boolean backwards) {
 		return backwards ? this.handler.trimToWidthBackwards(text, maxWidth, Style.EMPTY)
 		                 : this.handler.trimToWidth(text, maxWidth, Style.EMPTY);
 	}
 
+	/**
+	 * Trim to width.
+	 *
+	 * @param text text
+	 * @param maxWidth max width
+	 *
+	 * @return String — результат операции
+	 */
 	public String trimToWidth(String text, int maxWidth) {
 		return this.handler.trimToWidth(text, maxWidth, Style.EMPTY);
 	}
 
+	/**
+	 * Trim to width.
+	 *
+	 * @param text text
+	 * @param width width
+	 *
+	 * @return StringVisitable — результат операции
+	 */
 	public StringVisitable trimToWidth(StringVisitable text, int width) {
 		return this.handler.trimToWidth(text, width, Style.EMPTY);
 	}
@@ -228,10 +260,26 @@ public class TextRenderer {
 		return 9 * this.handler.wrapLines(text, maxWidth, Style.EMPTY).size();
 	}
 
+	/**
+	 * Wrap lines.
+	 *
+	 * @param text text
+	 * @param width width
+	 *
+	 * @return List — результат операции
+	 */
 	public List<OrderedText> wrapLines(StringVisitable text, int width) {
 		return Language.getInstance().reorder(this.handler.wrapLines(text, width, Style.EMPTY));
 	}
 
+	/**
+	 * Wrap lines without language.
+	 *
+	 * @param text text
+	 * @param width width
+	 *
+	 * @return List — результат операции
+	 */
 	public List<StringVisitable> wrapLinesWithoutLanguage(StringVisitable text, int width) {
 		return this.handler.wrapLines(text, width, Style.EMPTY);
 	}
@@ -349,6 +397,15 @@ public class TextRenderer {
 			return this.accept(i, style, bakedGlyph);
 		}
 
+		/**
+		 * Accept.
+		 *
+		 * @param index index
+		 * @param style style
+		 * @param glyph glyph
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean accept(int index, Style style, BakedGlyph glyph) {
 			GlyphMetrics glyphMetrics = glyph.getMetrics();
 			boolean bl = style.isBold();

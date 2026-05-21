@@ -19,6 +19,13 @@ public record Subscription(Instant startDate, int daysLeft, Subscription.Subscri
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return Subscription — результат операции
+	 */
 	public static Subscription parse(String json) {
 		try {
 			JsonObject jsonObject = LenientJsonParser.parse(json).getAsJsonObject();

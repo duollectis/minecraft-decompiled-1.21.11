@@ -132,6 +132,14 @@ public class FurnaceMinecartEntity extends AbstractMinecartEntity {
 		return ActionResult.SUCCESS;
 	}
 
+	/**
+	 * Добавляет fuel.
+	 *
+	 * @param velocity velocity
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean addFuel(Vec3d velocity, ItemStack stack) {
 		if (stack.isIn(ItemTags.FURNACE_MINECART_FUEL) && this.fuel + 3600 <= 32000) {
 			this.fuel += 3600;

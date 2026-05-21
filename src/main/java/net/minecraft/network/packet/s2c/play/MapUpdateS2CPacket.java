@@ -16,6 +16,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Запись map update s2 c packet.
+ */
 public record MapUpdateS2CPacket(
 		MapIdComponent mapId,
 		byte scale,
@@ -59,10 +62,20 @@ public record MapUpdateS2CPacket(
 		return PlayPackets.MAP_ITEM_DATA;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onMapUpdate(this);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param mapState map state
+	 */
 	public void apply(MapState mapState) {
 		this.decorations.ifPresent(mapState::replaceDecorations);
 		this.updateData.ifPresent(updateData -> updateData.setColorsTo(mapState));

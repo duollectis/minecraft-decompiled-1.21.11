@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись set cursor item s2 c packet.
+ */
 public record SetCursorItemS2CPacket(ItemStack contents) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, SetCursorItemS2CPacket> CODEC = PacketCodec.tuple(
@@ -19,6 +22,11 @@ public record SetCursorItemS2CPacket(ItemStack contents) implements Packet<Clien
 		return PlayPackets.SET_CURSOR_ITEM;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onSetCursorItem(this);
 	}

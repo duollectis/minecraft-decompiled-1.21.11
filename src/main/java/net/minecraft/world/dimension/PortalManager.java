@@ -23,6 +23,15 @@ public class PortalManager {
 		this.inPortal = true;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param canUsePortals can use portals
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean tick(ServerWorld world, Entity entity, boolean canUsePortals) {
 		if (!this.inPortal) {
 			this.decayTicksInPortal();
@@ -34,6 +43,14 @@ public class PortalManager {
 		}
 	}
 
+	/**
+	 * Создаёт teleport target.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 *
+	 * @return @Nullable TeleportTarget — результат операции
+	 */
 	public @Nullable TeleportTarget createTeleportTarget(ServerWorld world, Entity entity) {
 		return this.portal.createTeleportTarget(world, entity, this.pos);
 	}
@@ -70,6 +87,13 @@ public class PortalManager {
 		this.inPortal = inPortal;
 	}
 
+	/**
+	 * Portal matches.
+	 *
+	 * @param portal portal
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean portalMatches(Portal portal) {
 		return this.portal == portal;
 	}

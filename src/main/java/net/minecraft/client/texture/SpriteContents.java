@@ -85,6 +85,11 @@ public class SpriteContents implements TextureStitcher.Stitchable, AutoCloseable
 		this.cutoffBias = metadata.map(TextureResourceMetadata::alphaCutoffBias).orElse(0.0F);
 	}
 
+	/**
+	 * Generate mipmaps.
+	 *
+	 * @param mipmapLevels mipmap levels
+	 */
 	public void generateMipmaps(int mipmapLevels) {
 		try {
 			this.mipmapLevelsImages =
@@ -242,6 +247,12 @@ public class SpriteContents implements TextureStitcher.Stitchable, AutoCloseable
 		return ColorHelper.getAlpha(this.image.getColorArgb(i, j)) == 0;
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param texture texture
+	 * @param mipmap mipmap
+	 */
 	public void upload(GpuTexture texture, int mipmap) {
 		RenderSystem.getDevice()
 		            .createCommandEncoder()
@@ -363,6 +374,9 @@ public class SpriteContents implements TextureStitcher.Stitchable, AutoCloseable
 			this.animationInfosByFrame = bufferSlices;
 		}
 
+		/**
+		 * Tick.
+		 */
 		public void tick() {
 			this.elapsedTimeInFrame++;
 			this.changedFrame = false;
@@ -386,6 +400,12 @@ public class SpriteContents implements TextureStitcher.Stitchable, AutoCloseable
 			return this.animation.interpolated || this.changedFrame;
 		}
 
+		/**
+		 * Upload.
+		 *
+		 * @param renderPass render pass
+		 * @param bufferSlice buffer slice
+		 */
 		public void upload(RenderPass renderPass, GpuBufferSlice bufferSlice) {
 			GpuSampler gpuSampler = RenderSystem.getSamplerCache().get(FilterMode.NEAREST, true);
 			List<SpriteContents.AnimationFrame> list = this.animation.frames;

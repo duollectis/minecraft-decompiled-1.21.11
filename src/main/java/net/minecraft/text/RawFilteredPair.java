@@ -15,6 +15,13 @@ import java.util.function.Function;
  */
 public record RawFilteredPair<T>(T raw, Optional<T> filtered) {
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param baseCodec base codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<RawFilteredPair<T>> createCodec(Codec<T> baseCodec) {
 		Codec<RawFilteredPair<T>> codec = RecordCodecBuilder.create(
 				instance -> instance.group(
@@ -27,6 +34,13 @@ public record RawFilteredPair<T>(T raw, Optional<T> filtered) {
 		return Codec.withAlternative(codec, codec2);
 	}
 
+	/**
+	 * Создаёт packet codec.
+	 *
+	 * @param basePacketCodec base packet codec
+	 *
+	 * @return PacketCodec> — результат операции
+	 */
 	public static <B extends ByteBuf, T> PacketCodec<B, RawFilteredPair<T>> createPacketCodec(PacketCodec<B, T> basePacketCodec) {
 		return PacketCodec.tuple(
 				basePacketCodec,
@@ -37,10 +51,24 @@ public record RawFilteredPair<T>(T raw, Optional<T> filtered) {
 		);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param raw raw
+	 *
+	 * @return RawFilteredPair — результат операции
+	 */
 	public static <T> RawFilteredPair<T> of(T raw) {
 		return new RawFilteredPair<>(raw, Optional.empty());
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param message message
+	 *
+	 * @return RawFilteredPair — результат операции
+	 */
 	public static RawFilteredPair<String> of(FilteredMessage message) {
 		return new RawFilteredPair<>(
 				message.raw(),
@@ -48,14 +76,35 @@ public record RawFilteredPair<T>(T raw, Optional<T> filtered) {
 		);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param shouldFilter should filter
+	 *
+	 * @return T — 
+	 */
 	public T get(boolean shouldFilter) {
 		return shouldFilter ? this.filtered.orElse(this.raw) : this.raw;
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param mapper mapper
+	 *
+	 * @return RawFilteredPair — результат операции
+	 */
 	public <U> RawFilteredPair<U> map(Function<T, U> mapper) {
 		return new RawFilteredPair<>(mapper.apply(this.raw), this.filtered.map(mapper));
 	}
 
+	/**
+	 * Resolve.
+	 *
+	 * @param resolver resolver
+	 *
+	 * @return Optional> — результат операции
+	 */
 	public <U> Optional<RawFilteredPair<U>> resolve(Function<T, Optional<U>> resolver) {
 		Optional<U> optional = resolver.apply(this.raw);
 		if (optional.isEmpty()) {

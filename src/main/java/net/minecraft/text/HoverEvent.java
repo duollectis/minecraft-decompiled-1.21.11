@@ -96,6 +96,11 @@ public interface HoverEvent {
 			this.name = name;
 		}
 
+		/**
+		 * As tooltip.
+		 *
+		 * @return List — результат операции
+		 */
 		public List<Text> asTooltip() {
 			if (this.tooltip == null) {
 				this.tooltip = new ArrayList<>();

@@ -34,6 +34,11 @@ public class ChunkSkyLight {
 		this.palette = new PackedIntegerArray(j, 256);
 	}
 
+	/**
+	 * Refresh surface y.
+	 *
+	 * @param chunk chunk
+	 */
 	public void refreshSurfaceY(Chunk chunk) {
 		int i = chunk.getHighestNonEmptySection();
 		if (i == -1) {
@@ -157,6 +162,14 @@ public class ChunkSkyLight {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param localX local x
+	 * @param localZ local z
+	 *
+	 * @return int — 
+	 */
 	public int get(int localX, int localZ) {
 		int i = this.get(getPackedIndex(localX, localZ));
 		return this.convertMinY(i);

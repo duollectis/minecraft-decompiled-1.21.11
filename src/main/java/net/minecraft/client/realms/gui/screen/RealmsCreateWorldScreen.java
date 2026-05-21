@@ -139,6 +139,15 @@ public class RealmsCreateWorldScreen extends RealmsScreen {
 		);
 	}
 
+	/**
+	 * Сбрасывает world.
+	 *
+	 * @param parent parent
+	 * @param serverData server data
+	 * @param callback callback
+	 *
+	 * @return RealmsCreateWorldScreen — результат операции
+	 */
 	public static RealmsCreateWorldScreen resetWorld(Screen parent, RealmsServer serverData, Runnable callback) {
 		return new RealmsCreateWorldScreen(
 				parent,

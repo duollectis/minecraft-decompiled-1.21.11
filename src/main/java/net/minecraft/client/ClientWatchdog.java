@@ -16,6 +16,12 @@ public class ClientWatchdog {
 
 	private static final Duration TIMEOUT = Duration.ofSeconds(15L);
 
+	/**
+	 * Shutdown client.
+	 *
+	 * @param runDir run dir
+	 * @param threadId thread id
+	 */
 	public static void shutdownClient(File runDir, long threadId) {
 		Thread thread = new Thread(() -> {
 			try {

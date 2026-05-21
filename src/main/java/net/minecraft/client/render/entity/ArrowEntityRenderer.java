@@ -25,10 +25,22 @@ public class ArrowEntityRenderer extends ProjectileEntityRenderer<ArrowEntity, A
 		return arrowEntityRenderState.tipped ? TIPPED_TEXTURE : TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ArrowEntityRenderState — результат операции
+	 */
 	public ArrowEntityRenderState createRenderState() {
 		return new ArrowEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param arrowEntity arrow entity
+	 * @param arrowEntityRenderState arrow entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(ArrowEntity arrowEntity, ArrowEntityRenderState arrowEntityRenderState, float f) {
 		super.updateRenderState(arrowEntity, arrowEntityRenderState, f);
 		arrowEntityRenderState.tipped = arrowEntity.getColor() > 0;

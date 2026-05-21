@@ -25,6 +25,11 @@ public class EndGatewayBlockEntityRenderer extends AbstractEndPortalBlockEntityR
 
 	private static final Identifier BEAM_TEXTURE = Identifier.ofVanilla("textures/entity/end_gateway_beam.png");
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return EndGatewayBlockEntityRenderState — результат операции
+	 */
 	public EndGatewayBlockEntityRenderState createRenderState() {
 		return new EndGatewayBlockEntityRenderState();
 	}

@@ -41,6 +41,12 @@ public record UseCooldownComponent(float seconds, Optional<Identifier> cooldownG
 		return (int) (this.seconds * 20.0F);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param stack stack
+	 * @param user user
+	 */
 	public void set(ItemStack stack, LivingEntity user) {
 		if (user instanceof PlayerEntity playerEntity) {
 			playerEntity.getItemCooldownManager().set(stack, this.getCooldownTicks());

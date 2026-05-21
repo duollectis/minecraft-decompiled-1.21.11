@@ -60,6 +60,11 @@ public enum NoteBlockInstrument implements StringIdentifiable {
 		return this.sound;
 	}
 
+	/**
+	 * Проверяет возможность be pitched.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBePitched() {
 		return this.type == NoteBlockInstrument.Type.BASE_BLOCK;
 	}

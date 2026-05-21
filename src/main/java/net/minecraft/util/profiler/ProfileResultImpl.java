@@ -190,6 +190,14 @@ public class ProfileResultImpl implements ProfileResult {
 		return var4;
 	}
 
+	/**
+	 * As string.
+	 *
+	 * @param timeSpan time span
+	 * @param tickSpan tick span
+	 *
+	 * @return String — результат операции
+	 */
 	protected String asString(long timeSpan, int tickSpan) {
 		StringBuilder stringBuilder = new StringBuilder();
 		ReportType.MINECRAFT_PROFILER_RESULTS.addHeaderAndNugget(stringBuilder, List.of());
@@ -330,6 +338,12 @@ public class ProfileResultImpl implements ProfileResult {
 		long totalTime;
 		final Map<String, ProfileResultImpl.CounterInfo> subCounters = Maps.newHashMap();
 
+		/**
+		 * Add.
+		 *
+		 * @param pathIterator path iterator
+		 * @param time time
+		 */
 		public void add(Iterator<String> pathIterator, long time) {
 			this.totalTime += time;
 			if (!pathIterator.hasNext()) {

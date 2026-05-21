@@ -30,10 +30,24 @@ public class Octree {
 		this.root = new Octree.Branch(new BlockBox(l, n, p, m, o, q));
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param chunk chunk
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean add(ChunkBuilder.BuiltChunk chunk) {
 		return this.root.add(chunk);
 	}
 
+	/**
+	 * Visit.
+	 *
+	 * @param visitor visitor
+	 * @param frustum frustum
+	 * @param margin margin
+	 */
 	public void visit(Octree.Visitor visitor, Frustum frustum, int margin) {
 		this.root.visit(visitor, false, frustum, 0, margin, true);
 	}
@@ -111,6 +125,13 @@ public class Octree {
 			this.southernSide = k < 0;
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param chunk chunk
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean add(ChunkBuilder.BuiltChunk chunk) {
 			long l = chunk.getSectionPos();
 			boolean bl = ChunkSectionPos.getBlockCoord(ChunkSectionPos.unpackX(l)) - this.centerX < 0;

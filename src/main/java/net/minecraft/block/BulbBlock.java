@@ -53,6 +53,13 @@ public class BulbBlock extends Block {
 		}
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 */
 	public void update(BlockState state, ServerWorld world, BlockPos pos) {
 		boolean bl = world.isReceivingRedstonePower(pos);
 		if (bl != state.get(POWERED)) {

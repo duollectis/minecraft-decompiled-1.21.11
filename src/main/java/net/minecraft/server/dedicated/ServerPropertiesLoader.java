@@ -20,10 +20,20 @@ public class ServerPropertiesLoader {
 		return this.propertiesHandler;
 	}
 
+	/**
+	 * Store.
+	 */
 	public void store() {
 		this.propertiesHandler.saveProperties(this.path);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param applier applier
+	 *
+	 * @return ServerPropertiesLoader — результат операции
+	 */
 	public ServerPropertiesLoader apply(UnaryOperator<ServerPropertiesHandler> applier) {
 		(this.propertiesHandler = applier.apply(this.propertiesHandler)).saveProperties(this.path);
 		return this;

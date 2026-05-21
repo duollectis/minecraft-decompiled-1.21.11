@@ -4,6 +4,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Map;
 
+/**
+ * Интерфейс signed command arguments.
+ */
 public interface SignedCommandArguments {
 
 	SignedCommandArguments EMPTY = new SignedCommandArguments() {
@@ -15,6 +18,9 @@ public interface SignedCommandArguments {
 
 	@Nullable SignedMessage getMessage(String argumentName);
 
+	/**
+	 * Запись impl.
+	 */
 	public record Impl(Map<String, SignedMessage> arguments) implements SignedCommandArguments {
 
 		@Override

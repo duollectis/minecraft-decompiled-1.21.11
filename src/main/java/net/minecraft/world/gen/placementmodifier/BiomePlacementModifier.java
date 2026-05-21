@@ -19,6 +19,11 @@ public class BiomePlacementModifier extends AbstractConditionalPlacementModifier
 	private BiomePlacementModifier() {
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @return BiomePlacementModifier — результат операции
+	 */
 	public static BiomePlacementModifier of() {
 		return INSTANCE;
 	}

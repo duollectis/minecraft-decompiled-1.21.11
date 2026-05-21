@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс select merchant trade c2 s packet.
+ */
 public class SelectMerchantTradeC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, SelectMerchantTradeC2SPacket> CODEC = Packet.createCodec(
@@ -31,6 +34,11 @@ public class SelectMerchantTradeC2SPacket implements Packet<ServerPlayPacketList
 		return PlayPackets.SELECT_TRADE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onSelectMerchantTrade(this);
 	}

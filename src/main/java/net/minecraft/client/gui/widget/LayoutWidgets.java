@@ -18,6 +18,15 @@ public class LayoutWidgets {
 	private LayoutWidgets() {
 	}
 
+	/**
+	 * Создаёт labeled widget.
+	 *
+	 * @param textRenderer text renderer
+	 * @param widget widget
+	 * @param label label
+	 *
+	 * @return LayoutWidget — результат операции
+	 */
 	public static LayoutWidget createLabeledWidget(TextRenderer textRenderer, Widget widget, Text label) {
 		return createLabeledWidget(textRenderer, widget, label, positioner -> {});
 	}

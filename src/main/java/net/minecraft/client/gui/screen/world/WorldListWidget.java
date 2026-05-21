@@ -163,6 +163,9 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 		}
 	}
 
+	/**
+	 * Load.
+	 */
 	public void load() {
 		this.levelsFuture = this.loadLevels();
 	}
@@ -283,6 +286,9 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 		return entry instanceof WorldListWidget.WorldEntry worldEntry ? Optional.of(worldEntry) : Optional.empty();
 	}
 
+	/**
+	 * Refresh.
+	 */
 	public void refresh() {
 		this.load();
 		this.client.setScreen(this.parent);
@@ -358,6 +364,11 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			return this;
 		}
 
+		/**
+		 * To widget.
+		 *
+		 * @return WorldListWidget — результат операции
+		 */
 		public WorldListWidget toWidget() {
 			return new WorldListWidget(
 					this.parent,
@@ -779,10 +790,18 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			return super.keyPressed(input);
 		}
 
+		/**
+		 * Allow confirmation by keyboard.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean allowConfirmationByKeyboard() {
 			return this.level.isSelectable() || this.parent.worldListType == WorldListWidget.WorldListType.UPLOAD_WORLD;
 		}
 
+		/**
+		 * Play.
+		 */
 		public void play() {
 			if (this.level.isSelectable()) {
 				if (this.level instanceof LevelSummary.SymlinkLevelSummary) {
@@ -794,6 +813,9 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			}
 		}
 
+		/**
+		 * Delete if confirmed.
+		 */
 		public void deleteIfConfirmed() {
 			this.client
 					.setScreen(
@@ -814,6 +836,9 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 					);
 		}
 
+		/**
+		 * Delete.
+		 */
 		public void delete() {
 			LevelStorage levelStorage = this.client.getLevelStorage();
 			String string = this.level.getName();
@@ -827,6 +852,9 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			}
 		}
 
+		/**
+		 * Edit.
+		 */
 		public void edit() {
 			this.openReadingWorldScreen();
 			String string = this.level.getName();
@@ -867,6 +895,9 @@ public class WorldListWidget extends AlwaysSelectedEntryListWidget<WorldListWidg
 			this.client.setScreen(editWorldScreen);
 		}
 
+		/**
+		 * Recreate.
+		 */
 		public void recreate() {
 			this.openReadingWorldScreen();
 

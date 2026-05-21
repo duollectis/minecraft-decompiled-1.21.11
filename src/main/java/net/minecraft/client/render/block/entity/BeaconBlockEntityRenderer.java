@@ -33,6 +33,11 @@ public class BeaconBlockEntityRenderer<T extends BlockEntity & BeamEmitter> impl
 	public static final float BEAM_INNER_RADIUS = 0.2F;
 	public static final float BEAM_OUTER_RADIUS = 0.25F;
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BeaconBlockEntityRenderState — результат операции
+	 */
 	public BeaconBlockEntityRenderState createRenderState() {
 		return new BeaconBlockEntityRenderState();
 	}

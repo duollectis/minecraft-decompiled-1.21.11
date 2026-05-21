@@ -106,6 +106,11 @@ public class HopperMinecartEntity extends StorageMinecartEntity implements Hoppe
 		}
 	}
 
+	/**
+	 * Проверяет возможность operate.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canOperate() {
 		if (HopperBlockEntity.extract(this.getEntityWorld(), this)) {
 			return true;

@@ -76,6 +76,13 @@ public class MultipartBlockStateModel implements BlockStateModel {
 			this.particleSprite = blockStateModel.particleSprite();
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param state state
+		 *
+		 * @return List — результат операции
+		 */
 		public List<BlockStateModel> build(BlockState state) {
 			BitSet bitSet = new BitSet();
 

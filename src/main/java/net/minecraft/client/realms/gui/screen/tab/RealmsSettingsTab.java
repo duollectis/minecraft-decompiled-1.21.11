@@ -230,6 +230,9 @@ public class RealmsSettingsTab extends GridScreenTab implements RealmsUpdatableT
 		this.saveSettings();
 	}
 
+	/**
+	 * Сохраняет settings.
+	 */
 	public void saveSettings() {
 		String string = this.worldNameTextField.getText().trim();
 		if (this.server.regionSelectionPreference == null

@@ -33,10 +33,25 @@ public class IdentifierSearchProvider<T> implements SearchProvider<T> {
 		return i == -1 ? this.search(text) : this.search(text.substring(0, i).trim(), text.substring(i + 1).trim());
 	}
 
+	/**
+	 * Search.
+	 *
+	 * @param text text
+	 *
+	 * @return List — результат операции
+	 */
 	protected List<T> search(String text) {
 		return this.idSearcher.searchPath(text);
 	}
 
+	/**
+	 * Search.
+	 *
+	 * @param namespace namespace
+	 * @param path path
+	 *
+	 * @return List — результат операции
+	 */
 	protected List<T> search(String namespace, String path) {
 		List<T> list = this.idSearcher.searchNamespace(namespace);
 		List<T> list2 = this.idSearcher.searchPath(path);

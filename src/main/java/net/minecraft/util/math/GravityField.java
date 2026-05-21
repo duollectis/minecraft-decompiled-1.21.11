@@ -11,12 +11,26 @@ public class GravityField {
 
 	private final List<GravityField.Point> points = Lists.newArrayList();
 
+	/**
+	 * Добавляет point.
+	 *
+	 * @param pos pos
+	 * @param mass mass
+	 */
 	public void addPoint(BlockPos pos, double mass) {
 		if (mass != 0.0) {
 			this.points.add(new GravityField.Point(pos, mass));
 		}
 	}
 
+	/**
+	 * Calculate.
+	 *
+	 * @param pos pos
+	 * @param mass mass
+	 *
+	 * @return double — результат операции
+	 */
 	public double calculate(BlockPos pos, double mass) {
 		if (mass == 0.0) {
 			return 0.0;

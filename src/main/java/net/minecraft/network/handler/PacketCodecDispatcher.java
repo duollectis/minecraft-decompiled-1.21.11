@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
+/**
+ * Класс packet codec dispatcher.
+ */
 public class PacketCodecDispatcher<B extends ByteBuf, V, T> implements PacketCodec<B, V> {
 
 	private static final int UNKNOWN_PACKET_INDEX = -1;
@@ -29,6 +32,13 @@ public class PacketCodecDispatcher<B extends ByteBuf, V, T> implements PacketCod
 		this.typeToIndex = typeToIndex;
 	}
 
+	/**
+	 * Decode.
+	 *
+	 * @param byteBuf byte buf
+	 *
+	 * @return V — результат операции
+	 */
 	public V decode(B byteBuf) {
 		int i = VarInts.read(byteBuf);
 		if (i >= 0 && i < this.packetTypes.size()) {
@@ -51,6 +61,12 @@ public class PacketCodecDispatcher<B extends ByteBuf, V, T> implements PacketCod
 		}
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param byteBuf byte buf
+	 * @param object object
+	 */
 	public void encode(B byteBuf, V object) {
 		T object2 = (T) this.packetIdGetter.apply(object);
 		int i = this.typeToIndex.getOrDefault(object2, -1);
@@ -94,6 +110,11 @@ public class PacketCodecDispatcher<B extends ByteBuf, V, T> implements PacketCod
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return PacketCodecDispatcher — результат операции
+		 */
 		public PacketCodecDispatcher<B, V, T> build() {
 			Object2IntOpenHashMap<T> object2IntOpenHashMap = new Object2IntOpenHashMap();
 			object2IntOpenHashMap.defaultReturnValue(-2);
@@ -117,6 +138,9 @@ public class PacketCodecDispatcher<B extends ByteBuf, V, T> implements PacketCod
 	record PacketType<B, V, T>(PacketCodec<? super B, ? extends V> codec, T id) {
 	}
 
+	/**
+	 * Интерфейс undecorated exception.
+	 */
 	public interface UndecoratedException {
 	}
 }

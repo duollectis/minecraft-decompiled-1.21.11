@@ -13,6 +13,13 @@ public class StartRidingTask {
 
 	private static final int COMPLETION_RANGE = 1;
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(float speed) {
 		return TaskTriggerer.task(
 				context -> context.group(

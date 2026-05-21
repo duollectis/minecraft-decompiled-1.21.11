@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Класс sign editor open s2 c packet.
+ */
 public class SignEditorOpenS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, SignEditorOpenS2CPacket> CODEC = Packet.createCodec(
@@ -36,6 +39,11 @@ public class SignEditorOpenS2CPacket implements Packet<ClientPlayPacketListener>
 		return PlayPackets.OPEN_SIGN_EDITOR;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onSignEditorOpen(this);
 	}

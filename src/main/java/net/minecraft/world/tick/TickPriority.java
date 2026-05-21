@@ -21,6 +21,13 @@ public enum TickPriority {
 		this.index = index;
 	}
 
+	/**
+	 * By index.
+	 *
+	 * @param index index
+	 *
+	 * @return TickPriority — результат операции
+	 */
 	public static TickPriority byIndex(int index) {
 		for (TickPriority tickPriority : values()) {
 			if (tickPriority.index == index) {

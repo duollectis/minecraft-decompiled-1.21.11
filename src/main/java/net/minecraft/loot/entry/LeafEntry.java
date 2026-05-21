@@ -74,6 +74,12 @@ public abstract class LeafEntry extends LootPoolEntry {
 		}
 	}
 
+	/**
+	 * Generate loot.
+	 *
+	 * @param lootConsumer loot consumer
+	 * @param context context
+	 */
 	protected abstract void generateLoot(Consumer<ItemStack> lootConsumer, LootContext context);
 
 	@Override
@@ -126,6 +132,13 @@ public abstract class LeafEntry extends LootPoolEntry {
 		protected int quality = 0;
 		private final com.google.common.collect.ImmutableList.Builder<LootFunction> functions = ImmutableList.builder();
 
+		/**
+		 * Apply.
+		 *
+		 * @param builder builder
+		 *
+		 * @return T — результат операции
+		 */
 		public T apply(LootFunction.Builder builder) {
 			this.functions.add(builder.build());
 			return this.getThisBuilder();
@@ -135,11 +148,25 @@ public abstract class LeafEntry extends LootPoolEntry {
 			return this.functions.build();
 		}
 
+		/**
+		 * Weight.
+		 *
+		 * @param weight weight
+		 *
+		 * @return T — результат операции
+		 */
 		public T weight(int weight) {
 			this.weight = weight;
 			return this.getThisBuilder();
 		}
 
+		/**
+		 * Quality.
+		 *
+		 * @param quality quality
+		 *
+		 * @return T — результат операции
+		 */
 		public T quality(int quality) {
 			this.quality = quality;
 			return this.getThisBuilder();

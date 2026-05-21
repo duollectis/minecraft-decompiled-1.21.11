@@ -155,10 +155,29 @@ public class BellBlock extends BlockWithEntity {
 		}
 	}
 
+	/**
+	 * Ring.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean ring(World world, BlockPos pos, @Nullable Direction direction) {
 		return this.ring(null, world, pos, direction);
 	}
 
+	/**
+	 * Ring.
+	 *
+	 * @param entity entity
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean ring(@Nullable Entity entity, World world, BlockPos pos, @Nullable Direction direction) {
 		BlockEntity blockEntity = world.getBlockEntity(pos);
 		if (!world.isClient() && blockEntity instanceof BellBlockEntity) {

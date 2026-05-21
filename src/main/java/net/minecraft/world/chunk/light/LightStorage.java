@@ -75,6 +75,13 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 
 	protected abstract int getLight(long blockPos);
 
+	/**
+	 * Get.
+	 *
+	 * @param blockPos block pos
+	 *
+	 * @return int — 
+	 */
 	protected int get(long blockPos) {
 		long l = ChunkSectionPos.fromBlockPos(blockPos);
 		ChunkNibbleArray chunkNibbleArray = this.getLightSection(l, true);
@@ -85,6 +92,12 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 		);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param blockPos block pos
+	 * @param value value
+	 */
 	protected void set(long blockPos, int value) {
 		long l = ChunkSectionPos.fromBlockPos(blockPos);
 		ChunkNibbleArray chunkNibbleArray;
@@ -104,6 +117,11 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 		ChunkSectionPos.forEachChunkSectionAround(blockPos, this.notifySections::add);
 	}
 
+	/**
+	 * Добавляет notify sections.
+	 *
+	 * @param id id
+	 */
 	protected void addNotifySections(long id) {
 		int i = ChunkSectionPos.unpackX(id);
 		int j = ChunkSectionPos.unpackY(id);
@@ -118,6 +136,13 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 		}
 	}
 
+	/**
+	 * Создаёт section.
+	 *
+	 * @param sectionPos section pos
+	 *
+	 * @return ChunkNibbleArray — результат операции
+	 */
 	protected ChunkNibbleArray createSection(long sectionPos) {
 		ChunkNibbleArray chunkNibbleArray = (ChunkNibbleArray) this.queuedSections.get(sectionPos);
 		return chunkNibbleArray != null ? chunkNibbleArray : new ChunkNibbleArray();
@@ -127,6 +152,11 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 		return this.hasLightUpdates;
 	}
 
+	/**
+	 * Обновляет light.
+	 *
+	 * @param lightProvider light provider
+	 */
 	protected void updateLight(ChunkLightProvider<M, ?> lightProvider) {
 		if (this.hasLightUpdates) {
 			this.hasLightUpdates = false;
@@ -176,9 +206,19 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие load section.
+	 *
+	 * @param sectionPos section pos
+	 */
 	protected void onLoadSection(long sectionPos) {
 	}
 
+	/**
+	 * Обрабатывает событие unload section.
+	 *
+	 * @param sectionPos section pos
+	 */
 	protected void onUnloadSection(long sectionPos) {
 	}
 
@@ -209,6 +249,12 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 		}
 	}
 
+	/**
+	 * Enqueue section data.
+	 *
+	 * @param sectionPos section pos
+	 * @param array array
+	 */
 	protected void enqueueSectionData(long sectionPos, @Nullable ChunkNibbleArray array) {
 		if (array != null) {
 			this.queuedSections.put(sectionPos, array);
@@ -271,6 +317,9 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 		this.hasLightUpdates = true;
 	}
 
+	/**
+	 * Уведомляет changes.
+	 */
 	protected void notifyChanges() {
 		if (!this.dirtySections.isEmpty()) {
 			M chunkToNibbleArrayMap = this.storage.copy();
@@ -310,6 +359,14 @@ public abstract class LightStorage<M extends ChunkToNibbleArrayMap<M>> {
 			return (byte) (ready ? packed | 32 : packed & -33);
 		}
 
+		/**
+		 * With neighbor count.
+		 *
+		 * @param packed packed
+		 * @param neighborCount neighbor count
+		 *
+		 * @return byte — результат операции
+		 */
 		public static byte withNeighborCount(byte packed, int neighborCount) {
 			if (neighborCount >= 0 && neighborCount <= 26) {
 				return (byte) (packed & -32 | neighborCount & 31);

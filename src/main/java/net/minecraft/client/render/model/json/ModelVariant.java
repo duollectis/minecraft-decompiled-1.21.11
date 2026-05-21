@@ -28,22 +28,57 @@ public record ModelVariant(Identifier modelId, ModelVariant.ModelState modelStat
 		this(model, ModelVariant.ModelState.DEFAULT);
 	}
 
+	/**
+	 * With rotation x.
+	 *
+	 * @param amount amount
+	 *
+	 * @return ModelVariant — результат операции
+	 */
 	public ModelVariant withRotationX(AxisRotation amount) {
 		return this.setState(this.modelState.setRotationX(amount));
 	}
 
+	/**
+	 * With rotation y.
+	 *
+	 * @param amount amount
+	 *
+	 * @return ModelVariant — результат операции
+	 */
 	public ModelVariant withRotationY(AxisRotation amount) {
 		return this.setState(this.modelState.setRotationY(amount));
 	}
 
+	/**
+	 * With rotation z.
+	 *
+	 * @param axisRotation axis rotation
+	 *
+	 * @return ModelVariant — результат операции
+	 */
 	public ModelVariant withRotationZ(AxisRotation axisRotation) {
 		return this.setState(this.modelState.setRotationZ(axisRotation));
 	}
 
+	/**
+	 * With u v lock.
+	 *
+	 * @param uvLock uv lock
+	 *
+	 * @return ModelVariant — результат операции
+	 */
 	public ModelVariant withUVLock(boolean uvLock) {
 		return this.setState(this.modelState.setUVLock(uvLock));
 	}
 
+	/**
+	 * With model.
+	 *
+	 * @param modelId model id
+	 *
+	 * @return ModelVariant — результат операции
+	 */
 	public ModelVariant withModel(Identifier modelId) {
 		return new ModelVariant(modelId, this.modelState);
 	}
@@ -52,6 +87,13 @@ public record ModelVariant(Identifier modelId, ModelVariant.ModelState modelStat
 		return new ModelVariant(this.modelId, modelState);
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param variantOperator variant operator
+	 *
+	 * @return ModelVariant — результат операции
+	 */
 	public ModelVariant with(ModelVariantOperator variantOperator) {
 		return variantOperator.apply(this);
 	}
@@ -85,6 +127,11 @@ public record ModelVariant(Identifier modelId, ModelVariant.ModelState modelStat
 				DEFAULT =
 				new ModelVariant.ModelState(AxisRotation.R0, AxisRotation.R0, AxisRotation.R0, false);
 
+		/**
+		 * As model bake settings.
+		 *
+		 * @return ModelBakeSettings — результат операции
+		 */
 		public ModelBakeSettings asModelBakeSettings() {
 			net.minecraft.client.render.model.ModelRotation
 					modelRotation =

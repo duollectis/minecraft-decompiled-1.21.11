@@ -26,6 +26,12 @@ public abstract class ResettingWorldTask extends LongRunningTask {
 		this.callback = callback;
 	}
 
+	/**
+	 * Сбрасывает world.
+	 *
+	 * @param client client
+	 * @param worldId world id
+	 */
 	protected abstract void resetWorld(RealmsClient client, long worldId) throws RealmsServiceException;
 
 	@Override

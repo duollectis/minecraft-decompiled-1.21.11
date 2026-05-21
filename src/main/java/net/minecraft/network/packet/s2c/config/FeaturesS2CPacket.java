@@ -11,6 +11,9 @@ import net.minecraft.util.Identifier;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Запись features s2 c packet.
+ */
 public record FeaturesS2CPacket(Set<Identifier> features) implements Packet<ClientConfigurationPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, FeaturesS2CPacket>
@@ -30,6 +33,11 @@ public record FeaturesS2CPacket(Set<Identifier> features) implements Packet<Clie
 		return ConfigPackets.UPDATE_ENABLED_FEATURES;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientConfigurationPacketListener client configuration packet listener
+	 */
 	public void apply(ClientConfigurationPacketListener clientConfigurationPacketListener) {
 		clientConfigurationPacketListener.onFeatures(this);
 	}

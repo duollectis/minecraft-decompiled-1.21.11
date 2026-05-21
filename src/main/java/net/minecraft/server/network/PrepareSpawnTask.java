@@ -91,6 +91,14 @@ public class PrepareSpawnTask implements ServerPlayerConfigurationTask {
 		};
 	}
 
+	/**
+	 * Обрабатывает событие ready.
+	 *
+	 * @param connection connection
+	 * @param clientData client data
+	 *
+	 * @return ServerPlayerEntity — результат операции
+	 */
 	public ServerPlayerEntity onReady(ClientConnection connection, ConnectedClientData clientData) {
 		if (this.stage instanceof PrepareSpawnTask.PlayerSpawn playerSpawn) {
 			return playerSpawn.onReady(connection, clientData);
@@ -100,12 +108,18 @@ public class PrepareSpawnTask implements ServerPlayerConfigurationTask {
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.stage instanceof PrepareSpawnTask.PlayerSpawn playerSpawn) {
 			playerSpawn.tick();
 		}
 	}
 
+	/**
+	 * Обрабатывает событие disconnected.
+	 */
 	public void onDisconnected() {
 		if (this.stage instanceof PrepareSpawnTask.LoadPlayerChunks loadPlayerChunks) {
 			loadPlayerChunks.cancel();
@@ -136,6 +150,9 @@ public class PrepareSpawnTask implements ServerPlayerConfigurationTask {
 			this.rotation = rotation;
 		}
 
+		/**
+		 * Проверяет возможность cel.
+		 */
 		public void cancel() {
 			this.spawnPos.cancel(false);
 		}
@@ -200,12 +217,23 @@ public class PrepareSpawnTask implements ServerPlayerConfigurationTask {
 			this.rotation = rotation;
 		}
 
+		/**
+		 * Tick.
+		 */
 		public void tick() {
 			this.world
 					.getChunkManager()
 					.addTicket(ChunkTicketType.PLAYER_SPAWN, new ChunkPos(BlockPos.ofFloored(this.spawnPos)), 3);
 		}
 
+		/**
+		 * Обрабатывает событие ready.
+		 *
+		 * @param connection connection
+		 * @param clientData client data
+		 *
+		 * @return ServerPlayerEntity — результат операции
+		 */
 		public ServerPlayerEntity onReady(ClientConnection connection, ConnectedClientData clientData) {
 			ChunkPos chunkPos = new ChunkPos(BlockPos.ofFloored(this.spawnPos));
 			this.world.loadChunks(chunkPos, 3);

@@ -19,6 +19,13 @@ public class ItemStackEntityRenderState extends EntityRenderState {
 	public int renderedAmount;
 	public int seed;
 
+	/**
+	 * Update.
+	 *
+	 * @param entity entity
+	 * @param stack stack
+	 * @param itemModelManager item model manager
+	 */
 	public void update(Entity entity, ItemStack stack, ItemModelManager itemModelManager) {
 		itemModelManager.updateForNonLivingEntity(this.itemRenderState, stack, ItemDisplayContext.GROUND, entity);
 		this.renderedAmount = getRenderedAmount(stack.getCount());

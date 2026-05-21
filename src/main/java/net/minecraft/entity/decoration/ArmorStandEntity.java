@@ -538,6 +538,11 @@ public class ArmorStandEntity extends LivingEntity {
 		this.dataTracker.set(ARMOR_STAND_FLAGS, this.setBitField(this.dataTracker.get(ARMOR_STAND_FLAGS), 4, showArms));
 	}
 
+	/**
+	 * Определяет, следует ли show arms.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowArms() {
 		return (this.dataTracker.get(ARMOR_STAND_FLAGS) & 4) != 0;
 	}
@@ -549,6 +554,11 @@ public class ArmorStandEntity extends LivingEntity {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли show base plate.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowBasePlate() {
 		return (this.dataTracker.get(ARMOR_STAND_FLAGS) & 8) == 0;
 	}
@@ -734,6 +744,11 @@ public class ArmorStandEntity extends LivingEntity {
 		return !this.isInvisible() && !this.isMarker();
 	}
 
+	/**
+	 * Unpack rotation.
+	 *
+	 * @param packedRotation packed rotation
+	 */
 	public void unpackRotation(ArmorStandEntity.PackedRotation packedRotation) {
 		this.setHeadRotation(packedRotation.head());
 		this.setBodyRotation(packedRotation.body());

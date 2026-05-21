@@ -34,6 +34,11 @@ public class SpectatorHud implements SpectatorMenuCloseCallback {
 		this.client = client;
 	}
 
+	/**
+	 * Select slot.
+	 *
+	 * @param slot slot
+	 */
 	public void selectSlot(int slot) {
 		this.lastInteractionTime = Util.getMeasuringTimeMs();
 		if (this.spectatorMenu != null) {
@@ -49,6 +54,11 @@ public class SpectatorHud implements SpectatorMenuCloseCallback {
 		return MathHelper.clamp((float) l / 2000.0F, 0.0F, 1.0F);
 	}
 
+	/**
+	 * Отрисовывает spectator menu.
+	 *
+	 * @param context context
+	 */
 	public void renderSpectatorMenu(DrawContext context) {
 		if (this.spectatorMenu != null) {
 			float f = this.getSpectatorMenuHeight();
@@ -64,6 +74,15 @@ public class SpectatorHud implements SpectatorMenuCloseCallback {
 		}
 	}
 
+	/**
+	 * Отрисовывает spectator menu.
+	 *
+	 * @param context context
+	 * @param height height
+	 * @param x x
+	 * @param y y
+	 * @param state state
+	 */
 	protected void renderSpectatorMenu(DrawContext context, float height, int x, int y, SpectatorMenuState state) {
 		int i = ColorHelper.getWhite(height);
 		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, HOTBAR_TEXTURE, x - 91, y, 182, 22, i);
@@ -118,6 +137,11 @@ public class SpectatorHud implements SpectatorMenuCloseCallback {
 		}
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 */
 	public void render(DrawContext context) {
 		float f = this.getSpectatorMenuHeight();
 		if (f > 0.0F && this.spectatorMenu != null) {
@@ -144,6 +168,11 @@ public class SpectatorHud implements SpectatorMenuCloseCallback {
 		return this.spectatorMenu != null;
 	}
 
+	/**
+	 * Cycle slot.
+	 *
+	 * @param offset offset
+	 */
 	public void cycleSlot(int offset) {
 		int i = this.spectatorMenu.getSelectedSlot() + offset;
 
@@ -159,6 +188,9 @@ public class SpectatorHud implements SpectatorMenuCloseCallback {
 		}
 	}
 
+	/**
+	 * Использует selected command.
+	 */
 	public void useSelectedCommand() {
 		this.lastInteractionTime = Util.getMeasuringTimeMs();
 		if (this.isOpen()) {

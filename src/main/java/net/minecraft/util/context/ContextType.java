@@ -66,6 +66,11 @@ public class ContextType {
 			}
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ContextType — результат операции
+		 */
 		public ContextType build() {
 			return new ContextType(this.required, this.allowed);
 		}

@@ -10,6 +10,11 @@ import net.minecraft.entity.mob.PiglinBrain;
  */
 public class HuntFinishTask {
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context

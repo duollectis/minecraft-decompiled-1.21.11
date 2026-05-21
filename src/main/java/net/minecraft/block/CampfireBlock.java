@@ -219,6 +219,14 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Extinguish.
+	 *
+	 * @param entity entity
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	public static void extinguish(@Nullable Entity entity, WorldAccess world, BlockPos pos, BlockState state) {
 		if (world.isClient()) {
 			for (int i = 0; i < 20; i++) {
@@ -269,6 +277,14 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Создаёт (спавнит) smoke particle.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param isSignal is signal
+	 * @param lotsOfSmoke lots of smoke
+	 */
 	public static void spawnSmokeParticle(World world, BlockPos pos, boolean isSignal, boolean lotsOfSmoke) {
 		Random random = world.getRandom();
 		SimpleParticleType
@@ -390,6 +406,13 @@ public class CampfireBlock extends BlockWithEntity implements Waterloggable {
 		return false;
 	}
 
+	/**
+	 * Проверяет возможность be lit.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canBeLit(BlockState state) {
 		return state.isIn(BlockTags.CAMPFIRES, statex -> statex.contains(WATERLOGGED) && statex.contains(LIT))
 				&& !state.get(WATERLOGGED) && !state.get(LIT);

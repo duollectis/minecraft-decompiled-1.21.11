@@ -12,6 +12,9 @@ import java.util.Optional;
 
 @FunctionalInterface
 @Environment(EnvType.CLIENT)
+/**
+ * Интерфейс address resolver.
+ */
 public interface AddressResolver {
 
 	Logger LOGGER = LogUtils.getLogger();

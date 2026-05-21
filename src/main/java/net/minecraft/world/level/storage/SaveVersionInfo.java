@@ -31,6 +31,13 @@ public class SaveVersionInfo {
 		this.stable = stable;
 	}
 
+	/**
+	 * From dynamic.
+	 *
+	 * @param dynamic dynamic
+	 *
+	 * @return SaveVersionInfo — результат операции
+	 */
 	public static SaveVersionInfo fromDynamic(Dynamic<?> dynamic) {
 		int i = dynamic.get("version").asInt(0);
 		long l = dynamic.get("LastPlayed").asLong(0L);

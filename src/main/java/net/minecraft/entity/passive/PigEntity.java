@@ -232,6 +232,14 @@ public class PigEntity extends AnimalEntity implements ItemSteerable {
 		return this.saddledComponent.boost(this.getRandom());
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable PigEntity — результат операции
+	 */
 	public @Nullable PigEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		PigEntity pigEntity = EntityType.PIG.create(serverWorld, SpawnReason.BREEDING);
 		if (pigEntity != null && passiveEntity instanceof PigEntity pigEntity2) {

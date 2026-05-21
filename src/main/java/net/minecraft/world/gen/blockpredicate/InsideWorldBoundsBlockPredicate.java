@@ -25,6 +25,14 @@ public class InsideWorldBoundsBlockPredicate implements BlockPredicate {
 		this.offset = offset;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param structureWorldAccess structure world access
+	 * @param blockPos block pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
 		return !structureWorldAccess.isOutOfHeightLimit(blockPos.add(this.offset));
 	}

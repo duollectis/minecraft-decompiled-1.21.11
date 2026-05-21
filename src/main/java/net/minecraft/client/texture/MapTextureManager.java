@@ -33,6 +33,9 @@ public class MapTextureManager implements AutoCloseable {
 		return mapTexture.textureId;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		ObjectIterator var1 = this.texturesByMapId.values().iterator();
 

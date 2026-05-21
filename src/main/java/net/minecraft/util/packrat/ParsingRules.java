@@ -16,6 +16,14 @@ public class ParsingRules<S> {
 
 	private final Map<Symbol<?>, ParsingRules.RuleEntryImpl<S, ?>> rules = new IdentityHashMap<>();
 
+	/**
+	 * Set.
+	 *
+	 * @param symbol symbol
+	 * @param rule rule
+	 *
+	 * @return ParsingRuleEntry — результат операции
+	 */
 	public <T> ParsingRuleEntry<S, T> set(Symbol<T> symbol, ParsingRule<S, T> rule) {
 		ParsingRules.RuleEntryImpl<S, T>
 				ruleEntryImpl =
@@ -29,14 +37,35 @@ public class ParsingRules<S> {
 		}
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param symbol symbol
+	 * @param term term
+	 * @param action action
+	 *
+	 * @return ParsingRuleEntry — результат операции
+	 */
 	public <T> ParsingRuleEntry<S, T> set(Symbol<T> symbol, Term<S> term, ParsingRule.RuleAction<S, T> action) {
 		return this.set(symbol, ParsingRule.of(term, action));
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param symbol symbol
+	 * @param term term
+	 * @param action action
+	 *
+	 * @return ParsingRuleEntry — результат операции
+	 */
 	public <T> ParsingRuleEntry<S, T> set(Symbol<T> symbol, Term<S> term, ParsingRule.StatelessAction<S, T> action) {
 		return this.set(symbol, ParsingRule.of(term, action));
 	}
 
+	/**
+	 * Ensure bound.
+	 */
 	public void ensureBound() {
 		List<? extends Symbol<?>>
 				list =
@@ -51,6 +80,13 @@ public class ParsingRules<S> {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param symbol symbol
+	 *
+	 * @return ParsingRuleEntry — 
+	 */
 	public <T> ParsingRuleEntry<S, T> get(Symbol<T> symbol) {
 		return (ParsingRuleEntry<S, T>) Objects.requireNonNull(
 				this.rules.get(symbol),
@@ -66,10 +102,25 @@ public class ParsingRules<S> {
 		return (ParsingRules.RuleEntryImpl<S, T>) this.rules.computeIfAbsent(symbol, ParsingRules.RuleEntryImpl::new);
 	}
 
+	/**
+	 * Term.
+	 *
+	 * @param symbol symbol
+	 *
+	 * @return Term — результат операции
+	 */
 	public <T> Term<S> term(Symbol<T> symbol) {
 		return new ParsingRules.RuleTerm<>(this.getOrCreateInternal(symbol), symbol);
 	}
 
+	/**
+	 * Term.
+	 *
+	 * @param symbol symbol
+	 * @param nameToStore name to store
+	 *
+	 * @return Term — результат операции
+	 */
 	public <T> Term<S> term(Symbol<T> symbol, Symbol<T> nameToStore) {
 		return new ParsingRules.RuleTerm<>(this.getOrCreateInternal(symbol), nameToStore);
 	}
@@ -96,6 +147,11 @@ public class ParsingRules<S> {
 			return Objects.requireNonNull(this.rule, this);
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @return String — 
+		 */
 		public String get() {
 			return "Unbound rule " + this.symbol;
 		}

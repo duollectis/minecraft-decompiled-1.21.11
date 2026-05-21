@@ -52,6 +52,13 @@ public class SocialInteractionsPlayerListWidget extends ElementListWidget<Social
 		context.enableScissor(this.getX(), this.getY() + 4, this.getRight(), this.getBottom());
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param uuids uuids
+	 * @param scrollAmount scroll amount
+	 * @param includeOffline include offline
+	 */
 	public void update(Collection<UUID> uuids, double scrollAmount, boolean includeOffline) {
 		Map<UUID, SocialInteractionsPlayerListEntry> map = new HashMap<>();
 		this.setPlayers(uuids, map);
@@ -244,6 +251,9 @@ public class SocialInteractionsPlayerListWidget extends ElementListWidget<Social
 		}
 	}
 
+	/**
+	 * Обновляет has draft report.
+	 */
 	public void updateHasDraftReport() {
 		this.players.forEach(player -> player.updateHasDraftReport(this.client.getAbuseReportContext()));
 	}

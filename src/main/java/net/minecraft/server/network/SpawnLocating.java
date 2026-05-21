@@ -49,6 +49,14 @@ public class SpawnLocating {
 		this.offset = Random.create().nextInt(this.spawnArea);
 	}
 
+	/**
+	 * Locate spawn pos.
+	 *
+	 * @param world world
+	 * @param spawnPos spawn pos
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public static CompletableFuture<Vec3d> locateSpawnPos(ServerWorld world, BlockPos spawnPos) {
 		if (world.getDimension().hasSkyLight()
 				&& world.getServer().getSaveProperties().getGameMode() != GameMode.ADVENTURE) {
@@ -160,6 +168,15 @@ public class SpawnLocating {
 		}
 	}
 
+	/**
+	 * Ищет overworld spawn.
+	 *
+	 * @param world world
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return @Nullable BlockPos — overworld spawn
+	 */
 	protected static @Nullable BlockPos findOverworldSpawn(ServerWorld world, int x, int z) {
 		boolean bl = world.getDimension().hasCeiling();
 		WorldChunk worldChunk = world.getChunk(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z));
@@ -194,6 +211,14 @@ public class SpawnLocating {
 		}
 	}
 
+	/**
+	 * Ищет server spawn point.
+	 *
+	 * @param world world
+	 * @param chunkPos chunk pos
+	 *
+	 * @return @Nullable BlockPos — server spawn point
+	 */
 	public static @Nullable BlockPos findServerSpawnPoint(ServerWorld world, ChunkPos chunkPos) {
 		if (SharedConstants.isOutsideGenerationArea(chunkPos)) {
 			return null;

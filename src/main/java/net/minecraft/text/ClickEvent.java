@@ -143,6 +143,11 @@ public interface ClickEvent {
 			this(path.toFile());
 		}
 
+		/**
+		 * File.
+		 *
+		 * @return File — результат операции
+		 */
 		public File file() {
 			return new File(this.path);
 		}

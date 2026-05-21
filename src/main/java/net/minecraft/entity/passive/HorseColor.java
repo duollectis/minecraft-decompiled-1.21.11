@@ -40,6 +40,13 @@ public enum HorseColor implements StringIdentifiable {
 		return this.index;
 	}
 
+	/**
+	 * By index.
+	 *
+	 * @param index index
+	 *
+	 * @return HorseColor — результат операции
+	 */
 	public static HorseColor byIndex(int index) {
 		return INDEX_MAPPER.apply(index);
 	}

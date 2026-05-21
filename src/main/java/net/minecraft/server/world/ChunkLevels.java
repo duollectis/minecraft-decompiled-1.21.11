@@ -69,10 +69,24 @@ public class ChunkLevels {
 		};
 	}
 
+	/**
+	 * Определяет, следует ли tick entities.
+	 *
+	 * @param level level
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldTickEntities(int level) {
 		return level <= 31;
 	}
 
+	/**
+	 * Определяет, следует ли tick blocks.
+	 *
+	 * @param level level
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldTickBlocks(int level) {
 		return level <= 32;
 	}

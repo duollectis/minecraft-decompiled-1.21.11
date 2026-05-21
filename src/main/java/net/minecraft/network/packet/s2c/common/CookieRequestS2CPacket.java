@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.util.Identifier;
 
+/**
+ * Запись cookie request s2 c packet.
+ */
 public record CookieRequestS2CPacket(Identifier key) implements Packet<ClientCookieRequestPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, CookieRequestS2CPacket>
@@ -27,6 +30,11 @@ public record CookieRequestS2CPacket(Identifier key) implements Packet<ClientCoo
 		return CookiePackets.COOKIE_REQUEST;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCookieRequestPacketListener client cookie request packet listener
+	 */
 	public void apply(ClientCookieRequestPacketListener clientCookieRequestPacketListener) {
 		clientCookieRequestPacketListener.onCookieRequest(this);
 	}

@@ -15,6 +15,15 @@ import java.util.function.Predicate;
  */
 public class WalkTowardsNearestVisibleWantedItemTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param speed speed
+	 * @param requiresWalkTarget requires walk target
+	 * @param radius radius
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(float speed, boolean requiresWalkTarget, int radius) {
 		return create(entity -> true, speed, requiresWalkTarget, radius);
 	}

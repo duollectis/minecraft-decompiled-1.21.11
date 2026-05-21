@@ -69,10 +69,26 @@ public final class RawShapedRecipe {
 		return new RawShapedRecipe(width, height, ingredients, Optional.empty());
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param key key
+	 * @param pattern pattern
+	 *
+	 * @return RawShapedRecipe — результат операции
+	 */
 	public static RawShapedRecipe create(Map<Character, Ingredient> key, String... pattern) {
 		return create(key, List.of(pattern));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param key key
+	 * @param pattern pattern
+	 *
+	 * @return RawShapedRecipe — результат операции
+	 */
 	public static RawShapedRecipe create(Map<Character, Ingredient> key, List<String> pattern) {
 		RawShapedRecipe.Data data = new RawShapedRecipe.Data(key, pattern);
 		return (RawShapedRecipe) fromData(data).getOrThrow();
@@ -170,6 +186,13 @@ public final class RawShapedRecipe {
 		return i;
 	}
 
+	/**
+	 * Matches.
+	 *
+	 * @param input input
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matches(CraftingRecipeInput input) {
 		if (input.getStackCount() != this.ingredientCount) {
 			return false;

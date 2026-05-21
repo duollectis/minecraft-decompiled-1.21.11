@@ -116,6 +116,11 @@ public class PlayerInventory implements Inventory, Nameable {
 		return -1;
 	}
 
+	/**
+	 * Swap stack with hotbar.
+	 *
+	 * @param stack stack
+	 */
 	public void swapStackWithHotbar(ItemStack stack) {
 		this.setSelectedSlot(this.getSwappableHotbarSlot());
 		if (!this.main.get(this.selectedSlot).isEmpty()) {
@@ -128,6 +133,11 @@ public class PlayerInventory implements Inventory, Nameable {
 		this.main.set(this.selectedSlot, stack);
 	}
 
+	/**
+	 * Swap slot with hotbar.
+	 *
+	 * @param slot slot
+	 */
 	public void swapSlotWithHotbar(int slot) {
 		this.setSelectedSlot(this.getSwappableHotbarSlot());
 		ItemStack itemStack = this.main.get(this.selectedSlot);
@@ -149,6 +159,13 @@ public class PlayerInventory implements Inventory, Nameable {
 		return -1;
 	}
 
+	/**
+	 * Usable when filling slot.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean usableWhenFillingSlot(ItemStack stack) {
 		return !stack.isDamaged() && !stack.hasEnchantments() && !stack.contains(DataComponentTypes.CUSTOM_NAME);
 	}
@@ -185,6 +202,15 @@ public class PlayerInventory implements Inventory, Nameable {
 		return this.selectedSlot;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param shouldRemove should remove
+	 * @param maxCount max count
+	 * @param craftingInventory crafting inventory
+	 *
+	 * @return int — результат операции
+	 */
 	public int remove(Predicate<ItemStack> shouldRemove, int maxCount, Inventory craftingInventory) {
 		int i = 0;
 		boolean bl = maxCount == 0;
@@ -247,6 +273,9 @@ public class PlayerInventory implements Inventory, Nameable {
 		}
 	}
 
+	/**
+	 * Обновляет items.
+	 */
 	public void updateItems() {
 		for (int i = 0; i < this.main.size(); i++) {
 			ItemStack itemStack = this.getStack(i);
@@ -260,10 +289,25 @@ public class PlayerInventory implements Inventory, Nameable {
 		}
 	}
 
+	/**
+	 * Insert stack.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean insertStack(ItemStack stack) {
 		return this.insertStack(-1, stack);
 	}
 
+	/**
+	 * Insert stack.
+	 *
+	 * @param slot slot
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean insertStack(int slot, ItemStack stack) {
 		if (stack.isEmpty()) {
 			return false;
@@ -321,10 +365,21 @@ public class PlayerInventory implements Inventory, Nameable {
 		}
 	}
 
+	/**
+	 * Offer or drop.
+	 *
+	 * @param stack stack
+	 */
 	public void offerOrDrop(ItemStack stack) {
 		this.offer(stack, true);
 	}
 
+	/**
+	 * Offer.
+	 *
+	 * @param stack stack
+	 * @param notifiesClient notifies client
+	 */
 	public void offer(ItemStack stack, boolean notifiesClient) {
 		while (!stack.isEmpty()) {
 			int i = this.getOccupiedSlotWithRoomForStack(stack);
@@ -345,6 +400,13 @@ public class PlayerInventory implements Inventory, Nameable {
 		}
 	}
 
+	/**
+	 * Создаёт slot set packet.
+	 *
+	 * @param slot slot
+	 *
+	 * @return SetPlayerInventoryS2CPacket — результат операции
+	 */
 	public SetPlayerInventoryS2CPacket createSlotSetPacket(int slot) {
 		return new SetPlayerInventoryS2CPacket(slot, this.getStack(slot).copy());
 	}
@@ -367,6 +429,11 @@ public class PlayerInventory implements Inventory, Nameable {
 		}
 	}
 
+	/**
+	 * Удаляет one.
+	 *
+	 * @param stack stack
+	 */
 	public void removeOne(ItemStack stack) {
 		for (int i = 0; i < this.main.size(); i++) {
 			if (this.main.get(i) == stack) {
@@ -412,6 +479,11 @@ public class PlayerInventory implements Inventory, Nameable {
 		}
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param list list
+	 */
 	public void writeData(WriteView.ListAppender<StackWithSlot> list) {
 		for (int i = 0; i < this.main.size(); i++) {
 			ItemStack itemStack = this.main.get(i);
@@ -421,6 +493,11 @@ public class PlayerInventory implements Inventory, Nameable {
 		}
 	}
 
+	/**
+	 * Читает data.
+	 *
+	 * @param list list
+	 */
 	public void readData(ReadView.TypedListReadView<StackWithSlot> list) {
 		this.main.clear();
 
@@ -472,6 +549,9 @@ public class PlayerInventory implements Inventory, Nameable {
 		return NAME;
 	}
 
+	/**
+	 * Бросает all.
+	 */
 	public void dropAll() {
 		for (int i = 0; i < this.main.size(); i++) {
 			ItemStack itemStack = this.main.get(i);
@@ -498,6 +578,13 @@ public class PlayerInventory implements Inventory, Nameable {
 		return true;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(ItemStack stack) {
 		for (ItemStack itemStack : this) {
 			if (!itemStack.isEmpty() && ItemStack.areItemsAndComponentsEqual(itemStack, stack)) {
@@ -508,6 +595,13 @@ public class PlayerInventory implements Inventory, Nameable {
 		return false;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param tag tag
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(TagKey<Item> tag) {
 		for (ItemStack itemStack : this) {
 			if (!itemStack.isEmpty() && itemStack.isIn(tag)) {
@@ -518,6 +612,13 @@ public class PlayerInventory implements Inventory, Nameable {
 		return false;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param predicate predicate
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(Predicate<ItemStack> predicate) {
 		for (ItemStack itemStack : this) {
 			if (predicate.test(itemStack)) {
@@ -528,6 +629,11 @@ public class PlayerInventory implements Inventory, Nameable {
 		return false;
 	}
 
+	/**
+	 * Clone.
+	 *
+	 * @param other other
+	 */
 	public void clone(PlayerInventory other) {
 		for (int i = 0; i < this.size(); i++) {
 			this.setStack(i, other.getStack(i));
@@ -542,12 +648,24 @@ public class PlayerInventory implements Inventory, Nameable {
 		this.equipment.clear();
 	}
 
+	/**
+	 * Populate recipe finder.
+	 *
+	 * @param finder finder
+	 */
 	public void populateRecipeFinder(RecipeFinder finder) {
 		for (ItemStack itemStack : this.main) {
 			finder.addInputIfUsable(itemStack);
 		}
 	}
 
+	/**
+	 * Бросает selected item.
+	 *
+	 * @param entireStack entire stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack dropSelectedItem(boolean entireStack) {
 		ItemStack itemStack = this.getSelectedStack();
 		return itemStack.isEmpty() ? ItemStack.EMPTY

@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
+/**
+ * Класс player action c2 s packet.
+ */
 public class PlayerActionC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, PlayerActionC2SPacket>
@@ -49,6 +52,11 @@ public class PlayerActionC2SPacket implements Packet<ServerPlayPacketListener> {
 		return PlayPackets.PLAYER_ACTION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onPlayerAction(this);
 	}

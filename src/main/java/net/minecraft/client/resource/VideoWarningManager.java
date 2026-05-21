@@ -42,22 +42,41 @@ public class VideoWarningManager extends SinglePreparationResourceReloader<Video
 		return !this.warnings.isEmpty();
 	}
 
+	/**
+	 * Проверяет возможность warn.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canWarn() {
 		return this.hasWarning() && !this.warned;
 	}
 
+	/**
+	 * Schedule warning.
+	 */
 	public void scheduleWarning() {
 		this.warningScheduled = true;
 	}
 
+	/**
+	 * Accept after warnings.
+	 */
 	public void acceptAfterWarnings() {
 		this.warned = true;
 	}
 
+	/**
+	 * Определяет, следует ли warn.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldWarn() {
 		return this.warningScheduled && !this.warned;
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.warningScheduled = false;
 		this.warned = false;

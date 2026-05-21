@@ -11,6 +11,9 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс entity s2 c packet.
+ */
 public abstract class EntityS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	protected final int id;

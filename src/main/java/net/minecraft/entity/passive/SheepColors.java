@@ -53,6 +53,14 @@ public class SheepColors {
 				.build());
 	}
 
+	/**
+	 * Select.
+	 *
+	 * @param biome biome
+	 * @param random random
+	 *
+	 * @return DyeColor — результат операции
+	 */
 	public static DyeColor select(RegistryEntry<Biome> biome, Random random) {
 		SheepColors.SpawnConfig spawnConfig = getSpawnConfig(biome);
 		return spawnConfig.colors().get(random);

@@ -35,14 +35,38 @@ public class GatherItemsVillagerTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		return TargetUtil.canSee(villagerEntity.getBrain(), MemoryModuleType.INTERACTION_TARGET, EntityType.VILLAGER);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		return this.shouldRun(serverWorld, villagerEntity);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		VillagerEntity
 				villagerEntity2 =
@@ -54,6 +78,13 @@ public class GatherItemsVillagerTask extends MultiTickTask<VillagerEntity> {
 		this.items = getGatherableItems(villagerEntity, villagerEntity2);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		VillagerEntity
 				villagerEntity2 =
@@ -79,6 +110,13 @@ public class GatherItemsVillagerTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		villagerEntity.getBrain().forget(MemoryModuleType.INTERACTION_TARGET);
 	}

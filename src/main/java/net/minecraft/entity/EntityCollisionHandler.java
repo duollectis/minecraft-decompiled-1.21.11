@@ -47,6 +47,11 @@ public interface EntityCollisionHandler {
 		private final List<Consumer<Entity>> callbacks = new ArrayList<>();
 		private int version = -1;
 
+		/**
+		 * Обновляет if necessary.
+		 *
+		 * @param version version
+		 */
 		public void updateIfNecessary(int version) {
 			if (this.version != version) {
 				this.version = version;
@@ -54,6 +59,11 @@ public interface EntityCollisionHandler {
 			}
 		}
 
+		/**
+		 * Run callbacks.
+		 *
+		 * @param entity entity
+		 */
 		public void runCallbacks(Entity entity) {
 			this.update();
 

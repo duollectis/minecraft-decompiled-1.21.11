@@ -37,6 +37,15 @@ public class LeadItem extends Item {
 		return ActionResult.PASS;
 	}
 
+	/**
+	 * Attach held mobs to block.
+	 *
+	 * @param player player
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public static ActionResult attachHeldMobsToBlock(PlayerEntity player, World world, BlockPos pos) {
 		LeashKnotEntity leashKnotEntity = null;
 		List<Leashable>

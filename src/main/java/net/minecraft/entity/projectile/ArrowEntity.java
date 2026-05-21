@@ -69,6 +69,11 @@ public class ArrowEntity extends PersistentProjectileEntity {
 		);
 	}
 
+	/**
+	 * Добавляет effect.
+	 *
+	 * @param effect effect
+	 */
 	public void addEffect(StatusEffectInstance effect) {
 		this.setPotionContents(this.getPotionContents().with(effect));
 	}

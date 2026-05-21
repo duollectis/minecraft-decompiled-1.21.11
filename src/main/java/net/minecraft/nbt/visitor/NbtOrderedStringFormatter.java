@@ -61,6 +61,13 @@ public class NbtOrderedStringFormatter implements NbtElementVisitor {
 		this.pathParts = pathParts;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param element element
+	 *
+	 * @return String — результат операции
+	 */
 	public String apply(NbtElement element) {
 		element.accept(this);
 		return this.result;
@@ -261,10 +268,22 @@ public class NbtOrderedStringFormatter implements NbtElementVisitor {
 		return list;
 	}
 
+	/**
+	 * Join path.
+	 *
+	 * @return String — результат операции
+	 */
 	public String joinPath() {
 		return String.join(".", this.pathParts);
 	}
 
+	/**
+	 * Escape name.
+	 *
+	 * @param name name
+	 *
+	 * @return String — результат операции
+	 */
 	protected static String escapeName(String name) {
 		return SIMPLE_NAME.matcher(name).matches() ? name : NbtString.escape(name);
 	}

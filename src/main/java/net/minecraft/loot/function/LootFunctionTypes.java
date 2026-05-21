@@ -157,6 +157,13 @@ public class LootFunctionTypes {
 		);
 	}
 
+	/**
+	 * Join.
+	 *
+	 * @param terms terms
+	 *
+	 * @return BiFunction — результат операции
+	 */
 	public static BiFunction<ItemStack, LootContext, ItemStack> join(List<? extends BiFunction<ItemStack, LootContext, ItemStack>> terms) {
 		List<BiFunction<ItemStack, LootContext, ItemStack>> list = List.copyOf(terms);
 

@@ -71,6 +71,11 @@ public class TrialSpawnerConfigs {
 			SMALL_MELEE_SLIME =
 			TrialSpawnerConfigs.ConfigKeyPair.of("trial_chamber/small_melee/slime");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<TrialSpawnerConfig> registry) {
 		register(
 				registry,

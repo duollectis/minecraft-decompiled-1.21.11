@@ -74,6 +74,11 @@ public class EscapeDangerGoal extends Goal {
 				.isIn(this.entityToDangerousDamageTypes.apply(this.mob));
 	}
 
+	/**
+	 * Ищет target.
+	 *
+	 * @return boolean — target
+	 */
 	protected boolean findTarget() {
 		Vec3d vec3d = NoPenaltyTargeting.find(this.mob, 5, 4);
 		if (vec3d == null) {
@@ -107,6 +112,15 @@ public class EscapeDangerGoal extends Goal {
 		return !this.mob.getNavigation().isIdle();
 	}
 
+	/**
+	 * Locate closest water.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param rangeX range x
+	 *
+	 * @return @Nullable BlockPos — результат операции
+	 */
 	protected @Nullable BlockPos locateClosestWater(BlockView world, Entity entity, int rangeX) {
 		BlockPos blockPos = entity.getBlockPos();
 		return !world.getBlockState(blockPos).getCollisionShape(world, blockPos).isEmpty()

@@ -326,6 +326,11 @@ public class HoglinEntity extends AnimalEntity implements Monster, Hoglin {
 		return this.getDataTracker().get(BABY);
 	}
 
+	/**
+	 * Проверяет возможность convert.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canConvert() {
 		return !this.isImmuneToZombification()
 				&& !this.isAiDisabled()
@@ -339,6 +344,11 @@ public class HoglinEntity extends AnimalEntity implements Monster, Hoglin {
 		this.cannotBeHunted = cannotBeHunted;
 	}
 
+	/**
+	 * Проверяет возможность be hunted.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBeHunted() {
 		return this.isAdult() && !this.cannotBeHunted;
 	}

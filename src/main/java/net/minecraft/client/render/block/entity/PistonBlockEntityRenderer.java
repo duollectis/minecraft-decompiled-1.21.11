@@ -27,6 +27,11 @@ import org.jspecify.annotations.Nullable;
  */
 public class PistonBlockEntityRenderer implements BlockEntityRenderer<PistonBlockEntity, PistonBlockEntityRenderState> {
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return PistonBlockEntityRenderState — результат операции
+	 */
 	public PistonBlockEntityRenderState createRenderState() {
 		return new PistonBlockEntityRenderState();
 	}

@@ -145,6 +145,13 @@ public class MobNavigation extends EntityNavigation {
 		return true;
 	}
 
+	/**
+	 * Проверяет возможность walk on path.
+	 *
+	 * @param pathType path type
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canWalkOnPath(PathNodeType pathType) {
 		if (pathType == PathNodeType.WATER) {
 			return false;

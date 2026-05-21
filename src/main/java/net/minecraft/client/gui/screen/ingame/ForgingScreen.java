@@ -25,6 +25,9 @@ public abstract class ForgingScreen<T extends ForgingScreenHandler> extends Hand
 		this.texture = texture;
 	}
 
+	/**
+	 * Устанавливает up.
+	 */
 	protected void setup() {
 	}
 
@@ -64,6 +67,13 @@ public abstract class ForgingScreen<T extends ForgingScreenHandler> extends Hand
 		this.drawInvalidRecipeArrow(context, this.x, this.y);
 	}
 
+	/**
+	 * Draw invalid recipe arrow.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 */
 	protected abstract void drawInvalidRecipeArrow(DrawContext context, int x, int y);
 
 	@Override

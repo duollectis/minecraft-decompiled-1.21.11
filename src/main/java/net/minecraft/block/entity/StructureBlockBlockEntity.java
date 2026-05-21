@@ -136,6 +136,11 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		}
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
@@ -145,6 +150,13 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		return this.createComponentlessNbt(registries);
 	}
 
+	/**
+	 * Открывает screen.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean openScreen(PlayerEntity player) {
 		if (!player.isCreativeLevelTwoOp()) {
 			return false;
@@ -230,6 +242,11 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		}
 	}
 
+	/**
+	 * Определяет, следует ли ignore entities.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldIgnoreEntities() {
 		return this.ignoreEntities;
 	}
@@ -262,6 +279,11 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		this.seed = seed;
 	}
 
+	/**
+	 * Detect structure size.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean detectStructureSize() {
 		if (this.mode != StructureBlockMode.SAVE) {
 			return false;
@@ -328,10 +350,22 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		}
 	}
 
+	/**
+	 * Сохраняет structure.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean saveStructure() {
 		return this.mode != StructureBlockMode.SAVE ? false : this.saveStructure(true);
 	}
 
+	/**
+	 * Сохраняет structure.
+	 *
+	 * @param toDisk to disk
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean saveStructure(boolean toDisk) {
 		if (this.templateName != null && this.world instanceof ServerWorld serverWorld) {
 			BlockPos var4 = this.getPos().add(this.offset);
@@ -392,10 +426,24 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		}
 	}
 
+	/**
+	 * Создаёт random.
+	 *
+	 * @param seed seed
+	 *
+	 * @return Random — результат операции
+	 */
 	public static Random createRandom(long seed) {
 		return seed == 0L ? Random.create(Util.getMeasuringTimeMs()) : Random.create(seed);
 	}
 
+	/**
+	 * Загружает and try place structure.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean loadAndTryPlaceStructure(ServerWorld world) {
 		if (this.mode == StructureBlockMode.LOAD && this.templateName != null) {
 			StructureTemplate
@@ -418,6 +466,13 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		}
 	}
 
+	/**
+	 * Загружает structure.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean loadStructure(ServerWorld world) {
 		StructureTemplate structureTemplate = this.getStructureTemplate(world);
 		if (structureTemplate == null) {
@@ -435,6 +490,11 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		this.markDirty();
 	}
 
+	/**
+	 * Загружает and place structure.
+	 *
+	 * @param world world
+	 */
 	public void loadAndPlaceStructure(ServerWorld world) {
 		StructureTemplate structureTemplate = this.getStructureTemplate(world);
 		if (structureTemplate != null) {
@@ -483,6 +543,9 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		);
 	}
 
+	/**
+	 * Unload structure.
+	 */
 	public void unloadStructure() {
 		if (this.templateName != null) {
 			ServerWorld serverWorld = (ServerWorld) this.world;
@@ -516,6 +579,11 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		this.powered = powered;
 	}
 
+	/**
+	 * Определяет, следует ли show air.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowAir() {
 		return this.showAir;
 	}
@@ -524,6 +592,11 @@ public class StructureBlockBlockEntity extends BlockEntity implements StructureB
 		this.showAir = showAir;
 	}
 
+	/**
+	 * Определяет, следует ли show bounding box.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowBoundingBox() {
 		return this.showBoundingBox;
 	}

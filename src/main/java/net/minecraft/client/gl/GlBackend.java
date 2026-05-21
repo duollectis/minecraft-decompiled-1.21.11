@@ -425,6 +425,13 @@ public class GlBackend implements GpuDevice {
 		return this.bufferManager;
 	}
 
+	/**
+	 * Compile pipeline cached.
+	 *
+	 * @param pipeline pipeline
+	 *
+	 * @return CompiledShaderPipeline — результат операции
+	 */
 	protected CompiledShaderPipeline compilePipelineCached(RenderPipeline pipeline) {
 		return this.pipelineCompileCache.computeIfAbsent(
 				pipeline,

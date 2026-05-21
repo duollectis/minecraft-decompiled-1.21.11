@@ -202,6 +202,15 @@ public class BambooBlock extends Block implements Fertilizable {
 		}
 	}
 
+	/**
+	 * Обновляет leaves.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 * @param height height
+	 */
 	protected void updateLeaves(BlockState state, World world, BlockPos pos, Random random, int height) {
 		BlockState blockState = world.getBlockState(pos.down());
 		BlockPos blockPos = pos.down(2);
@@ -225,6 +234,14 @@ public class BambooBlock extends Block implements Fertilizable {
 		world.setBlockState(pos.up(), this.getDefaultState().with(AGE, i).with(LEAVES, bambooLeaves).with(STAGE, j), 3);
 	}
 
+	/**
+	 * Count bamboo above.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return int — результат операции
+	 */
 	protected int countBambooAbove(BlockView world, BlockPos pos) {
 		int i = 0;
 
@@ -235,6 +252,14 @@ public class BambooBlock extends Block implements Fertilizable {
 		return i;
 	}
 
+	/**
+	 * Count bamboo below.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return int — результат операции
+	 */
 	protected int countBambooBelow(BlockView world, BlockPos pos) {
 		int i = 0;
 

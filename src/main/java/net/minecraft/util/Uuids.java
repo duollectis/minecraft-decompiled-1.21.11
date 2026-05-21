@@ -59,10 +59,23 @@ public final class Uuids {
 	);
 	public static final Codec<UUID> STRICT_CODEC = Codec.withAlternative(INT_STREAM_CODEC, STRING_CODEC);
 	public static final PacketCodec<ByteBuf, UUID> PACKET_CODEC = new PacketCodec<ByteBuf, UUID>() {
+		/**
+		 * Decode.
+		 *
+		 * @param byteBuf byte buf
+		 *
+		 * @return UUID — результат операции
+		 */
 		public UUID decode(ByteBuf byteBuf) {
 			return PacketByteBuf.readUuid(byteBuf);
 		}
 
+		/**
+		 * Encode.
+		 *
+		 * @param byteBuf byte buf
+		 * @param uUID u u i d
+		 */
 		public void encode(ByteBuf byteBuf, UUID uUID) {
 			PacketByteBuf.writeUuid(byteBuf, uUID);
 		}
@@ -73,10 +86,24 @@ public final class Uuids {
 	private Uuids() {
 	}
 
+	/**
+	 * To uuid.
+	 *
+	 * @param array array
+	 *
+	 * @return UUID — результат операции
+	 */
 	public static UUID toUuid(int[] array) {
 		return new UUID((long) array[0] << 32 | array[1] & 4294967295L, (long) array[2] << 32 | array[3] & 4294967295L);
 	}
 
+	/**
+	 * To int array.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return int[] — результат операции
+	 */
 	public static int[] toIntArray(UUID uuid) {
 		long l = uuid.getMostSignificantBits();
 		long m = uuid.getLeastSignificantBits();
@@ -87,6 +114,13 @@ public final class Uuids {
 		return new int[]{(int) (uuidMost >> 32), (int) uuidMost, (int) (uuidLeast >> 32), (int) uuidLeast};
 	}
 
+	/**
+	 * To byte array.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public static byte[] toByteArray(UUID uuid) {
 		byte[] bs = new byte[16];
 		ByteBuffer
@@ -97,6 +131,13 @@ public final class Uuids {
 		return bs;
 	}
 
+	/**
+	 * To uuid.
+	 *
+	 * @param dynamic dynamic
+	 *
+	 * @return UUID — результат операции
+	 */
 	public static UUID toUuid(Dynamic<?> dynamic) {
 		int[] is = dynamic.asIntStream().toArray();
 		if (is.length != 4) {

@@ -36,9 +36,26 @@ public abstract class FogModifier {
 		return false;
 	}
 
+	/**
+	 * Применяет darkness modifier.
+	 *
+	 * @param cameraEntity camera entity
+	 * @param darkness darkness
+	 * @param tickProgress tick progress
+	 *
+	 * @return float — результат операции
+	 */
 	public float applyDarknessModifier(LivingEntity cameraEntity, float darkness, float tickProgress) {
 		return darkness;
 	}
 
+	/**
+	 * Определяет, следует ли apply.
+	 *
+	 * @param submersionType submersion type
+	 * @param cameraEntity camera entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public abstract boolean shouldApply(@Nullable CameraSubmersionType submersionType, Entity cameraEntity);
 }

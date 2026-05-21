@@ -10,6 +10,11 @@ import net.minecraft.village.raid.Raid;
  */
 public class EndRaidTask {
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(context -> context.point((world, entity, time) -> {
 			if (world.random.nextInt(20) != 0) {

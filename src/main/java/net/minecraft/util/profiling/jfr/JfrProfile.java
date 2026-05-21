@@ -55,6 +55,11 @@ public record JfrProfile(
 		          .toList();
 	}
 
+	/**
+	 * To json.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toJson() {
 		return new JfrJsonReport().toString(this);
 	}

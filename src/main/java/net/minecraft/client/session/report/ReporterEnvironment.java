@@ -18,31 +18,72 @@ import java.util.Locale;
  */
 public record ReporterEnvironment(String clientVersion, ReporterEnvironment.@Nullable Server server) {
 
+	/**
+	 * Of integrated server.
+	 *
+	 * @return ReporterEnvironment — результат операции
+	 */
 	public static ReporterEnvironment ofIntegratedServer() {
 		return ofServer(null);
 	}
 
+	/**
+	 * Of third party server.
+	 *
+	 * @param ip ip
+	 *
+	 * @return ReporterEnvironment — результат операции
+	 */
 	public static ReporterEnvironment ofThirdPartyServer(String ip) {
 		return ofServer(new ReporterEnvironment.Server.ThirdParty(ip));
 	}
 
+	/**
+	 * Of realm.
+	 *
+	 * @param server server
+	 *
+	 * @return ReporterEnvironment — результат операции
+	 */
 	public static ReporterEnvironment ofRealm(RealmsServer server) {
 		return ofServer(new ReporterEnvironment.Server.Realm(server));
 	}
 
+	/**
+	 * Of server.
+	 *
+	 * @param server server
+	 *
+	 * @return ReporterEnvironment — результат операции
+	 */
 	public static ReporterEnvironment ofServer(ReporterEnvironment.@Nullable Server server) {
 		return new ReporterEnvironment(getVersion(), server);
 	}
 
+	/**
+	 * To client info.
+	 *
+	 * @return ClientInfo — результат операции
+	 */
 	public ClientInfo toClientInfo() {
 		return new ClientInfo(this.clientVersion, Locale.getDefault().toLanguageTag());
 	}
 
+	/**
+	 * To third party server info.
+	 *
+	 * @return @Nullable ThirdPartyServerInfo — результат операции
+	 */
 	public @Nullable ThirdPartyServerInfo toThirdPartyServerInfo() {
 		return this.server instanceof ReporterEnvironment.Server.ThirdParty thirdParty ? new ThirdPartyServerInfo(
 				thirdParty.ip) : null;
 	}
 
+	/**
+	 * To realm info.
+	 *
+	 * @return @Nullable RealmInfo — результат операции
+	 */
 	public @Nullable RealmInfo toRealmInfo() {
 		return this.server instanceof ReporterEnvironment.Server.Realm realm
 		       ? new RealmInfo(String.valueOf(realm.realmId()), realm.slotId()) : null;

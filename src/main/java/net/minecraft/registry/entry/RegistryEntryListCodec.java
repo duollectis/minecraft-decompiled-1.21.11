@@ -55,6 +55,14 @@ public class RegistryEntryListCodec<E> implements Codec<RegistryEntryList<E>> {
 		this.entryListStorageCodec = Codec.either(TagKey.codec(registry), this.directEntryListCodec);
 	}
 
+	/**
+	 * Decode.
+	 *
+	 * @param ops ops
+	 * @param input input
+	 *
+	 * @return DataResult, T>> — результат операции
+	 */
 	public <T> DataResult<Pair<RegistryEntryList<E>, T>> decode(DynamicOps<T> ops, T input) {
 		if (ops instanceof RegistryOps<T> registryOps) {
 			Optional<RegistryEntryLookup<E>> optional = registryOps.getEntryLookup(this.registry);
@@ -88,6 +96,15 @@ public class RegistryEntryListCodec<E> implements Codec<RegistryEntryList<E>> {
 				               .getValue() + "'"));
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param registryEntryList registry entry list
+	 * @param dynamicOps dynamic ops
+	 * @param object object
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public <T> DataResult<T> encode(RegistryEntryList<E> registryEntryList, DynamicOps<T> dynamicOps, T object) {
 		if (dynamicOps instanceof RegistryOps<T> registryOps) {
 			Optional<RegistryEntryOwner<E>> optional = registryOps.getOwner(this.registry);

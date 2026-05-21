@@ -79,10 +79,18 @@ public class WorldCreator {
 		        .ifPresent(config -> this.applyModifier(LevelScreenProvider.createModifier(config)));
 	}
 
+	/**
+	 * Добавляет listener.
+	 *
+	 * @param listener listener
+	 */
 	public void addListener(Consumer<WorldCreator> listener) {
 		this.listeners.add(listener);
 	}
 
+	/**
+	 * Update.
+	 */
 	public void update() {
 		boolean bl = this.isBonusChestEnabled();
 		if (bl != this.generatorOptionsHolder.generatorOptions().hasBonusChest()) {
@@ -160,6 +168,11 @@ public class WorldCreator {
 		this.update();
 	}
 
+	/**
+	 * Are cheats enabled.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areCheatsEnabled() {
 		if (this.isDebug()) {
 			return true;
@@ -188,6 +201,11 @@ public class WorldCreator {
 		this.update();
 	}
 
+	/**
+	 * Определяет, следует ли generate structures.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldGenerateStructures() {
 		return this.isDebug() ? false : this.generateStructures;
 	}
@@ -211,11 +229,23 @@ public class WorldCreator {
 		return this.generatorOptionsHolder;
 	}
 
+	/**
+	 * Применяет modifier.
+	 *
+	 * @param modifier modifier
+	 */
 	public void applyModifier(GeneratorOptionsHolder.RegistryAwareModifier modifier) {
 		this.generatorOptionsHolder = this.generatorOptionsHolder.apply(modifier);
 		this.update();
 	}
 
+	/**
+	 * Обновляет data configuration.
+	 *
+	 * @param dataConfiguration data configuration
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean updateDataConfiguration(DataConfiguration dataConfiguration) {
 		DataConfiguration dataConfiguration2 = this.generatorOptionsHolder.dataConfiguration();
 		if (dataConfiguration2.dataPacks().getEnabled().equals(dataConfiguration.dataPacks().getEnabled())

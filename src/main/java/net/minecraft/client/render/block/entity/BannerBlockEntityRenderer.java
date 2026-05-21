@@ -65,6 +65,11 @@ public class BannerBlockEntityRenderer implements BlockEntityRenderer<BannerBloc
 		this.wallFlagModel = new BannerFlagBlockModel(models.getModelPart(EntityModelLayers.WALL_BANNER_FLAG));
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BannerBlockEntityRenderState — результат операции
+	 */
 	public BannerBlockEntityRenderState createRenderState() {
 		return new BannerBlockEntityRenderState();
 	}
@@ -316,6 +321,11 @@ public class BannerBlockEntityRenderer implements BlockEntityRenderer<BannerBloc
 		);
 	}
 
+	/**
+	 * Collect vertices.
+	 *
+	 * @param consumer consumer
+	 */
 	public void collectVertices(Consumer<Vector3fc> consumer) {
 		MatrixStack matrixStack = new MatrixStack();
 		matrixStack.translate(0.5F, 0.0F, 0.5F);

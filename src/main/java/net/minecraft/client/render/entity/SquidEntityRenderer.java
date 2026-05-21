@@ -30,10 +30,22 @@ public class SquidEntityRenderer<T extends SquidEntity> extends AgeableMobEntity
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SquidEntityRenderState — результат операции
+	 */
 	public SquidEntityRenderState createRenderState() {
 		return new SquidEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param squidEntity squid entity
+	 * @param squidEntityRenderState squid entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T squidEntity, SquidEntityRenderState squidEntityRenderState, float f) {
 		super.updateRenderState(squidEntity, squidEntityRenderState, f);
 		squidEntityRenderState.tentacleAngle =

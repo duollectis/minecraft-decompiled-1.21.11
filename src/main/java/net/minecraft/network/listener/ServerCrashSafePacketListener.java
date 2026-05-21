@@ -5,6 +5,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.util.crash.CrashException;
 import org.slf4j.Logger;
 
+/**
+ * Интерфейс server crash safe packet listener.
+ */
 public interface ServerCrashSafePacketListener extends ServerPacketListener {
 
 	Logger LOGGER = LogUtils.getLogger();

@@ -132,6 +132,14 @@ public class TrapdoorBlock extends HorizontalFacingBlock implements Waterloggabl
 		this.playToggleSound(player, world, pos, blockState.get(OPEN));
 	}
 
+	/**
+	 * Play toggle sound.
+	 *
+	 * @param player player
+	 * @param world world
+	 * @param pos pos
+	 * @param open open
+	 */
 	protected void playToggleSound(@Nullable PlayerEntity player, World world, BlockPos pos, boolean open) {
 		world.playSound(
 				player,

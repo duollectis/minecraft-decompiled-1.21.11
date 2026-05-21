@@ -23,14 +23,36 @@ public enum ManagementError {
 		this.message = message;
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param data data
+	 *
+	 * @return JsonObject — результат операции
+	 */
 	public JsonObject encode(@Nullable String data) {
 		return JsonRpc.encodeError(JsonNull.INSTANCE, this.message, this.code, data);
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param json json
+	 *
+	 * @return JsonObject — результат операции
+	 */
 	public JsonObject encode(JsonElement json) {
 		return JsonRpc.encodeError(json, this.message, this.code, null);
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param json json
+	 * @param data data
+	 *
+	 * @return JsonObject — результат операции
+	 */
 	public JsonObject encode(JsonElement json, String data) {
 		return JsonRpc.encodeError(json, this.message, this.code, data);
 	}

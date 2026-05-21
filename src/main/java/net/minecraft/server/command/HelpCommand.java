@@ -21,6 +21,11 @@ public class HelpCommand {
 			FAILED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.help.failed"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("help").executes(context -> {

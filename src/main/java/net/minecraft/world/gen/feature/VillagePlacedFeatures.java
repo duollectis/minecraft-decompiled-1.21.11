@@ -26,6 +26,11 @@ public class VillagePlacedFeatures {
 	public static final RegistryKey<PlacedFeature> PATCH_TAIGA_GRASS = PlacedFeatures.of("patch_taiga_grass");
 	public static final RegistryKey<PlacedFeature> PATCH_BERRY_BUSH = PlacedFeatures.of("patch_berry_bush");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =

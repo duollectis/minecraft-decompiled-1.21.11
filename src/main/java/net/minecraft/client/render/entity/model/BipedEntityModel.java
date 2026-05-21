@@ -108,6 +108,14 @@ public class BipedEntityModel<T extends BipedEntityRenderState> extends EntityMo
 		return modelData;
 	}
 
+	/**
+	 * Создаёт equipment model data.
+	 *
+	 * @param hatDilation hat dilation
+	 * @param armorDilation armor dilation
+	 *
+	 * @return EquipmentModelData — результат операции
+	 */
 	public static EquipmentModelData<ModelData> createEquipmentModelData(Dilation hatDilation, Dilation armorDilation) {
 		return createEquipmentModelData(BipedEntityModel::createEquipmentModelData, hatDilation, armorDilation);
 	}
@@ -417,6 +425,11 @@ public class BipedEntityModel<T extends BipedEntityRenderState> extends EntityMo
 				);
 	}
 
+	/**
+	 * Animate arms.
+	 *
+	 * @param bipedEntityRenderState biped entity render state
+	 */
 	protected void animateArms(T bipedEntityRenderState) {
 		float f = bipedEntityRenderState.handSwingProgress;
 		if (!(f <= 0.0F)) {
@@ -519,6 +532,11 @@ public class BipedEntityModel<T extends BipedEntityRenderState> extends EntityMo
 			return this.twoHanded;
 		}
 
+		/**
+		 * Affects opposite arm.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean affectsOppositeArm() {
 			return this.affectsOppositeArm;
 		}

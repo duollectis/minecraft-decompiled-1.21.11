@@ -151,6 +151,11 @@ public interface RegistryEntry<T> {
 			return new RegistryEntry.Reference<>(RegistryEntry.Reference.Type.INTRUSIVE, owner, null, value);
 		}
 
+		/**
+		 * Registry key.
+		 *
+		 * @return RegistryKey — результат операции
+		 */
 		public RegistryKey<T> registryKey() {
 			if (this.registryKey == null) {
 				throw new IllegalStateException(

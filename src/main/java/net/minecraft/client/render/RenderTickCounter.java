@@ -71,6 +71,14 @@ public interface RenderTickCounter {
 			this.targetMillisPerTick = targetMillisPerTick;
 		}
 
+		/**
+		 * Begin render tick.
+		 *
+		 * @param timeMillis time millis
+		 * @param tick tick
+		 *
+		 * @return int — результат операции
+		 */
 		public int beginRenderTick(long timeMillis, boolean tick) {
 			this.setTimeMillis(timeMillis);
 			return tick ? this.beginRenderTick(timeMillis) : 0;
@@ -91,6 +99,11 @@ public interface RenderTickCounter {
 			this.timeMillis = timeMillis;
 		}
 
+		/**
+		 * Tick.
+		 *
+		 * @param paused paused
+		 */
 		public void tick(boolean paused) {
 			if (paused) {
 				this.tickPaused();

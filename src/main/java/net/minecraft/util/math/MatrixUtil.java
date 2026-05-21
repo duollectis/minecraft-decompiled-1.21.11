@@ -15,6 +15,14 @@ public class MatrixUtil {
 	private MatrixUtil() {
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param matrix matrix
+	 * @param scalar scalar
+	 *
+	 * @return Matrix4f — результат операции
+	 */
 	public static Matrix4f scale(Matrix4f matrix, float scalar) {
 		return matrix.set(
 				matrix.m00() * scalar,
@@ -94,6 +102,14 @@ public class MatrixUtil {
 		}
 	}
 
+	/**
+	 * Применяет jacobi iterations.
+	 *
+	 * @param AtA at a
+	 * @param numJacobiIterations num jacobi iterations
+	 *
+	 * @return Quaternionf — результат операции
+	 */
 	public static Quaternionf applyJacobiIterations(Matrix3f AtA, int numJacobiIterations) {
 		Quaternionf quaternionf = new Quaternionf();
 		Matrix3f matrix3f = new Matrix3f();
@@ -107,6 +123,13 @@ public class MatrixUtil {
 		return quaternionf;
 	}
 
+	/**
+	 * Svd decompose.
+	 *
+	 * @param A a
+	 *
+	 * @return Triple — результат операции
+	 */
 	public static Triple<Quaternionf, Vector3f, Quaternionf> svdDecompose(Matrix3f A) {
 		Matrix3f matrix3f = new Matrix3f(A);
 		matrix3f.transpose();

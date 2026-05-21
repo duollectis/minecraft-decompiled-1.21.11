@@ -62,10 +62,26 @@ public class CombinedDynamicRegistries<T> {
 				.stream())).toImmutable();
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param type type
+	 * @param registryManagers registry managers
+	 *
+	 * @return CombinedDynamicRegistries — результат операции
+	 */
 	public CombinedDynamicRegistries<T> with(T type, DynamicRegistryManager.Immutable... registryManagers) {
 		return this.with(type, Arrays.asList(registryManagers));
 	}
 
+	/**
+	 * With.
+	 *
+	 * @param type type
+	 * @param registryManagers registry managers
+	 *
+	 * @return CombinedDynamicRegistries — результат операции
+	 */
 	public CombinedDynamicRegistries<T> with(T type, List<DynamicRegistryManager.Immutable> registryManagers) {
 		int i = this.getIndex(type);
 		if (registryManagers.size() > this.registryManagers.size() - i) {

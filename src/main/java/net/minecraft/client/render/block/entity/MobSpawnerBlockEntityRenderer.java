@@ -28,6 +28,11 @@ public class MobSpawnerBlockEntityRenderer implements BlockEntityRenderer<MobSpa
 		this.entityRenderDispatcher = ctx.entityRenderDispatcher();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return MobSpawnerBlockEntityRenderState — результат операции
+	 */
 	public MobSpawnerBlockEntityRenderState createRenderState() {
 		return new MobSpawnerBlockEntityRenderState();
 	}

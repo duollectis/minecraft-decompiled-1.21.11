@@ -27,10 +27,20 @@ public class InvalidHierarchicalFileException extends IOException {
 		this.message = message;
 	}
 
+	/**
+	 * Добавляет invalid key.
+	 *
+	 * @param key key
+	 */
 	public void addInvalidKey(String key) {
 		this.invalidFiles.get(0).addKey(key);
 	}
 
+	/**
+	 * Добавляет invalid file.
+	 *
+	 * @param fileName file name
+	 */
 	public void addInvalidFile(String fileName) {
 		this.invalidFiles.get(0).name = fileName;
 		this.invalidFiles.add(0, new InvalidHierarchicalFileException.File());
@@ -41,6 +51,13 @@ public class InvalidHierarchicalFileException extends IOException {
 		return "Invalid " + this.invalidFiles.get(this.invalidFiles.size() - 1) + ": " + this.message;
 	}
 
+	/**
+	 * Wrap.
+	 *
+	 * @param cause cause
+	 *
+	 * @return InvalidHierarchicalFileException — результат операции
+	 */
 	public static InvalidHierarchicalFileException wrap(Exception cause) {
 		if (cause instanceof InvalidHierarchicalFileException) {
 			return (InvalidHierarchicalFileException) cause;
@@ -74,6 +91,11 @@ public class InvalidHierarchicalFileException extends IOException {
 			return this.name;
 		}
 
+		/**
+		 * Join keys.
+		 *
+		 * @return String — результат операции
+		 */
 		public String joinKeys() {
 			return StringUtils.join(this.keys, "->");
 		}

@@ -95,6 +95,14 @@ public class DedicatedServerWatchdog implements Runnable {
 		}
 	}
 
+	/**
+	 * Создаёт crash report.
+	 *
+	 * @param message message
+	 * @param threadId thread id
+	 *
+	 * @return CrashReport — результат операции
+	 */
 	public static CrashReport createCrashReport(String message, long threadId) {
 		ThreadMXBean threadMXBean = ManagementFactory.getThreadMXBean();
 		ThreadInfo[] threadInfos = threadMXBean.dumpAllThreads(true, true);

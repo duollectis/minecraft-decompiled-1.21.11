@@ -5,6 +5,9 @@ import net.minecraft.network.packet.c2s.config.AcceptCodeOfConductC2SPacket;
 import net.minecraft.network.packet.c2s.config.ReadyC2SPacket;
 import net.minecraft.network.packet.c2s.config.SelectKnownPacksC2SPacket;
 
+/**
+ * Интерфейс server configuration packet listener.
+ */
 public interface ServerConfigurationPacketListener extends ServerCommonPacketListener {
 
 	@Override

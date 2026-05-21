@@ -43,6 +43,13 @@ public class JfrJsonReport {
 		json.addProperty("z", chunk.z());
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param profile profile
+	 *
+	 * @return String — результат операции
+	 */
 	public String toString(JfrProfile profile) {
 		JsonObject jsonObject = new JsonObject();
 		jsonObject.addProperty("startedEpoch", profile.startTime().toEpochMilli());

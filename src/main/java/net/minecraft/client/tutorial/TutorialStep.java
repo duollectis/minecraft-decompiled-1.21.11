@@ -28,6 +28,13 @@ public enum TutorialStep {
 		this.handlerFactory = factory;
 	}
 
+	/**
+	 * Создаёт handler.
+	 *
+	 * @param manager manager
+	 *
+	 * @return TutorialStepHandler — результат операции
+	 */
 	public TutorialStepHandler createHandler(TutorialManager manager) {
 		return this.handlerFactory.apply(manager);
 	}
@@ -36,6 +43,13 @@ public enum TutorialStep {
 		return this.name;
 	}
 
+	/**
+	 * By name.
+	 *
+	 * @param name name
+	 *
+	 * @return TutorialStep — результат операции
+	 */
 	public static TutorialStep byName(String name) {
 		for (TutorialStep tutorialStep : values()) {
 			if (tutorialStep.name.equals(name)) {

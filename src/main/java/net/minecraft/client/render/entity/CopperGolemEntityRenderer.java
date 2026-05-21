@@ -56,6 +56,11 @@ public class CopperGolemEntityRenderer extends MobEntityRenderer<CopperGolemEnti
 		return state -> CopperGolemOxidationLevels.get(state.oxidationLevel).eyeTexture();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return CopperGolemEntityRenderState — результат операции
+	 */
 	public CopperGolemEntityRenderState createRenderState() {
 		return new CopperGolemEntityRenderState();
 	}

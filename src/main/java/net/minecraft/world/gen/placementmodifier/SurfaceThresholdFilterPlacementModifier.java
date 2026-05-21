@@ -37,6 +37,15 @@ public class SurfaceThresholdFilterPlacementModifier extends AbstractConditional
 		this.max = max;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param heightmap heightmap
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return SurfaceThresholdFilterPlacementModifier — результат операции
+	 */
 	public static SurfaceThresholdFilterPlacementModifier of(Heightmap.Type heightmap, int min, int max) {
 		return new SurfaceThresholdFilterPlacementModifier(heightmap, min, max);
 	}

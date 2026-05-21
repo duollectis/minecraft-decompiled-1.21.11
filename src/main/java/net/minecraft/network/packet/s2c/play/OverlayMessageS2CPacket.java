@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
+/**
+ * Запись overlay message s2 c packet.
+ */
 public record OverlayMessageS2CPacket(Text text) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, OverlayMessageS2CPacket> CODEC = PacketCodec.tuple(
@@ -20,6 +23,11 @@ public record OverlayMessageS2CPacket(Text text) implements Packet<ClientPlayPac
 		return PlayPackets.SET_ACTION_BAR_TEXT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onOverlayMessage(this);
 	}

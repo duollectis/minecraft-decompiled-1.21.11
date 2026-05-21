@@ -48,6 +48,11 @@ public class HappyGhastEntityRenderer extends AgeableMobEntityRenderer<HappyGhas
 		return happyGhastEntityRenderState.baby ? BABY_TEXTURE : TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return HappyGhastEntityRenderState — результат операции
+	 */
 	public HappyGhastEntityRenderState createRenderState() {
 		return new HappyGhastEntityRenderState();
 	}

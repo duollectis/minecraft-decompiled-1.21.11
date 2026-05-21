@@ -65,6 +65,11 @@ public class GameMenuScreen extends Screen {
 		this.showMenu = showMenu;
 	}
 
+	/**
+	 * Определяет, следует ли show menu.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowMenu() {
 		return this.showMenu;
 	}
@@ -224,6 +229,11 @@ public class GameMenuScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли show now playing toast.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowNowPlayingToast() {
 		GameOptions gameOptions = this.client.options;
 		return gameOptions.getMusicToast().getValue().canShow()

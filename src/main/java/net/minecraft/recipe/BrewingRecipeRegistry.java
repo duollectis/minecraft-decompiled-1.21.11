@@ -117,6 +117,14 @@ public class BrewingRecipeRegistry {
 		}
 	}
 
+	/**
+	 * Craft.
+	 *
+	 * @param ingredient ingredient
+	 * @param input input
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack craft(ItemStack ingredient, ItemStack input) {
 		if (input.isEmpty()) {
 			return input;
@@ -146,12 +154,24 @@ public class BrewingRecipeRegistry {
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param enabledFeatures enabled features
+	 *
+	 * @return BrewingRecipeRegistry — результат операции
+	 */
 	public static BrewingRecipeRegistry create(FeatureSet enabledFeatures) {
 		BrewingRecipeRegistry.Builder builder = new BrewingRecipeRegistry.Builder(enabledFeatures);
 		registerDefaults(builder);
 		return builder.build();
 	}
 
+	/**
+	 * Регистрирует defaults.
+	 *
+	 * @param builder builder
+	 */
 	public static void registerDefaults(BrewingRecipeRegistry.Builder builder) {
 		builder.registerPotionType(Items.POTION);
 		builder.registerPotionType(Items.SPLASH_POTION);
@@ -232,6 +252,13 @@ public class BrewingRecipeRegistry {
 			}
 		}
 
+		/**
+		 * Регистрирует item recipe.
+		 *
+		 * @param input input
+		 * @param ingredient ingredient
+		 * @param output output
+		 */
 		public void registerItemRecipe(Item input, Item ingredient, Item output) {
 			if (input.isEnabled(this.enabledFeatures) && ingredient.isEnabled(this.enabledFeatures) && output.isEnabled(
 					this.enabledFeatures)) {
@@ -245,6 +272,11 @@ public class BrewingRecipeRegistry {
 			}
 		}
 
+		/**
+		 * Регистрирует potion type.
+		 *
+		 * @param item item
+		 */
 		public void registerPotionType(Item item) {
 			if (item.isEnabled(this.enabledFeatures)) {
 				assertPotion(item);
@@ -252,6 +284,13 @@ public class BrewingRecipeRegistry {
 			}
 		}
 
+		/**
+		 * Регистрирует potion recipe.
+		 *
+		 * @param input input
+		 * @param ingredient ingredient
+		 * @param output output
+		 */
 		public void registerPotionRecipe(RegistryEntry<Potion> input, Item ingredient, RegistryEntry<Potion> output) {
 			if (input.value().isEnabled(this.enabledFeatures) && ingredient.isEnabled(this.enabledFeatures) && output
 					.value()
@@ -264,6 +303,12 @@ public class BrewingRecipeRegistry {
 			}
 		}
 
+		/**
+		 * Регистрирует recipes.
+		 *
+		 * @param ingredient ingredient
+		 * @param potion potion
+		 */
 		public void registerRecipes(Item ingredient, RegistryEntry<Potion> potion) {
 			if (potion.value().isEnabled(this.enabledFeatures)) {
 				this.registerPotionRecipe(Potions.WATER, ingredient, Potions.MUNDANE);
@@ -271,6 +316,11 @@ public class BrewingRecipeRegistry {
 			}
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return BrewingRecipeRegistry — результат операции
+		 */
 		public BrewingRecipeRegistry build() {
 			return new BrewingRecipeRegistry(
 					List.copyOf(this.potionTypes),

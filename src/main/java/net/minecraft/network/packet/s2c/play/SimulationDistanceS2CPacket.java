@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись simulation distance s2 c packet.
+ */
 public record SimulationDistanceS2CPacket(int simulationDistance) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, SimulationDistanceS2CPacket> CODEC = Packet.createCodec(
@@ -26,6 +29,11 @@ public record SimulationDistanceS2CPacket(int simulationDistance) implements Pac
 		return PlayPackets.SET_SIMULATION_DISTANCE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onSimulationDistance(this);
 	}

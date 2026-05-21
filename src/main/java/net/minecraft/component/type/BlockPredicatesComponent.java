@@ -94,6 +94,13 @@ public class BlockPredicatesComponent {
 		return nbtWriteView.getNbt();
 	}
 
+	/**
+	 * Check.
+	 *
+	 * @param cachedPos cached pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean check(CachedBlockPosition cachedPos) {
 		if (canUseCache(cachedPos, this.cachedPos, this.nbtAware)) {
 			return this.lastResult;
@@ -123,6 +130,11 @@ public class BlockPredicatesComponent {
 		return this.tooltipText;
 	}
 
+	/**
+	 * Добавляет tooltips.
+	 *
+	 * @param adder adder
+	 */
 	public void addTooltips(Consumer<Text> adder) {
 		this.getOrCreateTooltipText().forEach(adder);
 	}

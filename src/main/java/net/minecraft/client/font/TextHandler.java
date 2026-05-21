@@ -69,10 +69,28 @@ public class TextHandler {
 		return widthLimitingVisitor.getLength();
 	}
 
+	/**
+	 * Trim to width.
+	 *
+	 * @param text text
+	 * @param maxWidth max width
+	 * @param style style
+	 *
+	 * @return String — результат операции
+	 */
 	public String trimToWidth(String text, int maxWidth, Style style) {
 		return text.substring(0, this.getTrimmedLength(text, maxWidth, style));
 	}
 
+	/**
+	 * Trim to width backwards.
+	 *
+	 * @param text text
+	 * @param maxWidth max width
+	 * @param style style
+	 *
+	 * @return String — результат операции
+	 */
 	public String trimToWidthBackwards(String text, int maxWidth, Style style) {
 		MutableFloat mutableFloat = new MutableFloat();
 		MutableInt mutableInt = new MutableInt(text.length());
@@ -91,6 +109,15 @@ public class TextHandler {
 		return text.substring(mutableInt.intValue());
 	}
 
+	/**
+	 * Trim to width.
+	 *
+	 * @param text text
+	 * @param width width
+	 * @param style style
+	 *
+	 * @return StringVisitable — результат операции
+	 */
 	public StringVisitable trimToWidth(StringVisitable text, int width, Style style) {
 		final TextHandler.WidthLimitingVisitor widthLimitingVisitor = new TextHandler.WidthLimitingVisitor(width);
 		return text.visit(
@@ -126,6 +153,16 @@ public class TextHandler {
 		return lineBreakingVisitor.getEndingIndex();
 	}
 
+	/**
+	 * Перемещает cursor by words.
+	 *
+	 * @param text text
+	 * @param offset offset
+	 * @param cursor cursor
+	 * @param consumeSpaceOrBreak consume space or break
+	 *
+	 * @return int — результат операции
+	 */
 	public static int moveCursorByWords(String text, int offset, int cursor, boolean consumeSpaceOrBreak) {
 		int i = cursor;
 		boolean bl = offset < 0;
@@ -200,6 +237,15 @@ public class TextHandler {
 		}
 	}
 
+	/**
+	 * Wrap lines.
+	 *
+	 * @param text text
+	 * @param maxWidth max width
+	 * @param style style
+	 *
+	 * @return List — результат операции
+	 */
 	public List<StringVisitable> wrapLines(String text, int maxWidth, Style style) {
 		List<StringVisitable> list = Lists.newArrayList();
 		this.wrapLines(
@@ -212,6 +258,15 @@ public class TextHandler {
 		return list;
 	}
 
+	/**
+	 * Wrap lines.
+	 *
+	 * @param text text
+	 * @param maxWidth max width
+	 * @param style style
+	 *
+	 * @return List — результат операции
+	 */
 	public List<StringVisitable> wrapLines(StringVisitable text, int maxWidth, Style style) {
 		List<StringVisitable> list = Lists.newArrayList();
 		this.wrapLines(text, maxWidth, style, (textx, lastLineWrapped) -> list.add(textx));
@@ -342,6 +397,11 @@ public class TextHandler {
 			return this.endStyle;
 		}
 
+		/**
+		 * Offset.
+		 *
+		 * @param extraOffset extra offset
+		 */
 		public void offset(int extraOffset) {
 			this.startOffset += extraOffset;
 		}
@@ -361,10 +421,26 @@ public class TextHandler {
 			this.joined = parts.stream().map(part -> part.literal).collect(Collectors.joining());
 		}
 
+		/**
+		 * Char at.
+		 *
+		 * @param index index
+		 *
+		 * @return char — результат операции
+		 */
 		public char charAt(int index) {
 			return this.joined.charAt(index);
 		}
 
+		/**
+		 * Collect line.
+		 *
+		 * @param lineLength line length
+		 * @param skippedLength skipped length
+		 * @param style style
+		 *
+		 * @return StringVisitable — результат операции
+		 */
 		public StringVisitable collectLine(int lineLength, int skippedLength, Style style) {
 			TextCollector textCollector = new TextCollector();
 			ListIterator<TextHandler.StyledString> listIterator = this.parts.listIterator();
@@ -413,6 +489,11 @@ public class TextHandler {
 			return textCollector.getCombined();
 		}
 
+		/**
+		 * Collect remainders.
+		 *
+		 * @return @Nullable StringVisitable — результат операции
+		 */
 		public @Nullable StringVisitable collectRemainders() {
 			TextCollector textCollector = new TextCollector();
 			this.parts.forEach(textCollector::add);
@@ -485,6 +566,9 @@ public class TextHandler {
 			return this.length;
 		}
 
+		/**
+		 * Сбрасывает length.
+		 */
 		public void resetLength() {
 			this.length = 0;
 		}

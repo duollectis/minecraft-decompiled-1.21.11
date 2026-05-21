@@ -40,6 +40,11 @@ public class StonecuttingRecipe extends SingleStackRecipe {
 		);
 	}
 
+	/**
+	 * Создаёт result display.
+	 *
+	 * @return SlotDisplay — результат операции
+	 */
 	public SlotDisplay createResultDisplay() {
 		return new SlotDisplay.StackSlotDisplay(this.result());
 	}

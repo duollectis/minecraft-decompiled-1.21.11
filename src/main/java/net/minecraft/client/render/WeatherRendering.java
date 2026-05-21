@@ -94,6 +94,13 @@ public class WeatherRendering {
 		}
 	}
 
+	/**
+	 * Отрисовывает precipitation.
+	 *
+	 * @param vertexConsumers vertex consumers
+	 * @param pos pos
+	 * @param state state
+	 */
 	public void renderPrecipitation(VertexConsumerProvider vertexConsumers, Vec3d pos, WeatherRenderState state) {
 		if (!state.rainPieces.isEmpty()) {
 			RenderLayer renderLayer = RenderLayers.weather(RAIN_TEXTURE, MinecraftClient.usesImprovedTransparency());

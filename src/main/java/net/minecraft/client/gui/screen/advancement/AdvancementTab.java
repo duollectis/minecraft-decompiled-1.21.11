@@ -86,6 +86,16 @@ public class AdvancementTab {
 		return this.display;
 	}
 
+	/**
+	 * Draw background.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param selected selected
+	 */
 	public void drawBackground(DrawContext context, int x, int y, int mouseX, int mouseY, boolean selected) {
 		int i = x + this.type.getTabX(this.index);
 		int j = y + this.type.getTabY(this.index);
@@ -96,10 +106,24 @@ public class AdvancementTab {
 		}
 	}
 
+	/**
+	 * Draw icon.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawIcon(DrawContext context, int x, int y) {
 		this.type.drawIcon(context, x, y, this.index, this.icon);
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 */
 	public void render(DrawContext context, int x, int y) {
 		if (!this.initialized) {
 			this.originX = 117 - (this.maxPanX + this.minPanX) / 2;
@@ -145,6 +169,15 @@ public class AdvancementTab {
 		context.disableScissor();
 	}
 
+	/**
+	 * Draw widget tooltip.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param x x
+	 * @param y y
+	 */
 	public void drawWidgetTooltip(DrawContext context, int mouseX, int mouseY, int x, int y) {
 		context.fill(0, 0, 234, 113, MathHelper.floor(this.alpha * 255.0F) << 24);
 		boolean bl = false;
@@ -195,6 +228,12 @@ public class AdvancementTab {
 		}
 	}
 
+	/**
+	 * Move.
+	 *
+	 * @param offsetX offset x
+	 * @param offsetY offset y
+	 */
 	public void move(double offsetX, double offsetY) {
 		if (this.canScrollHorizontally()) {
 			this.originX = MathHelper.clamp(this.originX + offsetX, (double) (-(this.maxPanX - 234)), 0.0);
@@ -205,14 +244,29 @@ public class AdvancementTab {
 		}
 	}
 
+	/**
+	 * Проверяет возможность scroll horizontally.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canScrollHorizontally() {
 		return this.maxPanX - this.minPanX > 234;
 	}
 
+	/**
+	 * Проверяет возможность scroll vertically.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canScrollVertically() {
 		return this.maxPanY - this.minPanY > 113;
 	}
 
+	/**
+	 * Добавляет advancement.
+	 *
+	 * @param advancement advancement
+	 */
 	public void addAdvancement(PlacedAdvancement advancement) {
 		Optional<AdvancementDisplay> optional = advancement.getAdvancement().display();
 		if (!optional.isEmpty()) {

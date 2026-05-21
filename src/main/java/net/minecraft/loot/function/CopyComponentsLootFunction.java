@@ -123,6 +123,13 @@ public class CopyComponentsLootFunction extends ConditionalLootFunction {
 	record BlockEntityComponentsSource(ContextParameter<? extends BlockEntity> contextParam)
 			implements LootEntityValueSource.ContextComponentBased<BlockEntity, ComponentsAccess> {
 
+		/**
+		 * Get.
+		 *
+		 * @param blockEntity block entity
+		 *
+		 * @return ComponentsAccess — 
+		 */
 		public ComponentsAccess get(BlockEntity blockEntity) {
 			return blockEntity.createComponentMap();
 		}
@@ -180,6 +187,13 @@ public class CopyComponentsLootFunction extends ConditionalLootFunction {
 	record ComponentAccessSource<T extends ComponentsAccess>(ContextParameter<? extends T> contextParam)
 			implements LootEntityValueSource.ContextComponentBased<T, ComponentsAccess> {
 
+		/**
+		 * Get.
+		 *
+		 * @param componentsAccess components access
+		 *
+		 * @return ComponentsAccess — 
+		 */
 		public ComponentsAccess get(T componentsAccess) {
 			return componentsAccess;
 		}

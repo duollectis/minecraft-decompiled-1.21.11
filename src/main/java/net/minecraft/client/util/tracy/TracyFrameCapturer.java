@@ -88,6 +88,11 @@ public class TracyFrameCapturer implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Capture.
+	 *
+	 * @param framebuffer framebuffer
+	 */
 	public void capture(Framebuffer framebuffer) {
 		if (this.status == TracyFrameCapturer.Status.WAITING_FOR_CAPTURE && !this.captured
 				&& framebuffer.getColorAttachment() != null) {
@@ -130,6 +135,9 @@ public class TracyFrameCapturer implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Upload.
+	 */
 	public void upload() {
 		if (this.status == TracyFrameCapturer.Status.WAITING_FOR_UPLOAD) {
 			this.status = TracyFrameCapturer.Status.WAITING_FOR_CAPTURE;
@@ -144,6 +152,9 @@ public class TracyFrameCapturer implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Mark frame.
+	 */
 	public void markFrame() {
 		this.offset++;
 		this.captured = false;

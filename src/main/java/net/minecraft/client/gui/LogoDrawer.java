@@ -33,10 +33,25 @@ public class LogoDrawer {
 		this.ignoreAlpha = ignoreAlpha;
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param context context
+	 * @param screenWidth screen width
+	 * @param alpha alpha
+	 */
 	public void draw(DrawContext context, int screenWidth, float alpha) {
 		this.draw(context, screenWidth, alpha, 30);
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param context context
+	 * @param screenWidth screen width
+	 * @param alpha alpha
+	 * @param y y
+	 */
 	public void draw(DrawContext context, int screenWidth, float alpha, int y) {
 		int i = screenWidth / 2 - 128;
 		float f = this.ignoreAlpha ? 1.0F : alpha;
@@ -59,6 +74,11 @@ public class LogoDrawer {
 		context.drawTexture(RenderPipelines.GUI_TEXTURED, EDITION_TEXTURE, k, l, 0.0F, 0.0F, 128, 14, 128, 16, j);
 	}
 
+	/**
+	 * Определяет, следует ли ignore alpha.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldIgnoreAlpha() {
 		return this.ignoreAlpha;
 	}

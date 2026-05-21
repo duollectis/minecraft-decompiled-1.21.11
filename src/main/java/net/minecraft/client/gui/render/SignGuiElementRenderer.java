@@ -28,6 +28,12 @@ public class SignGuiElementRenderer extends SpecialGuiElementRenderer<SignGuiEle
 		return SignGuiElementRenderState.class;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param signGuiElementRenderState sign gui element render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void render(SignGuiElementRenderState signGuiElementRenderState, MatrixStack matrixStack) {
 		MinecraftClient.getInstance().gameRenderer
 				.getDiffuseLighting()

@@ -86,6 +86,13 @@ public class TagGroupLoader<T> {
 		return list.isEmpty() ? Either.right(List.copyOf(sequencedSet)) : Either.left(list);
 	}
 
+	/**
+	 * Строит group.
+	 *
+	 * @param tags tags
+	 *
+	 * @return Map> — результат операции
+	 */
 	public Map<Identifier, List<T>> buildGroup(Map<Identifier, List<TagGroupLoader.TrackedEntry>> tags) {
 		final Map<Identifier, List<T>> map = new HashMap<>();
 		TagEntry.ValueGetter<T> valueGetter = new TagEntry.ValueGetter<T>() {
@@ -121,6 +128,14 @@ public class TagGroupLoader<T> {
 		return map;
 	}
 
+	/**
+	 * Загружает from network.
+	 *
+	 * @param tags tags
+	 * @param registry registry
+	 *
+	 * @return void — результат операции
+	 */
 	public static <T> void loadFromNetwork(TagPacketSerializer.Serialized tags, MutableRegistry<T> registry) {
 		tags.toRegistryTags(registry).tags.forEach(registry::setEntries);
 	}
@@ -135,6 +150,14 @@ public class TagGroupLoader<T> {
 		                      .collect(Collectors.toUnmodifiableList());
 	}
 
+	/**
+	 * Загружает initial.
+	 *
+	 * @param resourceManager resource manager
+	 * @param registry registry
+	 *
+	 * @return void — результат операции
+	 */
 	public static <T> void loadInitial(ResourceManager resourceManager, MutableRegistry<T> registry) {
 		RegistryKey<? extends Registry<T>> registryKey = registry.getKey();
 		TagGroupLoader<RegistryEntry<T>> tagGroupLoader = new TagGroupLoader<>(

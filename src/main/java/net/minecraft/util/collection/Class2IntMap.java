@@ -14,6 +14,13 @@ public class Class2IntMap {
 			new Object2IntOpenHashMap(), object2IntOpenHashMap -> object2IntOpenHashMap.defaultReturnValue(-1)
 	);
 
+	/**
+	 * Get.
+	 *
+	 * @param clazz clazz
+	 *
+	 * @return int — 
+	 */
 	public int get(Class<?> clazz) {
 		int i = this.backingMap.getInt(clazz);
 		if (i != -1) {
@@ -37,6 +44,13 @@ public class Class2IntMap {
 		return this.get(clazz) + 1;
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param clazz clazz
+	 *
+	 * @return int — результат операции
+	 */
 	public int put(Class<?> clazz) {
 		int i = this.get(clazz);
 		int j = i == -1 ? 0 : i + 1;

@@ -29,6 +29,11 @@ public class RealmsPersistence {
 		return readFile();
 	}
 
+	/**
+	 * Save.
+	 *
+	 * @param data data
+	 */
 	public void save(RealmsPersistence.RealmsPersistenceData data) {
 		writeFile(data);
 	}
@@ -54,6 +59,11 @@ public class RealmsPersistence {
 		return new RealmsPersistence.RealmsPersistenceData();
 	}
 
+	/**
+	 * Записывает file.
+	 *
+	 * @param data data
+	 */
 	public static void writeFile(RealmsPersistence.RealmsPersistenceData data) {
 		Path path = getFile();
 

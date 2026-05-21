@@ -130,6 +130,11 @@ public class AreaEffectCloudEntity extends Entity implements Ownable {
 		}
 	}
 
+	/**
+	 * Добавляет effect.
+	 *
+	 * @param effect effect
+	 */
 	public void addEffect(StatusEffectInstance effect) {
 		this.setPotionContents(this.potionContentsComponent.with(effect));
 	}

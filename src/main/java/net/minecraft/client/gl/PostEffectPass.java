@@ -97,6 +97,13 @@ public class PostEffectPass implements AutoCloseable {
 				new MappableRingBuffer(() -> this.id + " SamplerInfo", 130, (samplers.size() + 1) * SIZE);
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param builder builder
+	 * @param handles handles
+	 * @param slice slice
+	 */
 	public void render(FrameGraphBuilder builder, Map<Identifier, Handle<Framebuffer>> handles, GpuBufferSlice slice) {
 		FramePass framePass = builder.createPass(this.id);
 

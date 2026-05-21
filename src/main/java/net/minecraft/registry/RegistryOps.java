@@ -21,14 +21,38 @@ public class RegistryOps<T> extends ForwardingDynamicOps<T> {
 
 	private final RegistryOps.RegistryInfoGetter registryInfoGetter;
 
+	/**
+	 * Of.
+	 *
+	 * @param delegate delegate
+	 * @param registries registries
+	 *
+	 * @return RegistryOps — результат операции
+	 */
 	public static <T> RegistryOps<T> of(DynamicOps<T> delegate, RegistryWrapper.WrapperLookup registries) {
 		return of(delegate, new RegistryOps.CachedRegistryInfoGetter(registries));
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param delegate delegate
+	 * @param registryInfoGetter registry info getter
+	 *
+	 * @return RegistryOps — результат операции
+	 */
 	public static <T> RegistryOps<T> of(DynamicOps<T> delegate, RegistryOps.RegistryInfoGetter registryInfoGetter) {
 		return new RegistryOps<>(delegate, registryInfoGetter);
 	}
 
+	/**
+	 * With registry.
+	 *
+	 * @param dynamic dynamic
+	 * @param registries registries
+	 *
+	 * @return Dynamic — результат операции
+	 */
 	public static <T> Dynamic<T> withRegistry(Dynamic<T> dynamic, RegistryWrapper.WrapperLookup registries) {
 		return new Dynamic(registries.getOps(dynamic.getOps()), dynamic.getValue());
 	}
@@ -38,6 +62,13 @@ public class RegistryOps<T> extends ForwardingDynamicOps<T> {
 		this.registryInfoGetter = registryInfoGetter;
 	}
 
+	/**
+	 * With delegate.
+	 *
+	 * @param delegate delegate
+	 *
+	 * @return RegistryOps — результат операции
+	 */
 	public <U> RegistryOps<U> withDelegate(DynamicOps<U> delegate) {
 		return (RegistryOps<U>) (delegate == this.delegate ? this : new RegistryOps(
 				(DynamicOps<T>) delegate,

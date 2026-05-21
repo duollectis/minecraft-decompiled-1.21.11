@@ -67,30 +67,65 @@ public final class ItemGuiElementRenderState implements GuiElementRenderState {
 		return this.scissorArea != null ? this.scissorArea.intersection(screenRect) : screenRect;
 	}
 
+	/**
+	 * Name.
+	 *
+	 * @return String — результат операции
+	 */
 	public String name() {
 		return this.name;
 	}
 
+	/**
+	 * Pose.
+	 *
+	 * @return Matrix3x2f — результат операции
+	 */
 	public Matrix3x2f pose() {
 		return this.pose;
 	}
 
+	/**
+	 * State.
+	 *
+	 * @return KeyedItemRenderState — результат операции
+	 */
 	public KeyedItemRenderState state() {
 		return this.state;
 	}
 
+	/**
+	 * X.
+	 *
+	 * @return int — результат операции
+	 */
 	public int x() {
 		return this.x;
 	}
 
+	/**
+	 * Y.
+	 *
+	 * @return int — результат операции
+	 */
 	public int y() {
 		return this.y;
 	}
 
+	/**
+	 * Scissor area.
+	 *
+	 * @return @Nullable ScreenRect — результат операции
+	 */
 	public @Nullable ScreenRect scissorArea() {
 		return this.scissorArea;
 	}
 
+	/**
+	 * Oversized bounds.
+	 *
+	 * @return @Nullable ScreenRect — результат операции
+	 */
 	public @Nullable ScreenRect oversizedBounds() {
 		return this.oversizedBounds;
 	}

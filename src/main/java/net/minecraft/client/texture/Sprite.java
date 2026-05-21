@@ -102,6 +102,12 @@ public class Sprite implements AutoCloseable {
 				+ this.minV + ", v1=" + this.maxV + "}";
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param texture texture
+	 * @param mipmap mipmap
+	 */
 	public void upload(GpuTexture texture, int mipmap) {
 		this.contents.upload(texture, mipmap);
 	}
@@ -114,6 +120,16 @@ public class Sprite implements AutoCloseable {
 		return this.contents.isAnimated();
 	}
 
+	/**
+	 * Put sprite info.
+	 *
+	 * @param buffer buffer
+	 * @param offset offset
+	 * @param maxLevel max level
+	 * @param width width
+	 * @param height height
+	 * @param stride stride
+	 */
 	public void putSpriteInfo(ByteBuffer buffer, int offset, int maxLevel, int width, int height, int stride) {
 		for (int i = 0; i <= maxLevel; i++) {
 			Std140Builder.intoBuffer(MemoryUtil.memSlice(buffer, offset + i * stride, stride))

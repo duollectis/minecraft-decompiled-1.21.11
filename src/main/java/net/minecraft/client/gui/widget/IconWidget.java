@@ -22,10 +22,30 @@ public abstract class IconWidget extends ClickableWidget {
 		super(x, y, width, height, ScreenTexts.EMPTY);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param width width
+	 * @param height height
+	 * @param texture texture
+	 * @param textureWidth texture width
+	 * @param textureHeight texture height
+	 *
+	 * @return IconWidget — результат операции
+	 */
 	public static IconWidget create(int width, int height, Identifier texture, int textureWidth, int textureHeight) {
 		return new IconWidget.Texture(0, 0, width, height, texture, textureWidth, textureHeight);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param width width
+	 * @param height height
+	 * @param texture texture
+	 *
+	 * @return IconWidget — результат операции
+	 */
 	public static IconWidget create(int width, int height, Identifier texture) {
 		return new IconWidget.Simple(0, 0, width, height, texture);
 	}

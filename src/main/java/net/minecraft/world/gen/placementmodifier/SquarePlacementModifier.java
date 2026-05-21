@@ -15,6 +15,11 @@ public class SquarePlacementModifier extends PlacementModifier {
 	private static final SquarePlacementModifier INSTANCE = new SquarePlacementModifier();
 	public static final MapCodec<SquarePlacementModifier> MODIFIER_CODEC = MapCodec.unit(() -> INSTANCE);
 
+	/**
+	 * Of.
+	 *
+	 * @return SquarePlacementModifier — результат операции
+	 */
 	public static SquarePlacementModifier of() {
 		return INSTANCE;
 	}

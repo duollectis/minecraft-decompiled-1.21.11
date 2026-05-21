@@ -53,6 +53,14 @@ public class StorageIoWorker implements NbtScannable, AutoCloseable {
 				);
 	}
 
+	/**
+	 * Needs blending.
+	 *
+	 * @param chunkPos chunk pos
+	 * @param checkRadius check radius
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsBlending(ChunkPos chunkPos, int checkRadius) {
 		ChunkPos chunkPos2 = new ChunkPos(chunkPos.x - checkRadius, chunkPos.z - checkRadius);
 		ChunkPos chunkPos3 = new ChunkPos(chunkPos.x + checkRadius, chunkPos.z + checkRadius);
@@ -158,6 +166,13 @@ public class StorageIoWorker implements NbtScannable, AutoCloseable {
 		)).thenCompose(Function.identity());
 	}
 
+	/**
+	 * Читает chunk data.
+	 *
+	 * @param pos pos
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public CompletableFuture<Optional<NbtCompound>> readChunkData(ChunkPos pos) {
 		return this.run((StorageIoWorker.Callable<Optional<NbtCompound>>) (() -> {
 			StorageIoWorker.Result result = this.results.get(pos);
@@ -178,6 +193,13 @@ public class StorageIoWorker implements NbtScannable, AutoCloseable {
 		));
 	}
 
+	/**
+	 * Complete all.
+	 *
+	 * @param sync sync
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Void> completeAll(boolean sync) {
 		CompletableFuture<Void> completableFuture = this.<CompletableFuture<Void>>run(
 				                                                (Supplier<CompletableFuture<Void>>) (() -> CompletableFuture.allOf(

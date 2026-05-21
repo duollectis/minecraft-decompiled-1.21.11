@@ -74,6 +74,11 @@ public class EyeOfEnderEntity extends Entity implements FlyingItemEntity {
 		}
 	}
 
+	/**
+	 * Инициализирует target pos.
+	 *
+	 * @param pos pos
+	 */
 	public void initTargetPos(Vec3d pos) {
 		Vec3d vec3d = pos.subtract(this.getEntityPos());
 		double d = vec3d.horizontalLength();

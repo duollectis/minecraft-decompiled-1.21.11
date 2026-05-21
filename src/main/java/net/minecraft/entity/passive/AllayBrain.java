@@ -35,6 +35,13 @@ public class AllayBrain {
 	private static final int WALK_TO_ITEM_RADIUS = 32;
 	private static final int GIVE_INVENTORY_RUN_TIME = 20;
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<AllayEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -98,10 +105,21 @@ public class AllayBrain {
 		);
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param allay allay
+	 */
 	public static void updateActivities(AllayEntity allay) {
 		allay.getBrain().resetPossibleActivities(ImmutableList.of(Activity.IDLE));
 	}
 
+	/**
+	 * Remember note block.
+	 *
+	 * @param allay allay
+	 * @param pos pos
+	 */
 	public static void rememberNoteBlock(LivingEntity allay, BlockPos pos) {
 		Brain<?> brain = allay.getBrain();
 		GlobalPos globalPos = GlobalPos.create(allay.getEntityWorld().getRegistryKey(), pos);

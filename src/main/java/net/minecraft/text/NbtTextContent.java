@@ -73,6 +73,11 @@ public class NbtTextContent implements TextContent {
 		return this.rawPath;
 	}
 
+	/**
+	 * Определяет, следует ли interpret.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldInterpret() {
 		return this.interpret;
 	}

@@ -10,6 +10,11 @@ public class StopPanickingTask {
 
 	private static final int MAX_DISTANCE = 36;
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(

@@ -61,6 +61,17 @@ public abstract class EntityRenderer<T extends Entity, S extends EntityRenderSta
 		return entity.isOnFire() ? 15 : entity.getEntityWorld().getLightLevel(LightType.BLOCK, pos);
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param entity entity
+	 * @param frustum frustum
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRender(T entity, Frustum frustum, double x, double y, double z) {
 		if (!entity.shouldRender(x, y, z)) {
 			return false;
@@ -103,6 +114,13 @@ public abstract class EntityRenderer<T extends Entity, S extends EntityRenderSta
 		return entity.getBoundingBox();
 	}
 
+	/**
+	 * Проверяет возможность be culled.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canBeCulled(T entity) {
 		return true;
 	}
@@ -166,6 +184,11 @@ public abstract class EntityRenderer<T extends Entity, S extends EntityRenderSta
 		return this.shadowOpacity;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return S — результат операции
+	 */
 	public abstract S createRenderState();
 
 	public final S getAndUpdateRenderState(T entity, float tickProgress) {
@@ -175,6 +198,13 @@ public abstract class EntityRenderer<T extends Entity, S extends EntityRenderSta
 		return entityRenderState;
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param entity entity
+	 * @param state state
+	 * @param tickProgress tick progress
+	 */
 	public void updateRenderState(T entity, S state, float tickProgress) {
 		state.entityType = entity.getType();
 		state.x = MathHelper.lerp((double) tickProgress, entity.lastRenderX, entity.getX());
@@ -306,6 +336,12 @@ public abstract class EntityRenderer<T extends Entity, S extends EntityRenderSta
 		state.light = this.getLight(entity, tickProgress);
 	}
 
+	/**
+	 * Обновляет shadow.
+	 *
+	 * @param entity entity
+	 * @param renderState render state
+	 */
 	protected void updateShadow(T entity, S renderState) {
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		World world = entity.getEntityWorld();

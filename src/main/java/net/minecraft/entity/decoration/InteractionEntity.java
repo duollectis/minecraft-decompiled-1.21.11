@@ -184,6 +184,11 @@ public class InteractionEntity extends Entity implements Attackable, Targeter {
 		this.dataTracker.set(RESPONSE, response);
 	}
 
+	/**
+	 * Определяет, следует ли respond.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public final boolean shouldRespond() {
 		return this.dataTracker.get(RESPONSE);
 	}

@@ -22,16 +22,36 @@ public class ModelPartBuilder {
 	private int textureY;
 	private boolean mirror;
 
+	/**
+	 * Uv.
+	 *
+	 * @param textureX texture x
+	 * @param textureY texture y
+	 *
+	 * @return ModelPartBuilder — результат операции
+	 */
 	public ModelPartBuilder uv(int textureX, int textureY) {
 		this.textureX = textureX;
 		this.textureY = textureY;
 		return this;
 	}
 
+	/**
+	 * Mirrored.
+	 *
+	 * @return ModelPartBuilder — результат операции
+	 */
 	public ModelPartBuilder mirrored() {
 		return this.mirrored(true);
 	}
 
+	/**
+	 * Mirrored.
+	 *
+	 * @param mirror mirror
+	 *
+	 * @return ModelPartBuilder — результат операции
+	 */
 	public ModelPartBuilder mirrored(boolean mirror) {
 		this.mirror = mirror;
 		return this;
@@ -106,6 +126,18 @@ public class ModelPartBuilder {
 		return this;
 	}
 
+	/**
+	 * Cuboid.
+	 *
+	 * @param offsetX offset x
+	 * @param offsetY offset y
+	 * @param offsetZ offset z
+	 * @param sizeX size x
+	 * @param sizeY size y
+	 * @param sizeZ size z
+	 *
+	 * @return ModelPartBuilder — результат операции
+	 */
 	public ModelPartBuilder cuboid(float offsetX, float offsetY, float offsetZ, float sizeX, float sizeY, float sizeZ) {
 		this.cuboidData
 				.add(
@@ -318,10 +350,20 @@ public class ModelPartBuilder {
 		return this;
 	}
 
+	/**
+	 * Build.
+	 *
+	 * @return List — результат операции
+	 */
 	public List<ModelCuboidData> build() {
 		return ImmutableList.copyOf(this.cuboidData);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @return ModelPartBuilder — результат операции
+	 */
 	public static ModelPartBuilder create() {
 		return new ModelPartBuilder();
 	}

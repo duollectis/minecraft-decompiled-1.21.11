@@ -23,6 +23,13 @@ public record PalettesFactory(
 		Codec<ReadableContainer<RegistryEntry<Biome>>> biomeContainerCodec
 ) {
 
+	/**
+	 * From registry manager.
+	 *
+	 * @param registryManager registry manager
+	 *
+	 * @return PalettesFactory — результат операции
+	 */
 	public static PalettesFactory fromRegistryManager(DynamicRegistryManager registryManager) {
 		PaletteProvider<BlockState> paletteProvider = PaletteProvider.forBlockStates(Block.STATE_IDS);
 		BlockState blockState = Blocks.AIR.getDefaultState();

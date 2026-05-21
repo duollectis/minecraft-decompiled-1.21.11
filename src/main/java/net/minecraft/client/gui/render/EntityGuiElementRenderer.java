@@ -34,6 +34,12 @@ public class EntityGuiElementRenderer extends SpecialGuiElementRenderer<EntityGu
 		return EntityGuiElementRenderState.class;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param entityGuiElementRenderState entity gui element render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void render(EntityGuiElementRenderState entityGuiElementRenderState, MatrixStack matrixStack) {
 		MinecraftClient.getInstance().gameRenderer
 				.getDiffuseLighting()

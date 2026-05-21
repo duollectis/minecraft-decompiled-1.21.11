@@ -137,11 +137,28 @@ public class EntityRenderManager implements SynchronousResourceReloader {
 		}
 	}
 
+	/**
+	 * Configure.
+	 *
+	 * @param camera camera
+	 * @param targetedEntity targeted entity
+	 */
 	public void configure(Camera camera, Entity targetedEntity) {
 		this.camera = camera;
 		this.targetedEntity = targetedEntity;
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param entity entity
+	 * @param frustum frustum
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public <E extends Entity> boolean shouldRender(E entity, Frustum frustum, double x, double y, double z) {
 		EntityRenderer<? super E, ?> entityRenderer = this.getRenderer(entity);
 		return entityRenderer.shouldRender(entity, frustum, x, y, z);
@@ -226,6 +243,9 @@ public class EntityRenderManager implements SynchronousResourceReloader {
 		return crashReportSection;
 	}
 
+	/**
+	 * Очищает camera.
+	 */
 	public void clearCamera() {
 		this.camera = null;
 	}

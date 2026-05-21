@@ -37,6 +37,12 @@ public class ZipCompressor implements Closeable {
 		}
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param target target
+	 * @param content content
+	 */
 	public void write(Path target, String content) {
 		try {
 			Path path = this.zip.getPath(File.separator);
@@ -49,6 +55,12 @@ public class ZipCompressor implements Closeable {
 		}
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @param target target
+	 * @param source source
+	 */
 	public void copy(Path target, File source) {
 		try {
 			Path path = this.zip.getPath(File.separator);
@@ -61,6 +73,11 @@ public class ZipCompressor implements Closeable {
 		}
 	}
 
+	/**
+	 * Создаёт копию all.
+	 *
+	 * @param source source
+	 */
 	public void copyAll(Path source) {
 		try {
 			Path path = this.zip.getPath(File.separator);

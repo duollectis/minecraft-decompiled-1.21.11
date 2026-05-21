@@ -31,6 +31,11 @@ public class OperatorEntry extends ServerConfigEntry<PlayerConfigEntry> {
 		return this.level;
 	}
 
+	/**
+	 * Проверяет возможность bypass player limit.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBypassPlayerLimit() {
 		return this.bypassPlayerLimit;
 	}

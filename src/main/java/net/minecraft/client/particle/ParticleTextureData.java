@@ -27,6 +27,13 @@ public class ParticleTextureData {
 		return this.textureList;
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param json json
+	 *
+	 * @return ParticleTextureData — результат операции
+	 */
 	public static ParticleTextureData load(JsonObject json) {
 		JsonArray jsonArray = JsonHelper.getArray(json, "textures", null);
 		if (jsonArray == null) {

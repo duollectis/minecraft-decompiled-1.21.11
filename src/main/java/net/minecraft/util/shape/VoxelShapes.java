@@ -43,14 +43,36 @@ public final class VoxelShapes {
 			new DoubleArrayList(new double[]{0.0})
 	);
 
+	/**
+	 * Empty.
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape empty() {
 		return EMPTY;
 	}
 
+	/**
+	 * Full cube.
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape fullCube() {
 		return FULL_CUBE;
 	}
 
+	/**
+	 * Cuboid.
+	 *
+	 * @param minX min x
+	 * @param minY min y
+	 * @param minZ min z
+	 * @param maxX max x
+	 * @param maxY max y
+	 * @param maxZ max z
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape cuboid(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
 		if (!(minX > maxX) && !(minY > maxY) && !(minZ > maxZ)) {
 			return cuboidUnchecked(minX, minY, minZ, maxX, maxY, maxZ);
@@ -106,11 +128,26 @@ public final class VoxelShapes {
 		}
 	}
 
+	/**
+	 * Cuboid.
+	 *
+	 * @param box box
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape cuboid(Box box) {
 		return cuboidUnchecked(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ);
 	}
 
 	@VisibleForTesting
+	/**
+	 * Ищет required bit resolution.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return int — required bit resolution
+	 */
 	protected static int findRequiredBitResolution(double min, double max) {
 		if (!(min < -1.0E-7) && !(max > 1.0000001)) {
 			for (int i = 0; i <= 3; i++) {
@@ -131,22 +168,64 @@ public final class VoxelShapes {
 		}
 	}
 
+	/**
+	 * Lcm.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return long — результат операции
+	 */
 	protected static long lcm(int a, int b) {
 		return (long) a * (b / IntMath.gcd(a, b));
 	}
 
+	/**
+	 * Union.
+	 *
+	 * @param first first
+	 * @param second second
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape union(VoxelShape first, VoxelShape second) {
 		return combineAndSimplify(first, second, BooleanBiFunction.OR);
 	}
 
+	/**
+	 * Union.
+	 *
+	 * @param first first
+	 * @param others others
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape union(VoxelShape first, VoxelShape... others) {
 		return Arrays.stream(others).reduce(first, VoxelShapes::union);
 	}
 
+	/**
+	 * Combine and simplify.
+	 *
+	 * @param first first
+	 * @param second second
+	 * @param function function
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape combineAndSimplify(VoxelShape first, VoxelShape second, BooleanBiFunction function) {
 		return combine(first, second, function).simplify();
 	}
 
+	/**
+	 * Combine.
+	 *
+	 * @param one one
+	 * @param two two
+	 * @param function function
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape combine(VoxelShape one, VoxelShape two, BooleanBiFunction function) {
 		if (function.apply(false, false)) {
 			throw (IllegalArgumentException) Util.getFatalOrPause(new IllegalArgumentException());
@@ -206,6 +285,15 @@ public final class VoxelShapes {
 		}
 	}
 
+	/**
+	 * Matches anywhere.
+	 *
+	 * @param shape1 shape1
+	 * @param shape2 shape2
+	 * @param predicate predicate
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean matchesAnywhere(VoxelShape shape1, VoxelShape shape2, BooleanBiFunction predicate) {
 		if (predicate.apply(false, false)) {
 			throw (IllegalArgumentException) Util.getFatalOrPause(new IllegalArgumentException());
@@ -283,6 +371,16 @@ public final class VoxelShapes {
 		);
 	}
 
+	/**
+	 * Вычисляет max offset.
+	 *
+	 * @param axis axis
+	 * @param box box
+	 * @param shapes shapes
+	 * @param maxDist max dist
+	 *
+	 * @return double — результат операции
+	 */
 	public static double calculateMaxOffset(Direction.Axis axis, Box box, Iterable<VoxelShape> shapes, double maxDist) {
 		for (VoxelShape voxelShape : shapes) {
 			if (Math.abs(maxDist) < 1.0E-7) {
@@ -321,6 +419,15 @@ public final class VoxelShapes {
 		}
 	}
 
+	/**
+	 * Adjacent sides cover square.
+	 *
+	 * @param one one
+	 * @param two two
+	 * @param direction direction
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean adjacentSidesCoverSquare(VoxelShape one, VoxelShape two, Direction direction) {
 		if (one != fullCube() && two != fullCube()) {
 			Direction.Axis axis = direction.getAxis();
@@ -350,6 +457,14 @@ public final class VoxelShapes {
 		}
 	}
 
+	/**
+	 * Union covers full cube.
+	 *
+	 * @param one one
+	 * @param two two
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean unionCoversFullCube(VoxelShape one, VoxelShape two) {
 		if (one == fullCube() || two == fullCube()) {
 			return true;
@@ -394,10 +509,27 @@ public final class VoxelShapes {
 		}
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param shape shape
+	 * @param transformation transformation
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape transform(VoxelShape shape, DirectionTransformation transformation) {
 		return transform(shape, transformation, BLOCK_CENTER);
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param shape shape
+	 * @param transformation transformation
+	 * @param anchor anchor
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape transform(VoxelShape shape, DirectionTransformation transformation, Vec3d anchor) {
 		if (transformation == DirectionTransformation.IDENTITY) {
 			return shape;
@@ -450,6 +582,14 @@ public final class VoxelShapes {
 		}
 	}
 
+	/**
+	 * Equal.
+	 *
+	 * @param shape1 shape1
+	 * @param shape2 shape2
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean equal(VoxelShape shape1, VoxelShape shape2) {
 		return !matchesAnywhere(shape1, shape2, BooleanBiFunction.NOT_SAME);
 	}
@@ -484,6 +624,13 @@ public final class VoxelShapes {
 		);
 	}
 
+	/**
+	 * Создаёт horizontal facing shape map.
+	 *
+	 * @param shape shape
+	 *
+	 * @return Map — результат операции
+	 */
 	public static Map<Direction, VoxelShape> createHorizontalFacingShapeMap(VoxelShape shape) {
 		return createHorizontalFacingShapeMap(shape, DirectionTransformation.IDENTITY, BLOCK_CENTER);
 	}
@@ -514,10 +661,25 @@ public final class VoxelShapes {
 		);
 	}
 
+	/**
+	 * Создаёт facing shape map.
+	 *
+	 * @param shape shape
+	 *
+	 * @return Map — результат операции
+	 */
 	public static Map<Direction, VoxelShape> createFacingShapeMap(VoxelShape shape) {
 		return createFacingShapeMap(shape, DirectionTransformation.IDENTITY, BLOCK_CENTER);
 	}
 
+	/**
+	 * Создаёт facing shape map.
+	 *
+	 * @param shape shape
+	 * @param anchor anchor
+	 *
+	 * @return Map — результат операции
+	 */
 	public static Map<Direction, VoxelShape> createFacingShapeMap(VoxelShape shape, Vec3d anchor) {
 		return createFacingShapeMap(shape, DirectionTransformation.IDENTITY, anchor);
 	}
@@ -545,6 +707,13 @@ public final class VoxelShapes {
 		);
 	}
 
+	/**
+	 * Создаёт block face horizontal facing shape map.
+	 *
+	 * @param shape shape
+	 *
+	 * @return Map> — результат операции
+	 */
 	public static Map<BlockFace, Map<Direction, VoxelShape>> createBlockFaceHorizontalFacingShapeMap(VoxelShape shape) {
 		return createBlockFaceHorizontalFacingShapeMap(shape, DirectionTransformation.IDENTITY);
 	}

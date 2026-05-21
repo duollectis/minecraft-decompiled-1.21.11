@@ -27,15 +27,38 @@ public class EmergeTask<E extends WardenEntity> extends MultiTickTask<E> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, E wardenEntity, long l) {
 		return true;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, E wardenEntity, long l) {
 		wardenEntity.setPose(EntityPose.EMERGING);
 		wardenEntity.playSound(SoundEvents.ENTITY_WARDEN_EMERGE, 5.0F, 1.0F);
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param wardenEntity warden entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, E wardenEntity, long l) {
 		if (wardenEntity.isInPose(EntityPose.EMERGING)) {
 			wardenEntity.setPose(EntityPose.STANDING);

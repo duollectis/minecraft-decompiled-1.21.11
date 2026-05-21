@@ -31,6 +31,13 @@ public class ContextSwappableRegistryLookup implements RegistryEntryLookup.Regis
 		return Optional.of(this.entryLookupImpl.asEntryLookup());
 	}
 
+	/**
+	 * Создаёт registry ops.
+	 *
+	 * @param delegateOps delegate ops
+	 *
+	 * @return RegistryOps — результат операции
+	 */
 	public <V> RegistryOps<V> createRegistryOps(DynamicOps<V> delegateOps) {
 		return RegistryOps.of(
 				delegateOps,
@@ -54,6 +61,11 @@ public class ContextSwappableRegistryLookup implements RegistryEntryLookup.Regis
 		);
 	}
 
+	/**
+	 * Создаёт context swapper.
+	 *
+	 * @return ContextSwapper — результат операции
+	 */
 	public ContextSwapper createContextSwapper() {
 		return new ContextSwapper() {
 			@Override
@@ -108,11 +120,21 @@ public class ContextSwappableRegistryLookup implements RegistryEntryLookup.Regis
 		}
 
 		@SuppressWarnings("unchecked")
+		/**
+		 * As entry lookup.
+		 *
+		 * @return RegistryEntryLookup — результат операции
+		 */
 		public <T> RegistryEntryLookup<T> asEntryLookup() {
 			return (RegistryEntryLookup<T>) this;
 		}
 
 		@SuppressWarnings("unchecked")
+		/**
+		 * As entry owner.
+		 *
+		 * @return RegistryEntryOwner — результат операции
+		 */
 		public <T> RegistryEntryOwner<T> asEntryOwner() {
 			return (RegistryEntryOwner<T>) this;
 		}

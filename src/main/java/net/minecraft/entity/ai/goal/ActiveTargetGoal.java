@@ -73,6 +73,9 @@ public class ActiveTargetGoal<T extends LivingEntity> extends TrackTargetGoal {
 		return this.mob.getBoundingBox().expand(distance, distance, distance);
 	}
 
+	/**
+	 * Ищет closest target.
+	 */
 	protected void findClosestTarget() {
 		ServerWorld serverWorld = getServerWorld(this.mob);
 		if (this.targetClass != PlayerEntity.class && this.targetClass != ServerPlayerEntity.class) {

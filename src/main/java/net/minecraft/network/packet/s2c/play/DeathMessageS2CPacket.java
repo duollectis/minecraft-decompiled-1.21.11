@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
+/**
+ * Запись death message s2 c packet.
+ */
 public record DeathMessageS2CPacket(int playerId, Text message) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, DeathMessageS2CPacket> CODEC = PacketCodec.tuple(
@@ -25,6 +28,11 @@ public record DeathMessageS2CPacket(int playerId, Text message) implements Packe
 		return PlayPackets.PLAYER_COMBAT_KILL;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onDeathMessage(this);
 	}

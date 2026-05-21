@@ -51,6 +51,14 @@ public class EnchantingTableBlockEntity extends BlockEntity implements Nameable 
 		this.customName = tryParseCustomName(view, "CustomName");
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, EnchantingTableBlockEntity blockEntity) {
 		blockEntity.pageTurningSpeed = blockEntity.nextPageTurningSpeed;
 		blockEntity.lastBookRotation = blockEntity.bookRotation;

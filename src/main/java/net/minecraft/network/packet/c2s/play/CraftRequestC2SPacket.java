@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.recipe.NetworkRecipeId;
 
+/**
+ * Запись craft request c2 s packet.
+ */
 public record CraftRequestC2SPacket(
 		int syncId,
 		NetworkRecipeId recipeId,
@@ -30,6 +33,11 @@ public record CraftRequestC2SPacket(
 		return PlayPackets.PLACE_RECIPE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onCraftRequest(this);
 	}

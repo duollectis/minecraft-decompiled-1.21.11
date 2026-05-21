@@ -43,6 +43,13 @@ public class JfrProfileRecorder {
 		this.handleEvents(events);
 	}
 
+	/**
+	 * Читает profile.
+	 *
+	 * @param path path
+	 *
+	 * @return JfrProfile — результат операции
+	 */
 	public static JfrProfile readProfile(Path path) {
 		try {
 			JfrProfile var4;
@@ -53,6 +60,11 @@ public class JfrProfileRecorder {
 						return recordingFile.hasMoreEvents();
 					}
 
+					/**
+					 * Next.
+					 *
+					 * @return RecordedEvent — результат операции
+					 */
 					public RecordedEvent next() {
 						if (!this.hasNext()) {
 							throw new NoSuchElementException();
@@ -212,6 +224,11 @@ public class JfrProfileRecorder {
 		private long totalCount;
 		private long totalBytes;
 
+		/**
+		 * Add.
+		 *
+		 * @param bytes bytes
+		 */
 		public void add(int bytes) {
 			this.totalBytes += bytes;
 			this.totalCount++;

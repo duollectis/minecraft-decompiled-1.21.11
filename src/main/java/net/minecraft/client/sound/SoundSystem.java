@@ -80,6 +80,9 @@ public class SoundSystem {
 		this.soundLoader = new SoundLoader(resourceFactory);
 	}
 
+	/**
+	 * Reload sounds.
+	 */
 	public void reloadSounds() {
 		UNKNOWN_SOUNDS.clear();
 
@@ -113,6 +116,11 @@ public class SoundSystem {
 		}
 	}
 
+	/**
+	 * Refresh sound volumes.
+	 *
+	 * @param category category
+	 */
 	public void refreshSoundVolumes(SoundCategory category) {
 		if (this.started) {
 			this.sources.forEach((sound, manager) -> {
@@ -124,6 +132,9 @@ public class SoundSystem {
 		}
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		if (this.started) {
 			this.stopAll();
@@ -133,12 +144,20 @@ public class SoundSystem {
 		}
 	}
 
+	/**
+	 * Останавливает abruptly.
+	 */
 	public void stopAbruptly() {
 		if (this.started) {
 			this.soundEngine.close();
 		}
 	}
 
+	/**
+	 * Stop.
+	 *
+	 * @param sound sound
+	 */
 	public void stop(SoundInstance sound) {
 		if (this.started) {
 			Channel.SourceManager sourceManager = this.sources.get(sound);
@@ -153,6 +172,9 @@ public class SoundSystem {
 		this.refreshSoundVolumes(category);
 	}
 
+	/**
+	 * Останавливает all.
+	 */
 	public void stopAll() {
 		if (this.started) {
 			this.taskQueue.stop();
@@ -168,10 +190,20 @@ public class SoundSystem {
 		}
 	}
 
+	/**
+	 * Регистрирует listener.
+	 *
+	 * @param listener listener
+	 */
 	public void registerListener(SoundInstanceListener listener) {
 		this.listeners.add(listener);
 	}
 
+	/**
+	 * Отменяет регистрацию listener.
+	 *
+	 * @param listener listener
+	 */
 	public void unregisterListener(SoundInstanceListener listener) {
 		this.listeners.remove(listener);
 	}
@@ -226,6 +258,11 @@ public class SoundSystem {
 		}
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param paused paused
+	 */
 	public void tick(boolean paused) {
 		if (this.shouldReloadSounds()) {
 			this.reloadSounds();
@@ -481,10 +518,20 @@ public class SoundSystem {
 		}
 	}
 
+	/**
+	 * Play next tick.
+	 *
+	 * @param sound sound
+	 */
 	public void playNextTick(TickableSoundInstance sound) {
 		this.soundsToPlayNextTick.add(sound);
 	}
 
+	/**
+	 * Добавляет preloaded sound.
+	 *
+	 * @param sound sound
+	 */
 	public void addPreloadedSound(Sound sound) {
 		this.preloadedSounds.add(sound);
 	}
@@ -505,6 +552,11 @@ public class SoundSystem {
 		) * this.volumes.getFloat(category);
 	}
 
+	/**
+	 * Pause all except.
+	 *
+	 * @param categories categories
+	 */
 	public void pauseAllExcept(SoundCategory... categories) {
 		if (this.started) {
 			for (Entry<SoundInstance, Channel.SourceManager> entry : this.sources.entrySet()) {
@@ -515,16 +567,30 @@ public class SoundSystem {
 		}
 	}
 
+	/**
+	 * Resume all.
+	 */
 	public void resumeAll() {
 		if (this.started) {
 			this.channel.execute(sources -> sources.forEach(Source::resume));
 		}
 	}
 
+	/**
+	 * Play.
+	 *
+	 * @param sound sound
+	 * @param delay delay
+	 */
 	public void play(SoundInstance sound, int delay) {
 		this.soundStartTicks.put(sound, this.ticks + delay);
 	}
 
+	/**
+	 * Обновляет listener position.
+	 *
+	 * @param camera camera
+	 */
 	public void updateListenerPosition(Camera camera) {
 		if (this.started && camera.isReady()) {
 			SoundListenerTransform soundListenerTransform = new SoundListenerTransform(
@@ -534,6 +600,12 @@ public class SoundSystem {
 		}
 	}
 
+	/**
+	 * Останавливает sounds.
+	 *
+	 * @param id id
+	 * @param category category
+	 */
 	public void stopSounds(@Nullable Identifier id, @Nullable SoundCategory category) {
 		if (category != null) {
 			for (SoundInstance soundInstance : this.sounds.get(category)) {

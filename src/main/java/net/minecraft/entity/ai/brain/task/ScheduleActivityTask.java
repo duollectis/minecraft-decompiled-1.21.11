@@ -7,6 +7,11 @@ import net.minecraft.entity.LivingEntity;
  */
 public class ScheduleActivityTask {
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(context -> context.point((world, entity, time) -> {
 			entity

@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс title fade s2 c packet.
+ */
 public class TitleFadeS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, TitleFadeS2CPacket>
@@ -39,6 +42,11 @@ public class TitleFadeS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.SET_TITLES_ANIMATION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onTitleFade(this);
 	}

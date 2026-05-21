@@ -24,6 +24,13 @@ public record InvertedLootCondition(LootCondition term) implements LootCondition
 		return LootConditionTypes.INVERTED;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		return !this.term.test(lootContext);
 	}

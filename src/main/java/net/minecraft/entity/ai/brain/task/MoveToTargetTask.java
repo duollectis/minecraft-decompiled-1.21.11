@@ -44,6 +44,14 @@ public class MoveToTargetTask extends MultiTickTask<MobEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, MobEntity mobEntity) {
 		if (this.pathUpdateCountdownTicks > 0) {
 			this.pathUpdateCountdownTicks--;
@@ -68,6 +76,15 @@ public class MoveToTargetTask extends MultiTickTask<MobEntity> {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		if (this.path != null && this.lookTargetPos != null) {
 			Optional<WalkTarget>
@@ -83,6 +100,13 @@ public class MoveToTargetTask extends MultiTickTask<MobEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		if (mobEntity.getBrain().hasMemoryModule(MemoryModuleType.WALK_TARGET)
 				&& !this.hasReached(
@@ -99,11 +123,25 @@ public class MoveToTargetTask extends MultiTickTask<MobEntity> {
 		this.path = null;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		mobEntity.getBrain().remember(MemoryModuleType.PATH, this.path);
 		mobEntity.getNavigation().startMovingAlong(this.path, this.speed);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		Path path = mobEntity.getNavigation().getCurrentPath();
 		Brain<?> brain = mobEntity.getBrain();

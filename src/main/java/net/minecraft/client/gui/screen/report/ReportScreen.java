@@ -64,6 +64,15 @@ public abstract class ReportScreen<B extends AbuseReport.Builder<?>> extends Scr
 		this.reportBuilder = reportBuilder;
 	}
 
+	/**
+	 * Создаёт comments box.
+	 *
+	 * @param width width
+	 * @param height height
+	 * @param changeListener change listener
+	 *
+	 * @return EditBoxWidget — результат операции
+	 */
 	protected EditBoxWidget createCommentsBox(int width, int height, Consumer<String> changeListener) {
 		AbuseReportLimits abuseReportLimits = this.context.getSender().getLimits();
 		EditBoxWidget
@@ -91,12 +100,21 @@ public abstract class ReportScreen<B extends AbuseReport.Builder<?>> extends Scr
 		this.refreshWidgetPositions();
 	}
 
+	/**
+	 * Добавляет title.
+	 */
 	protected void addTitle() {
 		this.layout.add(new TextWidget(this.title, this.textRenderer));
 	}
 
+	/**
+	 * Добавляет content.
+	 */
 	protected abstract void addContent();
 
+	/**
+	 * Добавляет attestation checkbox and send button.
+	 */
 	protected void addAttestationCheckboxAndSendButton() {
 		this.checkbox = this.layout
 				.add(
@@ -120,6 +138,9 @@ public abstract class ReportScreen<B extends AbuseReport.Builder<?>> extends Scr
 						.build());
 	}
 
+	/**
+	 * Обрабатывает событие change.
+	 */
 	protected void onChange() {
 		AbuseReport.ValidationError validationError = this.reportBuilder.validate();
 		this.sendButton.active = validationError == null && this.checkbox.isChecked();
@@ -132,6 +153,9 @@ public abstract class ReportScreen<B extends AbuseReport.Builder<?>> extends Scr
 		SimplePositioningWidget.setPos(this.layout, this.getNavigationFocus());
 	}
 
+	/**
+	 * Try send.
+	 */
 	protected void trySend() {
 		this.reportBuilder.build(this.context).ifLeft(reportWithId -> {
 			CompletableFuture<?>

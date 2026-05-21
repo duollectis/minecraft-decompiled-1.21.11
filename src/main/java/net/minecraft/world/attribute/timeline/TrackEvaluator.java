@@ -74,6 +74,13 @@ public class TrackEvaluator<T> {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param time time
+	 *
+	 * @return T — 
+	 */
 	public T get(long time) {
 		long l = this.periodize(time);
 		TrackEvaluator.Segment<T> segment = this.getSegmentForTime(l);

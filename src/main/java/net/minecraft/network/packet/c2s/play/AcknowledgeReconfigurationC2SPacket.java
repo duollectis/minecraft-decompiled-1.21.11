@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс acknowledge reconfiguration c2 s packet.
+ */
 public class AcknowledgeReconfigurationC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final AcknowledgeReconfigurationC2SPacket INSTANCE = new AcknowledgeReconfigurationC2SPacket();
@@ -20,6 +23,11 @@ public class AcknowledgeReconfigurationC2SPacket implements Packet<ServerPlayPac
 		return PlayPackets.CONFIGURATION_ACKNOWLEDGED;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onAcknowledgeReconfiguration(this);
 	}

@@ -446,6 +446,11 @@ public class CopperGolemEntityModel extends EntityModel<CopperGolemEntityRenderS
 		matrices.scale(1.0625F, 1.0625F, 1.0625F);
 	}
 
+	/**
+	 * Трансформирует matrices for block.
+	 *
+	 * @param matrices matrices
+	 */
 	public void transformMatricesForBlock(MatrixStack matrices) {
 		this.root.applyTransform(matrices);
 		this.body.applyTransform(matrices);

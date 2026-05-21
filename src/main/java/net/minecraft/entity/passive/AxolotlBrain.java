@@ -28,6 +28,13 @@ public class AxolotlBrain {
 	private static final float TARGET_APPROACHING_SPEED = 0.6F;
 	private static final float ADULT_FOLLOWING_SPEED = 0.6F;
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<AxolotlEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -148,6 +155,11 @@ public class AxolotlBrain {
 		}
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param axolotl axolotl
+	 */
 	public static void updateActivities(AxolotlEntity axolotl) {
 		Brain<AxolotlEntity> brain = axolotl.getBrain();
 		Activity activity = brain.getFirstPossibleNonCoreActivity().orElse(null);

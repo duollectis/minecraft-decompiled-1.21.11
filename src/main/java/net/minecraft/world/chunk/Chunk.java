@@ -138,6 +138,11 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 
 	public abstract void setBlockEntity(BlockEntity blockEntity);
 
+	/**
+	 * Добавляет entity.
+	 *
+	 * @param entity entity
+	 */
 	public abstract void addEntity(Entity entity);
 
 	public int getHighestNonEmptySection() {
@@ -189,6 +194,15 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		return this.heightmaps.get(type) != null;
 	}
 
+	/**
+	 * Sample heightmap.
+	 *
+	 * @param type type
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return int — результат операции
+	 */
 	public int sampleHeightmap(Heightmap.Type type, int x, int z) {
 		Heightmap heightmap = this.heightmaps.get(type);
 		if (heightmap == null) {
@@ -251,6 +265,14 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		this.markNeedsSaving();
 	}
 
+	/**
+	 * Are sections empty between.
+	 *
+	 * @param lowerHeight lower height
+	 * @param upperHeight upper height
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areSectionsEmptyBetween(int lowerHeight, int upperHeight) {
 		if (lowerHeight < this.getBottomY()) {
 			lowerHeight = this.getBottomY();
@@ -269,10 +291,18 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		return true;
 	}
 
+	/**
+	 * Mark needs saving.
+	 */
 	public void markNeedsSaving() {
 		this.needsSaving = true;
 	}
 
+	/**
+	 * Try mark saved.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean tryMarkSaved() {
 		if (this.needsSaving) {
 			this.needsSaving = false;
@@ -283,6 +313,11 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		}
 	}
 
+	/**
+	 * Needs saving.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsSaving() {
 		return this.needsSaving;
 	}
@@ -301,8 +336,18 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		}
 	}
 
+	/**
+	 * Удаляет block entity.
+	 *
+	 * @param pos pos
+	 */
 	public abstract void removeBlockEntity(BlockPos pos);
 
+	/**
+	 * Mark block for post processing.
+	 *
+	 * @param pos pos
+	 */
 	public void markBlockForPostProcessing(BlockPos pos) {
 		LOGGER.warn("Trying to mark a block for PostProcessing @ {}, but this operation is not supported.", pos);
 	}
@@ -311,10 +356,21 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		return this.postProcessingLists;
 	}
 
+	/**
+	 * Mark blocks for post processing.
+	 *
+	 * @param packedPositions packed positions
+	 * @param index index
+	 */
 	public void markBlocksForPostProcessing(ShortList packedPositions, int index) {
 		getList(this.getPostProcessingLists(), index).addAll(packedPositions);
 	}
 
+	/**
+	 * Добавляет pending block entity nbt.
+	 *
+	 * @param nbt nbt
+	 */
 	public void addPendingBlockEntityNbt(NbtCompound nbt) {
 		BlockPos blockPos = BlockEntity.posFromNbt(this.pos, nbt);
 		if (!this.blockEntities.containsKey(blockPos)) {
@@ -375,6 +431,11 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		return this.upgradeData;
 	}
 
+	/**
+	 * Использует s old noise.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean usesOldNoise() {
 		return this.blendingData != null;
 	}
@@ -387,6 +448,11 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		return this.inhabitedTime;
 	}
 
+	/**
+	 * Increase inhabited time.
+	 *
+	 * @param timeDelta time delta
+	 */
 	public void increaseInhabitedTime(long timeDelta) {
 		this.inhabitedTime += timeDelta;
 	}
@@ -461,6 +527,12 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		}
 	}
 
+	/**
+	 * Populate biomes.
+	 *
+	 * @param biomeSupplier biome supplier
+	 * @param sampler sampler
+	 */
 	public void populateBiomes(BiomeSupplier biomeSupplier, MultiNoiseUtil.MultiNoiseSampler sampler) {
 		ChunkPos chunkPos = this.getPos();
 		int i = BiomeCoords.fromBlock(chunkPos.getStartX());
@@ -490,6 +562,9 @@ public abstract class Chunk implements BiomeAccess.Storage, LightSourceView, Str
 		return this;
 	}
 
+	/**
+	 * Refresh surface y.
+	 */
 	public void refreshSurfaceY() {
 		this.chunkSkyLight.refreshSurfaceY(this);
 	}

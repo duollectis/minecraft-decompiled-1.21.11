@@ -8,14 +8,32 @@ public record ColumnPos(int x, int z) {
 	private static final long COLUMN_COORD_BITS = 32L;
 	private static final long COLUMN_COORD_MASK = 4294967295L;
 
+	/**
+	 * To chunk pos.
+	 *
+	 * @return ChunkPos — результат операции
+	 */
 	public ChunkPos toChunkPos() {
 		return new ChunkPos(ChunkSectionPos.getSectionCoord(this.x), ChunkSectionPos.getSectionCoord(this.z));
 	}
 
+	/**
+	 * Pack.
+	 *
+	 * @return long — результат операции
+	 */
 	public long pack() {
 		return pack(this.x, this.z);
 	}
 
+	/**
+	 * Pack.
+	 *
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return long — результат операции
+	 */
 	public static long pack(int x, int z) {
 		return x & 4294967295L | (z & 4294967295L) << 32;
 	}

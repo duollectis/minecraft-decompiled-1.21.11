@@ -26,6 +26,11 @@ public class WolfSoundVariants {
 		return RegistryKey.of(RegistryKeys.WOLF_SOUND_VARIANT, Identifier.ofVanilla(type.getId()));
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<WolfSoundVariant> registry) {
 		register(registry, CLASSIC, WolfSoundVariants.Type.CLASSIC);
 		register(registry, PUGLIN, WolfSoundVariants.Type.PUGLIN);
@@ -44,6 +49,14 @@ public class WolfSoundVariants {
 		registry.register(key, SoundEvents.WOLF_SOUNDS.get(type));
 	}
 
+	/**
+	 * Select.
+	 *
+	 * @param registries registries
+	 * @param random random
+	 *
+	 * @return RegistryEntry — результат операции
+	 */
 	public static RegistryEntry<WolfSoundVariant> select(DynamicRegistryManager registries, Random random) {
 		return registries.getOrThrow(RegistryKeys.WOLF_SOUND_VARIANT).getRandom(random).orElseThrow();
 	}

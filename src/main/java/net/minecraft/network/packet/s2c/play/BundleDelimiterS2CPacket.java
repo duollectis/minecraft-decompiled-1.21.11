@@ -5,6 +5,9 @@ import net.minecraft.network.packet.BundleSplitterPacket;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс bundle delimiter s2 c packet.
+ */
 public class BundleDelimiterS2CPacket extends BundleSplitterPacket<ClientPlayPacketListener> {
 
 	@Override

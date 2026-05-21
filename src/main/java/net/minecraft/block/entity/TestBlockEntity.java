@@ -57,6 +57,11 @@ public class TestBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return @Nullable BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public @Nullable BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
@@ -87,6 +92,9 @@ public class TestBlockEntity extends BlockEntity {
 		return this.getCachedState().getBlock();
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.triggered = false;
 		if (this.mode == TestBlockMode.START && this.world != null) {
@@ -95,6 +103,9 @@ public class TestBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * Trigger.
+	 */
 	public void trigger() {
 		if (this.mode == TestBlockMode.START && this.world != null) {
 			this.setPowered(true);
@@ -112,6 +123,9 @@ public class TestBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * Логирует message.
+	 */
 	public void logMessage() {
 		if (!this.message.isBlank()) {
 			LOGGER.info("Test {} (at {}): {}", new Object[]{this.mode.asString(), this.getPos(), this.message});

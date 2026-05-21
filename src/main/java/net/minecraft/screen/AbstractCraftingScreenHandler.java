@@ -32,6 +32,15 @@ public abstract class AbstractCraftingScreenHandler extends AbstractRecipeScreen
 		this.craftingInventory = new CraftingInventory(this, width, height);
 	}
 
+	/**
+	 * Добавляет result slot.
+	 *
+	 * @param player player
+	 * @param x x
+	 * @param y y
+	 *
+	 * @return Slot — результат операции
+	 */
 	protected Slot addResultSlot(PlayerEntity player, int x, int y) {
 		return this.addSlot(new CraftingResultSlot(
 				player,
@@ -43,6 +52,12 @@ public abstract class AbstractCraftingScreenHandler extends AbstractRecipeScreen
 		));
 	}
 
+	/**
+	 * Добавляет input slots.
+	 *
+	 * @param x x
+	 * @param y y
+	 */
 	protected void addInputSlots(int x, int y) {
 		for (int i = 0; i < this.width; i++) {
 			for (int j = 0; j < this.height; j++) {
@@ -100,9 +115,18 @@ public abstract class AbstractCraftingScreenHandler extends AbstractRecipeScreen
 		return var8;
 	}
 
+	/**
+	 * Обрабатывает событие input slot fill start.
+	 */
 	protected void onInputSlotFillStart() {
 	}
 
+	/**
+	 * Обрабатывает событие input slot fill finish.
+	 *
+	 * @param world world
+	 * @param recipe recipe
+	 */
 	protected void onInputSlotFillFinish(ServerWorld world, RecipeEntry<CraftingRecipe> recipe) {
 	}
 

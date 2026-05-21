@@ -14,6 +14,14 @@ public enum BooleanModifier implements EnvironmentAttributeModifier<Boolean, Boo
 	XOR,
 	XNOR;
 
+	/**
+	 * Apply.
+	 *
+	 * @param boolean_ boolean_
+	 * @param boolean2 boolean2
+	 *
+	 * @return Boolean — результат операции
+	 */
 	public Boolean apply(Boolean boolean_, Boolean boolean2) {
 		return switch (this) {
 			case AND -> boolean2 && boolean_;

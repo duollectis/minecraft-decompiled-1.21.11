@@ -141,6 +141,11 @@ public class WinNativeModuleUtil {
 		}
 	}
 
+	/**
+	 * Добавляет detail to.
+	 *
+	 * @param section section
+	 */
 	public static void addDetailTo(CrashReportSection section) {
 		section.add(
 				"Modules",

@@ -216,6 +216,13 @@ public interface SlotDisplay {
 
 		public static final SlotDisplay.NoopDisplayedItemFactory INSTANCE = new SlotDisplay.NoopDisplayedItemFactory();
 
+		/**
+		 * To displayed.
+		 *
+		 * @param itemStack item stack
+		 *
+		 * @return ItemStack — результат операции
+		 */
 		public ItemStack toDisplayed(ItemStack itemStack) {
 			return itemStack;
 		}

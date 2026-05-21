@@ -11,6 +11,9 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс entity set head yaw s2 c packet.
+ */
 public class EntitySetHeadYawS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, EntitySetHeadYawS2CPacket> CODEC = Packet.createCodec(
@@ -39,6 +42,11 @@ public class EntitySetHeadYawS2CPacket implements Packet<ClientPlayPacketListene
 		return PlayPackets.ROTATE_HEAD;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntitySetHeadYaw(this);
 	}

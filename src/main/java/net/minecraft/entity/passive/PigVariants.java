@@ -26,6 +26,11 @@ public class PigVariants {
 		return RegistryKey.of(RegistryKeys.PIG_VARIANT, id);
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<PigVariant> registry) {
 		register(
 				registry,

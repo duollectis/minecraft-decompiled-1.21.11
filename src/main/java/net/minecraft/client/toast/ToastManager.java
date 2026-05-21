@@ -38,6 +38,9 @@ public class ToastManager {
 		this.initMusicToast(gameOptions.getMusicToast().getValue());
 	}
 
+	/**
+	 * Update.
+	 */
 	public void update() {
 		MutableBoolean mutableBoolean = new MutableBoolean(false);
 		this.visibleEntries.removeIf(entry -> {
@@ -82,6 +85,11 @@ public class ToastManager {
 		}
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param context context
+	 */
 	public void draw(DrawContext context) {
 		if (!this.client.options.hudHidden) {
 			int i = context.getScaledWindowWidth();
@@ -141,16 +149,27 @@ public class ToastManager {
 		return null;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.occupiedSpaces.clear();
 		this.visibleEntries.clear();
 		this.toastQueue.clear();
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param toast toast
+	 */
 	public void add(Toast toast) {
 		this.toastQueue.add(toast);
 	}
 
+	/**
+	 * Обрабатывает событие music track start.
+	 */
 	public void onMusicTrackStart() {
 		if (this.nowPlayingToast != null) {
 			this.nowPlayingToast.init();
@@ -158,6 +177,9 @@ public class ToastManager {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие music track stop.
+	 */
 	public void onMusicTrackStop() {
 		if (this.nowPlayingToast != null) {
 			this.nowPlayingToast.getInstance().setVisibility(Toast.Visibility.HIDE);
@@ -180,6 +202,11 @@ public class ToastManager {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие music toast mode updated.
+	 *
+	 * @param toastMode toast mode
+	 */
 	public void onMusicToastModeUpdated(MusicToastMode toastMode) {
 		switch (toastMode) {
 			case PAUSE:
@@ -224,6 +251,9 @@ public class ToastManager {
 			return this.instance;
 		}
 
+		/**
+		 * Init.
+		 */
 		public void init() {
 			this.startTime = -1L;
 			this.fullyVisibleTime = -1L;
@@ -248,6 +278,9 @@ public class ToastManager {
 			}
 		}
 
+		/**
+		 * Update.
+		 */
 		public void update() {
 			long l = Util.getMeasuringTimeMs();
 			if (this.startTime == -1L) {
@@ -275,6 +308,12 @@ public class ToastManager {
 			}
 		}
 
+		/**
+		 * Draw.
+		 *
+		 * @param context context
+		 * @param scaledWindowWidth scaled window width
+		 */
 		public void draw(DrawContext context, int scaledWindowWidth) {
 			if (!this.finishedRendering) {
 				context.getMatrices().pushMatrix();

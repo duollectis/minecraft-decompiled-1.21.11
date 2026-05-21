@@ -209,6 +209,12 @@ public class InGameHud {
 		this.titleFadeOutTicks = 20;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 * @param tickCounter tick counter
+	 */
 	public void render(DrawContext context, RenderTickCounter tickCounter) {
 		if (!(this.client.currentScreen instanceof LevelLoadingScreen)) {
 			if (!this.client.options.hudHidden) {
@@ -243,6 +249,11 @@ public class InGameHud {
 		this.bossBarHud.render(context);
 	}
 
+	/**
+	 * Отрисовывает debug hud.
+	 *
+	 * @param context context
+	 */
 	public void renderDebugHud(DrawContext context) {
 		this.debugHud.render(context);
 	}
@@ -257,6 +268,9 @@ public class InGameHud {
 		}
 	}
 
+	/**
+	 * Отрисовывает deferred subtitles.
+	 */
 	public void renderDeferredSubtitles() {
 		if (this.deferredSubtitleRenderer != null) {
 			this.deferredSubtitleRenderer.run();
@@ -1401,6 +1415,11 @@ public class InGameHud {
 		}
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param paused paused
+	 */
 	public void tick(boolean paused) {
 		this.tickAutosaveIndicator();
 		if (!paused) {
@@ -1471,6 +1490,11 @@ public class InGameHud {
 		this.canShowChatDisabledScreen = canShowChatDisabledScreen;
 	}
 
+	/**
+	 * Определяет, следует ли show chat disabled screen.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowChatDisabledScreen() {
 		return this.canShowChatDisabledScreen && this.overlayRemaining > 0;
 	}
@@ -1502,6 +1526,9 @@ public class InGameHud {
 		this.titleRemainTicks = this.titleFadeInTicks + this.titleStayTicks + this.titleFadeOutTicks;
 	}
 
+	/**
+	 * Очищает title.
+	 */
 	public void clearTitle() {
 		this.title = null;
 		this.subtitle = null;
@@ -1528,6 +1555,9 @@ public class InGameHud {
 		return this.playerListHud;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.playerListHud.clear();
 		this.bossBarHud.clear();
@@ -1546,10 +1576,19 @@ public class InGameHud {
 		return this.debugHud;
 	}
 
+	/**
+	 * Сбрасывает debug hud chunk.
+	 */
 	public void resetDebugHudChunk() {
 		this.debugHud.resetChunk();
 	}
 
+	/**
+	 * Отрисовывает autosave indicator.
+	 *
+	 * @param context context
+	 * @param tickCounter tick counter
+	 */
 	public void renderAutosaveIndicator(DrawContext context, RenderTickCounter tickCounter) {
 		if (this.client.options.getShowAutosaveIndicator().getValue() && (this.autosaveIndicatorAlpha > 0.0F
 				|| this.lastAutosaveIndicatorAlpha > 0.0F

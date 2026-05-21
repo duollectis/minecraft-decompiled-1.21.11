@@ -26,6 +26,11 @@ public class ZombieNautilusVariants {
 		return RegistryKey.of(RegistryKeys.ZOMBIE_NAUTILUS_VARIANT, id);
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<ZombieNautilusVariant> registry) {
 		register(
 				registry,

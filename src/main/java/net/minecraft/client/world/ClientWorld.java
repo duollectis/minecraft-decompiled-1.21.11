@@ -152,6 +152,11 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	private boolean shouldTickTimeOfDay;
 	private static final Set<Item> BLOCK_MARKER_ITEMS = Set.of(Items.BARRIER, Items.LIGHT);
 
+	/**
+	 * Обрабатывает player action response.
+	 *
+	 * @param sequence sequence
+	 */
 	public void handlePlayerActionResponse(int sequence) {
 		if (SharedConstants.BLOCK_BREAK) {
 			LOGGER.debug("ACK {}", sequence);
@@ -174,12 +179,26 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return this.blockEntities;
 	}
 
+	/**
+	 * Обрабатывает block update.
+	 *
+	 * @param pos pos
+	 * @param state state
+	 * @param flags flags
+	 */
 	public void handleBlockUpdate(BlockPos pos, BlockState state, @Block.SetBlockStateFlag int flags) {
 		if (!this.pendingUpdateManager.hasPendingUpdate(pos, state)) {
 			super.setBlockState(pos, state, flags, 512);
 		}
 	}
 
+	/**
+	 * Обрабатывает pending update.
+	 *
+	 * @param pos pos
+	 * @param state state
+	 * @param playerPos player pos
+	 */
 	public void processPendingUpdate(BlockPos pos, BlockState state, Vec3d playerPos) {
 		BlockState blockState = this.getBlockState(pos);
 		if (blockState != state) {
@@ -270,10 +289,18 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return builder;
 	}
 
+	/**
+	 * Enqueue chunk update.
+	 *
+	 * @param updater updater
+	 */
 	public void enqueueChunkUpdate(Runnable updater) {
 		this.chunkUpdaters.add(updater);
 	}
 
+	/**
+	 * Run queued chunk updates.
+	 */
 	public void runQueuedChunkUpdates() {
 		int i = this.chunkUpdaters.size();
 		int j = i < 1000 ? Math.max(10, i / 10) : i;
@@ -292,6 +319,11 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return this.endLightFlashManager;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param shouldKeepTicking should keep ticking
+	 */
 	public void tick(BooleanSupplier shouldKeepTicking) {
 		this.calculateAmbientDarkness();
 		if (this.getTickManager().shouldTick()) {
@@ -349,6 +381,9 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return this.getEntityLookup().iterate();
 	}
 
+	/**
+	 * Выполняет тик обновления для entities.
+	 */
 	public void tickEntities() {
 		this.entityList.forEach(entity -> {
 			if (!entity.isRemoved() && !entity.hasVehicle() && !this.tickManager.shouldSkipTick(entity)) {
@@ -366,6 +401,11 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return entity.getChunkPos().getChebyshevDistance(this.client.player.getChunkPos()) <= this.simulationDistance;
 	}
 
+	/**
+	 * Выполняет тик обновления для entity.
+	 *
+	 * @param entity entity
+	 */
 	public void tickEntity(Entity entity) {
 		entity.resetPosition();
 		entity.age++;
@@ -393,21 +433,39 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		}
 	}
 
+	/**
+	 * Unload block entities.
+	 *
+	 * @param chunk chunk
+	 */
 	public void unloadBlockEntities(WorldChunk chunk) {
 		chunk.clear();
 		this.chunkManager.getLightingProvider().setColumnEnabled(chunk.getPos(), false);
 		this.entityManager.stopTicking(chunk.getPos());
 	}
 
+	/**
+	 * Сбрасывает chunk color.
+	 *
+	 * @param chunkPos chunk pos
+	 */
 	public void resetChunkColor(ChunkPos chunkPos) {
 		this.colorCache.forEach((resolver, cache) -> cache.reset(chunkPos.x, chunkPos.z));
 		this.entityManager.startTicking(chunkPos);
 	}
 
+	/**
+	 * Обрабатывает событие chunk unload.
+	 *
+	 * @param sectionPos section pos
+	 */
 	public void onChunkUnload(long sectionPos) {
 		this.worldRenderer.onChunkUnload(sectionPos);
 	}
 
+	/**
+	 * Reload color.
+	 */
 	public void reloadColor() {
 		this.colorCache.forEach((resolver, cache) -> cache.reset());
 	}
@@ -421,11 +479,22 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return this.entityManager.getEntityCount();
 	}
 
+	/**
+	 * Добавляет entity.
+	 *
+	 * @param entity entity
+	 */
 	public void addEntity(Entity entity) {
 		this.removeEntity(entity.getId(), Entity.RemovalReason.DISCARDED);
 		this.entityManager.addEntity(entity);
 	}
 
+	/**
+	 * Удаляет entity.
+	 *
+	 * @param entityId entity id
+	 * @param removalReason removal reason
+	 */
 	public void removeEntity(int entityId, Entity.RemovalReason removalReason) {
 		Entity entity = this.getEntityLookup().get(entityId);
 		if (entity != null) {
@@ -450,10 +519,22 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return this.getEntityLookup().get(id);
 	}
 
+	/**
+	 * Disconnect.
+	 *
+	 * @param reasonText reason text
+	 */
 	public void disconnect(Text reasonText) {
 		this.networkHandler.getConnection().disconnect(reasonText);
 	}
 
+	/**
+	 * Do random block display ticks.
+	 *
+	 * @param centerX center x
+	 * @param centerY center y
+	 * @param centerZ center z
+	 */
 	public void doRandomBlockDisplayTicks(int centerX, int centerY, int centerZ) {
 		int i = 32;
 		Random random = Random.create();
@@ -790,6 +871,12 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return this.mapStates.get(id);
 	}
 
+	/**
+	 * Put clientside map state.
+	 *
+	 * @param id id
+	 * @param state state
+	 */
 	public void putClientsideMapState(MapIdComponent id, MapState state) {
 		this.mapStates.put(id, state);
 	}
@@ -814,10 +901,27 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		this.worldRenderer.scheduleBlockRerenderIfNeeded(pos, old, updated);
 	}
 
+	/**
+	 * Schedule block renders.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	public void scheduleBlockRenders(int x, int y, int z) {
 		this.worldRenderer.scheduleChunkRenders3x3x3(x, y, z);
 	}
 
+	/**
+	 * Schedule chunk renders.
+	 *
+	 * @param minX min x
+	 * @param minY min y
+	 * @param minZ min z
+	 * @param maxX max x
+	 * @param maxY max y
+	 * @param maxZ max z
+	 */
 	public void scheduleChunkRenders(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 		this.worldRenderer.scheduleChunkRenders(minX, minY, minZ, maxX, maxY, maxZ);
 	}
@@ -1029,6 +1133,14 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return biomeColorCache.getBiomeColor(pos);
 	}
 
+	/**
+	 * Вычисляет color.
+	 *
+	 * @param pos pos
+	 * @param colorResolver color resolver
+	 *
+	 * @return int — результат операции
+	 */
 	public int calculateColor(BlockPos pos, ColorResolver colorResolver) {
 		int i = MinecraftClient.getInstance().options.getBiomeBlendRadius().getValue();
 		if (i == 0) {
@@ -1083,6 +1195,11 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		return ImmutableMap.copyOf(this.mapStates);
 	}
 
+	/**
+	 * Put map states.
+	 *
+	 * @param mapStates map states
+	 */
 	public void putMapStates(Map<MapIdComponent, MapState> mapStates) {
 		this.mapStates.putAll(mapStates);
 	}
@@ -1141,6 +1258,12 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 		}
 	}
 
+	/**
+	 * Создаёт (спавнит) block breaking particle.
+	 *
+	 * @param pos pos
+	 * @param direction direction
+	 */
 	public void spawnBlockBreakingParticle(BlockPos pos, Direction direction) {
 		BlockState blockState = this.getBlockState(pos);
 		if (blockState.getRenderType() != BlockRenderType.INVISIBLE && blockState.hasBlockBreakParticles()) {
@@ -1253,20 +1376,45 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 	 */
 	final class ClientEntityHandler implements EntityHandler<Entity> {
 
+		/**
+		 * Create.
+		 *
+		 * @param entity entity
+		 */
 		public void create(Entity entity) {
 		}
 
+		/**
+		 * Destroy.
+		 *
+		 * @param entity entity
+		 */
 		public void destroy(Entity entity) {
 		}
 
+		/**
+		 * Запускает ticking.
+		 *
+		 * @param entity entity
+		 */
 		public void startTicking(Entity entity) {
 			ClientWorld.this.entityList.add(entity);
 		}
 
+		/**
+		 * Останавливает ticking.
+		 *
+		 * @param entity entity
+		 */
 		public void stopTicking(Entity entity) {
 			ClientWorld.this.entityList.remove(entity);
 		}
 
+		/**
+		 * Запускает tracking.
+		 *
+		 * @param entity entity
+		 */
 		public void startTracking(Entity entity) {
 			switch (entity) {
 				case AbstractClientPlayerEntity abstractClientPlayerEntity:
@@ -1279,6 +1427,11 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			}
 		}
 
+		/**
+		 * Останавливает tracking.
+		 *
+		 * @param entity entity
+		 */
 		public void stopTracking(Entity entity) {
 			entity.detach();
 			switch (entity) {
@@ -1292,6 +1445,11 @@ public class ClientWorld extends World implements DataCache.CacheContext<ClientW
 			}
 		}
 
+		/**
+		 * Обновляет load status.
+		 *
+		 * @param entity entity
+		 */
 		public void updateLoadStatus(Entity entity) {
 		}
 	}

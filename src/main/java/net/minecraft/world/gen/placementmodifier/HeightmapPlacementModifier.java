@@ -27,6 +27,13 @@ public class HeightmapPlacementModifier extends PlacementModifier {
 		this.heightmap = heightmap;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param heightmap heightmap
+	 *
+	 * @return HeightmapPlacementModifier — результат операции
+	 */
 	public static HeightmapPlacementModifier of(Heightmap.Type heightmap) {
 		return new HeightmapPlacementModifier(heightmap);
 	}

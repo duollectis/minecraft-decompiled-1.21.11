@@ -31,6 +31,11 @@ public class MagmaCubeEntityRenderer extends MobEntityRenderer<MagmaCubeEntity, 
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SlimeEntityRenderState — результат операции
+	 */
 	public SlimeEntityRenderState createRenderState() {
 		return new SlimeEntityRenderState();
 	}
@@ -49,6 +54,12 @@ public class MagmaCubeEntityRenderer extends MobEntityRenderer<MagmaCubeEntity, 
 		return slimeEntityRenderState.size * 0.25F;
 	}
 
+	/**
+	 * Scale.
+	 *
+	 * @param slimeEntityRenderState slime entity render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void scale(SlimeEntityRenderState slimeEntityRenderState, MatrixStack matrixStack) {
 		int i = slimeEntityRenderState.size;
 		float f = slimeEntityRenderState.stretch / (i * 0.5F + 1.0F);

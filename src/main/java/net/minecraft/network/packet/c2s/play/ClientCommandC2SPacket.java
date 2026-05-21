@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс client command c2 s packet.
+ */
 public class ClientCommandC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ClientCommandC2SPacket>
@@ -44,6 +47,11 @@ public class ClientCommandC2SPacket implements Packet<ServerPlayPacketListener> 
 		return PlayPackets.PLAYER_COMMAND;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onClientCommand(this);
 	}

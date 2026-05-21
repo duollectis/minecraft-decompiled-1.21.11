@@ -72,6 +72,15 @@ public class RedstoneTorchBlock extends AbstractTorchBlock {
 		return state.get(LIT) && Direction.UP != direction ? 15 : 0;
 	}
 
+	/**
+	 * Определяет, следует ли unpower.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldUnpower(World world, BlockPos pos, BlockState state) {
 		return world.isEmittingRedstonePower(pos.down(), Direction.DOWN);
 	}

@@ -24,6 +24,14 @@ public class BreezeMovementUtil {
 		return target.getEntityPos().add(vec3d);
 	}
 
+	/**
+	 * Проверяет возможность move to.
+	 *
+	 * @param breeze breeze
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canMoveTo(BreezeEntity breeze, Vec3d pos) {
 		Vec3d vec3d = new Vec3d(breeze.getX(), breeze.getY(), breeze.getZ());
 		return pos.distanceTo(vec3d) > getMaxMoveDistance(breeze)

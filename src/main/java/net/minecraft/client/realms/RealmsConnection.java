@@ -39,6 +39,12 @@ public class RealmsConnection {
 		this.onlineScreen = onlineScreen;
 	}
 
+	/**
+	 * Connect.
+	 *
+	 * @param server server
+	 * @param address address
+	 */
 	public void connect(RealmsServer server, ServerAddress address) {
 		final MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		minecraftClient.loadBlockList();
@@ -132,6 +138,9 @@ public class RealmsConnection {
 				.start();
 	}
 
+	/**
+	 * Abort.
+	 */
 	public void abort() {
 		this.aborted = true;
 		if (this.connection != null && this.connection.isOpen()) {
@@ -140,6 +149,9 @@ public class RealmsConnection {
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.connection != null) {
 			if (this.connection.isOpen()) {

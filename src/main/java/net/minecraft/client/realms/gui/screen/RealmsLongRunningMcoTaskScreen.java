@@ -103,6 +103,9 @@ public class RealmsLongRunningMcoTaskScreen extends RealmsScreen {
 		SimplePositioningWidget.setPos(this.layout, this.getNavigationFocus());
 	}
 
+	/**
+	 * Обрабатывает событие cancel.
+	 */
 	protected void onCancel() {
 		for (LongRunningTask longRunningTask : this.tasks) {
 			longRunningTask.abortTask();

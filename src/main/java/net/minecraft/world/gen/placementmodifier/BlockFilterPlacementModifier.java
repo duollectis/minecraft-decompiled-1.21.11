@@ -25,6 +25,13 @@ public class BlockFilterPlacementModifier extends AbstractConditionalPlacementMo
 		this.predicate = predicate;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param predicate predicate
+	 *
+	 * @return BlockFilterPlacementModifier — результат операции
+	 */
 	public static BlockFilterPlacementModifier of(BlockPredicate predicate) {
 		return new BlockFilterPlacementModifier(predicate);
 	}

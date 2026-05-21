@@ -27,6 +27,11 @@ public class RecipeCommand {
 			TAKE_FAILED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.recipe.take.failed"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager

@@ -21,6 +21,11 @@ public class RealmsServerFilterer implements Iterable<RealmsServer> {
 		this.client = client;
 	}
 
+	/**
+	 * Filter and sort.
+	 *
+	 * @param servers servers
+	 */
 	public void filterAndSort(List<RealmsServer> servers) {
 		List<RealmsServer> list = new ArrayList<>(servers);
 		list.sort(new RealmsServer.McoServerComparator(this.client.getSession().getUsername()));
@@ -32,6 +37,11 @@ public class RealmsServerFilterer implements Iterable<RealmsServer> {
 		this.sortedServers = list;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param server server
+	 */
 	public void remove(RealmsServer server) {
 		this.sortedServers.remove(server);
 		this.removedServers.add(server);

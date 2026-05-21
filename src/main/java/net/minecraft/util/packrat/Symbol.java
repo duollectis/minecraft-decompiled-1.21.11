@@ -10,6 +10,13 @@ public record Symbol<T>(String name) {
 		return "<" + this.name + ">";
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param name name
+	 *
+	 * @return Symbol — результат операции
+	 */
 	public static <T> Symbol<T> of(String name) {
 		return new Symbol<>(name);
 	}

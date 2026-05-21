@@ -32,6 +32,13 @@ public class Generic3x3ContainerScreenHandler extends ScreenHandler {
 		this.addPlayerSlots(playerInventory, 8, 84);
 	}
 
+	/**
+	 * Добавляет 3x3 slots.
+	 *
+	 * @param inventory inventory
+	 * @param x x
+	 * @param y y
+	 */
 	protected void add3x3Slots(Inventory inventory, int x, int y) {
 		for (int i = 0; i < 3; i++) {
 			for (int j = 0; j < 3; j++) {

@@ -13,6 +13,9 @@ import net.minecraft.util.Identifier;
 
 import java.util.Optional;
 
+/**
+ * Запись custom click action c2 s packet.
+ */
 public record CustomClickActionC2SPacket(
 		Identifier id,
 		Optional<NbtElement> payload
@@ -35,6 +38,11 @@ public record CustomClickActionC2SPacket(
 		return CommonPackets.CUSTOM_CLICK_ACTION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverCommonPacketListener server common packet listener
+	 */
 	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
 		serverCommonPacketListener.onCustomClickAction(this);
 	}

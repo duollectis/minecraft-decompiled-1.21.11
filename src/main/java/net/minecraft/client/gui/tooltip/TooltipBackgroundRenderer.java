@@ -23,6 +23,16 @@ public class TooltipBackgroundRenderer {
 	public static final int RIGHT_PADDING = 3;
 	private static final int CORNER_SIZE = 9;
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param height height
+	 * @param texture texture
+	 */
 	public static void render(DrawContext context, int x, int y, int width, int height, @Nullable Identifier texture) {
 		int i = x - 3 - 9;
 		int j = y - 3 - 9;

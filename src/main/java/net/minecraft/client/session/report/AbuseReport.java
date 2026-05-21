@@ -31,12 +31,32 @@ public abstract class AbuseReport {
 		this.reportedPlayerUuid = reportedPlayerUuid;
 	}
 
+	/**
+	 * Player uuid equals.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean playerUuidEquals(UUID uuid) {
 		return uuid.equals(this.reportedPlayerUuid);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return AbuseReport — результат операции
+	 */
 	public abstract AbuseReport copy();
 
+	/**
+	 * Создаёт report screen.
+	 *
+	 * @param parent parent
+	 * @param context context
+	 *
+	 * @return Screen — результат операции
+	 */
 	public abstract Screen createReportScreen(Screen parent, AbuseReportContext context);
 
 	@Environment(EnvType.CLIENT)
@@ -127,6 +147,11 @@ public abstract class AbuseReport {
 				NOT_ATTESTED =
 				new AbuseReport.ValidationError(Text.translatable("gui.abuseReport.send.not_attested"));
 
+		/**
+		 * Создаёт tooltip.
+		 *
+		 * @return Tooltip — результат операции
+		 */
 		public Tooltip createTooltip() {
 			return Tooltip.of(this.message);
 		}

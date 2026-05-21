@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PingPackets;
 
+/**
+ * Класс query ping c2 s packet.
+ */
 public class QueryPingC2SPacket implements Packet<ServerQueryPingPacketListener> {
 
 	public static final PacketCodec<ByteBuf, QueryPingC2SPacket>
@@ -31,6 +34,11 @@ public class QueryPingC2SPacket implements Packet<ServerQueryPingPacketListener>
 		return PingPackets.PING_REQUEST;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverQueryPingPacketListener server query ping packet listener
+	 */
 	public void apply(ServerQueryPingPacketListener serverQueryPingPacketListener) {
 		serverQueryPingPacketListener.onQueryPing(this);
 	}

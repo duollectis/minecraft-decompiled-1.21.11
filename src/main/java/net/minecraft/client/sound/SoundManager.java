@@ -120,6 +120,13 @@ public class SoundManager extends SinglePreparationResourceReloader<SoundManager
 		return soundList;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param soundList sound list
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(SoundManager.SoundList soundList, ResourceManager resourceManager, Profiler profiler) {
 		soundList.reload(this.sounds, this.soundResources, this.soundSystem);
 		if (SharedConstants.isDevelopment) {
@@ -162,6 +169,13 @@ public class SoundManager extends SinglePreparationResourceReloader<SoundManager
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable WeightedSoundSet — 
+	 */
 	public @Nullable WeightedSoundSet get(Identifier id) {
 		return this.sounds.get(id);
 	}
@@ -170,6 +184,11 @@ public class SoundManager extends SinglePreparationResourceReloader<SoundManager
 		return this.sounds.keySet();
 	}
 
+	/**
+	 * Play next tick.
+	 *
+	 * @param sound sound
+	 */
 	public void playNextTick(TickableSoundInstance sound) {
 		this.soundSystem.playNextTick(sound);
 	}
@@ -178,42 +197,85 @@ public class SoundManager extends SinglePreparationResourceReloader<SoundManager
 		return this.soundSystem.play(sound);
 	}
 
+	/**
+	 * Play.
+	 *
+	 * @param sound sound
+	 * @param delay delay
+	 */
 	public void play(SoundInstance sound, int delay) {
 		this.soundSystem.play(sound, delay);
 	}
 
+	/**
+	 * Обновляет listener position.
+	 *
+	 * @param camera camera
+	 */
 	public void updateListenerPosition(Camera camera) {
 		this.soundSystem.updateListenerPosition(camera);
 	}
 
+	/**
+	 * Pause all except.
+	 *
+	 * @param categories categories
+	 */
 	public void pauseAllExcept(SoundCategory... categories) {
 		this.soundSystem.pauseAllExcept(categories);
 	}
 
+	/**
+	 * Останавливает all.
+	 */
 	public void stopAll() {
 		this.soundSystem.stopAll();
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		this.soundSystem.stop();
 	}
 
+	/**
+	 * Останавливает abruptly.
+	 */
 	public void stopAbruptly() {
 		this.soundSystem.stopAbruptly();
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param paused paused
+	 */
 	public void tick(boolean paused) {
 		this.soundSystem.tick(paused);
 	}
 
+	/**
+	 * Resume all.
+	 */
 	public void resumeAll() {
 		this.soundSystem.resumeAll();
 	}
 
+	/**
+	 * Refresh sound volumes.
+	 *
+	 * @param category category
+	 */
 	public void refreshSoundVolumes(SoundCategory category) {
 		this.soundSystem.refreshSoundVolumes(category);
 	}
 
+	/**
+	 * Stop.
+	 *
+	 * @param sound sound
+	 */
 	public void stop(SoundInstance sound) {
 		this.soundSystem.stop(sound);
 	}
@@ -226,14 +288,30 @@ public class SoundManager extends SinglePreparationResourceReloader<SoundManager
 		return this.soundSystem.isPlaying(sound);
 	}
 
+	/**
+	 * Регистрирует listener.
+	 *
+	 * @param listener listener
+	 */
 	public void registerListener(SoundInstanceListener listener) {
 		this.soundSystem.registerListener(listener);
 	}
 
+	/**
+	 * Отменяет регистрацию listener.
+	 *
+	 * @param listener listener
+	 */
 	public void unregisterListener(SoundInstanceListener listener) {
 		this.soundSystem.unregisterListener(listener);
 	}
 
+	/**
+	 * Останавливает sounds.
+	 *
+	 * @param id id
+	 * @param soundCategory sound category
+	 */
 	public void stopSounds(@Nullable Identifier id, @Nullable SoundCategory soundCategory) {
 		this.soundSystem.stopSounds(id, soundCategory);
 	}
@@ -242,6 +320,9 @@ public class SoundManager extends SinglePreparationResourceReloader<SoundManager
 		return this.soundSystem.getDebugString();
 	}
 
+	/**
+	 * Reload sounds.
+	 */
 	public void reloadSounds() {
 		this.soundSystem.reloadSounds();
 	}

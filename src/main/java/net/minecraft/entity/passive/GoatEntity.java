@@ -178,6 +178,14 @@ public class GoatEntity extends AnimalEntity {
 		return this.isScreaming() ? SoundEvents.ENTITY_GOAT_SCREAMING_MILK : SoundEvents.ENTITY_GOAT_MILK;
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable GoatEntity — результат операции
+	 */
 	public @Nullable GoatEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		GoatEntity goatEntity = EntityType.GOAT.create(serverWorld, SpawnReason.BREEDING);
 		if (goatEntity != null) {
@@ -345,6 +353,11 @@ public class GoatEntity extends AnimalEntity {
 		return this.dataTracker.get(RIGHT_HORN);
 	}
 
+	/**
+	 * Бросает horn.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean dropHorn() {
 		boolean bl = this.hasLeftHorn();
 		boolean bl2 = this.hasRightHorn();
@@ -377,11 +390,17 @@ public class GoatEntity extends AnimalEntity {
 		}
 	}
 
+	/**
+	 * Добавляет horns.
+	 */
 	public void addHorns() {
 		this.dataTracker.set(LEFT_HORN, true);
 		this.dataTracker.set(RIGHT_HORN, true);
 	}
 
+	/**
+	 * Удаляет horns.
+	 */
 	public void removeHorns() {
 		this.dataTracker.set(LEFT_HORN, false);
 		this.dataTracker.set(RIGHT_HORN, false);

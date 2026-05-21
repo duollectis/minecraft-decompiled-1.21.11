@@ -105,10 +105,25 @@ public abstract class AbstractCauldronBlock extends Block {
 		}
 	}
 
+	/**
+	 * Проверяет возможность be filled by dripstone.
+	 *
+	 * @param fluid fluid
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canBeFilledByDripstone(Fluid fluid) {
 		return false;
 	}
 
+	/**
+	 * Fill from dripstone.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param fluid fluid
+	 */
 	protected void fillFromDripstone(BlockState state, World world, BlockPos pos, Fluid fluid) {
 	}
 }

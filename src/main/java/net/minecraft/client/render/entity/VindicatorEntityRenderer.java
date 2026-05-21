@@ -43,6 +43,11 @@ public class VindicatorEntityRenderer extends IllagerEntityRenderer<VindicatorEn
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return IllagerEntityRenderState — результат операции
+	 */
 	public IllagerEntityRenderState createRenderState() {
 		return new IllagerEntityRenderState();
 	}

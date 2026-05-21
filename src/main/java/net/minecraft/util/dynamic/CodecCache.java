@@ -24,18 +24,49 @@ public class CodecCache {
 						.concurrencyLevel(1)
 						.softValues()
 						.build(new CacheLoader<CodecCache.Key<?, ?>, DataResult<?>>() {
+							/**
+							 * Load.
+							 *
+							 * @param key key
+							 *
+							 * @return DataResult — результат операции
+							 */
 							public DataResult<?> load(CodecCache.Key<?, ?> key) {
 								return key.encode();
 							}
 						});
 	}
 
+	/**
+	 * Wrap.
+	 *
+	 * @param codec codec
+	 *
+	 * @return Codec — результат операции
+	 */
 	public <A> Codec<A> wrap(Codec<A> codec) {
 		return new Codec<A>() {
+			/**
+			 * Decode.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 *
+			 * @return DataResult> — результат операции
+			 */
 			public <T> DataResult<Pair<A, T>> decode(DynamicOps<T> ops, T input) {
 				return codec.decode(ops, input);
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param value value
+			 * @param ops ops
+			 * @param prefix prefix
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<T> encode(A value, DynamicOps<T> ops, T prefix) {
 				return ((DataResult) CodecCache.this.cache.getUnchecked(new CodecCache.Key(codec, value, ops)))
 						.map(object -> object instanceof NbtElement nbtElement ? nbtElement.copy() : object);
@@ -48,6 +79,11 @@ public class CodecCache {
 	 */
 	record Key<A, T>(Codec<A> codec, A value, DynamicOps<T> ops) {
 
+		/**
+		 * Encode.
+		 *
+		 * @return DataResult — результат операции
+		 */
 		public DataResult<T> encode() {
 			return this.codec.encodeStart(this.ops, this.value);
 		}

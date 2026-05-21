@@ -158,6 +158,13 @@ public final class NoiseChunkGenerator extends ChunkGenerator {
 		return this.settings;
 	}
 
+	/**
+	 * Matches settings.
+	 *
+	 * @param settings settings
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matchesSettings(RegistryKey<ChunkGeneratorSettings> settings) {
 		return this.settings.matchesKey(settings);
 	}

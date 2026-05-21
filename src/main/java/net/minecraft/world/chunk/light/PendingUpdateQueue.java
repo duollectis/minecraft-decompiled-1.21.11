@@ -17,6 +17,11 @@ public class PendingUpdateQueue {
 
 		for (int i = 0; i < levelCount; i++) {
 			this.pendingIdUpdatesByLevel[i] = new LongLinkedOpenHashSet(expectedLevelSize, 0.5F) {
+				/**
+				 * Rehash.
+				 *
+				 * @param newN new n
+				 */
 				protected void rehash(int newN) {
 					if (newN > expectedLevelSize) {
 						super.rehash(newN);
@@ -28,6 +33,11 @@ public class PendingUpdateQueue {
 		this.minPendingLevel = levelCount;
 	}
 
+	/**
+	 * Dequeue.
+	 *
+	 * @return long — результат операции
+	 */
 	public long dequeue() {
 		LongLinkedOpenHashSet longLinkedOpenHashSet = this.pendingIdUpdatesByLevel[this.minPendingLevel];
 		long l = longLinkedOpenHashSet.removeFirstLong();
@@ -42,6 +52,13 @@ public class PendingUpdateQueue {
 		return this.minPendingLevel >= this.levelCount;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param id id
+	 * @param level level
+	 * @param levelCount level count
+	 */
 	public void remove(long id, int level, int levelCount) {
 		LongLinkedOpenHashSet longLinkedOpenHashSet = this.pendingIdUpdatesByLevel[level];
 		longLinkedOpenHashSet.remove(id);
@@ -50,6 +67,12 @@ public class PendingUpdateQueue {
 		}
 	}
 
+	/**
+	 * Enqueue.
+	 *
+	 * @param id id
+	 * @param level level
+	 */
 	public void enqueue(long id, int level) {
 		this.pendingIdUpdatesByLevel[level].add(id);
 		if (this.minPendingLevel > level) {

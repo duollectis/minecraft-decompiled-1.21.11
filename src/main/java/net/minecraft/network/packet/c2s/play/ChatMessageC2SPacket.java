@@ -12,6 +12,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.time.Instant;
 
+/**
+ * Запись chat message c2 s packet.
+ */
 public record ChatMessageC2SPacket(
 		String chatMessage,
 		Instant timestamp,
@@ -47,6 +50,11 @@ public record ChatMessageC2SPacket(
 		return PlayPackets.CHAT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onChatMessage(this);
 	}

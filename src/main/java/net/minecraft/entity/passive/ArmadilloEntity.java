@@ -97,6 +97,11 @@ public class ArmadilloEntity extends AnimalEntity {
 		return this.getState().isRolledUp(this.currentStateTicks);
 	}
 
+	/**
+	 * Определяет, следует ли switch to scared state.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSwitchToScaredState() {
 		return this.getState() == ArmadilloEntity.State.ROLLING
 				&& this.currentStateTicks > ArmadilloEntity.State.ROLLING.getLengthInTicks();
@@ -283,6 +288,9 @@ public class ArmadilloEntity extends AnimalEntity {
 		view.getOptionalInt("scute_time").ifPresent(scuteTime -> this.nextScuteShedCooldown = scuteTime);
 	}
 
+	/**
+	 * Запускает rolling.
+	 */
 	public void startRolling() {
 		if (!this.isNotIdle()) {
 			this.stopMovement();
@@ -293,6 +301,9 @@ public class ArmadilloEntity extends AnimalEntity {
 		}
 	}
 
+	/**
+	 * Unroll.
+	 */
 	public void unroll() {
 		if (this.isNotIdle()) {
 			this.emitGameEvent(GameEvent.ENTITY_ACTION);
@@ -338,6 +349,14 @@ public class ArmadilloEntity extends AnimalEntity {
 		}
 	}
 
+	/**
+	 * Brush scute.
+	 *
+	 * @param interactingEntity interacting entity
+	 * @param tool tool
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean brushScute(@Nullable Entity interactingEntity, ItemStack tool) {
 		if (this.isBaby()) {
 			return false;
@@ -359,6 +378,11 @@ public class ArmadilloEntity extends AnimalEntity {
 		}
 	}
 
+	/**
+	 * Проверяет возможность roll up.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canRollUp() {
 		return !this.isPanicking() && !this.isInFluid() && !this.isLeashed() && !this.hasVehicle()
 				&& !this.hasPassengers();
@@ -470,6 +494,11 @@ public class ArmadilloEntity extends AnimalEntity {
 
 		public abstract boolean isRolledUp(long currentStateTicks);
 
+		/**
+		 * Определяет, следует ли run roll up task.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldRunRollUpTask() {
 			return this.runRollUpTask;
 		}

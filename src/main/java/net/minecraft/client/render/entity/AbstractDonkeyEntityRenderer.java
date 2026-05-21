@@ -43,10 +43,22 @@ public class AbstractDonkeyEntityRenderer<T extends AbstractDonkeyEntity> extend
 		return this.texture;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return DonkeyEntityRenderState — результат операции
+	 */
 	public DonkeyEntityRenderState createRenderState() {
 		return new DonkeyEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param abstractDonkeyEntity abstract donkey entity
+	 * @param donkeyEntityRenderState donkey entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T abstractDonkeyEntity, DonkeyEntityRenderState donkeyEntityRenderState, float f) {
 		super.updateRenderState(abstractDonkeyEntity, donkeyEntityRenderState, f);
 		donkeyEntityRenderState.hasChest = abstractDonkeyEntity.hasChest();

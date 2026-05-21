@@ -39,8 +39,23 @@ public class TextCodecs {
 			);
 	public static final PacketCodec<ByteBuf, Text> PACKET_CODEC = PacketCodecs.unlimitedCodec(CODEC);
 
+	/**
+	 * With json length limit.
+	 *
+	 * @param maxLength max length
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<Text> withJsonLengthLimit(int maxLength) {
 		return new Codec<Text>() {
+			/**
+			 * Decode.
+			 *
+			 * @param ops ops
+			 * @param value value
+			 *
+			 * @return DataResult> — результат операции
+			 */
 			public <T> DataResult<Pair<Text, T>> decode(DynamicOps<T> ops, T value) {
 				return TextCodecs.CODEC
 						.decode(ops, value)
@@ -52,6 +67,15 @@ public class TextCodecs {
 						);
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param text text
+			 * @param dynamicOps dynamic ops
+			 * @param object object
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<T> encode(Text text, DynamicOps<T> dynamicOps, T object) {
 				return TextCodecs.CODEC.encodeStart(dynamicOps, text);
 			}
@@ -147,15 +171,39 @@ public class TextCodecs {
 			this.withoutKeyCodec = withoutKeyCodec;
 		}
 
+		/**
+		 * Decode.
+		 *
+		 * @param ops ops
+		 * @param input input
+		 *
+		 * @return DataResult — результат операции
+		 */
 		public <O> DataResult<T> decode(DynamicOps<O> ops, MapLike<O> input) {
 			return input.get(this.dispatchingKey) != null ? this.withKeyCodec.decode(ops, input)
 			                                              : this.withoutKeyCodec.decode(ops, input);
 		}
 
+		/**
+		 * Encode.
+		 *
+		 * @param input input
+		 * @param ops ops
+		 * @param prefix prefix
+		 *
+		 * @return RecordBuilder — результат операции
+		 */
 		public <O> RecordBuilder<O> encode(T input, DynamicOps<O> ops, RecordBuilder<O> prefix) {
 			return this.withoutKeyCodec.encode(input, ops, prefix);
 		}
 
+		/**
+		 * Keys.
+		 *
+		 * @param ops ops
+		 *
+		 * @return Stream — результат операции
+		 */
 		public <T1> Stream<T1> keys(DynamicOps<T1> ops) {
 			return Stream.concat(this.withKeyCodec.keys(ops), this.withoutKeyCodec.keys(ops)).distinct();
 		}
@@ -177,6 +225,14 @@ public class TextCodecs {
 			this.codecGetter = codecGetter;
 		}
 
+		/**
+		 * Decode.
+		 *
+		 * @param ops ops
+		 * @param input input
+		 *
+		 * @return DataResult — результат операции
+		 */
 		public <S> DataResult<T> decode(DynamicOps<S> ops, MapLike<S> input) {
 			for (MapDecoder<? extends T> mapDecoder : this.codecs) {
 				DataResult<? extends T> dataResult = mapDecoder.decode(ops, input);
@@ -188,15 +244,36 @@ public class TextCodecs {
 			return DataResult.error(() -> "No matching codec found");
 		}
 
+		/**
+		 * Encode.
+		 *
+		 * @param input input
+		 * @param ops ops
+		 * @param prefix prefix
+		 *
+		 * @return RecordBuilder — результат операции
+		 */
 		public <S> RecordBuilder<S> encode(T input, DynamicOps<S> ops, RecordBuilder<S> prefix) {
 			MapEncoder<T> mapEncoder = (MapEncoder<T>) this.codecGetter.apply(input);
 			return mapEncoder.encode(input, ops, prefix);
 		}
 
+		/**
+		 * Keys.
+		 *
+		 * @param ops ops
+		 *
+		 * @return Stream — результат операции
+		 */
 		public <S> Stream<S> keys(DynamicOps<S> ops) {
 			return this.codecs.stream().flatMap(codec -> codec.keys(ops)).distinct();
 		}
 
+		/**
+		 * To string.
+		 *
+		 * @return String — результат операции
+		 */
 		public String toString() {
 			return "FuzzyCodec[" + this.codecs + "]";
 		}

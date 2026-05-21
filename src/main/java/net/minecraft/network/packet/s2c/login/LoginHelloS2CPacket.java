@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PacketType;
 
 import java.security.PublicKey;
 
+/**
+ * Класс login hello s2 c packet.
+ */
 public class LoginHelloS2CPacket implements Packet<ClientLoginPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, LoginHelloS2CPacket>
@@ -47,6 +50,11 @@ public class LoginHelloS2CPacket implements Packet<ClientLoginPacketListener> {
 		return LoginPackets.HELLO_S2C;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientLoginPacketListener client login packet listener
+	 */
 	public void apply(ClientLoginPacketListener clientLoginPacketListener) {
 		clientLoginPacketListener.onHello(this);
 	}
@@ -63,6 +71,11 @@ public class LoginHelloS2CPacket implements Packet<ClientLoginPacketListener> {
 		return this.nonce;
 	}
 
+	/**
+	 * Needs authentication.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsAuthentication() {
 		return this.needsAuthentication;
 	}

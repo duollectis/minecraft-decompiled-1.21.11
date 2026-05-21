@@ -21,10 +21,25 @@ public record AmbientParticle(ParticleEffect particle, float probability) {
 			                    .apply(instance, AmbientParticle::new)
 	);
 
+	/**
+	 * Определяет, следует ли add particle.
+	 *
+	 * @param random random
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldAddParticle(Random random) {
 		return random.nextFloat() <= this.probability;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param particle particle
+	 * @param probability probability
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<AmbientParticle> of(ParticleEffect particle, float probability) {
 		return List.of(new AmbientParticle(particle, probability));
 	}

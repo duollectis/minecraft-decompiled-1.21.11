@@ -51,6 +51,11 @@ public record WaypointStyleAsset(
 	}
 
 	@VisibleForTesting
+	/**
+	 * Validate.
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public DataResult<WaypointStyleAsset> validate() {
 		if (this.sprites.isEmpty()) {
 			return DataResult.error(() -> "Must have at least one sprite icon");

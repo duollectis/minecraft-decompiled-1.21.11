@@ -23,10 +23,24 @@ public class CountPlacementModifier extends AbstractCountPlacementModifier {
 		this.count = count;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param count count
+	 *
+	 * @return CountPlacementModifier — результат операции
+	 */
 	public static CountPlacementModifier of(IntProvider count) {
 		return new CountPlacementModifier(count);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param count count
+	 *
+	 * @return CountPlacementModifier — результат операции
+	 */
 	public static CountPlacementModifier of(int count) {
 		return of(ConstantIntProvider.create(count));
 	}

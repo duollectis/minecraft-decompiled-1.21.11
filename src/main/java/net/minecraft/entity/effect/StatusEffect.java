@@ -88,6 +88,15 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 		return this.fadeOutThresholdTicks;
 	}
 
+	/**
+	 * Применяет update effect.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param amplifier amplifier
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean applyUpdateEffect(ServerWorld world, LivingEntity entity, int amplifier) {
 		return true;
 	}
@@ -103,13 +112,33 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 		this.applyUpdateEffect(world, target, amplifier);
 	}
 
+	/**
+	 * Проверяет возможность apply update effect.
+	 *
+	 * @param duration duration
+	 * @param amplifier amplifier
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canApplyUpdateEffect(int duration, int amplifier) {
 		return false;
 	}
 
+	/**
+	 * Обрабатывает событие applied.
+	 *
+	 * @param entity entity
+	 * @param amplifier amplifier
+	 */
 	public void onApplied(LivingEntity entity, int amplifier) {
 	}
 
+	/**
+	 * Play apply sound.
+	 *
+	 * @param entity entity
+	 * @param amplifier amplifier
+	 */
 	public void playApplySound(LivingEntity entity, int amplifier) {
 		this.applySound
 				.ifPresent(sound -> entity
@@ -126,6 +155,14 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 						));
 	}
 
+	/**
+	 * Обрабатывает событие entity removal.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param amplifier amplifier
+	 * @param reason reason
+	 */
 	public void onEntityRemoval(ServerWorld world, LivingEntity entity, int amplifier, Entity.RemovalReason reason) {
 	}
 
@@ -142,6 +179,11 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 		return false;
 	}
 
+	/**
+	 * Загружает translation key.
+	 *
+	 * @return String — результат операции
+	 */
 	protected String loadTranslationKey() {
 		if (this.translationKey == null) {
 			this.translationKey = Util.createTranslationKey("effect", Registries.STATUS_EFFECT.getId(this));
@@ -176,10 +218,26 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 		return this;
 	}
 
+	/**
+	 * Fade ticks.
+	 *
+	 * @param fadeTicks fade ticks
+	 *
+	 * @return StatusEffect — результат операции
+	 */
 	public StatusEffect fadeTicks(int fadeTicks) {
 		return this.fadeTicks(fadeTicks, fadeTicks, fadeTicks);
 	}
 
+	/**
+	 * Fade ticks.
+	 *
+	 * @param fadeInTicks fade in ticks
+	 * @param fadeOutTicks fade out ticks
+	 * @param fadeOutThresholdTicks fade out threshold ticks
+	 *
+	 * @return StatusEffect — результат операции
+	 */
 	public StatusEffect fadeTicks(int fadeInTicks, int fadeOutTicks, int fadeOutThresholdTicks) {
 		this.fadeInTicks = fadeInTicks;
 		this.fadeOutTicks = fadeOutTicks;
@@ -200,6 +258,11 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 				);
 	}
 
+	/**
+	 * Обрабатывает событие removed.
+	 *
+	 * @param attributeContainer attribute container
+	 */
 	public void onRemoved(AttributeContainer attributeContainer) {
 		for (Entry<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator> entry : this.attributeModifiers.entrySet()) {
 			EntityAttributeInstance entityAttributeInstance = attributeContainer.getCustomInstance(entry.getKey());
@@ -209,6 +272,12 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие applied.
+	 *
+	 * @param attributeContainer attribute container
+	 * @param amplifier amplifier
+	 */
 	public void onApplied(AttributeContainer attributeContainer, int amplifier) {
 		for (Entry<RegistryEntry<EntityAttribute>, StatusEffect.EffectAttributeModifierCreator> entry : this.attributeModifiers.entrySet()) {
 			EntityAttributeInstance entityAttributeInstance = attributeContainer.getCustomInstance(entry.getKey());
@@ -223,15 +292,36 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 		return this.category == StatusEffectCategory.BENEFICIAL;
 	}
 
+	/**
+	 * Создаёт particle.
+	 *
+	 * @param effect effect
+	 *
+	 * @return ParticleEffect — результат операции
+	 */
 	public ParticleEffect createParticle(StatusEffectInstance effect) {
 		return this.particleFactory.apply(effect);
 	}
 
+	/**
+	 * Применяет sound.
+	 *
+	 * @param sound sound
+	 *
+	 * @return StatusEffect — результат операции
+	 */
 	public StatusEffect applySound(SoundEvent sound) {
 		this.applySound = Optional.of(sound);
 		return this;
 	}
 
+	/**
+	 * Requires.
+	 *
+	 * @param requiredFeatures required features
+	 *
+	 * @return StatusEffect — результат операции
+	 */
 	public StatusEffect requires(FeatureFlag... requiredFeatures) {
 		this.requiredFeatures = FeatureFlags.FEATURE_MANAGER.featureSetOf(requiredFeatures);
 		return this;
@@ -251,6 +341,13 @@ public class StatusEffect implements ToggleableFeature, FabricMobEffect {
 			EntityAttributeModifier.Operation operation
 	) {
 
+		/**
+		 * Создаёт attribute modifier.
+		 *
+		 * @param amplifier amplifier
+		 *
+		 * @return EntityAttributeModifier — результат операции
+		 */
 		public EntityAttributeModifier createAttributeModifier(int amplifier) {
 			return new EntityAttributeModifier(this.id, this.baseValue * (amplifier + 1), this.operation);
 		}

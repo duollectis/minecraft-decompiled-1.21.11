@@ -35,6 +35,13 @@ public class Frustum {
 		this.recession = frustum.recession;
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param distance distance
+	 *
+	 * @return Frustum — результат операции
+	 */
 	public Frustum offset(float distance) {
 		this.x = this.x + this.recession.x * distance;
 		this.y = this.y + this.recession.y * distance;
@@ -42,6 +49,13 @@ public class Frustum {
 		return this;
 	}
 
+	/**
+	 * Cover box around set position.
+	 *
+	 * @param boxSize box size
+	 *
+	 * @return Frustum — результат операции
+	 */
 	public Frustum coverBoxAroundSetPosition(int boxSize) {
 		double d = Math.floor(this.x / boxSize) * boxSize;
 		double e = Math.floor(this.y / boxSize) * boxSize;
@@ -86,6 +100,13 @@ public class Frustum {
 		return i == -2 || i == -1;
 	}
 
+	/**
+	 * Intersect aab.
+	 *
+	 * @param box box
+	 *
+	 * @return int — результат операции
+	 */
 	public int intersectAab(BlockBox box) {
 		return this.intersectAab(
 				box.getMinX(),
@@ -107,6 +128,15 @@ public class Frustum {
 		return this.frustumIntersection.intersectAab(f, g, h, i, j, k);
 	}
 
+	/**
+	 * Intersect point.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean intersectPoint(double x, double y, double z) {
 		return this.frustumIntersection.testPoint((float) (x - this.x), (float) (y - this.y), (float) (z - this.z));
 	}

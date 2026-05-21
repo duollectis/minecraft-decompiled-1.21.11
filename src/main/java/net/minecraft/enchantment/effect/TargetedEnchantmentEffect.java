@@ -71,6 +71,13 @@ public record TargetedEnchantmentEffect<T>(
 		);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		return this.requirements.isEmpty() ? true : this.requirements.get().test(lootContext);
 	}

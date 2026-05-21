@@ -15,6 +15,14 @@ public class ScissorState {
 	private int width;
 	private int height;
 
+	/**
+	 * Enable.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param height height
+	 */
 	public void enable(int x, int y, int width, int height) {
 		this.enabled = true;
 		this.x = x;
@@ -23,6 +31,9 @@ public class ScissorState {
 		this.height = height;
 	}
 
+	/**
+	 * Disable.
+	 */
 	public void disable() {
 		this.enabled = false;
 	}

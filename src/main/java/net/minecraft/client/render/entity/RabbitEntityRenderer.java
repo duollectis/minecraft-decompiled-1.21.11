@@ -51,10 +51,22 @@ public class RabbitEntityRenderer extends AgeableMobEntityRenderer<RabbitEntity,
 		}
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return RabbitEntityRenderState — результат операции
+	 */
 	public RabbitEntityRenderState createRenderState() {
 		return new RabbitEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param rabbitEntity rabbit entity
+	 * @param rabbitEntityRenderState rabbit entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(RabbitEntity rabbitEntity, RabbitEntityRenderState rabbitEntityRenderState, float f) {
 		super.updateRenderState(rabbitEntity, rabbitEntityRenderState, f);
 		rabbitEntityRenderState.jumpProgress = rabbitEntity.getJumpProgress(f);

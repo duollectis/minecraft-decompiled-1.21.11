@@ -19,6 +19,15 @@ public class RegistryCloner<T> {
 		this.elementCodec = elementCodec;
 	}
 
+	/**
+	 * Clone.
+	 *
+	 * @param value value
+	 * @param subsetRegistry subset registry
+	 * @param fullRegistry full registry
+	 *
+	 * @return T — результат операции
+	 */
 	public T clone(T value, RegistryWrapper.WrapperLookup subsetRegistry, RegistryWrapper.WrapperLookup fullRegistry) {
 		DynamicOps<Object> dynamicOps = subsetRegistry.getOps(JavaOps.INSTANCE);
 		DynamicOps<Object> dynamicOps2 = fullRegistry.getOps(JavaOps.INSTANCE);
@@ -47,6 +56,13 @@ public class RegistryCloner<T> {
 			return this;
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @param registryRef registry ref
+		 *
+		 * @return @Nullable RegistryCloner — 
+		 */
 		public <T> @Nullable RegistryCloner<T> get(RegistryKey<? extends Registry<? extends T>> registryRef) {
 			return (RegistryCloner<T>) this.registries.get(registryRef);
 		}

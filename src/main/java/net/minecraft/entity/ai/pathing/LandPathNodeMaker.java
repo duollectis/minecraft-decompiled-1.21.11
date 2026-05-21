@@ -113,6 +113,13 @@ public class LandPathNodeMaker extends PathNodeMaker {
 		return pathNode;
 	}
 
+	/**
+	 * Проверяет возможность path through.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canPathThrough(BlockPos pos) {
 		PathNodeType pathNodeType = this.getNodeType(pos.getX(), pos.getY(), pos.getZ());
 		return pathNodeType != PathNodeType.OPEN && this.entity.getPathfindingPenalty(pathNodeType) >= 0.0F;

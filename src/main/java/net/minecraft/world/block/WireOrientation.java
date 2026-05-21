@@ -80,31 +80,80 @@ public class WireOrientation {
 						.toList();
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param up up
+	 * @param front front
+	 * @param sideBias side bias
+	 *
+	 * @return WireOrientation — результат операции
+	 */
 	public static WireOrientation of(Direction up, Direction front, WireOrientation.SideBias sideBias) {
 		return VALUES[ordinalFromComponents(up, front, sideBias)];
 	}
 
+	/**
+	 * With up.
+	 *
+	 * @param direction direction
+	 *
+	 * @return WireOrientation — результат операции
+	 */
 	public WireOrientation withUp(Direction direction) {
 		return this.siblingsByUp.get(direction);
 	}
 
+	/**
+	 * With front.
+	 *
+	 * @param direction direction
+	 *
+	 * @return WireOrientation — результат операции
+	 */
 	public WireOrientation withFront(Direction direction) {
 		return this.siblingsByFront.get(direction);
 	}
 
+	/**
+	 * With front if not up.
+	 *
+	 * @param direction direction
+	 *
+	 * @return WireOrientation — результат операции
+	 */
 	public WireOrientation withFrontIfNotUp(Direction direction) {
 		return direction.getAxis() == this.up.getAxis() ? this : this.siblingsByFront.get(direction);
 	}
 
+	/**
+	 * With front and side bias.
+	 *
+	 * @param direction direction
+	 *
+	 * @return WireOrientation — результат операции
+	 */
 	public WireOrientation withFrontAndSideBias(Direction direction) {
 		WireOrientation wireOrientation = this.withFront(direction);
 		return this.front == wireOrientation.right ? wireOrientation.withOppositeSideBias() : wireOrientation;
 	}
 
+	/**
+	 * With side bias.
+	 *
+	 * @param sideBias side bias
+	 *
+	 * @return WireOrientation — результат операции
+	 */
 	public WireOrientation withSideBias(WireOrientation.SideBias sideBias) {
 		return this.siblingsBySideBias.get(sideBias);
 	}
 
+	/**
+	 * With opposite side bias.
+	 *
+	 * @return WireOrientation — результат операции
+	 */
 	public WireOrientation withOppositeSideBias() {
 		return this.withSideBias(this.sideBias.opposite());
 	}
@@ -142,14 +191,33 @@ public class WireOrientation {
 		return "[up=" + this.up + ",front=" + this.front + ",sideBias=" + this.sideBias + "]";
 	}
 
+	/**
+	 * Ordinal.
+	 *
+	 * @return int — результат операции
+	 */
 	public int ordinal() {
 		return this.ordinal;
 	}
 
+	/**
+	 * From ordinal.
+	 *
+	 * @param ordinal ordinal
+	 *
+	 * @return WireOrientation — результат операции
+	 */
 	public static WireOrientation fromOrdinal(int ordinal) {
 		return VALUES[ordinal];
 	}
 
+	/**
+	 * Random.
+	 *
+	 * @param random random
+	 *
+	 * @return WireOrientation — результат операции
+	 */
 	public static WireOrientation random(Random random) {
 		return Util.getRandom(VALUES, random);
 	}
@@ -205,6 +273,15 @@ public class WireOrientation {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Ordinal from components.
+	 *
+	 * @param up up
+	 * @param front front
+	 * @param sideBias side bias
+	 *
+	 * @return int — результат операции
+	 */
 	protected static int ordinalFromComponents(Direction up, Direction front, WireOrientation.SideBias sideBias) {
 		if (up.getAxis() == front.getAxis()) {
 			throw new IllegalStateException("Up-vector and front-vector can not be on the same axis");

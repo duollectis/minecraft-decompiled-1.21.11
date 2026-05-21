@@ -77,6 +77,11 @@ public record EquipmentModel(Map<EquipmentModel.LayerType, List<EquipmentModel.L
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return EquipmentModel — результат операции
+		 */
 		public EquipmentModel build() {
 			return new EquipmentModel(
 					this.layers

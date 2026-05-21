@@ -81,6 +81,11 @@ public class FileUpload implements AutoCloseable {
 		this.httpClient.close();
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<UploadResult> upload() {
 		long l = this.file.length();
 		this.uploadStatus.setTotalBytes(l);
@@ -192,6 +197,11 @@ public class FileUpload implements AutoCloseable {
 			this.progress = progress;
 		}
 
+		/**
+		 * After read.
+		 *
+		 * @param n n
+		 */
 		protected void afterRead(int n) throws IOException {
 			super.afterRead(n);
 			this.progress.addBytesWritten(this.getByteCount());

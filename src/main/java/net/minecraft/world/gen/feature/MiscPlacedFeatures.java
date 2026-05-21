@@ -42,6 +42,11 @@ public class MiscPlacedFeatures {
 	public static final RegistryKey<PlacedFeature> SPRING_LAVA_FROZEN = PlacedFeatures.of("spring_lava_frozen");
 	public static final RegistryKey<PlacedFeature> SPRING_WATER = PlacedFeatures.of("spring_water");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =

@@ -16,6 +16,11 @@ public class RingBellTask {
 	private static final float RUN_CHANCE = 0.95F;
 	public static final int MAX_DISTANCE = 3;
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryValue(MemoryModuleType.MEETING_POINT)).apply(

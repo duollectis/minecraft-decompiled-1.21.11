@@ -15,6 +15,13 @@ public class AnyIdParsingRule implements ParsingRule<StringReader, Identifier> {
 	private AnyIdParsingRule() {
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param parsingState parsing state
+	 *
+	 * @return @Nullable Identifier — результат операции
+	 */
 	public @Nullable Identifier parse(ParsingState<StringReader> parsingState) {
 		parsingState.getReader().skipWhitespace();
 

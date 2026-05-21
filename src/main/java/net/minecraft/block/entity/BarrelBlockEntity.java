@@ -141,6 +141,9 @@ public class BarrelBlockEntity extends LootableContainerBlockEntity {
 		return this.stateManager.getViewingUsers(this.getWorld(), this.getPos());
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (!this.removed) {
 			this.stateManager.updateViewerCount(this.getWorld(), this.getPos(), this.getCachedState());

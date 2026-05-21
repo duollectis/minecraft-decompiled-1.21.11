@@ -31,6 +31,14 @@ public record GlobalPos(RegistryKey<World> dimension, BlockPos pos) {
 			GlobalPos::create
 	);
 
+	/**
+	 * Create.
+	 *
+	 * @param dimension dimension
+	 * @param pos pos
+	 *
+	 * @return GlobalPos — результат операции
+	 */
 	public static GlobalPos create(RegistryKey<World> dimension, BlockPos pos) {
 		return new GlobalPos(dimension, pos);
 	}

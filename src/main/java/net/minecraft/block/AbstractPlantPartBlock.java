@@ -64,6 +64,13 @@ public abstract class AbstractPlantPartBlock extends Block {
 		}
 	}
 
+	/**
+	 * Проверяет возможность attach to.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canAttachTo(BlockState state) {
 		return true;
 	}

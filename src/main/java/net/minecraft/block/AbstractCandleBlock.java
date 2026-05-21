@@ -90,6 +90,14 @@ public abstract class AbstractCandleBlock extends Block {
 		world.addParticleClient(ParticleTypes.SMALL_FLAME, vec3d.x, vec3d.y, vec3d.z, 0.0, 0.0, 0.0);
 	}
 
+	/**
+	 * Extinguish.
+	 *
+	 * @param player player
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 */
 	public static void extinguish(@Nullable PlayerEntity player, BlockState state, WorldAccess world, BlockPos pos) {
 		setLit(world, state, pos, false);
 		if (state.getBlock() instanceof AbstractCandleBlock) {

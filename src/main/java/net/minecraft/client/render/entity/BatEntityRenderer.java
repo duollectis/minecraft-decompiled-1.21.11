@@ -24,10 +24,22 @@ public class BatEntityRenderer extends MobEntityRenderer<BatEntity, BatEntityRen
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BatEntityRenderState — результат операции
+	 */
 	public BatEntityRenderState createRenderState() {
 		return new BatEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param batEntity bat entity
+	 * @param batEntityRenderState bat entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(BatEntity batEntity, BatEntityRenderState batEntityRenderState, float f) {
 		super.updateRenderState(batEntity, batEntityRenderState, f);
 		batEntityRenderState.roosting = batEntity.isRoosting();

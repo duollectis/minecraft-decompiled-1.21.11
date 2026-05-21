@@ -27,6 +27,14 @@ public record UniformLootNumberProvider(LootNumberProvider min, LootNumberProvid
 		return LootNumberProviderTypes.UNIFORM;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return UniformLootNumberProvider — результат операции
+	 */
 	public static UniformLootNumberProvider create(float min, float max) {
 		return new UniformLootNumberProvider(
 				ConstantLootNumberProvider.create(min),

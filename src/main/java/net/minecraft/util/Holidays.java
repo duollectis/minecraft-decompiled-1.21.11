@@ -17,6 +17,11 @@ public class Holidays {
 	public static final MonthDay CHRISTMAS_EVE = MonthDay.of(Month.DECEMBER, 24);
 	public static final MonthDay NEW_YEARS_DAY = MonthDay.of(Month.JANUARY, 1);
 
+	/**
+	 * Now.
+	 *
+	 * @return MonthDay — результат операции
+	 */
 	public static MonthDay now() {
 		return MonthDay.from(ZonedDateTime.now());
 	}

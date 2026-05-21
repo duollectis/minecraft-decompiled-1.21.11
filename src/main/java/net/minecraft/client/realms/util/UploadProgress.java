@@ -20,6 +20,9 @@ public class UploadProgress {
 		this.totalBytes = totalBytes;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.bytesWritten = 0L;
 		this.startTimeMs = Util.getMeasuringTimeMs();
@@ -35,6 +38,11 @@ public class UploadProgress {
 		return this.bytesWritten;
 	}
 
+	/**
+	 * Добавляет bytes written.
+	 *
+	 * @param bytesWritten bytes written
+	 */
 	public void addBytesWritten(long bytesWritten) {
 		this.bytesWritten = bytesWritten;
 	}
@@ -51,6 +59,9 @@ public class UploadProgress {
 		return Math.min((double) this.getBytesWritten() / this.getTotalBytes(), 1.0);
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		long l = Util.getMeasuringTimeMs();
 		long m = l - this.startTimeMs;

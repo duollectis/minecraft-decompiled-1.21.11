@@ -14,6 +14,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3i;
 
+/**
+ * Класс update structure block c2 s packet.
+ */
 public class UpdateStructureBlockC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, UpdateStructureBlockC2SPacket> CODEC = Packet.createCodec(
@@ -144,6 +147,11 @@ public class UpdateStructureBlockC2SPacket implements Packet<ServerPlayPacketLis
 		return PlayPackets.SET_STRUCTURE_BLOCK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onUpdateStructureBlock(this);
 	}
@@ -184,6 +192,11 @@ public class UpdateStructureBlockC2SPacket implements Packet<ServerPlayPacketLis
 		return this.metadata;
 	}
 
+	/**
+	 * Определяет, следует ли ignore entities.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldIgnoreEntities() {
 		return this.ignoreEntities;
 	}
@@ -192,10 +205,20 @@ public class UpdateStructureBlockC2SPacket implements Packet<ServerPlayPacketLis
 		return this.strict;
 	}
 
+	/**
+	 * Определяет, следует ли show air.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowAir() {
 		return this.showAir;
 	}
 
+	/**
+	 * Определяет, следует ли show bounding box.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowBoundingBox() {
 		return this.showBoundingBox;
 	}

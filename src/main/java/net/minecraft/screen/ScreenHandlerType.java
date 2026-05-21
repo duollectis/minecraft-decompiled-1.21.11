@@ -109,6 +109,14 @@ public class ScreenHandlerType<T extends ScreenHandler> implements ToggleableFea
 		this.requiredFeatures = requiredFeatures;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param syncId sync id
+	 * @param playerInventory player inventory
+	 *
+	 * @return T — результат операции
+	 */
 	public T create(int syncId, PlayerInventory playerInventory) {
 		return this.factory.create(syncId, playerInventory);
 	}

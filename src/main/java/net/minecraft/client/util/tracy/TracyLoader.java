@@ -14,6 +14,9 @@ public class TracyLoader {
 
 	private static boolean loaded;
 
+	/**
+	 * Load.
+	 */
 	public static void load() {
 		if (!loaded) {
 			TracyClient.load();

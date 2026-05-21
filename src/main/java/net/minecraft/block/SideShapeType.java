@@ -44,5 +44,15 @@ public enum SideShapeType {
 		}
 	};
 
+	/**
+	 * Matches.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return boolean — результат операции
+	 */
 	public abstract boolean matches(BlockState state, BlockView world, BlockPos pos, Direction direction);
 }

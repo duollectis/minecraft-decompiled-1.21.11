@@ -18,6 +18,16 @@ import java.util.function.Consumer;
  */
 public class DripstoneHelper {
 
+	/**
+	 * Scale height from radius.
+	 *
+	 * @param radius radius
+	 * @param scale scale
+	 * @param heightScale height scale
+	 * @param bluntness bluntness
+	 *
+	 * @return double — результат операции
+	 */
 	public static double scaleHeightFromRadius(double radius, double scale, double heightScale, double bluntness) {
 		if (radius < bluntness) {
 			radius = bluntness;
@@ -33,6 +43,15 @@ public class DripstoneHelper {
 		return i / 0.384 * scale;
 	}
 
+	/**
+	 * Проверяет возможность generate base.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param height height
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canGenerateBase(StructureWorldAccess world, BlockPos pos, int height) {
 		if (canGenerateOrLava(world, pos)) {
 			return false;
@@ -53,10 +72,26 @@ public class DripstoneHelper {
 		}
 	}
 
+	/**
+	 * Проверяет возможность generate.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canGenerate(WorldAccess world, BlockPos pos) {
 		return world.testBlockState(pos, DripstoneHelper::canGenerate);
 	}
 
+	/**
+	 * Проверяет возможность generate or lava.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canGenerateOrLava(WorldAccess world, BlockPos pos) {
 		return world.testBlockState(pos, DripstoneHelper::canGenerateOrLava);
 	}
@@ -106,6 +141,14 @@ public class DripstoneHelper {
 		}
 	}
 
+	/**
+	 * Generate dripstone block.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean generateDripstoneBlock(WorldAccess world, BlockPos pos) {
 		BlockState blockState = world.getBlockState(pos);
 		if (blockState.isIn(BlockTags.DRIPSTONE_REPLACEABLE_BLOCKS)) {
@@ -124,22 +167,57 @@ public class DripstoneHelper {
 				.with(PointedDripstoneBlock.THICKNESS, thickness);
 	}
 
+	/**
+	 * Проверяет возможность replace or lava.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canReplaceOrLava(BlockState state) {
 		return canReplace(state) || state.isOf(Blocks.LAVA);
 	}
 
+	/**
+	 * Проверяет возможность replace.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canReplace(BlockState state) {
 		return state.isOf(Blocks.DRIPSTONE_BLOCK) || state.isIn(BlockTags.DRIPSTONE_REPLACEABLE_BLOCKS);
 	}
 
+	/**
+	 * Проверяет возможность generate.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canGenerate(BlockState state) {
 		return state.isAir() || state.isOf(Blocks.WATER);
 	}
 
+	/**
+	 * Проверяет возможность not generate.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean cannotGenerate(BlockState state) {
 		return !state.isAir() && !state.isOf(Blocks.WATER);
 	}
 
+	/**
+	 * Проверяет возможность generate or lava.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canGenerateOrLava(BlockState state) {
 		return state.isAir() || state.isOf(Blocks.WATER) || state.isOf(Blocks.LAVA);
 	}

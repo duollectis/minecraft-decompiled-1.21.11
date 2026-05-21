@@ -51,6 +51,9 @@ public class StaticSound {
 		return OptionalInt.of(this.streamBufferPointer);
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		if (this.hasBuffer) {
 			AL10.alDeleteBuffers(new int[]{this.streamBufferPointer});
@@ -62,6 +65,11 @@ public class StaticSound {
 		this.hasBuffer = false;
 	}
 
+	/**
+	 * Take stream buffer pointer.
+	 *
+	 * @return OptionalInt — результат операции
+	 */
 	public OptionalInt takeStreamBufferPointer() {
 		OptionalInt optionalInt = this.getStreamBufferPointer();
 		this.hasBuffer = false;

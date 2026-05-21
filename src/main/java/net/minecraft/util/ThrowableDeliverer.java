@@ -9,6 +9,11 @@ public class ThrowableDeliverer<T extends Throwable> {
 
 	private @Nullable T throwable;
 
+	/**
+	 * Add.
+	 *
+	 * @param throwable throwable
+	 */
 	public void add(T throwable) {
 		if (this.throwable == null) {
 			this.throwable = throwable;
@@ -18,6 +23,9 @@ public class ThrowableDeliverer<T extends Throwable> {
 		}
 	}
 
+	/**
+	 * Deliver.
+	 */
 	public void deliver() throws T {
 		if (this.throwable != null) {
 			throw this.throwable;

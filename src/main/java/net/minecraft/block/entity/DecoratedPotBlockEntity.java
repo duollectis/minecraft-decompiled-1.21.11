@@ -67,6 +67,11 @@ public class DecoratedPotBlockEntity extends BlockEntity implements LootableInve
 		}
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
@@ -159,6 +164,11 @@ public class DecoratedPotBlockEntity extends BlockEntity implements LootableInve
 		return this;
 	}
 
+	/**
+	 * Wobble.
+	 *
+	 * @param wobbleType wobble type
+	 */
 	public void wobble(DecoratedPotBlockEntity.WobbleType wobbleType) {
 		if (this.world != null && !this.world.isClient()) {
 			this.world.addSyncedBlockEvent(this.getPos(), this.getCachedState().getBlock(), 1, wobbleType.ordinal());

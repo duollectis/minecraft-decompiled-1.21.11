@@ -22,6 +22,9 @@ public interface BeamEmitter {
 			this.height = 1;
 		}
 
+		/**
+		 * Increase height.
+		 */
 		public void increaseHeight() {
 			this.height++;
 		}

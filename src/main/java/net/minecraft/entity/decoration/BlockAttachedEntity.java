@@ -41,6 +41,9 @@ public abstract class BlockAttachedEntity extends Entity {
 		this.attachedBlockPos = attachedBlockPos;
 	}
 
+	/**
+	 * Обновляет attachment position.
+	 */
 	protected abstract void updateAttachmentPosition();
 
 	@Override
@@ -57,6 +60,11 @@ public abstract class BlockAttachedEntity extends Entity {
 		}
 	}
 
+	/**
+	 * Проверяет возможность stay attached.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public abstract boolean canStayAttached();
 
 	@Override
@@ -146,6 +154,12 @@ public abstract class BlockAttachedEntity extends Entity {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие break.
+	 *
+	 * @param world world
+	 * @param breaker breaker
+	 */
 	public abstract void onBreak(ServerWorld world, @Nullable Entity breaker);
 
 	@Override

@@ -49,6 +49,11 @@ public class ChestBlockEntityRenderer<T extends BlockEntity & LidOpenable> imple
 		return Holidays.isAroundChristmas();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ChestBlockEntityRenderState — результат операции
+	 */
 	public ChestBlockEntityRenderState createRenderState() {
 		return new ChestBlockEntityRenderState();
 	}

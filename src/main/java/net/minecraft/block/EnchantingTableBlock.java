@@ -47,6 +47,15 @@ public class EnchantingTableBlock extends BlockWithEntity {
 		super(settings);
 	}
 
+	/**
+	 * Проверяет возможность access power provider.
+	 *
+	 * @param world world
+	 * @param tablePos table pos
+	 * @param providerOffset provider offset
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canAccessPowerProvider(World world, BlockPos tablePos, BlockPos providerOffset) {
 		return world.getBlockState(tablePos.add(providerOffset)).isIn(BlockTags.ENCHANTMENT_POWER_PROVIDER)
 				&& world

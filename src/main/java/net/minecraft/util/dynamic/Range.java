@@ -26,6 +26,13 @@ public record Range<T extends Comparable<T>>(T minInclusive, T maxInclusive) {
 		this(value, value);
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param elementCodec element codec
+	 *
+	 * @return > Codec> — результат операции
+	 */
 	public static <T extends Comparable<T>> Codec<Range<T>> createCodec(Codec<T> elementCodec) {
 		return Codecs.createCodecForPairObject(
 				elementCodec,
@@ -63,20 +70,50 @@ public record Range<T extends Comparable<T>>(T minInclusive, T maxInclusive) {
 				);
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param minInclusive min inclusive
+	 * @param maxInclusive max inclusive
+	 *
+	 * @return > DataResult> — результат операции
+	 */
 	public static <T extends Comparable<T>> DataResult<Range<T>> validate(T minInclusive, T maxInclusive) {
 		return minInclusive.compareTo(maxInclusive) <= 0
 		       ? DataResult.success(new Range(minInclusive, maxInclusive))
 		       : DataResult.error(() -> "min_inclusive must be less than or equal to max_inclusive");
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param T t
+	 * @param f f
+	 *
+	 * @return > Range — результат операции
+	 */
 	public <S extends Comparable<S>> Range<S> map(Function<? super T, ? extends S> f) {
 		return new Range<>((S) f.apply(this.minInclusive), (S) f.apply(this.maxInclusive));
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param value value
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(T value) {
 		return value.compareTo(this.minInclusive) >= 0 && value.compareTo(this.maxInclusive) <= 0;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param other other
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(Range<T> other) {
 		return other.minInclusive().compareTo(this.minInclusive) >= 0
 				&& other.maxInclusive.compareTo(this.maxInclusive) <= 0;

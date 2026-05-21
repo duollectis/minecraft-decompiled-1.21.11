@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись client tick end c2 s packet.
+ */
 public record ClientTickEndC2SPacket() implements Packet<ServerPlayPacketListener> {
 
 	public static final ClientTickEndC2SPacket INSTANCE = new ClientTickEndC2SPacket();
@@ -17,6 +20,11 @@ public record ClientTickEndC2SPacket() implements Packet<ServerPlayPacketListene
 		return PlayPackets.CLIENT_TICK_END;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onClientTickEnd(this);
 	}

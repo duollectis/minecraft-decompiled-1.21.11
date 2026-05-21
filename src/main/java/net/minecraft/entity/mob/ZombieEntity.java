@@ -106,6 +106,9 @@ public class ZombieEntity extends HostileEntity {
 		this.initCustomGoals();
 	}
 
+	/**
+	 * Инициализирует custom goals.
+	 */
 	protected void initCustomGoals() {
 		this.goalSelector.add(2, new ChargeKineticWeaponGoal<>(this, 1.0, 1.0, 10.0F, 2.0F));
 		this.goalSelector.add(3, new ZombieAttackGoal(this, 1.0, false));
@@ -149,6 +152,11 @@ public class ZombieEntity extends HostileEntity {
 		return this.getDataTracker().get(CONVERTING_IN_WATER);
 	}
 
+	/**
+	 * Проверяет возможность break doors.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBreakDoors() {
 		return this.canBreakDoors;
 	}
@@ -209,6 +217,11 @@ public class ZombieEntity extends HostileEntity {
 		super.onTrackedDataSet(data);
 	}
 
+	/**
+	 * Проверяет возможность convert in water.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canConvertInWater() {
 		return true;
 	}
@@ -243,6 +256,11 @@ public class ZombieEntity extends HostileEntity {
 		this.getDataTracker().set(CONVERTING_IN_WATER, true);
 	}
 
+	/**
+	 * Конвертирует in water.
+	 *
+	 * @param world world
+	 */
 	protected void convertInWater(ServerWorld world) {
 		this.convertTo(world, EntityType.DROWNED);
 		if (!this.isSilent()) {
@@ -250,6 +268,12 @@ public class ZombieEntity extends HostileEntity {
 		}
 	}
 
+	/**
+	 * Конвертирует to.
+	 *
+	 * @param world world
+	 * @param entityType entity type
+	 */
 	protected void convertTo(ServerWorld world, EntityType<? extends ZombieEntity> entityType) {
 		this.convertTo(
 				entityType,
@@ -261,6 +285,14 @@ public class ZombieEntity extends HostileEntity {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Infect villager.
+	 *
+	 * @param world world
+	 * @param villager villager
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean infectVillager(ServerWorld world, VillagerEntity villager) {
 		ZombieVillagerEntity zombieVillagerEntity = villager.convertTo(
 				EntityType.ZOMBIE_VILLAGER,
@@ -284,6 +316,11 @@ public class ZombieEntity extends HostileEntity {
 		return zombieVillagerEntity != null;
 	}
 
+	/**
+	 * Burns in daylight.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean burnsInDaylight() {
 		return true;
 	}
@@ -409,6 +446,11 @@ public class ZombieEntity extends HostileEntity {
 		return (EntityType<? extends ZombieEntity>) super.getType();
 	}
 
+	/**
+	 * Проверяет возможность spawn as reinforcement in fluid.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canSpawnAsReinforcementInFluid() {
 		return false;
 	}
@@ -571,10 +613,22 @@ public class ZombieEntity extends HostileEntity {
 		this.ticksUntilWaterConversion = ticksUntilWaterConversion;
 	}
 
+	/**
+	 * Определяет, следует ли be baby.
+	 *
+	 * @param random random
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldBeBaby(Random random) {
 		return random.nextFloat() < 0.05F;
 	}
 
+	/**
+	 * Применяет attribute modifiers.
+	 *
+	 * @param chanceMultiplier chance multiplier
+	 */
 	protected void applyAttributeModifiers(float chanceMultiplier) {
 		this.initAttributes();
 		this.getAttributeInstance(EntityAttributes.KNOCKBACK_RESISTANCE)
@@ -618,6 +672,9 @@ public class ZombieEntity extends HostileEntity {
 		}
 	}
 
+	/**
+	 * Инициализирует attributes.
+	 */
 	protected void initAttributes() {
 		this.getAttributeInstance(EntityAttributes.SPAWN_REINFORCEMENTS).setBaseValue(this.random.nextDouble() * 0.1F);
 	}

@@ -77,6 +77,15 @@ public class OctaveSimplexNoiseSampler {
 		}
 	}
 
+	/**
+	 * Sample.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param useOrigin use origin
+	 *
+	 * @return double — результат операции
+	 */
 	public double sample(double x, double y, boolean useOrigin) {
 		double d = 0.0;
 		double e = this.lacunarity;

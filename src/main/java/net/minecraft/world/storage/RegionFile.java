@@ -320,10 +320,18 @@ public class RegionFile implements AutoCloseable {
 		return new DataOutputStream(this.compressionFormat.wrap(new RegionFile.ChunkBuffer(pos)));
 	}
 
+	/**
+	 * Sync.
+	 */
 	public void sync() throws IOException {
 		this.channel.force(true);
 	}
 
+	/**
+	 * Delete.
+	 *
+	 * @param pos pos
+	 */
 	public void delete(ChunkPos pos) throws IOException {
 		int i = getIndex(pos);
 		int j = this.sectorData.get(i);
@@ -336,6 +344,12 @@ public class RegionFile implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Записывает chunk.
+	 *
+	 * @param pos pos
+	 * @param buf buf
+	 */
 	protected synchronized void writeChunk(ChunkPos pos, ByteBuffer buf) throws IOException {
 		int i = getIndex(pos);
 		int j = this.sectorData.get(i);

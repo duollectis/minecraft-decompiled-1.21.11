@@ -181,6 +181,13 @@ public final class BitSetVoxelSet extends VoxelSet {
 		return bitSetVoxelSet;
 	}
 
+	/**
+	 * For each box.
+	 *
+	 * @param voxelSet voxel set
+	 * @param callback callback
+	 * @param coalesce coalesce
+	 */
 	protected static void forEachBox(VoxelSet voxelSet, VoxelSet.PositionBiConsumer callback, boolean coalesce) {
 		BitSetVoxelSet bitSetVoxelSet = new BitSetVoxelSet(voxelSet);
 
@@ -247,6 +254,15 @@ public final class BitSetVoxelSet extends VoxelSet {
 		this.storage.clear(this.getIndex(x, y, z1), this.getIndex(x, y, z2));
 	}
 
+	/**
+	 * Surrounded.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean surrounded(int x, int y, int z) {
 		boolean bl = x > 0 && x < this.sizeX - 1 && y > 0 && y < this.sizeY - 1 && z > 0 && z < this.sizeZ - 1;
 		return bl

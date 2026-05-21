@@ -23,6 +23,13 @@ public record RandomChanceLootCondition(LootNumberProvider chance) implements Lo
 		return LootConditionTypes.RANDOM_CHANCE;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		float f = this.chance.nextFloat(lootContext);
 		return lootContext.getRandom().nextFloat() < f;

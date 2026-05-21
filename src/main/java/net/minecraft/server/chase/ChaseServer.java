@@ -42,6 +42,9 @@ public class ChaseServer {
 		this.interval = interval;
 	}
 
+	/**
+	 * Start.
+	 */
 	public void start() throws IOException {
 		if (this.socket != null && !this.socket.isClosed()) {
 			LOGGER.warn("Remote control server was asked to start, but it is already running. Will ignore.");
@@ -102,6 +105,9 @@ public class ChaseServer {
 		}
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		this.running = false;
 		IOUtils.closeQuietly(this.socket);

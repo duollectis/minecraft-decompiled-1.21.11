@@ -73,12 +73,18 @@ public class BlockLeakParticle extends BillboardParticle {
 		}
 	}
 
+	/**
+	 * Обновляет age.
+	 */
 	protected void updateAge() {
 		if (this.maxAge-- <= 0) {
 			this.markDead();
 		}
 	}
 
+	/**
+	 * Обновляет velocity.
+	 */
 	protected void updateVelocity() {
 	}
 

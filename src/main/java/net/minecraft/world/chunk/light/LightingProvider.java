@@ -97,6 +97,13 @@ public class LightingProvider implements LightingView {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param lightType light type
+	 *
+	 * @return ChunkLightingView — 
+	 */
 	public ChunkLightingView get(LightType lightType) {
 		if (lightType == LightType.BLOCK) {
 			return (ChunkLightingView) (this.blockLightProvider == null ? ChunkLightingView.Empty.INSTANCE
@@ -110,6 +117,14 @@ public class LightingProvider implements LightingView {
 		}
 	}
 
+	/**
+	 * Display section level.
+	 *
+	 * @param lightType light type
+	 * @param pos pos
+	 *
+	 * @return String — результат операции
+	 */
 	public String displaySectionLevel(LightType lightType, ChunkSectionPos pos) {
 		if (lightType == LightType.BLOCK) {
 			if (this.blockLightProvider != null) {
@@ -136,6 +151,13 @@ public class LightingProvider implements LightingView {
 		return LightStorage.Status.EMPTY;
 	}
 
+	/**
+	 * Enqueue section data.
+	 *
+	 * @param lightType light type
+	 * @param pos pos
+	 * @param nibbles nibbles
+	 */
 	public void enqueueSectionData(LightType lightType, ChunkSectionPos pos, @Nullable ChunkNibbleArray nibbles) {
 		if (lightType == LightType.BLOCK) {
 			if (this.blockLightProvider != null) {

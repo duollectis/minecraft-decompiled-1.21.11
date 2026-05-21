@@ -7,6 +7,9 @@ import net.minecraft.network.packet.c2s.query.QueryRequestC2SPacket;
 import net.minecraft.network.packet.s2c.query.QueryResponseS2CPacket;
 import net.minecraft.util.Identifier;
 
+/**
+ * Класс status packets.
+ */
 public class StatusPackets {
 
 	public static final PacketType<QueryResponseS2CPacket> STATUS_RESPONSE = s2c("status_response");

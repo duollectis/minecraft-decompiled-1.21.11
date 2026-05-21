@@ -7,6 +7,9 @@ import net.minecraft.network.packet.CommonPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Запись client options c2 s packet.
+ */
 public record ClientOptionsC2SPacket(SyncedClientOptions options) implements Packet<ServerCommonPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ClientOptionsC2SPacket>
@@ -26,6 +29,11 @@ public record ClientOptionsC2SPacket(SyncedClientOptions options) implements Pac
 		return CommonPackets.CLIENT_INFORMATION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverCommonPacketListener server common packet listener
+	 */
 	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
 		serverCommonPacketListener.onClientOptions(this);
 	}

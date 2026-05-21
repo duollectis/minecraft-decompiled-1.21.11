@@ -52,10 +52,19 @@ public class RecipeMatcher<T> {
 		return new RecipeMatcher.Matcher(ingredients).countCrafts(max, itemCallback);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.available.clear();
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param input input
+	 * @param count count
+	 */
 	public void add(T input, int count) {
 		this.addInput(input, count);
 	}
@@ -165,6 +174,14 @@ public class RecipeMatcher<T> {
 			}
 		}
 
+		/**
+		 * Match.
+		 *
+		 * @param quantity quantity
+		 * @param itemCallback item callback
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean match(int quantity, RecipeMatcher.@Nullable ItemCallback<T> itemCallback) {
 			if (quantity <= 0) {
 				return true;
@@ -427,6 +444,14 @@ public class RecipeMatcher<T> {
 			this.bits.clear(start, start + offset);
 		}
 
+		/**
+		 * Count crafts.
+		 *
+		 * @param max max
+		 * @param itemCallback item callback
+		 *
+		 * @return int — результат операции
+		 */
 		public int countCrafts(int max, RecipeMatcher.@Nullable ItemCallback<T> itemCallback) {
 			int i = 0;
 			int j = Math.min(max, RecipeMatcher.this.getMaximumCrafts(this.ingredients)) + 1;

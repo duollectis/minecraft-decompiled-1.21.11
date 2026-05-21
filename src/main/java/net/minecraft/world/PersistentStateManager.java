@@ -60,6 +60,13 @@ public class PersistentStateManager implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param type type
+	 *
+	 * @return @Nullable T — 
+	 */
 	public <T extends PersistentState> @Nullable T get(PersistentStateType<T> type) {
 		Optional<PersistentState> optional = this.loadedStates.get(type);
 		if (optional == null) {
@@ -99,11 +106,28 @@ public class PersistentStateManager implements AutoCloseable {
 		return null;
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param type type
+	 * @param state state
+	 *
+	 * @return void — результат операции
+	 */
 	public <T extends PersistentState> void set(PersistentStateType<T> type, T state) {
 		this.loadedStates.put(type, Optional.of(state));
 		state.markDirty();
 	}
 
+	/**
+	 * Читает nbt.
+	 *
+	 * @param id id
+	 * @param dataFixTypes data fix types
+	 * @param currentSaveVersion current save version
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound readNbt(String id, DataFixTypes dataFixTypes, int currentSaveVersion) throws IOException {
 		NbtCompound var8;
 		try (
@@ -148,6 +172,11 @@ public class PersistentStateManager implements AutoCloseable {
 		return bl;
 	}
 
+	/**
+	 * Запускает saving.
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<?> startSaving() {
 		Map<PersistentStateType<?>, NbtCompound> map = this.collectStatesToSave();
 		if (map.isEmpty()) {
@@ -234,6 +263,9 @@ public class PersistentStateManager implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Save.
+	 */
 	public void save() {
 		this.startSaving().join();
 	}

@@ -55,11 +55,24 @@ public class GoatBrain {
 	public static final float ADULT_RAM_STRENGTH_MULTIPLIER = 2.5F;
 	public static final float BABY_RAM_STRENGTH_MULTIPLIER = 1.0F;
 
+	/**
+	 * Сбрасывает long jump cooldown.
+	 *
+	 * @param goat goat
+	 * @param random random
+	 */
 	protected static void resetLongJumpCooldown(GoatEntity goat, Random random) {
 		goat.getBrain().remember(MemoryModuleType.LONG_JUMP_COOLING_DOWN, LONG_JUMP_COOLDOWN_RANGE.get(random));
 		goat.getBrain().remember(MemoryModuleType.RAM_COOLDOWN_TICKS, RAM_COOLDOWN_RANGE.get(random));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<GoatEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -185,6 +198,11 @@ public class GoatBrain {
 		);
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param goat goat
+	 */
 	public static void updateActivities(GoatEntity goat) {
 		goat.getBrain().resetPossibleActivities(ImmutableList.of(Activity.RAM, Activity.LONG_JUMP, Activity.IDLE));
 	}

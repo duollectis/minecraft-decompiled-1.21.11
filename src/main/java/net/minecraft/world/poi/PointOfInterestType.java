@@ -20,6 +20,13 @@ public record PointOfInterestType(Set<BlockState> blockStates, int ticketCount, 
 		this.searchDistance = searchDistance;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(BlockState state) {
 		return this.blockStates.contains(state);
 	}

@@ -17,6 +17,12 @@ public class WitchHeldItemFeatureRenderer extends VillagerHeldItemFeatureRendere
 		super(featureRendererContext);
 	}
 
+	/**
+	 * Применяет transforms.
+	 *
+	 * @param witchEntityRenderState witch entity render state
+	 * @param matrixStack matrix stack
+	 */
 	protected void applyTransforms(WitchEntityRenderState witchEntityRenderState, MatrixStack matrixStack) {
 		if (witchEntityRenderState.holdingPotion) {
 			this.getContextModel().getRootPart().applyTransform(matrixStack);

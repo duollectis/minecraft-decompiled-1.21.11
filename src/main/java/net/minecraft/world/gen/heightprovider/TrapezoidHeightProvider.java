@@ -36,10 +36,27 @@ public class TrapezoidHeightProvider extends HeightProvider {
 		this.plateau = plateau;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param minOffset min offset
+	 * @param maxOffset max offset
+	 * @param plateau plateau
+	 *
+	 * @return TrapezoidHeightProvider — результат операции
+	 */
 	public static TrapezoidHeightProvider create(YOffset minOffset, YOffset maxOffset, int plateau) {
 		return new TrapezoidHeightProvider(minOffset, maxOffset, plateau);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param minOffset min offset
+	 * @param maxOffset max offset
+	 *
+	 * @return TrapezoidHeightProvider — результат операции
+	 */
 	public static TrapezoidHeightProvider create(YOffset minOffset, YOffset maxOffset) {
 		return create(minOffset, maxOffset, 0);
 	}

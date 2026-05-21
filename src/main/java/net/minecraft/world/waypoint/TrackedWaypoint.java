@@ -41,8 +41,18 @@ public abstract class TrackedWaypoint implements Waypoint {
 		return this.source;
 	}
 
+	/**
+	 * Обрабатывает update.
+	 *
+	 * @param waypoint waypoint
+	 */
 	public abstract void handleUpdate(TrackedWaypoint waypoint);
 
+	/**
+	 * Записывает buf.
+	 *
+	 * @param buf buf
+	 */
 	public void writeBuf(ByteBuf buf) {
 		PacketByteBuf packetByteBuf = new PacketByteBuf(buf);
 		packetByteBuf.writeEither(this.source, Uuids.PACKET_CODEC, PacketByteBuf::writeString);
@@ -51,6 +61,11 @@ public abstract class TrackedWaypoint implements Waypoint {
 		this.writeAdditionalDataToBuf(buf);
 	}
 
+	/**
+	 * Записывает additional data to buf.
+	 *
+	 * @param buf buf
+	 */
 	public abstract void writeAdditionalDataToBuf(ByteBuf buf);
 
 	private static TrackedWaypoint fromBuf(ByteBuf buf) {
@@ -61,18 +76,52 @@ public abstract class TrackedWaypoint implements Waypoint {
 		return (TrackedWaypoint) type.factory.apply(either, config, packetByteBuf);
 	}
 
+	/**
+	 * Of pos.
+	 *
+	 * @param source source
+	 * @param config config
+	 * @param pos pos
+	 *
+	 * @return TrackedWaypoint — результат операции
+	 */
 	public static TrackedWaypoint ofPos(UUID source, Waypoint.Config config, Vec3i pos) {
 		return new TrackedWaypoint.Positional(source, config, pos);
 	}
 
+	/**
+	 * Of chunk.
+	 *
+	 * @param source source
+	 * @param config config
+	 * @param chunkPos chunk pos
+	 *
+	 * @return TrackedWaypoint — результат операции
+	 */
 	public static TrackedWaypoint ofChunk(UUID source, Waypoint.Config config, ChunkPos chunkPos) {
 		return new TrackedWaypoint.ChunkBased(source, config, chunkPos);
 	}
 
+	/**
+	 * Of azimuth.
+	 *
+	 * @param source source
+	 * @param config config
+	 * @param azimuth azimuth
+	 *
+	 * @return TrackedWaypoint — результат операции
+	 */
 	public static TrackedWaypoint ofAzimuth(UUID source, Waypoint.Config config, float azimuth) {
 		return new TrackedWaypoint.Azimuth(source, config, azimuth);
 	}
 
+	/**
+	 * Empty.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return TrackedWaypoint — результат операции
+	 */
 	public static TrackedWaypoint empty(UUID uuid) {
 		return new TrackedWaypoint.Empty(uuid);
 	}
@@ -89,6 +138,13 @@ public abstract class TrackedWaypoint implements Waypoint {
 			EntityTickProgress tickProgress
 	);
 
+	/**
+	 * Squared distance to.
+	 *
+	 * @param receiver receiver
+	 *
+	 * @return double — результат операции
+	 */
 	public abstract double squaredDistanceTo(Entity receiver);
 
 	public Waypoint.Config getConfig() {

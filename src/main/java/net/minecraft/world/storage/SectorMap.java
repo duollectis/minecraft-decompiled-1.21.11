@@ -14,14 +14,33 @@ public class SectorMap {
 
 	private final BitSet bitSet = new BitSet();
 
+	/**
+	 * Allocate.
+	 *
+	 * @param start start
+	 * @param size size
+	 */
 	public void allocate(int start, int size) {
 		this.bitSet.set(start, start + size);
 	}
 
+	/**
+	 * Free.
+	 *
+	 * @param start start
+	 * @param size size
+	 */
 	public void free(int start, int size) {
 		this.bitSet.clear(start, start + size);
 	}
 
+	/**
+	 * Allocate.
+	 *
+	 * @param size size
+	 *
+	 * @return int — результат операции
+	 */
 	public int allocate(int size) {
 		int i = 0;
 

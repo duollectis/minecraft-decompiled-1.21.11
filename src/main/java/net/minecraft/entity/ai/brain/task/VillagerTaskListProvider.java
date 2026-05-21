@@ -156,6 +156,13 @@ public class VillagerTaskListProvider {
 		);
 	}
 
+	/**
+	 * Создаёт play tasks.
+	 *
+	 * @param speed speed
+	 *
+	 * @return ImmutableList>> — результат операции
+	 */
 	public static ImmutableList<Pair<Integer, ? extends Task<? super VillagerEntity>>> createPlayTasks(float speed) {
 		return ImmutableList.of(
 				Pair.of(0, new MoveToTargetTask(80, 120)),

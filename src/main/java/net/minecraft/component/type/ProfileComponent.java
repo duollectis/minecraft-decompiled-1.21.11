@@ -72,14 +72,35 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 		);
 	}
 
+	/**
+	 * Of static.
+	 *
+	 * @param profile profile
+	 *
+	 * @return ProfileComponent — результат операции
+	 */
 	public static ProfileComponent ofStatic(GameProfile profile) {
 		return new ProfileComponent.Static(Either.left(profile), SkinTextures.SkinOverride.EMPTY);
 	}
 
+	/**
+	 * Of dynamic.
+	 *
+	 * @param name name
+	 *
+	 * @return ProfileComponent — результат операции
+	 */
 	public static ProfileComponent ofDynamic(String name) {
 		return new ProfileComponent.Dynamic(Either.left(name), SkinTextures.SkinOverride.EMPTY);
 	}
 
+	/**
+	 * Of dynamic.
+	 *
+	 * @param id id
+	 *
+	 * @return ProfileComponent — результат операции
+	 */
 	public static ProfileComponent ofDynamic(UUID id) {
 		return new ProfileComponent.Dynamic(Either.right(id), SkinTextures.SkinOverride.EMPTY);
 	}
@@ -91,6 +112,13 @@ public abstract sealed class ProfileComponent implements TooltipAppender permits
 		this.override = override;
 	}
 
+	/**
+	 * Resolve.
+	 *
+	 * @param resolver resolver
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public abstract CompletableFuture<GameProfile> resolve(GameProfileResolver resolver);
 
 	public GameProfile getGameProfile() {

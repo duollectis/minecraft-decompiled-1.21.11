@@ -69,6 +69,16 @@ public class BigDripleafStemBlock extends HorizontalFacingBlock implements Ferti
 		);
 	}
 
+	/**
+	 * Размещает stem at.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param fluidState fluid state
+	 * @param direction direction
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected static boolean placeStemAt(WorldAccess world, BlockPos pos, FluidState fluidState, Direction direction) {
 		BlockState
 				blockState =

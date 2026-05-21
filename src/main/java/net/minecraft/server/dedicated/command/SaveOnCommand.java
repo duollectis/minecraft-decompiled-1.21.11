@@ -16,6 +16,11 @@ public class SaveOnCommand {
 			ALREADY_ON_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.save.alreadyOn"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("save-on")

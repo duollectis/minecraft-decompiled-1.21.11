@@ -13,6 +13,13 @@ import java.util.stream.Collectors;
  */
 public record GcHeapSummarySample(Instant time, long heapUsed, GcHeapSummarySample.SummaryType summaryType) {
 
+	/**
+	 * From event.
+	 *
+	 * @param event event
+	 *
+	 * @return GcHeapSummarySample — результат операции
+	 */
 	public static GcHeapSummarySample fromEvent(RecordedEvent event) {
 		return new GcHeapSummarySample(
 				event.getStartTime(),

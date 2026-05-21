@@ -47,10 +47,24 @@ public class BufferAllocator implements AutoCloseable {
 		this(size, 4294967295L);
 	}
 
+	/**
+	 * Fixed sized.
+	 *
+	 * @param size size
+	 *
+	 * @return BufferAllocator — результат операции
+	 */
 	public static BufferAllocator fixedSized(int size) {
 		return new BufferAllocator(size, size);
 	}
 
+	/**
+	 * Allocate.
+	 *
+	 * @param size size
+	 *
+	 * @return long — результат операции
+	 */
 	public long allocate(int size) {
 		long l = this.offset;
 		long m = Math.addExact(l, (long) size);
@@ -102,6 +116,9 @@ public class BufferAllocator implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		if (this.refCount > 0) {
 			LOGGER.warn("Clearing BufferBuilder with unused batches");
@@ -110,6 +127,9 @@ public class BufferAllocator implements AutoCloseable {
 		this.reset();
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.ensureNotFreed();
 		if (this.refCount > 0) {

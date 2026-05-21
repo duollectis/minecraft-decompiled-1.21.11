@@ -181,6 +181,11 @@ public class ChargeKineticWeaponGoal<T extends HostileEntity> extends Goal {
 			this.remainingUseTicks = remainingUseTicks;
 		}
 
+		/**
+		 * Проверяет возможность start charging.
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canStartCharging() {
 			if (this.remainingUseTicks > 0) {
 				this.remainingUseTicks--;
@@ -192,6 +197,11 @@ public class ChargeKineticWeaponGoal<T extends HostileEntity> extends Goal {
 			return false;
 		}
 
+		/**
+		 * Finished charging.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean finishedCharging() {
 			if (this.chargeTicks > 0) {
 				this.chargeTicks++;

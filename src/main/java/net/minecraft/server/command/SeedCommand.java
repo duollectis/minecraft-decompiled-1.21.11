@@ -10,6 +10,12 @@ import net.minecraft.text.Texts;
  */
 public class SeedCommand {
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 * @param dedicated dedicated
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher, boolean dedicated) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("seed")

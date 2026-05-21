@@ -104,6 +104,14 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 		this.description = description;
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param gson gson
+	 * @param json json
+	 *
+	 * @return RealmsServer — результат операции
+	 */
 	public static RealmsServer parse(CheckedGson gson, String json) {
 		try {
 			RealmsServer realmsServer = gson.fromJson(json, RealmsServer.class);
@@ -122,6 +130,11 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 		}
 	}
 
+	/**
+	 * Replace nulls with defaults.
+	 *
+	 * @param server server
+	 */
 	public static void replaceNullsWithDefaults(RealmsServer server) {
 		if (server.players == null) {
 			server.players = Lists.newArrayList();
@@ -190,14 +203,29 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 		return this.compatibility.isCompatible();
 	}
 
+	/**
+	 * Needs upgrade.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsUpgrade() {
 		return this.compatibility.needsUpgrade();
 	}
 
+	/**
+	 * Needs downgrade.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsDowngrade() {
 		return this.compatibility.needsDowngrade();
 	}
 
+	/**
+	 * Определяет, следует ли allow play.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldAllowPlay() {
 		boolean bl = !this.expired && this.state == RealmsServer.State.OPEN;
 		return bl && (this.isCompatible() || this.needsUpgrade() || this.isPlayerOwner());
@@ -237,6 +265,11 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 		}
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return RealmsServer — результат операции
+	 */
 	public RealmsServer copy() {
 		RealmsServer realmsServer = new RealmsServer();
 		realmsServer.id = this.id;
@@ -268,6 +301,13 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 		return realmsServer;
 	}
 
+	/**
+	 * Клонирует slots.
+	 *
+	 * @param slots slots
+	 *
+	 * @return Map — результат операции
+	 */
 	public Map<Integer, RealmsSlot> cloneSlots(Map<Integer, RealmsSlot> slots) {
 		Map<Integer, RealmsSlot> map = Maps.newHashMap();
 
@@ -295,6 +335,13 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 		       : this.name + " (" + this.slots.get(slotId).options.getSlotName(slotId) + ")";
 	}
 
+	/**
+	 * Создаёт server info.
+	 *
+	 * @param address address
+	 *
+	 * @return ServerInfo — результат операции
+	 */
 	public ServerInfo createServerInfo(String address) {
 		return new ServerInfo(
 				Objects.requireNonNullElse(this.name, "unknown server"),
@@ -319,10 +366,20 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 			return this == COMPATIBLE;
 		}
 
+		/**
+		 * Needs upgrade.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean needsUpgrade() {
 			return this == NEEDS_UPGRADE;
 		}
 
+		/**
+		 * Needs downgrade.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean needsDowngrade() {
 			return this == NEEDS_DOWNGRADE;
 		}
@@ -340,6 +397,14 @@ public class RealmsServer extends ValueObject implements RealmsSerializable {
 			this.refOwner = owner;
 		}
 
+		/**
+		 * Compare.
+		 *
+		 * @param realmsServer realms server
+		 * @param realmsServer2 realms server2
+		 *
+		 * @return int — результат операции
+		 */
 		public int compare(RealmsServer realmsServer, RealmsServer realmsServer2) {
 			return ComparisonChain.start()
 			                      .compareTrueFirst(realmsServer.isPrerelease(), realmsServer2.isPrerelease())

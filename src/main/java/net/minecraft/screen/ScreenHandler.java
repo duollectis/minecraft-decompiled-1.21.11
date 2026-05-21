@@ -74,12 +74,26 @@ public abstract class ScreenHandler {
 		this.syncId = syncId;
 	}
 
+	/**
+	 * Добавляет player hotbar slots.
+	 *
+	 * @param playerInventory player inventory
+	 * @param left left
+	 * @param y y
+	 */
 	protected void addPlayerHotbarSlots(Inventory playerInventory, int left, int y) {
 		for (int i = 0; i < 9; i++) {
 			this.addSlot(new Slot(playerInventory, i, left + i * 18, y));
 		}
 	}
 
+	/**
+	 * Добавляет player inventory slots.
+	 *
+	 * @param playerInventory player inventory
+	 * @param left left
+	 * @param top top
+	 */
 	protected void addPlayerInventorySlots(Inventory playerInventory, int left, int top) {
 		for (int i = 0; i < 3; i++) {
 			for (int j = 0; j < 9; j++) {
@@ -88,6 +102,13 @@ public abstract class ScreenHandler {
 		}
 	}
 
+	/**
+	 * Добавляет player slots.
+	 *
+	 * @param playerInventory player inventory
+	 * @param left left
+	 * @param top top
+	 */
 	protected void addPlayerSlots(Inventory playerInventory, int left, int top) {
 		this.addPlayerInventorySlots(playerInventory, left, top);
 		int i = 4;
@@ -95,6 +116,15 @@ public abstract class ScreenHandler {
 		this.addPlayerHotbarSlots(playerInventory, left, top + 58);
 	}
 
+	/**
+	 * Проверяет возможность use.
+	 *
+	 * @param context context
+	 * @param player player
+	 * @param block block
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected static boolean canUse(ScreenHandlerContext context, PlayerEntity player, Block block) {
 		return context.get(
 				(world, pos) -> !world.getBlockState(pos).isOf(block) ? false : player.canInteractWithBlockAt(
@@ -113,6 +143,12 @@ public abstract class ScreenHandler {
 		}
 	}
 
+	/**
+	 * Проверяет size.
+	 *
+	 * @param inventory inventory
+	 * @param expectedSize expected size
+	 */
 	protected static void checkSize(Inventory inventory, int expectedSize) {
 		int i = inventory.size();
 		if (i < expectedSize) {
@@ -120,6 +156,12 @@ public abstract class ScreenHandler {
 		}
 	}
 
+	/**
+	 * Проверяет data count.
+	 *
+	 * @param data data
+	 * @param expectedCount expected count
+	 */
 	protected static void checkDataCount(PropertyDelegate data, int expectedCount) {
 		int i = data.size();
 		if (i < expectedCount) {
@@ -132,6 +174,13 @@ public abstract class ScreenHandler {
 		return slot == -1 || slot == -999 || slot < this.slots.size();
 	}
 
+	/**
+	 * Добавляет slot.
+	 *
+	 * @param slot slot
+	 *
+	 * @return Slot — результат операции
+	 */
 	protected Slot addSlot(Slot slot) {
 		slot.id = this.slots.size();
 		this.slots.add(slot);
@@ -141,18 +190,35 @@ public abstract class ScreenHandler {
 		return slot;
 	}
 
+	/**
+	 * Добавляет property.
+	 *
+	 * @param property property
+	 *
+	 * @return Property — результат операции
+	 */
 	protected Property addProperty(Property property) {
 		this.properties.add(property);
 		this.trackedPropertyValues.add(0);
 		return property;
 	}
 
+	/**
+	 * Добавляет properties.
+	 *
+	 * @param propertyDelegate property delegate
+	 */
 	protected void addProperties(PropertyDelegate propertyDelegate) {
 		for (int i = 0; i < propertyDelegate.size(); i++) {
 			this.addProperty(Property.create(propertyDelegate, i));
 		}
 	}
 
+	/**
+	 * Добавляет listener.
+	 *
+	 * @param listener listener
+	 */
 	public void addListener(ScreenHandlerListener listener) {
 		if (!this.listeners.contains(listener)) {
 			this.listeners.add(listener);
@@ -160,6 +226,11 @@ public abstract class ScreenHandler {
 		}
 	}
 
+	/**
+	 * Обновляет sync handler.
+	 *
+	 * @param handler handler
+	 */
 	public void updateSyncHandler(ScreenHandlerSyncHandler handler) {
 		this.syncHandler = handler;
 		this.trackedCursorSlot = handler.createTrackedSlot();
@@ -167,6 +238,9 @@ public abstract class ScreenHandler {
 		this.syncState();
 	}
 
+	/**
+	 * Sync state.
+	 */
 	public void syncState() {
 		List<ItemStack> list = new ArrayList<>(this.slots.size());
 		int i = 0;
@@ -190,6 +264,11 @@ public abstract class ScreenHandler {
 		}
 	}
 
+	/**
+	 * Удаляет listener.
+	 *
+	 * @param listener listener
+	 */
 	public void removeListener(ScreenHandlerListener listener) {
 		this.listeners.remove(listener);
 	}
@@ -204,6 +283,9 @@ public abstract class ScreenHandler {
 		return defaultedList;
 	}
 
+	/**
+	 * Отправляет content updates.
+	 */
 	public void sendContentUpdates() {
 		for (int i = 0; i < this.slots.size(); i++) {
 			ItemStack itemStack = this.slots.get(i).getStack();
@@ -225,6 +307,9 @@ public abstract class ScreenHandler {
 		}
 	}
 
+	/**
+	 * Обновляет to client.
+	 */
 	public void updateToClient() {
 		for (int i = 0; i < this.slots.size(); i++) {
 			ItemStack itemStack = this.slots.get(i).getStack();
@@ -312,6 +397,14 @@ public abstract class ScreenHandler {
 		this.trackedCursorSlot.setReceivedHash(cursorStackHash);
 	}
 
+	/**
+	 * Обрабатывает событие button click.
+	 *
+	 * @param player player
+	 * @param id id
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean onButtonClick(PlayerEntity player, int id) {
 		return false;
 	}
@@ -320,8 +413,22 @@ public abstract class ScreenHandler {
 		return this.slots.get(index);
 	}
 
+	/**
+	 * Quick move.
+	 *
+	 * @param player player
+	 * @param slot slot
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public abstract ItemStack quickMove(PlayerEntity player, int slot);
 
+	/**
+	 * Select bundle stack.
+	 *
+	 * @param slot slot
+	 * @param selectedStack selected stack
+	 */
 	public void selectBundleStack(int slot, int selectedStack) {
 		if (slot >= 0 && slot < this.slots.size()) {
 			ItemStack itemStack = this.slots.get(slot).getStack();
@@ -329,6 +436,14 @@ public abstract class ScreenHandler {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие slot click.
+	 *
+	 * @param slotIndex slot index
+	 * @param button button
+	 * @param actionType action type
+	 * @param player player
+	 */
 	public void onSlotClick(int slotIndex, int button, SlotActionType actionType, PlayerEntity player) {
 		try {
 			this.internalOnSlotClick(slotIndex, button, actionType, player);
@@ -655,10 +770,23 @@ public abstract class ScreenHandler {
 		};
 	}
 
+	/**
+	 * Проверяет возможность insert into slot.
+	 *
+	 * @param stack stack
+	 * @param slot slot
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canInsertIntoSlot(ItemStack stack, Slot slot) {
 		return true;
 	}
 
+	/**
+	 * Обрабатывает событие closed.
+	 *
+	 * @param player player
+	 */
 	public void onClosed(PlayerEntity player) {
 		if (player instanceof ServerPlayerEntity) {
 			ItemStack itemStack = this.getCursorStack();
@@ -680,12 +808,23 @@ public abstract class ScreenHandler {
 		}
 	}
 
+	/**
+	 * Бросает inventory.
+	 *
+	 * @param player player
+	 * @param inventory inventory
+	 */
 	protected void dropInventory(PlayerEntity player, Inventory inventory) {
 		for (int i = 0; i < inventory.size(); i++) {
 			offerOrDropStack(player, inventory.removeStack(i));
 		}
 	}
 
+	/**
+	 * Обрабатывает событие content changed.
+	 *
+	 * @param inventory inventory
+	 */
 	public void onContentChanged(Inventory inventory) {
 		this.sendContentUpdates();
 	}
@@ -695,6 +834,13 @@ public abstract class ScreenHandler {
 		this.revision = revision;
 	}
 
+	/**
+	 * Обновляет slot stacks.
+	 *
+	 * @param revision revision
+	 * @param stacks stacks
+	 * @param cursorStack cursor stack
+	 */
 	public void updateSlotStacks(int revision, List<ItemStack> stacks, ItemStack cursorStack) {
 		for (int i = 0; i < stacks.size(); i++) {
 			this.getSlot(i).setStackNoCallbacks(stacks.get(i));
@@ -708,8 +854,25 @@ public abstract class ScreenHandler {
 		this.properties.get(id).set(value);
 	}
 
+	/**
+	 * Проверяет возможность use.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public abstract boolean canUse(PlayerEntity player);
 
+	/**
+	 * Insert item.
+	 *
+	 * @param stack stack
+	 * @param startIndex start index
+	 * @param endIndex end index
+	 * @param fromLast from last
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean insertItem(ItemStack stack, int startIndex, int endIndex, boolean fromLast) {
 		boolean bl = false;
 		int i = startIndex;
@@ -778,18 +941,48 @@ public abstract class ScreenHandler {
 		return bl;
 	}
 
+	/**
+	 * Unpack quick craft button.
+	 *
+	 * @param quickCraftData quick craft data
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackQuickCraftButton(int quickCraftData) {
 		return quickCraftData >> 2 & 3;
 	}
 
+	/**
+	 * Unpack quick craft stage.
+	 *
+	 * @param quickCraftData quick craft data
+	 *
+	 * @return int — результат операции
+	 */
 	public static int unpackQuickCraftStage(int quickCraftData) {
 		return quickCraftData & 3;
 	}
 
+	/**
+	 * Pack quick craft data.
+	 *
+	 * @param quickCraftStage quick craft stage
+	 * @param buttonId button id
+	 *
+	 * @return int — результат операции
+	 */
 	public static int packQuickCraftData(int quickCraftStage, int buttonId) {
 		return quickCraftStage & 3 | (buttonId & 3) << 2;
 	}
 
+	/**
+	 * Определяет, следует ли quick craft continue.
+	 *
+	 * @param stage stage
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldQuickCraftContinue(int stage, PlayerEntity player) {
 		if (stage == 0) {
 			return true;
@@ -799,11 +992,23 @@ public abstract class ScreenHandler {
 		}
 	}
 
+	/**
+	 * End quick craft.
+	 */
 	protected void endQuickCraft() {
 		this.quickCraftStage = 0;
 		this.quickCraftSlots.clear();
 	}
 
+	/**
+	 * Проверяет возможность insert item into slot.
+	 *
+	 * @param slot slot
+	 * @param stack stack
+	 * @param allowOverflow allow overflow
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canInsertItemIntoSlot(@Nullable Slot slot, ItemStack stack, boolean allowOverflow) {
 		boolean bl = slot == null || !slot.hasStack();
 		return !bl && ItemStack.areItemsAndComponentsEqual(stack, slot.getStack())
@@ -811,6 +1016,15 @@ public abstract class ScreenHandler {
 		       : bl;
 	}
 
+	/**
+	 * Вычисляет stack size.
+	 *
+	 * @param slots slots
+	 * @param mode mode
+	 * @param stack stack
+	 *
+	 * @return int — результат операции
+	 */
 	public static int calculateStackSize(Set<Slot> slots, int mode, ItemStack stack) {
 		return switch (mode) {
 			case 0 -> MathHelper.floor((float) stack.getCount() / slots.size());
@@ -820,14 +1034,35 @@ public abstract class ScreenHandler {
 		};
 	}
 
+	/**
+	 * Проверяет возможность insert into slot.
+	 *
+	 * @param slot slot
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canInsertIntoSlot(Slot slot) {
 		return true;
 	}
 
+	/**
+	 * Вычисляет comparator output.
+	 *
+	 * @param entity entity
+	 *
+	 * @return int — результат операции
+	 */
 	public static int calculateComparatorOutput(@Nullable BlockEntity entity) {
 		return entity instanceof Inventory ? calculateComparatorOutput((Inventory) entity) : 0;
 	}
 
+	/**
+	 * Вычисляет comparator output.
+	 *
+	 * @param inventory inventory
+	 *
+	 * @return int — результат операции
+	 */
 	public static int calculateComparatorOutput(@Nullable Inventory inventory) {
 		if (inventory == null) {
 			return 0;
@@ -855,14 +1090,25 @@ public abstract class ScreenHandler {
 		return this.cursorStack;
 	}
 
+	/**
+	 * Отключает syncing.
+	 */
 	public void disableSyncing() {
 		this.disableSync = true;
 	}
 
+	/**
+	 * Включает syncing.
+	 */
 	public void enableSyncing() {
 		this.disableSync = false;
 	}
 
+	/**
+	 * Создаёт копию shared slots.
+	 *
+	 * @param handler handler
+	 */
 	public void copySharedSlots(ScreenHandler handler) {
 		Table<Inventory, Integer, Integer> table = HashBasedTable.create();
 
@@ -900,6 +1146,11 @@ public abstract class ScreenHandler {
 		return this.revision;
 	}
 
+	/**
+	 * Next revision.
+	 *
+	 * @return int — результат операции
+	 */
 	public int nextRevision() {
 		this.revision = this.revision + 1 & 32767;
 		return this.revision;

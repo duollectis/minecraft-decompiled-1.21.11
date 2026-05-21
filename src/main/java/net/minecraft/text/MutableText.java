@@ -25,6 +25,13 @@ public final class MutableText implements Text {
 		this.style = style;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param content content
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText of(TextContent content) {
 		return new MutableText(content, Lists.newArrayList(), Style.EMPTY);
 	}
@@ -49,40 +56,94 @@ public final class MutableText implements Text {
 		return this.style;
 	}
 
+	/**
+	 * Append.
+	 *
+	 * @param text text
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public MutableText append(String text) {
 		return text.isEmpty() ? this : this.append(Text.literal(text));
 	}
 
+	/**
+	 * Append.
+	 *
+	 * @param text text
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public MutableText append(Text text) {
 		this.siblings.add(text);
 		return this;
 	}
 
+	/**
+	 * Styled.
+	 *
+	 * @param styleUpdater style updater
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public MutableText styled(UnaryOperator<Style> styleUpdater) {
 		this.setStyle(styleUpdater.apply(this.getStyle()));
 		return this;
 	}
 
+	/**
+	 * Fill style.
+	 *
+	 * @param styleOverride style override
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public MutableText fillStyle(Style styleOverride) {
 		this.setStyle(styleOverride.withParent(this.getStyle()));
 		return this;
 	}
 
+	/**
+	 * Форматирует ted.
+	 *
+	 * @param formattings formattings
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public MutableText formatted(Formatting... formattings) {
 		this.setStyle(this.getStyle().withFormatting(formattings));
 		return this;
 	}
 
+	/**
+	 * Форматирует ted.
+	 *
+	 * @param formatting formatting
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public MutableText formatted(Formatting formatting) {
 		this.setStyle(this.getStyle().withFormatting(formatting));
 		return this;
 	}
 
+	/**
+	 * With color.
+	 *
+	 * @param color color
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public MutableText withColor(int color) {
 		this.setStyle(this.getStyle().withColor(color));
 		return this;
 	}
 
+	/**
+	 * Without shadow.
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public MutableText withoutShadow() {
 		this.setStyle(this.getStyle().withoutShadow());
 		return this;

@@ -15,6 +15,14 @@ public record ModelAndTexture<T>(T model, AssetInfo.TextureAssetInfo asset) {
 		this(model, new AssetInfo.TextureAssetInfo(assetId));
 	}
 
+	/**
+	 * Создаёт map codec.
+	 *
+	 * @param modelCodec model codec
+	 * @param model model
+	 *
+	 * @return MapCodec> — результат операции
+	 */
 	public static <T> MapCodec<ModelAndTexture<T>> createMapCodec(Codec<T> modelCodec, T model) {
 		return RecordCodecBuilder.mapCodec(
 				instance -> instance.group(
@@ -25,6 +33,14 @@ public record ModelAndTexture<T>(T model, AssetInfo.TextureAssetInfo asset) {
 		);
 	}
 
+	/**
+	 * Создаёт packet codec.
+	 *
+	 * @param RegistryByteBuf registry byte buf
+	 * @param modelPacketCodec model packet codec
+	 *
+	 * @return PacketCodec> — результат операции
+	 */
 	public static <T> PacketCodec<RegistryByteBuf, ModelAndTexture<T>> createPacketCodec(PacketCodec<? super RegistryByteBuf, T> modelPacketCodec) {
 		return PacketCodec.tuple(
 				modelPacketCodec,

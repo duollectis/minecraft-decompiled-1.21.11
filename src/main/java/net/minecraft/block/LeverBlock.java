@@ -97,6 +97,14 @@ public class LeverBlock extends WallMountedBlock {
 		super.onExploded(state, world, pos, explosion, stackMerger);
 	}
 
+	/**
+	 * Toggle power.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param player player
+	 */
 	public void togglePower(BlockState state, World world, BlockPos pos, @Nullable PlayerEntity player) {
 		state = state.cycle(POWERED);
 		world.setBlockState(pos, state, 3);

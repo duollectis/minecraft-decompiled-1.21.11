@@ -14,6 +14,14 @@ import net.minecraft.util.math.MathHelper;
  */
 public class ArmPosing {
 
+	/**
+	 * Hold.
+	 *
+	 * @param holdingArm holding arm
+	 * @param otherArm other arm
+	 * @param head head
+	 * @param rightArm right arm
+	 */
 	public static void hold(ModelPart holdingArm, ModelPart otherArm, ModelPart head, boolean rightArm) {
 		ModelPart modelPart = rightArm ? holdingArm : otherArm;
 		ModelPart modelPart2 = rightArm ? otherArm : holdingArm;
@@ -70,11 +78,25 @@ public class ArmPosing {
 		swingArms(rightArm, leftArm, animationProgress);
 	}
 
+	/**
+	 * Swing arm.
+	 *
+	 * @param arm arm
+	 * @param animationProgress animation progress
+	 * @param sigma sigma
+	 */
 	public static void swingArm(ModelPart arm, float animationProgress, float sigma) {
 		arm.roll = arm.roll + sigma * (MathHelper.cos(animationProgress * 0.09F) * 0.05F + 0.05F);
 		arm.pitch = arm.pitch + sigma * (MathHelper.sin(animationProgress * 0.067F) * 0.05F);
 	}
 
+	/**
+	 * Swing arms.
+	 *
+	 * @param rightArm right arm
+	 * @param leftArm left arm
+	 * @param animationProgress animation progress
+	 */
 	public static void swingArms(ModelPart rightArm, ModelPart leftArm, float animationProgress) {
 		swingArm(rightArm, animationProgress, 1.0F);
 		swingArm(leftArm, animationProgress, -1.0F);

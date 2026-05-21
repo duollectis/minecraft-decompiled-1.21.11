@@ -58,6 +58,13 @@ public class GpuDeviceInfo {
 		this.isAmdGpu = detectAmdGpu(device);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param device device
+	 *
+	 * @return GpuDeviceInfo — 
+	 */
 	public static GpuDeviceInfo get(GpuDevice device) {
 		GpuDeviceInfo gpuDeviceInfo = instance;
 		if (gpuDeviceInfo == null || gpuDeviceInfo.device.get() != device) {
@@ -67,10 +74,20 @@ public class GpuDeviceInfo {
 		return gpuDeviceInfo;
 	}
 
+	/**
+	 * Requires recreate on upload to buffer.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean requiresRecreateOnUploadToBuffer() {
 		return this.requiresRecreateOnUploadToBuffer;
 	}
 
+	/**
+	 * Определяет, следует ли disable arb direct access.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDisableArbDirectAccess() {
 		return this.shouldDisableArbDirectAccess;
 	}

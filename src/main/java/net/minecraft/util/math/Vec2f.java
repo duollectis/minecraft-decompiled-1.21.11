@@ -34,45 +34,107 @@ public class Vec2f {
 		this.y = y;
 	}
 
+	/**
+	 * Multiply.
+	 *
+	 * @param value value
+	 *
+	 * @return Vec2f — результат операции
+	 */
 	public Vec2f multiply(float value) {
 		return new Vec2f(this.x * value, this.y * value);
 	}
 
+	/**
+	 * Dot.
+	 *
+	 * @param vec vec
+	 *
+	 * @return float — результат операции
+	 */
 	public float dot(Vec2f vec) {
 		return this.x * vec.x + this.y * vec.y;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec2f — результат операции
+	 */
 	public Vec2f add(Vec2f vec) {
 		return new Vec2f(this.x + vec.x, this.y + vec.y);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param value value
+	 *
+	 * @return Vec2f — результат операции
+	 */
 	public Vec2f add(float value) {
 		return new Vec2f(this.x + value, this.y + value);
 	}
 
+	/**
+	 * Equals.
+	 *
+	 * @param other other
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean equals(Vec2f other) {
 		return this.x == other.x && this.y == other.y;
 	}
 
+	/**
+	 * Normalize.
+	 *
+	 * @return Vec2f — результат операции
+	 */
 	public Vec2f normalize() {
 		float f = MathHelper.sqrt(this.x * this.x + this.y * this.y);
 		return f < 1.0E-4F ? ZERO : new Vec2f(this.x / f, this.y / f);
 	}
 
+	/**
+	 * Length.
+	 *
+	 * @return float — результат операции
+	 */
 	public float length() {
 		return MathHelper.sqrt(this.x * this.x + this.y * this.y);
 	}
 
+	/**
+	 * Length squared.
+	 *
+	 * @return float — результат операции
+	 */
 	public float lengthSquared() {
 		return this.x * this.x + this.y * this.y;
 	}
 
+	/**
+	 * Distance squared.
+	 *
+	 * @param vec vec
+	 *
+	 * @return float — результат операции
+	 */
 	public float distanceSquared(Vec2f vec) {
 		float f = vec.x - this.x;
 		float g = vec.y - this.y;
 		return f * f + g * g;
 	}
 
+	/**
+	 * Negate.
+	 *
+	 * @return Vec2f — результат операции
+	 */
 	public Vec2f negate() {
 		return new Vec2f(-this.x, -this.y);
 	}

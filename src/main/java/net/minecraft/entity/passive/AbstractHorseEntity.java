@@ -126,6 +126,9 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		this.initCustomGoals();
 	}
 
+	/**
+	 * Инициализирует custom goals.
+	 */
 	protected void initCustomGoals() {
 		this.goalSelector.add(0, new SwimGoal(this));
 		this.goalSelector.add(3, new TemptGoal(this, 1.25, stack -> stack.isIn(ItemTags.HORSE_TEMPT_ITEMS), false));
@@ -208,6 +211,12 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		                                    : this.isAlive() && !this.isBaby() && this.isTame();
 	}
 
+	/**
+	 * Equip horse armor.
+	 *
+	 * @param player player
+	 * @param stack stack
+	 */
 	public void equipHorseArmor(PlayerEntity player, ItemStack stack) {
 		if (this.canEquip(stack, EquipmentSlot.BODY)) {
 			this.equipBodyArmor(stack.splitUnlessCreative(1, player));
@@ -228,6 +237,13 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		this.temper = temper;
 	}
 
+	/**
+	 * Добавляет temper.
+	 *
+	 * @param difference difference
+	 *
+	 * @return int — результат операции
+	 */
 	public int addTemper(int difference) {
 		int i = MathHelper.clamp(this.getTemper() + difference, 0, this.getMaxTemper());
 		this.setTemper(i);
@@ -281,6 +297,9 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		return MountScreenHandler.getSlotCount(this.getInventoryColumns());
 	}
 
+	/**
+	 * Обрабатывает событие chested status changed.
+	 */
 	protected void onChestedStatusChanged() {
 		SimpleInventory simpleInventory = this.items;
 		this.items = new SimpleInventory(this.getInventorySize());
@@ -321,6 +340,11 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		return bl;
 	}
 
+	/**
+	 * Определяет, следует ли ambient stand.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldAmbientStand() {
 		return true;
 	}
@@ -380,6 +404,11 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 				|| soundGroup == BlockSoundGroup.BAMBOO_WOOD;
 	}
 
+	/**
+	 * Play walk sound.
+	 *
+	 * @param group group
+	 */
 	protected void playWalkSound(BlockSoundGroup group) {
 		this.playSound(SoundEvents.ENTITY_HORSE_GALLOP, group.getVolume() * 0.15F, group.getPitch());
 	}
@@ -421,6 +450,14 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		}
 	}
 
+	/**
+	 * Выполняет взаимодействие с horse.
+	 *
+	 * @param player player
+	 * @param stack stack
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult interactHorse(PlayerEntity player, ItemStack stack) {
 		boolean bl = this.receiveFood(player, stack);
 		if (bl) {
@@ -432,6 +469,14 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		);
 	}
 
+	/**
+	 * Получает food.
+	 *
+	 * @param player player
+	 * @param item item
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean receiveFood(PlayerEntity player, ItemStack item) {
 		boolean bl = false;
 		float f = 0.0F;
@@ -522,6 +567,11 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		return bl;
 	}
 
+	/**
+	 * Put player on back.
+	 *
+	 * @param player player
+	 */
 	protected void putPlayerOnBack(PlayerEntity player) {
 		this.setEatingGrass(false);
 		this.setNotAngry();
@@ -593,6 +643,11 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		}
 	}
 
+	/**
+	 * Walk to parent.
+	 *
+	 * @param world world
+	 */
 	protected void walkToParent(ServerWorld world) {
 		if (this.isBred() && this.isBaby() && !this.isEatingGrass()) {
 			LivingEntity livingEntity = world.getClosestEntity(
@@ -610,6 +665,11 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		}
 	}
 
+	/**
+	 * Eats grass.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean eatsGrass() {
 		return true;
 	}
@@ -746,12 +806,18 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		return this.getAmbientSound();
 	}
 
+	/**
+	 * Обновляет anger.
+	 */
 	public void updateAnger() {
 		if (this.shouldAmbientStand() && (this.canActVoluntarily() || !this.getEntityWorld().isClient())) {
 			this.setAngry(20);
 		}
 	}
 
+	/**
+	 * Play angry sound.
+	 */
 	public void playAngrySound() {
 		if (!this.isAngry() && !this.getEntityWorld().isClient()) {
 			this.updateAnger();
@@ -759,6 +825,13 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		}
 	}
 
+	/**
+	 * Bond with player.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean bondWithPlayer(PlayerEntity player) {
 		this.setOwner(player);
 		this.setTame(true);
@@ -822,6 +895,12 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		return (float) this.getAttributeValue(EntityAttributes.MOVEMENT_SPEED);
 	}
 
+	/**
+	 * Jump.
+	 *
+	 * @param strength strength
+	 * @param movementInput movement input
+	 */
 	protected void jump(float strength, Vec3d movementInput) {
 		double d = this.getJumpVelocity(strength);
 		Vec3d vec3d = this.getVelocity();
@@ -834,6 +913,9 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		}
 	}
 
+	/**
+	 * Play jump sound.
+	 */
 	protected void playJumpSound() {
 		this.playSound(SoundEvents.ENTITY_HORSE_JUMP, 0.4F, 1.0F);
 	}
@@ -863,6 +945,11 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		return false;
 	}
 
+	/**
+	 * Проверяет возможность breed.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canBreed() {
 		return !this.hasPassengers() && !this.hasVehicle() && this.isTame() && !this.isBaby()
 				&& this.getHealth() >= this.getMaxHealth() && this.isInLove();
@@ -989,6 +1076,11 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 	public void stopJumping() {
 	}
 
+	/**
+	 * Создаёт (спавнит) player reaction particles.
+	 *
+	 * @param positive positive
+	 */
 	protected void spawnPlayerReactionParticles(boolean positive) {
 		ParticleEffect particleEffect = positive ? ParticleTypes.HEART : ParticleTypes.SMOKE;
 
@@ -1126,6 +1218,11 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		}
 	}
 
+	/**
+	 * Инициализирует attributes.
+	 *
+	 * @param random random
+	 */
 	protected void initAttributes(Random random) {
 	}
 
@@ -1144,6 +1241,13 @@ public abstract class AbstractHorseEntity extends AnimalEntity implements Rideab
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
+	/**
+	 * Are inventories different.
+	 *
+	 * @param inventory inventory
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areInventoriesDifferent(Inventory inventory) {
 		return this.items != inventory;
 	}

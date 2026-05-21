@@ -15,6 +15,14 @@ class AlwaysTrueBlockPredicate implements BlockPredicate {
 	private AlwaysTrueBlockPredicate() {
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param structureWorldAccess structure world access
+	 * @param blockPos block pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
 		return true;
 	}

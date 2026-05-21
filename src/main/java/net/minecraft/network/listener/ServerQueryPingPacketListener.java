@@ -2,6 +2,9 @@ package net.minecraft.network.listener;
 
 import net.minecraft.network.packet.c2s.query.QueryPingC2SPacket;
 
+/**
+ * Интерфейс server query ping packet listener.
+ */
 public interface ServerQueryPingPacketListener extends PacketListener {
 
 	void onQueryPing(QueryPingC2SPacket packet);

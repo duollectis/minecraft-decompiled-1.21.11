@@ -78,6 +78,11 @@ public class SkullBlockEntityRenderer implements BlockEntityRenderer<SkullBlockE
 		this.models = Util.memoize(type -> getModels(loadedEntityModels, type));
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SkullBlockEntityRenderState — результат операции
+	 */
 	public SkullBlockEntityRenderState createRenderState() {
 		return new SkullBlockEntityRenderState();
 	}

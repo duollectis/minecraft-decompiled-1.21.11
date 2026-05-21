@@ -230,6 +230,13 @@ public class PackScreen extends Screen {
 		this.iconTextures.clear();
 	}
 
+	/**
+	 * Создаёт копию packs.
+	 *
+	 * @param client client
+	 * @param srcPaths src paths
+	 * @param destPath dest path
+	 */
 	protected static void copyPacks(MinecraftClient client, List<Path> srcPaths, Path destPath) {
 		MutableBoolean mutableBoolean = new MutableBoolean();
 		srcPaths.forEach(src -> {
@@ -270,10 +277,24 @@ public class PackScreen extends Screen {
 										ResourcePackOpener<Path>
 												resourcePackOpener =
 												new ResourcePackOpener<Path>(this.client.getSymlinkFinder()) {
+													/**
+													 * Открывает zip.
+													 *
+													 * @param path path
+													 *
+													 * @return Path — результат операции
+													 */
 													protected Path openZip(Path path) {
 														return path;
 													}
 
+													/**
+													 * Открывает directory.
+													 *
+													 * @param path path
+													 *
+													 * @return Path — результат операции
+													 */
 													protected Path openDirectory(Path path) {
 														return path;
 													}
@@ -427,6 +448,11 @@ public class PackScreen extends Screen {
 			);
 		}
 
+		/**
+		 * Poll for change.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean pollForChange() throws IOException {
 			boolean bl = false;
 

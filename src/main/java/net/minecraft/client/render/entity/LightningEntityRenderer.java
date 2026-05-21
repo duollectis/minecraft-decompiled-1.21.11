@@ -221,6 +221,11 @@ public class LightningEntityRenderer extends EntityRenderer<LightningEntity, Lig
 				.color(red, green, blue, 0.3F);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return LightningEntityRenderState — результат операции
+	 */
 	public LightningEntityRenderState createRenderState() {
 		return new LightningEntityRenderState();
 	}
@@ -234,6 +239,13 @@ public class LightningEntityRenderer extends EntityRenderer<LightningEntity, Lig
 		lightningEntityRenderState.seed = lightningEntity.seed;
 	}
 
+	/**
+	 * Проверяет возможность be culled.
+	 *
+	 * @param lightningEntity lightning entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canBeCulled(LightningEntity lightningEntity) {
 		return false;
 	}

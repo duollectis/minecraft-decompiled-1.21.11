@@ -177,6 +177,9 @@ public class SlimeEntity extends MobEntity implements Monster {
 		this.updateStretch();
 	}
 
+	/**
+	 * Обновляет stretch.
+	 */
 	protected void updateStretch() {
 		this.targetStretch *= 0.6F;
 	}
@@ -262,6 +265,11 @@ public class SlimeEntity extends MobEntity implements Monster {
 		}
 	}
 
+	/**
+	 * Damage.
+	 *
+	 * @param target target
+	 */
 	protected void damage(LivingEntity target) {
 		if (this.getEntityWorld() instanceof ServerWorld serverWorld && this.isAlive() && this.isInAttackRange(target)
 				&& this.canSee(target)) {
@@ -282,6 +290,11 @@ public class SlimeEntity extends MobEntity implements Monster {
 		return new Vec3d(0.0, dimensions.height() - 0.015625 * this.getSize() * scaleFactor, 0.0);
 	}
 
+	/**
+	 * Проверяет возможность attack.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canAttack() {
 		return !this.isSmall() && this.canActVoluntarily();
 	}
@@ -360,6 +373,11 @@ public class SlimeEntity extends MobEntity implements Monster {
 		return 0;
 	}
 
+	/**
+	 * Makes jump sound.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean makesJumpSound() {
 		return this.getSize() > 0;
 	}
@@ -540,11 +558,22 @@ public class SlimeEntity extends MobEntity implements Monster {
 			this.targetYaw = 180.0F * slime.getYaw() / (float) Math.PI;
 		}
 
+		/**
+		 * Look.
+		 *
+		 * @param targetYaw target yaw
+		 * @param jumpOften jump often
+		 */
 		public void look(float targetYaw, boolean jumpOften) {
 			this.targetYaw = targetYaw;
 			this.jumpOften = jumpOften;
 		}
 
+		/**
+		 * Move.
+		 *
+		 * @param speed speed
+		 */
 		public void move(double speed) {
 			this.speed = speed;
 			this.state = MoveControl.State.MOVE_TO;

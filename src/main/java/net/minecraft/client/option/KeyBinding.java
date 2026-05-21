@@ -36,6 +36,11 @@ public class KeyBinding implements Comparable<KeyBinding> {
 	private int timesPressed;
 	private final int sortOrder;
 
+	/**
+	 * Обрабатывает событие key pressed.
+	 *
+	 * @param key key
+	 */
 	public static void onKeyPressed(InputUtil.Key key) {
 		forAllKeyBinds(key, keyx -> keyx.timesPressed++);
 	}
@@ -53,6 +58,9 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		}
 	}
 
+	/**
+	 * Обновляет pressed states.
+	 */
 	public static void updatePressedStates() {
 		Window window = MinecraftClient.getInstance().getWindow();
 
@@ -63,12 +71,18 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		}
 	}
 
+	/**
+	 * Unpress all.
+	 */
 	public static void unpressAll() {
 		for (KeyBinding keyBinding : KEYS_BY_ID.values()) {
 			keyBinding.reset();
 		}
 	}
 
+	/**
+	 * Restore toggle states.
+	 */
 	public static void restoreToggleStates() {
 		for (KeyBinding keyBinding : KEYS_BY_ID.values()) {
 			if (keyBinding instanceof StickyKeyBinding stickyKeyBinding
@@ -78,6 +92,9 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		}
 	}
 
+	/**
+	 * Untoggle sticky keys.
+	 */
 	public static void untoggleStickyKeys() {
 		for (KeyBinding keyBinding : KEYS_BY_ID.values()) {
 			if (keyBinding instanceof StickyKeyBinding stickyKeyBinding) {
@@ -86,6 +103,9 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		}
 	}
 
+	/**
+	 * Обновляет keys by code.
+	 */
 	public static void updateKeysByCode() {
 		KEY_TO_BINDINGS.clear();
 
@@ -120,6 +140,11 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		return this.category;
 	}
 
+	/**
+	 * Was pressed.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean wasPressed() {
 		if (this.timesPressed == 0) {
 			return false;
@@ -130,11 +155,19 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		}
 	}
 
+	/**
+	 * Reset.
+	 */
 	protected void reset() {
 		this.timesPressed = 0;
 		this.setPressed(false);
 	}
 
+	/**
+	 * Определяет, следует ли set on game focus.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldSetOnGameFocus() {
 		return this.boundKey.getCategory() == InputUtil.Type.KEYSYM
 				&& this.boundKey.getCode() != InputUtil.UNKNOWN_KEY.getCode();
@@ -152,6 +185,13 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		this.boundKey = boundKey;
 	}
 
+	/**
+	 * Compare to.
+	 *
+	 * @param keyBinding key binding
+	 *
+	 * @return int — результат операции
+	 */
 	public int compareTo(KeyBinding keyBinding) {
 		if (this.category == keyBinding.category) {
 			return this.sortOrder == keyBinding.sortOrder
@@ -171,6 +211,13 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		return keyBinding == null ? () -> Text.translatable(id) : keyBinding::getBoundKeyLocalizedText;
 	}
 
+	/**
+	 * Equals.
+	 *
+	 * @param other other
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean equals(KeyBinding other) {
 		return this.boundKey.equals(other.boundKey);
 	}
@@ -179,12 +226,26 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		return this.boundKey.equals(InputUtil.UNKNOWN_KEY);
 	}
 
+	/**
+	 * Matches key.
+	 *
+	 * @param key key
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matchesKey(KeyInput key) {
 		return key.key() == InputUtil.UNKNOWN_KEY.getCode()
 		       ? this.boundKey.getCategory() == InputUtil.Type.SCANCODE && this.boundKey.getCode() == key.scancode()
 		       : this.boundKey.getCategory() == InputUtil.Type.KEYSYM && this.boundKey.getCode() == key.key();
 	}
 
+	/**
+	 * Matches mouse.
+	 *
+	 * @param click click
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matchesMouse(Click click) {
 		return this.boundKey.getCategory() == InputUtil.Type.MOUSE && this.boundKey.getCode() == click.button();
 	}
@@ -209,6 +270,13 @@ public class KeyBinding implements Comparable<KeyBinding> {
 		KEY_TO_BINDINGS.computeIfAbsent(key, keyx -> new ArrayList<>()).add(this);
 	}
 
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable KeyBinding — результат операции
+	 */
 	public static @Nullable KeyBinding byId(String id) {
 		return KEYS_BY_ID.get(id);
 	}

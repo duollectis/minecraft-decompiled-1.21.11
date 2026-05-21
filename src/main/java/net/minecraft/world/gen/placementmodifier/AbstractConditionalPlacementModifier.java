@@ -16,5 +16,14 @@ public abstract class AbstractConditionalPlacementModifier extends PlacementModi
 		return this.shouldPlace(context, random, pos) ? Stream.of(pos) : Stream.of();
 	}
 
+	/**
+	 * Определяет, следует ли place.
+	 *
+	 * @param context context
+	 * @param random random
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected abstract boolean shouldPlace(FeaturePlacementContext context, Random random, BlockPos pos);
 }

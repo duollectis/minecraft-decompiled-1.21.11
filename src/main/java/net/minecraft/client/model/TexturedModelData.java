@@ -18,14 +18,35 @@ public class TexturedModelData {
 		this.dimensions = dimensions;
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param transformer transformer
+	 *
+	 * @return TexturedModelData — результат операции
+	 */
 	public TexturedModelData transform(ModelTransformer transformer) {
 		return new TexturedModelData(transformer.apply(this.data), this.dimensions);
 	}
 
+	/**
+	 * Создаёт model.
+	 *
+	 * @return ModelPart — результат операции
+	 */
 	public ModelPart createModel() {
 		return this.data.getRoot().createPart(this.dimensions.width, this.dimensions.height);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param partData part data
+	 * @param textureWidth texture width
+	 * @param textureHeight texture height
+	 *
+	 * @return TexturedModelData — результат операции
+	 */
 	public static TexturedModelData of(ModelData partData, int textureWidth, int textureHeight) {
 		return new TexturedModelData(partData, new TextureDimensions(textureWidth, textureHeight));
 	}

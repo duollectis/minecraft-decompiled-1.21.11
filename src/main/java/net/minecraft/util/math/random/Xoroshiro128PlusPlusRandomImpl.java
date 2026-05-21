@@ -33,6 +33,11 @@ public class Xoroshiro128PlusPlusRandomImpl {
 		}
 	}
 
+	/**
+	 * Next.
+	 *
+	 * @return long — результат операции
+	 */
 	public long next() {
 		long l = this.seedLo;
 		long m = this.seedHi;

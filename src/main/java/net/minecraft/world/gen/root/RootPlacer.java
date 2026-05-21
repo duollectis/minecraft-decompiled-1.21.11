@@ -65,6 +65,14 @@ public abstract class RootPlacer {
 			TreeFeatureConfig config
 	);
 
+	/**
+	 * Проверяет возможность grow through.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canGrowThrough(TestableWorld world, BlockPos pos) {
 		return TreeFeature.canReplace(world, pos);
 	}
@@ -98,6 +106,15 @@ public abstract class RootPlacer {
 		}
 	}
 
+	/**
+	 * Применяет waterlogging.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return BlockState — результат операции
+	 */
 	protected BlockState applyWaterlogging(TestableWorld world, BlockPos pos, BlockState state) {
 		if (state.contains(Properties.WATERLOGGED)) {
 			boolean bl = world.testFluidState(pos, fluidState -> fluidState.isIn(FluidTags.WATER));
@@ -108,6 +125,14 @@ public abstract class RootPlacer {
 		}
 	}
 
+	/**
+	 * Trunk offset.
+	 *
+	 * @param pos pos
+	 * @param random random
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos trunkOffset(BlockPos pos, Random random) {
 		return pos.up(this.trunkOffsetY.get(random));
 	}

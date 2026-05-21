@@ -52,6 +52,13 @@ public record EntityScoresLootCondition(
 				.collect(ImmutableSet.toImmutableSet());
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		Entity entity = lootContext.get(this.entity.contextParam());
 		if (entity == null) {

@@ -92,6 +92,11 @@ public class EntityAttributeInstance {
 		}
 	}
 
+	/**
+	 * Обновляет modifier.
+	 *
+	 * @param modifier modifier
+	 */
 	public void updateModifier(EntityAttributeModifier modifier) {
 		EntityAttributeModifier entityAttributeModifier = this.idToModifiers.put(modifier.id(), modifier);
 		if (modifier != entityAttributeModifier) {
@@ -100,36 +105,71 @@ public class EntityAttributeInstance {
 		}
 	}
 
+	/**
+	 * Добавляет temporary modifier.
+	 *
+	 * @param modifier modifier
+	 */
 	public void addTemporaryModifier(EntityAttributeModifier modifier) {
 		this.addModifier(modifier);
 	}
 
+	/**
+	 * Overwrite persistent modifier.
+	 *
+	 * @param modifier modifier
+	 */
 	public void overwritePersistentModifier(EntityAttributeModifier modifier) {
 		this.removeModifier(modifier.id());
 		this.addModifier(modifier);
 		this.persistentModifiers.put(modifier.id(), modifier);
 	}
 
+	/**
+	 * Добавляет persistent modifier.
+	 *
+	 * @param modifier modifier
+	 */
 	public void addPersistentModifier(EntityAttributeModifier modifier) {
 		this.addModifier(modifier);
 		this.persistentModifiers.put(modifier.id(), modifier);
 	}
 
+	/**
+	 * Добавляет persistent modifiers.
+	 *
+	 * @param modifiers modifiers
+	 */
 	public void addPersistentModifiers(Collection<EntityAttributeModifier> modifiers) {
 		for (EntityAttributeModifier entityAttributeModifier : modifiers) {
 			this.addPersistentModifier(entityAttributeModifier);
 		}
 	}
 
+	/**
+	 * Обрабатывает событие update.
+	 */
 	protected void onUpdate() {
 		this.dirty = true;
 		this.updateCallback.accept(this);
 	}
 
+	/**
+	 * Удаляет modifier.
+	 *
+	 * @param modifier modifier
+	 */
 	public void removeModifier(EntityAttributeModifier modifier) {
 		this.removeModifier(modifier.id());
 	}
 
+	/**
+	 * Удаляет modifier.
+	 *
+	 * @param id id
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean removeModifier(Identifier id) {
 		EntityAttributeModifier entityAttributeModifier = this.idToModifiers.remove(id);
 		if (entityAttributeModifier == null) {
@@ -143,6 +183,9 @@ public class EntityAttributeInstance {
 		}
 	}
 
+	/**
+	 * Очищает modifiers.
+	 */
 	public void clearModifiers() {
 		for (EntityAttributeModifier entityAttributeModifier : this.getModifiers()) {
 			this.removeModifier(entityAttributeModifier);
@@ -204,6 +247,11 @@ public class EntityAttributeInstance {
 		);
 	}
 
+	/**
+	 * Unpack.
+	 *
+	 * @param packed packed
+	 */
 	public void unpack(EntityAttributeInstance.Packed packed) {
 		this.baseValue = packed.baseValue;
 

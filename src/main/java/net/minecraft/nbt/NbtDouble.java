@@ -17,6 +17,14 @@ public record NbtDouble(double value) implements AbstractNbtNumber {
 	private static final int SIZE = 16;
 	public static final NbtDouble ZERO = new NbtDouble(0.0);
 	public static final NbtType<NbtDouble> TYPE = new NbtType.OfFixedSize<NbtDouble>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtDouble — результат операции
+		 */
 		public NbtDouble read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 			return NbtDouble.of(readDouble(dataInput, nbtSizeTracker));
 		}
@@ -53,6 +61,13 @@ public record NbtDouble(double value) implements AbstractNbtNumber {
 		this.value = value;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param value value
+	 *
+	 * @return NbtDouble — результат операции
+	 */
 	public static NbtDouble of(double value) {
 		return value == 0.0 ? ZERO : new NbtDouble(value);
 	}
@@ -77,6 +92,11 @@ public record NbtDouble(double value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return NbtDouble — результат операции
+	 */
 	public NbtDouble copy() {
 		return this;
 	}

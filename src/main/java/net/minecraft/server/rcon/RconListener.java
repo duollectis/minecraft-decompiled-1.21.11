@@ -62,6 +62,13 @@ public class RconListener extends RconBase {
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param server server
+	 *
+	 * @return @Nullable RconListener — результат операции
+	 */
 	public static @Nullable RconListener create(DedicatedServer server) {
 		ServerPropertiesHandler serverPropertiesHandler = server.getProperties();
 		String string = server.getHostname();

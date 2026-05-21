@@ -78,6 +78,11 @@ public class DragonEntityModel extends EntityModel<EnderDragonEntityRenderState>
 		this.rightHindFoot = this.rightHindLegTip.getChild("right_hind_foot");
 	}
 
+	/**
+	 * Создаёт textured model data.
+	 *
+	 * @return TexturedModelData — результат операции
+	 */
 	public static TexturedModelData createTexturedModelData() {
 		ModelData modelData = new ModelData();
 		ModelPartData modelPartData = modelData.getRoot();

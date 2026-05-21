@@ -4,6 +4,9 @@ import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.util.Identifier;
 
+/**
+ * Запись unknown custom payload.
+ */
 public record UnknownCustomPayload(Identifier id) implements CustomPayload {
 
 	public static <T extends PacketByteBuf> PacketCodec<T, UnknownCustomPayload> createCodec(

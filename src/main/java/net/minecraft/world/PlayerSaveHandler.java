@@ -39,6 +39,11 @@ public class PlayerSaveHandler {
 		this.playerDataDir.mkdirs();
 	}
 
+	/**
+	 * Сохраняет player data.
+	 *
+	 * @param player player
+	 */
 	public void savePlayerData(PlayerEntity player) {
 		try (ErrorReporter.Logging logging = new ErrorReporter.Logging(player.getErrorReporterContext(), LOGGER)) {
 			NbtWriteView nbtWriteView = NbtWriteView.create(logging, player.getRegistryManager());
@@ -88,6 +93,13 @@ public class PlayerSaveHandler {
 		return Optional.empty();
 	}
 
+	/**
+	 * Загружает player data.
+	 *
+	 * @param playerConfigEntry player config entry
+	 *
+	 * @return Optional — результат операции
+	 */
 	public Optional<NbtCompound> loadPlayerData(PlayerConfigEntry playerConfigEntry) {
 		Optional<NbtCompound> optional = this.loadPlayerData(playerConfigEntry, ".dat");
 		if (optional.isEmpty()) {

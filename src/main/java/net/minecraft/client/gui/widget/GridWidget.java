@@ -97,18 +97,58 @@ public class GridWidget extends WrapperWidget {
 		this.height = ls[i] + js[i];
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 * @param row row
+	 * @param column column
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget, int row, int column) {
 		return this.add(widget, row, column, this.copyPositioner());
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 * @param row row
+	 * @param column column
+	 * @param positioner positioner
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget, int row, int column, Positioner positioner) {
 		return this.add(widget, row, column, 1, 1, positioner);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 * @param row row
+	 * @param column column
+	 * @param callback callback
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget, int row, int column, Consumer<Positioner> callback) {
 		return this.add(widget, row, column, 1, 1, Util.make(this.copyPositioner(), callback));
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param widget widget
+	 * @param row row
+	 * @param column column
+	 * @param occupiedRows occupied rows
+	 * @param occupiedColumns occupied columns
+	 *
+	 * @return T — результат операции
+	 */
 	public <T extends Widget> T add(T widget, int row, int column, int occupiedRows, int occupiedColumns) {
 		return this.add(widget, row, column, occupiedRows, occupiedColumns, this.copyPositioner());
 	}
@@ -164,6 +204,11 @@ public class GridWidget extends WrapperWidget {
 		this.children.forEach(consumer);
 	}
 
+	/**
+	 * Создаёт копию positioner.
+	 *
+	 * @return Positioner — результат операции
+	 */
 	public Positioner copyPositioner() {
 		return this.mainPositioner.copy();
 	}
@@ -189,18 +234,50 @@ public class GridWidget extends WrapperWidget {
 			this.columns = columns;
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param widget widget
+		 *
+		 * @return T — результат операции
+		 */
 		public <T extends Widget> T add(T widget) {
 			return this.add(widget, 1);
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param widget widget
+		 * @param occupiedColumns occupied columns
+		 *
+		 * @return T — результат операции
+		 */
 		public <T extends Widget> T add(T widget, int occupiedColumns) {
 			return this.add(widget, occupiedColumns, this.getMainPositioner());
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param widget widget
+		 * @param positioner positioner
+		 *
+		 * @return T — результат операции
+		 */
 		public <T extends Widget> T add(T widget, Positioner positioner) {
 			return this.add(widget, 1, positioner);
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param widget widget
+		 * @param occupiedColumns occupied columns
+		 * @param positioner positioner
+		 *
+		 * @return T — результат операции
+		 */
 		public <T extends Widget> T add(T widget, int occupiedColumns, Positioner positioner) {
 			int i = this.totalOccupiedColumns / this.columns;
 			int j = this.totalOccupiedColumns % this.columns;
@@ -218,6 +295,11 @@ public class GridWidget extends WrapperWidget {
 			return GridWidget.this;
 		}
 
+		/**
+		 * Создаёт копию positioner.
+		 *
+		 * @return Positioner — результат операции
+		 */
 		public Positioner copyPositioner() {
 			return GridWidget.this.copyPositioner();
 		}

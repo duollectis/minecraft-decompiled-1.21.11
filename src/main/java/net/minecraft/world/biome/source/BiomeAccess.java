@@ -23,10 +23,24 @@ public class BiomeAccess {
 		this.seed = seed;
 	}
 
+	/**
+	 * Проверяет наличие h seed.
+	 *
+	 * @param seed seed
+	 *
+	 * @return long — {@code true} если условие выполнено
+	 */
 	public static long hashSeed(long seed) {
 		return Hashing.sha256().hashLong(seed).asLong();
 	}
 
+	/**
+	 * With source.
+	 *
+	 * @param storage storage
+	 *
+	 * @return BiomeAccess — результат операции
+	 */
 	public BiomeAccess withSource(BiomeAccess.Storage storage) {
 		return new BiomeAccess(storage, this.seed);
 	}

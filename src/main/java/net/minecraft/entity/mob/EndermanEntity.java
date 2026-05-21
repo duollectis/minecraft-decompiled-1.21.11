@@ -167,6 +167,9 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 		return this.angryAt;
 	}
 
+	/**
+	 * Play angry sound.
+	 */
 	public void playAngrySound() {
 		if (this.age >= this.lastAngrySoundAge + 400) {
 			this.lastAngrySoundAge = this.age;
@@ -270,6 +273,11 @@ public class EndermanEntity extends HostileEntity implements Angerable {
 		super.mobTick(world);
 	}
 
+	/**
+	 * Телепортирует randomly.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean teleportRandomly() {
 		if (!this.getEntityWorld().isClient() && this.isAlive()) {
 			double d = this.getX() + (this.random.nextDouble() - 0.5) * 64.0;

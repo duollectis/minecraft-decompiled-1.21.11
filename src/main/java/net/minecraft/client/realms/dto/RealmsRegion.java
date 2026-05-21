@@ -49,6 +49,13 @@ public enum RealmsRegion {
 		this.translationKey = translationKey;
 	}
 
+	/**
+	 * From name.
+	 *
+	 * @param name name
+	 *
+	 * @return @Nullable RealmsRegion — результат операции
+	 */
 	public static @Nullable RealmsRegion fromName(String name) {
 		for (RealmsRegion realmsRegion : values()) {
 			if (realmsRegion.name.equals(name)) {
@@ -67,10 +74,23 @@ public enum RealmsRegion {
 
 		private static final Logger LOGGER = LogUtils.getLogger();
 
+		/**
+		 * Write.
+		 *
+		 * @param jsonWriter json writer
+		 * @param realmsRegion realms region
+		 */
 		public void write(JsonWriter jsonWriter, RealmsRegion realmsRegion) throws IOException {
 			jsonWriter.value(realmsRegion.name);
 		}
 
+		/**
+		 * Read.
+		 *
+		 * @param jsonReader json reader
+		 *
+		 * @return RealmsRegion — результат операции
+		 */
 		public RealmsRegion read(JsonReader jsonReader) throws IOException {
 			String string = jsonReader.nextString();
 			RealmsRegion realmsRegion = RealmsRegion.fromName(string);

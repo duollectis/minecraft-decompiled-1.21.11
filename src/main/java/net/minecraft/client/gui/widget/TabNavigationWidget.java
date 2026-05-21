@@ -130,6 +130,12 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 		}
 	}
 
+	/**
+	 * Append narrations.
+	 *
+	 * @param builder builder
+	 * @param button button
+	 */
 	protected void appendNarrations(NarrationMessageBuilder builder, TabButtonWidget button) {
 		if (this.tabs.size() > 1) {
 			int i = this.tabButtons.indexOf(button);
@@ -182,6 +188,9 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 		return this.grid.getNavigationFocus();
 	}
 
+	/**
+	 * Init.
+	 */
 	public void init() {
 		int i = Math.min(400, this.tabNavWidth) - 28;
 		int j = MathHelper.roundUpToMultiple(i / this.tabs.size(), 2);
@@ -197,6 +206,12 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 		this.grid.setY(0);
 	}
 
+	/**
+	 * Select tab.
+	 *
+	 * @param index index
+	 * @param clickSound click sound
+	 */
 	public void selectTab(int index, boolean clickSound) {
 		if (this.isFocused()) {
 			this.setFocused((Element) this.tabButtons.get(index));
@@ -281,6 +296,11 @@ public class TabNavigationWidget extends AbstractParentElement implements Drawab
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return TabNavigationWidget — результат операции
+		 */
 		public TabNavigationWidget build() {
 			return new TabNavigationWidget(this.width, this.tabManager, this.tabs);
 		}

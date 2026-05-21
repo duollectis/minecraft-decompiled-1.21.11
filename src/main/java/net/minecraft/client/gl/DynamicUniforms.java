@@ -33,6 +33,9 @@ public class DynamicUniforms implements AutoCloseable {
 					"Chunk Sections UBO", CHUNK_SECTIONS_SIZE, 2
 			);
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.transformsStorage.clear();
 		this.chunkSectionsStorage.clear();
@@ -61,10 +64,24 @@ public class DynamicUniforms implements AutoCloseable {
 				);
 	}
 
+	/**
+	 * Записывает transforms.
+	 *
+	 * @param values values
+	 *
+	 * @return GpuBufferSlice[] — результат операции
+	 */
 	public GpuBufferSlice[] writeTransforms(DynamicUniforms.TransformsValue... values) {
 		return this.transformsStorage.writeAll(values);
 	}
 
+	/**
+	 * Записывает chunk sections.
+	 *
+	 * @param values values
+	 *
+	 * @return GpuBufferSlice[] — результат операции
+	 */
 	public GpuBufferSlice[] writeChunkSections(DynamicUniforms.ChunkSectionsValue... values) {
 		return this.chunkSectionsStorage.writeAll(values);
 	}

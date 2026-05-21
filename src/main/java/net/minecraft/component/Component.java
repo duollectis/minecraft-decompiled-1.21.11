@@ -16,6 +16,13 @@ public record Component<T>(ComponentType<T> type, T value) {
 	public static final PacketCodec<RegistryByteBuf, Component<?>>
 			PACKET_CODEC =
 			new PacketCodec<RegistryByteBuf, Component<?>>() {
+				/**
+				 * Decode.
+				 *
+				 * @param registryByteBuf registry byte buf
+				 *
+				 * @return Component — результат операции
+				 */
 				public Component<?> decode(RegistryByteBuf registryByteBuf) {
 					ComponentType<?> componentType = ComponentType.PACKET_CODEC.decode(registryByteBuf);
 					return readWildcard(registryByteBuf, componentType);
@@ -30,6 +37,12 @@ public record Component<T>(ComponentType<T> type, T value) {
 					return new Component<>(type, type.getPacketCodec().decode(buf));
 				}
 
+				/**
+				 * Encode.
+				 *
+				 * @param registryByteBuf registry byte buf
+				 * @param component component
+				 */
 				public void encode(RegistryByteBuf registryByteBuf, Component<?> component) {
 					writeWildcard(registryByteBuf, component);
 				}
@@ -49,14 +62,34 @@ public record Component<T>(ComponentType<T> type, T value) {
 		return of(entry.getKey(), entry.getValue());
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param type type
+	 * @param value value
+	 *
+	 * @return Component — результат операции
+	 */
 	public static <T> Component<T> of(ComponentType<T> type, Object value) {
 		return new Component<>(type, (T) value);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param components components
+	 */
 	public void apply(MergedComponentMap components) {
 		components.set(this.type, this.value);
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param ops ops
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public <D> DataResult<D> encode(DynamicOps<D> ops) {
 		Codec<T> codec = this.type.getCodec();
 		return codec == null ? DataResult.error(() -> "Component of type " + this.type + " is not encodable")

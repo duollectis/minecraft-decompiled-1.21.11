@@ -31,6 +31,15 @@ public abstract class WallMountedBlock extends HorizontalFacingBlock {
 		return canPlaceAt(world, pos, getDirection(state).getOpposite());
 	}
 
+	/**
+	 * Проверяет возможность place at.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canPlaceAt(WorldView world, BlockPos pos, Direction direction) {
 		BlockPos blockPos = pos.offset(direction);
 		return world.getBlockState(blockPos).isSideSolidFullSquare(world, blockPos, direction.getOpposite());

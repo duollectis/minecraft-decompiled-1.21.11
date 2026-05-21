@@ -11,6 +11,15 @@ import net.minecraft.world.World;
  */
 public class ItemUsage {
 
+	/**
+	 * Consume held item.
+	 *
+	 * @param world world
+	 * @param player player
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public static ActionResult consumeHeldItem(World world, PlayerEntity player, Hand hand) {
 		player.setCurrentHand(hand);
 		return ActionResult.CONSUME;
@@ -45,10 +54,25 @@ public class ItemUsage {
 		}
 	}
 
+	/**
+	 * Exchange stack.
+	 *
+	 * @param inputStack input stack
+	 * @param player player
+	 * @param outputStack output stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public static ItemStack exchangeStack(ItemStack inputStack, PlayerEntity player, ItemStack outputStack) {
 		return exchangeStack(inputStack, player, outputStack, true);
 	}
 
+	/**
+	 * Создаёт (спавнит) item contents.
+	 *
+	 * @param itemEntity item entity
+	 * @param contents contents
+	 */
 	public static void spawnItemContents(ItemEntity itemEntity, Iterable<ItemStack> contents) {
 		World world = itemEntity.getEntityWorld();
 		if (!world.isClient()) {

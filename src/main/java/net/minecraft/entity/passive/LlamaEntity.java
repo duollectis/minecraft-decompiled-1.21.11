@@ -327,6 +327,14 @@ public class LlamaEntity extends AbstractDonkeyEntity implements RangedAttackMob
 		return other != this && other instanceof LlamaEntity && this.canBreed() && ((LlamaEntity) other).canBreed();
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable LlamaEntity — результат операции
+	 */
 	public @Nullable LlamaEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		LlamaEntity llamaEntity = this.createChild();
 		if (llamaEntity != null) {
@@ -344,6 +352,11 @@ public class LlamaEntity extends AbstractDonkeyEntity implements RangedAttackMob
 		return llamaEntity;
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @return @Nullable LlamaEntity — результат операции
+	 */
 	protected @Nullable LlamaEntity createChild() {
 		return EntityType.LLAMA.create(this.getEntityWorld(), SpawnReason.BREEDING);
 	}
@@ -396,6 +409,9 @@ public class LlamaEntity extends AbstractDonkeyEntity implements RangedAttackMob
 		}
 	}
 
+	/**
+	 * Останавливает following.
+	 */
 	public void stopFollowing() {
 		if (this.following != null) {
 			this.following.follower = null;
@@ -404,6 +420,11 @@ public class LlamaEntity extends AbstractDonkeyEntity implements RangedAttackMob
 		this.following = null;
 	}
 
+	/**
+	 * Follow.
+	 *
+	 * @param llama llama
+	 */
 	public void follow(LlamaEntity llama) {
 		this.following = llama;
 		this.following.follower = this;

@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Запись scoreboard score reset s2 c packet.
+ */
 public record ScoreboardScoreResetS2CPacket(
 		String scoreHolderName,
 		@Nullable String objectiveName
@@ -31,6 +34,11 @@ public record ScoreboardScoreResetS2CPacket(
 		return PlayPackets.RESET_SCORE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onScoreboardScoreReset(this);
 	}

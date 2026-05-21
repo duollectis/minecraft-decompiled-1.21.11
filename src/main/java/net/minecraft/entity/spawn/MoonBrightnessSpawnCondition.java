@@ -21,6 +21,13 @@ public record MoonBrightnessSpawnCondition(NumberRange.DoubleRange range) implem
 					.apply(instance, MoonBrightnessSpawnCondition::new)
 	);
 
+	/**
+	 * Test.
+	 *
+	 * @param spawnContext spawn context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(SpawnContext spawnContext) {
 		MoonPhase
 				moonPhase =

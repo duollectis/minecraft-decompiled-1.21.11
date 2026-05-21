@@ -277,6 +277,14 @@ public class FenceGateBlock extends HorizontalFacingBlock {
 		builder.add(FACING, OPEN, POWERED, IN_WALL);
 	}
 
+	/**
+	 * Проверяет возможность wall connect.
+	 *
+	 * @param state state
+	 * @param side side
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canWallConnect(BlockState state, Direction side) {
 		return state.get(FACING).getAxis() == side.rotateYClockwise().getAxis();
 	}

@@ -81,6 +81,13 @@ public class InfestedBlock extends Block {
 		}
 	}
 
+	/**
+	 * From regular state.
+	 *
+	 * @param regularState regular state
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public static BlockState fromRegularState(BlockState regularState) {
 		return copyProperties(
 				REGULAR_TO_INFESTED_STATE,
@@ -89,6 +96,13 @@ public class InfestedBlock extends Block {
 		);
 	}
 
+	/**
+	 * To regular state.
+	 *
+	 * @param infestedState infested state
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public BlockState toRegularState(BlockState infestedState) {
 		return copyProperties(INFESTED_TO_REGULAR_STATE, infestedState, () -> this.getRegularBlock().getDefaultState());
 	}

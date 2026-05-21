@@ -87,6 +87,11 @@ public class AtlasManager implements ResourceReloader, SpriteHolder, AutoCloseab
 		}
 	}
 
+	/**
+	 * Accept atlas textures.
+	 *
+	 * @param consumer consumer
+	 */
 	public void acceptAtlasTextures(BiConsumer<Identifier, SpriteAtlasTexture> consumer) {
 		this.entriesByDefinitionId.forEach((definitionId, entry) -> consumer.accept(definitionId, entry.atlas));
 	}
@@ -186,6 +191,11 @@ public class AtlasManager implements ResourceReloader, SpriteHolder, AutoCloseab
 	 */
 	record CompletableEntry(AtlasManager.Entry entry, CompletableFuture<SpriteLoader.StitchResult> preparations) {
 
+		/**
+		 * Fill sprite map.
+		 *
+		 * @param sprites sprites
+		 */
 		public void fillSpriteMap(Map<SpriteIdentifier, Sprite> sprites) {
 			SpriteLoader.StitchResult stitchResult = this.preparations.join();
 			this.entry.atlas.create(stitchResult);
@@ -257,6 +267,11 @@ public class AtlasManager implements ResourceReloader, SpriteHolder, AutoCloseab
 			this.readyForUpload = readyForUpload;
 		}
 
+		/**
+		 * Создаёт sprite map.
+		 *
+		 * @return Map — результат операции
+		 */
 		public Map<SpriteIdentifier, Sprite> createSpriteMap() {
 			Map<SpriteIdentifier, Sprite> map = new HashMap<>();
 			this.entries.forEach(entry -> entry.fillSpriteMap(map));

@@ -22,6 +22,9 @@ public class BooleanProperties {
 			                                                               codec -> codec
 	                                                               );
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		ID_MAPPER.put(Identifier.ofVanilla("custom_model_data"), CustomModelDataFlagProperty.CODEC);
 		ID_MAPPER.put(Identifier.ofVanilla("using_item"), UsingItemProperty.CODEC);

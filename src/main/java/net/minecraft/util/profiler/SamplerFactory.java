@@ -14,6 +14,13 @@ public class SamplerFactory {
 
 	private final Set<String> sampledFullPaths = new ObjectOpenHashSet();
 
+	/**
+	 * Создаёт samplers.
+	 *
+	 * @param profilerSupplier profiler supplier
+	 *
+	 * @return Set — результат операции
+	 */
 	public Set<Sampler> createSamplers(Supplier<ReadableProfiler> profilerSupplier) {
 		Set<Sampler> set = profilerSupplier.get()
 		                                   .getSampleTargets()

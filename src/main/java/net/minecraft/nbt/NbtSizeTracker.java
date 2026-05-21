@@ -20,26 +20,59 @@ public class NbtSizeTracker {
 		this.maxDepth = maxDepth;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param maxBytes max bytes
+	 *
+	 * @return NbtSizeTracker — результат операции
+	 */
 	public static NbtSizeTracker of(long maxBytes) {
 		return new NbtSizeTracker(maxBytes, 512);
 	}
 
+	/**
+	 * For packet.
+	 *
+	 * @return NbtSizeTracker — результат операции
+	 */
 	public static NbtSizeTracker forPacket() {
 		return new NbtSizeTracker(2097152L, 512);
 	}
 
+	/**
+	 * For level.
+	 *
+	 * @return NbtSizeTracker — результат операции
+	 */
 	public static NbtSizeTracker forLevel() {
 		return new NbtSizeTracker(104857600L, 512);
 	}
 
+	/**
+	 * Of unlimited bytes.
+	 *
+	 * @return NbtSizeTracker — результат операции
+	 */
 	public static NbtSizeTracker ofUnlimitedBytes() {
 		return new NbtSizeTracker(Long.MAX_VALUE, 512);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param multiplier multiplier
+	 * @param bytes bytes
+	 */
 	public void add(long multiplier, long bytes) {
 		this.add(multiplier * bytes);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param bytes bytes
+	 */
 	public void add(long bytes) {
 		if (bytes < 0L) {
 			throw new IllegalArgumentException("Tried to account NBT tag with negative size: " + bytes);
@@ -55,6 +88,9 @@ public class NbtSizeTracker {
 		}
 	}
 
+	/**
+	 * Push stack.
+	 */
 	public void pushStack() {
 		if (this.depth >= this.maxDepth) {
 			throw new NbtSizeValidationException(
@@ -65,6 +101,9 @@ public class NbtSizeTracker {
 		}
 	}
 
+	/**
+	 * Pop stack.
+	 */
 	public void popStack() {
 		if (this.depth <= 0) {
 			throw new NbtSizeValidationException("NBT-Accounter tried to pop stack-depth at top-level");

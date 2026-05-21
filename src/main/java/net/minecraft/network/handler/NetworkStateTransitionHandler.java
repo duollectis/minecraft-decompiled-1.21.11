@@ -3,6 +3,9 @@ package net.minecraft.network.handler;
 import io.netty.channel.ChannelHandlerContext;
 import net.minecraft.network.packet.Packet;
 
+/**
+ * Интерфейс network state transition handler.
+ */
 public interface NetworkStateTransitionHandler {
 
 	static void onDecoded(ChannelHandlerContext context, Packet<?> packet) {

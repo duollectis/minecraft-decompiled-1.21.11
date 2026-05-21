@@ -21,6 +21,12 @@ public final class PriorityIterator<T> extends AbstractIterator<T> {
 	private int maxPriority = Integer.MIN_VALUE;
 	private final Int2ObjectMap<Deque<T>> queuesByPriority = new Int2ObjectOpenHashMap();
 
+	/**
+	 * Enqueue.
+	 *
+	 * @param value value
+	 * @param priority priority
+	 */
 	public void enqueue(T value, int priority) {
 		if (priority == this.maxPriority && this.maxPriorityQueue != null) {
 			this.maxPriorityQueue.addLast(value);
@@ -35,6 +41,11 @@ public final class PriorityIterator<T> extends AbstractIterator<T> {
 		}
 	}
 
+	/**
+	 * Вычисляет next.
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	protected @Nullable T computeNext() {
 		if (this.maxPriorityQueue == null) {
 			return (T) this.endOfData();

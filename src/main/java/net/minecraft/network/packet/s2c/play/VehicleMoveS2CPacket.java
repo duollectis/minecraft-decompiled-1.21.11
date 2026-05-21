@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * Запись vehicle move s2 c packet.
+ */
 public record VehicleMoveS2CPacket(Vec3d position, float yaw, float pitch) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, VehicleMoveS2CPacket> CODEC = PacketCodec.tuple(
@@ -22,6 +25,13 @@ public record VehicleMoveS2CPacket(Vec3d position, float yaw, float pitch) imple
 			VehicleMoveS2CPacket::new
 	);
 
+	/**
+	 * From vehicle.
+	 *
+	 * @param vehicle vehicle
+	 *
+	 * @return VehicleMoveS2CPacket — результат операции
+	 */
 	public static VehicleMoveS2CPacket fromVehicle(Entity vehicle) {
 		return new VehicleMoveS2CPacket(vehicle.getEntityPos(), vehicle.getYaw(), vehicle.getPitch());
 	}
@@ -31,6 +41,11 @@ public record VehicleMoveS2CPacket(Vec3d position, float yaw, float pitch) imple
 		return PlayPackets.MOVE_VEHICLE_S2C;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onVehicleMove(this);
 	}

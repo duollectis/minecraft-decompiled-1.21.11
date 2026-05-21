@@ -22,6 +22,11 @@ public class CopperGolemStatueBlockEntity extends BlockEntity {
 		super(BlockEntityType.COPPER_GOLEM_STATUE, pos, state);
 	}
 
+	/**
+	 * Создаёт копию data from.
+	 *
+	 * @param copperGolemEntity copper golem entity
+	 */
 	public void copyDataFrom(CopperGolemEntity copperGolemEntity) {
 		this.setComponents(ComponentMap
 				.builder()
@@ -31,6 +36,13 @@ public class CopperGolemStatueBlockEntity extends BlockEntity {
 		super.markDirty();
 	}
 
+	/**
+	 * Создаёт copper golem.
+	 *
+	 * @param state state
+	 *
+	 * @return @Nullable CopperGolemEntity — результат операции
+	 */
 	public @Nullable CopperGolemEntity createCopperGolem(BlockState state) {
 		CopperGolemEntity copperGolemEntity = EntityType.COPPER_GOLEM.create(this.world, SpawnReason.TRIGGERED);
 		if (copperGolemEntity != null) {
@@ -57,10 +69,23 @@ public class CopperGolemStatueBlockEntity extends BlockEntity {
 		return entity;
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
 
+	/**
+	 * With components.
+	 *
+	 * @param stack stack
+	 * @param pose pose
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack withComponents(ItemStack stack, CopperGolemStatueBlock.Pose pose) {
 		stack.applyComponentsFrom(this.createComponentMap());
 		stack.set(DataComponentTypes.BLOCK_STATE, BlockStateComponent.DEFAULT.with(CopperGolemStatueBlock.POSE, pose));

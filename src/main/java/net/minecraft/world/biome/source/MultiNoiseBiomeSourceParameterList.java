@@ -181,6 +181,11 @@ public class MultiNoiseBiomeSourceParameterList {
 			return new MultiNoiseUtil.Entries<>(builder.build());
 		}
 
+		/**
+		 * Biome stream.
+		 *
+		 * @return Stream> — результат операции
+		 */
 		public Stream<RegistryKey<Biome>> biomeStream() {
 			return this.biomeSourceFunction
 					.apply(biomeKey -> biomeKey)

@@ -29,6 +29,11 @@ public class WorldPresets {
 	public static final RegistryKey<WorldPreset> SINGLE_BIOME_SURFACE = of("single_biome_surface");
 	public static final RegistryKey<WorldPreset> DEBUG_ALL_BLOCK_STATES = of("debug_all_block_states");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param presetRegisterable preset registerable
+	 */
 	public static void bootstrap(Registerable<WorldPreset> presetRegisterable) {
 		new WorldPresets.Registrar(presetRegisterable).bootstrap();
 	}
@@ -48,6 +53,13 @@ public class WorldPresets {
 		});
 	}
 
+	/**
+	 * Создаёт demo options.
+	 *
+	 * @param registries registries
+	 *
+	 * @return DimensionOptionsRegistryHolder — результат операции
+	 */
 	public static DimensionOptionsRegistryHolder createDemoOptions(RegistryWrapper.WrapperLookup registries) {
 		return registries
 				.getOrThrow(RegistryKeys.WORLD_PRESET)
@@ -65,6 +77,13 @@ public class WorldPresets {
 				.orElseThrow();
 	}
 
+	/**
+	 * Создаёт test options.
+	 *
+	 * @param registries registries
+	 *
+	 * @return DimensionOptionsRegistryHolder — результат операции
+	 */
 	public static DimensionOptionsRegistryHolder createTestOptions(RegistryWrapper.WrapperLookup registries) {
 		return registries
 				.getOrThrow(RegistryKeys.WORLD_PRESET)
@@ -165,6 +184,9 @@ public class WorldPresets {
 			this.register(WorldPresets.AMPLIFIED, this.createOverworldOptions(biomeSource, registryEntry3));
 		}
 
+		/**
+		 * Bootstrap.
+		 */
 		public void bootstrap() {
 			RegistryEntry.Reference<MultiNoiseBiomeSourceParameterList> reference = this.multiNoisePresetLookup
 					.getOrThrow(MultiNoiseBiomeSourceParameterLists.OVERWORLD);

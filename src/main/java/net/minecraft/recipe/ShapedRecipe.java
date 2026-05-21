@@ -84,10 +84,26 @@ public class ShapedRecipe implements CraftingRecipe {
 		return this.showNotification;
 	}
 
+	/**
+	 * Matches.
+	 *
+	 * @param craftingRecipeInput crafting recipe input
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
 		return this.raw.matches(craftingRecipeInput);
 	}
 
+	/**
+	 * Craft.
+	 *
+	 * @param craftingRecipeInput crafting recipe input
+	 * @param wrapperLookup wrapper lookup
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
 		return this.result.copy();
 	}

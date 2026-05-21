@@ -186,6 +186,12 @@ public class Mouse {
 		return input;
 	}
 
+	/**
+	 * Добавляет crash report section.
+	 *
+	 * @param section section
+	 * @param window window
+	 */
 	public void addCrashReportSection(CrashReportSection section, Window window) {
 		section.add(
 				"Mouse location",
@@ -272,6 +278,11 @@ public class Mouse {
 		}
 	}
 
+	/**
+	 * Устанавливает up.
+	 *
+	 * @param window window
+	 */
 	public void setup(Window window) {
 		InputUtil.setMouseCallbacks(
 				window,
@@ -324,6 +335,9 @@ public class Mouse {
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		double d = GlfwUtil.getTime();
 		double e = d - this.lastTickTime;
@@ -379,6 +393,14 @@ public class Mouse {
 		this.cursorDeltaY = 0.0;
 	}
 
+	/**
+	 * Scale x.
+	 *
+	 * @param window window
+	 * @param x x
+	 *
+	 * @return double — результат операции
+	 */
 	public static double scaleX(Window window, double x) {
 		return x * window.getScaledWidth() / window.getWidth();
 	}
@@ -387,6 +409,14 @@ public class Mouse {
 		return scaleX(window, this.x);
 	}
 
+	/**
+	 * Scale y.
+	 *
+	 * @param window window
+	 * @param y y
+	 *
+	 * @return double — результат операции
+	 */
 	public static double scaleY(Window window, double y) {
 		return y * window.getScaledHeight() / window.getHeight();
 	}
@@ -431,14 +461,29 @@ public class Mouse {
 		}
 	}
 
+	/**
+	 * Was left button clicked.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean wasLeftButtonClicked() {
 		return this.leftButtonClicked;
 	}
 
+	/**
+	 * Was middle button clicked.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean wasMiddleButtonClicked() {
 		return this.middleButtonClicked;
 	}
 
+	/**
+	 * Was right button clicked.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean wasRightButtonClicked() {
 		return this.rightButtonClicked;
 	}
@@ -451,6 +496,9 @@ public class Mouse {
 		return this.y;
 	}
 
+	/**
+	 * Обрабатывает событие resolution changed.
+	 */
 	public void onResolutionChanged() {
 		this.hasResolutionChanged = true;
 	}
@@ -459,6 +507,9 @@ public class Mouse {
 		return this.cursorLocked;
 	}
 
+	/**
+	 * Lock cursor.
+	 */
 	public void lockCursor() {
 		if (this.client.isWindowFocused()) {
 			if (!this.cursorLocked) {
@@ -477,6 +528,9 @@ public class Mouse {
 		}
 	}
 
+	/**
+	 * Unlock cursor.
+	 */
 	public void unlockCursor() {
 		if (this.cursorLocked) {
 			this.cursorLocked = false;
@@ -490,6 +544,12 @@ public class Mouse {
 		this.hasResolutionChanged = true;
 	}
 
+	/**
+	 * Draw scaled pos.
+	 *
+	 * @param textRenderer text renderer
+	 * @param context context
+	 */
 	public void drawScaledPos(TextRenderer textRenderer, DrawContext context) {
 		Window window = this.client.getWindow();
 		double d = this.getScaledX(window);

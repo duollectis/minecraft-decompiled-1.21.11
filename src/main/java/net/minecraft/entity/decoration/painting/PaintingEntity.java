@@ -98,6 +98,15 @@ public class PaintingEntity extends AbstractDecorationEntity {
 		}
 	}
 
+	/**
+	 * Размещает painting.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param facing facing
+	 *
+	 * @return Optional — результат операции
+	 */
 	public static Optional<PaintingEntity> placePainting(World world, BlockPos pos, Direction facing) {
 		PaintingEntity paintingEntity = new PaintingEntity(world, pos);
 		List<RegistryEntry<PaintingVariant>> list = new ArrayList<>();

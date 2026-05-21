@@ -226,6 +226,11 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		return brain;
 	}
 
+	/**
+	 * Reinitialize brain.
+	 *
+	 * @param world world
+	 */
 	public void reinitializeBrain(ServerWorld world) {
 		Brain<VillagerEntity> brain = this.getBrain();
 		brain.stopAllTasks(world, this);
@@ -411,6 +416,9 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		return true;
 	}
 
+	/**
+	 * Restock.
+	 */
 	public void restock() {
 		this.updateDemandBonus();
 
@@ -453,6 +461,13 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 				|| this.restocksToday < 2 && this.getEntityWorld().getTime() > this.lastRestockTime + 2400L;
 	}
 
+	/**
+	 * Определяет, следует ли restock.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRestock(ServerWorld world) {
 		long l = this.lastRestockTime + 12000L;
 		long m = this.getEntityWorld().getTime();
@@ -515,6 +530,11 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		builder.add(VILLAGER_DATA, createVillagerData());
 	}
 
+	/**
+	 * Создаёт villager data.
+	 *
+	 * @return VillagerData — результат операции
+	 */
 	public static VillagerData createVillagerData() {
 		return new VillagerData(
 				Registries.VILLAGER_TYPE.getOrThrow(VillagerType.PLAINS),
@@ -586,6 +606,9 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		return SoundEvents.ENTITY_VILLAGER_DEATH;
 	}
 
+	/**
+	 * Play work sound.
+	 */
 	public void playWorkSound() {
 		this.playSound(this.getVillagerData().profession().value().workSound());
 	}
@@ -677,6 +700,11 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		}
 	}
 
+	/**
+	 * Release ticket for.
+	 *
+	 * @param pos pos
+	 */
 	public void releaseTicketFor(MemoryModuleType<GlobalPos> pos) {
 		if (this.getEntityWorld() instanceof ServerWorld) {
 			MinecraftServer minecraftServer = ((ServerWorld) this.getEntityWorld()).getServer();
@@ -736,6 +764,9 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		this.foodLevel -= amount;
 	}
 
+	/**
+	 * Eat for breeding.
+	 */
 	public void eatForBreeding() {
 		this.consumeAvailableFood();
 		this.depleteFood(12);
@@ -808,6 +839,14 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable VillagerEntity — результат операции
+	 */
 	public @Nullable VillagerEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		double d = this.random.nextDouble();
 		RegistryEntry<VillagerType> registryEntry;
@@ -877,10 +916,20 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 				&& this.getInventory().canInsert(stack);
 	}
 
+	/**
+	 * Проверяет возможность share food for breeding.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canShareFoodForBreeding() {
 		return this.getAvailableFood() >= 24;
 	}
 
+	/**
+	 * Needs food for breeding.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean needsFoodForBreeding() {
 		return this.getAvailableFood() < 12;
 	}
@@ -929,6 +978,13 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		}
 	}
 
+	/**
+	 * Talk with villager.
+	 *
+	 * @param world world
+	 * @param villager villager
+	 * @param time time
+	 */
 	public void talkWithVillager(ServerWorld world, VillagerEntity villager, long time) {
 		if ((time < this.gossipStartTime || time >= this.gossipStartTime + 1200L)
 				&& (time < villager.gossipStartTime || time >= villager.gossipStartTime + 1200L)) {
@@ -950,6 +1006,13 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		}
 	}
 
+	/**
+	 * Summon golem.
+	 *
+	 * @param world world
+	 * @param time time
+	 * @param requiredCount required count
+	 */
 	public void summonGolem(ServerWorld world, long time, int requiredCount) {
 		if (this.canSummonGolem(time)) {
 			Box box = this.getBoundingBox().expand(10.0, 10.0, 10.0);
@@ -976,6 +1039,13 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		}
 	}
 
+	/**
+	 * Проверяет возможность summon golem.
+	 *
+	 * @param time time
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSummonGolem(long time) {
 		return !this.hasRecentlySlept(this.getEntityWorld().getTime()) ? false
 		                                                               : !this.brain.hasMemoryModule(MemoryModuleType.GOLEM_DETECTED_RECENTLY);
@@ -1016,6 +1086,11 @@ public class VillagerEntity extends MerchantEntity implements InteractionObserve
 		return this.gossip;
 	}
 
+	/**
+	 * Читает gossip data.
+	 *
+	 * @param gossips gossips
+	 */
 	public void readGossipData(VillagerGossips gossips) {
 		this.gossip.add(gossips);
 	}

@@ -25,6 +25,11 @@ public class ZombieEntityRenderer extends ZombieBaseEntityRenderer<ZombieEntity,
 		);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ZombieEntityRenderState — результат операции
+	 */
 	public ZombieEntityRenderState createRenderState() {
 		return new ZombieEntityRenderState();
 	}

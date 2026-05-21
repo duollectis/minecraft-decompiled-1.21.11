@@ -13,6 +13,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 
+/**
+ * Запись common player spawn info.
+ */
 public record CommonPlayerSpawnInfo(
 		RegistryEntry<DimensionType> dimensionType,
 		RegistryKey<World> dimension,
@@ -41,6 +44,11 @@ public record CommonPlayerSpawnInfo(
 		);
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param buf buf
+	 */
 	public void write(RegistryByteBuf buf) {
 		DimensionType.PACKET_CODEC.encode(buf, this.dimensionType);
 		buf.writeRegistryKey(this.dimension);

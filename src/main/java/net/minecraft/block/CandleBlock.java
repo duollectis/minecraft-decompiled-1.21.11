@@ -195,6 +195,13 @@ public class CandleBlock extends AbstractCandleBlock implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Проверяет возможность be lit.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canBeLit(BlockState state) {
 		return state.isIn(BlockTags.CANDLES, statex -> statex.contains(LIT) && statex.contains(WATERLOGGED))
 				&& !state.get(LIT) && !state.get(WATERLOGGED);

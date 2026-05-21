@@ -154,6 +154,16 @@ public class CloudRenderer extends SinglePreparationResourceReloader<Optional<Cl
 		return (packed >> 0 & 1L) != 0L;
 	}
 
+	/**
+	 * Отрисовывает clouds.
+	 *
+	 * @param color color
+	 * @param mode mode
+	 * @param cloudHeight cloud height
+	 * @param vec3d vec3d
+	 * @param l l
+	 * @param f f
+	 */
 	public void renderClouds(int color, CloudRenderMode mode, float cloudHeight, Vec3d vec3d, long l, float f) {
 		if (this.cells != null) {
 			int i = MinecraftClient.getInstance().options.getCloudRenderDistance().getValue() * 16;
@@ -368,10 +378,16 @@ public class CloudRenderer extends SinglePreparationResourceReloader<Optional<Cl
 		}
 	}
 
+	/**
+	 * Schedule terrain update.
+	 */
 	public void scheduleTerrainUpdate() {
 		this.rebuild = true;
 	}
 
+	/**
+	 * Rotate.
+	 */
 	public void rotate() {
 		this.cloudInfoBuffer.rotate();
 	}

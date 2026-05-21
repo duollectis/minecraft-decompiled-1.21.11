@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.registry.entry.RegistryEntry;
 
+/**
+ * Класс entity status effect s2 c packet.
+ */
 public class EntityStatusEffectS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, EntityStatusEffectS2CPacket> CODEC = Packet.createCodec(
@@ -71,6 +74,11 @@ public class EntityStatusEffectS2CPacket implements Packet<ClientPlayPacketListe
 		return PlayPackets.UPDATE_MOB_EFFECT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntityStatusEffect(this);
 	}
@@ -91,6 +99,11 @@ public class EntityStatusEffectS2CPacket implements Packet<ClientPlayPacketListe
 		return this.duration;
 	}
 
+	/**
+	 * Определяет, следует ли show particles.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowParticles() {
 		return (this.flags & 2) != 0;
 	}
@@ -99,10 +112,20 @@ public class EntityStatusEffectS2CPacket implements Packet<ClientPlayPacketListe
 		return (this.flags & 1) != 0;
 	}
 
+	/**
+	 * Определяет, следует ли show icon.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowIcon() {
 		return (this.flags & 4) != 0;
 	}
 
+	/**
+	 * Keep fading.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean keepFading() {
 		return (this.flags & 8) != 0;
 	}

@@ -31,6 +31,14 @@ public class LogWriter<T> implements Closeable {
 		this.channel = channel;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param codec codec
+	 * @param path path
+	 *
+	 * @return LogWriter — результат операции
+	 */
 	public static <T> LogWriter<T> create(Codec<T> codec, Path path) throws IOException {
 		FileChannel
 				fileChannel =
@@ -38,6 +46,11 @@ public class LogWriter<T> implements Closeable {
 		return new LogWriter<>(codec, fileChannel);
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param object object
+	 */
 	public void write(T object) throws IOException {
 		JsonElement
 				jsonElement =

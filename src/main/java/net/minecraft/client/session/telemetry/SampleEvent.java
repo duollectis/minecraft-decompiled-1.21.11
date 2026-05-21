@@ -19,12 +19,20 @@ public abstract class SampleEvent {
 	private boolean enabled = false;
 	private @Nullable Instant lastSampleTime;
 
+	/**
+	 * Start.
+	 */
 	public void start() {
 		this.enabled = true;
 		this.lastSampleTime = Instant.now();
 		this.sampleCount = 0;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param sender sender
+	 */
 	public void tick(TelemetrySender sender) {
 		if (this.shouldSample()) {
 			this.sample();
@@ -38,15 +46,28 @@ public abstract class SampleEvent {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли sample.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSample() {
 		return this.enabled && this.lastSampleTime != null
 				&& Duration.between(this.lastSampleTime, Instant.now()).toMillis() > 60000L;
 	}
 
+	/**
+	 * Определяет, следует ли send.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSend() {
 		return this.sampleCount >= 10;
 	}
 
+	/**
+	 * Отключает sampling.
+	 */
 	public void disableSampling() {
 		this.enabled = false;
 	}
@@ -55,7 +76,15 @@ public abstract class SampleEvent {
 		return this.sampleCount;
 	}
 
+	/**
+	 * Sample.
+	 */
 	public abstract void sample();
 
+	/**
+	 * Send.
+	 *
+	 * @param sender sender
+	 */
 	public abstract void send(TelemetrySender sender);
 }

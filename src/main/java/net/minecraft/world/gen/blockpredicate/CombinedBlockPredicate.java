@@ -17,6 +17,13 @@ abstract class CombinedBlockPredicate implements BlockPredicate {
 		this.predicates = predicates;
 	}
 
+	/**
+	 * Строит codec.
+	 *
+	 * @param combiner combiner
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static <T extends CombinedBlockPredicate> MapCodec<T> buildCodec(Function<List<BlockPredicate>, T> combiner) {
 		return RecordCodecBuilder.mapCodec(
 				instance -> instance

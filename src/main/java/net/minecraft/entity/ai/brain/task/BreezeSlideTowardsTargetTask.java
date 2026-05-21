@@ -34,11 +34,26 @@ public class BreezeSlideTowardsTargetTask extends MultiTickTask<BreezeEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, BreezeEntity breezeEntity) {
 		return breezeEntity.isOnGround() && !breezeEntity.isTouchingWater()
 				&& breezeEntity.getPose() == EntityPose.STANDING;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		LivingEntity
 				livingEntity =

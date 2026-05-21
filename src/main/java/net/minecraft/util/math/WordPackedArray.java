@@ -30,6 +30,12 @@ public class WordPackedArray {
 		}
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param index index
+	 * @param value value
+	 */
 	public void set(int index, int value) {
 		Validate.inclusiveBetween(0L, this.length - 1, index);
 		Validate.inclusiveBetween(0L, this.maxValue, value);
@@ -45,6 +51,13 @@ public class WordPackedArray {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param index index
+	 *
+	 * @return int — 
+	 */
 	public int get(int index) {
 		Validate.inclusiveBetween(0L, this.length - 1, index);
 		int i = index * this.unitSize;

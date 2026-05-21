@@ -41,6 +41,12 @@ public class WorldTickScheduler<T> implements QueryableTickScheduler<T> {
 		this.tickingFutureReadyPredicate = tickingFutureReadyPredicate;
 	}
 
+	/**
+	 * Добавляет chunk tick scheduler.
+	 *
+	 * @param pos pos
+	 * @param scheduler scheduler
+	 */
 	public void addChunkTickScheduler(ChunkPos pos, ChunkTickScheduler<T> scheduler) {
 		long l = pos.toLong();
 		this.chunkTickSchedulers.put(l, scheduler);
@@ -52,6 +58,11 @@ public class WorldTickScheduler<T> implements QueryableTickScheduler<T> {
 		scheduler.setTickConsumer(this.queuedTickConsumer);
 	}
 
+	/**
+	 * Удаляет chunk tick scheduler.
+	 *
+	 * @param pos pos
+	 */
 	public void removeChunkTickScheduler(ChunkPos pos) {
 		long l = pos.toLong();
 		ChunkTickScheduler<T> chunkTickScheduler = (ChunkTickScheduler<T>) this.chunkTickSchedulers.remove(l);
@@ -73,6 +84,13 @@ public class WorldTickScheduler<T> implements QueryableTickScheduler<T> {
 		}
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param time time
+	 * @param maxTicks max ticks
+	 * @param ticker ticker
+	 */
 	public void tick(long time, int maxTicks, BiConsumer<BlockPos, T> ticker) {
 		Profiler profiler = Profilers.get();
 		profiler.push("collect");
@@ -238,6 +256,11 @@ public class WorldTickScheduler<T> implements QueryableTickScheduler<T> {
 		}
 	}
 
+	/**
+	 * Очищает next ticks.
+	 *
+	 * @param box box
+	 */
 	public void clearNextTicks(BlockBox box) {
 		Predicate<OrderedTick<T>> predicate = tick -> box.contains(tick.pos());
 		this.visitChunks(
@@ -259,10 +282,23 @@ public class WorldTickScheduler<T> implements QueryableTickScheduler<T> {
 		this.tickableTicks.removeIf(predicate);
 	}
 
+	/**
+	 * Schedule ticks.
+	 *
+	 * @param box box
+	 * @param offset offset
+	 */
 	public void scheduleTicks(BlockBox box, Vec3i offset) {
 		this.scheduleTicks(this, box, offset);
 	}
 
+	/**
+	 * Schedule ticks.
+	 *
+	 * @param scheduler scheduler
+	 * @param box box
+	 * @param offset offset
+	 */
 	public void scheduleTicks(WorldTickScheduler<T> scheduler, BlockBox box, Vec3i offset) {
 		List<OrderedTick<T>> list = new ArrayList<>();
 		Predicate<OrderedTick<T>> predicate = tick -> box.contains(tick.pos());

@@ -119,6 +119,9 @@ public class PeriodicRunnerFactory {
 			}
 		}
 
+		/**
+		 * Reset.
+		 */
 		public void reset() {
 			this.resultFuture = null;
 			this.lastResult = null;
@@ -176,6 +179,14 @@ public class PeriodicRunnerFactory {
 
 		private final List<PeriodicRunnerFactory.ResultListenableRunner<?>> runners = new ArrayList<>();
 
+		/**
+		 * Add.
+		 *
+		 * @param runner runner
+		 * @param resultListener result listener
+		 *
+		 * @return void — результат операции
+		 */
 		public <T> void add(PeriodicRunnerFactory.PeriodicRunner<T> runner, Consumer<T> resultListener) {
 			PeriodicRunnerFactory.ResultListenableRunner<T>
 					resultListenableRunner =
@@ -186,18 +197,27 @@ public class PeriodicRunnerFactory {
 			resultListenableRunner.runListener();
 		}
 
+		/**
+		 * Force run listeners.
+		 */
 		public void forceRunListeners() {
 			for (PeriodicRunnerFactory.ResultListenableRunner<?> resultListenableRunner : this.runners) {
 				resultListenableRunner.forceRunListener();
 			}
 		}
 
+		/**
+		 * Run all.
+		 */
 		public void runAll() {
 			for (PeriodicRunnerFactory.ResultListenableRunner<?> resultListenableRunner : this.runners) {
 				resultListenableRunner.run(PeriodicRunnerFactory.this.timeSupplier.get(PeriodicRunnerFactory.this.timeUnit));
 			}
 		}
 
+		/**
+		 * Сбрасывает all.
+		 */
 		public void resetAll() {
 			for (PeriodicRunnerFactory.ResultListenableRunner<?> resultListenableRunner : this.runners) {
 				resultListenableRunner.reset();

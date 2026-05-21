@@ -34,6 +34,11 @@ public class SubtitlesHud implements SoundInstanceListener {
 		this.client = client;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 */
 	public void render(DrawContext context) {
 		SoundManager soundManager = this.client.getSoundManager();
 		if (!this.enabled && this.client.options.getShowSubtitles().getValue()) {
@@ -200,11 +205,23 @@ public class SubtitlesHud implements SoundInstanceListener {
 			}
 		}
 
+		/**
+		 * Reset.
+		 *
+		 * @param pos pos
+		 */
 		public void reset(Vec3d pos) {
 			this.sounds.removeIf(sound -> pos.equals(sound.location()));
 			this.sounds.add(new SubtitlesHud.SoundEntry(pos, Util.getMeasuringTimeMs()));
 		}
 
+		/**
+		 * Проверяет возможность hear from.
+		 *
+		 * @param pos pos
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canHearFrom(Vec3d pos) {
 			if (Float.isInfinite(this.range)) {
 				return true;
@@ -218,6 +235,11 @@ public class SubtitlesHud implements SoundInstanceListener {
 			}
 		}
 
+		/**
+		 * Удаляет expired.
+		 *
+		 * @param expiry expiry
+		 */
 		public void removeExpired(double expiry) {
 			long l = Util.getMeasuringTimeMs();
 			this.sounds.removeIf(sound -> l - sound.time() > expiry);

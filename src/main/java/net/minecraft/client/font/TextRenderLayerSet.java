@@ -19,6 +19,13 @@ public record TextRenderLayerSet(
 		RenderPipeline guiPipeline
 ) {
 
+	/**
+	 * Of intensity.
+	 *
+	 * @param textureId texture id
+	 *
+	 * @return TextRenderLayerSet — результат операции
+	 */
 	public static TextRenderLayerSet ofIntensity(Identifier textureId) {
 		return new TextRenderLayerSet(
 				RenderLayers.textIntensity(textureId),
@@ -28,6 +35,13 @@ public record TextRenderLayerSet(
 		);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param textureId texture id
+	 *
+	 * @return TextRenderLayerSet — результат операции
+	 */
 	public static TextRenderLayerSet of(Identifier textureId) {
 		return new TextRenderLayerSet(
 				RenderLayers.text(textureId),

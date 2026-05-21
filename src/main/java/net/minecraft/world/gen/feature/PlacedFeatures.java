@@ -54,6 +54,11 @@ public class PlacedFeatures {
 			BOTTOM_TO_120_RANGE =
 			HeightRangePlacementModifier.uniform(YOffset.getBottom(), YOffset.fixed(256));
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
 		OceanPlacedFeatures.bootstrap(featureRegisterable);
 		UndergroundPlacedFeatures.bootstrap(featureRegisterable);
@@ -66,6 +71,13 @@ public class PlacedFeatures {
 		VillagePlacedFeatures.bootstrap(featureRegisterable);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param id id
+	 *
+	 * @return RegistryKey — результат операции
+	 */
 	public static RegistryKey<PlacedFeature> of(String id) {
 		return RegistryKey.of(RegistryKeys.PLACED_FEATURE, Identifier.ofVanilla(id));
 	}
@@ -88,6 +100,15 @@ public class PlacedFeatures {
 		register(featureRegisterable, key, feature, List.of(modifiers));
 	}
 
+	/**
+	 * Создаёт count extra modifier.
+	 *
+	 * @param count count
+	 * @param extraChance extra chance
+	 * @param extraCount extra count
+	 *
+	 * @return PlacementModifier — результат операции
+	 */
 	public static PlacementModifier createCountExtraModifier(int count, float extraChance, int extraCount) {
 		float f = 1.0F / extraChance;
 		if (Math.abs(f - (int) f) > 1.0E-5F) {
@@ -106,6 +127,13 @@ public class PlacedFeatures {
 		return BlockFilterPlacementModifier.of(BlockPredicate.IS_AIR);
 	}
 
+	/**
+	 * Would survive.
+	 *
+	 * @param block block
+	 *
+	 * @return BlockFilterPlacementModifier — результат операции
+	 */
 	public static BlockFilterPlacementModifier wouldSurvive(Block block) {
 		return BlockFilterPlacementModifier.of(BlockPredicate.wouldSurvive(block.getDefaultState(), BlockPos.ORIGIN));
 	}

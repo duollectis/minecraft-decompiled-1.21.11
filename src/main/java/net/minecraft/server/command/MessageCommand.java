@@ -18,6 +18,11 @@ import java.util.Collection;
  */
 public class MessageCommand {
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		LiteralCommandNode<ServerCommandSource> literalCommandNode = dispatcher.register(
 				(LiteralArgumentBuilder) CommandManager.literal("msg")

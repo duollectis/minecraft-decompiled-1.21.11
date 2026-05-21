@@ -72,6 +72,11 @@ public class ItemGroup {
 		return this.texture;
 	}
 
+	/**
+	 * Определяет, следует ли render name.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRenderName() {
 		return this.renderName;
 	}
@@ -92,6 +97,11 @@ public class ItemGroup {
 		return !this.displayStacks.isEmpty();
 	}
 
+	/**
+	 * Определяет, следует ли display.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDisplay() {
 		return this.type != ItemGroup.Type.CATEGORY || this.hasStacks();
 	}
@@ -104,6 +114,11 @@ public class ItemGroup {
 		return this.type;
 	}
 
+	/**
+	 * Обновляет entries.
+	 *
+	 * @param displayContext display context
+	 */
 	public void updateEntries(ItemGroup.DisplayContext displayContext) {
 		ItemGroup.EntriesImpl entriesImpl = new ItemGroup.EntriesImpl(this, displayContext.enabledFeatures);
 		RegistryKey<ItemGroup> registryKey = Registries.ITEM_GROUP
@@ -122,6 +137,13 @@ public class ItemGroup {
 		return this.searchTabStacks;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(ItemStack stack) {
 		return this.searchTabStacks.contains(stack);
 	}
@@ -188,6 +210,11 @@ public class ItemGroup {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ItemGroup — результат операции
+		 */
 		public ItemGroup build() {
 			if ((this.type == ItemGroup.Type.HOTBAR || this.type == ItemGroup.Type.INVENTORY)
 					&& this.entryCollector != EMPTY_ENTRIES) {

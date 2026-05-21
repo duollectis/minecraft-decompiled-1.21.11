@@ -20,6 +20,14 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 	private static final String HOMOGENIZED_ENTRY_KEY = "";
 	private static final int SIZE = 36;
 	public static final NbtType<NbtList> TYPE = new NbtType.OfVariableSize<NbtList>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtList — результат операции
+		 */
 		public NbtList read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 			nbtSizeTracker.pushStack();
 
@@ -224,6 +232,11 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 		return b;
 	}
 
+	/**
+	 * Unwrap and add.
+	 *
+	 * @param nbt nbt
+	 */
 	public void unwrapAndAdd(NbtElement nbt) {
 		if (nbt instanceof NbtCompound nbtCompound) {
 			this.add(unwrap(nbtCompound));
@@ -360,10 +373,24 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 		return this.value.size();
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param i i
+	 * @param nbtElement nbt element
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement set(int i, NbtElement nbtElement) {
 		return this.value.set(i, nbtElement);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param i i
+	 * @param nbtElement nbt element
+	 */
 	public void add(int i, NbtElement nbtElement) {
 		this.value.add(i, nbtElement);
 	}
@@ -380,6 +407,11 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 		return true;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return NbtList — результат операции
+	 */
 	public NbtList copy() {
 		List<NbtElement> list = new ArrayList<>(this.value.size());
 
@@ -410,6 +442,11 @@ public final class NbtList extends AbstractList<NbtElement> implements AbstractN
 		return super.stream();
 	}
 
+	/**
+	 * Stream compounds.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<NbtCompound> streamCompounds() {
 		return this.stream().mapMulti((nbt, callback) -> {
 			if (nbt instanceof NbtCompound nbtCompound) {

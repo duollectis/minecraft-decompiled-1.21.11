@@ -7,6 +7,9 @@ import net.minecraft.network.packet.c2s.common.CookieResponseC2SPacket;
 import net.minecraft.network.packet.s2c.common.CookieRequestS2CPacket;
 import net.minecraft.util.Identifier;
 
+/**
+ * Класс cookie packets.
+ */
 public class CookiePackets {
 
 	public static final PacketType<CookieRequestS2CPacket> COOKIE_REQUEST = s2c("cookie_request");

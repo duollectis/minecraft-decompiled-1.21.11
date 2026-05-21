@@ -42,6 +42,12 @@ public class LootWorldContext {
 		return this.parameters;
 	}
 
+	/**
+	 * Добавляет dynamic drops.
+	 *
+	 * @param id id
+	 * @param lootConsumer loot consumer
+	 */
 	public void addDynamicDrops(Identifier id, Consumer<ItemStack> lootConsumer) {
 		LootWorldContext.DynamicDrop dynamicDrop = this.dynamicDrops.get(id);
 		if (dynamicDrop != null) {
@@ -81,6 +87,13 @@ public class LootWorldContext {
 			return this;
 		}
 
+		/**
+		 * Get.
+		 *
+		 * @param parameter parameter
+		 *
+		 * @return T — 
+		 */
 		public <T> T get(ContextParameter<T> parameter) {
 			return this.parameters.getOrThrow(parameter);
 		}
@@ -104,6 +117,13 @@ public class LootWorldContext {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param contextType context type
+		 *
+		 * @return LootWorldContext — результат операции
+		 */
 		public LootWorldContext build(ContextType contextType) {
 			ContextParameterMap contextParameterMap = this.parameters.build(contextType);
 			return new LootWorldContext(this.world, contextParameterMap, this.dynamicDrops, this.luck);

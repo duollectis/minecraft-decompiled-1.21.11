@@ -233,6 +233,9 @@ public class WorldBorderRendering {
 		}
 	}
 
+	/**
+	 * Mark buffers dirty.
+	 */
 	public void markBuffersDirty() {
 		this.forceRefreshBuffers = true;
 	}

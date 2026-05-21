@@ -34,6 +34,13 @@ public final class RealmsSlot implements RealmsSerializable {
 		this.settings = settings;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param slotId slot id
+	 *
+	 * @return RealmsSlot — результат операции
+	 */
 	public static RealmsSlot create(int slotId) {
 		return new RealmsSlot(
 				slotId,
@@ -42,6 +49,11 @@ public final class RealmsSlot implements RealmsSerializable {
 		);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return RealmsSlot — результат операции
+	 */
 	public RealmsSlot copy() {
 		return new RealmsSlot(this.slotId, this.options.copy(), new ArrayList<>(this.settings));
 	}
@@ -59,10 +71,23 @@ public final class RealmsSlot implements RealmsSerializable {
 		private OptionsTypeAdapter() {
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param jsonWriter json writer
+		 * @param realmsWorldOptions realms world options
+		 */
 		public void write(JsonWriter jsonWriter, RealmsWorldOptions realmsWorldOptions) throws IOException {
 			jsonWriter.jsonValue(new CheckedGson().toJson(realmsWorldOptions));
 		}
 
+		/**
+		 * Read.
+		 *
+		 * @param jsonReader json reader
+		 *
+		 * @return RealmsWorldOptions — результат операции
+		 */
 		public RealmsWorldOptions read(JsonReader jsonReader) throws IOException {
 			String string = jsonReader.nextString();
 			return RealmsWorldOptions.fromJson(new CheckedGson(), string);

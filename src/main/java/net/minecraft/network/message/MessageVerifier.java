@@ -8,6 +8,9 @@ import org.slf4j.Logger;
 import java.util.function.BooleanSupplier;
 
 @FunctionalInterface
+/**
+ * Интерфейс message verifier.
+ */
 public interface MessageVerifier {
 
 	Logger LOGGER = LogUtils.getLogger();

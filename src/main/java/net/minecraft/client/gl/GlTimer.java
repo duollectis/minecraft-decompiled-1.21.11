@@ -26,6 +26,9 @@ public class GlTimer {
 		return this.query != null;
 	}
 
+	/**
+	 * Begin profile.
+	 */
 	public void beginProfile() {
 		RenderSystem.assertOnRenderThread();
 		if (this.query != null) {
@@ -82,6 +85,9 @@ public class GlTimer {
 			this.query = query;
 		}
 
+		/**
+		 * Close.
+		 */
 		public void close() {
 			RenderSystem.assertOnRenderThread();
 			if (this.result == 0L) {
@@ -108,6 +114,11 @@ public class GlTimer {
 			}
 		}
 
+		/**
+		 * Query result.
+		 *
+		 * @return long — результат операции
+		 */
 		public long queryResult() {
 			RenderSystem.assertOnRenderThread();
 			if (this.result == 0L) {

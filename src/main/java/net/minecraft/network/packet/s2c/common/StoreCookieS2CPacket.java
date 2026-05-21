@@ -10,6 +10,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.util.Identifier;
 
+/**
+ * Запись store cookie s2 c packet.
+ */
 public record StoreCookieS2CPacket(Identifier key, byte[] payload) implements Packet<ClientCommonPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, StoreCookieS2CPacket>
@@ -32,6 +35,11 @@ public record StoreCookieS2CPacket(Identifier key, byte[] payload) implements Pa
 		return CommonPackets.STORE_COOKIE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onStoreCookie(this);
 	}

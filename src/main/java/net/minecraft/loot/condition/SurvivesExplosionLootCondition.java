@@ -29,6 +29,13 @@ public class SurvivesExplosionLootCondition implements LootCondition {
 		return Set.of(LootContextParameters.EXPLOSION_RADIUS);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		Float float_ = lootContext.get(LootContextParameters.EXPLOSION_RADIUS);
 		if (float_ != null) {

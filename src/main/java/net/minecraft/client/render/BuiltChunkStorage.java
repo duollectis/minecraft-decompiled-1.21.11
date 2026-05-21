@@ -33,6 +33,11 @@ public class BuiltChunkStorage {
 		this.sectionPos = ChunkSectionPos.from(this.viewDistance + 1, 0, this.viewDistance + 1);
 	}
 
+	/**
+	 * Создаёт chunks.
+	 *
+	 * @param chunkBuilder chunk builder
+	 */
 	protected void createChunks(ChunkBuilder chunkBuilder) {
 		if (!MinecraftClient.getInstance().isOnThread()) {
 			throw new IllegalStateException(
@@ -57,6 +62,9 @@ public class BuiltChunkStorage {
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		for (ChunkBuilder.BuiltChunk builtChunk : this.chunks) {
 			builtChunk.clear();
@@ -83,6 +91,11 @@ public class BuiltChunkStorage {
 		return this.world;
 	}
 
+	/**
+	 * Обновляет camera position.
+	 *
+	 * @param sectionPos section pos
+	 */
 	public void updateCameraPosition(ChunkSectionPos sectionPos) {
 		for (int i = 0; i < this.sizeX; i++) {
 			int j = sectionPos.getSectionX() - this.viewDistance;
@@ -111,6 +124,14 @@ public class BuiltChunkStorage {
 		return this.sectionPos;
 	}
 
+	/**
+	 * Schedule rebuild.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param important important
+	 */
 	public void scheduleRebuild(int x, int y, int z, boolean important) {
 		ChunkBuilder.BuiltChunk builtChunk = this.getRenderedChunk(x, y, z);
 		if (builtChunk != null) {

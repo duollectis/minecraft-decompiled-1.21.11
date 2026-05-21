@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.ChunkPos;
 
+/**
+ * Запись unload chunk s2 c packet.
+ */
 public record UnloadChunkS2CPacket(ChunkPos pos) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, UnloadChunkS2CPacket>
@@ -27,6 +30,11 @@ public record UnloadChunkS2CPacket(ChunkPos pos) implements Packet<ClientPlayPac
 		return PlayPackets.FORGET_LEVEL_CHUNK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onUnloadChunk(this);
 	}

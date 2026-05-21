@@ -31,6 +31,13 @@ public record PlayerConfigEntry(UUID id, String name) {
 		this(nameAndId.id(), nameAndId.name());
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param object object
+	 *
+	 * @return @Nullable PlayerConfigEntry — результат операции
+	 */
 	public static @Nullable PlayerConfigEntry read(JsonObject object) {
 		if (object.has("uuid") && object.has("name")) {
 			String string = object.get("uuid").getAsString();
@@ -50,11 +57,23 @@ public record PlayerConfigEntry(UUID id, String name) {
 		}
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param object object
+	 */
 	public void write(JsonObject object) {
 		object.addProperty("uuid", this.id().toString());
 		object.addProperty("name", this.name());
 	}
 
+	/**
+	 * From nickname.
+	 *
+	 * @param nickname nickname
+	 *
+	 * @return PlayerConfigEntry — результат операции
+	 */
 	public static PlayerConfigEntry fromNickname(String nickname) {
 		UUID uUID = Uuids.getOfflinePlayerUuid(nickname);
 		return new PlayerConfigEntry(uUID, nickname);

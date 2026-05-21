@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс enter reconfiguration s2 c packet.
+ */
 public class EnterReconfigurationS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final EnterReconfigurationS2CPacket INSTANCE = new EnterReconfigurationS2CPacket();
@@ -20,6 +23,11 @@ public class EnterReconfigurationS2CPacket implements Packet<ClientPlayPacketLis
 		return PlayPackets.START_CONFIGURATION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEnterReconfiguration(this);
 	}

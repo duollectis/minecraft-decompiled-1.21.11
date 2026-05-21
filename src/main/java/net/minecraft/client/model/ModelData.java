@@ -27,10 +27,24 @@ public class ModelData {
 		return this.data;
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param transformer transformer
+	 *
+	 * @return ModelData — результат операции
+	 */
 	public ModelData transform(UnaryOperator<ModelTransform> transformer) {
 		return new ModelData(this.data.applyTransformer(transformer));
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param transformer transformer
+	 *
+	 * @return ModelData — результат операции
+	 */
 	public ModelData transform(ModelTransformer transformer) {
 		return transformer.apply(this);
 	}

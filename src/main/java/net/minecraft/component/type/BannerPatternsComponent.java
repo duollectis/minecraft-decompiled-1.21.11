@@ -41,6 +41,11 @@ public record BannerPatternsComponent(List<BannerPatternsComponent.Layer> layers
 					.collect(PacketCodecs.toList())
 					.xmap(BannerPatternsComponent::new, BannerPatternsComponent::layers);
 
+	/**
+	 * Without top layer.
+	 *
+	 * @return BannerPatternsComponent — результат операции
+	 */
 	public BannerPatternsComponent withoutTopLayer() {
 		return new BannerPatternsComponent(List.copyOf(this.layers.subList(0, this.layers.size() - 1)));
 	}
@@ -96,6 +101,11 @@ public record BannerPatternsComponent(List<BannerPatternsComponent.Layer> layers
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return BannerPatternsComponent — результат операции
+		 */
 		public BannerPatternsComponent build() {
 			return new BannerPatternsComponent(this.entries.build());
 		}

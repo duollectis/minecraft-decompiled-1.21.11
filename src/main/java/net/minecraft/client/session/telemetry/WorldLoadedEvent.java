@@ -22,6 +22,11 @@ public class WorldLoadedEvent {
 		this.minigameName = minigameName;
 	}
 
+	/**
+	 * Put server type.
+	 *
+	 * @param builder builder
+	 */
 	public void putServerType(PropertyMap.Builder builder) {
 		if (this.brand != null) {
 			builder.put(TelemetryEventProperty.SERVER_MODDED, !this.brand.equals("vanilla"));
@@ -41,6 +46,13 @@ public class WorldLoadedEvent {
 		}
 	}
 
+	/**
+	 * Send.
+	 *
+	 * @param sender sender
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean send(TelemetrySender sender) {
 		if (!this.sent && this.gameMode != null && this.brand != null) {
 			this.sent = true;

@@ -83,6 +83,11 @@ public class TitleScreen extends Screen {
 		}
 	}
 
+	/**
+	 * Регистрирует textures.
+	 *
+	 * @param textureManager texture manager
+	 */
 	public static void registerTextures(TextureManager textureManager) {
 		textureManager.registerTexture(LogoDrawer.LOGO_TEXTURE);
 		textureManager.registerTexture(LogoDrawer.EDITION_TEXTURE);

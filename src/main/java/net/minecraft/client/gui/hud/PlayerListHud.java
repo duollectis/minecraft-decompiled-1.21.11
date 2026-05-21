@@ -304,6 +304,15 @@ public class PlayerListHud {
 		}
 	}
 
+	/**
+	 * Отрисовывает latency icon.
+	 *
+	 * @param context context
+	 * @param width width
+	 * @param x x
+	 * @param y y
+	 * @param entry entry
+	 */
 	protected void renderLatencyIcon(DrawContext context, int width, int x, int y, PlayerListEntry entry) {
 		Identifier identifier;
 		if (entry.getLatency() < 0) {
@@ -447,6 +456,9 @@ public class PlayerListHud {
 		this.header = header;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.header = null;
 		this.footer = null;
@@ -471,6 +483,12 @@ public class PlayerListHud {
 			this.score = score;
 		}
 
+		/**
+		 * Tick.
+		 *
+		 * @param score score
+		 * @param currentTick current tick
+		 */
 		public void tick(int score, long currentTick) {
 			if (score != this.score) {
 				long l = score < this.score ? 20L : 10L;
@@ -488,6 +506,13 @@ public class PlayerListHud {
 			return this.lastScore;
 		}
 
+		/**
+		 * Использует highlighted.
+		 *
+		 * @param currentTick current tick
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean useHighlighted(long currentTick) {
 			return this.highlightEndTick > currentTick && (this.highlightEndTick - currentTick) % 6L >= 3L;
 		}

@@ -13,6 +13,9 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Запись remove entity status effect s2 c packet.
+ */
 public record RemoveEntityStatusEffectS2CPacket(
 		int entityId,
 		RegistryEntry<StatusEffect> effect
@@ -31,6 +34,11 @@ public record RemoveEntityStatusEffectS2CPacket(
 		return PlayPackets.REMOVE_MOB_EFFECT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onRemoveEntityStatusEffect(this);
 	}

@@ -108,6 +108,12 @@ public class TntMinecartEntity extends AbstractMinecartEntity {
 		return new ItemStack(Items.TNT_MINECART);
 	}
 
+	/**
+	 * Explode.
+	 *
+	 * @param damageSource damage source
+	 * @param power power
+	 */
 	protected void explode(@Nullable DamageSource damageSource, double power) {
 		if (this.getEntityWorld() instanceof ServerWorld serverWorld) {
 			if (serverWorld.getGameRules().getValue(GameRules.TNT_EXPLODES)) {
@@ -158,6 +164,11 @@ public class TntMinecartEntity extends AbstractMinecartEntity {
 		}
 	}
 
+	/**
+	 * Prime.
+	 *
+	 * @param source source
+	 */
 	public void prime(@Nullable DamageSource source) {
 		if (!(this.getEntityWorld() instanceof ServerWorld serverWorld && !serverWorld
 				.getGameRules()

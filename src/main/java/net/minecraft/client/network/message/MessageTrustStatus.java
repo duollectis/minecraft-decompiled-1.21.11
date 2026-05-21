@@ -15,6 +15,9 @@ import java.time.Instant;
 import java.util.Optional;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Перечисление message trust status.
+ */
 public enum MessageTrustStatus implements StringIdentifiable {
 	SECURE("secure"),
 	MODIFIED("modified"),
@@ -63,6 +66,13 @@ public enum MessageTrustStatus implements StringIdentifiable {
 		return this == NOT_SECURE;
 	}
 
+	/**
+	 * Создаёт indicator.
+	 *
+	 * @param message message
+	 *
+	 * @return @Nullable MessageIndicator — результат операции
+	 */
 	public @Nullable MessageIndicator createIndicator(SignedMessage message) {
 		return switch (this) {
 			case MODIFIED -> MessageIndicator.modified(message.getSignedContent());

@@ -54,6 +54,13 @@ public class StringNbtReader<T> {
 		return this.ops;
 	}
 
+	/**
+	 * From ops.
+	 *
+	 * @param ops ops
+	 *
+	 * @return StringNbtReader — результат операции
+	 */
 	public static <T> StringNbtReader<T> fromOps(DynamicOps<T> ops) {
 		return new StringNbtReader<>(ops, SnbtParsing.createParser(ops));
 	}
@@ -68,15 +75,36 @@ public class StringNbtReader<T> {
 		}
 	}
 
+	/**
+	 * Читает compound.
+	 *
+	 * @param snbt snbt
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound readCompound(String snbt) throws CommandSyntaxException {
 		StringReader stringReader = new StringReader(snbt);
 		return expectCompound(stringReader, DEFAULT_READER.read(stringReader));
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param snbt snbt
+	 *
+	 * @return T — результат операции
+	 */
 	public T read(String snbt) throws CommandSyntaxException {
 		return this.read(new StringReader(snbt));
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param reader reader
+	 *
+	 * @return T — результат операции
+	 */
 	public T read(StringReader reader) throws CommandSyntaxException {
 		T object = this.parser.parse(reader);
 		reader.skipWhitespace();
@@ -88,10 +116,24 @@ public class StringNbtReader<T> {
 		}
 	}
 
+	/**
+	 * Читает as argument.
+	 *
+	 * @param reader reader
+	 *
+	 * @return T — результат операции
+	 */
 	public T readAsArgument(StringReader reader) throws CommandSyntaxException {
 		return this.parser.parse(reader);
 	}
 
+	/**
+	 * Читает compound as argument.
+	 *
+	 * @param reader reader
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound readCompoundAsArgument(StringReader reader) throws CommandSyntaxException {
 		NbtElement nbtElement = DEFAULT_READER.readAsArgument(reader);
 		return expectCompound(reader, nbtElement);

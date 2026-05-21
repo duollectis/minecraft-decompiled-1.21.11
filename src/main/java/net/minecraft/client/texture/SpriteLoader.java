@@ -42,6 +42,13 @@ public class SpriteLoader {
 		this.maxTextureSize = maxTextureSize;
 	}
 
+	/**
+	 * From atlas.
+	 *
+	 * @param atlasTexture atlas texture
+	 *
+	 * @return SpriteLoader — результат операции
+	 */
 	public static SpriteLoader fromAtlas(SpriteAtlasTexture atlasTexture) {
 		return new SpriteLoader(atlasTexture.getId(), atlasTexture.getMaxTextureSize());
 	}

@@ -82,6 +82,12 @@ public class NautilusBrain {
 			}
 	);
 
+	/**
+	 * Инициализирует ialize.
+	 *
+	 * @param nautilus nautilus
+	 * @param random random
+	 */
 	protected static void initialize(AbstractNautilusEntity nautilus, Random random) {
 		nautilus.getBrain().remember(MemoryModuleType.ATTACK_TARGET_COOLDOWN, ATTACK_TARGET_COOLDOWN.get(random));
 	}
@@ -90,6 +96,13 @@ public class NautilusBrain {
 		return Brain.createProfile(MEMORY_MODULES, SENSORS);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<NautilusEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -199,6 +212,13 @@ public class NautilusBrain {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие damage.
+	 *
+	 * @param world world
+	 * @param nautilus nautilus
+	 * @param attacker attacker
+	 */
 	protected static void onDamage(ServerWorld world, AbstractNautilusEntity nautilus, LivingEntity attacker) {
 		if (Sensor.testAttackableTargetPredicateIgnoreVisibility(world, nautilus, attacker)) {
 			nautilus.getBrain().forget(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
@@ -210,6 +230,11 @@ public class NautilusBrain {
 		return entity.isTouchingWater() && entity.getType().isIn(EntityTypeTags.NAUTILUS_HOSTILES);
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param nautilus nautilus
+	 */
 	public static void updateActivities(NautilusEntity nautilus) {
 		nautilus.getBrain().resetPossibleActivities(ImmutableList.of(Activity.FIGHT, Activity.IDLE));
 	}

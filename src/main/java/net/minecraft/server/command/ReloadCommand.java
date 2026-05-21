@@ -19,6 +19,12 @@ public class ReloadCommand {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Try reload data packs.
+	 *
+	 * @param dataPacks data packs
+	 * @param source source
+	 */
 	public static void tryReloadDataPacks(Collection<String> dataPacks, ServerCommandSource source) {
 		source.getServer().reloadResources(dataPacks).exceptionally(throwable -> {
 			LOGGER.warn("Failed to execute reload", throwable);
@@ -45,6 +51,11 @@ public class ReloadCommand {
 		return collection;
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("reload")

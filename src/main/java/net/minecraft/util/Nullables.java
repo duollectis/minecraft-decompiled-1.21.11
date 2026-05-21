@@ -14,18 +14,52 @@ import java.util.function.Supplier;
 public class Nullables {
 
 	@Deprecated
+	/**
+	 * Require non null else.
+	 *
+	 * @param first first
+	 * @param second second
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T> T requireNonNullElse(@Nullable T first, T second) {
 		return Objects.requireNonNullElse(first, second);
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param value value
+	 * @param mapper mapper
+	 *
+	 * @return @Nullable R — результат операции
+	 */
 	public static <T, R> @Nullable R map(@Nullable T value, Function<T, R> mapper) {
 		return value == null ? null : mapper.apply(value);
 	}
 
+	/**
+	 * Map or else.
+	 *
+	 * @param value value
+	 * @param mapper mapper
+	 * @param other other
+	 *
+	 * @return R — результат операции
+	 */
 	public static <T, R> R mapOrElse(@Nullable T value, Function<T, R> mapper, R other) {
 		return value == null ? other : mapper.apply(value);
 	}
 
+	/**
+	 * Map or else get.
+	 *
+	 * @param value value
+	 * @param mapper mapper
+	 * @param getter getter
+	 *
+	 * @return R — результат операции
+	 */
 	public static <T, R> R mapOrElseGet(@Nullable T value, Function<T, R> mapper, Supplier<R> getter) {
 		return value == null ? getter.get() : mapper.apply(value);
 	}

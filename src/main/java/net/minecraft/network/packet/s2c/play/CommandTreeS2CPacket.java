@@ -29,6 +29,9 @@ import java.util.List;
 import java.util.Queue;
 import java.util.function.BiPredicate;
 
+/**
+ * Класс command tree s2 c packet.
+ */
 public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, CommandTreeS2CPacket>
@@ -216,6 +219,11 @@ public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.COMMANDS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onCommandTree(this);
 	}
@@ -276,6 +284,11 @@ public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 			int[] childNodeIndices
 	) {
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 */
 		public void write(PacketByteBuf buf) {
 			buf.writeByte(this.flags);
 			buf.writeIntArray(this.childNodeIndices);
@@ -288,10 +301,24 @@ public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 			}
 		}
 
+		/**
+		 * Валидирует redirect node index.
+		 *
+		 * @param indices indices
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean validateRedirectNodeIndex(IntSet indices) {
 			return (this.flags & 8) != 0 ? !indices.contains(this.redirectNodeIndex) : true;
 		}
 
+		/**
+		 * Валидирует child node indices.
+		 *
+		 * @param indices indices
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean validateChildNodeIndices(IntSet indices) {
 			for (int i : this.childNodeIndices) {
 				if (indices.contains(i)) {
@@ -303,6 +330,9 @@ public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 		}
 	}
 
+	/**
+	 * Интерфейс command node inspector.
+	 */
 	public interface CommandNodeInspector<S> {
 
 		@Nullable Identifier getSuggestionProviderId(ArgumentCommandNode<S, ?> node);
@@ -389,6 +419,9 @@ public class CommandTreeS2CPacket implements Packet<ClientPlayPacketListener> {
 		}
 	}
 
+	/**
+	 * Интерфейс node factory.
+	 */
 	public interface NodeFactory<S> {
 
 		ArgumentBuilder<S, ?> literal(String name);

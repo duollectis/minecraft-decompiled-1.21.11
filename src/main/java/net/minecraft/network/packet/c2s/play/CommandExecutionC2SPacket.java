@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись command execution c2 s packet.
+ */
 public record CommandExecutionC2SPacket(String command) implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, CommandExecutionC2SPacket> CODEC = Packet.createCodec(
@@ -26,6 +29,11 @@ public record CommandExecutionC2SPacket(String command) implements Packet<Server
 		return PlayPackets.CHAT_COMMAND;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onCommandExecution(this);
 	}

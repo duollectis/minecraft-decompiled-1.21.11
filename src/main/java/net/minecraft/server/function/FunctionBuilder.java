@@ -20,6 +20,11 @@ class FunctionBuilder<T extends AbstractServerCommandSource<T>> {
 	private @Nullable List<Macro.Line<T>> macroLines;
 	private final List<String> usedVariables = new ArrayList<>();
 
+	/**
+	 * Добавляет action.
+	 *
+	 * @param action action
+	 */
 	public void addAction(SourcedCommandAction<T> action) {
 		if (this.macroLines != null) {
 			this.macroLines.add(new Macro.FixedLine<>(action));
@@ -49,6 +54,13 @@ class FunctionBuilder<T extends AbstractServerCommandSource<T>> {
 		return intArrayList;
 	}
 
+	/**
+	 * Добавляет macro command.
+	 *
+	 * @param command command
+	 * @param lineNum line num
+	 * @param source source
+	 */
 	public void addMacroCommand(String command, int lineNum, T source) {
 		MacroInvocation macroInvocation;
 		try {
@@ -75,6 +87,13 @@ class FunctionBuilder<T extends AbstractServerCommandSource<T>> {
 		));
 	}
 
+	/**
+	 * To command function.
+	 *
+	 * @param id id
+	 *
+	 * @return CommandFunction — результат операции
+	 */
 	public CommandFunction<T> toCommandFunction(Identifier id) {
 		return (CommandFunction<T>) (this.macroLines != null ? new Macro<>(id, this.macroLines, this.usedVariables)
 		                                                     : new ExpandedMacro<>(id, this.actions)

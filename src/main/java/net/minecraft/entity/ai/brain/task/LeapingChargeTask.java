@@ -32,15 +32,38 @@ public class LeapingChargeTask extends MultiTickTask<MobEntity> {
 		this.sound = sound;
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		return !mobEntity.isOnGround();
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		mobEntity.setNoDrag(true);
 		mobEntity.setPose(EntityPose.LONG_JUMPING);
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		if (mobEntity.isOnGround()) {
 			mobEntity.setVelocity(mobEntity.getVelocity().multiply(0.1F, 1.0, 0.1F));

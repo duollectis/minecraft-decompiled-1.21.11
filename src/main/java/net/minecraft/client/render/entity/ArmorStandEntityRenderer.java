@@ -60,6 +60,11 @@ public class ArmorStandEntityRenderer extends LivingEntityRenderer<ArmorStandEnt
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ArmorStandEntityRenderState — результат операции
+	 */
 	public ArmorStandEntityRenderState createRenderState() {
 		return new ArmorStandEntityRenderState();
 	}

@@ -20,6 +20,11 @@ import net.minecraft.world.biome.OverworldBiomeCreator;
  */
 public class DimensionTypeRegistrar {
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param dimensionTypeRegisterable dimension type registerable
+	 */
 	public static void bootstrap(Registerable<DimensionType> dimensionTypeRegisterable) {
 		RegistryEntryLookup<Timeline>
 				registryEntryLookup =

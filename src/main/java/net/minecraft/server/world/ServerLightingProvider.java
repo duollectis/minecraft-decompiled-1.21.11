@@ -72,6 +72,11 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 		);
 	}
 
+	/**
+	 * Обновляет chunk status.
+	 *
+	 * @param pos pos
+	 */
 	protected void updateChunkStatus(ChunkPos pos) {
 		this.enqueue(
 				pos.x, pos.z, () -> 0, ServerLightingProvider.Stage.PRE_UPDATE, Util.debugRunnable(
@@ -174,6 +179,14 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 		);
 	}
 
+	/**
+	 * Инициализирует ialize light.
+	 *
+	 * @param chunk chunk
+	 * @param bl bl
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Chunk> initializeLight(Chunk chunk, boolean bl) {
 		ChunkPos chunkPos = chunk.getPos();
 		this.enqueue(
@@ -200,6 +213,14 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 		);
 	}
 
+	/**
+	 * Light.
+	 *
+	 * @param chunk chunk
+	 * @param excludeBlocks exclude blocks
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Chunk> light(Chunk chunk, boolean excludeBlocks) {
 		ChunkPos chunkPos = chunk.getPos();
 		chunk.setLightOn(false);
@@ -224,6 +245,9 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 		);
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if ((!this.pendingTasks.isEmpty() || super.hasUpdates()) && this.ticking.compareAndSet(false, true)) {
 			this.processor.send(() -> {
@@ -264,6 +288,14 @@ public class ServerLightingProvider extends LightingProvider implements AutoClos
 		}
 	}
 
+	/**
+	 * Enqueue.
+	 *
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<?> enqueue(int x, int z) {
 		return CompletableFuture.runAsync(
 				() -> {},

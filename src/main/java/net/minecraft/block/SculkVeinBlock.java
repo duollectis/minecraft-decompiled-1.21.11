@@ -49,6 +49,16 @@ public class SculkVeinBlock extends MultifaceGrowthBlock implements SculkSpreada
 		return this.samePositionOnlyGrower;
 	}
 
+	/**
+	 * Place.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param directions directions
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean place(WorldAccess world, BlockPos pos, BlockState state, Collection<Direction> directions) {
 		boolean bl = false;
 		BlockState blockState = Blocks.SCULK_VEIN.getDefaultState();
@@ -145,6 +155,15 @@ public class SculkVeinBlock extends MultifaceGrowthBlock implements SculkSpreada
 		return false;
 	}
 
+	/**
+	 * Vein covers sculk replaceable.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean veinCoversSculkReplaceable(WorldAccess world, BlockState state, BlockPos pos) {
 		if (!state.isOf(Blocks.SCULK_VEIN)) {
 			return false;

@@ -51,6 +51,13 @@ public class SetWrittenBookPagesLootFunction extends ConditionalLootFunction {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Apply.
+	 *
+	 * @param current current
+	 *
+	 * @return WrittenBookContentComponent — результат операции
+	 */
 	public WrittenBookContentComponent apply(WrittenBookContentComponent current) {
 		List<RawFilteredPair<Text>> list = this.operation.apply(current.pages(), this.pages);
 		return current.withPages(list);

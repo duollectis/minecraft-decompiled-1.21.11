@@ -126,6 +126,13 @@ public class DefaultAttributeRegistry {
 			            )
 			            .<EntityType<? extends LivingEntity>, DefaultAttributeContainer>build();
 
+	/**
+	 * Get.
+	 *
+	 * @param type type
+	 *
+	 * @return DefaultAttributeContainer — 
+	 */
 	public static DefaultAttributeContainer get(EntityType<? extends LivingEntity> type) {
 		return DEFAULT_ATTRIBUTE_REGISTRY.get(type);
 	}
@@ -134,6 +141,9 @@ public class DefaultAttributeRegistry {
 		return DEFAULT_ATTRIBUTE_REGISTRY.containsKey(type);
 	}
 
+	/**
+	 * Проверяет missing.
+	 */
 	public static void checkMissing() {
 		Registries.ENTITY_TYPE
 				.stream()

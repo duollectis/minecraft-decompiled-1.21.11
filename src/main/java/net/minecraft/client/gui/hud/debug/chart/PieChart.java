@@ -39,6 +39,11 @@ public class PieChart {
 		this.bottomMargin = bottomMargin;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 */
 	public void render(DrawContext context) {
 		if (this.profileResult != null) {
 			List<ProfilerTiming> list = this.profileResult.getTimings(this.currentPath);
@@ -106,6 +111,11 @@ public class PieChart {
 		}
 	}
 
+	/**
+	 * Select.
+	 *
+	 * @param index index
+	 */
 	public void select(int index) {
 		if (this.profileResult != null) {
 			List<ProfilerTiming> list = this.profileResult.getTimings(this.currentPath);

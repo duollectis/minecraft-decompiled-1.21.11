@@ -11,6 +11,11 @@ import net.minecraft.world.gen.feature.PlacedFeature;
  */
 public abstract class BuiltinBiomes {
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param biomeRegisterable biome registerable
+	 */
 	public static void bootstrap(Registerable<Biome> biomeRegisterable) {
 		RegistryEntryLookup<PlacedFeature>
 				registryEntryLookup =

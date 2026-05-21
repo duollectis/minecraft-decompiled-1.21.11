@@ -33,6 +33,11 @@ public final class GenerationDependencies {
 		return this.dependencies;
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.dependencies.size();
 	}
@@ -58,6 +63,13 @@ public final class GenerationDependencies {
 		return Math.max(0, this.dependencies.size() - 1);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param index index
+	 *
+	 * @return ChunkStatus — 
+	 */
 	public ChunkStatus get(int index) {
 		return (ChunkStatus) this.dependencies.get(index);
 	}

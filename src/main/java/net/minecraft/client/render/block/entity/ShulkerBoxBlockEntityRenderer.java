@@ -50,6 +50,11 @@ public class ShulkerBoxBlockEntityRenderer implements BlockEntityRenderer<Shulke
 				new ShulkerBoxBlockEntityRenderer.ShulkerBoxBlockModel(models.getModelPart(EntityModelLayers.SHULKER_BOX));
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ShulkerBoxBlockEntityRenderState — результат операции
+	 */
 	public ShulkerBoxBlockEntityRenderState createRenderState() {
 		return new ShulkerBoxBlockEntityRenderState();
 	}
@@ -140,6 +145,13 @@ public class ShulkerBoxBlockEntityRenderer implements BlockEntityRenderer<Shulke
 		this.model.setAngles(openness);
 	}
 
+	/**
+	 * Collect vertices.
+	 *
+	 * @param facing facing
+	 * @param openness openness
+	 * @param consumer consumer
+	 */
 	public void collectVertices(Direction facing, float openness, Consumer<Vector3fc> consumer) {
 		MatrixStack matrixStack = new MatrixStack();
 		this.setTransforms(matrixStack, facing, openness);

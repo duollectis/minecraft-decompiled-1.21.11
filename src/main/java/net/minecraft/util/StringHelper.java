@@ -17,6 +17,14 @@ public class StringHelper {
 	private static final Pattern LINE_BREAK = Pattern.compile("\\r\\n|\\v");
 	private static final Pattern ENDS_WITH_LINE_BREAK = Pattern.compile("(?:\\r\\n|\\v)$");
 
+	/**
+	 * Форматирует ticks.
+	 *
+	 * @param ticks ticks
+	 * @param tickRate tick rate
+	 *
+	 * @return String — результат операции
+	 */
 	public static String formatTicks(int ticks, float tickRate) {
 		int i = MathHelper.floor(ticks / tickRate);
 		int j = i / 60;
@@ -27,6 +35,13 @@ public class StringHelper {
 		             : String.format(Locale.ROOT, "%02d:%02d", j, i);
 	}
 
+	/**
+	 * Strip text format.
+	 *
+	 * @param text text
+	 *
+	 * @return String — результат операции
+	 */
 	public static String stripTextFormat(String text) {
 		return FORMATTING_CODE.matcher(text).replaceAll("");
 	}
@@ -35,6 +50,15 @@ public class StringHelper {
 		return StringUtils.isEmpty(text);
 	}
 
+	/**
+	 * Truncate.
+	 *
+	 * @param text text
+	 * @param maxLength max length
+	 * @param addEllipsis add ellipsis
+	 *
+	 * @return String — результат операции
+	 */
 	public static String truncate(String text, int maxLength, boolean addEllipsis) {
 		if (text.length() <= maxLength) {
 			return text;
@@ -45,6 +69,13 @@ public class StringHelper {
 		}
 	}
 
+	/**
+	 * Count lines.
+	 *
+	 * @param text text
+	 *
+	 * @return int — результат операции
+	 */
 	public static int countLines(String text) {
 		if (text.isEmpty()) {
 			return 0;
@@ -61,10 +92,24 @@ public class StringHelper {
 		}
 	}
 
+	/**
+	 * Ends with line break.
+	 *
+	 * @param text text
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean endsWithLineBreak(String text) {
 		return ENDS_WITH_LINE_BREAK.matcher(text).find();
 	}
 
+	/**
+	 * Truncate chat.
+	 *
+	 * @param text text
+	 *
+	 * @return String — результат операции
+	 */
 	public static String truncateChat(String text) {
 		return truncate(text, 256, false);
 	}
@@ -77,10 +122,25 @@ public class StringHelper {
 		return name.length() > 16 ? false : name.chars().filter(c -> c <= 32 || c >= 127).findAny().isEmpty();
 	}
 
+	/**
+	 * Strip invalid chars.
+	 *
+	 * @param string string
+	 *
+	 * @return String — результат операции
+	 */
 	public static String stripInvalidChars(String string) {
 		return stripInvalidChars(string, false);
 	}
 
+	/**
+	 * Strip invalid chars.
+	 *
+	 * @param string string
+	 * @param allowLinebreak allow linebreak
+	 *
+	 * @return String — результат операции
+	 */
 	public static String stripInvalidChars(String string, boolean allowLinebreak) {
 		StringBuilder stringBuilder = new StringBuilder();
 

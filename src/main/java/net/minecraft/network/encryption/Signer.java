@@ -6,6 +6,9 @@ import org.slf4j.Logger;
 import java.security.PrivateKey;
 import java.security.Signature;
 
+/**
+ * Интерфейс signer.
+ */
 public interface Signer {
 
 	Logger LOGGER = LogUtils.getLogger();

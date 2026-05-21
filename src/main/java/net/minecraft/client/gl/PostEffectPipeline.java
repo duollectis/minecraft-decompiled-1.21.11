@@ -108,6 +108,11 @@ public record PostEffectPipeline(
 				                    .apply(instance, PostEffectPipeline.Pass::new)
 		);
 
+		/**
+		 * Stream targets.
+		 *
+		 * @return Stream — результат операции
+		 */
 		public Stream<Identifier> streamTargets() {
 			Stream<Identifier> stream = this.inputs.stream().flatMap(input -> input.getTargetId().stream());
 			return Stream.concat(stream, Stream.of(this.outputTarget));

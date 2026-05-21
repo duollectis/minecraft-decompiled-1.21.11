@@ -14,10 +14,25 @@ import java.util.function.Predicate;
  */
 public class MeleeAttackTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param cooldown cooldown
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static <T extends MobEntity> SingleTickTask<T> create(int cooldown) {
 		return create(target -> true, cooldown);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param targetPredicate target predicate
+	 * @param cooldown cooldown
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static <T extends MobEntity> SingleTickTask<T> create(Predicate<T> targetPredicate, int cooldown) {
 		return TaskTriggerer.task(
 				context -> context.group(

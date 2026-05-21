@@ -69,6 +69,15 @@ public class FenceBlock extends HorizontalConnectingBlock {
 		return false;
 	}
 
+	/**
+	 * Проверяет возможность connect.
+	 *
+	 * @param state state
+	 * @param neighborIsFullSquare neighbor is full square
+	 * @param dir dir
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canConnect(BlockState state, boolean neighborIsFullSquare, Direction dir) {
 		Block block = state.getBlock();
 		boolean bl = this.canConnectToFence(state);

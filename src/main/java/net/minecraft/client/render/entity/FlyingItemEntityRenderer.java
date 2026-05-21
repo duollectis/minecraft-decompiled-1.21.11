@@ -60,10 +60,22 @@ public class FlyingItemEntityRenderer<T extends Entity & FlyingItemEntity> exten
 		super.render(flyingItemEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return FlyingItemEntityRenderState — результат операции
+	 */
 	public FlyingItemEntityRenderState createRenderState() {
 		return new FlyingItemEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param entity entity
+	 * @param flyingItemEntityRenderState flying item entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T entity, FlyingItemEntityRenderState flyingItemEntityRenderState, float f) {
 		super.updateRenderState(entity, flyingItemEntityRenderState, f);
 		this.itemModelManager.updateForNonLivingEntity(

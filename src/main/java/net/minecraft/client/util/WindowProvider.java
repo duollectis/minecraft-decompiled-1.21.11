@@ -20,6 +20,15 @@ public final class WindowProvider implements AutoCloseable {
 		this.monitorTracker = new MonitorTracker(Monitor::new);
 	}
 
+	/**
+	 * Создаёт window.
+	 *
+	 * @param settings settings
+	 * @param videoMode video mode
+	 * @param title title
+	 *
+	 * @return Window — результат операции
+	 */
 	public Window createWindow(WindowSettings settings, @Nullable String videoMode, String title) {
 		return new Window(this.client, this.monitorTracker, settings, videoMode, title);
 	}

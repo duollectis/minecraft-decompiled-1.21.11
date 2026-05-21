@@ -65,6 +65,11 @@ public class StickyKeyBinding extends KeyBinding {
 		this.untoggle();
 	}
 
+	/**
+	 * Определяет, следует ли restore on screen close.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRestoreOnScreenClose() {
 		boolean
 				bl =
@@ -74,6 +79,9 @@ public class StickyKeyBinding extends KeyBinding {
 		return bl;
 	}
 
+	/**
+	 * Untoggle.
+	 */
 	protected void untoggle() {
 		super.setPressed(false);
 	}

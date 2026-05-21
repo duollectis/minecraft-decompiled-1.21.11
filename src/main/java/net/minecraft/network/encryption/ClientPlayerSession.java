@@ -4,8 +4,18 @@ import net.minecraft.network.message.MessageChain;
 
 import java.util.UUID;
 
+/**
+ * Запись client player session.
+ */
 public record ClientPlayerSession(UUID sessionId, PlayerKeyPair keyPair) {
 
+	/**
+	 * Create.
+	 *
+	 * @param keyPair key pair
+	 *
+	 * @return ClientPlayerSession — результат операции
+	 */
 	public static ClientPlayerSession create(PlayerKeyPair keyPair) {
 		return new ClientPlayerSession(UUID.randomUUID(), keyPair);
 	}
@@ -17,6 +27,11 @@ public record ClientPlayerSession(UUID sessionId, PlayerKeyPair keyPair) {
 		));
 	}
 
+	/**
+	 * To public session.
+	 *
+	 * @return PublicPlayerSession — результат операции
+	 */
 	public PublicPlayerSession toPublicSession() {
 		return new PublicPlayerSession(this.sessionId, this.keyPair.publicKey());
 	}

@@ -19,10 +19,26 @@ public class GoToPointOfInterestTask {
 	private static final int DEFAULT_HORIZONTAL_RANGE = 10;
 	private static final int DEFAULT_VERTICAL_RANGE = 7;
 
+	/**
+	 * Create.
+	 *
+	 * @param walkSpeed walk speed
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<PathAwareEntity> create(float walkSpeed) {
 		return create(walkSpeed, 10, 7);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param walkSpeed walk speed
+	 * @param horizontalRange horizontal range
+	 * @param verticalRange vertical range
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<PathAwareEntity> create(float walkSpeed, int horizontalRange, int verticalRange) {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryAbsent(MemoryModuleType.WALK_TARGET))

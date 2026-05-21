@@ -11,6 +11,14 @@ import java.util.function.BiPredicate;
  */
 public class RidingTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param range range
+	 * @param alternativeRideCondition alternative ride condition
+	 *
+	 * @return Task — результат операции
+	 */
 	public static <E extends LivingEntity> Task<E> create(int range, BiPredicate<E, Entity> alternativeRideCondition) {
 		return TaskTriggerer.task(
 				context -> context.group(context.queryMemoryOptional(MemoryModuleType.RIDE_TARGET)).apply(

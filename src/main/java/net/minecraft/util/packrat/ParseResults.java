@@ -44,6 +44,13 @@ public final class ParseResults {
 		return -1;
 	}
 
+	/**
+	 * Index of.
+	 *
+	 * @param symbols symbols
+	 *
+	 * @return int — результат операции
+	 */
 	public int indexOf(Symbol<?>... symbols) {
 		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
 			Object object = this.stack[i];
@@ -81,6 +88,9 @@ public final class ParseResults {
 		this.stackBottom = this.stackTop;
 	}
 
+	/**
+	 * Push frame.
+	 */
 	public void pushFrame() {
 		this.expandIfNeeded(1);
 		this.addFrame();
@@ -92,6 +102,9 @@ public final class ParseResults {
 		return (Integer) this.stack[current + 1];
 	}
 
+	/**
+	 * Pop frame.
+	 */
 	public void popFrame() {
 		assert this.stackBottom != 0;
 
@@ -101,6 +114,9 @@ public final class ParseResults {
 		assert this.isValid();
 	}
 
+	/**
+	 * Duplicate frames.
+	 */
 	public void duplicateFrames() {
 		int i = this.stackBottom;
 		int j = (this.stackTop - this.stackBottom) / 2;
@@ -125,6 +141,9 @@ public final class ParseResults {
 		assert this.isValid();
 	}
 
+	/**
+	 * Очищает frame values.
+	 */
 	public void clearFrameValues() {
 		for (int i = this.stackTop; i > this.stackBottom; i -= 2) {
 			assert this.stack[i] instanceof Symbol;
@@ -135,6 +154,9 @@ public final class ParseResults {
 		assert this.isValid();
 	}
 
+	/**
+	 * Choose current frame.
+	 */
 	public void chooseCurrentFrame() {
 		int i = this.getPreviousStackBottom(this.stackBottom);
 		int j = i;
@@ -164,6 +186,14 @@ public final class ParseResults {
 		assert this.isValid();
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param symbol symbol
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void put(Symbol<T> symbol, @Nullable T value) {
 		int i = this.indexOf(symbol);
 		if (i != -1) {
@@ -179,6 +209,13 @@ public final class ParseResults {
 		assert this.isValid();
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param symbol symbol
+	 *
+	 * @return @Nullable T — 
+	 */
 	public <T> @Nullable T get(Symbol<T> symbol) {
 		int i = this.indexOf(symbol);
 		return (T) (i != -1 ? this.stack[i] : null);
@@ -242,6 +279,11 @@ public final class ParseResults {
 	}
 
 	@VisibleForTesting
+	/**
+	 * To symbol keyed map.
+	 *
+	 * @return Map, ?> — результат операции
+	 */
 	public Map<Symbol<?>, ?> toSymbolKeyedMap() {
 		HashMap<Symbol<?>, Object> hashMap = new HashMap<>();
 
@@ -254,6 +296,11 @@ public final class ParseResults {
 		return hashMap;
 	}
 
+	/**
+	 * Are frames placed correctly.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areFramesPlacedCorrectly() {
 		for (int i = this.stackTop; i > 0; i--) {
 			if (this.stack[i] == FRAME) {

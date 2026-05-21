@@ -190,6 +190,9 @@ public class EnderDragonFight {
 		);
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.bossBar.setVisible(!this.dragonKilled);
 		if (++this.playerUpdateTimer >= 20) {
@@ -422,6 +425,11 @@ public class EnderDragonFight {
 		LOGGER.debug("Found {} end crystals still alive", this.endCrystalsAlive);
 	}
 
+	/**
+	 * Dragon killed.
+	 *
+	 * @param dragon dragon
+	 */
 	public void dragonKilled(EnderDragonEntity dragon) {
 		if (dragon.getUuid().equals(this.dragonUuid)) {
 			this.bossBar.setPercent(0.0F);
@@ -445,6 +453,9 @@ public class EnderDragonFight {
 
 	@Deprecated
 	@VisibleForTesting
+	/**
+	 * Очищает gateways list.
+	 */
 	public void clearGatewaysList() {
 		this.gateways.clear();
 	}
@@ -525,6 +536,11 @@ public class EnderDragonFight {
 		return enderDragonEntity;
 	}
 
+	/**
+	 * Обновляет fight.
+	 *
+	 * @param dragon dragon
+	 */
 	public void updateFight(EnderDragonEntity dragon) {
 		if (dragon.getUuid().equals(this.dragonUuid)) {
 			this.bossBar.setPercent(dragon.getHealth() / dragon.getMaxHealth());
@@ -539,6 +555,12 @@ public class EnderDragonFight {
 		return this.endCrystalsAlive;
 	}
 
+	/**
+	 * Crystal destroyed.
+	 *
+	 * @param enderCrystal ender crystal
+	 * @param source source
+	 */
 	public void crystalDestroyed(EndCrystalEntity enderCrystal, DamageSource source) {
 		if (this.dragonSpawnState != null && this.crystals.contains(enderCrystal)) {
 			LOGGER.debug("Aborting respawn sequence");
@@ -559,6 +581,9 @@ public class EnderDragonFight {
 		return this.previouslyKilled;
 	}
 
+	/**
+	 * Respawn dragon.
+	 */
 	public void respawnDragon() {
 		if (this.dragonKilled && this.dragonSpawnState == null) {
 			BlockPos blockPos = this.exitPortalLocation;
@@ -625,6 +650,9 @@ public class EnderDragonFight {
 		}
 	}
 
+	/**
+	 * Сбрасывает end crystals.
+	 */
 	public void resetEndCrystals() {
 		for (EndSpikeFeature.Spike spike : EndSpikeFeature.getSpikes(this.world)) {
 			for (EndCrystalEntity endCrystalEntity : this.world.getNonSpectatingEntities(

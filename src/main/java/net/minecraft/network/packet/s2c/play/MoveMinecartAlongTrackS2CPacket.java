@@ -14,6 +14,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
+/**
+ * Запись move minecart along track s2 c packet.
+ */
 public record MoveMinecartAlongTrackS2CPacket(
 		int entityId,
 		List<ExperimentalMinecartController.Step> lerpSteps
@@ -32,6 +35,11 @@ public record MoveMinecartAlongTrackS2CPacket(
 		return PlayPackets.MOVE_MINECART_ALONG_TRACK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onMoveMinecartAlongTrack(this);
 	}

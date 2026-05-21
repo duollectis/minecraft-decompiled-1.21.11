@@ -54,6 +54,11 @@ public class BufferBuilder implements VertexConsumer {
 		}
 	}
 
+	/**
+	 * End nullable.
+	 *
+	 * @return @Nullable BuiltBuffer — результат операции
+	 */
 	public @Nullable BuiltBuffer endNullable() {
 		this.ensureBuilding();
 		this.endVertex();
@@ -63,6 +68,11 @@ public class BufferBuilder implements VertexConsumer {
 		return builtBuffer;
 	}
 
+	/**
+	 * End.
+	 *
+	 * @return BuiltBuffer — результат операции
+	 */
 	public BuiltBuffer end() {
 		BuiltBuffer builtBuffer = this.endNullable();
 		if (builtBuffer == null) {

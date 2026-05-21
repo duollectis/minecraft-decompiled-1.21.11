@@ -7,6 +7,9 @@ import net.minecraft.network.packet.ConfigPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Класс ready c2 s packet.
+ */
 public class ReadyC2SPacket implements Packet<ServerConfigurationPacketListener> {
 
 	public static final ReadyC2SPacket INSTANCE = new ReadyC2SPacket();
@@ -20,6 +23,11 @@ public class ReadyC2SPacket implements Packet<ServerConfigurationPacketListener>
 		return ConfigPackets.FINISH_CONFIGURATION_C2S;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverConfigurationPacketListener server configuration packet listener
+	 */
 	public void apply(ServerConfigurationPacketListener serverConfigurationPacketListener) {
 		serverConfigurationPacketListener.onReady(this);
 	}

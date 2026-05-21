@@ -35,6 +35,14 @@ public class CrossbowAttackTask<E extends MobEntity & CrossbowUser, T extends Li
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, E mobEntity) {
 		LivingEntity livingEntity = getAttackTarget(mobEntity);
 		return mobEntity.isHolding(Items.CROSSBOW)
@@ -42,6 +50,15 @@ public class CrossbowAttackTask<E extends MobEntity & CrossbowUser, T extends Li
 				&& TargetUtil.isTargetWithinAttackRange(mobEntity, livingEntity, 0);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, E mobEntity, long l) {
 		return mobEntity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET) && this.shouldRun(
 				serverWorld,
@@ -49,12 +66,26 @@ public class CrossbowAttackTask<E extends MobEntity & CrossbowUser, T extends Li
 		);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, E mobEntity, long l) {
 		LivingEntity livingEntity = getAttackTarget(mobEntity);
 		this.setLookTarget(mobEntity, livingEntity);
 		this.tickState(mobEntity, livingEntity);
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, E mobEntity, long l) {
 		if (mobEntity.isUsingItem()) {
 			mobEntity.clearActiveItem();

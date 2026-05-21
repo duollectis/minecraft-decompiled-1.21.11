@@ -10,10 +10,18 @@ import net.minecraft.client.gui.Drawable;
  */
 public abstract class Overlay implements Drawable {
 
+	/**
+	 * Pauses game.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean pausesGame() {
 		return true;
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 	}
 }

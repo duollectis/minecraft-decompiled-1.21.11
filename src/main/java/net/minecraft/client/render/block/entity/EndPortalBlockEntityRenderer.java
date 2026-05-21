@@ -11,6 +11,11 @@ import net.minecraft.client.render.block.entity.state.EndPortalBlockEntityRender
  */
 public class EndPortalBlockEntityRenderer extends AbstractEndPortalBlockEntityRenderer<EndPortalBlockEntity, EndPortalBlockEntityRenderState> {
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return EndPortalBlockEntityRenderState — результат операции
+	 */
 	public EndPortalBlockEntityRenderState createRenderState() {
 		return new EndPortalBlockEntityRenderState();
 	}

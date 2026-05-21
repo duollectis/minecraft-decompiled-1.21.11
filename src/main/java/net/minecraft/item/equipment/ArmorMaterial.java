@@ -27,6 +27,13 @@ public record ArmorMaterial(
 		RegistryKey<EquipmentAsset> assetId
 ) {
 
+	/**
+	 * Создаёт attribute modifiers.
+	 *
+	 * @param equipmentType equipment type
+	 *
+	 * @return AttributeModifiersComponent — результат операции
+	 */
 	public AttributeModifiersComponent createAttributeModifiers(EquipmentType equipmentType) {
 		int i = this.defense.getOrDefault(equipmentType, 0);
 		AttributeModifiersComponent.Builder builder = AttributeModifiersComponent.builder();

@@ -22,6 +22,9 @@ public class Pool implements ObjectAllocator, AutoCloseable {
 		this.lifespan = lifespan;
 	}
 
+	/**
+	 * Decrement lifespan.
+	 */
 	public void decrementLifespan() {
 		Iterator<? extends Pool.Entry<?>> iterator = this.entries.iterator();
 
@@ -60,6 +63,9 @@ public class Pool implements ObjectAllocator, AutoCloseable {
 		this.entries.addFirst(new Pool.Entry<>(factory, value, this.lifespan));
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.entries.forEach(Pool.Entry::close);
 		this.entries.clear();

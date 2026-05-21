@@ -110,6 +110,11 @@ public class BakedGeometry {
 			return new BakedGeometry(quads, list, list2, list3, list4, list5, list6, list7);
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return BakedGeometry — результат операции
+		 */
 		public BakedGeometry build() {
 			ImmutableList<BakedQuad> immutableList = this.sidelessQuads.build();
 			if (this.sidedQuads.isEmpty()) {

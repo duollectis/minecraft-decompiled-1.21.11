@@ -88,6 +88,14 @@ public class MannequinEntity extends PlayerLikeEntity {
 		this(EntityType.MANNEQUIN, world);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param type type
+	 * @param world world
+	 *
+	 * @return @Nullable MannequinEntity — результат операции
+	 */
 	public static @Nullable MannequinEntity create(EntityType<MannequinEntity> type, World world) {
 		return factory.create(type, world);
 	}

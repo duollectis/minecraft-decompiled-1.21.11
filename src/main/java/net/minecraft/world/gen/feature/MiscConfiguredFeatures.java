@@ -46,6 +46,11 @@ public class MiscConfiguredFeatures {
 			ConfiguredFeatures.of("spring_lava_frozen");
 	public static final RegistryKey<ConfiguredFeature<?, ?>> SPRING_WATER = ConfiguredFeatures.of("spring_water");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		ConfiguredFeatures.register(featureRegisterable, ICE_SPIKE, Feature.ICE_SPIKE);
 		ConfiguredFeatures.register(

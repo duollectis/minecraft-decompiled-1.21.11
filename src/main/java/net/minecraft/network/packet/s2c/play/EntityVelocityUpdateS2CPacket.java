@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.Vec3d;
 
+/**
+ * Класс entity velocity update s2 c packet.
+ */
 public class EntityVelocityUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, EntityVelocityUpdateS2CPacket> CODEC = Packet.createCodec(
@@ -41,6 +44,11 @@ public class EntityVelocityUpdateS2CPacket implements Packet<ClientPlayPacketLis
 		return PlayPackets.SET_ENTITY_MOTION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntityVelocityUpdate(this);
 	}

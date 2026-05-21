@@ -20,6 +20,13 @@ public class RarityFilterPlacementModifier extends AbstractConditionalPlacementM
 		this.chance = chance;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param chance chance
+	 *
+	 * @return RarityFilterPlacementModifier — результат операции
+	 */
 	public static RarityFilterPlacementModifier of(int chance) {
 		return new RarityFilterPlacementModifier(chance);
 	}

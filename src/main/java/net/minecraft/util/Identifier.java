@@ -46,26 +46,71 @@ public final class Identifier implements Comparable<Identifier> {
 		return new Identifier(validateNamespace(namespace, path), validatePath(namespace, path));
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param namespace namespace
+	 * @param path path
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public static Identifier of(String namespace, String path) {
 		return ofValidated(namespace, path);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param id id
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public static Identifier of(String id) {
 		return splitOn(id, ':');
 	}
 
+	/**
+	 * Of vanilla.
+	 *
+	 * @param path path
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public static Identifier ofVanilla(String path) {
 		return new Identifier("minecraft", validatePath("minecraft", path));
 	}
 
+	/**
+	 * Try parse.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable Identifier — результат операции
+	 */
 	public static @Nullable Identifier tryParse(String id) {
 		return trySplitOn(id, ':');
 	}
 
+	/**
+	 * Try parse.
+	 *
+	 * @param namespace namespace
+	 * @param path path
+	 *
+	 * @return @Nullable Identifier — результат операции
+	 */
 	public static @Nullable Identifier tryParse(String namespace, String path) {
 		return isNamespaceValid(namespace) && isPathValid(path) ? new Identifier(namespace, path) : null;
 	}
 
+	/**
+	 * Split on.
+	 *
+	 * @param id id
+	 * @param delimiter delimiter
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public static Identifier splitOn(String id, char delimiter) {
 		int i = id.indexOf(delimiter);
 		if (i >= 0) {
@@ -83,6 +128,14 @@ public final class Identifier implements Comparable<Identifier> {
 		}
 	}
 
+	/**
+	 * Try split on.
+	 *
+	 * @param id id
+	 * @param delimiter delimiter
+	 *
+	 * @return @Nullable Identifier — результат операции
+	 */
 	public static @Nullable Identifier trySplitOn(String id, char delimiter) {
 		int i = id.indexOf(delimiter);
 		if (i >= 0) {
@@ -103,6 +156,13 @@ public final class Identifier implements Comparable<Identifier> {
 		}
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param id id
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public static DataResult<Identifier> validate(String id) {
 		try {
 			return DataResult.success(of(id));
@@ -120,18 +180,46 @@ public final class Identifier implements Comparable<Identifier> {
 		return this.namespace;
 	}
 
+	/**
+	 * With path.
+	 *
+	 * @param path path
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier withPath(String path) {
 		return new Identifier(this.namespace, validatePath(this.namespace, path));
 	}
 
+	/**
+	 * With path.
+	 *
+	 * @param pathFunction path function
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier withPath(UnaryOperator<String> pathFunction) {
 		return this.withPath(pathFunction.apply(this.path));
 	}
 
+	/**
+	 * With prefixed path.
+	 *
+	 * @param prefix prefix
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier withPrefixedPath(String prefix) {
 		return this.withPath(prefix + this.path);
 	}
 
+	/**
+	 * With suffixed path.
+	 *
+	 * @param suffix suffix
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier withSuffixedPath(String suffix) {
 		return this.withPath(this.path + suffix);
 	}
@@ -157,6 +245,13 @@ public final class Identifier implements Comparable<Identifier> {
 		return 31 * this.namespace.hashCode() + this.path.hashCode();
 	}
 
+	/**
+	 * Compare to.
+	 *
+	 * @param identifier identifier
+	 *
+	 * @return int — результат операции
+	 */
 	public int compareTo(Identifier identifier) {
 		int i = this.path.compareTo(identifier.path);
 		if (i == 0) {
@@ -166,26 +261,61 @@ public final class Identifier implements Comparable<Identifier> {
 		return i;
 	}
 
+	/**
+	 * To underscore separated string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toUnderscoreSeparatedString() {
 		return this.toString().replace('/', '_').replace(':', '_');
 	}
 
+	/**
+	 * To translation key.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toTranslationKey() {
 		return this.namespace + "." + this.path;
 	}
 
+	/**
+	 * To short translation key.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toShortTranslationKey() {
 		return this.namespace.equals("minecraft") ? this.path : this.toTranslationKey();
 	}
 
+	/**
+	 * To short string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toShortString() {
 		return this.namespace.equals("minecraft") ? this.path : this.toString();
 	}
 
+	/**
+	 * To translation key.
+	 *
+	 * @param prefix prefix
+	 *
+	 * @return String — результат операции
+	 */
 	public String toTranslationKey(String prefix) {
 		return prefix + "." + this.toTranslationKey();
 	}
 
+	/**
+	 * To translation key.
+	 *
+	 * @param prefix prefix
+	 * @param suffix suffix
+	 *
+	 * @return String — результат операции
+	 */
 	public String toTranslationKey(String prefix, String suffix) {
 		return prefix + "." + this.toTranslationKey() + "." + suffix;
 	}
@@ -200,6 +330,13 @@ public final class Identifier implements Comparable<Identifier> {
 		return reader.getString().substring(i, reader.getCursor());
 	}
 
+	/**
+	 * From command input.
+	 *
+	 * @param reader reader
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public static Identifier fromCommandInput(StringReader reader) throws CommandSyntaxException {
 		int i = reader.getCursor();
 		String string = readString(reader);
@@ -213,6 +350,13 @@ public final class Identifier implements Comparable<Identifier> {
 		}
 	}
 
+	/**
+	 * From command input non empty.
+	 *
+	 * @param reader reader
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public static Identifier fromCommandInputNonEmpty(StringReader reader) throws CommandSyntaxException {
 		int i = reader.getCursor();
 		String string = readString(reader);

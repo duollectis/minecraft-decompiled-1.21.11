@@ -291,10 +291,29 @@ public class CyclingButtonWidget<T> extends PressableWidget implements Updatable
 			return this.labelType(CyclingButtonWidget.LabelType.VALUE);
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param optionText option text
+		 * @param callback callback
+		 *
+		 * @return CyclingButtonWidget — результат операции
+		 */
 		public CyclingButtonWidget<T> build(Text optionText, CyclingButtonWidget.UpdateCallback<T> callback) {
 			return this.build(0, 0, 150, 20, optionText, callback);
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param x x
+		 * @param y y
+		 * @param width width
+		 * @param height height
+		 * @param optionText option text
+		 *
+		 * @return CyclingButtonWidget — результат операции
+		 */
 		public CyclingButtonWidget<T> build(int x, int y, int width, int height, Text optionText) {
 			return this.build(x, y, width, height, optionText, (button, value) -> {});
 		}

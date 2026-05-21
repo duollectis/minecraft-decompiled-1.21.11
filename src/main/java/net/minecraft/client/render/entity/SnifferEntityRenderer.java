@@ -30,6 +30,11 @@ public class SnifferEntityRenderer extends AgeableMobEntityRenderer<SnifferEntit
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return SnifferEntityRenderState — результат операции
+	 */
 	public SnifferEntityRenderState createRenderState() {
 		return new SnifferEntityRenderState();
 	}

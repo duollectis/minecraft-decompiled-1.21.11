@@ -14,14 +14,33 @@ public class ForgetAttackTargetTask {
 
 	private static final int REMEMBER_TIME = 200;
 
+	/**
+	 * Create.
+	 *
+	 * @param callback callback
+	 *
+	 * @return Task — результат операции
+	 */
 	public static <E extends MobEntity> Task<E> create(ForgetAttackTargetTask.ForgetCallback<E> callback) {
 		return create((world, target) -> false, callback, true);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param condition condition
+	 *
+	 * @return Task — результат операции
+	 */
 	public static <E extends MobEntity> Task<E> create(ForgetAttackTargetTask.AlternativeCondition condition) {
 		return create(condition, (world, entity, target) -> {}, true);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static <E extends MobEntity> Task<E> create() {
 		return create((world, target) -> false, (world, entity, target) -> {}, true);
 	}

@@ -36,6 +36,9 @@ public class ItemCooldownManager {
 		}
 	}
 
+	/**
+	 * Update.
+	 */
 	public void update() {
 		this.tick++;
 		if (!this.entries.isEmpty()) {
@@ -57,23 +60,51 @@ public class ItemCooldownManager {
 		return useCooldownComponent == null ? identifier : useCooldownComponent.cooldownGroup().orElse(identifier);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param stack stack
+	 * @param duration duration
+	 */
 	public void set(ItemStack stack, int duration) {
 		this.set(this.getGroup(stack), duration);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param groupId group id
+	 * @param duration duration
+	 */
 	public void set(Identifier groupId, int duration) {
 		this.entries.put(groupId, new ItemCooldownManager.Entry(this.tick, this.tick + duration));
 		this.onCooldownUpdate(groupId, duration);
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param groupId group id
+	 */
 	public void remove(Identifier groupId) {
 		this.entries.remove(groupId);
 		this.onCooldownUpdate(groupId);
 	}
 
+	/**
+	 * Обрабатывает событие cooldown update.
+	 *
+	 * @param groupId group id
+	 * @param duration duration
+	 */
 	protected void onCooldownUpdate(Identifier groupId, int duration) {
 	}
 
+	/**
+	 * Обрабатывает событие cooldown update.
+	 *
+	 * @param groupId group id
+	 */
 	protected void onCooldownUpdate(Identifier groupId) {
 	}
 

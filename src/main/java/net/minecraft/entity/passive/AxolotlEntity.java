@@ -236,6 +236,12 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 		this.isMovingFf.tick(bl);
 	}
 
+	/**
+	 * Выполняет тик обновления для air.
+	 *
+	 * @param world world
+	 * @param air air
+	 */
 	protected void tickAir(ServerWorld world, int air) {
 		if (this.isAlive() && !this.isTouchingWaterOrRain()) {
 			this.setAir(air - 1);
@@ -249,6 +255,9 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 		}
 	}
 
+	/**
+	 * Hydrate from potion.
+	 */
 	public void hydrateFromPotion() {
 		int i = this.getAir() + 1800;
 		this.setAir(Math.min(i, this.getMaxAir()));
@@ -460,6 +469,13 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 		return !this.isPlayingDead() && super.canTakeDamage();
 	}
 
+	/**
+	 * Appreciate player.
+	 *
+	 * @param world world
+	 * @param axolotl axolotl
+	 * @param target target
+	 */
 	public static void appreciatePlayer(ServerWorld world, AxolotlEntity axolotl, LivingEntity target) {
 		if (target.isDead()) {
 			DamageSource damageSource = target.getRecentDamageSource();
@@ -478,6 +494,11 @@ public class AxolotlEntity extends AnimalEntity implements Bucketable {
 		}
 	}
 
+	/**
+	 * Buff player.
+	 *
+	 * @param player player
+	 */
 	public void buffPlayer(PlayerEntity player) {
 		StatusEffectInstance statusEffectInstance = player.getStatusEffect(StatusEffects.REGENERATION);
 		if (statusEffectInstance == null || statusEffectInstance.isDurationBelow(2399)) {

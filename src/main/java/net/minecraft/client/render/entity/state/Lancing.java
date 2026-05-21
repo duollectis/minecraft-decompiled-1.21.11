@@ -135,6 +135,15 @@ public class Lancing {
 		return 0.4F * (Easing.outQuart(clampedLerpProgress(f, 1.0F, 3.0F)) - Easing.inOutSine(clampedLerpProgress(f, 3.0F, 10.0F)));
 	}
 
+	/**
+	 * Применяет held item lancing transform.
+	 *
+	 * @param f f
+	 * @param matrixStack matrix stack
+	 * @param g g
+	 * @param arm arm
+	 * @param itemStack item stack
+	 */
 	public static void applyHeldItemLancingTransform(float f, MatrixStack matrixStack, float g, Arm arm, ItemStack itemStack) {
 		KineticWeaponComponent kineticWeaponComponent = itemStack.get(DataComponentTypes.KINETIC_WEAPON);
 		if (kineticWeaponComponent != null) {
@@ -173,6 +182,14 @@ public class Lancing {
 		}
 	}
 
+	/**
+	 * Применяет projectile transform.
+	 *
+	 * @param f f
+	 * @param matrixStack matrix stack
+	 * @param i i
+	 * @param arm arm
+	 */
 	public static void applyProjectileTransform(float f, MatrixStack matrixStack, int i, Arm arm) {
 		float g = Easing.inOutSine(clampedLerpProgress(f, 0.0F, 0.05F));
 		float h = Easing.outBack(clampedLerpProgress(f, 0.05F, 0.2F));

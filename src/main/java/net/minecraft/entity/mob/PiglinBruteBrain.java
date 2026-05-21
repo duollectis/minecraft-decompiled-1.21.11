@@ -30,6 +30,14 @@ public class PiglinBruteBrain {
 	private static final int ANGER_TICKS = 100;
 	private static final int ATTACK_COOLDOWN_TICKS = 5;
 
+	/**
+	 * Create.
+	 *
+	 * @param piglinBrute piglin brute
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(PiglinBruteEntity piglinBrute, Brain<PiglinBruteEntity> brain) {
 		addCoreActivities(piglinBrute, brain);
 		addIdleActivities(piglinBrute, brain);
@@ -127,6 +135,11 @@ public class PiglinBruteBrain {
 		);
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param piglinBrute piglin brute
+	 */
 	protected static void tick(PiglinBruteEntity piglinBrute) {
 		Brain<PiglinBruteEntity> brain = piglinBrute.getBrain();
 		Activity activity = brain.getFirstPossibleNonCoreActivity().orElse(null);
@@ -162,6 +175,13 @@ public class PiglinBruteBrain {
 		}
 	}
 
+	/**
+	 * Try revenge.
+	 *
+	 * @param world world
+	 * @param piglinBrute piglin brute
+	 * @param target target
+	 */
 	protected static void tryRevenge(ServerWorld world, PiglinBruteEntity piglinBrute, LivingEntity target) {
 		if (!(target instanceof AbstractPiglinEntity)) {
 			PiglinBrain.tryRevenge(world, piglinBrute, target);
@@ -173,6 +193,11 @@ public class PiglinBruteBrain {
 		piglinBrute.getBrain().remember(MemoryModuleType.ANGRY_AT, target.getUuid(), 600L);
 	}
 
+	/**
+	 * Play sound randomly.
+	 *
+	 * @param piglinBrute piglin brute
+	 */
 	protected static void playSoundRandomly(PiglinBruteEntity piglinBrute) {
 		if (piglinBrute.getEntityWorld().random.nextFloat() < 0.0125) {
 			playSoundIfAngry(piglinBrute);

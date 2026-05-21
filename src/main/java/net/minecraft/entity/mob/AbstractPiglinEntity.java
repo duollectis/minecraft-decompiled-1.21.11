@@ -47,6 +47,11 @@ public abstract class AbstractPiglinEntity extends HostileEntity {
 		}
 	}
 
+	/**
+	 * Проверяет возможность hunt.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected abstract boolean canHunt();
 
 	public void setImmuneToZombification(boolean immuneToZombification) {
@@ -99,6 +104,11 @@ public abstract class AbstractPiglinEntity extends HostileEntity {
 		this.timeInOverworld = timeInOverworld;
 	}
 
+	/**
+	 * Определяет, следует ли zombify.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldZombify() {
 		return !this.isImmuneToZombification()
 				&& !this.isAiDisabled()
@@ -108,6 +118,11 @@ public abstract class AbstractPiglinEntity extends HostileEntity {
 				.getAttributeValue(EnvironmentAttributes.PIGLINS_ZOMBIFY_GAMEPLAY, this.getEntityPos());
 	}
 
+	/**
+	 * Zombify.
+	 *
+	 * @param world world
+	 */
 	protected void zombify(ServerWorld world) {
 		this.convertTo(
 				EntityType.ZOMBIFIED_PIGLIN,
@@ -142,5 +157,8 @@ public abstract class AbstractPiglinEntity extends HostileEntity {
 		}
 	}
 
+	/**
+	 * Play zombification sound.
+	 */
 	protected abstract void playZombificationSound();
 }

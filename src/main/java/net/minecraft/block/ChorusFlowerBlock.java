@@ -236,6 +236,14 @@ public class ChorusFlowerBlock extends Block {
 		builder.add(AGE);
 	}
 
+	/**
+	 * Generate.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 * @param size size
+	 */
 	public static void generate(WorldAccess world, BlockPos pos, Random random, int size) {
 		world.setBlockState(
 				pos,

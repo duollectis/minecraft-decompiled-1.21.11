@@ -66,6 +66,11 @@ public class PaintingVariants {
 	public static final RegistryKey<PaintingVariant> TIDES = of("tides");
 	public static final RegistryKey<PaintingVariant> DENNIS = of("dennis");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<PaintingVariant> registry) {
 		register(registry, KEBAB, 1, 1);
 		register(registry, AZTEC, 1, 1);

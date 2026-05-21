@@ -96,6 +96,14 @@ public record MobSpawnerEntry(
 					.validate(MobSpawnerEntry.CustomSpawnRules::validate);
 		}
 
+		/**
+		 * Проверяет возможность spawn.
+		 *
+		 * @param pos pos
+		 * @param world world
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canSpawn(BlockPos pos, ServerWorld world) {
 			return this.blockLightLimit.contains(world.getLightLevel(LightType.BLOCK, pos))
 					&& this.skyLightLimit.contains(world.getLightLevel(LightType.SKY, pos));

@@ -19,6 +19,12 @@ public class TargetPathNode extends PathNode {
 		super(i, j, k);
 	}
 
+	/**
+	 * Обновляет nearest node.
+	 *
+	 * @param distance distance
+	 * @param node node
+	 */
 	public void updateNearestNode(float distance, PathNode node) {
 		if (distance < this.nearestNodeDistance) {
 			this.nearestNodeDistance = distance;
@@ -30,6 +36,9 @@ public class TargetPathNode extends PathNode {
 		return this.nearestNode;
 	}
 
+	/**
+	 * Mark reached.
+	 */
 	public void markReached() {
 		this.reached = true;
 	}
@@ -38,6 +47,13 @@ public class TargetPathNode extends PathNode {
 		return this.reached;
 	}
 
+	/**
+	 * From buffer.
+	 *
+	 * @param buffer buffer
+	 *
+	 * @return TargetPathNode — результат операции
+	 */
 	public static TargetPathNode fromBuffer(PacketByteBuf buffer) {
 		TargetPathNode targetPathNode = new TargetPathNode(buffer.readInt(), buffer.readInt(), buffer.readInt());
 		readFromBuf(buffer, targetPathNode);

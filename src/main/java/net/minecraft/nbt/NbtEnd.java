@@ -15,6 +15,14 @@ public final class NbtEnd implements NbtElement {
 
 	private static final int SIZE = 8;
 	public static final NbtType<NbtEnd> TYPE = new NbtType<NbtEnd>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtEnd — результат операции
+		 */
 		public NbtEnd read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) {
 			nbtSizeTracker.add(8L);
 			return NbtEnd.INSTANCE;
@@ -75,6 +83,11 @@ public final class NbtEnd implements NbtElement {
 		return stringNbtWriter.getString();
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return NbtEnd — результат операции
+	 */
 	public NbtEnd copy() {
 		return this;
 	}

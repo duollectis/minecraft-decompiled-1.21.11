@@ -56,10 +56,22 @@ public class FoxEntityRenderer extends AgeableMobEntityRenderer<FoxEntity, FoxEn
 		}
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return FoxEntityRenderState — результат операции
+	 */
 	public FoxEntityRenderState createRenderState() {
 		return new FoxEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param foxEntity fox entity
+	 * @param foxEntityRenderState fox entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(FoxEntity foxEntity, FoxEntityRenderState foxEntityRenderState, float f) {
 		super.updateRenderState(foxEntity, foxEntityRenderState, f);
 		ItemHolderEntityRenderState.update(foxEntity, foxEntityRenderState, this.itemModelResolver);

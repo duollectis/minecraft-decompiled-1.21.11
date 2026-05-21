@@ -137,6 +137,14 @@ public class TestBlock extends BlockWithEntity implements OperatorBlock {
 		return applyBlockStateToStack(itemStack, state.get(MODE));
 	}
 
+	/**
+	 * Применяет block state to stack.
+	 *
+	 * @param stack stack
+	 * @param mode mode
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public static ItemStack applyBlockStateToStack(ItemStack stack, TestBlockMode mode) {
 		stack.set(
 				DataComponentTypes.BLOCK_STATE,

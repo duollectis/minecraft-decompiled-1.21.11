@@ -90,6 +90,9 @@ public abstract class ChunkGenerator {
 		);
 	}
 
+	/**
+	 * Инициализирует ialize indexed features list.
+	 */
 	public void initializeIndexedFeaturesList() {
 		this.indexedFeaturesListSupplier.get();
 	}
@@ -352,6 +355,13 @@ public abstract class ChunkGenerator {
 		}
 	}
 
+	/**
+	 * Generate features.
+	 *
+	 * @param world world
+	 * @param chunk chunk
+	 * @param structureAccessor structure accessor
+	 */
 	public void generateFeatures(StructureWorldAccess world, Chunk chunk, StructureAccessor structureAccessor) {
 		ChunkPos chunkPos = chunk.getPos();
 		if (!SharedConstants.isOutsideGenerationArea(chunkPos)) {
@@ -496,6 +506,11 @@ public abstract class ChunkGenerator {
 			Chunk chunk
 	);
 
+	/**
+	 * Populate entities.
+	 *
+	 * @param region region
+	 */
 	public abstract void populateEntities(ChunkRegion region);
 
 	public int getSpawnHeight(HeightLimitView world) {
@@ -695,6 +710,13 @@ public abstract class ChunkGenerator {
 		return structureStart != null ? structureStart.getReferences() : 0;
 	}
 
+	/**
+	 * Добавляет structure references.
+	 *
+	 * @param world world
+	 * @param structureAccessor structure accessor
+	 * @param chunk chunk
+	 */
 	public void addStructureReferences(StructureWorldAccess world, StructureAccessor structureAccessor, Chunk chunk) {
 		int i = 8;
 		ChunkPos chunkPos = chunk.getPos();
@@ -793,6 +815,13 @@ public abstract class ChunkGenerator {
 		return this.getHeight(x, z, heightmap, world, noiseConfig) - 1;
 	}
 
+	/**
+	 * Append debug hud text.
+	 *
+	 * @param text text
+	 * @param noiseConfig noise config
+	 * @param pos pos
+	 */
 	public abstract void appendDebugHudText(List<String> text, NoiseConfig noiseConfig, BlockPos pos);
 
 	@Deprecated

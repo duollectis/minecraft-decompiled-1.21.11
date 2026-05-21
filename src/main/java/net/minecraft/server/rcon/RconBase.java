@@ -23,6 +23,11 @@ public abstract class RconBase implements Runnable {
 		this.description = description;
 	}
 
+	/**
+	 * Start.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public synchronized boolean start() {
 		if (this.running) {
 			return true;
@@ -37,6 +42,9 @@ public abstract class RconBase implements Runnable {
 		}
 	}
 
+	/**
+	 * Stop.
+	 */
 	public synchronized void stop() {
 		this.running = false;
 		if (null != this.thread) {

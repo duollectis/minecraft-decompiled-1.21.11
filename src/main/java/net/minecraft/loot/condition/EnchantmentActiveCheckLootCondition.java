@@ -20,6 +20,13 @@ public record EnchantmentActiveCheckLootCondition(boolean active) implements Loo
 					.apply(instance, EnchantmentActiveCheckLootCondition::new)
 	);
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		return lootContext.getOrThrow(LootContextParameters.ENCHANTMENT_ACTIVE) == this.active;
 	}

@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс experience bar update s2 c packet.
+ */
 public class ExperienceBarUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ExperienceBarUpdateS2CPacket> CODEC = Packet.createCodec(
@@ -39,6 +42,11 @@ public class ExperienceBarUpdateS2CPacket implements Packet<ClientPlayPacketList
 		return PlayPackets.SET_EXPERIENCE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onExperienceBarUpdate(this);
 	}

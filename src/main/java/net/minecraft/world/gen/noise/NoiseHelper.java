@@ -7,6 +7,14 @@ import java.util.Locale;
  */
 public class NoiseHelper {
 
+	/**
+	 * Применяет slide.
+	 *
+	 * @param d d
+	 * @param e e
+	 *
+	 * @return double — результат операции
+	 */
 	public static double applySlide(double d, double e) {
 		return d + Math.sin(Math.PI * d) * e / Math.PI;
 	}

@@ -36,6 +36,15 @@ public class BiasedToBottomHeightProvider extends HeightProvider {
 		this.inner = inner;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param minOffset min offset
+	 * @param maxOffset max offset
+	 * @param inner inner
+	 *
+	 * @return BiasedToBottomHeightProvider — результат операции
+	 */
 	public static BiasedToBottomHeightProvider create(YOffset minOffset, YOffset maxOffset, int inner) {
 		return new BiasedToBottomHeightProvider(minOffset, maxOffset, inner);
 	}

@@ -917,6 +917,14 @@ public class TestCommand {
 		return 1;
 	}
 
+	/**
+	 * Start.
+	 *
+	 * @param source source
+	 * @param context context
+	 *
+	 * @return int — результат операции
+	 */
 	public static int start(ServerCommandSource source, TestRunContext context) {
 		context.addBatchListener(new TestCommand.ReportingBatchListener(source));
 		TestSet testSet = new TestSet(context.getStates());

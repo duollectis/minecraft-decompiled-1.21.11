@@ -28,6 +28,14 @@ public class ResourceIndex {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final Splitter SEPARATOR_SPLITTER = Splitter.on('/');
 
+	/**
+	 * Строит file system.
+	 *
+	 * @param assetsDir assets dir
+	 * @param indexName index name
+	 *
+	 * @return Path — результат операции
+	 */
 	public static Path buildFileSystem(Path assetsDir, String indexName) {
 		Path path = assetsDir.resolve("objects");
 		ResourceFileSystem.Builder builder = ResourceFileSystem.builder();

@@ -35,6 +35,9 @@ import org.slf4j.Logger;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+/**
+ * Класс server configuration network handler.
+ */
 public class ServerConfigurationNetworkHandler
 		extends ServerCommonNetworkHandler
 		implements ServerConfigurationPacketListener,
@@ -89,6 +92,9 @@ public class ServerConfigurationNetworkHandler
 		return this.connection.isOpen();
 	}
 
+	/**
+	 * Отправляет configurations.
+	 */
 	public void sendConfigurations() {
 		this.sendPacket(new CustomPayloadS2CPacket(new BrandCustomPayload(this.server.getServerModName())));
 		ServerLinks serverLinks = this.server.getServerLinks();
@@ -115,6 +121,9 @@ public class ServerConfigurationNetworkHandler
 		this.endConfiguration();
 	}
 
+	/**
+	 * End configuration.
+	 */
 	public void endConfiguration() {
 		this.prepareSpawnTask = new PrepareSpawnTask(this.server, new PlayerConfigEntry(this.profile));
 		this.tasks.add(this.prepareSpawnTask);

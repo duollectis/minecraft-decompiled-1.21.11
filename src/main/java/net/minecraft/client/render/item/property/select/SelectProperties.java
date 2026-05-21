@@ -15,6 +15,9 @@ public class SelectProperties {
 	public static final Codecs.IdMapper<Identifier, SelectProperty.Type<?, ?>> ID_MAPPER = new Codecs.IdMapper<>();
 	public static final Codec<SelectProperty.Type<?, ?>> CODEC = ID_MAPPER.getCodec(Identifier.CODEC);
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		ID_MAPPER.put(Identifier.ofVanilla("custom_model_data"), CustomModelDataStringProperty.TYPE);
 		ID_MAPPER.put(Identifier.ofVanilla("main_hand"), MainHandProperty.TYPE);

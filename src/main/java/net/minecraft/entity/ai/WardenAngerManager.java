@@ -52,6 +52,13 @@ public class WardenAngerManager {
 	@VisibleForTesting
 	protected final Object2IntMap<UUID> suspectUuidsToAngerLevel;
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param suspectPredicate suspect predicate
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<WardenAngerManager> createCodec(Predicate<Entity> suspectPredicate) {
 		return RecordCodecBuilder.create(
 				instance -> instance
@@ -95,6 +102,12 @@ public class WardenAngerManager {
 		              .collect(Collectors.toList());
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param suspectPredicate suspect predicate
+	 */
 	public void tick(ServerWorld world, Predicate<Entity> suspectPredicate) {
 		this.updateTimer--;
 		if (this.updateTimer <= 0) {
@@ -165,6 +178,14 @@ public class WardenAngerManager {
 		}
 	}
 
+	/**
+	 * Increase anger at.
+	 *
+	 * @param entity entity
+	 * @param amount amount
+	 *
+	 * @return int — результат операции
+	 */
 	public int increaseAngerAt(Entity entity, int amount) {
 		boolean bl = !this.suspectsToAngerLevel.containsKey(entity);
 		int
@@ -184,6 +205,11 @@ public class WardenAngerManager {
 		return i;
 	}
 
+	/**
+	 * Удаляет suspect.
+	 *
+	 * @param entity entity
+	 */
 	public void removeSuspect(Entity entity) {
 		this.suspectsToAngerLevel.removeInt(entity);
 		this.suspects.remove(entity);
@@ -211,6 +237,14 @@ public class WardenAngerManager {
 	 */
 	protected record SuspectComparator(WardenAngerManager angerManagement) implements Comparator<Entity> {
 
+		/**
+		 * Compare.
+		 *
+		 * @param entity entity
+		 * @param entity2 entity2
+		 *
+		 * @return int — результат операции
+		 */
 		public int compare(Entity entity, Entity entity2) {
 			if (entity.equals(entity2)) {
 				return 0;

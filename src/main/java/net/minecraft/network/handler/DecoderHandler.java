@@ -15,6 +15,9 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.util.List;
 
+/**
+ * Класс decoder handler.
+ */
 public class DecoderHandler<T extends PacketListener> extends ByteToMessageDecoder implements NetworkStateTransitionHandler {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
@@ -24,6 +27,13 @@ public class DecoderHandler<T extends PacketListener> extends ByteToMessageDecod
 		this.state = state;
 	}
 
+	/**
+	 * Decode.
+	 *
+	 * @param context context
+	 * @param buf buf
+	 * @param objects objects
+	 */
 	protected void decode(ChannelHandlerContext context, ByteBuf buf, List<Object> objects) throws Exception {
 		int i = buf.readableBytes();
 

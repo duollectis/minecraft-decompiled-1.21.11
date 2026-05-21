@@ -53,6 +53,13 @@ public class ContextLootNbtProvider implements LootNbtProvider {
 		return Set.of(this.target.contextParam());
 	}
 
+	/**
+	 * From target.
+	 *
+	 * @param target target
+	 *
+	 * @return LootNbtProvider — результат операции
+	 */
 	public static LootNbtProvider fromTarget(LootContext.EntityReference target) {
 		return new ContextLootNbtProvider(new ContextLootNbtProvider.EntityTarget(target.contextParam()));
 	}
@@ -63,6 +70,13 @@ public class ContextLootNbtProvider implements LootNbtProvider {
 	record BlockEntityTarget(ContextParameter<? extends BlockEntity> contextParam)
 			implements LootEntityValueSource.ContextComponentBased<BlockEntity, NbtElement> {
 
+		/**
+		 * Get.
+		 *
+		 * @param blockEntity block entity
+		 *
+		 * @return NbtElement — 
+		 */
 		public NbtElement get(BlockEntity blockEntity) {
 			return blockEntity.createNbtWithIdentifyingData(blockEntity.getWorld().getRegistryManager());
 		}
@@ -73,6 +87,13 @@ public class ContextLootNbtProvider implements LootNbtProvider {
 	 */
 	record EntityTarget(ContextParameter<? extends Entity> contextParam) implements LootEntityValueSource.ContextComponentBased<Entity, NbtElement> {
 
+		/**
+		 * Get.
+		 *
+		 * @param entity entity
+		 *
+		 * @return NbtElement — 
+		 */
 		public NbtElement get(Entity entity) {
 			return NbtPredicate.entityToNbt(entity);
 		}

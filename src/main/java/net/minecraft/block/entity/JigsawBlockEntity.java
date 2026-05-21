@@ -135,6 +135,11 @@ public class JigsawBlockEntity extends BlockEntity {
 		this.selectionPriority = view.getInt("selection_priority", 0);
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
@@ -144,6 +149,13 @@ public class JigsawBlockEntity extends BlockEntity {
 		return this.createComponentlessNbt(registries);
 	}
 
+	/**
+	 * Generate.
+	 *
+	 * @param world world
+	 * @param maxDepth max depth
+	 * @param keepJigsaws keep jigsaws
+	 */
 	public void generate(ServerWorld world, int maxDepth, boolean keepJigsaws) {
 		BlockPos blockPos = this.getPos().offset(this.getCachedState().get(JigsawBlock.ORIENTATION).getFacing());
 		Registry<StructurePool> registry = world.getRegistryManager().getOrThrow(RegistryKeys.TEMPLATE_POOL);
@@ -172,6 +184,11 @@ public class JigsawBlockEntity extends BlockEntity {
 			return this.name;
 		}
 
+		/**
+		 * As text.
+		 *
+		 * @return Text — результат операции
+		 */
 		public Text asText() {
 			return Text.translatable("jigsaw_block.joint." + this.name);
 		}

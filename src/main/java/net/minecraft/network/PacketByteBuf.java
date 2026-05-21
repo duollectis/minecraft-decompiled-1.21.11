@@ -78,12 +78,29 @@ public class PacketByteBuf extends ByteBuf {
 
 	/** @deprecated Используй {@link net.minecraft.network.codec.PacketCodec} вместо этого. */
 	@Deprecated
+	/**
+	 * Decode.
+	 *
+	 * @param ops ops
+	 * @param codec codec
+	 *
+	 * @return T — результат операции
+	 */
 	public <T> T decode(DynamicOps<NbtElement> ops, Codec<T> codec) {
 		return decode(ops, codec, NbtSizeTracker.ofUnlimitedBytes());
 	}
 
 	/** @deprecated Используй {@link net.minecraft.network.codec.PacketCodec} вместо этого. */
 	@Deprecated
+	/**
+	 * Decode.
+	 *
+	 * @param ops ops
+	 * @param codec codec
+	 * @param sizeTracker size tracker
+	 *
+	 * @return T — результат операции
+	 */
 	public <T> T decode(DynamicOps<NbtElement> ops, Codec<T> codec, NbtSizeTracker sizeTracker) {
 		NbtElement nbtElement = readNbt(sizeTracker);
 		return codec
@@ -93,6 +110,15 @@ public class PacketByteBuf extends ByteBuf {
 
 	/** @deprecated Используй {@link net.minecraft.network.codec.PacketCodec} вместо этого. */
 	@Deprecated
+	/**
+	 * Encode.
+	 *
+	 * @param ops ops
+	 * @param codec codec
+	 * @param value value
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public <T> PacketByteBuf encode(DynamicOps<NbtElement> ops, Codec<T> codec, T value) {
 		NbtElement
 				nbtElement =
@@ -104,6 +130,13 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Декодирует объект из JSON-строки в буфере с помощью указанного кодека. */
+	/**
+	 * Декодирует as json.
+	 *
+	 * @param codec codec
+	 *
+	 * @return T — результат операции
+	 */
 	public <T> T decodeAsJson(Codec<T> codec) {
 		JsonElement jsonElement = LenientJsonParser.parse(readString());
 		DataResult<T> dataResult = codec.parse(JsonOps.INSTANCE, jsonElement);
@@ -111,6 +144,14 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Кодирует объект в JSON-строку и записывает её в буфер. */
+	/**
+	 * Кодирует as json.
+	 *
+	 * @param codec codec
+	 * @param value value
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void encodeAsJson(Codec<T> codec, T value) {
 		DataResult<JsonElement> dataResult = codec.encodeStart(JsonOps.INSTANCE, value);
 		writeString(GSON.toJson((JsonElement) dataResult.getOrThrow(error -> new EncoderException(
@@ -144,6 +185,15 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает коллекцию: сначала размер (VarInt), затем элементы. */
+	/**
+	 * Записывает collection.
+	 *
+	 * @param collection collection
+	 * @param PacketByteBuf packet byte buf
+	 * @param writer writer
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void writeCollection(Collection<T> collection, PacketEncoder<? super PacketByteBuf, T> writer) {
 		writeVarInt(collection.size());
 
@@ -153,11 +203,24 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает список элементов из буфера. */
+	/**
+	 * Читает list.
+	 *
+	 * @param PacketByteBuf packet byte buf
+	 * @param reader reader
+	 *
+	 * @return List — результат операции
+	 */
 	public <T> List<T> readList(PacketDecoder<? super PacketByteBuf, T> reader) {
 		return readCollection(Lists::newArrayListWithCapacity, reader);
 	}
 
 	/** Читает список целых чисел (VarInt) из буфера. */
+	/**
+	 * Читает int list.
+	 *
+	 * @return IntList — результат операции
+	 */
 	public IntList readIntList() {
 		int i = readVarInt();
 		IntList intList = new IntArrayList();
@@ -170,6 +233,11 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает список целых чисел (VarInt) в буфер. */
+	/**
+	 * Записывает int list.
+	 *
+	 * @param list list
+	 */
 	public void writeIntList(IntList list) {
 		writeVarInt(list.size());
 		list.forEach(this::writeVarInt);
@@ -215,6 +283,11 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Вызывает consumer для каждого элемента коллекции в буфере. */
+	/**
+	 * For each in collection.
+	 *
+	 * @param consumer consumer
+	 */
 	public void forEachInCollection(Consumer<PacketByteBuf> consumer) {
 		int i = readVarInt();
 
@@ -224,6 +297,14 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает набор значений перечисления как битовую маску. */
+	/**
+	 * Записывает enum set.
+	 *
+	 * @param enumSet enum set
+	 * @param type type
+	 *
+	 * @return > void — результат операции
+	 */
 	public <E extends Enum<E>> void writeEnumSet(EnumSet<E> enumSet, Class<E> type) {
 		E[] enums = (E[]) type.getEnumConstants();
 		BitSet bitSet = new BitSet(enums.length);
@@ -236,6 +317,13 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает набор значений перечисления из битовой маски. */
+	/**
+	 * Читает enum set.
+	 *
+	 * @param type type
+	 *
+	 * @return > EnumSet — результат операции
+	 */
 	public <E extends Enum<E>> EnumSet<E> readEnumSet(Class<E> type) {
 		E[] enums = (E[]) type.getEnumConstants();
 		BitSet bitSet = readBitSet(enums.length);
@@ -251,6 +339,15 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает Optional: флаг присутствия и, если есть, значение. */
+	/**
+	 * Записывает optional.
+	 *
+	 * @param value value
+	 * @param PacketByteBuf packet byte buf
+	 * @param writer writer
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void writeOptional(Optional<T> value, PacketEncoder<? super PacketByteBuf, T> writer) {
 		if (value.isEmpty()) {
 			writeBoolean(false);
@@ -262,6 +359,14 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает Optional: флаг присутствия и, если есть, значение. */
+	/**
+	 * Читает optional.
+	 *
+	 * @param PacketByteBuf packet byte buf
+	 * @param reader reader
+	 *
+	 * @return Optional — результат операции
+	 */
 	public <T> Optional<T> readOptional(PacketDecoder<? super PacketByteBuf, T> reader) {
 		return readBoolean() ? Optional.of(reader.decode(this)) : Optional.empty();
 	}
@@ -290,16 +395,42 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает nullable-значение: флаг присутствия и, если есть, значение. */
+	/**
+	 * Читает nullable.
+	 *
+	 * @param PacketByteBuf packet byte buf
+	 * @param reader reader
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public <T> @Nullable T readNullable(PacketDecoder<? super PacketByteBuf, T> reader) {
 		return readNullable(this, reader);
 	}
 
 	/** Читает nullable-значение: флаг присутствия и, если есть, значение. */
+	/**
+	 * Читает nullable.
+	 *
+	 * @param buf buf
+	 * @param B b
+	 * @param reader reader
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public static <T, B extends ByteBuf> @Nullable T readNullable(B buf, PacketDecoder<? super B, T> reader) {
 		return buf.readBoolean() ? reader.decode(buf) : null;
 	}
 
 	/** Записывает nullable-значение: флаг присутствия и, если есть, значение. */
+	/**
+	 * Записывает nullable.
+	 *
+	 * @param value value
+	 * @param PacketByteBuf packet byte buf
+	 * @param writer writer
+	 *
+	 * @return void — результат операции
+	 */
 	public <T> void writeNullable(@Nullable T value, PacketEncoder<? super PacketByteBuf, T> writer) {
 		writeNullable(this, value, writer);
 	}
@@ -320,33 +451,73 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает массив байт (с префиксом длины VarInt). */
+	/**
+	 * Читает byte array.
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public byte[] readByteArray() {
 		return readByteArray(this);
 	}
 
 	/** Читает массив байт (с префиксом длины VarInt). */
+	/**
+	 * Читает byte array.
+	 *
+	 * @param buf buf
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public static byte[] readByteArray(ByteBuf buf) {
 		return readByteArray(buf, buf.readableBytes());
 	}
 
 	/** Записывает массив байт (с префиксом длины VarInt). */
+	/**
+	 * Записывает byte array.
+	 *
+	 * @param array array
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeByteArray(byte[] array) {
 		writeByteArray(this, array);
 		return this;
 	}
 
 	/** Записывает массив байт (с префиксом длины VarInt). */
+	/**
+	 * Записывает byte array.
+	 *
+	 * @param buf buf
+	 * @param array array
+	 */
 	public static void writeByteArray(ByteBuf buf, byte[] array) {
 		VarInts.write(buf, array.length);
 		buf.writeBytes(array);
 	}
 
 	/** Читает массив байт (с префиксом длины VarInt). */
+	/**
+	 * Читает byte array.
+	 *
+	 * @param maxSize max size
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public byte[] readByteArray(int maxSize) {
 		return readByteArray(this, maxSize);
 	}
 
 	/** Читает массив байт (с префиксом длины VarInt). */
+	/**
+	 * Читает byte array.
+	 *
+	 * @param buf buf
+	 * @param maxSize max size
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public static byte[] readByteArray(ByteBuf buf, int maxSize) {
 		int i = VarInts.read(buf);
 		if (i > maxSize) {
@@ -359,6 +530,13 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает массив int как VarInt-значения с префиксом длины. */
+	/**
+	 * Записывает int array.
+	 *
+	 * @param array array
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeIntArray(int[] array) {
 		writeVarInt(array.length);
 
@@ -370,11 +548,23 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает массив int (VarInt) с проверкой максимального размера. */
+	/**
+	 * Читает int array.
+	 *
+	 * @return int[] — результат операции
+	 */
 	public int[] readIntArray() {
 		return readIntArray(readableBytes());
 	}
 
 	/** Читает массив int (VarInt) с проверкой максимального размера. */
+	/**
+	 * Читает int array.
+	 *
+	 * @param maxSize max size
+	 *
+	 * @return int[] — результат операции
+	 */
 	public int[] readIntArray(int maxSize) {
 		int i = readVarInt();
 		if (i > maxSize) {
@@ -391,24 +581,50 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает массив long с префиксом длины VarInt. */
+	/**
+	 * Записывает long array.
+	 *
+	 * @param values values
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeLongArray(long[] values) {
 		writeLongArray(this, values);
 		return this;
 	}
 
 	/** Записывает массив long с префиксом длины VarInt. */
+	/**
+	 * Записывает long array.
+	 *
+	 * @param buf buf
+	 * @param values values
+	 */
 	public static void writeLongArray(ByteBuf buf, long[] values) {
 		VarInts.write(buf, values.length);
 		writeFixedLengthLongArray(buf, values);
 	}
 
 	/** Записывает массив long фиксированной длины без префикса. */
+	/**
+	 * Записывает fixed length long array.
+	 *
+	 * @param values values
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeFixedLengthLongArray(long[] values) {
 		writeFixedLengthLongArray(this, values);
 		return this;
 	}
 
 	/** Записывает массив long фиксированной длины без префикса. */
+	/**
+	 * Записывает fixed length long array.
+	 *
+	 * @param buf buf
+	 * @param values values
+	 */
 	public static void writeFixedLengthLongArray(ByteBuf buf, long[] values) {
 		for (long l : values) {
 			buf.writeLong(l);
@@ -416,16 +632,35 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает массив long с префиксом длины VarInt. */
+	/**
+	 * Читает long array.
+	 *
+	 * @return long[] — результат операции
+	 */
 	public long[] readLongArray() {
 		return readLongArray(this);
 	}
 
 	/** Читает массив long фиксированной длины без префикса. */
+	/**
+	 * Читает fixed length long array.
+	 *
+	 * @param values values
+	 *
+	 * @return long[] — результат операции
+	 */
 	public long[] readFixedLengthLongArray(long[] values) {
 		return readFixedLengthLongArray(this, values);
 	}
 
 	/** Читает массив long с префиксом длины VarInt. */
+	/**
+	 * Читает long array.
+	 *
+	 * @param buf buf
+	 *
+	 * @return long[] — результат операции
+	 */
 	public static long[] readLongArray(ByteBuf buf) {
 		int i = VarInts.read(buf);
 		int j = buf.readableBytes() / 8;
@@ -437,6 +672,14 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает массив long фиксированной длины без префикса. */
+	/**
+	 * Читает fixed length long array.
+	 *
+	 * @param buf buf
+	 * @param values values
+	 *
+	 * @return long[] — результат операции
+	 */
 	public static long[] readFixedLengthLongArray(ByteBuf buf, long[] values) {
 		for (int i = 0; i < values.length; i++) {
 			values[i] = buf.readLong();
@@ -446,48 +689,103 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает позицию блока (упакованную в long). */
+	/**
+	 * Читает block pos.
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public BlockPos readBlockPos() {
 		return readBlockPos(this);
 	}
 
 	/** Читает позицию блока (упакованную в long). */
+	/**
+	 * Читает block pos.
+	 *
+	 * @param buf buf
+	 *
+	 * @return BlockPos — результат операции
+	 */
 	public static BlockPos readBlockPos(ByteBuf buf) {
 		return BlockPos.fromLong(buf.readLong());
 	}
 
 	/** Записывает позицию блока (упакованную в long). */
+	/**
+	 * Записывает block pos.
+	 *
+	 * @param pos pos
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeBlockPos(BlockPos pos) {
 		writeBlockPos(this, pos);
 		return this;
 	}
 
 	/** Записывает позицию блока (упакованную в long). */
+	/**
+	 * Записывает block pos.
+	 *
+	 * @param buf buf
+	 * @param pos pos
+	 */
 	public static void writeBlockPos(ByteBuf buf, BlockPos pos) {
 		buf.writeLong(pos.asLong());
 	}
 
 	/** Читает позицию чанка (упакованную в long). */
+	/**
+	 * Читает chunk pos.
+	 *
+	 * @return ChunkPos — результат операции
+	 */
 	public ChunkPos readChunkPos() {
 		return new ChunkPos(readLong());
 	}
 
 	/** Записывает позицию чанка (упакованную в long). */
+	/**
+	 * Записывает chunk pos.
+	 *
+	 * @param pos pos
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeChunkPos(ChunkPos pos) {
 		writeLong(pos.toLong());
 		return this;
 	}
 
 	/** Читает позицию чанка (упакованную в long). */
+	/**
+	 * Читает chunk pos.
+	 *
+	 * @param buf buf
+	 *
+	 * @return ChunkPos — результат операции
+	 */
 	public static ChunkPos readChunkPos(ByteBuf buf) {
 		return new ChunkPos(buf.readLong());
 	}
 
 	/** Записывает позицию чанка (упакованную в long). */
+	/**
+	 * Записывает chunk pos.
+	 *
+	 * @param buf buf
+	 * @param pos pos
+	 */
 	public static void writeChunkPos(ByteBuf buf, ChunkPos pos) {
 		buf.writeLong(pos.toLong());
 	}
 
 	/** Читает глобальную позицию (измерение + координаты блока). */
+	/**
+	 * Читает global pos.
+	 *
+	 * @return GlobalPos — результат операции
+	 */
 	public GlobalPos readGlobalPos() {
 		RegistryKey<World> registryKey = readRegistryKey(RegistryKeys.WORLD);
 		BlockPos blockPos = readBlockPos();
@@ -495,27 +793,55 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает глобальную позицию (измерение + координаты блока). */
+	/**
+	 * Записывает global pos.
+	 *
+	 * @param pos pos
+	 */
 	public void writeGlobalPos(GlobalPos pos) {
 		writeRegistryKey(pos.dimension());
 		writeBlockPos(pos.pos());
 	}
 
 	/** Читает трёхмерный вектор (3 float). */
+	/**
+	 * Читает vector3f.
+	 *
+	 * @return Vector3f — результат операции
+	 */
 	public Vector3f readVector3f() {
 		return readVector3f(this);
 	}
 
 	/** Читает трёхмерный вектор (3 float). */
+	/**
+	 * Читает vector3f.
+	 *
+	 * @param buf buf
+	 *
+	 * @return Vector3f — результат операции
+	 */
 	public static Vector3f readVector3f(ByteBuf buf) {
 		return new Vector3f(buf.readFloat(), buf.readFloat(), buf.readFloat());
 	}
 
 	/** Записывает трёхмерный вектор (3 float). */
+	/**
+	 * Записывает vector3f.
+	 *
+	 * @param vector3f vector3f
+	 */
 	public void writeVector3f(Vector3f vector3f) {
 		writeVector3f(this, vector3f);
 	}
 
 	/** Записывает трёхмерный вектор (3 float). */
+	/**
+	 * Записывает vector3f.
+	 *
+	 * @param buf buf
+	 * @param vec vec
+	 */
 	public static void writeVector3f(ByteBuf buf, Vector3fc vec) {
 		buf.writeFloat(vec.x());
 		buf.writeFloat(vec.y());
@@ -523,21 +849,44 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает кватернион вращения (4 float). */
+	/**
+	 * Читает quaternionf.
+	 *
+	 * @return Quaternionf — результат операции
+	 */
 	public Quaternionf readQuaternionf() {
 		return readQuaternionf(this);
 	}
 
 	/** Читает кватернион вращения (4 float). */
+	/**
+	 * Читает quaternionf.
+	 *
+	 * @param buf buf
+	 *
+	 * @return Quaternionf — результат операции
+	 */
 	public static Quaternionf readQuaternionf(ByteBuf buf) {
 		return new Quaternionf(buf.readFloat(), buf.readFloat(), buf.readFloat(), buf.readFloat());
 	}
 
 	/** Записывает кватернион вращения (4 float). */
+	/**
+	 * Записывает quaternionf.
+	 *
+	 * @param quaternionf quaternionf
+	 */
 	public void writeQuaternionf(Quaternionf quaternionf) {
 		writeQuaternionf(this, quaternionf);
 	}
 
 	/** Записывает кватернион вращения (4 float). */
+	/**
+	 * Записывает quaternionf.
+	 *
+	 * @param buf buf
+	 * @param quaternion quaternion
+	 */
 	public static void writeQuaternionf(ByteBuf buf, Quaternionfc quaternion) {
 		buf.writeFloat(quaternion.x());
 		buf.writeFloat(quaternion.y());
@@ -546,16 +895,34 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает трёхмерный вектор с двойной точностью (3 double). */
+	/**
+	 * Читает vec3d.
+	 *
+	 * @param buf buf
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public static Vec3d readVec3d(ByteBuf buf) {
 		return new Vec3d(buf.readDouble(), buf.readDouble(), buf.readDouble());
 	}
 
 	/** Читает трёхмерный вектор с двойной точностью (3 double). */
+	/**
+	 * Читает vec3d.
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d readVec3d() {
 		return readVec3d(this);
 	}
 
 	/** Записывает трёхмерный вектор с двойной точностью (3 double). */
+	/**
+	 * Записывает vec3d.
+	 *
+	 * @param buf buf
+	 * @param vec vec
+	 */
 	public static void writeVec3d(ByteBuf buf, Vec3d vec) {
 		buf.writeDouble(vec.getX());
 		buf.writeDouble(vec.getY());
@@ -563,93 +930,199 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает трёхмерный вектор с двойной точностью (3 double). */
+	/**
+	 * Записывает vec3d.
+	 *
+	 * @param vec vec
+	 */
 	public void writeVec3d(Vec3d vec) {
 		writeVec3d(this, vec);
 	}
 
 	/** Читает скорость сущности (закодированную как short-тройка). */
+	/**
+	 * Читает velocity.
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d readVelocity() {
 		return VelocityEncoding.readVelocity(this);
 	}
 
 	/** Записывает скорость сущности (закодированную как short-тройка). */
+	/**
+	 * Записывает velocity.
+	 *
+	 * @param velocity velocity
+	 */
 	public void writeVelocity(Vec3d velocity) {
 		VelocityEncoding.writeVelocity(this, velocity);
 	}
 
 	/** Читает константу перечисления по её порядковому номеру (VarInt). */
+	/**
+	 * Читает enum constant.
+	 *
+	 * @param enumClass enum class
+	 *
+	 * @return > T — результат операции
+	 */
 	public <T extends Enum<T>> T readEnumConstant(Class<T> enumClass) {
 		return enumClass.getEnumConstants()[readVarInt()];
 	}
 
 	/** Записывает порядковый номер константы перечисления (VarInt). */
+	/**
+	 * Записывает enum constant.
+	 *
+	 * @param instance instance
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeEnumConstant(Enum<?> instance) {
 		return writeVarInt(instance.ordinal());
 	}
 
 	/** Декодирует значение по целочисленному идентификатору. */
+	/**
+	 * Decode.
+	 *
+	 * @param idToValue id to value
+	 *
+	 * @return T — результат операции
+	 */
 	public <T> T decode(IntFunction<T> idToValue) {
 		int i = readVarInt();
 		return idToValue.apply(i);
 	}
 
 	/** Кодирует значение в целочисленный идентификатор. */
+	/**
+	 * Encode.
+	 *
+	 * @param valueToId value to id
+	 * @param value value
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public <T> PacketByteBuf encode(ToIntFunction<T> valueToId, T value) {
 		int i = valueToId.applyAsInt(value);
 		return writeVarInt(i);
 	}
 
 	/** Читает целое число в формате VarInt (переменная длина, 1-5 байт). */
+	/**
+	 * Читает var int.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readVarInt() {
 		return VarInts.read(parent);
 	}
 
 	/** Читает длинное целое в формате VarLong (переменная длина, 1-10 байт). */
+	/**
+	 * Читает var long.
+	 *
+	 * @return long — результат операции
+	 */
 	public long readVarLong() {
 		return VarLongs.read(parent);
 	}
 
 	/** Записывает UUID как два long (most/least significant bits). */
+	/**
+	 * Записывает uuid.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeUuid(UUID uuid) {
 		writeUuid(this, uuid);
 		return this;
 	}
 
 	/** Записывает UUID как два long (most/least significant bits). */
+	/**
+	 * Записывает uuid.
+	 *
+	 * @param buf buf
+	 * @param uuid uuid
+	 */
 	public static void writeUuid(ByteBuf buf, UUID uuid) {
 		buf.writeLong(uuid.getMostSignificantBits());
 		buf.writeLong(uuid.getLeastSignificantBits());
 	}
 
 	/** Читает UUID из двух long (most/least significant bits). */
+	/**
+	 * Читает uuid.
+	 *
+	 * @return UUID — результат операции
+	 */
 	public UUID readUuid() {
 		return readUuid(this);
 	}
 
 	/** Читает UUID из двух long (most/least significant bits). */
+	/**
+	 * Читает uuid.
+	 *
+	 * @param buf buf
+	 *
+	 * @return UUID — результат операции
+	 */
 	public static UUID readUuid(ByteBuf buf) {
 		return new UUID(buf.readLong(), buf.readLong());
 	}
 
 	/** Записывает целое число в формате VarInt (переменная длина, 1-5 байт). */
+	/**
+	 * Записывает var int.
+	 *
+	 * @param value value
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeVarInt(int value) {
 		VarInts.write(parent, value);
 		return this;
 	}
 
 	/** Записывает длинное целое в формате VarLong (переменная длина, 1-10 байт). */
+	/**
+	 * Записывает var long.
+	 *
+	 * @param value value
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeVarLong(long value) {
 		VarLongs.write(parent, value);
 		return this;
 	}
 
 	/** Записывает NBT-элемент в буфер (null записывается как NbtEnd). */
+	/**
+	 * Записывает nbt.
+	 *
+	 * @param nbt nbt
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeNbt(@Nullable NbtElement nbt) {
 		writeNbt(this, nbt);
 		return this;
 	}
 
 	/** Записывает NBT-элемент в буфер (null записывается как NbtEnd). */
+	/**
+	 * Записывает nbt.
+	 *
+	 * @param buf buf
+	 * @param nbt nbt
+	 */
 	public static void writeNbt(ByteBuf buf, @Nullable NbtElement nbt) {
 		if (nbt == null) {
 			nbt = NbtEnd.INSTANCE;
@@ -664,11 +1137,23 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает NBT-тег из буфера. */
+	/**
+	 * Читает nbt.
+	 *
+	 * @return @Nullable NbtCompound — результат операции
+	 */
 	public @Nullable NbtCompound readNbt() {
 		return readNbt(this);
 	}
 
 	/** Читает NBT-тег из буфера. */
+	/**
+	 * Читает nbt.
+	 *
+	 * @param buf buf
+	 *
+	 * @return @Nullable NbtCompound — результат операции
+	 */
 	public static @Nullable NbtCompound readNbt(ByteBuf buf) {
 		NbtElement nbtElement = readNbt(buf, NbtSizeTracker.forPacket());
 		if (nbtElement != null && !(nbtElement instanceof NbtCompound)) {
@@ -679,6 +1164,14 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает NBT-тег из буфера. */
+	/**
+	 * Читает nbt.
+	 *
+	 * @param buf buf
+	 * @param sizeTracker size tracker
+	 *
+	 * @return @Nullable NbtElement — результат операции
+	 */
 	public static @Nullable NbtElement readNbt(ByteBuf buf, NbtSizeTracker sizeTracker) {
 		try {
 			NbtElement nbtElement = NbtIo.read(new ByteBufInputStream(buf), sizeTracker);
@@ -690,70 +1183,148 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает NBT-тег из буфера. */
+	/**
+	 * Читает nbt.
+	 *
+	 * @param sizeTracker size tracker
+	 *
+	 * @return @Nullable NbtElement — результат операции
+	 */
 	public @Nullable NbtElement readNbt(NbtSizeTracker sizeTracker) {
 		return readNbt(this, sizeTracker);
 	}
 
 	/** Читает строку UTF-8 с проверкой максимальной длины. */
+	/**
+	 * Читает string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String readString() {
 		return readString(DEFAULT_MAX_STRING_LENGTH);
 	}
 
 	/** Читает строку UTF-8 с проверкой максимальной длины. */
+	/**
+	 * Читает string.
+	 *
+	 * @param maxLength max length
+	 *
+	 * @return String — результат операции
+	 */
 	public String readString(int maxLength) {
 		return StringEncoding.decode(parent, maxLength);
 	}
 
 	/** Записывает строку UTF-8 с проверкой максимальной длины. */
+	/**
+	 * Записывает string.
+	 *
+	 * @param string string
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeString(String string) {
 		return writeString(string, DEFAULT_MAX_STRING_LENGTH);
 	}
 
 	/** Записывает строку UTF-8 с проверкой максимальной длины. */
+	/**
+	 * Записывает string.
+	 *
+	 * @param string string
+	 * @param maxLength max length
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeString(String string, int maxLength) {
 		StringEncoding.encode(parent, string, maxLength);
 		return this;
 	}
 
 	/** Читает идентификатор ресурса (namespace:path). */
+	/**
+	 * Читает identifier.
+	 *
+	 * @return Identifier — результат операции
+	 */
 	public Identifier readIdentifier() {
 		return Identifier.of(readString(DEFAULT_MAX_STRING_LENGTH));
 	}
 
 	/** Записывает идентификатор ресурса (namespace:path). */
+	/**
+	 * Записывает identifier.
+	 *
+	 * @param id id
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeIdentifier(Identifier id) {
 		writeString(id.toString());
 		return this;
 	}
 
 	/** Читает ключ реестра для указанного реестра. */
+	/**
+	 * Читает registry key.
+	 *
+	 * @param registryRef registry ref
+	 *
+	 * @return RegistryKey — результат операции
+	 */
 	public <T> RegistryKey<T> readRegistryKey(RegistryKey<? extends Registry<T>> registryRef) {
 		Identifier identifier = readIdentifier();
 		return RegistryKey.of(registryRef, identifier);
 	}
 
 	/** Записывает ключ реестра. */
+	/**
+	 * Записывает registry key.
+	 *
+	 * @param key key
+	 */
 	public void writeRegistryKey(RegistryKey<?> key) {
 		writeIdentifier(key.getValue());
 	}
 
 	/** Читает ключ-ссылку на реестр. */
+	/**
+	 * Читает registry ref key.
+	 *
+	 * @return RegistryKey> — результат операции
+	 */
 	public <T> RegistryKey<? extends Registry<T>> readRegistryRefKey() {
 		Identifier identifier = readIdentifier();
 		return RegistryKey.ofRegistry(identifier);
 	}
 
 	/** Читает момент времени (epoch millis как long). */
+	/**
+	 * Читает instant.
+	 *
+	 * @return Instant — результат операции
+	 */
 	public Instant readInstant() {
 		return Instant.ofEpochMilli(readLong());
 	}
 
 	/** Записывает момент времени (epoch millis как long). */
+	/**
+	 * Записывает instant.
+	 *
+	 * @param instant instant
+	 */
 	public void writeInstant(Instant instant) {
 		writeLong(instant.toEpochMilli());
 	}
 
 	/** Читает RSA публичный ключ из байтового массива. */
+	/**
+	 * Читает public key.
+	 *
+	 * @return PublicKey — результат операции
+	 */
 	public PublicKey readPublicKey() {
 		try {
 			return NetworkEncryptionUtils.decodeEncodedRsaPublicKey(readByteArray(MAX_PUBLIC_KEY_LENGTH));
@@ -764,12 +1335,24 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает RSA публичный ключ как байтовый массив. */
+	/**
+	 * Записывает public key.
+	 *
+	 * @param publicKey public key
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writePublicKey(PublicKey publicKey) {
 		writeByteArray(publicKey.getEncoded());
 		return this;
 	}
 
 	/** Читает результат попадания по блоку. */
+	/**
+	 * Читает block hit result.
+	 *
+	 * @return BlockHitResult — результат операции
+	 */
 	public BlockHitResult readBlockHitResult() {
 		BlockPos blockPos = readBlockPos();
 		Direction direction = readEnumConstant(Direction.class);
@@ -788,6 +1371,11 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает результат попадания по блоку. */
+	/**
+	 * Записывает block hit result.
+	 *
+	 * @param hitResult hit result
+	 */
 	public void writeBlockHitResult(BlockHitResult hitResult) {
 		BlockPos blockPos = hitResult.getBlockPos();
 		writeBlockPos(blockPos);
@@ -801,16 +1389,33 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает BitSet из буфера. */
+	/**
+	 * Читает bit set.
+	 *
+	 * @return BitSet — результат операции
+	 */
 	public BitSet readBitSet() {
 		return BitSet.valueOf(readLongArray());
 	}
 
 	/** Записывает BitSet в буфер. */
+	/**
+	 * Записывает bit set.
+	 *
+	 * @param bitSet bit set
+	 */
 	public void writeBitSet(BitSet bitSet) {
 		writeLongArray(bitSet.toLongArray());
 	}
 
 	/** Читает BitSet из буфера. */
+	/**
+	 * Читает bit set.
+	 *
+	 * @param size size
+	 *
+	 * @return BitSet — результат операции
+	 */
 	public BitSet readBitSet(int size) {
 		byte[] bs = new byte[MathHelper.ceilDiv(size, 8)];
 		readBytes(bs);
@@ -818,6 +1423,12 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Записывает BitSet в буфер. */
+	/**
+	 * Записывает bit set.
+	 *
+	 * @param bitSet bit set
+	 * @param size size
+	 */
 	public void writeBitSet(BitSet bitSet, int size) {
 		if (bitSet.length() > size) {
 			throw new EncoderException("BitSet is larger than expected size (" + bitSet.length() + ">" + size + ")");
@@ -828,21 +1439,44 @@ public class PacketByteBuf extends ByteBuf {
 	}
 
 	/** Читает идентификатор синхронизации контейнера (VarInt). */
+	/**
+	 * Читает sync id.
+	 *
+	 * @param buf buf
+	 *
+	 * @return int — результат операции
+	 */
 	public static int readSyncId(ByteBuf buf) {
 		return VarInts.read(buf);
 	}
 
 	/** Читает идентификатор синхронизации контейнера (VarInt). */
+	/**
+	 * Читает sync id.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readSyncId() {
 		return readSyncId(parent);
 	}
 
 	/** Записывает идентификатор синхронизации контейнера (VarInt). */
+	/**
+	 * Записывает sync id.
+	 *
+	 * @param buf buf
+	 * @param syncId sync id
+	 */
 	public static void writeSyncId(ByteBuf buf, int syncId) {
 		VarInts.write(buf, syncId);
 	}
 
 	/** Записывает идентификатор синхронизации контейнера (VarInt). */
+	/**
+	 * Записывает sync id.
+	 *
+	 * @param syncId sync id
+	 */
 	public void writeSyncId(int syncId) {
 		writeSyncId(parent, syncId);
 	}
@@ -851,35 +1485,79 @@ public class PacketByteBuf extends ByteBuf {
 		return parent.isContiguous();
 	}
 
+	/**
+	 * Max fast writable bytes.
+	 *
+	 * @return int — результат операции
+	 */
 	public int maxFastWritableBytes() {
 		return parent.maxFastWritableBytes();
 	}
 
+	/**
+	 * Capacity.
+	 *
+	 * @return int — результат операции
+	 */
 	public int capacity() {
 		return parent.capacity();
 	}
 
+	/**
+	 * Capacity.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf capacity(int i) {
 		parent.capacity(i);
 		return this;
 	}
 
+	/**
+	 * Max capacity.
+	 *
+	 * @return int — результат операции
+	 */
 	public int maxCapacity() {
 		return parent.maxCapacity();
 	}
 
+	/**
+	 * Alloc.
+	 *
+	 * @return ByteBufAllocator — результат операции
+	 */
 	public ByteBufAllocator alloc() {
 		return parent.alloc();
 	}
 
+	/**
+	 * Order.
+	 *
+	 * @return ByteOrder — результат операции
+	 */
 	public ByteOrder order() {
 		return parent.order();
 	}
 
+	/**
+	 * Order.
+	 *
+	 * @param byteOrder byte order
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf order(ByteOrder byteOrder) {
 		return parent.order(byteOrder);
 	}
 
+	/**
+	 * Unwrap.
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf unwrap() {
 		return parent;
 	}
@@ -892,23 +1570,52 @@ public class PacketByteBuf extends ByteBuf {
 		return parent.isReadOnly();
 	}
 
+	/**
+	 * As read only.
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf asReadOnly() {
 		return parent.asReadOnly();
 	}
 
+	/**
+	 * Читает er index.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readerIndex() {
 		return parent.readerIndex();
 	}
 
+	/**
+	 * Читает er index.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf readerIndex(int i) {
 		parent.readerIndex(i);
 		return this;
 	}
 
+	/**
+	 * Записывает r index.
+	 *
+	 * @return int — результат операции
+	 */
 	public int writerIndex() {
 		return parent.writerIndex();
 	}
 
+	/**
+	 * Записывает r index.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writerIndex(int i) {
 		parent.writerIndex(i);
 		return this;
@@ -919,14 +1626,29 @@ public class PacketByteBuf extends ByteBuf {
 		return this;
 	}
 
+	/**
+	 * Читает able bytes.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readableBytes() {
 		return parent.readableBytes();
 	}
 
+	/**
+	 * Writable bytes.
+	 *
+	 * @return int — результат операции
+	 */
 	public int writableBytes() {
 		return parent.writableBytes();
 	}
 
+	/**
+	 * Max writable bytes.
+	 *
+	 * @return int — результат операции
+	 */
 	public int maxWritableBytes() {
 		return parent.maxWritableBytes();
 	}
@@ -947,46 +1669,96 @@ public class PacketByteBuf extends ByteBuf {
 		return parent.isWritable(size);
 	}
 
+	/**
+	 * Clear.
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf clear() {
 		parent.clear();
 		return this;
 	}
 
+	/**
+	 * Mark reader index.
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf markReaderIndex() {
 		parent.markReaderIndex();
 		return this;
 	}
 
+	/**
+	 * Сбрасывает reader index.
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf resetReaderIndex() {
 		parent.resetReaderIndex();
 		return this;
 	}
 
+	/**
+	 * Mark writer index.
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf markWriterIndex() {
 		parent.markWriterIndex();
 		return this;
 	}
 
+	/**
+	 * Сбрасывает writer index.
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf resetWriterIndex() {
 		parent.resetWriterIndex();
 		return this;
 	}
 
+	/**
+	 * Discard read bytes.
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf discardReadBytes() {
 		parent.discardReadBytes();
 		return this;
 	}
 
+	/**
+	 * Discard some read bytes.
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf discardSomeReadBytes() {
 		parent.discardSomeReadBytes();
 		return this;
 	}
 
+	/**
+	 * Ensure writable.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf ensureWritable(int i) {
 		parent.ensureWritable(i);
 		return this;
 	}
 
+	/**
+	 * Ensure writable.
+	 *
+	 * @param minBytes min bytes
+	 * @param force force
+	 *
+	 * @return int — результат операции
+	 */
 	public int ensureWritable(int minBytes, boolean force) {
 		return parent.ensureWritable(minBytes, force);
 	}
@@ -1234,355 +2006,902 @@ public class PacketByteBuf extends ByteBuf {
 		return parent.setCharSequence(index, sequence, charset);
 	}
 
+	/**
+	 * Читает boolean.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean readBoolean() {
 		return parent.readBoolean();
 	}
 
+	/**
+	 * Читает byte.
+	 *
+	 * @return byte — результат операции
+	 */
 	public byte readByte() {
 		return parent.readByte();
 	}
 
+	/**
+	 * Читает unsigned byte.
+	 *
+	 * @return short — результат операции
+	 */
 	public short readUnsignedByte() {
 		return parent.readUnsignedByte();
 	}
 
+	/**
+	 * Читает short.
+	 *
+	 * @return short — результат операции
+	 */
 	public short readShort() {
 		return parent.readShort();
 	}
 
+	/**
+	 * Читает short l e.
+	 *
+	 * @return short — результат операции
+	 */
 	public short readShortLE() {
 		return parent.readShortLE();
 	}
 
+	/**
+	 * Читает unsigned short.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readUnsignedShort() {
 		return parent.readUnsignedShort();
 	}
 
+	/**
+	 * Читает unsigned short l e.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readUnsignedShortLE() {
 		return parent.readUnsignedShortLE();
 	}
 
+	/**
+	 * Читает medium.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readMedium() {
 		return parent.readMedium();
 	}
 
+	/**
+	 * Читает medium l e.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readMediumLE() {
 		return parent.readMediumLE();
 	}
 
+	/**
+	 * Читает unsigned medium.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readUnsignedMedium() {
 		return parent.readUnsignedMedium();
 	}
 
+	/**
+	 * Читает unsigned medium l e.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readUnsignedMediumLE() {
 		return parent.readUnsignedMediumLE();
 	}
 
+	/**
+	 * Читает int.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readInt() {
 		return parent.readInt();
 	}
 
+	/**
+	 * Читает int l e.
+	 *
+	 * @return int — результат операции
+	 */
 	public int readIntLE() {
 		return parent.readIntLE();
 	}
 
+	/**
+	 * Читает unsigned int.
+	 *
+	 * @return long — результат операции
+	 */
 	public long readUnsignedInt() {
 		return parent.readUnsignedInt();
 	}
 
+	/**
+	 * Читает unsigned int l e.
+	 *
+	 * @return long — результат операции
+	 */
 	public long readUnsignedIntLE() {
 		return parent.readUnsignedIntLE();
 	}
 
+	/**
+	 * Читает long.
+	 *
+	 * @return long — результат операции
+	 */
 	public long readLong() {
 		return parent.readLong();
 	}
 
+	/**
+	 * Читает long l e.
+	 *
+	 * @return long — результат операции
+	 */
 	public long readLongLE() {
 		return parent.readLongLE();
 	}
 
+	/**
+	 * Читает char.
+	 *
+	 * @return char — результат операции
+	 */
 	public char readChar() {
 		return parent.readChar();
 	}
 
+	/**
+	 * Читает float.
+	 *
+	 * @return float — результат операции
+	 */
 	public float readFloat() {
 		return parent.readFloat();
 	}
 
+	/**
+	 * Читает double.
+	 *
+	 * @return double — результат операции
+	 */
 	public double readDouble() {
 		return parent.readDouble();
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param length length
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf readBytes(int length) {
 		return parent.readBytes(length);
 	}
 
+	/**
+	 * Читает slice.
+	 *
+	 * @param length length
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf readSlice(int length) {
 		return parent.readSlice(length);
 	}
 
+	/**
+	 * Читает retained slice.
+	 *
+	 * @param length length
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf readRetainedSlice(int length) {
 		return parent.readRetainedSlice(length);
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param byteBuf byte buf
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf readBytes(ByteBuf byteBuf) {
 		parent.readBytes(byteBuf);
 		return this;
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param byteBuf byte buf
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf readBytes(ByteBuf byteBuf, int i) {
 		parent.readBytes(byteBuf, i);
 		return this;
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param byteBuf byte buf
+	 * @param i i
+	 * @param j j
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf readBytes(ByteBuf byteBuf, int i, int j) {
 		parent.readBytes(byteBuf, i, j);
 		return this;
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param bs bs
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf readBytes(byte[] bs) {
 		parent.readBytes(bs);
 		return this;
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param bs bs
+	 * @param i i
+	 * @param j j
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf readBytes(byte[] bs, int i, int j) {
 		parent.readBytes(bs, i, j);
 		return this;
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param byteBuffer byte buffer
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf readBytes(ByteBuffer byteBuffer) {
 		parent.readBytes(byteBuffer);
 		return this;
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param outputStream output stream
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf readBytes(OutputStream outputStream, int i) throws IOException {
 		parent.readBytes(outputStream, i);
 		return this;
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param channel channel
+	 * @param length length
+	 *
+	 * @return int — результат операции
+	 */
 	public int readBytes(GatheringByteChannel channel, int length) throws IOException {
 		return parent.readBytes(channel, length);
 	}
 
+	/**
+	 * Читает char sequence.
+	 *
+	 * @param length length
+	 * @param charset charset
+	 *
+	 * @return CharSequence — результат операции
+	 */
 	public CharSequence readCharSequence(int length, Charset charset) {
 		return parent.readCharSequence(length, charset);
 	}
 
 	/** Читает строку UTF-8 с проверкой максимальной длины. */
+	/**
+	 * Читает string.
+	 *
+	 * @param i i
+	 * @param charset charset
+	 *
+	 * @return String — результат операции
+	 */
 	public String readString(int i, Charset charset) {
 		return parent.readString(i, charset);
 	}
 
+	/**
+	 * Читает bytes.
+	 *
+	 * @param channel channel
+	 * @param pos pos
+	 * @param length length
+	 *
+	 * @return int — результат операции
+	 */
 	public int readBytes(FileChannel channel, long pos, int length) throws IOException {
 		return parent.readBytes(channel, pos, length);
 	}
 
+	/**
+	 * Skip bytes.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf skipBytes(int i) {
 		parent.skipBytes(i);
 		return this;
 	}
 
+	/**
+	 * Записывает boolean.
+	 *
+	 * @param bl bl
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeBoolean(boolean bl) {
 		parent.writeBoolean(bl);
 		return this;
 	}
 
+	/**
+	 * Записывает byte.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeByte(int i) {
 		parent.writeByte(i);
 		return this;
 	}
 
+	/**
+	 * Записывает short.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeShort(int i) {
 		parent.writeShort(i);
 		return this;
 	}
 
+	/**
+	 * Записывает short l e.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeShortLE(int i) {
 		parent.writeShortLE(i);
 		return this;
 	}
 
+	/**
+	 * Записывает medium.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeMedium(int i) {
 		parent.writeMedium(i);
 		return this;
 	}
 
+	/**
+	 * Записывает medium l e.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeMediumLE(int i) {
 		parent.writeMediumLE(i);
 		return this;
 	}
 
+	/**
+	 * Записывает int.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeInt(int i) {
 		parent.writeInt(i);
 		return this;
 	}
 
+	/**
+	 * Записывает int l e.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeIntLE(int i) {
 		parent.writeIntLE(i);
 		return this;
 	}
 
+	/**
+	 * Записывает long.
+	 *
+	 * @param l l
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeLong(long l) {
 		parent.writeLong(l);
 		return this;
 	}
 
+	/**
+	 * Записывает long l e.
+	 *
+	 * @param l l
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeLongLE(long l) {
 		parent.writeLongLE(l);
 		return this;
 	}
 
+	/**
+	 * Записывает char.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeChar(int i) {
 		parent.writeChar(i);
 		return this;
 	}
 
+	/**
+	 * Записывает float.
+	 *
+	 * @param f f
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeFloat(float f) {
 		parent.writeFloat(f);
 		return this;
 	}
 
+	/**
+	 * Записывает double.
+	 *
+	 * @param d d
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeDouble(double d) {
 		parent.writeDouble(d);
 		return this;
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param byteBuf byte buf
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeBytes(ByteBuf byteBuf) {
 		parent.writeBytes(byteBuf);
 		return this;
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param byteBuf byte buf
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeBytes(ByteBuf byteBuf, int i) {
 		parent.writeBytes(byteBuf, i);
 		return this;
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param byteBuf byte buf
+	 * @param i i
+	 * @param j j
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeBytes(ByteBuf byteBuf, int i, int j) {
 		parent.writeBytes(byteBuf, i, j);
 		return this;
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param bs bs
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeBytes(byte[] bs) {
 		parent.writeBytes(bs);
 		return this;
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param bs bs
+	 * @param i i
+	 * @param j j
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeBytes(byte[] bs, int i, int j) {
 		parent.writeBytes(bs, i, j);
 		return this;
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param byteBuffer byte buffer
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeBytes(ByteBuffer byteBuffer) {
 		parent.writeBytes(byteBuffer);
 		return this;
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param stream stream
+	 * @param length length
+	 *
+	 * @return int — результат операции
+	 */
 	public int writeBytes(InputStream stream, int length) throws IOException {
 		return parent.writeBytes(stream, length);
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param channel channel
+	 * @param length length
+	 *
+	 * @return int — результат операции
+	 */
 	public int writeBytes(ScatteringByteChannel channel, int length) throws IOException {
 		return parent.writeBytes(channel, length);
 	}
 
+	/**
+	 * Записывает bytes.
+	 *
+	 * @param channel channel
+	 * @param pos pos
+	 * @param length length
+	 *
+	 * @return int — результат операции
+	 */
 	public int writeBytes(FileChannel channel, long pos, int length) throws IOException {
 		return parent.writeBytes(channel, pos, length);
 	}
 
+	/**
+	 * Записывает zero.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf writeZero(int i) {
 		parent.writeZero(i);
 		return this;
 	}
 
+	/**
+	 * Записывает char sequence.
+	 *
+	 * @param sequence sequence
+	 * @param charset charset
+	 *
+	 * @return int — результат операции
+	 */
 	public int writeCharSequence(CharSequence sequence, Charset charset) {
 		return parent.writeCharSequence(sequence, charset);
 	}
 
+	/**
+	 * Index of.
+	 *
+	 * @param from from
+	 * @param to to
+	 * @param value value
+	 *
+	 * @return int — результат операции
+	 */
 	public int indexOf(int from, int to, byte value) {
 		return parent.indexOf(from, to, value);
 	}
 
+	/**
+	 * Bytes before.
+	 *
+	 * @param value value
+	 *
+	 * @return int — результат операции
+	 */
 	public int bytesBefore(byte value) {
 		return parent.bytesBefore(value);
 	}
 
+	/**
+	 * Bytes before.
+	 *
+	 * @param length length
+	 * @param value value
+	 *
+	 * @return int — результат операции
+	 */
 	public int bytesBefore(int length, byte value) {
 		return parent.bytesBefore(length, value);
 	}
 
+	/**
+	 * Bytes before.
+	 *
+	 * @param index index
+	 * @param length length
+	 * @param value value
+	 *
+	 * @return int — результат операции
+	 */
 	public int bytesBefore(int index, int length, byte value) {
 		return parent.bytesBefore(index, length, value);
 	}
 
+	/**
+	 * For each byte.
+	 *
+	 * @param byteProcessor byte processor
+	 *
+	 * @return int — результат операции
+	 */
 	public int forEachByte(ByteProcessor byteProcessor) {
 		return parent.forEachByte(byteProcessor);
 	}
 
+	/**
+	 * For each byte.
+	 *
+	 * @param index index
+	 * @param length length
+	 * @param byteProcessor byte processor
+	 *
+	 * @return int — результат операции
+	 */
 	public int forEachByte(int index, int length, ByteProcessor byteProcessor) {
 		return parent.forEachByte(index, length, byteProcessor);
 	}
 
+	/**
+	 * For each byte desc.
+	 *
+	 * @param byteProcessor byte processor
+	 *
+	 * @return int — результат операции
+	 */
 	public int forEachByteDesc(ByteProcessor byteProcessor) {
 		return parent.forEachByteDesc(byteProcessor);
 	}
 
+	/**
+	 * For each byte desc.
+	 *
+	 * @param index index
+	 * @param length length
+	 * @param byteProcessor byte processor
+	 *
+	 * @return int — результат операции
+	 */
 	public int forEachByteDesc(int index, int length, ByteProcessor byteProcessor) {
 		return parent.forEachByteDesc(index, length, byteProcessor);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf copy() {
 		return parent.copy();
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @param index index
+	 * @param length length
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf copy(int index, int length) {
 		return parent.copy(index, length);
 	}
 
+	/**
+	 * Slice.
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf slice() {
 		return parent.slice();
 	}
 
+	/**
+	 * Retained slice.
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf retainedSlice() {
 		return parent.retainedSlice();
 	}
 
+	/**
+	 * Slice.
+	 *
+	 * @param index index
+	 * @param length length
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf slice(int index, int length) {
 		return parent.slice(index, length);
 	}
 
+	/**
+	 * Retained slice.
+	 *
+	 * @param index index
+	 * @param length length
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf retainedSlice(int index, int length) {
 		return parent.retainedSlice(index, length);
 	}
 
+	/**
+	 * Duplicate.
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf duplicate() {
 		return parent.duplicate();
 	}
 
+	/**
+	 * Retained duplicate.
+	 *
+	 * @return ByteBuf — результат операции
+	 */
 	public ByteBuf retainedDuplicate() {
 		return parent.retainedDuplicate();
 	}
 
+	/**
+	 * Nio buffer count.
+	 *
+	 * @return int — результат операции
+	 */
 	public int nioBufferCount() {
 		return parent.nioBufferCount();
 	}
 
+	/**
+	 * Nio buffer.
+	 *
+	 * @return ByteBuffer — результат операции
+	 */
 	public ByteBuffer nioBuffer() {
 		return parent.nioBuffer();
 	}
 
+	/**
+	 * Nio buffer.
+	 *
+	 * @param index index
+	 * @param length length
+	 *
+	 * @return ByteBuffer — результат операции
+	 */
 	public ByteBuffer nioBuffer(int index, int length) {
 		return parent.nioBuffer(index, length);
 	}
 
+	/**
+	 * Internal nio buffer.
+	 *
+	 * @param index index
+	 * @param length length
+	 *
+	 * @return ByteBuffer — результат операции
+	 */
 	public ByteBuffer internalNioBuffer(int index, int length) {
 		return parent.internalNioBuffer(index, length);
 	}
 
+	/**
+	 * Nio buffers.
+	 *
+	 * @return ByteBuffer[] — результат операции
+	 */
 	public ByteBuffer[] nioBuffers() {
 		return parent.nioBuffers();
 	}
 
+	/**
+	 * Nio buffers.
+	 *
+	 * @param index index
+	 * @param length length
+	 *
+	 * @return ByteBuffer[] — результат операции
+	 */
 	public ByteBuffer[] nioBuffers(int index, int length) {
 		return parent.nioBuffers(index, length);
 	}
@@ -1591,10 +2910,20 @@ public class PacketByteBuf extends ByteBuf {
 		return parent.hasArray();
 	}
 
+	/**
+	 * Array.
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public byte[] array() {
 		return parent.array();
 	}
 
+	/**
+	 * Array offset.
+	 *
+	 * @return int — результат операции
+	 */
 	public int arrayOffset() {
 		return parent.arrayOffset();
 	}
@@ -1603,62 +2932,148 @@ public class PacketByteBuf extends ByteBuf {
 		return parent.hasMemoryAddress();
 	}
 
+	/**
+	 * Memory address.
+	 *
+	 * @return long — результат операции
+	 */
 	public long memoryAddress() {
 		return parent.memoryAddress();
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param charset charset
+	 *
+	 * @return String — результат операции
+	 */
 	public String toString(Charset charset) {
 		return parent.toString(charset);
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param index index
+	 * @param length length
+	 * @param charset charset
+	 *
+	 * @return String — результат операции
+	 */
 	public String toString(int index, int length, Charset charset) {
 		return parent.toString(index, length, charset);
 	}
 
+	/**
+	 * Проверяет наличие h code.
+	 *
+	 * @return int — {@code true} если условие выполнено
+	 */
 	public int hashCode() {
 		return parent.hashCode();
 	}
 
+	/**
+	 * Equals.
+	 *
+	 * @param o o
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean equals(Object o) {
 		return parent.equals(o);
 	}
 
+	/**
+	 * Compare to.
+	 *
+	 * @param byteBuf byte buf
+	 *
+	 * @return int — результат операции
+	 */
 	public int compareTo(ByteBuf byteBuf) {
 		return parent.compareTo(byteBuf);
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toString() {
 		return parent.toString();
 	}
 
+	/**
+	 * Retain.
+	 *
+	 * @param i i
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf retain(int i) {
 		parent.retain(i);
 		return this;
 	}
 
+	/**
+	 * Retain.
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf retain() {
 		parent.retain();
 		return this;
 	}
 
+	/**
+	 * Touch.
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf touch() {
 		parent.touch();
 		return this;
 	}
 
+	/**
+	 * Touch.
+	 *
+	 * @param object object
+	 *
+	 * @return PacketByteBuf — результат операции
+	 */
 	public PacketByteBuf touch(Object object) {
 		parent.touch(object);
 		return this;
 	}
 
+	/**
+	 * Ref cnt.
+	 *
+	 * @return int — результат операции
+	 */
 	public int refCnt() {
 		return parent.refCnt();
 	}
 
+	/**
+	 * Release.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean release() {
 		return parent.release();
 	}
 
+	/**
+	 * Release.
+	 *
+	 * @param decrement decrement
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean release(int decrement) {
 		return parent.release(decrement);
 	}

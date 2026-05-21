@@ -11,18 +11,45 @@ import java.util.function.Consumer;
  */
 public class VertexConsumers {
 
+	/**
+	 * Union.
+	 *
+	 * @return VertexConsumer — результат операции
+	 */
 	public static VertexConsumer union() {
 		throw new IllegalArgumentException();
 	}
 
+	/**
+	 * Union.
+	 *
+	 * @param first first
+	 *
+	 * @return VertexConsumer — результат операции
+	 */
 	public static VertexConsumer union(VertexConsumer first) {
 		return first;
 	}
 
+	/**
+	 * Union.
+	 *
+	 * @param first first
+	 * @param second second
+	 *
+	 * @return VertexConsumer — результат операции
+	 */
 	public static VertexConsumer union(VertexConsumer first, VertexConsumer second) {
 		return new VertexConsumers.Dual(first, second);
 	}
 
+	/**
+	 * Union.
+	 *
+	 * @param delegates delegates
+	 *
+	 * @return VertexConsumer — результат операции
+	 */
 	public static VertexConsumer union(VertexConsumer... delegates) {
 		return new VertexConsumers.Union(delegates);
 	}

@@ -239,6 +239,9 @@ public class CatEntity extends TameableEntity {
 		return 120;
 	}
 
+	/**
+	 * Hiss.
+	 */
 	public void hiss() {
 		this.playSound(SoundEvents.ENTITY_CAT_HISS);
 	}
@@ -340,6 +343,14 @@ public class CatEntity extends TameableEntity {
 		return MathHelper.lerp(tickProgress, this.lastHeadDownAnimation, this.headDownAnimation);
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable CatEntity — результат операции
+	 */
 	public @Nullable CatEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		CatEntity catEntity = EntityType.CAT.create(serverWorld, SpawnReason.BREEDING);
 		if (catEntity != null && passiveEntity instanceof CatEntity catEntity2) {
@@ -459,6 +470,9 @@ public class CatEntity extends TameableEntity {
 		this.onTamedChanged();
 	}
 
+	/**
+	 * Обрабатывает событие tamed changed.
+	 */
 	protected void onTamedChanged() {
 		if (this.fleeGoal == null) {
 			this.fleeGoal = new CatEntity.CatFleeGoal<>(this, PlayerEntity.class, 16.0F, 0.8, 1.33);

@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс client status c2 s packet.
+ */
 public class ClientStatusC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ClientStatusC2SPacket>
@@ -31,6 +34,11 @@ public class ClientStatusC2SPacket implements Packet<ServerPlayPacketListener> {
 		return PlayPackets.CLIENT_COMMAND;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onClientStatus(this);
 	}

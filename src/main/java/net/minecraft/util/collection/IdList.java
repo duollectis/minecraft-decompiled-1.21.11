@@ -29,6 +29,12 @@ public class IdList<T> implements IndexedIterable<T> {
 		this.idMap.defaultReturnValue(-1);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param value value
+	 * @param id id
+	 */
 	public void set(T value, int id) {
 		this.idMap.put(value, id);
 
@@ -42,6 +48,11 @@ public class IdList<T> implements IndexedIterable<T> {
 		}
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param value value
+	 */
 	public void add(T value) {
 		this.set(value, this.nextId);
 	}
@@ -61,6 +72,13 @@ public class IdList<T> implements IndexedIterable<T> {
 		return Iterators.filter(this.list.iterator(), Objects::nonNull);
 	}
 
+	/**
+	 * Contains key.
+	 *
+	 * @param index index
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean containsKey(int index) {
 		return this.get(index) != null;
 	}

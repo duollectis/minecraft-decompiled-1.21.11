@@ -33,6 +33,11 @@ public class TickManager {
 		return this.nanosPerTick;
 	}
 
+	/**
+	 * Определяет, следует ли tick.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTick() {
 		return this.shouldTick;
 	}
@@ -57,6 +62,9 @@ public class TickManager {
 		return this.frozen;
 	}
 
+	/**
+	 * Step.
+	 */
 	public void step() {
 		this.shouldTick = !this.frozen || this.stepTicks > 0;
 		if (this.stepTicks > 0) {
@@ -64,6 +72,13 @@ public class TickManager {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли skip tick.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSkipTick(Entity entity) {
 		return !this.shouldTick() && !(entity instanceof PlayerEntity) && entity.getPlayerPassengers() <= 0;
 	}

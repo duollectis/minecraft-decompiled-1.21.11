@@ -22,6 +22,14 @@ public abstract class HeightProvider {
 			            ? Either.left(((ConstantHeightProvider) provider).getOffset()) : Either.right(provider)
 	);
 
+	/**
+	 * Get.
+	 *
+	 * @param random random
+	 * @param context context
+	 *
+	 * @return int — 
+	 */
 	public abstract int get(Random random, HeightContext context);
 
 	public abstract HeightProviderType<?> getType();

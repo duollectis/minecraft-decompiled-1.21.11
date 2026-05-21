@@ -126,6 +126,9 @@ public abstract class AbstractCommandBlockScreen extends Screen {
 		this.setPreviousOutputText(bl);
 	}
 
+	/**
+	 * Добавляет additional buttons.
+	 */
 	protected void addAdditionalButtons() {
 	}
 
@@ -152,6 +155,9 @@ public abstract class AbstractCommandBlockScreen extends Screen {
 		this.previousOutputTextField.setText(trackOutput ? this.getCommandExecutor().getLastOutput().getString() : "-");
 	}
 
+	/**
+	 * Commit and close.
+	 */
 	protected void commitAndClose() {
 		this.syncSettingsToServer();
 		CommandBlockExecutor commandBlockExecutor = this.getCommandExecutor();
@@ -162,6 +168,9 @@ public abstract class AbstractCommandBlockScreen extends Screen {
 		this.client.setScreen(null);
 	}
 
+	/**
+	 * Sync settings to server.
+	 */
 	protected abstract void syncSettingsToServer();
 
 	private void onCommandChanged(String text) {

@@ -31,6 +31,11 @@ import java.util.stream.Collectors;
  */
 public class Structures {
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param structureRegisterable structure registerable
+	 */
 	public static void bootstrap(Registerable<Structure> structureRegisterable) {
 		RegistryEntryLookup<Biome> registryEntryLookup = structureRegisterable.getRegistryLookup(RegistryKeys.BIOME);
 		RegistryEntryLookup<StructurePool>

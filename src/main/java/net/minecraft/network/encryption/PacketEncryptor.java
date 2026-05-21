@@ -6,6 +6,9 @@ import io.netty.handler.codec.MessageToByteEncoder;
 
 import javax.crypto.Cipher;
 
+/**
+ * Класс packet encryptor.
+ */
 public class PacketEncryptor extends MessageToByteEncoder<ByteBuf> {
 
 	private final PacketEncryptionManager manager;

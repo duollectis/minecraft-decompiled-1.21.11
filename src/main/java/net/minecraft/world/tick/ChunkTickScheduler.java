@@ -34,10 +34,20 @@ public class ChunkTickScheduler<T> implements SerializableTickScheduler<T>, Basi
 		this.tickConsumer = tickConsumer;
 	}
 
+	/**
+	 * Peek next tick.
+	 *
+	 * @return @Nullable OrderedTick — результат операции
+	 */
 	public @Nullable OrderedTick<T> peekNextTick() {
 		return this.tickQueue.peek();
 	}
 
+	/**
+	 * Poll next tick.
+	 *
+	 * @return @Nullable OrderedTick — результат операции
+	 */
 	public @Nullable OrderedTick<T> pollNextTick() {
 		OrderedTick<T> orderedTick = this.tickQueue.poll();
 		if (orderedTick != null) {
@@ -66,6 +76,11 @@ public class ChunkTickScheduler<T> implements SerializableTickScheduler<T>, Basi
 		return this.queuedTicks.contains(OrderedTick.create(type, pos));
 	}
 
+	/**
+	 * Удаляет ticks if.
+	 *
+	 * @param predicate predicate
+	 */
 	public void removeTicksIf(Predicate<OrderedTick<T>> predicate) {
 		Iterator<OrderedTick<T>> iterator = this.tickQueue.iterator();
 
@@ -101,6 +116,11 @@ public class ChunkTickScheduler<T> implements SerializableTickScheduler<T>, Basi
 		return list;
 	}
 
+	/**
+	 * Disable.
+	 *
+	 * @param time time
+	 */
 	public void disable(long time) {
 		if (this.ticks != null) {
 			int i = -this.ticks.size();

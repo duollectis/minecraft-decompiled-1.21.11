@@ -33,6 +33,9 @@ public class DialogScreens {
 		return factory != null ? factory.create(parent, dialog, networkAccess) : null;
 	}
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		register(ConfirmationDialog.CODEC, SimpleDialogScreen::new);
 		register(NoticeDialog.CODEC, SimpleDialogScreen::new);

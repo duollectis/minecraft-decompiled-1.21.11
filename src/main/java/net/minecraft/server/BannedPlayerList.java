@@ -20,6 +20,13 @@ public class BannedPlayerList extends ServerConfigList<PlayerConfigEntry, Banned
 		return new BannedPlayerEntry(json);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(PlayerConfigEntry player) {
 		return super.contains(player);
 	}
@@ -35,10 +42,24 @@ public class BannedPlayerList extends ServerConfigList<PlayerConfigEntry, Banned
 				.toArray(String[]::new);
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param playerConfigEntry player config entry
+	 *
+	 * @return String — результат операции
+	 */
 	protected String toString(PlayerConfigEntry playerConfigEntry) {
 		return playerConfigEntry.id().toString();
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param bannedPlayerEntry banned player entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean add(BannedPlayerEntry bannedPlayerEntry) {
 		if (super.add(bannedPlayerEntry)) {
 			if (bannedPlayerEntry.getKey() != null) {
@@ -52,6 +73,13 @@ public class BannedPlayerList extends ServerConfigList<PlayerConfigEntry, Banned
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param playerConfigEntry player config entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean remove(PlayerConfigEntry playerConfigEntry) {
 		if (super.remove(playerConfigEntry)) {
 			this.managementListener.onBanRemoved(playerConfigEntry);

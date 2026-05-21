@@ -23,6 +23,11 @@ public class JfrListener {
 		this.stopCallback = stopCallback;
 	}
 
+	/**
+	 * Stop.
+	 *
+	 * @param dumpPath dump path
+	 */
 	public void stop(@Nullable Path dumpPath) {
 		if (dumpPath != null) {
 			this.stopCallback.run();

@@ -144,6 +144,11 @@ public class DecoratedPotBlockEntityRenderer implements BlockEntityRenderer<Deco
 		return TexturedRenderLayers.DECORATED_POT_SIDE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return DecoratedPotBlockEntityRenderState — результат операции
+	 */
 	public DecoratedPotBlockEntityRenderState createRenderState() {
 		return new DecoratedPotBlockEntityRenderState();
 	}
@@ -291,6 +296,11 @@ public class DecoratedPotBlockEntityRenderer implements BlockEntityRenderer<Deco
 		);
 	}
 
+	/**
+	 * Collect vertices.
+	 *
+	 * @param consumer consumer
+	 */
 	public void collectVertices(Consumer<Vector3fc> consumer) {
 		MatrixStack matrixStack = new MatrixStack();
 		this.neck.collectVertices(matrixStack, consumer);

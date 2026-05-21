@@ -62,6 +62,13 @@ public record EnvironmentAttributeType<Value>(
 		);
 	}
 
+	/**
+	 * Discrete.
+	 *
+	 * @param valueCodec value codec
+	 *
+	 * @return EnvironmentAttributeType — результат операции
+	 */
 	public static <Value> EnvironmentAttributeType<Value> discrete(Codec<Value> valueCodec) {
 		return discrete(valueCodec, Map.of());
 	}
@@ -83,6 +90,11 @@ public record EnvironmentAttributeType<Value>(
 		);
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param modifier modifier
+	 */
 	public void validate(EnvironmentAttributeModifier<Value, ?> modifier) {
 		if (modifier != EnvironmentAttributeModifier.override() && !this.modifierLibrary.containsValue(modifier)) {
 			throw new IllegalArgumentException("Modifier " + modifier + " is not valid for " + this);

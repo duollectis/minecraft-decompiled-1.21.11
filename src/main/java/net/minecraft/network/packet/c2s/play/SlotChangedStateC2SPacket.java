@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись slot changed state c2 s packet.
+ */
 public record SlotChangedStateC2SPacket(
 		int slotId,
 		int screenHandlerId,
@@ -32,6 +35,11 @@ public record SlotChangedStateC2SPacket(
 		return PlayPackets.CONTAINER_SLOT_STATE_CHANGED;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onSlotChangedState(this);
 	}

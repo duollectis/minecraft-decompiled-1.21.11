@@ -70,6 +70,14 @@ public class BreezeJumpTask extends MultiTickTask<BreezeEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли jump.
+	 *
+	 * @param world world
+	 * @param breeze breeze
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldJump(ServerWorld world, BreezeEntity breeze) {
 		if (!breeze.isOnGround() && !breeze.isTouchingWater()) {
 			return false;
@@ -127,16 +135,40 @@ public class BreezeJumpTask extends MultiTickTask<BreezeEntity> {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, BreezeEntity breezeEntity) {
 		return shouldJump(serverWorld, breezeEntity);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		return breezeEntity.getPose() != EntityPose.STANDING && !breezeEntity
 				.getBrain()
 				.hasMemoryModule(MemoryModuleType.BREEZE_JUMP_COOLDOWN);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		if (breezeEntity
 				.getBrain()
@@ -163,6 +195,13 @@ public class BreezeJumpTask extends MultiTickTask<BreezeEntity> {
 		            ));
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		boolean bl = breezeEntity.isTouchingWater();
 		if (!bl && breezeEntity
@@ -205,6 +244,13 @@ public class BreezeJumpTask extends MultiTickTask<BreezeEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		if (breezeEntity.getPose() == EntityPose.LONG_JUMPING || breezeEntity.getPose() == EntityPose.INHALING) {
 			breezeEntity.setPose(EntityPose.STANDING);

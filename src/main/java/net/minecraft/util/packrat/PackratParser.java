@@ -25,6 +25,13 @@ public record PackratParser<T>(
 		this.top = top;
 	}
 
+	/**
+	 * Запускает parsing.
+	 *
+	 * @param state state
+	 *
+	 * @return Optional — результат операции
+	 */
 	public Optional<T> startParsing(ParsingState<StringReader> state) {
 		return state.startParsing(this.top);
 	}

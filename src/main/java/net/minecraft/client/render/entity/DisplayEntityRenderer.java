@@ -47,6 +47,13 @@ public abstract class DisplayEntityRenderer<T extends DisplayEntity, S, ST exten
 		return displayEntity.getVisibilityBoundingBox();
 	}
 
+	/**
+	 * Проверяет возможность be culled.
+	 *
+	 * @param displayEntity display entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canBeCulled(T displayEntity) {
 		return displayEntity.shouldRender();
 	}
@@ -151,6 +158,13 @@ public abstract class DisplayEntityRenderer<T extends DisplayEntity, S, ST exten
 			float tickProgress
 	);
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param displayEntity display entity
+	 * @param displayEntityRenderState display entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T displayEntity, ST displayEntityRenderState, float f) {
 		super.updateRenderState(displayEntity, displayEntityRenderState, f);
 		displayEntityRenderState.displayRenderState = displayEntity.getRenderState();
@@ -170,6 +184,11 @@ public abstract class DisplayEntityRenderer<T extends DisplayEntity, S, ST exten
 			super(context);
 		}
 
+		/**
+		 * Создаёт render state.
+		 *
+		 * @return BlockDisplayEntityRenderState — результат операции
+		 */
 		public BlockDisplayEntityRenderState createRenderState() {
 			return new BlockDisplayEntityRenderState();
 		}
@@ -211,6 +230,11 @@ public abstract class DisplayEntityRenderer<T extends DisplayEntity, S, ST exten
 			this.itemModelManager = context.getItemModelManager();
 		}
 
+		/**
+		 * Создаёт render state.
+		 *
+		 * @return ItemDisplayEntityRenderState — результат операции
+		 */
 		public ItemDisplayEntityRenderState createRenderState() {
 			return new ItemDisplayEntityRenderState();
 		}
@@ -268,6 +292,11 @@ public abstract class DisplayEntityRenderer<T extends DisplayEntity, S, ST exten
 			this.displayTextRenderer = context.getTextRenderer();
 		}
 
+		/**
+		 * Создаёт render state.
+		 *
+		 * @return TextDisplayEntityRenderState — результат операции
+		 */
 		public TextDisplayEntityRenderState createRenderState() {
 			return new TextDisplayEntityRenderState();
 		}

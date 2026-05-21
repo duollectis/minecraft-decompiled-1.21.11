@@ -8,6 +8,9 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Перечисление position flag.
+ */
 public enum PositionFlag {
 	X(0),
 	Y(1),
@@ -28,6 +31,13 @@ public enum PositionFlag {
 	private final int shift;
 
 	@SafeVarargs
+	/**
+	 * Combine.
+	 *
+	 * @param sets sets
+	 *
+	 * @return Set — результат операции
+	 */
 	public static Set<PositionFlag> combine(Set<PositionFlag>... sets) {
 		HashSet<PositionFlag> hashSet = new HashSet<>();
 
@@ -38,6 +48,14 @@ public enum PositionFlag {
 		return hashSet;
 	}
 
+	/**
+	 * Of rot.
+	 *
+	 * @param yRot y rot
+	 * @param xRot x rot
+	 *
+	 * @return Set — результат операции
+	 */
 	public static Set<PositionFlag> ofRot(boolean yRot, boolean xRot) {
 		Set<PositionFlag> set = EnumSet.noneOf(PositionFlag.class);
 		if (yRot) {
@@ -51,6 +69,15 @@ public enum PositionFlag {
 		return set;
 	}
 
+	/**
+	 * Of pos.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Set — результат операции
+	 */
 	public static Set<PositionFlag> ofPos(boolean x, boolean y, boolean z) {
 		Set<PositionFlag> set = EnumSet.noneOf(PositionFlag.class);
 		if (x) {
@@ -68,6 +95,15 @@ public enum PositionFlag {
 		return set;
 	}
 
+	/**
+	 * Of delta pos.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Set — результат операции
+	 */
 	public static Set<PositionFlag> ofDeltaPos(boolean x, boolean y, boolean z) {
 		Set<PositionFlag> set = EnumSet.noneOf(PositionFlag.class);
 		if (x) {

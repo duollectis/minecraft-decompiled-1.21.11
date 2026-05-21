@@ -74,6 +74,11 @@ public class OrePlacedFeatures {
 		return modifiers(RarityFilterPlacementModifier.of(chance), heightModifier);
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =

@@ -21,6 +21,9 @@ public class ClientBootstrap {
 
 	private static volatile boolean initialized;
 
+	/**
+	 * Инициализирует ialize.
+	 */
 	public static void initialize() {
 		if (!initialized) {
 			initialized = true;

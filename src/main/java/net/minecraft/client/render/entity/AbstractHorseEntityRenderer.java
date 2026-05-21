@@ -18,6 +18,13 @@ public abstract class AbstractHorseEntityRenderer<T extends AbstractHorseEntity,
 		super(context, model, babyModel, 0.75F);
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param abstractHorseEntity abstract horse entity
+	 * @param livingHorseEntityRenderState living horse entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T abstractHorseEntity, S livingHorseEntityRenderState, float f) {
 		super.updateRenderState(abstractHorseEntity, livingHorseEntityRenderState, f);
 		livingHorseEntityRenderState.saddleStack = abstractHorseEntity.getEquippedStack(EquipmentSlot.SADDLE).copy();

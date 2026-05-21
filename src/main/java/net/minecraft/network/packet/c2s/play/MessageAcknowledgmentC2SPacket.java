@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись message acknowledgment c2 s packet.
+ */
 public record MessageAcknowledgmentC2SPacket(int offset) implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, MessageAcknowledgmentC2SPacket> CODEC = Packet.createCodec(
@@ -26,6 +29,11 @@ public record MessageAcknowledgmentC2SPacket(int offset) implements Packet<Serve
 		return PlayPackets.CHAT_ACK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onMessageAcknowledgment(this);
 	}

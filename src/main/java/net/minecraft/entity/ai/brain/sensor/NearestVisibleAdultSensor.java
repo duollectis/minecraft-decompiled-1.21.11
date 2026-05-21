@@ -27,6 +27,12 @@ public class NearestVisibleAdultSensor extends Sensor<LivingEntity> {
 				.ifPresent(targetCache -> this.find(entity, targetCache));
 	}
 
+	/**
+	 * Find.
+	 *
+	 * @param entity entity
+	 * @param targetCache target cache
+	 */
 	protected void find(LivingEntity entity, LivingTargetCache targetCache) {
 		Optional<LivingEntity>
 				optional =

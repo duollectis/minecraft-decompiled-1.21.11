@@ -25,6 +25,11 @@ public class Main {
 
 	@DontObfuscate
 	@SuppressLinter(reason = "System.out needed before bootstrap")
+	/**
+	 * Main.
+	 *
+	 * @param args args
+	 */
 	public static void main(String[] args) throws IOException {
 		SharedConstants.createGameVersion();
 		OptionParser optionParser = new OptionParser();
@@ -54,6 +59,12 @@ public class Main {
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param dataGenerator data generator
+	 * @param includeClient include client
+	 */
 	public static void create(DataGenerator dataGenerator, boolean includeClient) {
 		DataGenerator.Pack pack = dataGenerator.createVanillaPack(includeClient);
 		pack.addProvider(ModelProvider::new);

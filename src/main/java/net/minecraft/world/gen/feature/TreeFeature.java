@@ -55,6 +55,14 @@ public class TreeFeature extends Feature<TreeFeatureConfig> {
 		world.setBlockState(pos, state, 19);
 	}
 
+	/**
+	 * Проверяет возможность replace.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canReplace(TestableWorld world, BlockPos pos) {
 		return world.testBlockState(pos, state -> state.isAir() || state.isIn(BlockTags.REPLACEABLE_BY_TREES));
 	}

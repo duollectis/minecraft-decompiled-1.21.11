@@ -172,6 +172,11 @@ public record RpcSchema<T>(
 		return (Codec<RpcSchema<T>>) (Codec<?>) CODEC;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return RpcSchema — результат операции
+	 */
 	public RpcSchema<T> copy() {
 		return new RpcSchema<>(
 				this.reference,
@@ -196,14 +201,38 @@ public record RpcSchema<T>(
 		return REGISTERED_SCHEMAS;
 	}
 
+	/**
+	 * Of reference.
+	 *
+	 * @param reference reference
+	 * @param codec codec
+	 *
+	 * @return RpcSchema — результат операции
+	 */
 	public static <T> RpcSchema<T> ofReference(URI reference, Codec<T> codec) {
 		return new RpcSchema<>(Optional.of(reference), List.of(), Optional.empty(), Map.of(), List.of(), codec);
 	}
 
+	/**
+	 * Of literal.
+	 *
+	 * @param literal literal
+	 * @param codec codec
+	 *
+	 * @return RpcSchema — результат операции
+	 */
 	public static <T> RpcSchema<T> ofLiteral(String literal, Codec<T> codec) {
 		return ofLiterals(List.of(literal), codec);
 	}
 
+	/**
+	 * Of literals.
+	 *
+	 * @param literals literals
+	 * @param codec codec
+	 *
+	 * @return RpcSchema — результат операции
+	 */
 	public static <T> RpcSchema<T> ofLiterals(List<String> literals, Codec<T> codec) {
 		return new RpcSchema<>(Optional.empty(), literals, Optional.empty(), Map.of(), List.of(), codec);
 	}
@@ -219,10 +248,26 @@ public record RpcSchema<T>(
 		return ofList(list, codec);
 	}
 
+	/**
+	 * Of list.
+	 *
+	 * @param values values
+	 * @param codec codec
+	 *
+	 * @return RpcSchema — результат операции
+	 */
 	public static <T> RpcSchema<T> ofList(List<String> values, Codec<T> codec) {
 		return new RpcSchema<>(Optional.empty(), List.of("string"), Optional.empty(), Map.of(), values, codec);
 	}
 
+	/**
+	 * Of array.
+	 *
+	 * @param itemSchema item schema
+	 * @param codec codec
+	 *
+	 * @return RpcSchema> — результат операции
+	 */
 	public static <T> RpcSchema<List<T>> ofArray(RpcSchema<?> itemSchema, Codec<T> codec) {
 		return new RpcSchema<>(
 				Optional.empty(),
@@ -234,6 +279,13 @@ public record RpcSchema<T>(
 		);
 	}
 
+	/**
+	 * Of object.
+	 *
+	 * @param codec codec
+	 *
+	 * @return RpcSchema — результат операции
+	 */
 	public static <T> RpcSchema<T> ofObject(Codec<T> codec) {
 		return new RpcSchema<>(Optional.empty(), List.of("object"), Optional.empty(), Map.of(), List.of(), codec);
 	}
@@ -242,12 +294,25 @@ public record RpcSchema<T>(
 		return new RpcSchema<>(Optional.empty(), List.of("object"), Optional.empty(), itemSchemaMap, List.of(), codec);
 	}
 
+	/**
+	 * With property.
+	 *
+	 * @param reference reference
+	 * @param schema schema
+	 *
+	 * @return RpcSchema — результат операции
+	 */
 	public RpcSchema<T> withProperty(String reference, RpcSchema<?> schema) {
 		HashMap<String, RpcSchema<?>> hashMap = new HashMap<>(this.properties);
 		hashMap.put(reference, schema);
 		return ofObjectWithProperties(hashMap, this.codec);
 	}
 
+	/**
+	 * As array.
+	 *
+	 * @return RpcSchema> — результат операции
+	 */
 	public RpcSchema<List<T>> asArray() {
 		return ofArray(this, this.codec);
 	}

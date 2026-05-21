@@ -28,6 +28,11 @@ public abstract class TreeDecorator {
 
 	protected abstract TreeDecoratorType<?> getType();
 
+	/**
+	 * Generate.
+	 *
+	 * @param generator generator
+	 */
 	public abstract void generate(TreeDecorator.Generator generator);
 
 	/**
@@ -61,10 +66,22 @@ public abstract class TreeDecorator {
 			this.rootPositions.sort(Comparator.comparingInt(Vec3i::getY));
 		}
 
+		/**
+		 * Replace with vine.
+		 *
+		 * @param pos pos
+		 * @param faceProperty face property
+		 */
 		public void replaceWithVine(BlockPos pos, BooleanProperty faceProperty) {
 			this.replace(pos, Blocks.VINE.getDefaultState().with(faceProperty, true));
 		}
 
+		/**
+		 * Replace.
+		 *
+		 * @param pos pos
+		 * @param state state
+		 */
 		public void replace(BlockPos pos, BlockState state) {
 			this.replacer.accept(pos, state);
 		}
@@ -73,6 +90,14 @@ public abstract class TreeDecorator {
 			return this.world.testBlockState(pos, AbstractBlock.AbstractBlockState::isAir);
 		}
 
+		/**
+		 * Matches.
+		 *
+		 * @param pos pos
+		 * @param statePredicate state predicate
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean matches(BlockPos pos, Predicate<BlockState> statePredicate) {
 			return this.world.testBlockState(pos, statePredicate);
 		}

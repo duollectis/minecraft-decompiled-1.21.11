@@ -14,6 +14,13 @@ public abstract class HitResult {
 		this.pos = pos;
 	}
 
+	/**
+	 * Squared distance to.
+	 *
+	 * @param entity entity
+	 *
+	 * @return double — результат операции
+	 */
 	public double squaredDistanceTo(Entity entity) {
 		double d = this.pos.x - entity.getX();
 		double e = this.pos.y - entity.getY();

@@ -533,6 +533,16 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 		return bl;
 	}
 
+	/**
+	 * Наносит урон part.
+	 *
+	 * @param world world
+	 * @param part part
+	 * @param source source
+	 * @param amount amount
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean damagePart(ServerWorld world, EnderDragonPart part, DamageSource source, float amount) {
 		if (this.phaseManager.getCurrent().getType() == PhaseType.DYING) {
 			return false;
@@ -575,6 +585,13 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 		return this.damagePart(world, this.body, source, amount);
 	}
 
+	/**
+	 * Parent damage.
+	 *
+	 * @param world world
+	 * @param source source
+	 * @param amount amount
+	 */
 	protected void parentDamage(ServerWorld world, DamageSource source, float amount) {
 		super.damage(world, source, amount);
 	}
@@ -745,6 +762,15 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 		return i;
 	}
 
+	/**
+	 * Ищет path.
+	 *
+	 * @param from from
+	 * @param to to
+	 * @param pathNode path node
+	 *
+	 * @return @Nullable Path — path
+	 */
 	public @Nullable Path findPath(int from, int to, @Nullable PathNode pathNode) {
 		for (int i = 0; i < 24; i++) {
 			PathNode pathNode2 = this.pathNodes[i];
@@ -929,6 +955,14 @@ public class EnderDragonEntity extends MobEntity implements Monster {
 		return vec3d;
 	}
 
+	/**
+	 * Crystal destroyed.
+	 *
+	 * @param world world
+	 * @param crystal crystal
+	 * @param pos pos
+	 * @param source source
+	 */
 	public void crystalDestroyed(ServerWorld world, EndCrystalEntity crystal, BlockPos pos, DamageSource source) {
 		PlayerEntity playerEntity2;
 		if (source.getAttacker() instanceof PlayerEntity playerEntity) {

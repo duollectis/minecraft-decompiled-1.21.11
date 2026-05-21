@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись pick item from entity c2 s packet.
+ */
 public record PickItemFromEntityC2SPacket(int id, boolean includeData) implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<ByteBuf, PickItemFromEntityC2SPacket> CODEC = PacketCodec.tuple(
@@ -23,6 +26,11 @@ public record PickItemFromEntityC2SPacket(int id, boolean includeData) implement
 		return PlayPackets.PICK_ITEM_FROM_ENTITY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onPickItemFromEntity(this);
 	}

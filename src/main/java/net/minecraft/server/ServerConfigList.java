@@ -41,6 +41,13 @@ public abstract class ServerConfigList<K, V extends ServerConfigEntry<K>> {
 		return this.file;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param serverConfigEntry server config entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean add(V serverConfigEntry) {
 		String string = this.toString(serverConfigEntry.getKey());
 		V serverConfigEntry2 = this.map.get(string);
@@ -61,11 +68,25 @@ public abstract class ServerConfigList<K, V extends ServerConfigEntry<K>> {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 *
+	 * @return @Nullable V — 
+	 */
 	public @Nullable V get(K key) {
 		this.removeInvalidEntries();
 		return this.map.get(this.toString(key));
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param key key
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean remove(K key) {
 		V serverConfigEntry = this.map.remove(this.toString(key));
 		if (serverConfigEntry == null) {
@@ -83,10 +104,20 @@ public abstract class ServerConfigList<K, V extends ServerConfigEntry<K>> {
 		}
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param entry entry
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean remove(ServerConfigEntry<K> entry) {
 		return this.remove(Objects.requireNonNull(entry.getKey()));
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.map.clear();
 
@@ -106,10 +137,24 @@ public abstract class ServerConfigList<K, V extends ServerConfigEntry<K>> {
 		return this.map.isEmpty();
 	}
 
+	/**
+	 * To string.
+	 *
+	 * @param profile profile
+	 *
+	 * @return String — результат операции
+	 */
 	protected String toString(K profile) {
 		return profile.toString();
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param object object
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean contains(K object) {
 		return this.map.containsKey(this.toString(object));
 	}
@@ -128,12 +173,27 @@ public abstract class ServerConfigList<K, V extends ServerConfigEntry<K>> {
 		}
 	}
 
+	/**
+	 * From json.
+	 *
+	 * @param json json
+	 *
+	 * @return ServerConfigEntry — результат операции
+	 */
 	protected abstract ServerConfigEntry<K> fromJson(JsonObject json);
 
+	/**
+	 * Values.
+	 *
+	 * @return Collection — результат операции
+	 */
 	public Collection<V> values() {
 		return this.map.values();
 	}
 
+	/**
+	 * Save.
+	 */
 	public void save() throws IOException {
 		JsonArray jsonArray = new JsonArray();
 		this.map.values().stream().map(entry -> Util.make(new JsonObject(), entry::write)).forEach(jsonArray::add);
@@ -143,6 +203,9 @@ public abstract class ServerConfigList<K, V extends ServerConfigEntry<K>> {
 		}
 	}
 
+	/**
+	 * Load.
+	 */
 	public void load() throws IOException {
 		if (this.file.exists()) {
 			try (BufferedReader bufferedReader = Files.newReader(this.file, StandardCharsets.UTF_8)) {

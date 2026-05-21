@@ -91,6 +91,11 @@ public record FoodComponent(int nutrition, float saturation, boolean canAlwaysEa
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return FoodComponent — результат операции
+		 */
 		public FoodComponent build() {
 			float f = HungerConstants.calculateSaturation(this.nutrition, this.saturationModifier);
 			return new FoodComponent(this.nutrition, f, this.canAlwaysEat);

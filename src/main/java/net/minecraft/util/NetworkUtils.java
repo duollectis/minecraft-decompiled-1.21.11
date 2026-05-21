@@ -228,6 +228,11 @@ public class NetworkUtils {
 		return var11;
 	}
 
+	/**
+	 * Ищет local port.
+	 *
+	 * @return int — local port
+	 */
 	public static int findLocalPort() {
 		try {
 			int var1;

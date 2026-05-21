@@ -7,6 +7,9 @@ import net.minecraft.network.packet.LoginPackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Класс login compression s2 c packet.
+ */
 public class LoginCompressionS2CPacket implements Packet<ClientLoginPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, LoginCompressionS2CPacket> CODEC = Packet.createCodec(
@@ -31,6 +34,11 @@ public class LoginCompressionS2CPacket implements Packet<ClientLoginPacketListen
 		return LoginPackets.LOGIN_COMPRESSION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientLoginPacketListener client login packet listener
+	 */
 	public void apply(ClientLoginPacketListener clientLoginPacketListener) {
 		clientLoginPacketListener.onCompression(this);
 	}

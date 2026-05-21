@@ -412,6 +412,11 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Читает root vehicle.
+	 *
+	 * @param view view
+	 */
 	public void readRootVehicle(ReadView view) {
 		Optional<ReadView> optional = view.getOptionalReadView("RootVehicle");
 		if (!optional.isEmpty()) {
@@ -469,6 +474,11 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Читает ender pearls.
+	 *
+	 * @param view view
+	 */
 	public void readEnderPearls(ReadView view) {
 		view.getListReadView("ender_pearls").forEach(this::readEnderPearl);
 	}
@@ -533,6 +543,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		screenHandler.updateSyncHandler(this.screenHandlerSyncHandler);
 	}
 
+	/**
+	 * Обрабатывает событие spawn.
+	 */
 	public void onSpawn() {
 		this.onScreenHandlerOpened(this.playerScreenHandler);
 	}
@@ -643,6 +656,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Player tick.
+	 */
 	public void playerTick() {
 		try {
 			if (!this.isSpectator() || !this.isRegionUnloaded()) {
@@ -805,6 +821,13 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Mount onto shoulder.
+	 *
+	 * @param shoulderNbt shoulder nbt
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean mountOntoShoulder(NbtCompound shoulderNbt) {
 		if (this.hasVehicle() || !this.isOnGround() || this.isTouchingWater() || this.inPowderSnow) {
 			return false;
@@ -874,6 +897,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		super.onLanding();
 	}
 
+	/**
+	 * Выполняет тик обновления для fall start pos.
+	 */
 	public void tickFallStartPos() {
 		if (this.fallDistance > 0.0 && this.fallStartPos == null) {
 			this.fallStartPos = this.getEntityPos();
@@ -883,6 +909,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Выполняет тик обновления для vehicle in lava riding.
+	 */
 	public void tickVehicleInLavaRiding() {
 		if (this.getVehicle() != null && this.getVehicle().isInLava()) {
 			if (this.vehicleInLavaRidingPos == null) {
@@ -1078,6 +1107,11 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Проверяет возможность receive waypoints.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canReceiveWaypoints() {
 		return this.getAttributeValue(EntityAttributes.WAYPOINT_RECEIVE_RANGE) > 0.0;
 	}
@@ -1149,6 +1183,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Detach for dimension change.
+	 */
 	public void detachForDimensionChange() {
 		this.detach();
 		this.getEntityWorld().removePlayer(this, Entity.RemovalReason.CHANGED_DIMENSION);
@@ -1159,6 +1196,13 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Телепортирует to.
+	 *
+	 * @param teleportTarget teleport target
+	 *
+	 * @return @Nullable ServerPlayerEntity — результат операции
+	 */
 	public @Nullable ServerPlayerEntity teleportTo(TeleportTarget teleportTarget) {
 		if (this.isRemoved()) {
 			return null;
@@ -1570,6 +1614,13 @@ public class ServerPlayerEntity extends PlayerEntity {
 		this.increaseRidingMotionStats(this.getX() - d, this.getY() - e, this.getZ() - f);
 	}
 
+	/**
+	 * Increase travel motion stats.
+	 *
+	 * @param deltaX delta x
+	 * @param deltaY delta y
+	 * @param deltaZ delta z
+	 */
 	public void increaseTravelMotionStats(double deltaX, double deltaY, double deltaZ) {
 		if (!this.hasVehicle() && !isZero(deltaX, deltaY, deltaZ)) {
 			if (this.isSwimming()) {
@@ -1718,6 +1769,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие disconnect.
+	 */
 	public void onDisconnect() {
 		this.disconnected = true;
 		this.removeAllPassengers();
@@ -1730,6 +1784,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		return this.disconnected;
 	}
 
+	/**
+	 * Mark health dirty.
+	 */
 	public void markHealthDirty() {
 		this.syncedHealth = -1.0E8F;
 	}
@@ -1763,6 +1820,12 @@ public class ServerPlayerEntity extends PlayerEntity {
 		this.networkHandler.sendPacket(new LookAtS2CPacket(anchorPoint, targetEntity, targetAnchor));
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param oldPlayer old player
+	 * @param alive alive
+	 */
 	public void copyFrom(ServerPlayerEntity oldPlayer, boolean alive) {
 		this.sculkShriekerWarningManager = oldPlayer.sculkShriekerWarningManager;
 		this.session = oldPlayer.session;
@@ -1931,6 +1994,13 @@ public class ServerPlayerEntity extends PlayerEntity {
 		return (ServerWorld) super.getEntityWorld();
 	}
 
+	/**
+	 * Change game mode.
+	 *
+	 * @param gameMode game mode
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean changeGameMode(GameMode gameMode) {
 		boolean bl = this.isSpectator();
 		if (!this.interactionManager.changeGameMode(gameMode)) {
@@ -1983,10 +2053,21 @@ public class ServerPlayerEntity extends PlayerEntity {
 		);
 	}
 
+	/**
+	 * Отправляет message.
+	 *
+	 * @param message message
+	 */
 	public void sendMessage(Text message) {
 		this.sendMessageToClient(message, false);
 	}
 
+	/**
+	 * Отправляет message to client.
+	 *
+	 * @param message message
+	 * @param overlay overlay
+	 */
 	public void sendMessageToClient(Text message, boolean overlay) {
 		if (this.acceptsMessage(overlay)) {
 			this.networkHandler.send(
@@ -2009,6 +2090,13 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Отправляет chat message.
+	 *
+	 * @param message message
+	 * @param filterMaskEnabled filter mask enabled
+	 * @param params params
+	 */
 	public void sendChatMessage(SentMessage message, boolean filterMaskEnabled, MessageType.Parameters params) {
 		if (this.acceptsChatMessage()) {
 			message.send(this, filterMaskEnabled, params);
@@ -2048,6 +2136,11 @@ public class ServerPlayerEntity extends PlayerEntity {
 		);
 	}
 
+	/**
+	 * Are client chat colors enabled.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areClientChatColorsEnabled() {
 		return this.clientChatColorsEnabled;
 	}
@@ -2068,6 +2161,11 @@ public class ServerPlayerEntity extends PlayerEntity {
 		return this.viewDistance;
 	}
 
+	/**
+	 * Отправляет server metadata.
+	 *
+	 * @param metadata metadata
+	 */
 	public void sendServerMetadata(ServerMetadata metadata) {
 		this.networkHandler.sendPacket(new ServerMetadataS2CPacket(
 				metadata.description(),
@@ -2080,6 +2178,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		return this.server.getPermissionLevel(this.getPlayerConfigEntry());
 	}
 
+	/**
+	 * Обновляет last action time.
+	 */
 	public void updateLastActionTime() {
 		this.lastActionTime = Util.getMeasuringTimeMs();
 	}
@@ -2172,6 +2273,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		return this.inTeleportationState;
 	}
 
+	/**
+	 * Обрабатывает событие teleportation done.
+	 */
 	public void onTeleportationDone() {
 		this.inTeleportationState = false;
 	}
@@ -2260,6 +2364,13 @@ public class ServerPlayerEntity extends PlayerEntity {
 		return this.filterText;
 	}
 
+	/**
+	 * Определяет, следует ли filter messages sent to.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldFilterMessagesSentTo(ServerPlayerEntity player) {
 		return player == this ? false : this.filterText || player.filterText;
 	}
@@ -2275,6 +2386,11 @@ public class ServerPlayerEntity extends PlayerEntity {
 		super.tickItemStackUsage(stack);
 	}
 
+	/**
+	 * Бросает selected item.
+	 *
+	 * @param entireStack entire stack
+	 */
 	public void dropSelectedItem(boolean entireStack) {
 		PlayerInventory playerInventory = this.getInventory();
 		ItemStack itemStack = playerInventory.dropSelectedItem(entireStack);
@@ -2298,6 +2414,11 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Allows server listing.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean allowsServerListing() {
 		return this.allowServerListing;
 	}
@@ -2372,6 +2493,13 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Создаёт common player spawn info.
+	 *
+	 * @param world world
+	 *
+	 * @return CommonPlayerSpawnInfo — результат операции
+	 */
 	public CommonPlayerSpawnInfo createCommonPlayerSpawnInfo(ServerWorld world) {
 		return new CommonPlayerSpawnInfo(
 				world.getDimensionEntry(),
@@ -2391,6 +2519,9 @@ public class ServerPlayerEntity extends PlayerEntity {
 		this.startRaidPos = startRaidPos;
 	}
 
+	/**
+	 * Очищает start raid pos.
+	 */
 	public void clearStartRaidPos() {
 		this.startRaidPos = null;
 	}
@@ -2450,10 +2581,20 @@ public class ServerPlayerEntity extends PlayerEntity {
 		return movementInputToVelocity(new Vec3d(f, 0.0, g), 1.0F, this.getYaw());
 	}
 
+	/**
+	 * Добавляет ender pearl.
+	 *
+	 * @param enderPearl ender pearl
+	 */
 	public void addEnderPearl(EnderPearlEntity enderPearl) {
 		this.enderPearls.add(enderPearl);
 	}
 
+	/**
+	 * Удаляет ender pearl.
+	 *
+	 * @param enderPearl ender pearl
+	 */
 	public void removeEnderPearl(EnderPearlEntity enderPearl) {
 		this.enderPearls.remove(enderPearl);
 	}
@@ -2480,6 +2621,13 @@ public class ServerPlayerEntity extends PlayerEntity {
 		this.setRightShoulderParrotVariant(readParrotVariant(rightShoulderNbt));
 	}
 
+	/**
+	 * Обрабатывает thrown ender pearl.
+	 *
+	 * @param enderPearl ender pearl
+	 *
+	 * @return long — результат операции
+	 */
 	public long handleThrownEnderPearl(EnderPearlEntity enderPearl) {
 		if (enderPearl.getEntityWorld() instanceof ServerWorld serverWorld) {
 			ChunkPos chunkPos = enderPearl.getChunkPos();
@@ -2492,6 +2640,14 @@ public class ServerPlayerEntity extends PlayerEntity {
 		}
 	}
 
+	/**
+	 * Добавляет ender pearl ticket.
+	 *
+	 * @param world world
+	 * @param chunkPos chunk pos
+	 *
+	 * @return long — результат операции
+	 */
 	public static long addEnderPearlTicket(ServerWorld world, ChunkPos chunkPos) {
 		world.getChunkManager().addTicket(ChunkTicketType.ENDER_PEARL, chunkPos, 2);
 		return ChunkTicketType.ENDER_PEARL.expiryTicks();
@@ -2522,6 +2678,13 @@ public class ServerPlayerEntity extends PlayerEntity {
 			return respawn != null ? respawn.respawnData().getDimension() : World.OVERWORLD;
 		}
 
+		/**
+		 * Pos equals.
+		 *
+		 * @param respawn respawn
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean posEquals(ServerPlayerEntity.@Nullable Respawn respawn) {
 			return respawn != null && this.respawnData.globalPos().equals(respawn.respawnData.globalPos());
 		}

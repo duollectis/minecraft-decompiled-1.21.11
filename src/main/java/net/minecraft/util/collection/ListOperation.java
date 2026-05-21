@@ -238,6 +238,13 @@ public interface ListOperation {
 			);
 		}
 
+		/**
+		 * Apply.
+		 *
+		 * @param current current
+		 *
+		 * @return List — результат операции
+		 */
 		public List<T> apply(List<T> current) {
 			return this.operation.apply(current, this.value);
 		}

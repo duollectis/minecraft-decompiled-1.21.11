@@ -58,6 +58,9 @@ public class InputControlHandlers {
 		}
 	}
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		register(TextInputControl.CODEC, new InputControlHandlers.TextInputControlHandler());
 		register(SingleOptionInputControl.CODEC, new InputControlHandlers.SimpleOptionInputControlHandler());
@@ -215,6 +218,13 @@ public class InputControlHandlers {
 	 */
 	static class TextInputControlHandler implements InputControlHandler<TextInputControl> {
 
+		/**
+		 * Добавляет control.
+		 *
+		 * @param textInputControl text input control
+		 * @param screen screen
+		 * @param output output
+		 */
 		public void addControl(TextInputControl textInputControl, Screen screen, InputControlHandler.Output output) {
 			TextRenderer textRenderer = screen.getTextRenderer();
 			Widget widget;

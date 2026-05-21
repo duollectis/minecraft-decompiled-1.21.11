@@ -34,6 +34,13 @@ public record MatchToolLootCondition(Optional<ItemPredicate> predicate) implemen
 		return Set.of(LootContextParameters.TOOL);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		ItemStack itemStack = lootContext.get(LootContextParameters.TOOL);
 		return itemStack != null && (this.predicate.isEmpty() || this.predicate.get().test(itemStack));

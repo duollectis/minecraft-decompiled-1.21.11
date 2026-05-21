@@ -65,6 +65,13 @@ public enum AxisRotation {
 	}
 
 	@Deprecated
+	/**
+	 * From degrees.
+	 *
+	 * @param degrees degrees
+	 *
+	 * @return AxisRotation — результат операции
+	 */
 	public static AxisRotation fromDegrees(int degrees) {
 		return switch (MathHelper.floorMod(degrees, 360)) {
 			case 0 -> R0;
@@ -76,6 +83,14 @@ public enum AxisRotation {
 		};
 	}
 
+	/**
+	 * Combine x y.
+	 *
+	 * @param axisRotation axis rotation
+	 * @param axisRotation2 axis rotation2
+	 *
+	 * @return DirectionTransformation — результат операции
+	 */
 	public static DirectionTransformation combineXY(AxisRotation axisRotation, AxisRotation axisRotation2) {
 		return axisRotation2.yAxisTransformation.prepend(axisRotation.xAxisTransformation);
 	}
@@ -88,6 +103,13 @@ public enum AxisRotation {
 		return axisRotation3.zAxisTransformation.prepend(axisRotation2.yAxisTransformation.prepend(axisRotation.xAxisTransformation));
 	}
 
+	/**
+	 * Rotate.
+	 *
+	 * @param index index
+	 *
+	 * @return int — результат операции
+	 */
 	public int rotate(int index) {
 		return (index + this.index) % 4;
 	}

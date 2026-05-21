@@ -78,6 +78,15 @@ public record ConsumableComponent(
 			ConsumableComponent::new
 	);
 
+	/**
+	 * Consume.
+	 *
+	 * @param user user
+	 * @param stack stack
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult consume(LivingEntity user, ItemStack stack, Hand hand) {
 		if (!this.canConsume(user, stack)) {
 			return ActionResult.FAIL;
@@ -95,6 +104,15 @@ public record ConsumableComponent(
 		}
 	}
 
+	/**
+	 * Finish consumption.
+	 *
+	 * @param world world
+	 * @param user user
+	 * @param stack stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack finishConsumption(World world, LivingEntity user, ItemStack stack) {
 		Random random = user.getRandom();
 		this.spawnParticlesAndPlaySound(random, user, stack, 16);
@@ -113,6 +131,14 @@ public record ConsumableComponent(
 		return stack;
 	}
 
+	/**
+	 * Проверяет возможность consume.
+	 *
+	 * @param user user
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canConsume(LivingEntity user, ItemStack stack) {
 		FoodComponent foodComponent = stack.get(DataComponentTypes.FOOD);
 		return foodComponent != null && user instanceof PlayerEntity playerEntity ? playerEntity.canConsume(
@@ -123,6 +149,14 @@ public record ConsumableComponent(
 		return (int) (this.consumeSeconds * 20.0F);
 	}
 
+	/**
+	 * Создаёт (спавнит) particles and play sound.
+	 *
+	 * @param random random
+	 * @param user user
+	 * @param stack stack
+	 * @param particleCount particle count
+	 */
 	public void spawnParticlesAndPlaySound(Random random, LivingEntity user, ItemStack stack, int particleCount) {
 		float f = random.nextBoolean() ? 0.5F : 1.0F;
 		float g = random.nextTriangular(1.0F, 0.2F);
@@ -140,6 +174,13 @@ public record ConsumableComponent(
 		user.playSound(soundEvent, j, k);
 	}
 
+	/**
+	 * Определяет, следует ли spawn particles and play sounds.
+	 *
+	 * @param remainingUseTicks remaining use ticks
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSpawnParticlesAndPlaySounds(int remainingUseTicks) {
 		int i = this.getConsumeTicks() - remainingUseTicks;
 		int j = (int) (this.getConsumeTicks() * 0.21875F);
@@ -194,6 +235,11 @@ public record ConsumableComponent(
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ConsumableComponent — результат операции
+		 */
 		public ConsumableComponent build() {
 			return new ConsumableComponent(
 					this.consumeSeconds,

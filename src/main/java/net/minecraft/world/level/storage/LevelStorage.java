@@ -84,6 +84,13 @@ public class LevelStorage {
 		this.symlinkFinder = symlinkFinder;
 	}
 
+	/**
+	 * Создаёт symlink finder.
+	 *
+	 * @param allowedSymlinksFile allowed symlinks file
+	 *
+	 * @return SymlinkFinder — результат операции
+	 */
 	public static SymlinkFinder createSymlinkFinder(Path allowedSymlinksFile) {
 		if (Files.exists(allowedSymlinksFile)) {
 			try {
@@ -102,11 +109,25 @@ public class LevelStorage {
 		return new SymlinkFinder(DEFAULT_ALLOWED_SYMLINK_MATCHER);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param path path
+	 *
+	 * @return LevelStorage — результат операции
+	 */
 	public static LevelStorage create(Path path) {
 		SymlinkFinder symlinkFinder = createSymlinkFinder(path.resolve("allowed_symlinks.txt"));
 		return new LevelStorage(path, path.resolve("../backups"), symlinkFinder, Schemas.getFixer());
 	}
 
+	/**
+	 * Разбирает data pack settings.
+	 *
+	 * @param dynamic dynamic
+	 *
+	 * @return DataConfiguration — результат операции
+	 */
 	public static DataConfiguration parseDataPackSettings(Dynamic<?> dynamic) {
 		return DataConfiguration.CODEC
 				.parse(dynamic)
@@ -175,6 +196,13 @@ public class LevelStorage {
 		}
 	}
 
+	/**
+	 * Загружает summaries.
+	 *
+	 * @param levels levels
+	 *
+	 * @return CompletableFuture> — результат операции
+	 */
 	public CompletableFuture<List<LevelSummary>> loadSummaries(LevelStorage.LevelList levels) {
 		List<CompletableFuture<LevelSummary>> list = new ArrayList<>(levels.levels.size());
 
@@ -350,6 +378,13 @@ public class LevelStorage {
 		}
 	}
 
+	/**
+	 * Level exists.
+	 *
+	 * @param name name
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean levelExists(String name) {
 		try {
 			return Files.isDirectory(this.resolve(name));
@@ -359,6 +394,13 @@ public class LevelStorage {
 		}
 	}
 
+	/**
+	 * Resolve.
+	 *
+	 * @param name name
+	 *
+	 * @return Path — результат операции
+	 */
 	public Path resolve(String name) {
 		return this.savesDirectory.resolve(name);
 	}
@@ -471,10 +513,18 @@ public class LevelStorage {
 			}
 		}
 
+		/**
+		 * Определяет, следует ли show low disk space warning.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldShowLowDiskSpaceWarning() {
 			return this.getUsableSpace() < 67108864L;
 		}
 
+		/**
+		 * Try close.
+		 */
 		public void tryClose() {
 			try {
 				this.close();
@@ -510,6 +560,11 @@ public class LevelStorage {
 			}
 		}
 
+		/**
+		 * Создаёт save handler.
+		 *
+		 * @return PlayerSaveHandler — результат операции
+		 */
 		public PlayerSaveHandler createSaveHandler() {
 			this.checkValid();
 			return new PlayerSaveHandler(this, LevelStorage.this.dataFixer);
@@ -520,10 +575,20 @@ public class LevelStorage {
 			return LevelStorage.this.parseSummary(dynamic, this.directory, false);
 		}
 
+		/**
+		 * Читает level properties.
+		 *
+		 * @return Dynamic — результат операции
+		 */
 		public Dynamic<?> readLevelProperties() throws IOException {
 			return this.readLevelProperties(false);
 		}
 
+		/**
+		 * Читает old level properties.
+		 *
+		 * @return Dynamic — результат операции
+		 */
 		public Dynamic<?> readOldLevelProperties() throws IOException {
 			return this.readLevelProperties(true);
 		}
@@ -536,6 +601,12 @@ public class LevelStorage {
 			);
 		}
 
+		/**
+		 * Backup level data file.
+		 *
+		 * @param registryManager registry manager
+		 * @param saveProperties save properties
+		 */
 		public void backupLevelDataFile(DynamicRegistryManager registryManager, SaveProperties saveProperties) {
 			this.backupLevelDataFile(registryManager, saveProperties, null);
 		}
@@ -570,6 +641,9 @@ public class LevelStorage {
 			return !this.lock.isValid() ? Optional.empty() : Optional.of(this.directory.getIconPath());
 		}
 
+		/**
+		 * Delete session lock.
+		 */
 		public void deleteSessionLock() throws IOException {
 			this.checkValid();
 			final Path path = this.directory.getSessionLockPath();
@@ -626,10 +700,20 @@ public class LevelStorage {
 			}
 		}
 
+		/**
+		 * Save.
+		 *
+		 * @param name name
+		 */
 		public void save(String name) throws IOException {
 			this.save(nbt -> nbt.putString("LevelName", name.trim()));
 		}
 
+		/**
+		 * Удаляет player and save.
+		 *
+		 * @param name name
+		 */
 		public void removePlayerAndSave(String name) throws IOException {
 			this.save(nbt -> {
 				nbt.putString("LevelName", name.trim());
@@ -644,6 +728,11 @@ public class LevelStorage {
 			this.save(nbtCompound);
 		}
 
+		/**
+		 * Создаёт backup.
+		 *
+		 * @return long — результат операции
+		 */
 		public long createBackup() throws IOException {
 			this.checkValid();
 			String string = DateTimeFormatters.MINUTES.format(ZonedDateTime.now()) + "_" + this.directoryName;
@@ -690,6 +779,11 @@ public class LevelStorage {
 			return Files.size(path2);
 		}
 
+		/**
+		 * Level dat exists.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean levelDatExists() {
 			return Files.exists(this.directory.getLevelDatPath()) || Files.exists(this.directory.getLevelDatOldPath());
 		}
@@ -699,6 +793,11 @@ public class LevelStorage {
 			this.lock.close();
 		}
 
+		/**
+		 * Try restore backup.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean tryRestoreBackup() {
 			return Util.backupAndReplace(
 					this.directory.getLevelDatPath(),

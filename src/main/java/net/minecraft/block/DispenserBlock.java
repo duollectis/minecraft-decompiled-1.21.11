@@ -57,10 +57,21 @@ public class DispenserBlock extends BlockWithEntity {
 		return CODEC;
 	}
 
+	/**
+	 * Регистрирует behavior.
+	 *
+	 * @param provider provider
+	 * @param behavior behavior
+	 */
 	public static void registerBehavior(ItemConvertible provider, DispenserBehavior behavior) {
 		BEHAVIORS.put(provider.asItem(), behavior);
 	}
 
+	/**
+	 * Регистрирует projectile behavior.
+	 *
+	 * @param projectile projectile
+	 */
 	public static void registerProjectileBehavior(ItemConvertible projectile) {
 		BEHAVIORS.put(projectile.asItem(), new ProjectileDispenserBehavior(projectile.asItem()));
 	}
@@ -81,6 +92,13 @@ public class DispenserBlock extends BlockWithEntity {
 		return ActionResult.SUCCESS;
 	}
 
+	/**
+	 * Dispense.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param pos pos
+	 */
 	protected void dispense(ServerWorld world, BlockState state, BlockPos pos) {
 		DispenserBlockEntity dispenserBlockEntity = world.getBlockEntity(pos, BlockEntityType.DISPENSER).orElse(null);
 		if (dispenserBlockEntity == null) {

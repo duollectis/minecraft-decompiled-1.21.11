@@ -59,6 +59,11 @@ public class ShelfBlockEntity extends BlockEntity implements HeldItemContext, Li
 		view.putBoolean("align_items_to_bottom", this.alignItemsToBottom);
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
@@ -86,12 +91,25 @@ public class ShelfBlockEntity extends BlockEntity implements HeldItemContext, Li
 		return Inventory.canPlayerUse(this, player);
 	}
 
+	/**
+	 * Swap stack no mark dirty.
+	 *
+	 * @param slot slot
+	 * @param stack stack
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack swapStackNoMarkDirty(int slot, ItemStack stack) {
 		ItemStack itemStack = this.removeStack(slot);
 		this.setStackNoMarkDirty(slot, stack);
 		return itemStack;
 	}
 
+	/**
+	 * Mark dirty.
+	 *
+	 * @param gameEvent game event
+	 */
 	public void markDirty(RegistryEntry.@Nullable Reference<GameEvent> gameEvent) {
 		super.markDirty();
 		if (this.world != null) {
@@ -140,6 +158,11 @@ public class ShelfBlockEntity extends BlockEntity implements HeldItemContext, Li
 		return this.getCachedState().get(ShelfBlock.FACING).getOpposite().getPositiveHorizontalDegrees();
 	}
 
+	/**
+	 * Определяет, следует ли align items to bottom.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldAlignItemsToBottom() {
 		return this.alignItemsToBottom;
 	}

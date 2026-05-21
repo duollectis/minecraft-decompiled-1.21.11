@@ -302,6 +302,11 @@ public class FireworkRocketEntity extends ProjectileEntity implements FlyingItem
 		return this.dataTracker.get(SHOOTER_ENTITY_ID).isPresent();
 	}
 
+	/**
+	 * Was shot at angle.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean wasShotAtAngle() {
 		return this.dataTracker.get(SHOT_AT_ANGLE);
 	}

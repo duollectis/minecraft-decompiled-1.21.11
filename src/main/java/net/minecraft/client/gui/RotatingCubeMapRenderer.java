@@ -25,6 +25,14 @@ public class RotatingCubeMapRenderer {
 		this.client = MinecraftClient.getInstance();
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 * @param width width
+	 * @param height height
+	 * @param rotate rotate
+	 */
 	public void render(DrawContext context, int width, int height, boolean rotate) {
 		if (rotate) {
 			float f = this.client.getRenderTickCounter().getFixedDeltaTicks();
@@ -53,6 +61,11 @@ public class RotatingCubeMapRenderer {
 		return a > b ? a - b : a;
 	}
 
+	/**
+	 * Регистрирует textures.
+	 *
+	 * @param textureManager texture manager
+	 */
 	public void registerTextures(TextureManager textureManager) {
 		this.cubeMap.registerTextures(textureManager);
 	}

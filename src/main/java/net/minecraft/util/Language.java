@@ -79,6 +79,12 @@ public abstract class Language {
 		}
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param inputStream input stream
+	 * @param entryConsumer entry consumer
+	 */
 	public static void load(InputStream inputStream, BiConsumer<String, String> entryConsumer) {
 		JsonObject
 				jsonObject =
@@ -103,18 +109,47 @@ public abstract class Language {
 		instance = language;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 *
+	 * @return String — 
+	 */
 	public String get(String key) {
 		return this.get(key, key);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 * @param fallback fallback
+	 *
+	 * @return String — 
+	 */
 	public abstract String get(String key, String fallback);
 
 	public abstract boolean hasTranslation(String key);
 
 	public abstract boolean isRightToLeft();
 
+	/**
+	 * Reorder.
+	 *
+	 * @param text text
+	 *
+	 * @return OrderedText — результат операции
+	 */
 	public abstract OrderedText reorder(StringVisitable text);
 
+	/**
+	 * Reorder.
+	 *
+	 * @param texts texts
+	 *
+	 * @return List — результат операции
+	 */
 	public List<OrderedText> reorder(List<StringVisitable> texts) {
 		return texts.stream().map(this::reorder).collect(ImmutableList.toImmutableList());
 	}

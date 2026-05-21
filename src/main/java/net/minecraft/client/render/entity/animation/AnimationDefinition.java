@@ -19,6 +19,13 @@ public record AnimationDefinition(
 		Map<String, List<Transformation>> boneAnimations
 ) {
 
+	/**
+	 * Создаёт animation.
+	 *
+	 * @param root root
+	 *
+	 * @return Animation — результат операции
+	 */
 	public Animation createAnimation(ModelPart root) {
 		return Animation.of(root, this);
 	}
@@ -51,6 +58,11 @@ public record AnimationDefinition(
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return AnimationDefinition — результат операции
+		 */
 		public AnimationDefinition build() {
 			return new AnimationDefinition(this.lengthInSeconds, this.looping, this.transformations);
 		}

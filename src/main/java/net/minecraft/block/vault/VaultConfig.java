@@ -78,6 +78,11 @@ public record VaultConfig(
 		);
 	}
 
+	/**
+	 * Player detector.
+	 *
+	 * @return EntityDetector — результат операции
+	 */
 	public EntityDetector playerDetector() {
 		return SharedConstants.VAULT_DETECTS_SHEEP_AS_PLAYERS ? EntityDetector.SHEEP : this.playerDetector;
 	}

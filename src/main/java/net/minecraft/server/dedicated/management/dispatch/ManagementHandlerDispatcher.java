@@ -47,10 +47,24 @@ public class ManagementHandlerDispatcher {
 		this.submitter = submitter;
 	}
 
+	/**
+	 * Submit.
+	 *
+	 * @param task task
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public <V> CompletableFuture<V> submit(Supplier<V> task) {
 		return this.submitter.submit(task);
 	}
 
+	/**
+	 * Submit.
+	 *
+	 * @param task task
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<Void> submit(Runnable task) {
 		return this.submitter.submit(task);
 	}
@@ -87,6 +101,13 @@ public class ManagementHandlerDispatcher {
 		return this.listener;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param server server
+	 *
+	 * @return ManagementHandlerDispatcher — результат операции
+	 */
 	public static ManagementHandlerDispatcher create(MinecraftDedicatedServer server) {
 		ManagementLogger managementLogger = new ManagementLogger();
 		AllowlistManagementHandlerImpl

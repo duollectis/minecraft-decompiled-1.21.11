@@ -9,17 +9,37 @@ import org.joml.Quaternionf;
  */
 public record GivensPair(float sinHalf, float cosHalf) {
 
+	/**
+	 * Normalize.
+	 *
+	 * @param a a
+	 * @param b b
+	 *
+	 * @return GivensPair — результат операции
+	 */
 	public static GivensPair normalize(float a, float b) {
 		float f = Math.invsqrt(a * a + b * b);
 		return new GivensPair(f * a, f * b);
 	}
 
+	/**
+	 * From angle.
+	 *
+	 * @param radians radians
+	 *
+	 * @return GivensPair — результат операции
+	 */
 	public static GivensPair fromAngle(float radians) {
 		float f = Math.sin(radians / 2.0F);
 		float g = Math.cosFromSin(f, radians / 2.0F);
 		return new GivensPair(f, g);
 	}
 
+	/**
+	 * Negate sin.
+	 *
+	 * @return GivensPair — результат операции
+	 */
 	public GivensPair negateSin() {
 		return new GivensPair(-this.sinHalf, this.cosHalf);
 	}
@@ -36,10 +56,20 @@ public record GivensPair(float sinHalf, float cosHalf) {
 		return quaternionf.set(0.0F, 0.0F, this.sinHalf, this.cosHalf);
 	}
 
+	/**
+	 * Cos double.
+	 *
+	 * @return float — результат операции
+	 */
 	public float cosDouble() {
 		return this.cosHalf * this.cosHalf - this.sinHalf * this.sinHalf;
 	}
 
+	/**
+	 * Sin double.
+	 *
+	 * @return float — результат операции
+	 */
 	public float sinDouble() {
 		return 2.0F * this.sinHalf * this.cosHalf;
 	}

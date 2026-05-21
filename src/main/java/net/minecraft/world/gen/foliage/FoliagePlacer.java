@@ -27,6 +27,13 @@ public abstract class FoliagePlacer {
 	protected final IntProvider radius;
 	protected final IntProvider offset;
 
+	/**
+	 * Fill foliage placer fields.
+	 *
+	 * @param instance instance
+	 *
+	 * @return P2, IntProvider, IntProvider> — результат операции
+	 */
 	protected static <P extends FoliagePlacer> P2<Mu<P>, IntProvider, IntProvider> fillFoliagePlacerFields(Instance<P> instance) {
 		return instance.group(
 				IntProvider.createValidatingCodec(0, 16).fieldOf("radius").forGetter(placer -> placer.radius),

@@ -25,6 +25,13 @@ public class PathUtil {
 			Pattern.compile(".*\\.|(?:COM|CLOCK\\$|CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\\..*)?", 2);
 	private static final Pattern VALID_FILE_NAME = Pattern.compile("[-._a-z0-9]+");
 
+	/**
+	 * Replace invalid chars.
+	 *
+	 * @param fileName file name
+	 *
+	 * @return String — результат операции
+	 */
 	public static String replaceInvalidChars(String fileName) {
 		for (char c : SharedConstants.INVALID_CHARS_LEVEL_NAME) {
 			fileName = fileName.replace(c, '_');
@@ -110,10 +117,24 @@ public class PathUtil {
 		return FilenameUtils.getFullPath(path).replace(File.separator, "/");
 	}
 
+	/**
+	 * Normalize to posix.
+	 *
+	 * @param path path
+	 *
+	 * @return String — результат операции
+	 */
 	public static String normalizeToPosix(String path) {
 		return FilenameUtils.normalize(path).replace(File.separator, "/");
 	}
 
+	/**
+	 * Split.
+	 *
+	 * @param path path
+	 *
+	 * @return DataResult> — результат операции
+	 */
 	public static DataResult<List<String>> split(String path) {
 		int i = path.indexOf(47);
 		if (i == -1) {
@@ -182,6 +203,11 @@ public class PathUtil {
 		return !name.equals("..") && !name.equals(".") && isFileNameValid(name);
 	}
 
+	/**
+	 * Валидирует path.
+	 *
+	 * @param paths paths
+	 */
 	public static void validatePath(String... paths) {
 		if (paths.length == 0) {
 			throw new IllegalArgumentException("Path must have at least one element");
@@ -196,6 +222,11 @@ public class PathUtil {
 		}
 	}
 
+	/**
+	 * Создаёт directories.
+	 *
+	 * @param path path
+	 */
 	public static void createDirectories(Path path) throws IOException {
 		Files.createDirectories(Files.exists(path) ? path.toRealPath() : path);
 	}

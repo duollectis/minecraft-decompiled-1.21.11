@@ -81,6 +81,11 @@ public class GlTextureView extends GpuTextureView {
 		return i;
 	}
 
+	/**
+	 * Texture.
+	 *
+	 * @return GlTexture — результат операции
+	 */
 	public GlTexture texture() {
 		return (GlTexture) super.texture();
 	}

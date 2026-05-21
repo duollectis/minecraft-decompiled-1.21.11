@@ -122,6 +122,13 @@ public class LeveledCauldronBlock extends AbstractCauldronBlock {
 		}
 	}
 
+	/**
+	 * Decrement fluid level.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 */
 	public static void decrementFluidLevel(BlockState state, World world, BlockPos pos) {
 		int i = state.get(LEVEL) - 1;
 		BlockState blockState = i == 0 ? Blocks.CAULDRON.getDefaultState() : state.with(LEVEL, i);

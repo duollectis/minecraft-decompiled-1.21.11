@@ -16,6 +16,13 @@ public class ScopedProfiler implements AutoCloseable {
 		this.wrapped = wrapped;
 	}
 
+	/**
+	 * Добавляет label.
+	 *
+	 * @param label label
+	 *
+	 * @return ScopedProfiler — результат операции
+	 */
 	public ScopedProfiler addLabel(String label) {
 		if (this.wrapped != null) {
 			this.wrapped.addZoneText(label);
@@ -24,6 +31,13 @@ public class ScopedProfiler implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * Добавляет label.
+	 *
+	 * @param labelSupplier label supplier
+	 *
+	 * @return ScopedProfiler — результат операции
+	 */
 	public ScopedProfiler addLabel(Supplier<String> labelSupplier) {
 		if (this.wrapped != null) {
 			this.wrapped.addZoneText(labelSupplier.get());
@@ -32,6 +46,13 @@ public class ScopedProfiler implements AutoCloseable {
 		return this;
 	}
 
+	/**
+	 * Добавляет value.
+	 *
+	 * @param value value
+	 *
+	 * @return ScopedProfiler — результат операции
+	 */
 	public ScopedProfiler addValue(long value) {
 		if (this.wrapped != null) {
 			this.wrapped.addZoneValue(value);

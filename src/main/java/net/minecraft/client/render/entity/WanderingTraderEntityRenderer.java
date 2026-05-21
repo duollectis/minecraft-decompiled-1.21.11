@@ -29,6 +29,11 @@ public class WanderingTraderEntityRenderer extends MobEntityRenderer<WanderingTr
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return VillagerEntityRenderState — результат операции
+	 */
 	public VillagerEntityRenderState createRenderState() {
 		return new VillagerEntityRenderState();
 	}

@@ -19,11 +19,21 @@ public class MobVisibilityCache {
 		this.owner = owner;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.visibleEntities.clear();
 		this.invisibleEntities.clear();
 	}
 
+	/**
+	 * Проверяет возможность see.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSee(Entity entity) {
 		int i = entity.getId();
 		if (this.visibleEntities.contains(i)) {

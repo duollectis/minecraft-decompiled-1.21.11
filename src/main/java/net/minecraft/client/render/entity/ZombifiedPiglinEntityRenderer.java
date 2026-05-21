@@ -54,6 +54,11 @@ public class ZombifiedPiglinEntityRenderer extends BipedEntityRenderer<Zombified
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ZombifiedPiglinEntityRenderState — результат операции
+	 */
 	public ZombifiedPiglinEntityRenderState createRenderState() {
 		return new ZombifiedPiglinEntityRenderState();
 	}

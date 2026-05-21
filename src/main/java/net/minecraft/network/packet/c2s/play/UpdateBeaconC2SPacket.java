@@ -12,6 +12,9 @@ import net.minecraft.registry.entry.RegistryEntry;
 
 import java.util.Optional;
 
+/**
+ * Запись update beacon c2 s packet.
+ */
 public record UpdateBeaconC2SPacket(
 		Optional<RegistryEntry<StatusEffect>> primary,
 		Optional<RegistryEntry<StatusEffect>> secondary
@@ -31,6 +34,11 @@ public record UpdateBeaconC2SPacket(
 		return PlayPackets.SET_BEACON;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onUpdateBeacon(this);
 	}

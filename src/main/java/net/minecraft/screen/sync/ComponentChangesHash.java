@@ -44,6 +44,14 @@ public record ComponentChangesHash(
 		return new ComponentChangesHash(map, addedRemovedPair.removed());
 	}
 
+	/**
+	 * Проверяет наличие h equals.
+	 *
+	 * @param changes changes
+	 * @param hasher hasher
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean hashEquals(ComponentChanges changes, ComponentChangesHash.ComponentHasher hasher) {
 		ComponentChanges.AddedRemovedPair addedRemovedPair = changes.toAddedRemovedPair();
 		if (!addedRemovedPair.removed().equals(this.removedComponents)) {

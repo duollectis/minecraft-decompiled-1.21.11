@@ -55,6 +55,13 @@ public record NoiseRouter(
 		return DensityFunction.FUNCTION_CODEC.fieldOf(name).forGetter(getter);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param visitor visitor
+	 *
+	 * @return NoiseRouter — результат операции
+	 */
 	public NoiseRouter apply(DensityFunction.DensityFunctionVisitor visitor) {
 		return new NoiseRouter(
 				this.barrierNoise.apply(visitor),

@@ -27,6 +27,13 @@ public record Track<T>(List<Keyframe<T>> keyframes, EasingType easingType) {
 		}
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param valueCodec value codec
+	 *
+	 * @return MapCodec> — результат операции
+	 */
 	public static <T> MapCodec<Track<T>> createCodec(Codec<T> valueCodec) {
 		Codec<List<Keyframe<T>>> codec = Keyframe.createCodec(valueCodec).listOf().validate(Track::validateKeyframes);
 		return RecordCodecBuilder.mapCodec(
@@ -68,6 +75,14 @@ public record Track<T>(List<Keyframe<T>> keyframes, EasingType easingType) {
 		}
 	}
 
+	/**
+	 * Валидирует keyframes in period.
+	 *
+	 * @param track track
+	 * @param period period
+	 *
+	 * @return DataResult> — результат операции
+	 */
 	public static DataResult<Track<?>> validateKeyframesInPeriod(Track<?> track, int period) {
 		for (Keyframe<?> keyframe : track.keyframes()) {
 			int i = keyframe.ticks();
@@ -80,6 +95,14 @@ public record Track<T>(List<Keyframe<T>> keyframes, EasingType easingType) {
 		return DataResult.success(track);
 	}
 
+	/**
+	 * Создаёт evaluator.
+	 *
+	 * @param period period
+	 * @param interpolator interpolator
+	 *
+	 * @return TrackEvaluator — результат операции
+	 */
 	public TrackEvaluator<T> createEvaluator(Optional<Integer> period, Interpolator<T> interpolator) {
 		return new TrackEvaluator<>(this, period, interpolator);
 	}
@@ -102,6 +125,11 @@ public record Track<T>(List<Keyframe<T>> keyframes, EasingType easingType) {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return Track — результат операции
+		 */
 		public Track<T> build() {
 			List<Keyframe<T>> list = (List<Keyframe<T>>) Track.validateKeyframes(this.keyframes.build()).getOrThrow();
 			return new Track<>(list, this.easingType);

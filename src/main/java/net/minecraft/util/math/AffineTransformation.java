@@ -72,16 +72,33 @@ public final class AffineTransformation {
 		this.initialized = true;
 	}
 
+	/**
+	 * Identity.
+	 *
+	 * @return AffineTransformation — результат операции
+	 */
 	public static AffineTransformation identity() {
 		return IDENTITY;
 	}
 
+	/**
+	 * Multiply.
+	 *
+	 * @param other other
+	 *
+	 * @return AffineTransformation — результат операции
+	 */
 	public AffineTransformation multiply(AffineTransformation other) {
 		Matrix4f matrix4f = this.copyMatrix();
 		matrix4f.mul(other.getMatrix());
 		return new AffineTransformation(matrix4f);
 	}
 
+	/**
+	 * Invert.
+	 *
+	 * @return @Nullable AffineTransformation — результат операции
+	 */
 	public @Nullable AffineTransformation invert() {
 		if (this == IDENTITY) {
 			return this;
@@ -136,6 +153,11 @@ public final class AffineTransformation {
 		return this.matrix;
 	}
 
+	/**
+	 * Создаёт копию matrix.
+	 *
+	 * @return Matrix4f — результат операции
+	 */
 	public Matrix4f copyMatrix() {
 		return new Matrix4f(this.matrix);
 	}
@@ -179,6 +201,14 @@ public final class AffineTransformation {
 		return Objects.hash(this.matrix);
 	}
 
+	/**
+	 * Interpolate.
+	 *
+	 * @param target target
+	 * @param factor factor
+	 *
+	 * @return AffineTransformation — результат операции
+	 */
 	public AffineTransformation interpolate(AffineTransformation target, float factor) {
 		return new AffineTransformation(
 				this.getTranslation().lerp(target.getTranslation(), factor, new Vector3f()),

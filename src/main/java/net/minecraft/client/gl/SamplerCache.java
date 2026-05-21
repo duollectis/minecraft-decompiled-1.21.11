@@ -18,6 +18,9 @@ public class SamplerCache {
 
 	private final GpuSampler[] samplers = new GpuSampler[32];
 
+	/**
+	 * Init.
+	 */
 	public void init() {
 		GpuDevice gpuDevice = RenderSystem.getDevice();
 		if (AddressMode.values().length == 2 && FilterMode.values().length == 2) {
@@ -57,10 +60,25 @@ public class SamplerCache {
 		return this.samplers[toIndex(addressModeU, addressModeV, minFilterMode, magFilterMode, defaultLineOfDetail)];
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param filterMode filter mode
+	 *
+	 * @return GpuSampler — 
+	 */
 	public GpuSampler get(FilterMode filterMode) {
 		return this.get(AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE, filterMode, filterMode, false);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param filterMode filter mode
+	 * @param defaultLineOfDetail default line of detail
+	 *
+	 * @return GpuSampler — 
+	 */
 	public GpuSampler get(FilterMode filterMode, boolean defaultLineOfDetail) {
 		return this.get(
 				AddressMode.CLAMP_TO_EDGE,
@@ -79,6 +97,9 @@ public class SamplerCache {
 		return this.get(AddressMode.REPEAT, AddressMode.REPEAT, filterMode, filterMode, defaultLineOfDetail);
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		for (GpuSampler gpuSampler : this.samplers) {
 			gpuSampler.close();

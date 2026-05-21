@@ -49,6 +49,13 @@ public interface TaskQueue<T extends Runnable> {
 			return null;
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param prioritizedTask prioritized task
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean add(TaskQueue.PrioritizedTask prioritizedTask) {
 			int i = prioritizedTask.priority;
 			if (i < this.queue.length && i >= 0) {

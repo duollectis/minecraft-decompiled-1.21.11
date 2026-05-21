@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс screen handler property update s2 c packet.
+ */
 public class ScreenHandlerPropertyUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ScreenHandlerPropertyUpdateS2CPacket> CODEC = Packet.createCodec(
@@ -39,6 +42,11 @@ public class ScreenHandlerPropertyUpdateS2CPacket implements Packet<ClientPlayPa
 		return PlayPackets.CONTAINER_SET_DATA;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onScreenHandlerPropertyUpdate(this);
 	}

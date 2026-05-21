@@ -30,6 +30,11 @@ public class SilverfishEntityRenderer extends MobEntityRenderer<SilverfishEntity
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return LivingEntityRenderState — результат операции
+	 */
 	public LivingEntityRenderState createRenderState() {
 		return new LivingEntityRenderState();
 	}

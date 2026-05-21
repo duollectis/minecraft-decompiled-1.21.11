@@ -21,6 +21,14 @@ public class Clipboard {
 	public static final int GLFW_FORMAT_UNAVAILABLE = 65545;
 	private final ByteBuffer clipboardBuffer = BufferUtils.createByteBuffer(8192);
 
+	/**
+	 * Get.
+	 *
+	 * @param window window
+	 * @param errorCallback error callback
+	 *
+	 * @return String — 
+	 */
 	public String get(Window window, GLFWErrorCallbackI errorCallback) {
 		GLFWErrorCallback gLFWErrorCallback = GLFW.glfwSetErrorCallback(errorCallback);
 		String string = GLFW.glfwGetClipboardString(window.getHandle());
@@ -41,6 +49,12 @@ public class Clipboard {
 		GLFW.glfwSetClipboardString(window.getHandle(), clipboardBuffer);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param window window
+	 * @param string string
+	 */
 	public void set(Window window, String string) {
 		byte[] bs = string.getBytes(StandardCharsets.UTF_8);
 		int i = bs.length + 1;

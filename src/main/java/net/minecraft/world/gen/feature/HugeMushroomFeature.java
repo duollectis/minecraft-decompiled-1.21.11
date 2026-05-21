@@ -33,6 +33,13 @@ public abstract class HugeMushroomFeature extends Feature<HugeMushroomFeatureCon
 		}
 	}
 
+	/**
+	 * Generate stem.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	protected void generateStem(WorldAccess world, BlockPos.Mutable pos, BlockState state) {
 		BlockState blockState = world.getBlockState(pos);
 		if (blockState.isAir() || blockState.isIn(BlockTags.REPLACEABLE_BY_MUSHROOMS)) {

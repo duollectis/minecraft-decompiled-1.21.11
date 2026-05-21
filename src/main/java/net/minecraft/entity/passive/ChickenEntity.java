@@ -151,6 +151,14 @@ public class ChickenEntity extends AnimalEntity {
 		this.playSound(SoundEvents.ENTITY_CHICKEN_STEP, 0.15F, 1.0F);
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable ChickenEntity — результат операции
+	 */
 	public @Nullable ChickenEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		ChickenEntity chickenEntity = EntityType.CHICKEN.create(serverWorld, SpawnReason.BREEDING);
 		if (chickenEntity != null && passiveEntity instanceof ChickenEntity chickenEntity2) {

@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс screen handler slot update s2 c packet.
+ */
 public class ScreenHandlerSlotUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, ScreenHandlerSlotUpdateS2CPacket> CODEC = Packet.createCodec(
@@ -44,6 +47,11 @@ public class ScreenHandlerSlotUpdateS2CPacket implements Packet<ClientPlayPacket
 		return PlayPackets.CONTAINER_SET_SLOT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onScreenHandlerSlotUpdate(this);
 	}

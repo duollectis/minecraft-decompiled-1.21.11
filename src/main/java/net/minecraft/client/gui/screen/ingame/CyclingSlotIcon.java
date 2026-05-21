@@ -29,6 +29,11 @@ public class CyclingSlotIcon {
 		this.slotId = slotId;
 	}
 
+	/**
+	 * Обновляет texture.
+	 *
+	 * @param textures textures
+	 */
 	public void updateTexture(List<Identifier> textures) {
 		if (!this.textures.equals(textures)) {
 			this.textures = textures;
@@ -40,6 +45,15 @@ public class CyclingSlotIcon {
 		}
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param screenHandler screen handler
+	 * @param context context
+	 * @param deltaTicks delta ticks
+	 * @param x x
+	 * @param y y
+	 */
 	public void render(ScreenHandler screenHandler, DrawContext context, float deltaTicks, int x, int y) {
 		Slot slot = screenHandler.getSlot(this.slotId);
 		if (!this.textures.isEmpty() && !slot.hasStack()) {

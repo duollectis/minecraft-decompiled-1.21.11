@@ -244,6 +244,14 @@ public class CrafterBlockEntity extends LootableContainerBlockEntity implements 
 		return this.propertyDelegate.get(9) == 1;
 	}
 
+	/**
+	 * Выполняет тик обновления для crafting.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tickCrafting(World world, BlockPos pos, BlockState state, CrafterBlockEntity blockEntity) {
 		int i = blockEntity.craftingTicksRemaining - 1;
 		if (i >= 0) {

@@ -96,6 +96,12 @@ public class WitchEntityModel extends EntityModel<WitchEntityRenderState> implem
 		return this.head;
 	}
 
+	/**
+	 * Rotate arms.
+	 *
+	 * @param witchEntityRenderState witch entity render state
+	 * @param matrixStack matrix stack
+	 */
 	public void rotateArms(WitchEntityRenderState witchEntityRenderState, MatrixStack matrixStack) {
 		this.root.applyTransform(matrixStack);
 		this.arms.applyTransform(matrixStack);

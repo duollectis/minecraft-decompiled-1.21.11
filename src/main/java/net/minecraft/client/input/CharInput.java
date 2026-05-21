@@ -10,6 +10,11 @@ import net.minecraft.util.StringHelper;
  */
 public record CharInput(int codepoint, @AbstractInput.Modifier int modifiers) {
 
+	/**
+	 * As string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String asString() {
 		return Character.toString(this.codepoint);
 	}

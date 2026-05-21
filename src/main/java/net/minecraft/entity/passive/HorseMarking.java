@@ -27,6 +27,13 @@ public enum HorseMarking {
 		return this.index;
 	}
 
+	/**
+	 * By index.
+	 *
+	 * @param index index
+	 *
+	 * @return HorseMarking — результат операции
+	 */
 	public static HorseMarking byIndex(int index) {
 		return INDEX_MAPPER.apply(index);
 	}

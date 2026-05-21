@@ -39,6 +39,12 @@ public abstract class WaterCreatureEntity extends PathAwareEntity {
 		return 1 + this.random.nextInt(3);
 	}
 
+	/**
+	 * Выполняет тик обновления для water breathing air.
+	 *
+	 * @param world world
+	 * @param air air
+	 */
 	protected void tickWaterBreathingAir(ServerWorld world, int air) {
 		if (this.isAlive() && !this.isTouchingWater()) {
 			this.setAir(air - 1);

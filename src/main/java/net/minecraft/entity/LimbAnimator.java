@@ -16,6 +16,13 @@ public class LimbAnimator {
 		this.speed = speed;
 	}
 
+	/**
+	 * Обновляет limbs.
+	 *
+	 * @param targetSpeed target speed
+	 * @param speedChangeRate speed change rate
+	 * @param timeScale time scale
+	 */
 	public void updateLimbs(float targetSpeed, float speedChangeRate, float timeScale) {
 		this.lastSpeed = this.speed;
 		this.speed = this.speed + (targetSpeed - this.speed) * speedChangeRate;
@@ -23,6 +30,9 @@ public class LimbAnimator {
 		this.timeScale = timeScale;
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.lastSpeed = 0.0F;
 		this.speed = 0.0F;

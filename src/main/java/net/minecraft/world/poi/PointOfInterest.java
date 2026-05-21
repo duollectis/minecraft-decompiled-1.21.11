@@ -41,6 +41,11 @@ public class PointOfInterest {
 		return this.freeTickets;
 	}
 
+	/**
+	 * Reserve ticket.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean reserveTicket() {
 		if (this.freeTickets <= 0) {
 			return false;
@@ -52,6 +57,11 @@ public class PointOfInterest {
 		}
 	}
 
+	/**
+	 * Release ticket.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean releaseTicket() {
 		if (this.freeTickets >= this.type.value().ticketCount()) {
 			return false;
@@ -112,6 +122,13 @@ public class PointOfInterest {
 				                    .apply(instance, PointOfInterest.Serialized::new)
 		);
 
+		/**
+		 * To point of interest.
+		 *
+		 * @param updateListener update listener
+		 *
+		 * @return PointOfInterest — результат операции
+		 */
 		public PointOfInterest toPointOfInterest(Runnable updateListener) {
 			return new PointOfInterest(this.pos, this.poiType, this.freeTickets, updateListener);
 		}

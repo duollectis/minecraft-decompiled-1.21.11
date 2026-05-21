@@ -25,6 +25,13 @@ public interface ContainerComponentModifiers {
 			return DataComponentTypes.CONTAINER;
 		}
 
+		/**
+		 * Stream.
+		 *
+		 * @param containerComponent container component
+		 *
+		 * @return Stream — результат операции
+		 */
 		public Stream<ItemStack> stream(ContainerComponent containerComponent) {
 			return containerComponent.stream();
 		}
@@ -33,6 +40,14 @@ public interface ContainerComponentModifiers {
 			return ContainerComponent.DEFAULT;
 		}
 
+		/**
+		 * Apply.
+		 *
+		 * @param containerComponent container component
+		 * @param stream stream
+		 *
+		 * @return ContainerComponent — результат операции
+		 */
 		public ContainerComponent apply(ContainerComponent containerComponent, Stream<ItemStack> stream) {
 			return ContainerComponent.fromStacks(stream.toList());
 		}
@@ -50,6 +65,13 @@ public interface ContainerComponentModifiers {
 					return BundleContentsComponent.DEFAULT;
 				}
 
+				/**
+				 * Stream.
+				 *
+				 * @param bundleContentsComponent bundle contents component
+				 *
+				 * @return Stream — результат операции
+				 */
 				public Stream<ItemStack> stream(BundleContentsComponent bundleContentsComponent) {
 					return bundleContentsComponent.stream();
 				}
@@ -78,6 +100,13 @@ public interface ContainerComponentModifiers {
 					return ChargedProjectilesComponent.DEFAULT;
 				}
 
+				/**
+				 * Stream.
+				 *
+				 * @param chargedProjectilesComponent charged projectiles component
+				 *
+				 * @return Stream — результат операции
+				 */
 				public Stream<ItemStack> stream(ChargedProjectilesComponent chargedProjectilesComponent) {
 					return chargedProjectilesComponent.getProjectiles().stream();
 				}

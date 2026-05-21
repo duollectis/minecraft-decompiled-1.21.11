@@ -27,6 +27,13 @@ public class PropertyMap {
 		return new PropertyMap.Builder();
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param properties properties
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static MapCodec<PropertyMap> createCodec(List<TelemetryEventProperty<?>> properties) {
 		return new MapCodec<PropertyMap>() {
 			public <T> RecordBuilder<T> encode(
@@ -52,6 +59,14 @@ public class PropertyMap {
 				return object != null ? builder.add(property.id(), object, property.codec()) : builder;
 			}
 
+			/**
+			 * Decode.
+			 *
+			 * @param ops ops
+			 * @param map map
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<PropertyMap> decode(DynamicOps<T> ops, MapLike<T> map) {
 				DataResult<PropertyMap.Builder> dataResult = DataResult.success(new PropertyMap.Builder());
 
@@ -78,12 +93,26 @@ public class PropertyMap {
 				}
 			}
 
+			/**
+			 * Keys.
+			 *
+			 * @param ops ops
+			 *
+			 * @return Stream — результат операции
+			 */
 			public <T> Stream<T> keys(DynamicOps<T> ops) {
 				return properties.stream().map(TelemetryEventProperty::id).map(ops::createString);
 			}
 		};
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param property property
+	 *
+	 * @return @Nullable T — 
+	 */
 	public <T> @Nullable T get(TelemetryEventProperty<T> property) {
 		return (T) this.backingMap.get(property);
 	}
@@ -93,6 +122,11 @@ public class PropertyMap {
 		return this.backingMap.toString();
 	}
 
+	/**
+	 * Key set.
+	 *
+	 * @return Set> — результат операции
+	 */
 	public Set<TelemetryEventProperty<?>> keySet() {
 		return this.backingMap.keySet();
 	}
@@ -126,6 +160,11 @@ public class PropertyMap {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return PropertyMap — результат операции
+		 */
 		public PropertyMap build() {
 			return new PropertyMap(this.backingMap);
 		}

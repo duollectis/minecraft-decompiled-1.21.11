@@ -67,6 +67,14 @@ public class GiveGiftsToHeroTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		if (!this.isNearestPlayerHero(villagerEntity)) {
 			return false;
@@ -80,6 +88,13 @@ public class GiveGiftsToHeroTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		this.done = false;
 		this.startTime = l;
@@ -88,10 +103,26 @@ public class GiveGiftsToHeroTask extends MultiTickTask<VillagerEntity> {
 		TargetUtil.lookAt(villagerEntity, playerEntity);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		return this.isNearestPlayerHero(villagerEntity) && !this.done;
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		PlayerEntity playerEntity = this.getNearestPlayerIfHero(villagerEntity).get();
 		TargetUtil.lookAt(villagerEntity, playerEntity);
@@ -106,6 +137,13 @@ public class GiveGiftsToHeroTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		this.ticksLeft = getNextGiftDelay(serverWorld);
 		villagerEntity.getBrain().forget(MemoryModuleType.INTERACTION_TARGET);

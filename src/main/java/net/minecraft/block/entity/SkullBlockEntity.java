@@ -52,6 +52,14 @@ public class SkullBlockEntity extends BlockEntity {
 		this.customName = tryParseCustomName(view, "custom_name");
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, SkullBlockEntity blockEntity) {
 		if (state.contains(SkullBlock.POWERED) && state.get(SkullBlock.POWERED)) {
 			blockEntity.powered = true;
@@ -74,6 +82,11 @@ public class SkullBlockEntity extends BlockEntity {
 		return this.noteBlockSound;
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}

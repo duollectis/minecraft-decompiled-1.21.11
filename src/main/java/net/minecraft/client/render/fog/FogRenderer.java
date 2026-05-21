@@ -104,6 +104,9 @@ public class FogRenderer implements AutoCloseable {
 		this.fogBuffer.close();
 	}
 
+	/**
+	 * Rotate.
+	 */
 	public void rotate() {
 		this.fogBuffer.rotate();
 	}
@@ -202,6 +205,11 @@ public class FogRenderer implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Toggle fog.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean toggleFog() {
 		return fogEnabled = !fogEnabled;
 	}

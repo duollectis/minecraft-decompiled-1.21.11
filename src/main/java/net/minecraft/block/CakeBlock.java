@@ -94,6 +94,16 @@ public class CakeBlock extends Block {
 		return tryEat(world, pos, state, player);
 	}
 
+	/**
+	 * Try eat.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param player player
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	protected static ActionResult tryEat(WorldAccess world, BlockPos pos, BlockState state, PlayerEntity player) {
 		if (!player.canConsume(false)) {
 			return ActionResult.PASS;

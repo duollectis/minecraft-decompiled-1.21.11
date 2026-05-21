@@ -62,6 +62,15 @@ public class OceanMonumentStructure extends Structure {
 		collector.addPiece(createBasePiece(context.chunkPos(), context.random()));
 	}
 
+	/**
+	 * Modify pieces on read.
+	 *
+	 * @param pos pos
+	 * @param worldSeed world seed
+	 * @param pieces pieces
+	 *
+	 * @return StructurePiecesList — результат операции
+	 */
 	public static StructurePiecesList modifyPiecesOnRead(ChunkPos pos, long worldSeed, StructurePiecesList pieces) {
 		if (pieces.isEmpty()) {
 			return pieces;

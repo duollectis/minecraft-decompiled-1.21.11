@@ -121,6 +121,11 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		return this.getTestKey().flatMap(this.world.getRegistryManager()::getOptionalEntry);
 	}
 
+	/**
+	 * Определяет, следует ли ignore entities.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldIgnoreEntities() {
 		return this.data.ignoreEntities();
 	}
@@ -162,6 +167,11 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		}
 	}
 
+	/**
+	 * To update packet.
+	 *
+	 * @return BlockEntityUpdateS2CPacket — результат операции
+	 */
 	public BlockEntityUpdateS2CPacket toUpdatePacket() {
 		return BlockEntityUpdateS2CPacket.create(this);
 	}
@@ -234,6 +244,11 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		return new Vec3i(i, vec3i.getY(), j);
 	}
 
+	/**
+	 * Reset.
+	 *
+	 * @param messageConsumer message consumer
+	 */
 	public void reset(Consumer<Text> messageConsumer) {
 		this.clearBarriers();
 		this.clearErrors();
@@ -247,6 +262,13 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		this.setData(this.data.withStatus(TestInstanceBlockEntity.Status.CLEARED));
 	}
 
+	/**
+	 * Сохраняет structure.
+	 *
+	 * @param messageConsumer message consumer
+	 *
+	 * @return Optional — результат операции
+	 */
 	public Optional<Identifier> saveStructure(Consumer<Text> messageConsumer) {
 		Optional<RegistryEntry.Reference<TestInstance>> optional = this.getTestEntry();
 		Optional<Identifier> optional2;
@@ -289,6 +311,13 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		}
 	}
 
+	/**
+	 * Export.
+	 *
+	 * @param messageConsumer message consumer
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean export(Consumer<Text> messageConsumer) {
 		Optional<Identifier> optional = this.saveStructure(messageConsumer);
 		return !optional.isEmpty() && this.world instanceof ServerWorld serverWorld ? exportData(
@@ -298,6 +327,15 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		) : false;
 	}
 
+	/**
+	 * Export data.
+	 *
+	 * @param world world
+	 * @param structureId structure id
+	 * @param messageConsumer message consumer
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean exportData(ServerWorld world, Identifier structureId, Consumer<Text> messageConsumer) {
 		Path path = TestInstanceUtil.testStructuresDirectoryName;
 		Path path2 = world.getStructureTemplateManager().getTemplatePath(structureId, ".nbt");
@@ -327,6 +365,11 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		}
 	}
 
+	/**
+	 * Start.
+	 *
+	 * @param messageConsumer message consumer
+	 */
 	public void start(Consumer<Text> messageConsumer) {
 		if (this.world instanceof ServerWorld serverWorld) {
 			Optional var7 = this.getTestEntry();
@@ -378,6 +421,11 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		}
 	}
 
+	/**
+	 * Размещает structure.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean placeStructure() {
 		if (this.world instanceof ServerWorld serverWorld) {
 			Optional<StructureTemplate>
@@ -436,6 +484,9 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		};
 	}
 
+	/**
+	 * Размещает barriers.
+	 */
 	public void placeBarriers() {
 		this.forEachPos(pos -> {
 			if (!this.world.getBlockState(pos).isOf(Blocks.TEST_INSTANCE_BLOCK)) {
@@ -444,6 +495,9 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		});
 	}
 
+	/**
+	 * Очищает barriers.
+	 */
 	public void clearBarriers() {
 		this.forEachPos(pos -> {
 			if (this.world.getBlockState(pos).isOf(Blocks.BARRIER)) {
@@ -452,6 +506,11 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		});
 	}
 
+	/**
+	 * For each pos.
+	 *
+	 * @param posConsumer pos consumer
+	 */
 	public void forEachPos(Consumer<BlockPos> posConsumer) {
 		Box box = this.getBox();
 		boolean bl = !this.getTestEntry().map(entry -> entry.value().requiresSkyAccess()).orElse(false);
@@ -473,11 +532,20 @@ public class TestInstanceBlockEntity extends BlockEntity implements BeamEmitter,
 		        );
 	}
 
+	/**
+	 * Добавляет error.
+	 *
+	 * @param pos pos
+	 * @param message message
+	 */
 	public void addError(BlockPos pos, Text message) {
 		this.errors.add(new TestInstanceBlockEntity.Error(pos, message));
 		this.markDirty();
 	}
 
+	/**
+	 * Очищает errors.
+	 */
 	public void clearErrors() {
 		if (!this.errors.isEmpty()) {
 			this.errors.clear();

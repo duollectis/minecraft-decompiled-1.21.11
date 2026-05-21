@@ -58,6 +58,13 @@ public class DebugSubscriptionTypes<T> {
 			GAME_EVENTS =
 			register("game_events", GameEventDebugData.PACKET_CODEC, 60);
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return DebugSubscriptionType — результат операции
+	 */
 	public static DebugSubscriptionType<?> registerAndGetDefault(Registry<DebugSubscriptionType<?>> registry) {
 		return DEDICATED_SERVER_TICK_TIME;
 	}

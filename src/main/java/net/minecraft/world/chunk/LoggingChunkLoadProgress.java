@@ -26,10 +26,20 @@ public class LoggingChunkLoadProgress implements ChunkLoadProgress {
 		this.delegate = new DeltaChunkLoadProgress(player);
 	}
 
+	/**
+	 * Without player.
+	 *
+	 * @return LoggingChunkLoadProgress — результат операции
+	 */
 	public static LoggingChunkLoadProgress withoutPlayer() {
 		return new LoggingChunkLoadProgress(false);
 	}
 
+	/**
+	 * With player.
+	 *
+	 * @return LoggingChunkLoadProgress — результат операции
+	 */
 	public static LoggingChunkLoadProgress withPlayer() {
 		return new LoggingChunkLoadProgress(true);
 	}

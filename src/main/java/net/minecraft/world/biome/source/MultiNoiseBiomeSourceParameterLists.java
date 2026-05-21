@@ -15,6 +15,11 @@ public class MultiNoiseBiomeSourceParameterLists {
 	public static final RegistryKey<MultiNoiseBiomeSourceParameterList> NETHER = of("nether");
 	public static final RegistryKey<MultiNoiseBiomeSourceParameterList> OVERWORLD = of("overworld");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<MultiNoiseBiomeSourceParameterList> registry) {
 		RegistryEntryLookup<Biome> registryEntryLookup = registry.getRegistryLookup(RegistryKeys.BIOME);
 		registry.register(NETHER,

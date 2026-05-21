@@ -26,10 +26,23 @@ public class EndGatewayFeatureConfig implements FeatureConfig {
 		this.exact = exact;
 	}
 
+	/**
+	 * Создаёт config.
+	 *
+	 * @param exitPortalPosition exit portal position
+	 * @param exitsAtSpawn exits at spawn
+	 *
+	 * @return EndGatewayFeatureConfig — результат операции
+	 */
 	public static EndGatewayFeatureConfig createConfig(BlockPos exitPortalPosition, boolean exitsAtSpawn) {
 		return new EndGatewayFeatureConfig(Optional.of(exitPortalPosition), exitsAtSpawn);
 	}
 
+	/**
+	 * Создаёт config.
+	 *
+	 * @return EndGatewayFeatureConfig — результат операции
+	 */
 	public static EndGatewayFeatureConfig createConfig() {
 		return new EndGatewayFeatureConfig(Optional.empty(), false);
 	}

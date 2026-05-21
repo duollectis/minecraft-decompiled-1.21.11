@@ -96,6 +96,11 @@ public class VaultSharedData {
 		this.dirty = true;
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param data data
+	 */
 	public void copyFrom(VaultSharedData data) {
 		this.displayItem = data.displayItem;
 		this.connectedPlayers = data.connectedPlayers;

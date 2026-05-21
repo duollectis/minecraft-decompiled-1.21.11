@@ -19,6 +19,11 @@ public class ChunkRenderTaskScheduler {
 	private int remainingPrioritizableTasks = 2;
 	private final List<ChunkBuilder.BuiltChunk.Task> queue = new ObjectArrayList();
 
+	/**
+	 * Enqueue.
+	 *
+	 * @param task task
+	 */
 	public synchronized void enqueue(ChunkBuilder.BuiltChunk.Task task) {
 		this.queue.add(task);
 	}
@@ -62,6 +67,11 @@ public class ChunkRenderTaskScheduler {
 		}
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.queue.size();
 	}
@@ -70,6 +80,9 @@ public class ChunkRenderTaskScheduler {
 		return index >= 0 ? this.queue.remove(index) : null;
 	}
 
+	/**
+	 * Проверяет возможность cel all.
+	 */
 	public synchronized void cancelAll() {
 		for (ChunkBuilder.BuiltChunk.Task task : this.queue) {
 			task.cancel();

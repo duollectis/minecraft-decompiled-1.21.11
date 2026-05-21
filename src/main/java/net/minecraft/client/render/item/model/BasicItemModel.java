@@ -82,6 +82,13 @@ public class BasicItemModel implements ItemModel {
 		this.animated = bl;
 	}
 
+	/**
+	 * Bake quads.
+	 *
+	 * @param quads quads
+	 *
+	 * @return Vector3fc[] — результат операции
+	 */
 	public static Vector3fc[] bakeQuads(List<BakedQuad> quads) {
 		Set<Vector3fc> set = new HashSet<>();
 

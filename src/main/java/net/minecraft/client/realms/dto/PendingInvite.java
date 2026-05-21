@@ -26,6 +26,13 @@ public record PendingInvite(
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return @Nullable PendingInvite — результат операции
+	 */
 	public static @Nullable PendingInvite parse(JsonObject json) {
 		try {
 			return new PendingInvite(

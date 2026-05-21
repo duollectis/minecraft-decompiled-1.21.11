@@ -16,6 +16,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.function.Function;
 
+/**
+ * Класс player interact entity c2 s packet.
+ */
 public class PlayerInteractEntityC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, PlayerInteractEntityC2SPacket> CODEC = Packet.createCodec(
@@ -52,10 +55,27 @@ public class PlayerInteractEntityC2SPacket implements Packet<ServerPlayPacketLis
 		this.playerSneaking = playerSneaking;
 	}
 
+	/**
+	 * Attack.
+	 *
+	 * @param entity entity
+	 * @param playerSneaking player sneaking
+	 *
+	 * @return PlayerInteractEntityC2SPacket — результат операции
+	 */
 	public static PlayerInteractEntityC2SPacket attack(Entity entity, boolean playerSneaking) {
 		return new PlayerInteractEntityC2SPacket(entity.getId(), playerSneaking, ATTACK);
 	}
 
+	/**
+	 * Interact.
+	 *
+	 * @param entity entity
+	 * @param playerSneaking player sneaking
+	 * @param hand hand
+	 *
+	 * @return PlayerInteractEntityC2SPacket — результат операции
+	 */
 	public static PlayerInteractEntityC2SPacket interact(Entity entity, boolean playerSneaking, Hand hand) {
 		return new PlayerInteractEntityC2SPacket(
 				entity.getId(),
@@ -98,6 +118,11 @@ public class PlayerInteractEntityC2SPacket implements Packet<ServerPlayPacketLis
 		return PlayPackets.INTERACT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onPlayerInteractEntity(this);
 	}
@@ -110,16 +135,33 @@ public class PlayerInteractEntityC2SPacket implements Packet<ServerPlayPacketLis
 		return this.playerSneaking;
 	}
 
+	/**
+	 * Проверяет возможность interact with entity in.
+	 *
+	 * @param player player
+	 * @param box box
+	 * @param additionalRange additional range
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canInteractWithEntityIn(ServerPlayerEntity player, Box box, double additionalRange) {
 		return this.type.getType() == PlayerInteractEntityC2SPacket.InteractType.ATTACK
 		       ? player.canAttackEntityIn(box, additionalRange)
 		       : player.canInteractWithEntityIn(box, additionalRange);
 	}
 
+	/**
+	 * Handle.
+	 *
+	 * @param handler handler
+	 */
 	public void handle(PlayerInteractEntityC2SPacket.Handler handler) {
 		this.type.handle(handler);
 	}
 
+	/**
+	 * Интерфейс handler.
+	 */
 	public interface Handler {
 
 		void interact(Hand hand);

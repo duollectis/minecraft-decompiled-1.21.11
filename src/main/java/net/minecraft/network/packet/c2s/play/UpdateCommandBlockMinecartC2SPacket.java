@@ -12,6 +12,9 @@ import net.minecraft.world.CommandBlockExecutor;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс update command block minecart c2 s packet.
+ */
 public class UpdateCommandBlockMinecartC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, UpdateCommandBlockMinecartC2SPacket> CODEC = Packet.createCodec(
@@ -44,6 +47,11 @@ public class UpdateCommandBlockMinecartC2SPacket implements Packet<ServerPlayPac
 		return PlayPackets.SET_COMMAND_MINECART;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onUpdateCommandBlockMinecart(this);
 	}
@@ -58,6 +66,11 @@ public class UpdateCommandBlockMinecartC2SPacket implements Packet<ServerPlayPac
 		return this.command;
 	}
 
+	/**
+	 * Определяет, следует ли track output.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTrackOutput() {
 		return this.trackOutput;
 	}

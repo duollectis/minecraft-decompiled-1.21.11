@@ -148,6 +148,9 @@ public class RunArgs {
 	}
 
 	@Environment(EnvType.CLIENT)
+	/**
+	 * Интерфейс quick play variant.
+	 */
 	public sealed interface QuickPlayVariant
 			permits RunArgs.SingleplayerQuickPlay,
 			RunArgs.MultiplayerQuickPlay,

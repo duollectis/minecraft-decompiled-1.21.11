@@ -25,6 +25,14 @@ public class WalkTowardsJobSiteTask extends MultiTickTask<VillagerEntity> {
 		this.speed = speed;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		return villagerEntity.getBrain()
 		                     .getFirstPossibleNonCoreActivity()
@@ -33,10 +41,26 @@ public class WalkTowardsJobSiteTask extends MultiTickTask<VillagerEntity> {
 		                     .orElse(true);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		return villagerEntity.getBrain().hasMemoryModule(MemoryModuleType.POTENTIAL_JOB_SITE);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		TargetUtil.walkTowards(
 				villagerEntity,
@@ -46,6 +70,13 @@ public class WalkTowardsJobSiteTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		Optional<GlobalPos>
 				optional =

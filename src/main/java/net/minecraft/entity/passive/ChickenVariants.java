@@ -26,6 +26,11 @@ public class ChickenVariants {
 		return RegistryKey.of(RegistryKeys.CHICKEN_VARIANT, id);
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<ChickenVariant> registry) {
 		register(
 				registry,

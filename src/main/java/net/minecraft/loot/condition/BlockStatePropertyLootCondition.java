@@ -60,6 +60,13 @@ public record BlockStatePropertyLootCondition(
 		return Set.of(LootContextParameters.BLOCK_STATE);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		BlockState blockState = lootContext.get(LootContextParameters.BLOCK_STATE);
 		return blockState != null && blockState.isOf(this.block) && (this.properties.isEmpty() || this.properties

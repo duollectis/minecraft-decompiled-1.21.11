@@ -32,6 +32,11 @@ public class ArmorTrimMaterials {
 	public static final RegistryKey<ArmorTrimMaterial> AMETHYST = of("amethyst");
 	public static final RegistryKey<ArmorTrimMaterial> RESIN = of("resin");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param registry registry
+	 */
 	public static void bootstrap(Registerable<ArmorTrimMaterial> registry) {
 		register(registry, QUARTZ, Style.EMPTY.withColor(14931140), ArmorTrimAssets.QUARTZ);
 		register(registry, IRON, Style.EMPTY.withColor(15527148), ArmorTrimAssets.IRON);

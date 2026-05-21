@@ -110,10 +110,22 @@ public record WrittenBookContentComponent(
 		return RawFilteredPair.createCodec(textCodec);
 	}
 
+	/**
+	 * Создаёт pages codec.
+	 *
+	 * @param textCodec text codec
+	 *
+	 * @return Codec>> — результат операции
+	 */
 	public static Codec<List<RawFilteredPair<Text>>> createPagesCodec(Codec<Text> textCodec) {
 		return createPageCodec(textCodec).listOf();
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return @Nullable WrittenBookContentComponent — результат операции
+	 */
 	public @Nullable WrittenBookContentComponent copy() {
 		return this.generation >= 2 ? null : new WrittenBookContentComponent(
 				this.title,
@@ -145,6 +157,14 @@ public record WrittenBookContentComponent(
 		return false;
 	}
 
+	/**
+	 * Resolve.
+	 *
+	 * @param source source
+	 * @param player player
+	 *
+	 * @return @Nullable WrittenBookContentComponent — результат операции
+	 */
 	public @Nullable WrittenBookContentComponent resolve(ServerCommandSource source, @Nullable PlayerEntity player) {
 		if (this.resolved) {
 			return null;
@@ -165,6 +185,11 @@ public record WrittenBookContentComponent(
 		}
 	}
 
+	/**
+	 * As resolved.
+	 *
+	 * @return WrittenBookContentComponent — результат операции
+	 */
 	public WrittenBookContentComponent asResolved() {
 		return new WrittenBookContentComponent(this.title, this.author, this.generation, this.pages, true);
 	}
@@ -195,6 +220,13 @@ public record WrittenBookContentComponent(
 		return Lists.transform(this.pages, page -> (Text) page.get(shouldFilter));
 	}
 
+	/**
+	 * With pages.
+	 *
+	 * @param list list
+	 *
+	 * @return WrittenBookContentComponent — результат операции
+	 */
 	public WrittenBookContentComponent withPages(List<RawFilteredPair<Text>> list) {
 		return new WrittenBookContentComponent(this.title, this.author, this.generation, list, false);
 	}

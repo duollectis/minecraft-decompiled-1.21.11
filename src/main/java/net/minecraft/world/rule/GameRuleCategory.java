@@ -30,6 +30,13 @@ public record GameRuleCategory(Identifier id) {
 		return register(Identifier.ofVanilla(name));
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param id id
+	 *
+	 * @return GameRuleCategory — результат операции
+	 */
 	public static GameRuleCategory register(Identifier id) {
 		GameRuleCategory gameRuleCategory = new GameRuleCategory(id);
 		if (CATEGORIES.contains(gameRuleCategory)) {

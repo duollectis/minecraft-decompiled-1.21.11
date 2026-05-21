@@ -13,6 +13,9 @@ import net.minecraft.world.debug.DebugSubscriptionType;
 
 import java.util.Set;
 
+/**
+ * Запись debug subscription request c2 s packet.
+ */
 public record DebugSubscriptionRequestC2SPacket(Set<DebugSubscriptionType<?>> subscriptions) implements Packet<ServerPlayPacketListener> {
 
 	private static final PacketCodec<RegistryByteBuf, Set<DebugSubscriptionType<?>>>
@@ -28,6 +31,11 @@ public record DebugSubscriptionRequestC2SPacket(Set<DebugSubscriptionType<?>> su
 		return PlayPackets.DEBUG_SUBSCRIPTION_REQUEST;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onDebugSubscriptionRequest(this);
 	}

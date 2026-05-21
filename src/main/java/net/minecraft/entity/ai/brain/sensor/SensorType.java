@@ -93,6 +93,11 @@ public class SensorType<U extends Sensor<?>> {
 		this.factory = factory;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @return U — результат операции
+	 */
 	public U create() {
 		return this.factory.get();
 	}

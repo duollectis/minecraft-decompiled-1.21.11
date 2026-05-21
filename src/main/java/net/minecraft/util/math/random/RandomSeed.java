@@ -19,6 +19,13 @@ public final class RandomSeed {
 	private static final AtomicLong SEED_UNIQUIFIER = new AtomicLong(8682522807148012L);
 
 	@VisibleForTesting
+	/**
+	 * Mix stafford13.
+	 *
+	 * @param seed seed
+	 *
+	 * @return long — результат операции
+	 */
 	public static long mixStafford13(long seed) {
 		seed = (seed ^ seed >>> 30) * -4658895280553007687L;
 		seed = (seed ^ seed >>> 27) * -7723592293110705685L;

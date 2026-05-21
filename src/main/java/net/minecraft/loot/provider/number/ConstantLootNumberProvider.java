@@ -29,6 +29,13 @@ public record ConstantLootNumberProvider(float value) implements LootNumberProvi
 		return this.value;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param value value
+	 *
+	 * @return ConstantLootNumberProvider — результат операции
+	 */
 	public static ConstantLootNumberProvider create(float value) {
 		return new ConstantLootNumberProvider(value);
 	}

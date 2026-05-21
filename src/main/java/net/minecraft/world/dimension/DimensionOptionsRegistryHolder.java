@@ -55,6 +55,13 @@ public record DimensionOptionsRegistryHolder(Map<RegistryKey<DimensionOptions>, 
 				.collect(Collectors.toMap(RegistryEntry.Reference::registryKey, RegistryEntry.Reference::value)));
 	}
 
+	/**
+	 * Stream all.
+	 *
+	 * @param otherKeys other keys
+	 *
+	 * @return Stream> — результат операции
+	 */
 	public static Stream<RegistryKey<DimensionOptions>> streamAll(Stream<RegistryKey<DimensionOptions>> otherKeys) {
 		return Stream.concat(VANILLA_KEYS.stream(), otherKeys.filter(key -> !VANILLA_KEYS.contains(key)));
 	}

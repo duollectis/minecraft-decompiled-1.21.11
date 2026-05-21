@@ -23,6 +23,11 @@ public class OpCommand {
 			ALREADY_OPPED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.op.failed"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("op")

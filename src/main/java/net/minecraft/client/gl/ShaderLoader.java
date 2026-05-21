@@ -168,6 +168,13 @@ public class ShaderLoader extends SinglePreparationResourceReloader<ShaderLoader
 		return ShaderType.byLocation(id) != null || id.getPath().endsWith(".glsl");
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param definitions definitions
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(ShaderLoader.Definitions definitions, ResourceManager resourceManager, Profiler profiler) {
 		ShaderLoader.Cache cache = new ShaderLoader.Cache(definitions);
 		Set<RenderPipeline> set = new HashSet<>(RenderPipelines.getAll());
@@ -209,6 +216,14 @@ public class ShaderLoader extends SinglePreparationResourceReloader<ShaderLoader
 		}
 	}
 
+	/**
+	 * Загружает post effect.
+	 *
+	 * @param id id
+	 * @param availableExternalTargets available external targets
+	 *
+	 * @return @Nullable PostEffectProcessor — результат операции
+	 */
 	public @Nullable PostEffectProcessor loadPostEffect(Identifier id, Set<Identifier> availableExternalTargets) {
 		try {
 			return this.cache.getOrLoadProcessor(id, availableExternalTargets);

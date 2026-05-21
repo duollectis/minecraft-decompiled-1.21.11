@@ -38,6 +38,13 @@ public class Box {
 		this(pos1.x, pos1.y, pos1.z, pos2.x, pos2.y, pos2.z);
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param mutable mutable
+	 *
+	 * @return Box — результат операции
+	 */
 	public static Box from(BlockBox mutable) {
 		return new Box(
 				mutable.getMinX(),
@@ -49,10 +56,25 @@ public class Box {
 		);
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param pos pos
+	 *
+	 * @return Box — результат операции
+	 */
 	public static Box from(Vec3d pos) {
 		return new Box(pos.x, pos.y, pos.z, pos.x + 1.0, pos.y + 1.0, pos.z + 1.0);
 	}
 
+	/**
+	 * Enclosing.
+	 *
+	 * @param pos1 pos1
+	 * @param pos2 pos2
+	 *
+	 * @return Box — результат операции
+	 */
 	public static Box enclosing(BlockPos pos1, BlockPos pos2) {
 		return new Box(
 				Math.min(pos1.getX(), pos2.getX()),
@@ -64,26 +86,68 @@ public class Box {
 		);
 	}
 
+	/**
+	 * With min x.
+	 *
+	 * @param minX min x
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box withMinX(double minX) {
 		return new Box(minX, this.minY, this.minZ, this.maxX, this.maxY, this.maxZ);
 	}
 
+	/**
+	 * With min y.
+	 *
+	 * @param minY min y
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box withMinY(double minY) {
 		return new Box(this.minX, minY, this.minZ, this.maxX, this.maxY, this.maxZ);
 	}
 
+	/**
+	 * With min z.
+	 *
+	 * @param minZ min z
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box withMinZ(double minZ) {
 		return new Box(this.minX, this.minY, minZ, this.maxX, this.maxY, this.maxZ);
 	}
 
+	/**
+	 * With max x.
+	 *
+	 * @param maxX max x
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box withMaxX(double maxX) {
 		return new Box(this.minX, this.minY, this.minZ, maxX, this.maxY, this.maxZ);
 	}
 
+	/**
+	 * With max y.
+	 *
+	 * @param maxY max y
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box withMaxY(double maxY) {
 		return new Box(this.minX, this.minY, this.minZ, this.maxX, maxY, this.maxZ);
 	}
 
+	/**
+	 * With max z.
+	 *
+	 * @param maxZ max z
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box withMaxZ(double maxZ) {
 		return new Box(this.minX, this.minY, this.minZ, this.maxX, this.maxY, maxZ);
 	}
@@ -137,6 +201,15 @@ public class Box {
 		return 31 * i + (int) (l ^ l >>> 32);
 	}
 
+	/**
+	 * Shrink.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box shrink(double x, double y, double z) {
 		double d = this.minX;
 		double e = this.minY;
@@ -168,10 +241,26 @@ public class Box {
 		return new Box(d, e, f, g, h, i);
 	}
 
+	/**
+	 * Stretch.
+	 *
+	 * @param scale scale
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box stretch(Vec3d scale) {
 		return this.stretch(scale.x, scale.y, scale.z);
 	}
 
+	/**
+	 * Stretch.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box stretch(double x, double y, double z) {
 		double d = this.minX;
 		double e = this.minY;
@@ -203,6 +292,15 @@ public class Box {
 		return new Box(d, e, f, g, h, i);
 	}
 
+	/**
+	 * Expand.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box expand(double x, double y, double z) {
 		double d = this.minX - x;
 		double e = this.minY - y;
@@ -213,10 +311,24 @@ public class Box {
 		return new Box(d, e, f, g, h, i);
 	}
 
+	/**
+	 * Expand.
+	 *
+	 * @param value value
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box expand(double value) {
 		return this.expand(value, value, value);
 	}
 
+	/**
+	 * Intersection.
+	 *
+	 * @param box box
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box intersection(Box box) {
 		double d = Math.max(this.minX, box.minX);
 		double e = Math.max(this.minY, box.minY);
@@ -227,6 +339,13 @@ public class Box {
 		return new Box(d, e, f, g, h, i);
 	}
 
+	/**
+	 * Union.
+	 *
+	 * @param box box
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box union(Box box) {
 		double d = Math.min(this.minX, box.minX);
 		double e = Math.min(this.minY, box.minY);
@@ -237,10 +356,26 @@ public class Box {
 		return new Box(d, e, f, g, h, i);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box offset(double x, double y, double z) {
 		return new Box(this.minX + x, this.minY + y, this.minZ + z, this.maxX + x, this.maxY + y, this.maxZ + z);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param blockPos block pos
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box offset(BlockPos blockPos) {
 		return new Box(
 				this.minX + blockPos.getX(),
@@ -252,23 +387,64 @@ public class Box {
 		);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box offset(Vec3d vec) {
 		return this.offset(vec.x, vec.y, vec.z);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param offset offset
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box offset(Vector3f offset) {
 		return this.offset(offset.x, offset.y, offset.z);
 	}
 
+	/**
+	 * Intersects.
+	 *
+	 * @param box box
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean intersects(Box box) {
 		return this.intersects(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ);
 	}
 
+	/**
+	 * Intersects.
+	 *
+	 * @param minX min x
+	 * @param minY min y
+	 * @param minZ min z
+	 * @param maxX max x
+	 * @param maxY max y
+	 * @param maxZ max z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean intersects(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
 		return this.minX < maxX && this.maxX > minX && this.minY < maxY && this.maxY > minY && this.minZ < maxZ
 				&& this.maxZ > minZ;
 	}
 
+	/**
+	 * Intersects.
+	 *
+	 * @param pos1 pos1
+	 * @param pos2 pos2
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean intersects(Vec3d pos1, Vec3d pos2) {
 		return this.intersects(
 				Math.min(pos1.x, pos2.x),
@@ -280,14 +456,37 @@ public class Box {
 		);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(BlockPos pos) {
 		return this.intersects(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(Vec3d pos) {
 		return this.contains(pos.x, pos.y, pos.z);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(double x, double y, double z) {
 		return x >= this.minX && x < this.maxX && y >= this.minY && y < this.maxY && z >= this.minZ && z < this.maxZ;
 	}
@@ -311,14 +510,38 @@ public class Box {
 		return this.maxZ - this.minZ;
 	}
 
+	/**
+	 * Contract.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box contract(double x, double y, double z) {
 		return this.expand(-x, -y, -z);
 	}
 
+	/**
+	 * Contract.
+	 *
+	 * @param value value
+	 *
+	 * @return Box — результат операции
+	 */
 	public Box contract(double value) {
 		return this.expand(-value);
 	}
 
+	/**
+	 * Raycast.
+	 *
+	 * @param from from
+	 * @param to to
+	 *
+	 * @return Optional — результат операции
+	 */
 	public Optional<Vec3d> raycast(Vec3d from, Vec3d to) {
 		return raycast(this.minX, this.minY, this.minZ, this.maxX, this.maxY, this.maxZ, from, to);
 	}
@@ -347,6 +570,16 @@ public class Box {
 		}
 	}
 
+	/**
+	 * Raycast.
+	 *
+	 * @param boxes boxes
+	 * @param from from
+	 * @param to to
+	 * @param pos pos
+	 *
+	 * @return @Nullable BlockHitResult — результат операции
+	 */
 	public static @Nullable BlockHitResult raycast(Iterable<Box> boxes, Vec3d from, Vec3d to, BlockPos pos) {
 		double[] ds = new double[]{1.0};
 		Direction direction = null;
@@ -549,6 +782,14 @@ public class Box {
 		}
 	}
 
+	/**
+	 * Collides.
+	 *
+	 * @param pos pos
+	 * @param boundingBoxes bounding boxes
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean collides(Vec3d pos, List<Box> boundingBoxes) {
 		Vec3d vec3d = this.getCenter();
 		Vec3d vec3d2 = vec3d.add(pos);
@@ -573,6 +814,13 @@ public class Box {
 		return false;
 	}
 
+	/**
+	 * Squared magnitude.
+	 *
+	 * @param pos pos
+	 *
+	 * @return double — результат операции
+	 */
 	public double squaredMagnitude(Vec3d pos) {
 		double d = Math.max(Math.max(this.minX - pos.x, pos.x - this.maxX), 0.0);
 		double e = Math.max(Math.max(this.minY - pos.y, pos.y - this.maxY), 0.0);
@@ -580,6 +828,13 @@ public class Box {
 		return MathHelper.squaredMagnitude(d, e, f);
 	}
 
+	/**
+	 * Squared magnitude.
+	 *
+	 * @param other other
+	 *
+	 * @return double — результат операции
+	 */
 	public double squaredMagnitude(Box other) {
 		double d = Math.max(Math.max(this.minX - other.maxX, other.minX - this.maxX), 0.0);
 		double e = Math.max(Math.max(this.minY - other.maxY, other.minY - this.maxY), 0.0);
@@ -626,6 +881,16 @@ public class Box {
 		return new Vec3d(this.maxX, this.maxY, this.maxZ);
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param center center
+	 * @param dx dx
+	 * @param dy dy
+	 * @param dz dz
+	 *
+	 * @return Box — результат операции
+	 */
 	public static Box of(Vec3d center, double dx, double dy, double dz) {
 		return new Box(
 				center.x - dx / 2.0,
@@ -649,6 +914,11 @@ public class Box {
 		private float maxY = Float.NEGATIVE_INFINITY;
 		private float maxZ = Float.NEGATIVE_INFINITY;
 
+		/**
+		 * Encompass.
+		 *
+		 * @param vec vec
+		 */
 		public void encompass(Vector3fc vec) {
 			this.minX = Math.min(this.minX, vec.x());
 			this.minY = Math.min(this.minY, vec.y());
@@ -658,6 +928,11 @@ public class Box {
 			this.maxZ = Math.max(this.maxZ, vec.z());
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return Box — результат операции
+		 */
 		public Box build() {
 			return new Box(this.minX, this.minY, this.minZ, this.maxX, this.maxY, this.maxZ);
 		}

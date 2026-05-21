@@ -53,6 +53,11 @@ public final class GameRule<T> implements ToggleableFeature {
 		return this.toShortString();
 	}
 
+	/**
+	 * To short string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toShortString() {
 		return this.getId().toShortString();
 	}
@@ -69,6 +74,13 @@ public final class GameRule<T> implements ToggleableFeature {
 		return value.toString();
 	}
 
+	/**
+	 * Deserialize.
+	 *
+	 * @param value value
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public DataResult<T> deserialize(String value) {
 		try {
 			StringReader stringReader = new StringReader(value);
@@ -85,6 +97,11 @@ public final class GameRule<T> implements ToggleableFeature {
 		return (Class<T>) this.defaultValue.getClass();
 	}
 
+	/**
+	 * Accept.
+	 *
+	 * @param visitor visitor
+	 */
 	public void accept(GameRuleVisitor visitor) {
 		this.acceptor.call(visitor, this);
 	}

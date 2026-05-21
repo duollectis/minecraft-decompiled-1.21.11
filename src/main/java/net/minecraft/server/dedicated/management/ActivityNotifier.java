@@ -22,10 +22,16 @@ public class ActivityNotifier {
 		this.rateLimitMs = TimeUnit.SECONDS.toMillis(rateLimitSeconds);
 	}
 
+	/**
+	 * Уведомляет listeners.
+	 */
 	public void notifyListeners() {
 		this.notifyListenerImpl();
 	}
 
+	/**
+	 * Уведомляет listeners with rate limit.
+	 */
 	public void notifyListenersWithRateLimit() {
 		this.rateLimited.set(true);
 		this.notifyListenerImpl();

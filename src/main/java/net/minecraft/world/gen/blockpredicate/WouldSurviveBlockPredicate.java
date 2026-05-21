@@ -30,6 +30,14 @@ public class WouldSurviveBlockPredicate implements BlockPredicate {
 		this.state = state;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param structureWorldAccess structure world access
+	 * @param blockPos block pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
 		return this.state.canPlaceAt(structureWorldAccess, blockPos.add(this.offset));
 	}

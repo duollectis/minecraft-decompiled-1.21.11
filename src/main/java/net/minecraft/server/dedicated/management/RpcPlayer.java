@@ -24,14 +24,35 @@ public record RpcPlayer(Optional<UUID> id, Optional<String> name) {
 			                    .apply(instance, RpcPlayer::new)
 	);
 
+	/**
+	 * Of.
+	 *
+	 * @param profile profile
+	 *
+	 * @return RpcPlayer — результат операции
+	 */
 	public static RpcPlayer of(GameProfile profile) {
 		return new RpcPlayer(Optional.of(profile.id()), Optional.of(profile.name()));
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param player player
+	 *
+	 * @return RpcPlayer — результат операции
+	 */
 	public static RpcPlayer of(PlayerConfigEntry player) {
 		return new RpcPlayer(Optional.of(player.id()), Optional.of(player.name()));
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param player player
+	 *
+	 * @return RpcPlayer — результат операции
+	 */
 	public static RpcPlayer of(ServerPlayerEntity player) {
 		GameProfile gameProfile = player.getGameProfile();
 		return of(gameProfile);

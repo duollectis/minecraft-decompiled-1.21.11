@@ -21,6 +21,11 @@ public class EndConfiguredFeatures {
 	public static final RegistryKey<ConfiguredFeature<?, ?>> CHORUS_PLANT = ConfiguredFeatures.of("chorus_plant");
 	public static final RegistryKey<ConfiguredFeature<?, ?>> END_ISLAND = ConfiguredFeatures.of("end_island");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		ConfiguredFeatures.register(featureRegisterable, END_PLATFORM, Feature.END_PLATFORM);
 		ConfiguredFeatures.register(

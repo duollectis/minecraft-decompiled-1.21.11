@@ -14,6 +14,9 @@ import java.security.SignatureException;
 import java.time.Instant;
 import java.util.Optional;
 
+/**
+ * Запись message body.
+ */
 public record MessageBody(String content, Instant timestamp, long salt, LastSeenMessageList lastSeenMessages) {
 
 	public static final MapCodec<MessageBody> CODEC = RecordCodecBuilder.mapCodec(
@@ -28,10 +31,22 @@ public record MessageBody(String content, Instant timestamp, long salt, LastSeen
 			                    .apply(instance, MessageBody::new)
 	);
 
+	/**
+	 * Of unsigned.
+	 *
+	 * @param content content
+	 *
+	 * @return MessageBody — результат операции
+	 */
 	public static MessageBody ofUnsigned(String content) {
 		return new MessageBody(content, Instant.now(), 0L, LastSeenMessageList.EMPTY);
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @param updater updater
+	 */
 	public void update(SignatureUpdatable.SignatureUpdater updater) throws SignatureException {
 		updater.update(Longs.toByteArray(this.salt));
 		updater.update(Longs.toByteArray(this.timestamp.getEpochSecond()));
@@ -45,12 +60,20 @@ public record MessageBody(String content, Instant timestamp, long salt, LastSeen
 		return new MessageBody.Serialized(this.content, this.timestamp, this.salt, this.lastSeenMessages.pack(storage));
 	}
 
+	/**
+	 * Запись serialized.
+	 */
 	public record Serialized(String content, Instant timestamp, long salt, LastSeenMessageList.Indexed lastSeen) {
 
 		public Serialized(PacketByteBuf buf) {
 			this(buf.readString(256), buf.readInstant(), buf.readLong(), new LastSeenMessageList.Indexed(buf));
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 */
 		public void write(PacketByteBuf buf) {
 			buf.writeString(this.content, 256);
 			buf.writeInstant(this.timestamp);
@@ -58,6 +81,13 @@ public record MessageBody(String content, Instant timestamp, long salt, LastSeen
 			this.lastSeen.write(buf);
 		}
 
+		/**
+		 * To body.
+		 *
+		 * @param storage storage
+		 *
+		 * @return Optional — результат операции
+		 */
 		public Optional<MessageBody> toBody(MessageSignatureStorage storage) {
 			return this.lastSeen
 					.unpack(storage)

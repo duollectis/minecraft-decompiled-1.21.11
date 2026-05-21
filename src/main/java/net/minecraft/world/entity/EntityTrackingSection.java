@@ -25,10 +25,22 @@ public class EntityTrackingSection<T extends EntityLike> {
 		this.collection = new TypeFilterableList<>(entityClass);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param entity entity
+	 */
 	public void add(T entity) {
 		this.collection.add(entity);
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean remove(T entity) {
 		return this.collection.remove(entity);
 	}
@@ -70,6 +82,11 @@ public class EntityTrackingSection<T extends EntityLike> {
 		return this.collection.isEmpty();
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<T> stream() {
 		return this.collection.stream();
 	}
@@ -78,6 +95,13 @@ public class EntityTrackingSection<T extends EntityLike> {
 		return this.status;
 	}
 
+	/**
+	 * Swap status.
+	 *
+	 * @param status status
+	 *
+	 * @return EntityTrackingStatus — результат операции
+	 */
 	public EntityTrackingStatus swapStatus(EntityTrackingStatus status) {
 		EntityTrackingStatus entityTrackingStatus = this.status;
 		this.status = status;
@@ -85,6 +109,11 @@ public class EntityTrackingSection<T extends EntityLike> {
 	}
 
 	@Debug
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.collection.size();
 	}

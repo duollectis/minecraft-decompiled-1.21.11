@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextCodecs;
 
+/**
+ * Запись profileless chat message s2 c packet.
+ */
 public record ProfilelessChatMessageS2CPacket(
 		Text message,
 		MessageType.Parameters chatType
@@ -28,6 +31,11 @@ public record ProfilelessChatMessageS2CPacket(
 		return PlayPackets.DISGUISED_CHAT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onProfilelessChatMessage(this);
 	}

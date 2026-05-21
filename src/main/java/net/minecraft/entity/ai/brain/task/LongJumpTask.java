@@ -62,6 +62,14 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 		this(cooldownRange, verticalRange, horizontalRange, maxRange, entityToSound, LongJumpTask::shouldJumpTo);
 	}
 
+	/**
+	 * Определяет, следует ли jump to.
+	 *
+	 * @param entity entity
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static <E extends MobEntity> boolean shouldJumpTo(E entity, BlockPos pos) {
 		World world = entity.getEntityWorld();
 		BlockPos blockPos = pos.down();
@@ -96,6 +104,14 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 		this.jumpToPredicate = jumpToPredicate;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, MobEntity mobEntity) {
 		boolean bl = mobEntity.isOnGround()
 				&& !mobEntity.isTouchingWater()
@@ -110,6 +126,15 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 		return bl;
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		boolean bl = this.startPos.isPresent()
 				&& this.startPos.get().equals(mobEntity.getEntityPos())
@@ -126,6 +151,13 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 		return bl;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, E mobEntity, long l) {
 		this.currentTarget = null;
 		this.targetSearchTime = 20;
@@ -150,6 +182,13 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 		                                .collect(Collectors.toCollection(Lists::newArrayList));
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, E mobEntity, long l) {
 		if (this.currentTarget != null) {
 			if (l - this.targetPickedTime >= 40L) {
@@ -175,6 +214,13 @@ public class LongJumpTask<E extends MobEntity> extends MultiTickTask<E> {
 		}
 	}
 
+	/**
+	 * Подбирает target.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param time time
+	 */
 	protected void pickTarget(ServerWorld world, E entity, long time) {
 		while (!this.potentialTargets.isEmpty()) {
 			Optional<LongJumpTask.Target> optional = this.removeRandomTarget(world);

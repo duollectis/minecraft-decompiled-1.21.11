@@ -21,6 +21,13 @@ public class Rect2i {
 		this.height = height;
 	}
 
+	/**
+	 * Intersection.
+	 *
+	 * @param rect rect
+	 *
+	 * @return Rect2i — результат операции
+	 */
 	public Rect2i intersection(Rect2i rect) {
 		int i = this.x;
 		int j = this.y;
@@ -74,6 +81,14 @@ public class Rect2i {
 		this.y = y;
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param x x
+	 * @param y y
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(int x, int y) {
 		return x >= this.x && x <= this.x + this.width && y >= this.y && y <= this.y + this.height;
 	}

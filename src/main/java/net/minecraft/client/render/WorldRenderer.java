@@ -183,6 +183,9 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		this.skyRendering = new SkyRendering(this.client.getTextureManager(), this.client.getAtlasManager());
 	}
 
+	/**
+	 * Загружает entity outline post processor.
+	 */
 	public void loadEntityOutlinePostProcessor() {
 		if (this.entityOutlineFramebuffer != null) {
 			this.entityOutlineFramebuffer.delete();
@@ -213,12 +216,20 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		}
 	}
 
+	/**
+	 * Draw entity outlines framebuffer.
+	 */
 	public void drawEntityOutlinesFramebuffer() {
 		if (this.canDrawEntityOutlines()) {
 			this.entityOutlineFramebuffer.drawBlit(this.client.getFramebuffer().getColorAttachmentView());
 		}
 	}
 
+	/**
+	 * Проверяет возможность draw entity outlines.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canDrawEntityOutlines() {
 		return !this.client.gameRenderer.isRenderingPanorama() && this.entityOutlineFramebuffer != null
 				&& this.client.player != null;
@@ -256,6 +267,9 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		this.nearbyChunks.clear();
 	}
 
+	/**
+	 * Reload.
+	 */
 	public void reload() {
 		if (this.world != null) {
 			this.world.reloadColor();
@@ -296,6 +310,12 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		}
 	}
 
+	/**
+	 * Обрабатывает событие resized.
+	 *
+	 * @param width width
+	 * @param height height
+	 */
 	public void onResized(int width, int height) {
 		this.scheduleTerrainUpdate();
 		if (this.entityOutlineFramebuffer != null) {
@@ -348,6 +368,9 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		return i;
 	}
 
+	/**
+	 * Refresh terrain sampler.
+	 */
 	public void refreshTerrainSampler() {
 		if (this.terrainSampler != null) {
 			this.terrainSampler.close();
@@ -422,6 +445,13 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		}
 	}
 
+	/**
+	 * Offset frustum.
+	 *
+	 * @param frustum frustum
+	 *
+	 * @return Frustum — результат операции
+	 */
 	public static Frustum offsetFrustum(Frustum frustum) {
 		return new Frustum(frustum).coverBoxAroundSetPosition(8);
 	}
@@ -437,6 +467,11 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		}
 	}
 
+	/**
+	 * Добавляет built chunk.
+	 *
+	 * @param chunk chunk
+	 */
 	public void addBuiltChunk(ChunkBuilder.BuiltChunk chunk) {
 		this.chunkRenderingDataPreparer.schedulePropagationFrom(chunk);
 	}
@@ -1307,18 +1342,32 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		return new SectionRenderState(gpuTextureView, enumMap, i, gpuBufferSlices);
 	}
 
+	/**
+	 * Rotate.
+	 */
 	public void rotate() {
 		this.cloudRenderer.rotate();
 	}
 
+	/**
+	 * Capture frustum.
+	 */
 	public void captureFrustum() {
 		this.captureFrustum = true;
 	}
 
+	/**
+	 * Уничтожает frustum.
+	 */
 	public void killFrustum() {
 		this.capturedFrustum = null;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param camera camera
+	 */
 	public void tick(Camera camera) {
 		if (this.world.getTickManager().shouldTick()) {
 			this.ticks++;
@@ -1579,6 +1628,16 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		}
 	}
 
+	/**
+	 * Schedule block renders.
+	 *
+	 * @param minX min x
+	 * @param minY min y
+	 * @param minZ min z
+	 * @param maxX max x
+	 * @param maxY max y
+	 * @param maxZ max z
+	 */
 	public void scheduleBlockRenders(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 		for (int i = minZ - 1; i <= maxZ + 1; i++) {
 			for (int j = minX - 1; j <= maxX + 1; j++) {
@@ -1593,16 +1652,40 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		}
 	}
 
+	/**
+	 * Schedule block rerender if needed.
+	 *
+	 * @param pos pos
+	 * @param old old
+	 * @param updated updated
+	 */
 	public void scheduleBlockRerenderIfNeeded(BlockPos pos, BlockState old, BlockState updated) {
 		if (this.client.getBakedModelManager().shouldRerender(old, updated)) {
 			this.scheduleBlockRenders(pos.getX(), pos.getY(), pos.getZ(), pos.getX(), pos.getY(), pos.getZ());
 		}
 	}
 
+	/**
+	 * Schedule chunk renders3x3x3.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	public void scheduleChunkRenders3x3x3(int x, int y, int z) {
 		this.scheduleChunkRenders(x - 1, y - 1, z - 1, x + 1, y + 1, z + 1);
 	}
 
+	/**
+	 * Schedule chunk renders.
+	 *
+	 * @param minX min x
+	 * @param minY min y
+	 * @param minZ min z
+	 * @param maxX max x
+	 * @param maxY max y
+	 * @param maxZ max z
+	 */
 	public void scheduleChunkRenders(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 		for (int i = minZ; i <= maxZ; i++) {
 			for (int j = minX; j <= maxX; j++) {
@@ -1613,6 +1696,13 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		}
 	}
 
+	/**
+	 * Schedule chunk render.
+	 *
+	 * @param chunkX chunk x
+	 * @param chunkY chunk y
+	 * @param chunkZ chunk z
+	 */
 	public void scheduleChunkRender(int chunkX, int chunkY, int chunkZ) {
 		this.scheduleChunkRender(chunkX, chunkY, chunkZ, false);
 	}
@@ -1621,6 +1711,11 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		this.chunks.scheduleRebuild(x, y, z, important);
 	}
 
+	/**
+	 * Обрабатывает событие chunk unload.
+	 *
+	 * @param sectionPos section pos
+	 */
 	public void onChunkUnload(long sectionPos) {
 		ChunkBuilder.BuiltChunk builtChunk = this.chunks.getRenderedChunk(sectionPos);
 		if (builtChunk != null) {
@@ -1664,10 +1759,18 @@ public class WorldRenderer implements SynchronousResourceReloader, AutoCloseable
 		return this.chunkBuilder.isEmpty();
 	}
 
+	/**
+	 * Schedule neighbor updates.
+	 *
+	 * @param chunkPos chunk pos
+	 */
 	public void scheduleNeighborUpdates(ChunkPos chunkPos) {
 		this.chunkRenderingDataPreparer.addNeighbors(chunkPos);
 	}
 
+	/**
+	 * Schedule terrain update.
+	 */
 	public void scheduleTerrainUpdate() {
 		this.chunkRenderingDataPreparer.scheduleTerrainUpdate();
 		this.cloudRenderer.scheduleTerrainUpdate();

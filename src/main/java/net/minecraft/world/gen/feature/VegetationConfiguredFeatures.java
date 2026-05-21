@@ -163,6 +163,11 @@ public class VegetationConfiguredFeatures {
 		);
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =
@@ -1107,6 +1112,13 @@ public class VegetationConfiguredFeatures {
 		return builder;
 	}
 
+	/**
+	 * Would survive near water modifier.
+	 *
+	 * @param block block
+	 *
+	 * @return BlockFilterPlacementModifier — результат операции
+	 */
 	public static BlockFilterPlacementModifier wouldSurviveNearWaterModifier(Block block) {
 		return BlockFilterPlacementModifier.of(
 				BlockPredicate.allOf(

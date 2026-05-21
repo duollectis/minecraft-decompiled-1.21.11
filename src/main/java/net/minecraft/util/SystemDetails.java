@@ -75,10 +75,22 @@ public class SystemDetails {
 		return String.format(Locale.ROOT, "%d total; %s", list2.size(), String.join(" ", list2));
 	}
 
+	/**
+	 * Добавляет section.
+	 *
+	 * @param name name
+	 * @param value value
+	 */
 	public void addSection(String name, String value) {
 		this.sections.put(name, value);
 	}
 
+	/**
+	 * Добавляет section.
+	 *
+	 * @param name name
+	 * @param valueSupplier value supplier
+	 */
 	public void addSection(String name, Supplier<String> valueSupplier) {
 		try {
 			this.addSection(name, valueSupplier.get());
@@ -106,6 +118,13 @@ public class SystemDetails {
 		}
 	}
 
+	/**
+	 * To mebibytes.
+	 *
+	 * @param bytes bytes
+	 *
+	 * @return float — результат операции
+	 */
 	public static float toMebibytes(long bytes) {
 		return (float) bytes / 1048576.0F;
 	}
@@ -228,6 +247,11 @@ public class SystemDetails {
 		}
 	}
 
+	/**
+	 * Записывает to.
+	 *
+	 * @param stringBuilder string builder
+	 */
 	public void writeTo(StringBuilder stringBuilder) {
 		stringBuilder.append("-- ").append("System Details").append(" --\n");
 		stringBuilder.append("Details:");
@@ -239,6 +263,11 @@ public class SystemDetails {
 		});
 	}
 
+	/**
+	 * Collect.
+	 *
+	 * @return String — результат операции
+	 */
 	public String collect() {
 		return this.sections
 				.entrySet()

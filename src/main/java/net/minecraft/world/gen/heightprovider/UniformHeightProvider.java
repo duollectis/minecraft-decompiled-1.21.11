@@ -33,6 +33,14 @@ public class UniformHeightProvider extends HeightProvider {
 		this.maxOffset = maxOffset;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param minOffset min offset
+	 * @param maxOffset max offset
+	 *
+	 * @return UniformHeightProvider — результат операции
+	 */
 	public static UniformHeightProvider create(YOffset minOffset, YOffset maxOffset) {
 		return new UniformHeightProvider(minOffset, maxOffset);
 	}

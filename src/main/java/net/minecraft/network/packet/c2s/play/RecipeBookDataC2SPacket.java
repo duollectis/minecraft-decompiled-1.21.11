@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.recipe.NetworkRecipeId;
 
+/**
+ * Запись recipe book data c2 s packet.
+ */
 public record RecipeBookDataC2SPacket(NetworkRecipeId recipeId) implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, RecipeBookDataC2SPacket> CODEC = PacketCodec.tuple(
@@ -19,6 +22,11 @@ public record RecipeBookDataC2SPacket(NetworkRecipeId recipeId) implements Packe
 		return PlayPackets.RECIPE_BOOK_SEEN_RECIPE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onRecipeBookData(this);
 	}

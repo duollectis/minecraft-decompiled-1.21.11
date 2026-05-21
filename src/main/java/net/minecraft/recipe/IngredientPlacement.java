@@ -22,10 +22,24 @@ public class IngredientPlacement {
 		this.placementSlots = placementSlots;
 	}
 
+	/**
+	 * For single slot.
+	 *
+	 * @param ingredient ingredient
+	 *
+	 * @return IngredientPlacement — результат операции
+	 */
 	public static IngredientPlacement forSingleSlot(Ingredient ingredient) {
 		return ingredient.isEmpty() ? NONE : new IngredientPlacement(List.of(ingredient), IntList.of(0));
 	}
 
+	/**
+	 * For multiple slots.
+	 *
+	 * @param ingredients ingredients
+	 *
+	 * @return IngredientPlacement — результат операции
+	 */
 	public static IngredientPlacement forMultipleSlots(List<Optional<Ingredient>> ingredients) {
 		int i = ingredients.size();
 		List<Ingredient> list = new ArrayList<>(i);
@@ -50,6 +64,13 @@ public class IngredientPlacement {
 		return new IngredientPlacement(list, intList);
 	}
 
+	/**
+	 * For shapeless.
+	 *
+	 * @param ingredients ingredients
+	 *
+	 * @return IngredientPlacement — результат операции
+	 */
 	public static IngredientPlacement forShapeless(List<Ingredient> ingredients) {
 		int i = ingredients.size();
 		IntList intList = new IntArrayList(i);

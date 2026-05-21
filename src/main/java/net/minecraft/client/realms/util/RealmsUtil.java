@@ -34,6 +34,13 @@ public class RealmsUtil {
 	private static final int SECONDS_PER_HOUR = 3600;
 	private static final int SECONDS_PER_DAY = 86400;
 
+	/**
+	 * Конвертирует to age presentation.
+	 *
+	 * @param milliseconds milliseconds
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text convertToAgePresentation(long milliseconds) {
 		if (milliseconds < 0L) {
 			return NOW_TEXT;
@@ -58,10 +65,26 @@ public class RealmsUtil {
 		}
 	}
 
+	/**
+	 * Конвертирует to age presentation.
+	 *
+	 * @param instant instant
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text convertToAgePresentation(Instant instant) {
 		return convertToAgePresentation(System.currentTimeMillis() - instant.toEpochMilli());
 	}
 
+	/**
+	 * Draw player head.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param size size
+	 * @param playerUuid player uuid
+	 */
 	public static void drawPlayerHead(DrawContext context, int x, int y, int size, UUID playerUuid) {
 		PlayerSkinCache.Entry
 				entry =
@@ -103,6 +126,13 @@ public class RealmsUtil {
 		return RealmsUtil.<Void>runAsync((RealmsUtil.RealmsSupplier<Void>) runnable, errorCallback);
 	}
 
+	/**
+	 * Открывает ing screen.
+	 *
+	 * @param screenCreator screen creator
+	 *
+	 * @return Consumer — результат операции
+	 */
 	public static Consumer<RealmsServiceException> openingScreen(Function<RealmsServiceException, Screen> screenCreator) {
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		return error -> minecraftClient.execute(() -> minecraftClient.setScreen(screenCreator.apply(error)));

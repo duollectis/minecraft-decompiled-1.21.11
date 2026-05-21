@@ -179,6 +179,13 @@ public class ExperimentalMinecartController extends MinecartController {
 		}
 	}
 
+	/**
+	 * Adjust to rail.
+	 *
+	 * @param pos pos
+	 * @param blockState block state
+	 * @param ignoreWeight ignore weight
+	 */
 	public void adjustToRail(BlockPos pos, BlockState blockState, boolean ignoreWeight) {
 		if (AbstractRailBlock.isRail(blockState)) {
 			RailShape railShape = blockState.get(((AbstractRailBlock) blockState.getBlock()).getShapeProperty());
@@ -606,6 +613,13 @@ public class ExperimentalMinecartController extends MinecartController {
 		}
 	}
 
+	/**
+	 * Подбирает up entities.
+	 *
+	 * @param box box
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean pickUpEntities(Box box) {
 		if (this.minecart.isRideable() && !this.minecart.hasPassengers()) {
 			List<Entity>
@@ -630,6 +644,13 @@ public class ExperimentalMinecartController extends MinecartController {
 		return false;
 	}
 
+	/**
+	 * Push away from entities.
+	 *
+	 * @param box box
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean pushAwayFromEntities(Box box) {
 		boolean bl = false;
 		if (this.minecart.isRideable()) {
@@ -683,6 +704,11 @@ public class ExperimentalMinecartController extends MinecartController {
 		boolean decelerated = false;
 		boolean accelerated = false;
 
+		/**
+		 * Определяет, следует ли continue.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldContinue() {
 			return this.initial || this.remainingMovement > 1.0E-5F;
 		}

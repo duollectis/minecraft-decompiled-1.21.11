@@ -275,6 +275,13 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		}
 	}
 
+	/**
+	 * Обрабатывает событие block state changed.
+	 *
+	 * @param pos pos
+	 * @param oldState old state
+	 * @param newState new state
+	 */
 	public void onBlockStateChanged(BlockPos pos, BlockState oldState, BlockState newState) {
 	}
 
@@ -310,6 +317,12 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		}
 	}
 
+	/**
+	 * Добавляет block break particles.
+	 *
+	 * @param pos pos
+	 * @param state state
+	 */
 	public void addBlockBreakParticles(BlockPos pos, BlockState state) {
 	}
 
@@ -324,9 +337,23 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 			@Block.SetBlockStateFlag int flags
 	);
 
+	/**
+	 * Schedule block rerender if needed.
+	 *
+	 * @param pos pos
+	 * @param old old
+	 * @param updated updated
+	 */
 	public void scheduleBlockRerenderIfNeeded(BlockPos pos, BlockState old, BlockState updated) {
 	}
 
+	/**
+	 * Обновляет neighbors always.
+	 *
+	 * @param pos pos
+	 * @param sourceBlock source block
+	 * @param orientation orientation
+	 */
 	public void updateNeighborsAlways(BlockPos pos, Block sourceBlock, @Nullable WireOrientation orientation) {
 	}
 
@@ -338,6 +365,13 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 	) {
 	}
 
+	/**
+	 * Обновляет neighbor.
+	 *
+	 * @param pos pos
+	 * @param sourceBlock source block
+	 * @param orientation orientation
+	 */
 	public void updateNeighbor(BlockPos pos, Block sourceBlock, @Nullable WireOrientation orientation) {
 	}
 
@@ -575,6 +609,14 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 	) {
 	}
 
+	/**
+	 * Play sound client.
+	 *
+	 * @param sound sound
+	 * @param category category
+	 * @param volume volume
+	 * @param pitch pitch
+	 */
 	public void playSoundClient(SoundEvent sound, SoundCategory category, float volume, float pitch) {
 	}
 
@@ -626,10 +668,18 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 	) {
 	}
 
+	/**
+	 * Добавляет block entity ticker.
+	 *
+	 * @param ticker ticker
+	 */
 	public void addBlockEntityTicker(BlockEntityTickInvoker ticker) {
 		(this.iteratingTickingBlockEntities ? this.pendingBlockEntityTickers : this.blockEntityTickers).add(ticker);
 	}
 
+	/**
+	 * Выполняет тик обновления для block entities.
+	 */
 	public void tickBlockEntities() {
 		this.iteratingTickingBlockEntities = true;
 		if (!this.pendingBlockEntityTickers.isEmpty()) {
@@ -653,6 +703,14 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		this.iteratingTickingBlockEntities = false;
 	}
 
+	/**
+	 * Выполняет тик обновления для entity.
+	 *
+	 * @param tickConsumer tick consumer
+	 * @param entity entity
+	 *
+	 * @return void — результат операции
+	 */
 	public <T extends Entity> void tickEntity(Consumer<T> tickConsumer, T entity) {
 		try {
 			tickConsumer.accept(entity);
@@ -665,14 +723,35 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		}
 	}
 
+	/**
+	 * Определяет, следует ли update post death.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldUpdatePostDeath(Entity entity) {
 		return true;
 	}
 
+	/**
+	 * Определяет, следует ли tick blocks in chunk.
+	 *
+	 * @param chunkPos chunk pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTickBlocksInChunk(long chunkPos) {
 		return true;
 	}
 
+	/**
+	 * Определяет, следует ли tick block pos.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTickBlockPos(BlockPos pos) {
 		return this.shouldTickBlocksInChunk(ChunkPos.toLong(pos));
 	}
@@ -798,6 +877,11 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 			RegistryEntry<SoundEvent> soundEvent
 	);
 
+	/**
+	 * As string.
+	 *
+	 * @return String — результат операции
+	 */
 	public abstract String asString();
 
 	@Override
@@ -812,6 +896,11 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		}
 	}
 
+	/**
+	 * Добавляет block entity.
+	 *
+	 * @param blockEntity block entity
+	 */
 	public void addBlockEntity(BlockEntity blockEntity) {
 		BlockPos blockPos = blockEntity.getPos();
 		if (this.isInGenerationArea(blockPos)) {
@@ -819,6 +908,11 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		}
 	}
 
+	/**
+	 * Удаляет block entity.
+	 *
+	 * @param pos pos
+	 */
 	public void removeBlockEntity(BlockPos pos) {
 		if (this.isInGenerationArea(pos)) {
 			this.getWorldChunk(pos).removeBlockEntity(pos);
@@ -857,6 +951,9 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		return this.isDirectionSolid(pos, entity, Direction.UP);
 	}
 
+	/**
+	 * Вычисляет ambient darkness.
+	 */
 	public void calculateAmbientDarkness() {
 		this.ambientDarkness =
 				(int) (15.0F - this
@@ -894,6 +991,9 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		}
 	}
 
+	/**
+	 * Инициализирует weather gradients.
+	 */
 	protected void initWeatherGradients() {
 		if (this.properties.isRaining()) {
 			this.rainGradient = 1.0F;
@@ -1038,12 +1138,22 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 
 	public abstract Collection<EnderDragonPart> getEnderDragonParts();
 
+	/**
+	 * Mark dirty.
+	 *
+	 * @param pos pos
+	 */
 	public void markDirty(BlockPos pos) {
 		if (this.isChunkLoaded(pos)) {
 			this.getWorldChunk(pos).markNeedsSaving();
 		}
 	}
 
+	/**
+	 * Загружает block entity.
+	 *
+	 * @param blockEntity block entity
+	 */
 	public void loadBlockEntity(BlockEntity blockEntity) {
 	}
 
@@ -1051,16 +1161,44 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		return this.properties.getTimeOfDay();
 	}
 
+	/**
+	 * Проверяет возможность entity modify at.
+	 *
+	 * @param entity entity
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canEntityModifyAt(Entity entity, BlockPos pos) {
 		return true;
 	}
 
+	/**
+	 * Отправляет entity status.
+	 *
+	 * @param entity entity
+	 * @param status status
+	 */
 	public void sendEntityStatus(Entity entity, byte status) {
 	}
 
+	/**
+	 * Отправляет entity damage.
+	 *
+	 * @param entity entity
+	 * @param damageSource damage source
+	 */
 	public void sendEntityDamage(Entity entity, DamageSource damageSource) {
 	}
 
+	/**
+	 * Добавляет synced block event.
+	 *
+	 * @param pos pos
+	 * @param block block
+	 * @param type type
+	 * @param data data
+	 */
 	public void addSyncedBlockEvent(BlockPos pos, Block block, int type, int data) {
 		this.getBlockState(pos).onSyncedBlockEvent(this, pos, type, data);
 	}
@@ -1093,6 +1231,11 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 		this.rainGradient = f;
 	}
 
+	/**
+	 * Проверяет возможность have weather.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canHaveWeather() {
 		return this.getDimension().hasSkyLight() && !this.getDimension().hasCeiling() && this.getRegistryKey() != END;
 	}
@@ -1127,9 +1270,23 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 
 	public abstract @Nullable MapState getMapState(MapIdComponent id);
 
+	/**
+	 * Sync global event.
+	 *
+	 * @param eventId event id
+	 * @param pos pos
+	 * @param data data
+	 */
 	public void syncGlobalEvent(int eventId, BlockPos pos, int data) {
 	}
 
+	/**
+	 * Добавляет details to crash report.
+	 *
+	 * @param report report
+	 *
+	 * @return CrashReportSection — результат операции
+	 */
 	public CrashReportSection addDetailsToCrashReport(CrashReport report) {
 		CrashReportSection crashReportSection = report.addElement("Affected level", 1);
 		crashReportSection.add(
@@ -1169,6 +1326,12 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 
 	public abstract Scoreboard getScoreboard();
 
+	/**
+	 * Обновляет comparators.
+	 *
+	 * @param pos pos
+	 * @param block block
+	 */
 	public void updateComparators(BlockPos pos, Block block) {
 		for (Direction direction : Direction.Type.HORIZONTAL) {
 			BlockPos blockPos = pos.offset(direction);
@@ -1196,6 +1359,11 @@ public abstract class World implements WorldAccess, AutoCloseable, AttachmentTar
 	public void setLightningTicksLeft(int lightningTicksLeft) {
 	}
 
+	/**
+	 * Отправляет packet.
+	 *
+	 * @param packet packet
+	 */
 	public void sendPacket(Packet<?> packet) {
 		throw new UnsupportedOperationException("Can't send packets to server unless you're on the client.");
 	}

@@ -50,6 +50,13 @@ public class ModelRotation implements ModelBakeSettings {
 		return this.rotation;
 	}
 
+	/**
+	 * From direction transformation.
+	 *
+	 * @param directionTransformation direction transformation
+	 *
+	 * @return ModelRotation — результат операции
+	 */
 	public static ModelRotation fromDirectionTransformation(DirectionTransformation directionTransformation) {
 		return BY_DIRECTION_TRANSFORMATION.get(directionTransformation);
 	}

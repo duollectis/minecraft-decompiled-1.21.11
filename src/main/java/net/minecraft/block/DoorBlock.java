@@ -332,10 +332,25 @@ public class DoorBlock extends Block {
 		builder.add(HALF, FACING, OPEN, HINGE, POWERED);
 	}
 
+	/**
+	 * Проверяет возможность open by hand.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canOpenByHand(World world, BlockPos pos) {
 		return canOpenByHand(world.getBlockState(pos));
 	}
 
+	/**
+	 * Проверяет возможность open by hand.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canOpenByHand(BlockState state) {
 		return state.getBlock() instanceof DoorBlock doorBlock && doorBlock.getBlockSetType().canOpenByHand();
 	}

@@ -12,6 +12,9 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс look at s2 c packet.
+ */
 public class LookAtS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, LookAtS2CPacket>
@@ -88,6 +91,11 @@ public class LookAtS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.PLAYER_LOOK_AT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onLookAt(this);
 	}

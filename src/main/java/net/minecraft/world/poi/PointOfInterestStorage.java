@@ -73,10 +73,23 @@ public class PointOfInterestStorage extends SerializingRegionBasedStorage<PointO
 		this.pointOfInterestDistanceTracker = new PointOfInterestStorage.PointOfInterestDistanceTracker();
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param pos pos
+	 * @param type type
+	 *
+	 * @return @Nullable PointOfInterest — результат операции
+	 */
 	public @Nullable PointOfInterest add(BlockPos pos, RegistryEntry<PointOfInterestType> type) {
 		return this.getOrCreate(ChunkSectionPos.toLong(pos)).add(pos, type);
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param pos pos
+	 */
 	public void remove(BlockPos pos) {
 		this.get(ChunkSectionPos.toLong(pos)).ifPresent(poiSet -> poiSet.remove(pos));
 	}
@@ -250,6 +263,13 @@ public class PointOfInterestStorage extends SerializingRegionBasedStorage<PointO
 				.map(PointOfInterest::getPos);
 	}
 
+	/**
+	 * Release ticket.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean releaseTicket(BlockPos pos) {
 		return this.get(ChunkSectionPos.toLong(pos))
 		           .map(poiSet -> poiSet.releaseTicket(pos))
@@ -257,6 +277,14 @@ public class PointOfInterestStorage extends SerializingRegionBasedStorage<PointO
 				           "POI never registered at " + pos)));
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param pos pos
+	 * @param predicate predicate
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(BlockPos pos, Predicate<RegistryEntry<PointOfInterestType>> predicate) {
 		return this.get(ChunkSectionPos.toLong(pos)).map(poiSet -> poiSet.test(pos, predicate)).orElse(false);
 	}
@@ -316,6 +344,12 @@ public class PointOfInterestStorage extends SerializingRegionBasedStorage<PointO
 		);
 	}
 
+	/**
+	 * Инициализирует for palette.
+	 *
+	 * @param sectionPos section pos
+	 * @param chunkSection chunk section
+	 */
 	public void initForPalette(ChunkSectionPos sectionPos, ChunkSection chunkSection) {
 		Util.ifPresentOrElse(
 				this.get(sectionPos.asLong()), poiSet -> poiSet.updatePointsOfInterest(populator -> {
@@ -358,6 +392,13 @@ public class PointOfInterestStorage extends SerializingRegionBasedStorage<PointO
 		          );
 	}
 
+	/**
+	 * Preload chunks.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param radius radius
+	 */
 	public void preloadChunks(WorldView world, BlockPos pos, int radius) {
 		ChunkSectionPos
 				.stream(
@@ -426,6 +467,9 @@ public class PointOfInterestStorage extends SerializingRegionBasedStorage<PointO
 			}
 		}
 
+		/**
+		 * Update.
+		 */
 		public void update() {
 			super.applyPendingUpdates(Integer.MAX_VALUE);
 		}

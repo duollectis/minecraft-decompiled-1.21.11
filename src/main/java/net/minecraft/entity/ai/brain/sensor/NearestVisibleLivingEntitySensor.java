@@ -14,6 +14,15 @@ import java.util.Set;
  */
 public abstract class NearestVisibleLivingEntitySensor extends Sensor<LivingEntity> {
 
+	/**
+	 * Matches.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param target target
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected abstract boolean matches(ServerWorld world, LivingEntity entity, LivingEntity target);
 
 	protected abstract MemoryModuleType<LivingEntity> getOutputMemoryModule();

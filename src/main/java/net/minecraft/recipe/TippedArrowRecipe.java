@@ -17,6 +17,14 @@ public class TippedArrowRecipe extends SpecialCraftingRecipe {
 		super(craftingRecipeCategory);
 	}
 
+	/**
+	 * Matches.
+	 *
+	 * @param craftingRecipeInput crafting recipe input
+	 * @param world world
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matches(CraftingRecipeInput craftingRecipeInput, World world) {
 		if (craftingRecipeInput.getWidth() == 3 && craftingRecipeInput.getHeight() == 3
 				&& craftingRecipeInput.getStackCount() == 9) {
@@ -45,6 +53,14 @@ public class TippedArrowRecipe extends SpecialCraftingRecipe {
 		}
 	}
 
+	/**
+	 * Craft.
+	 *
+	 * @param craftingRecipeInput crafting recipe input
+	 * @param wrapperLookup wrapper lookup
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack craft(CraftingRecipeInput craftingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
 		ItemStack itemStack = craftingRecipeInput.getStackInSlot(1, 1);
 		if (!itemStack.isOf(Items.LINGERING_POTION)) {

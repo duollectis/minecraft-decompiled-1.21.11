@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.GameMode;
 
+/**
+ * Запись change game mode c2 s packet.
+ */
 public record ChangeGameModeC2SPacket(GameMode mode) implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<ByteBuf, ChangeGameModeC2SPacket> CODEC = PacketCodec.tuple(
@@ -19,6 +22,11 @@ public record ChangeGameModeC2SPacket(GameMode mode) implements Packet<ServerPla
 		return PlayPackets.CHANGE_GAME_MODE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onChangeGameMode(this);
 	}

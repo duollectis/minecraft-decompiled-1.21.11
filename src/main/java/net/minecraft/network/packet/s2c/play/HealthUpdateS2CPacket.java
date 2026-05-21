@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс health update s2 c packet.
+ */
 public class HealthUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, HealthUpdateS2CPacket>
@@ -39,6 +42,11 @@ public class HealthUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.SET_HEALTH;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onHealthUpdate(this);
 	}

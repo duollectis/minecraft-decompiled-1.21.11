@@ -13,6 +13,11 @@ import java.util.List;
  */
 public record RealmsRegionDataList(@SerializedName("regionDataList") List<RegionData> regionData) implements RealmsSerializable {
 
+	/**
+	 * Empty.
+	 *
+	 * @return RealmsRegionDataList — результат операции
+	 */
 	public static RealmsRegionDataList empty() {
 		return new RealmsRegionDataList(List.of());
 	}

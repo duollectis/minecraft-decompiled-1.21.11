@@ -37,6 +37,9 @@ public class Source {
 		this.pointer = pointer;
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		if (this.playing.compareAndSet(true, false)) {
 			AL10.alSourceStop(this.pointer);
@@ -58,6 +61,9 @@ public class Source {
 		}
 	}
 
+	/**
+	 * Play.
+	 */
 	public void play() {
 		AL10.alSourcePlay(this.pointer);
 	}
@@ -66,18 +72,27 @@ public class Source {
 		return !this.playing.get() ? 4116 : AL10.alGetSourcei(this.pointer, 4112);
 	}
 
+	/**
+	 * Pause.
+	 */
 	public void pause() {
 		if (this.getSourceState() == 4114) {
 			AL10.alSourcePause(this.pointer);
 		}
 	}
 
+	/**
+	 * Resume.
+	 */
 	public void resume() {
 		if (this.getSourceState() == 4115) {
 			AL10.alSourcePlay(this.pointer);
 		}
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		if (this.playing.get()) {
 			AL10.alSourceStop(this.pointer);
@@ -109,6 +124,9 @@ public class Source {
 		AL10.alSourcef(this.pointer, 4106, volume);
 	}
 
+	/**
+	 * Отключает attenuation.
+	 */
 	public void disableAttenuation() {
 		AL10.alSourcei(this.pointer, 53248, 0);
 	}
@@ -157,6 +175,9 @@ public class Source {
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		if (this.stream != null) {
 			int i = this.removeProcessedBuffers();

@@ -51,6 +51,13 @@ public class EnvironmentAttribute<Value> {
 		return this.type.valueCodec().validate(this.validator::validate);
 	}
 
+	/**
+	 * Clamp.
+	 *
+	 * @param value value
+	 *
+	 * @return Value — результат операции
+	 */
 	public Value clamp(Value value) {
 		return this.validator.clamp(value);
 	}
@@ -113,6 +120,11 @@ public class EnvironmentAttribute<Value> {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return EnvironmentAttribute — результат операции
+		 */
 		public EnvironmentAttribute<Value> build() {
 			return new EnvironmentAttribute<>(
 					this.type,

@@ -39,6 +39,9 @@ public class DynamicUniformStorage<T extends DynamicUniformStorage.Uploadable> i
 		this.name = name;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.size = 0;
 		this.lastWrittenValue = null;
@@ -61,6 +64,13 @@ public class DynamicUniformStorage<T extends DynamicUniformStorage.Uploadable> i
 				new MappableRingBuffer(() -> this.name + " x" + this.blockSize, 130, this.blockSize * this.capacity);
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param value value
+	 *
+	 * @return GpuBufferSlice — результат операции
+	 */
 	public GpuBufferSlice write(T value) {
 		if (this.lastWrittenValue != null && this.lastWrittenValue.equals(value)) {
 			return this.buffer.getBlocking().slice((this.size - 1) * this.blockSize, this.blockSize);
@@ -94,6 +104,13 @@ public class DynamicUniformStorage<T extends DynamicUniformStorage.Uploadable> i
 		}
 	}
 
+	/**
+	 * Записывает all.
+	 *
+	 * @param values values
+	 *
+	 * @return GpuBufferSlice[] — результат операции
+	 */
 	public GpuBufferSlice[] writeAll(T[] values) {
 		if (values.length == 0) {
 			return new GpuBufferSlice[0];

@@ -57,6 +57,13 @@ public class NbtTextFormatter implements NbtElementVisitor {
 		this.prefix = prefix;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param element element
+	 *
+	 * @return Text — результат операции
+	 */
 	public Text apply(NbtElement element) {
 		element.accept(this);
 		return this.result;
@@ -295,6 +302,13 @@ public class NbtTextFormatter implements NbtElementVisitor {
 		}
 	}
 
+	/**
+	 * Escape name.
+	 *
+	 * @param name name
+	 *
+	 * @return Text — результат операции
+	 */
 	protected static Text escapeName(String name) {
 		if (SIMPLE_NAME.matcher(name).matches()) {
 			return Text.literal(name).formatted(NAME_COLOR);

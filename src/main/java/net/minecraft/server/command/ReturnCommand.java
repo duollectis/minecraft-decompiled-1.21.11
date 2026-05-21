@@ -14,6 +14,13 @@ import java.util.List;
  */
 public class ReturnCommand {
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 *
+	 * @return > void — результат операции
+	 */
 	public static <T extends AbstractServerCommandSource<T>> void register(CommandDispatcher<T> dispatcher) {
 		dispatcher.register(
 				LiteralArgumentBuilder.<T>literal("return")

@@ -55,6 +55,13 @@ public abstract class Carver<C extends CarverConfig> {
 		this.codec = configCodec.fieldOf("config").xmap(this::configure, ConfiguredCarver::config);
 	}
 
+	/**
+	 * Configure.
+	 *
+	 * @param config config
+	 *
+	 * @return ConfiguredCarver — результат операции
+	 */
 	public ConfiguredCarver<C> configure(C config) {
 		return new ConfiguredCarver<>(this, config);
 	}
@@ -232,8 +239,24 @@ public abstract class Carver<C extends CarverConfig> {
 			CarvingMask mask
 	);
 
+	/**
+	 * Определяет, следует ли carve.
+	 *
+	 * @param config config
+	 * @param random random
+	 *
+	 * @return boolean — результат операции
+	 */
 	public abstract boolean shouldCarve(C config, Random random);
 
+	/**
+	 * Проверяет возможность always carve block.
+	 *
+	 * @param config config
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canAlwaysCarveBlock(C config, BlockState state) {
 		return state.isIn(config.replaceable);
 	}

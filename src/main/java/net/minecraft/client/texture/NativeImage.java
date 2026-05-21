@@ -112,10 +112,25 @@ public final class NativeImage implements AutoCloseable {
 		return x < 0 || x >= this.width || y < 0 || y >= this.height;
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param stream stream
+	 *
+	 * @return NativeImage — результат операции
+	 */
 	public static NativeImage read(InputStream stream) throws IOException {
 		return read(NativeImage.Format.RGBA, stream);
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param format format
+	 * @param stream stream
+	 *
+	 * @return NativeImage — результат операции
+	 */
 	public static NativeImage read(NativeImage.@Nullable Format format, InputStream stream) throws IOException {
 		ByteBuffer byteBuffer = null;
 
@@ -132,10 +147,24 @@ public final class NativeImage implements AutoCloseable {
 		return var3;
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param buffer buffer
+	 *
+	 * @return NativeImage — результат операции
+	 */
 	public static NativeImage read(ByteBuffer buffer) throws IOException {
 		return read(NativeImage.Format.RGBA, buffer);
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param bytes bytes
+	 *
+	 * @return NativeImage — результат операции
+	 */
 	public static NativeImage read(byte[] bytes) throws IOException {
 		MemoryStack memoryStack = MemoryStack.stackGet();
 		int i = memoryStack.getPointer();
@@ -187,6 +216,14 @@ public final class NativeImage implements AutoCloseable {
 		return read(buffer);
 	}
 
+	/**
+	 * Read.
+	 *
+	 * @param format format
+	 * @param buffer buffer
+	 *
+	 * @return NativeImage — результат операции
+	 */
 	public static NativeImage read(NativeImage.@Nullable Format format, ByteBuffer buffer) throws IOException {
 		if (format != null && !format.isWriteable()) {
 			throw new UnsupportedOperationException("Don't know how to read format " + format);
@@ -339,6 +376,13 @@ public final class NativeImage implements AutoCloseable {
 		this.setColor(x, y, ColorHelper.toAbgr(color));
 	}
 
+	/**
+	 * Применяет to copy.
+	 *
+	 * @param operator operator
+	 *
+	 * @return NativeImage — результат операции
+	 */
 	public NativeImage applyToCopy(IntUnaryOperator operator) {
 		if (this.format != NativeImage.Format.RGBA) {
 			throw new IllegalArgumentException(String.format(
@@ -364,6 +408,11 @@ public final class NativeImage implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Создаёт копию pixels abgr.
+	 *
+	 * @return int[] — результат операции
+	 */
 	public int[] copyPixelsAbgr() {
 		if (this.format != NativeImage.Format.RGBA) {
 			throw new IllegalArgumentException(String.format(
@@ -380,6 +429,11 @@ public final class NativeImage implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Создаёт копию pixels argb.
+	 *
+	 * @return int[] — результат операции
+	 */
 	public int[] copyPixelsArgb() {
 		int[] is = this.copyPixelsAbgr();
 
@@ -411,6 +465,11 @@ public final class NativeImage implements AutoCloseable {
 	}
 
 	@Deprecated
+	/**
+	 * Make pixel array.
+	 *
+	 * @return int[] — результат операции
+	 */
 	public int[] makePixelArray() {
 		if (this.format != NativeImage.Format.RGBA) {
 			throw new UnsupportedOperationException("can only call makePixelArray for RGBA images.");
@@ -429,10 +488,23 @@ public final class NativeImage implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Записывает to.
+	 *
+	 * @param path path
+	 */
 	public void writeTo(File path) throws IOException {
 		this.writeTo(path.toPath());
 	}
 
+	/**
+	 * Make glyph bitmap subpixel.
+	 *
+	 * @param face face
+	 * @param glyphIndex glyph index
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean makeGlyphBitmapSubpixel(FT_Face face, int glyphIndex) {
 		if (this.format.getChannelCount() != 1) {
 			throw new IllegalArgumentException("Can only write fonts into 1-component images.");
@@ -467,6 +539,11 @@ public final class NativeImage implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Записывает to.
+	 *
+	 * @param path path
+	 */
 	public void writeTo(Path path) throws IOException {
 		if (!this.format.isWriteable()) {
 			throw new UnsupportedOperationException("Don't know how to write format " + this.format);
@@ -519,6 +596,11 @@ public final class NativeImage implements AutoCloseable {
 		return var4;
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param image image
+	 */
 	public void copyFrom(NativeImage image) {
 		if (image.getFormat() != this.format) {
 			throw new UnsupportedOperationException("Image formats don't match.");
@@ -543,6 +625,15 @@ public final class NativeImage implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Fill rect.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param height height
+	 * @param color color
+	 */
 	public void fillRect(int x, int y, int width, int height, int color) {
 		for (int i = y; i < y + height; i++) {
 			for (int j = x; j < x + width; j++) {
@@ -585,6 +676,15 @@ public final class NativeImage implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Resize sub rect to.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param height height
+	 * @param targetImage target image
+	 */
 	public void resizeSubRectTo(int x, int y, int width, int height, NativeImage targetImage) {
 		this.checkAllocated();
 		if (targetImage.getFormat() != this.format) {
@@ -606,10 +706,18 @@ public final class NativeImage implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Untrack.
+	 */
 	public void untrack() {
 		Untracker.untrack(this.pointer);
 	}
 
+	/**
+	 * Image id.
+	 *
+	 * @return long — результат операции
+	 */
 	public long imageId() {
 		return this.pointer;
 	}
@@ -773,6 +881,13 @@ public final class NativeImage implements AutoCloseable {
 			this.channel = channel;
 		}
 
+		/**
+		 * Invoke.
+		 *
+		 * @param context context
+		 * @param data data
+		 * @param size size
+		 */
 		public void invoke(long context, long data, int size) {
 			ByteBuffer byteBuffer = getData(data, size);
 
@@ -784,6 +899,9 @@ public final class NativeImage implements AutoCloseable {
 			}
 		}
 
+		/**
+		 * Throw stored exception.
+		 */
 		public void throwStoredException() throws IOException {
 			if (this.exception != null) {
 				throw this.exception;

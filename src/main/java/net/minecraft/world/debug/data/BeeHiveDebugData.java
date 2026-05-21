@@ -24,6 +24,13 @@ public record BeeHiveDebugData(Block type, int occupantCount, int honeyLevel, bo
 			BeeHiveDebugData::new
 	);
 
+	/**
+	 * From beehive.
+	 *
+	 * @param beehive beehive
+	 *
+	 * @return BeeHiveDebugData — результат операции
+	 */
 	public static BeeHiveDebugData fromBeehive(BeehiveBlockEntity beehive) {
 		return new BeeHiveDebugData(
 				beehive.getCachedState().getBlock(),

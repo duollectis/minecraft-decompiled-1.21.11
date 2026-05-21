@@ -49,6 +49,11 @@ public class StriderEntityRenderer extends AgeableMobEntityRenderer<StriderEntit
 		return striderEntityRenderState.baby ? f * 0.5F : f;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return StriderEntityRenderState — результат операции
+	 */
 	public StriderEntityRenderState createRenderState() {
 		return new StriderEntityRenderState();
 	}

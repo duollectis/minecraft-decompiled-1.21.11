@@ -22,5 +22,10 @@ public abstract class ServerConfigEntry<T> {
 		return false;
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param json json
+	 */
 	protected abstract void write(JsonObject json);
 }

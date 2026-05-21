@@ -40,6 +40,11 @@ public class OverworldBiomeCreator {
 				.effects(new BiomeEffects.Builder().waterColor(4159204).build());
 	}
 
+	/**
+	 * Добавляет basic features.
+	 *
+	 * @param generationSettings generation settings
+	 */
 	public static void addBasicFeatures(GenerationSettings.LookupBackedBuilder generationSettings) {
 		DefaultBiomeFeatures.addLandCarvers(generationSettings);
 		DefaultBiomeFeatures.addAmethystGeodes(generationSettings);

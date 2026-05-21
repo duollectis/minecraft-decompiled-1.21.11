@@ -136,6 +136,9 @@ public class ChatSelectionScreen extends Screen {
 	}
 
 	@Environment(EnvType.CLIENT)
+	/**
+	 * Класс selection list widget.
+	 */
 	public class SelectionListWidget
 			extends AlwaysSelectedEntryListWidget<ChatSelectionScreen.SelectionListWidget.Entry>
 			implements MessagesListAdder.MessagesList {
@@ -280,6 +283,11 @@ public class ChatSelectionScreen extends Screen {
 				return false;
 			}
 
+			/**
+			 * Проверяет возможность select.
+			 *
+			 * @return boolean — {@code true} если условие выполнено
+			 */
 			public boolean canSelect() {
 				return false;
 			}
@@ -501,6 +509,13 @@ public class ChatSelectionScreen extends Screen {
 		 */
 		record SenderEntryPair(UUID sender, ChatSelectionScreen.SelectionListWidget.Entry entry) {
 
+			/**
+			 * Отправляет er equals.
+			 *
+			 * @param pair pair
+			 *
+			 * @return boolean — результат операции
+			 */
 			public boolean senderEquals(ChatSelectionScreen.SelectionListWidget.SenderEntryPair pair) {
 				return pair.sender.equals(this.sender);
 			}

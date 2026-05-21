@@ -69,6 +69,15 @@ public enum TrialSpawnerState implements StringIdentifiable {
 		this.playsSound = playsSound;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param pos pos
+	 * @param logic logic
+	 * @param world world
+	 *
+	 * @return TrialSpawnerState — результат операции
+	 */
 	public TrialSpawnerState tick(BlockPos pos, TrialSpawnerLogic logic, ServerWorld world) {
 		TrialSpawnerData trialSpawnerData = logic.getData();
 		TrialSpawnerConfig trialSpawnerConfig = logic.getConfig();
@@ -294,14 +303,31 @@ public enum TrialSpawnerState implements StringIdentifiable {
 		return this.displayRotationSpeed;
 	}
 
+	/**
+	 * Does display rotate.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean doesDisplayRotate() {
 		return this.displayRotationSpeed >= 0.0;
 	}
 
+	/**
+	 * Plays sound.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean playsSound() {
 		return this.playsSound;
 	}
 
+	/**
+	 * Emit particles.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param ominous ominous
+	 */
 	public void emitParticles(World world, BlockPos pos, boolean ominous) {
 		this.particleEmitter.emit(world, world.getRandom(), pos, ominous);
 	}

@@ -40,10 +40,20 @@ public class GeneratorOptions {
 		this(seed, generateStructures, bonusChest, Optional.empty());
 	}
 
+	/**
+	 * Создаёт random.
+	 *
+	 * @return GeneratorOptions — результат операции
+	 */
 	public static GeneratorOptions createRandom() {
 		return new GeneratorOptions(getRandomSeed(), true, false);
 	}
 
+	/**
+	 * Создаёт test world.
+	 *
+	 * @return GeneratorOptions — результат операции
+	 */
 	public static GeneratorOptions createTestWorld() {
 		return new GeneratorOptions(getRandomSeed(), false, false);
 	}
@@ -64,6 +74,11 @@ public class GeneratorOptions {
 		return this.seed;
 	}
 
+	/**
+	 * Определяет, следует ли generate structures.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldGenerateStructures() {
 		return this.generateStructures;
 	}
@@ -76,14 +91,35 @@ public class GeneratorOptions {
 		return this.legacyCustomOptions.isPresent();
 	}
 
+	/**
+	 * With bonus chest.
+	 *
+	 * @param bonusChest bonus chest
+	 *
+	 * @return GeneratorOptions — результат операции
+	 */
 	public GeneratorOptions withBonusChest(boolean bonusChest) {
 		return new GeneratorOptions(this.seed, this.generateStructures, bonusChest, this.legacyCustomOptions);
 	}
 
+	/**
+	 * With structures.
+	 *
+	 * @param structures structures
+	 *
+	 * @return GeneratorOptions — результат операции
+	 */
 	public GeneratorOptions withStructures(boolean structures) {
 		return new GeneratorOptions(this.seed, structures, this.bonusChest, this.legacyCustomOptions);
 	}
 
+	/**
+	 * With seed.
+	 *
+	 * @param seed seed
+	 *
+	 * @return GeneratorOptions — результат операции
+	 */
 	public GeneratorOptions withSeed(OptionalLong seed) {
 		return new GeneratorOptions(
 				seed.orElse(getRandomSeed()),
@@ -93,6 +129,13 @@ public class GeneratorOptions {
 		);
 	}
 
+	/**
+	 * Разбирает seed.
+	 *
+	 * @param seed seed
+	 *
+	 * @return OptionalLong — результат операции
+	 */
 	public static OptionalLong parseSeed(String seed) {
 		seed = seed.trim();
 		if (StringUtils.isEmpty(seed)) {

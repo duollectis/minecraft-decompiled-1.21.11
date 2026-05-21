@@ -40,6 +40,14 @@ public record TooltipDisplayComponent(boolean hideTooltip, SequencedSet<Componen
 			DEFAULT =
 			new TooltipDisplayComponent(false, ReferenceSortedSets.emptySet());
 
+	/**
+	 * With.
+	 *
+	 * @param component component
+	 * @param hidden hidden
+	 *
+	 * @return TooltipDisplayComponent — результат операции
+	 */
 	public TooltipDisplayComponent with(ComponentType<?> component, boolean hidden) {
 		if (this.hiddenComponents.contains(component) == hidden) {
 			return this;
@@ -57,6 +65,13 @@ public record TooltipDisplayComponent(boolean hideTooltip, SequencedSet<Componen
 		}
 	}
 
+	/**
+	 * Определяет, следует ли display.
+	 *
+	 * @param component component
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDisplay(ComponentType<?> component) {
 		return !this.hideTooltip && !this.hiddenComponents.contains(component);
 	}

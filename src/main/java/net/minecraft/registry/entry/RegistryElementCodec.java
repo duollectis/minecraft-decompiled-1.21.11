@@ -47,6 +47,15 @@ public final class RegistryElementCodec<E> implements Codec<RegistryEntry<E>> {
 		this.allowInlineDefinitions = allowInlineDefinitions;
 	}
 
+	/**
+	 * Encode.
+	 *
+	 * @param registryEntry registry entry
+	 * @param dynamicOps dynamic ops
+	 * @param object object
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public <T> DataResult<T> encode(RegistryEntry<E> registryEntry, DynamicOps<T> dynamicOps, T object) {
 		if (dynamicOps instanceof RegistryOps<?> registryOps) {
 			Optional<RegistryEntryOwner<E>> optional = registryOps.getOwner(this.registryRef);
@@ -70,6 +79,14 @@ public final class RegistryElementCodec<E> implements Codec<RegistryEntry<E>> {
 		return this.elementCodec.encode(registryEntry.value(), dynamicOps, object);
 	}
 
+	/**
+	 * Decode.
+	 *
+	 * @param ops ops
+	 * @param input input
+	 *
+	 * @return DataResult, T>> — результат операции
+	 */
 	public <T> DataResult<Pair<RegistryEntry<E>, T>> decode(DynamicOps<T> ops, T input) {
 		if (ops instanceof RegistryOps<?> registryOps) {
 			Optional<RegistryEntryLookup<E>> optional = registryOps.getEntryLookup(this.registryRef);

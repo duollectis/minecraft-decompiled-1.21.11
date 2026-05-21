@@ -109,6 +109,14 @@ public class ChestBlockEntity extends LootableContainerBlockEntity implements Li
 		}
 	}
 
+	/**
+	 * Client tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void clientTick(World world, BlockPos pos, BlockState state, ChestBlockEntity blockEntity) {
 		blockEntity.lidAnimator.step();
 	}
@@ -206,6 +214,12 @@ public class ChestBlockEntity extends LootableContainerBlockEntity implements Li
 		return 0;
 	}
 
+	/**
+	 * Создаёт копию inventory.
+	 *
+	 * @param from from
+	 * @param to to
+	 */
 	public static void copyInventory(ChestBlockEntity from, ChestBlockEntity to) {
 		DefaultedList<ItemStack> defaultedList = from.getHeldStacks();
 		from.setHeldStacks(to.getHeldStacks());
@@ -217,6 +231,9 @@ public class ChestBlockEntity extends LootableContainerBlockEntity implements Li
 		return GenericContainerScreenHandler.createGeneric9x3(syncId, playerInventory, this);
 	}
 
+	/**
+	 * Обрабатывает событие scheduled tick.
+	 */
 	public void onScheduledTick() {
 		if (!this.removed) {
 			this.stateManager.updateViewerCount(this.getWorld(), this.getPos(), this.getCachedState());

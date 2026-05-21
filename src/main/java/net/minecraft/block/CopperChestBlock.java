@@ -148,6 +148,16 @@ public class CopperChestBlock extends ChestBlock {
 		return this.oxidationLevel;
 	}
 
+	/**
+	 * From copper block.
+	 *
+	 * @param block block
+	 * @param facing facing
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public static BlockState fromCopperBlock(Block block, Direction facing, World world, BlockPos pos) {
 		CopperChestBlock
 				copperChestBlock =

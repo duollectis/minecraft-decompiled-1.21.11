@@ -66,6 +66,13 @@ public class DecoratedPotPatterns {
 			Map.entry(Items.SNORT_POTTERY_SHERD, SNORT)
 	);
 
+	/**
+	 * From sherd.
+	 *
+	 * @param sherd sherd
+	 *
+	 * @return @Nullable RegistryKey — результат операции
+	 */
 	public static @Nullable RegistryKey<DecoratedPotPattern> fromSherd(Item sherd) {
 		return SHERD_TO_PATTERN.get(sherd);
 	}
@@ -74,6 +81,13 @@ public class DecoratedPotPatterns {
 		return RegistryKey.of(RegistryKeys.DECORATED_POT_PATTERN, Identifier.ofVanilla(path));
 	}
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return DecoratedPotPattern — результат операции
+	 */
 	public static DecoratedPotPattern registerAndGetDefault(Registry<DecoratedPotPattern> registry) {
 		register(registry, ANGLER, "angler_pottery_pattern");
 		register(registry, ARCHER, "archer_pottery_pattern");

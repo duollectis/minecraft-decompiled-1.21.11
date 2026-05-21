@@ -27,6 +27,14 @@ public enum BlockMirror implements StringIdentifiable {
 		this.directionTransformation = directionTransformation;
 	}
 
+	/**
+	 * Mirror.
+	 *
+	 * @param rotation rotation
+	 * @param fullTurn full turn
+	 *
+	 * @return int — результат операции
+	 */
 	public int mirror(int rotation, int fullTurn) {
 		int i = fullTurn / 2;
 		int j = rotation > i ? rotation - fullTurn : rotation;
@@ -47,6 +55,13 @@ public enum BlockMirror implements StringIdentifiable {
 		       : BlockRotation.CLOCKWISE_180;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param direction direction
+	 *
+	 * @return Direction — результат операции
+	 */
 	public Direction apply(Direction direction) {
 		if (this == FRONT_BACK && direction.getAxis() == Direction.Axis.X) {
 			return direction.getOpposite();

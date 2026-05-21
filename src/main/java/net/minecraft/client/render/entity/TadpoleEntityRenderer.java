@@ -25,6 +25,11 @@ public class TadpoleEntityRenderer extends MobEntityRenderer<TadpoleEntity, Livi
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return LivingEntityRenderState — результат операции
+	 */
 	public LivingEntityRenderState createRenderState() {
 		return new LivingEntityRenderState();
 	}

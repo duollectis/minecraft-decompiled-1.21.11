@@ -25,6 +25,13 @@ public abstract class AlternativeLootCondition implements LootCondition {
 		this.predicate = predicate;
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param termsToCondition terms to condition
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	protected static <T extends AlternativeLootCondition> MapCodec<T> createCodec(Function<List<LootCondition>, T> termsToCondition) {
 		return RecordCodecBuilder.mapCodec(
 				instance -> instance
@@ -33,10 +40,24 @@ public abstract class AlternativeLootCondition implements LootCondition {
 		);
 	}
 
+	/**
+	 * Создаёт inline codec.
+	 *
+	 * @param termsToCondition terms to condition
+	 *
+	 * @return Codec — результат операции
+	 */
 	protected static <T extends AlternativeLootCondition> Codec<T> createInlineCodec(Function<List<LootCondition>, T> termsToCondition) {
 		return LootCondition.CODEC.listOf().xmap(termsToCondition, condition -> condition.terms);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public final boolean test(LootContext lootContext) {
 		return this.predicate.test(lootContext);
 	}
@@ -63,6 +84,11 @@ public abstract class AlternativeLootCondition implements LootCondition {
 			}
 		}
 
+		/**
+		 * Add.
+		 *
+		 * @param builder builder
+		 */
 		public void add(LootCondition.Builder builder) {
 			this.terms.add(builder.build());
 		}
@@ -72,6 +98,13 @@ public abstract class AlternativeLootCondition implements LootCondition {
 			return this.build(this.terms.build());
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param terms terms
+		 *
+		 * @return LootCondition — результат операции
+		 */
 		protected abstract LootCondition build(List<LootCondition> terms);
 	}
 }

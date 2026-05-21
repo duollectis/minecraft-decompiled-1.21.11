@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.Difficulty;
 
+/**
+ * Запись difficulty s2 c packet.
+ */
 public record DifficultyS2CPacket(
 		Difficulty difficulty,
 		boolean difficultyLocked
@@ -27,6 +30,11 @@ public record DifficultyS2CPacket(
 		return PlayPackets.CHANGE_DIFFICULTY_S2C;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onDifficulty(this);
 	}

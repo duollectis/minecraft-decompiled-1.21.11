@@ -110,6 +110,13 @@ public class GiveInventoryToLookTargetTask<E extends LivingEntity & InventoryOwn
 		return target.getPos().add(0.0, 1.0, 0.0);
 	}
 
+	/**
+	 * Play throw sound.
+	 *
+	 * @param entity entity
+	 * @param stack stack
+	 * @param target target
+	 */
 	public static void playThrowSound(LivingEntity entity, ItemStack stack, Vec3d target) {
 		Vec3d vec3d = new Vec3d(0.2F, 0.3F, 0.2F);
 		TargetUtil.give(entity, stack, target, vec3d, 0.2F);

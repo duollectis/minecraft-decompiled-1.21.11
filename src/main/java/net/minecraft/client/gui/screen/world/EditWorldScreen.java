@@ -186,6 +186,13 @@ public class EditWorldScreen extends Screen {
 		this.callback.accept(true);
 	}
 
+	/**
+	 * Backup level.
+	 *
+	 * @param storageSession storage session
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean backupLevel(LevelStorage.Session storageSession) {
 		long l = 0L;
 		IOException iOException = null;

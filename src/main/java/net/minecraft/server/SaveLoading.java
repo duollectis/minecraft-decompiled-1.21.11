@@ -113,6 +113,11 @@ public class SaveLoading {
 			boolean initMode
 	) {
 
+		/**
+		 * Load.
+		 *
+		 * @return Pair — результат операции
+		 */
 		public Pair<DataConfiguration, LifecycledResourceManager> load() {
 			DataConfiguration
 					dataConfiguration =

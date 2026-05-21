@@ -31,12 +31,28 @@ public final class AbuseReportContext {
 		this.chatLog = chatLog;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param environment environment
+	 * @param userApiService user api service
+	 *
+	 * @return AbuseReportContext — результат операции
+	 */
 	public static AbuseReportContext create(ReporterEnvironment environment, UserApiService userApiService) {
 		ChatLog chatLog = new ChatLog(1024);
 		AbuseReportSender abuseReportSender = AbuseReportSender.create(environment, userApiService);
 		return new AbuseReportContext(abuseReportSender, environment, chatLog);
 	}
 
+	/**
+	 * Try show draft screen.
+	 *
+	 * @param client client
+	 * @param parent parent
+	 * @param callback callback
+	 * @param quit quit
+	 */
 	public void tryShowDraftScreen(MinecraftClient client, Screen parent, Runnable callback, boolean quit) {
 		if (this.draft != null) {
 			AbuseReport abuseReport = this.draft.copy();
@@ -73,6 +89,13 @@ public final class AbuseReportContext {
 		return this.chatLog;
 	}
 
+	/**
+	 * Environment equals.
+	 *
+	 * @param environment environment
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean environmentEquals(ReporterEnvironment environment) {
 		return Objects.equals(this.environment, environment);
 	}
@@ -85,6 +108,13 @@ public final class AbuseReportContext {
 		return this.draft != null;
 	}
 
+	/**
+	 * Draft player uuid equals.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean draftPlayerUuidEquals(UUID uuid) {
 		return this.hasDraft() && this.draft.playerUuidEquals(uuid);
 	}

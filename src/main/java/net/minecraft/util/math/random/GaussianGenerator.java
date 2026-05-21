@@ -15,10 +15,18 @@ public class GaussianGenerator {
 		this.baseRandom = baseRandom;
 	}
 
+	/**
+	 * Reset.
+	 */
 	public void reset() {
 		this.hasNextGaussian = false;
 	}
 
+	/**
+	 * Next.
+	 *
+	 * @return double — результат операции
+	 */
 	public double next() {
 		if (this.hasNextGaussian) {
 			this.hasNextGaussian = false;

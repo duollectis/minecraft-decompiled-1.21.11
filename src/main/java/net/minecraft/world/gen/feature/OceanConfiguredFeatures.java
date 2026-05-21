@@ -23,6 +23,11 @@ public class OceanConfiguredFeatures {
 			WARM_OCEAN_VEGETATION =
 			ConfiguredFeatures.of("warm_ocean_vegetation");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<ConfiguredFeature<?, ?>> featureRegisterable) {
 		ConfiguredFeatures.register(featureRegisterable, SEAGRASS_SHORT, Feature.SEAGRASS, new ProbabilityConfig(0.3F));
 		ConfiguredFeatures.register(

@@ -39,6 +39,9 @@ public class WorldSession {
 		});
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		this.performanceMetricsEvent.tick(this.sender);
 	}
@@ -58,6 +61,9 @@ public class WorldSession {
 		this.worldUnloadedEvent.setTick(tick);
 	}
 
+	/**
+	 * Обрабатывает событие load.
+	 */
 	public void onLoad() {
 		if (this.worldLoadedEvent.send(this.sender)) {
 			this.worldLoadTimesEvent.send(this.sender);
@@ -65,12 +71,21 @@ public class WorldSession {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие unload.
+	 */
 	public void onUnload() {
 		this.worldLoadedEvent.send(this.sender);
 		this.performanceMetricsEvent.disableSampling();
 		this.worldUnloadedEvent.send(this.sender);
 	}
 
+	/**
+	 * Обрабатывает событие advancement made.
+	 *
+	 * @param world world
+	 * @param advancement advancement
+	 */
 	public void onAdvancementMade(World world, AdvancementEntry advancement) {
 		Identifier identifier = advancement.id();
 		if (advancement.value().sendsTelemetryEvent() && "minecraft".equals(identifier.getNamespace())) {

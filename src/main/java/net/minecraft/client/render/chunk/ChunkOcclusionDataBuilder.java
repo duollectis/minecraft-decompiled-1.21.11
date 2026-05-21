@@ -50,6 +50,11 @@ public class ChunkOcclusionDataBuilder {
 	);
 	private int openCount = 4096;
 
+	/**
+	 * Mark closed.
+	 *
+	 * @param pos pos
+	 */
 	public void markClosed(BlockPos pos) {
 		this.closed.set(pack(pos), true);
 		this.openCount--;
@@ -63,6 +68,11 @@ public class ChunkOcclusionDataBuilder {
 		return x << 0 | y << 8 | z << 4;
 	}
 
+	/**
+	 * Build.
+	 *
+	 * @return ChunkOcclusionData — результат операции
+	 */
 	public ChunkOcclusionData build() {
 		ChunkOcclusionData chunkOcclusionData = new ChunkOcclusionData();
 		if (4096 - this.openCount < 256) {

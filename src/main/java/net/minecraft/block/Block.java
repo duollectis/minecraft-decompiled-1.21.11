@@ -120,6 +120,11 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 				Object2ByteLinkedOpenHashMap<Block.VoxelShapePair>
 						object2ByteLinkedOpenHashMap =
 						new Object2ByteLinkedOpenHashMap<Block.VoxelShapePair>(256, 0.25F) {
+							/**
+							 * Rehash.
+							 *
+							 * @param newN new n
+							 */
 							protected void rehash(int newN) {
 							}
 						};
@@ -197,43 +202,125 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return VoxelShapes.cuboid(minX / 16.0, minY / 16.0, minZ / 16.0, maxX / 16.0, maxY / 16.0, maxZ / 16.0);
 	}
 
+	/**
+	 * Создаёт shape array.
+	 *
+	 * @param size size
+	 * @param indexToShape index to shape
+	 *
+	 * @return VoxelShape[] — результат операции
+	 */
 	public static VoxelShape[] createShapeArray(int size, IntFunction<VoxelShape> indexToShape) {
 		return IntStream.rangeClosed(0, size).mapToObj(indexToShape).toArray(VoxelShape[]::new);
 	}
 
+	/**
+	 * Создаёт cube shape.
+	 *
+	 * @param size size
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape createCubeShape(double size) {
 		return createCuboidShape(size, size, size);
 	}
 
+	/**
+	 * Создаёт cuboid shape.
+	 *
+	 * @param sizeX size x
+	 * @param sizeY size y
+	 * @param sizeZ size z
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape createCuboidShape(double sizeX, double sizeY, double sizeZ) {
 		double d = sizeY / 2.0;
 		return createColumnShape(sizeX, sizeZ, 8.0 - d, 8.0 + d);
 	}
 
+	/**
+	 * Создаёт column shape.
+	 *
+	 * @param sizeXz size xz
+	 * @param minY min y
+	 * @param maxY max y
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape createColumnShape(double sizeXz, double minY, double maxY) {
 		return createColumnShape(sizeXz, sizeXz, minY, maxY);
 	}
 
+	/**
+	 * Создаёт column shape.
+	 *
+	 * @param sizeX size x
+	 * @param sizeZ size z
+	 * @param minY min y
+	 * @param maxY max y
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape createColumnShape(double sizeX, double sizeZ, double minY, double maxY) {
 		double d = sizeX / 2.0;
 		double e = sizeZ / 2.0;
 		return createCuboidShape(8.0 - d, minY, 8.0 - e, 8.0 + d, maxY, 8.0 + e);
 	}
 
+	/**
+	 * Создаёт cuboid z shape.
+	 *
+	 * @param sizeXy size xy
+	 * @param minZ min z
+	 * @param maxZ max z
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape createCuboidZShape(double sizeXy, double minZ, double maxZ) {
 		return createCuboidZShape(sizeXy, sizeXy, minZ, maxZ);
 	}
 
+	/**
+	 * Создаёт cuboid z shape.
+	 *
+	 * @param sizeX size x
+	 * @param sizeY size y
+	 * @param minZ min z
+	 * @param maxZ max z
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape createCuboidZShape(double sizeX, double sizeY, double minZ, double maxZ) {
 		double d = sizeY / 2.0;
 		return createCuboidZShape(sizeX, 8.0 - d, 8.0 + d, minZ, maxZ);
 	}
 
+	/**
+	 * Создаёт cuboid z shape.
+	 *
+	 * @param sizeX size x
+	 * @param minY min y
+	 * @param maxY max y
+	 * @param minZ min z
+	 * @param maxZ max z
+	 *
+	 * @return VoxelShape — результат операции
+	 */
 	public static VoxelShape createCuboidZShape(double sizeX, double minY, double maxY, double minZ, double maxZ) {
 		double d = sizeX / 2.0;
 		return createCuboidShape(8.0 - d, minY, minZ, 8.0 + d, maxY, maxZ);
 	}
 
+	/**
+	 * Post process state.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public static BlockState postProcessState(BlockState state, WorldAccess world, BlockPos pos) {
 		BlockState blockState = state;
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
@@ -299,6 +386,13 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		}
 	}
 
+	/**
+	 * Проверяет возможность not connect.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean cannotConnect(BlockState state) {
 		return state.getBlock() instanceof LeavesBlock
 				|| state.isOf(Blocks.BARRIER)
@@ -348,6 +442,15 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		}
 	}
 
+	/**
+	 * Определяет, следует ли draw side.
+	 *
+	 * @param state state
+	 * @param otherState other state
+	 * @param side side
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean shouldDrawSide(BlockState state, BlockState otherState, Direction side) {
 		VoxelShape voxelShape = otherState.getCullingFace(side.getOpposite());
 		if (voxelShape == VoxelShapes.fullCube()) {
@@ -388,6 +491,15 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return world.getBlockState(pos).isSideSolid(world, pos, Direction.UP, SideShapeType.RIGID);
 	}
 
+	/**
+	 * Side covers small square.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param side side
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean sideCoversSmallSquare(WorldView world, BlockPos pos, Direction side) {
 		BlockState blockState = world.getBlockState(pos);
 		return side == Direction.DOWN && blockState.isIn(BlockTags.UNSTABLE_BOTTOM_CENTER)
@@ -404,9 +516,24 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return (Boolean) FULL_CUBE_SHAPE_CACHE.getUnchecked(shape);
 	}
 
+	/**
+	 * Random display tick.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 */
 	public void randomDisplayTick(BlockState state, World world, BlockPos pos, Random random) {
 	}
 
+	/**
+	 * Обрабатывает событие broken.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	public void onBroken(WorldAccess world, BlockPos pos, BlockState state) {
 	}
 
@@ -439,6 +566,13 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return state.getDroppedStacks(builder);
 	}
 
+	/**
+	 * Бросает stacks.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 */
 	public static void dropStacks(BlockState state, World world, BlockPos pos) {
 		if (world instanceof ServerWorld) {
 			getDroppedStacks(state, (ServerWorld) world, pos, null).forEach(stack -> dropStack(world, pos, stack));
@@ -481,6 +615,13 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		}
 	}
 
+	/**
+	 * Бросает stack.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param stack stack
+	 */
 	public static void dropStack(World world, BlockPos pos, ItemStack stack) {
 		double d = EntityType.ITEM.getHeight() / 2.0;
 		double e = pos.getX() + 0.5 + MathHelper.nextDouble(world.random, -0.25, 0.25);
@@ -489,6 +630,14 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		dropStack(world, () -> new ItemEntity(world, e, f, g, stack), stack);
 	}
 
+	/**
+	 * Бросает stack.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 * @param stack stack
+	 */
 	public static void dropStack(World world, BlockPos pos, Direction direction, ItemStack stack) {
 		int i = direction.getOffsetX();
 		int j = direction.getOffsetY();
@@ -514,6 +663,13 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		}
 	}
 
+	/**
+	 * Бросает experience.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param size size
+	 */
 	protected void dropExperience(ServerWorld world, BlockPos pos, int size) {
 		if (world.getGameRules().getValue(GameRules.DO_TILE_DROPS)) {
 			ExperienceOrbEntity.spawn(world, Vec3d.ofCenter(pos), size);
@@ -524,9 +680,24 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return this.resistance;
 	}
 
+	/**
+	 * Обрабатывает событие destroyed by explosion.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param explosion explosion
+	 */
 	public void onDestroyedByExplosion(ServerWorld world, BlockPos pos, Explosion explosion) {
 	}
 
+	/**
+	 * Обрабатывает событие stepped on.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param entity entity
+	 */
 	public void onSteppedOn(World world, BlockPos pos, BlockState state, Entity entity) {
 	}
 
@@ -556,6 +727,13 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 	) {
 	}
 
+	/**
+	 * Проверяет возможность mob spawn inside.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canMobSpawnInside(BlockState state) {
 		return !state.isSolid() && !state.isLiquid();
 	}
@@ -564,10 +742,25 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return Text.translatable(this.getTranslationKey());
 	}
 
+	/**
+	 * Обрабатывает событие landed upon.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param pos pos
+	 * @param entity entity
+	 * @param fallDistance fall distance
+	 */
 	public void onLandedUpon(World world, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
 		entity.handleFallDamage(fallDistance, 1.0F, entity.getDamageSources().fall());
 	}
 
+	/**
+	 * Обрабатывает событие entity land.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 */
 	public void onEntityLand(BlockView world, Entity entity) {
 		entity.setVelocity(entity.getVelocity().multiply(1.0, 0.0, 1.0));
 	}
@@ -584,10 +777,28 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return this.jumpVelocityMultiplier;
 	}
 
+	/**
+	 * Создаёт (спавнит) break particles.
+	 *
+	 * @param world world
+	 * @param player player
+	 * @param pos pos
+	 * @param state state
+	 */
 	protected void spawnBreakParticles(World world, PlayerEntity player, BlockPos pos, BlockState state) {
 		world.syncWorldEvent(player, 2001, pos, getRawIdFromState(state));
 	}
 
+	/**
+	 * Обрабатывает событие break.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param player player
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
 		this.spawnBreakParticles(world, player, pos, state);
 		if (state.isIn(BlockTags.GUARDED_BY_PIGLINS) && world instanceof ServerWorld serverWorld) {
@@ -598,13 +809,33 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return state;
 	}
 
+	/**
+	 * Precipitation tick.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param precipitation precipitation
+	 */
 	public void precipitationTick(BlockState state, World world, BlockPos pos, Biome.Precipitation precipitation) {
 	}
 
+	/**
+	 * Определяет, следует ли drop items on explosion.
+	 *
+	 * @param explosion explosion
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDropItemsOnExplosion(Explosion explosion) {
 		return true;
 	}
 
+	/**
+	 * Append properties.
+	 *
+	 * @param builder builder
+	 */
 	protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
 	}
 
@@ -663,6 +894,13 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return this;
 	}
 
+	/**
+	 * Создаёт shape function.
+	 *
+	 * @param stateToShape state to shape
+	 *
+	 * @return Function — результат операции
+	 */
 	protected Function<BlockState, VoxelShape> createShapeFunction(Function<BlockState, VoxelShape> stateToShape) {
 		return this.stateManager
 				.getStates()
@@ -710,6 +948,14 @@ public class Block extends AbstractBlock implements ItemConvertible, FabricBlock
 		return this.registryEntry;
 	}
 
+	/**
+	 * Бросает experience when mined.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param tool tool
+	 * @param experience experience
+	 */
 	protected void dropExperienceWhenMined(ServerWorld world, BlockPos pos, ItemStack tool, IntProvider experience) {
 		int i = EnchantmentHelper.getBlockExperience(world, tool, experience.get(world.getRandom()));
 		if (i > 0) {

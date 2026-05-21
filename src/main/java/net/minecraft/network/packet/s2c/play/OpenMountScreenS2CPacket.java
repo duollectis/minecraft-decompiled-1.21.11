@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс open mount screen s2 c packet.
+ */
 public class OpenMountScreenS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, OpenMountScreenS2CPacket> CODEC = Packet.createCodec(
@@ -39,6 +42,11 @@ public class OpenMountScreenS2CPacket implements Packet<ClientPlayPacketListener
 		return PlayPackets.MOUNT_SCREEN_OPEN;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onOpenMountScreen(this);
 	}

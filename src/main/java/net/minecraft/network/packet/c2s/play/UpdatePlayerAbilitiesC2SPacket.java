@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс update player abilities c2 s packet.
+ */
 public class UpdatePlayerAbilitiesC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, UpdatePlayerAbilitiesC2SPacket> CODEC = Packet.createCodec(
@@ -39,6 +42,11 @@ public class UpdatePlayerAbilitiesC2SPacket implements Packet<ServerPlayPacketLi
 		return PlayPackets.PLAYER_ABILITIES_C2S;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onUpdatePlayerAbilities(this);
 	}

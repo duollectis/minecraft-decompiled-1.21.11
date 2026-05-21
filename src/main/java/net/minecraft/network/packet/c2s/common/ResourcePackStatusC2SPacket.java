@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 
 import java.util.UUID;
 
+/**
+ * Запись resource pack status c2 s packet.
+ */
 public record ResourcePackStatusC2SPacket(
 		UUID id,
 		ResourcePackStatusC2SPacket.Status status
@@ -32,6 +35,11 @@ public record ResourcePackStatusC2SPacket(
 		return CommonPackets.RESOURCE_PACK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverCommonPacketListener server common packet listener
+	 */
 	public void apply(ServerCommonPacketListener serverCommonPacketListener) {
 		serverCommonPacketListener.onResourcePackStatus(this);
 	}

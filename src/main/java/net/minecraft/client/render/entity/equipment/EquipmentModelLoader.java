@@ -29,6 +29,13 @@ public class EquipmentModelLoader extends JsonDataLoader<EquipmentModel> {
 		super(EquipmentModel.CODEC, FINDER);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param map map
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(Map<Identifier, EquipmentModel> map, ResourceManager resourceManager, Profiler profiler) {
 		this.models = map.entrySet()
 		                 .stream()
@@ -40,6 +47,13 @@ public class EquipmentModelLoader extends JsonDataLoader<EquipmentModel> {
 		                 ));
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param assetKey asset key
+	 *
+	 * @return EquipmentModel — 
+	 */
 	public EquipmentModel get(RegistryKey<EquipmentAsset> assetKey) {
 		return this.models.getOrDefault(assetKey, EMPTY);
 	}

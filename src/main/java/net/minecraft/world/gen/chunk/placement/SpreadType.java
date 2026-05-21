@@ -23,6 +23,14 @@ public enum SpreadType implements StringIdentifiable {
 		return this.name;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param random random
+	 * @param bound bound
+	 *
+	 * @return int — 
+	 */
 	public int get(Random random, int bound) {
 		return switch (this) {
 			case LINEAR -> random.nextInt(bound);

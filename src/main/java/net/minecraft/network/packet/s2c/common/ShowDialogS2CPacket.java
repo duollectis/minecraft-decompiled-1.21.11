@@ -10,6 +10,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.registry.entry.RegistryEntry;
 
+/**
+ * Запись show dialog s2 c packet.
+ */
 public record ShowDialogS2CPacket(RegistryEntry<Dialog> dialog) implements Packet<ClientCommonPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, ShowDialogS2CPacket> REGISTRY_CODEC = PacketCodec.tuple(
@@ -26,6 +29,11 @@ public record ShowDialogS2CPacket(RegistryEntry<Dialog> dialog) implements Packe
 		return CommonPackets.SHOW_DIALOG;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onShowDialog(this);
 	}

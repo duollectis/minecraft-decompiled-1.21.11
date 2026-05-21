@@ -123,6 +123,13 @@ public class BeehiveBlockEntity extends BlockEntity {
 		return this.bees.size() == 3;
 	}
 
+	/**
+	 * Anger bees.
+	 *
+	 * @param player player
+	 * @param state state
+	 * @param beeState bee state
+	 */
 	public void angerBees(@Nullable PlayerEntity player, BlockState state, BeehiveBlockEntity.BeeState beeState) {
 		List<Entity> list = this.tryReleaseBee(state, beeState);
 		if (player != null) {
@@ -172,6 +179,11 @@ public class BeehiveBlockEntity extends BlockEntity {
 		return CampfireBlock.isLitCampfireInRange(this.world, this.getPos());
 	}
 
+	/**
+	 * Try enter hive.
+	 *
+	 * @param entity entity
+	 */
 	public void tryEnterHive(BeeEntity entity) {
 		if (this.bees.size() < 3) {
 			entity.stopRiding();
@@ -207,6 +219,11 @@ public class BeehiveBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * Добавляет bee.
+	 *
+	 * @param bee bee
+	 */
 	public void addBee(BeehiveBlockEntity.BeeData bee) {
 		this.bees.add(new BeehiveBlockEntity.Bee(bee));
 	}
@@ -314,6 +331,14 @@ public class BeehiveBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * Server tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void serverTick(World world, BlockPos pos, BlockState state, BeehiveBlockEntity blockEntity) {
 		tickBees(world, pos, state, blockEntity.bees, blockEntity.flowerPos);
 		if (!blockEntity.bees.isEmpty() && world.getRandom().nextDouble() < 0.005) {
@@ -386,6 +411,11 @@ public class BeehiveBlockEntity extends BlockEntity {
 			this.ticksInHive = data.ticksInHive();
 		}
 
+		/**
+		 * Проверяет возможность exit hive.
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canExitHive() {
 			return this.ticksInHive++ > this.data.minTicksInHive;
 		}
@@ -457,6 +487,14 @@ public class BeehiveBlockEntity extends BlockEntity {
 			);
 		}
 
+		/**
+		 * Загружает entity.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 *
+		 * @return @Nullable Entity — результат операции
+		 */
 		public @Nullable Entity loadEntity(World world, BlockPos pos) {
 			NbtCompound nbtCompound = this.entityData.copyNbtWithoutId();
 			BeehiveBlockEntity.IRRELEVANT_BEE_NBT_KEYS.forEach(nbtCompound::remove);

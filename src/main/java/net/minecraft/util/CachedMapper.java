@@ -18,6 +18,13 @@ public class CachedMapper<K, V> {
 		this.mapper = mapper;
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param input input
+	 *
+	 * @return V — результат операции
+	 */
 	public V map(K input) {
 		if (this.cachedOutput == null || !Objects.equals(this.cachedInput, input)) {
 			this.cachedOutput = this.mapper.apply(input);

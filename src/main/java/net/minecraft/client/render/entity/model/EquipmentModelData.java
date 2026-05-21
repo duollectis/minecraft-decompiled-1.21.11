@@ -26,6 +26,14 @@ public record EquipmentModelData<T>(T head, T chest, T legs, T feet) {
 		);
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param T t
+	 * @param f f
+	 *
+	 * @return EquipmentModelData — результат операции
+	 */
 	public <U> EquipmentModelData<U> map(Function<? super T, ? extends U> f) {
 		return (EquipmentModelData<U>) (new EquipmentModelData<>(
 				f.apply(this.head),
@@ -36,6 +44,12 @@ public record EquipmentModelData<T>(T head, T chest, T legs, T feet) {
 		);
 	}
 
+	/**
+	 * Добавляет to.
+	 *
+	 * @param texturedModelData textured model data
+	 * @param builder builder
+	 */
 	public void addTo(EquipmentModelData<TexturedModelData> texturedModelData, Builder<T, TexturedModelData> builder) {
 		builder.put(this.head, texturedModelData.head);
 		builder.put(this.chest, texturedModelData.chest);

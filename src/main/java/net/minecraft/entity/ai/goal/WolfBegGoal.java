@@ -39,15 +39,13 @@ public class WolfBegGoal extends Goal {
 
 	@Override
 	public boolean shouldContinue() {
-		if (!this.begFrom.isAlive()) {
+		if (this.begFrom == null || !this.begFrom.isAlive()) {
 			return false;
 		}
-		else {
-			return this.wolf.squaredDistanceTo(this.begFrom) > this.begDistance * this.begDistance ? false
-			                                                                                       : this.timer > 0
-			                                                                                         && this.isAttractive(
-					                                                                                       this.begFrom);
-		}
+
+		return this.wolf.squaredDistanceTo(this.begFrom) <= this.begDistance * this.begDistance
+				&& this.timer > 0
+				&& this.isAttractive(this.begFrom);
 	}
 
 	@Override
@@ -64,6 +62,10 @@ public class WolfBegGoal extends Goal {
 
 	@Override
 	public void tick() {
+		if (this.begFrom == null) {
+			return;
+		}
+
 		this.wolf
 				.getLookControl()
 				.lookAt(

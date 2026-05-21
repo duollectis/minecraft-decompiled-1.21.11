@@ -7,6 +7,9 @@ import net.minecraft.network.packet.HandshakePackets;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Запись handshake c2 s packet.
+ */
 public record HandshakeC2SPacket(
 		int protocolVersion,
 		String address,
@@ -43,6 +46,11 @@ public record HandshakeC2SPacket(
 		return HandshakePackets.INTENTION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverHandshakePacketListener server handshake packet listener
+	 */
 	public void apply(ServerHandshakePacketListener serverHandshakePacketListener) {
 		serverHandshakePacketListener.onHandshake(this);
 	}

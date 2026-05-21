@@ -22,14 +22,38 @@ public class StayAboveWaterTask<T extends MobEntity> extends MultiTickTask<T> {
 				|| entity.isInLava();
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, MobEntity mobEntity) {
 		return isUnderwater(mobEntity);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		return this.shouldRun(serverWorld, mobEntity);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, MobEntity mobEntity, long l) {
 		if (mobEntity.getRandom().nextFloat() < this.chance) {
 			mobEntity.getJumpControl().setActive();

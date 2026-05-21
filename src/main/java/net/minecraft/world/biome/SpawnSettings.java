@@ -107,6 +107,11 @@ public class SpawnSettings {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return SpawnSettings — результат операции
+		 */
 		public SpawnSettings build() {
 			return new SpawnSettings(
 					this.creatureSpawnProbability,

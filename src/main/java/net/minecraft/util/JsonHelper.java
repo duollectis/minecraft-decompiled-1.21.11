@@ -78,6 +78,14 @@ public class JsonHelper {
 		}
 	}
 
+	/**
+	 * As string.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return String — результат операции
+	 */
 	public static String asString(JsonElement element, String name) {
 		if (element.isJsonPrimitive()) {
 			return element.getAsString();
@@ -101,6 +109,14 @@ public class JsonHelper {
 		return object.has(element) ? asString(object.get(element), element) : defaultStr;
 	}
 
+	/**
+	 * As item.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return RegistryEntry — результат операции
+	 */
 	public static RegistryEntry<Item> asItem(JsonElement element, String name) {
 		if (element.isJsonPrimitive()) {
 			String string = element.getAsString();
@@ -132,6 +148,14 @@ public class JsonHelper {
 		return object.has(key) ? asItem(object.get(key), key) : defaultValue;
 	}
 
+	/**
+	 * As boolean.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean asBoolean(JsonElement element, String name) {
 		if (element.isJsonPrimitive()) {
 			return element.getAsBoolean();
@@ -154,6 +178,14 @@ public class JsonHelper {
 		return object.has(element) ? asBoolean(object.get(element), element) : defaultBoolean;
 	}
 
+	/**
+	 * As double.
+	 *
+	 * @param object object
+	 * @param name name
+	 *
+	 * @return double — результат операции
+	 */
 	public static double asDouble(JsonElement object, String name) {
 		if (object.isJsonPrimitive() && object.getAsJsonPrimitive().isNumber()) {
 			return object.getAsDouble();
@@ -176,6 +208,14 @@ public class JsonHelper {
 		return object.has(element) ? asDouble(object.get(element), element) : defaultDouble;
 	}
 
+	/**
+	 * As float.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return float — результат операции
+	 */
 	public static float asFloat(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsFloat();
@@ -198,6 +238,14 @@ public class JsonHelper {
 		return object.has(element) ? asFloat(object.get(element), element) : defaultFloat;
 	}
 
+	/**
+	 * As long.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return long — результат операции
+	 */
 	public static long asLong(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsLong();
@@ -220,6 +268,14 @@ public class JsonHelper {
 		return object.has(element) ? asLong(object.get(element), element) : defaultLong;
 	}
 
+	/**
+	 * As int.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return int — результат операции
+	 */
 	public static int asInt(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsInt();
@@ -242,6 +298,14 @@ public class JsonHelper {
 		return object.has(element) ? asInt(object.get(element), element) : defaultInt;
 	}
 
+	/**
+	 * As byte.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return byte — результат операции
+	 */
 	public static byte asByte(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsByte();
@@ -264,6 +328,14 @@ public class JsonHelper {
 		return object.has(element) ? asByte(object.get(element), element) : defaultByte;
 	}
 
+	/**
+	 * As char.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return char — результат операции
+	 */
 	public static char asChar(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsCharacter();
@@ -286,6 +358,14 @@ public class JsonHelper {
 		return object.has(element) ? asChar(object.get(element), element) : defaultChar;
 	}
 
+	/**
+	 * As big decimal.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return BigDecimal — результат операции
+	 */
 	public static BigDecimal asBigDecimal(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsBigDecimal();
@@ -308,6 +388,14 @@ public class JsonHelper {
 		return object.has(element) ? asBigDecimal(object.get(element), element) : defaultBigDecimal;
 	}
 
+	/**
+	 * As big integer.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return BigInteger — результат операции
+	 */
 	public static BigInteger asBigInteger(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsBigInteger();
@@ -330,6 +418,14 @@ public class JsonHelper {
 		return object.has(element) ? asBigInteger(object.get(element), element) : defaultBigInteger;
 	}
 
+	/**
+	 * As short.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return short — результат операции
+	 */
 	public static short asShort(JsonElement element, String name) {
 		if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isNumber()) {
 			return element.getAsShort();
@@ -352,6 +448,14 @@ public class JsonHelper {
 		return object.has(element) ? asShort(object.get(element), element) : defaultShort;
 	}
 
+	/**
+	 * As object.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return JsonObject — результат операции
+	 */
 	public static JsonObject asObject(JsonElement element, String name) {
 		if (element.isJsonObject()) {
 			return element.getAsJsonObject();
@@ -379,6 +483,14 @@ public class JsonHelper {
 		return object.has(element) ? asObject(object.get(element), element) : defaultObject;
 	}
 
+	/**
+	 * As array.
+	 *
+	 * @param element element
+	 * @param name name
+	 *
+	 * @return JsonArray — результат операции
+	 */
 	public static JsonArray asArray(JsonElement element, String name) {
 		if (element.isJsonArray()) {
 			return element.getAsJsonArray();
@@ -471,6 +583,15 @@ public class JsonHelper {
 		}
 	}
 
+	/**
+	 * Deserialize.
+	 *
+	 * @param gson gson
+	 * @param reader reader
+	 * @param type type
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T> T deserialize(Gson gson, Reader reader, Class<T> type) {
 		try {
 			JsonReader jsonReader = new JsonReader(reader);
@@ -488,6 +609,15 @@ public class JsonHelper {
 		}
 	}
 
+	/**
+	 * Десериализует nullable.
+	 *
+	 * @param gson gson
+	 * @param reader reader
+	 * @param typeToken type token
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public static <T> @Nullable T deserializeNullable(Gson gson, Reader reader, TypeToken<T> typeToken) {
 		try {
 			JsonReader jsonReader = new JsonReader(reader);
@@ -499,6 +629,15 @@ public class JsonHelper {
 		}
 	}
 
+	/**
+	 * Deserialize.
+	 *
+	 * @param gson gson
+	 * @param reader reader
+	 * @param typeToken type token
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T> T deserialize(Gson gson, Reader reader, TypeToken<T> typeToken) {
 		T object = deserializeNullable(gson, reader, typeToken);
 		if (object == null) {
@@ -509,30 +648,83 @@ public class JsonHelper {
 		}
 	}
 
+	/**
+	 * Deserialize.
+	 *
+	 * @param gson gson
+	 * @param content content
+	 * @param typeToken type token
+	 *
+	 * @return @Nullable T — результат операции
+	 */
 	public static <T> @Nullable T deserialize(Gson gson, String content, TypeToken<T> typeToken) {
 		return deserializeNullable(gson, new StringReader(content), typeToken);
 	}
 
+	/**
+	 * Deserialize.
+	 *
+	 * @param gson gson
+	 * @param content content
+	 * @param type type
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T> T deserialize(Gson gson, String content, Class<T> type) {
 		return deserialize(gson, new StringReader(content), type);
 	}
 
+	/**
+	 * Deserialize.
+	 *
+	 * @param content content
+	 *
+	 * @return JsonObject — результат операции
+	 */
 	public static JsonObject deserialize(String content) {
 		return deserialize(new StringReader(content));
 	}
 
+	/**
+	 * Deserialize.
+	 *
+	 * @param reader reader
+	 *
+	 * @return JsonObject — результат операции
+	 */
 	public static JsonObject deserialize(Reader reader) {
 		return deserialize(GSON, reader, JsonObject.class);
 	}
 
+	/**
+	 * Десериализует array.
+	 *
+	 * @param content content
+	 *
+	 * @return JsonArray — результат операции
+	 */
 	public static JsonArray deserializeArray(String content) {
 		return deserializeArray(new StringReader(content));
 	}
 
+	/**
+	 * Десериализует array.
+	 *
+	 * @param reader reader
+	 *
+	 * @return JsonArray — результат операции
+	 */
 	public static JsonArray deserializeArray(Reader reader) {
 		return deserialize(GSON, reader, JsonArray.class);
 	}
 
+	/**
+	 * To sorted string.
+	 *
+	 * @param json json
+	 *
+	 * @return String — результат операции
+	 */
 	public static String toSortedString(JsonElement json) {
 		StringWriter stringWriter = new StringWriter();
 		JsonWriter jsonWriter = new JsonWriter(stringWriter);

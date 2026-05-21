@@ -21,6 +21,11 @@ public class EntityGameEventHandler<T extends GameEventListener> {
 		this.listener = listener;
 	}
 
+	/**
+	 * Обрабатывает событие entity set pos callback.
+	 *
+	 * @param world world
+	 */
 	public void onEntitySetPosCallback(ServerWorld world) {
 		this.onEntitySetPos(world);
 	}
@@ -29,10 +34,20 @@ public class EntityGameEventHandler<T extends GameEventListener> {
 		return this.listener;
 	}
 
+	/**
+	 * Обрабатывает событие entity removal.
+	 *
+	 * @param world world
+	 */
 	public void onEntityRemoval(ServerWorld world) {
 		updateDispatcher(world, this.sectionPos, dispatcher -> dispatcher.removeListener(this.listener));
 	}
 
+	/**
+	 * Обрабатывает событие entity set pos.
+	 *
+	 * @param world world
+	 */
 	public void onEntitySetPos(ServerWorld world) {
 		this.listener.getPositionSource().getPos(world).map(ChunkSectionPos::from).ifPresent(sectionPos -> {
 			if (this.sectionPos == null || !this.sectionPos.equals(sectionPos)) {

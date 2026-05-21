@@ -105,6 +105,11 @@ public class BedBlockEntityRenderer implements BlockEntityRenderer<BedBlockEntit
 		return TexturedModelData.of(modelData, 64, 64);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BedBlockEntityRenderState — результат операции
+	 */
 	public BedBlockEntityRenderState createRenderState() {
 		return new BedBlockEntityRenderState();
 	}
@@ -214,6 +219,11 @@ public class BedBlockEntityRenderer implements BlockEntityRenderer<BedBlockEntit
 		matrices.translate(-0.5F, -0.5F, -0.5F);
 	}
 
+	/**
+	 * Collect vertices.
+	 *
+	 * @param consumer consumer
+	 */
 	public void collectVertices(Consumer<Vector3fc> consumer) {
 		MatrixStack matrixStack = new MatrixStack();
 		setTransforms(matrixStack, false, Direction.SOUTH);

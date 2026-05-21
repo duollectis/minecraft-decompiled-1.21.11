@@ -217,6 +217,11 @@ public class NetherPortal {
 		return this.width >= 2 && this.width <= 21 && this.height >= 3 && this.height <= 21;
 	}
 
+	/**
+	 * Создаёт portal.
+	 *
+	 * @param world world
+	 */
 	public void createPortal(WorldAccess world) {
 		BlockState blockState = Blocks.NETHER_PORTAL.getDefaultState().with(NetherPortalBlock.AXIS, this.axis);
 		BlockPos
@@ -227,6 +232,11 @@ public class NetherPortal {
 				.forEach(pos -> world.setBlockState(pos, blockState, 18));
 	}
 
+	/**
+	 * Was already valid.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean wasAlreadyValid() {
 		return this.isValid() && this.foundPortalBlocks == this.width * this.height;
 	}

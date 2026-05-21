@@ -14,6 +14,11 @@ public record SoundListenerTransform(Vec3d position, Vec3d forward, Vec3d up) {
 			DEFAULT =
 			new SoundListenerTransform(Vec3d.ZERO, new Vec3d(0.0, 0.0, -1.0), new Vec3d(0.0, 1.0, 0.0));
 
+	/**
+	 * Right.
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d right() {
 		return this.forward.crossProduct(this.up);
 	}

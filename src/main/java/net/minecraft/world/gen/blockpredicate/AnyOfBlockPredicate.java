@@ -17,6 +17,14 @@ class AnyOfBlockPredicate extends CombinedBlockPredicate {
 		super(list);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param structureWorldAccess structure world access
+	 * @param blockPos block pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(StructureWorldAccess structureWorldAccess, BlockPos blockPos) {
 		for (BlockPredicate blockPredicate : this.predicates) {
 			if (blockPredicate.test(structureWorldAccess, blockPos)) {

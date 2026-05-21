@@ -26,6 +26,12 @@ public class NearestItemsSensor extends Sensor<MobEntity> {
 		return ImmutableSet.of(MemoryModuleType.NEAREST_VISIBLE_WANTED_ITEM);
 	}
 
+	/**
+	 * Sense.
+	 *
+	 * @param serverWorld server world
+	 * @param mobEntity mob entity
+	 */
 	protected void sense(ServerWorld serverWorld, MobEntity mobEntity) {
 		Brain<?> brain = mobEntity.getBrain();
 		List<ItemEntity>

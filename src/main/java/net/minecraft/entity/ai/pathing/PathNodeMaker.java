@@ -27,6 +27,12 @@ public abstract class PathNodeMaker {
 	protected boolean canSwim;
 	protected boolean canWalkOverFences;
 
+	/**
+	 * Init.
+	 *
+	 * @param cachedWorld cached world
+	 * @param entity entity
+	 */
 	public void init(ChunkCache cachedWorld, MobEntity entity) {
 		this.context = new PathContext(cachedWorld, entity);
 		this.entity = entity;
@@ -36,6 +42,9 @@ public abstract class PathNodeMaker {
 		this.entityBlockZSize = MathHelper.floor(entity.getWidth() + 1.0F);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.context = null;
 		this.entity = null;
@@ -53,6 +62,15 @@ public abstract class PathNodeMaker {
 
 	public abstract TargetPathNode getNode(double x, double y, double z);
 
+	/**
+	 * Создаёт node.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return TargetPathNode — результат операции
+	 */
 	protected TargetPathNode createNode(double x, double y, double z) {
 		return new TargetPathNode(this.getNode(MathHelper.floor(x), MathHelper.floor(y), MathHelper.floor(z)));
 	}
@@ -88,18 +106,38 @@ public abstract class PathNodeMaker {
 		this.canWalkOverFences = canWalkOverFences;
 	}
 
+	/**
+	 * Проверяет возможность enter open doors.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canEnterOpenDoors() {
 		return this.canEnterOpenDoors;
 	}
 
+	/**
+	 * Проверяет возможность open doors.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canOpenDoors() {
 		return this.canOpenDoors;
 	}
 
+	/**
+	 * Проверяет возможность swim.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canSwim() {
 		return this.canSwim;
 	}
 
+	/**
+	 * Проверяет возможность walk over fences.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canWalkOverFences() {
 		return this.canWalkOverFences;
 	}

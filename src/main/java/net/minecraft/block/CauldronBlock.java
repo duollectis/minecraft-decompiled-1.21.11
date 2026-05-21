@@ -32,6 +32,14 @@ public class CauldronBlock extends AbstractCauldronBlock {
 		return false;
 	}
 
+	/**
+	 * Проверяет возможность fill with precipitation.
+	 *
+	 * @param world world
+	 * @param precipitation precipitation
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected static boolean canFillWithPrecipitation(World world, Biome.Precipitation precipitation) {
 		if (precipitation == Biome.Precipitation.RAIN) {
 			return world.getRandom().nextFloat() < 0.05F;

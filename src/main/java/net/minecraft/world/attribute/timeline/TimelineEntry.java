@@ -18,6 +18,13 @@ public record TimelineEntry<Value, Argument>(
 		Track<Argument> argumentTrack
 ) {
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param attribute attribute
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <Value> Codec<TimelineEntry<Value, ?>> createCodec(EnvironmentAttribute<Value> attribute) {
 		MapCodec<EnvironmentAttributeModifier<Value, ?>> mapCodec = attribute.getType()
 		                                                                     .modifierCodec()
@@ -52,6 +59,14 @@ public record TimelineEntry<Value, Argument>(
 		);
 	}
 
+	/**
+	 * Валидирует keyframes in period.
+	 *
+	 * @param entry entry
+	 * @param period period
+	 *
+	 * @return DataResult> — результат операции
+	 */
 	public static DataResult<TimelineEntry<?, ?>> validateKeyframesInPeriod(TimelineEntry<?, ?> entry, int period) {
 		return Track.validateKeyframesInPeriod(entry.argumentTrack(), period).map(track -> entry);
 	}

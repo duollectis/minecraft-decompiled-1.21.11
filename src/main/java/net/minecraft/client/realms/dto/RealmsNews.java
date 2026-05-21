@@ -17,6 +17,13 @@ public record RealmsNews(@Nullable String newsLink) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return RealmsNews — результат операции
+	 */
 	public static RealmsNews parse(String json) {
 		String string = null;
 

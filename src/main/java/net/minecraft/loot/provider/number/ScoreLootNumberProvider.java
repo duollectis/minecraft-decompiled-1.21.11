@@ -43,10 +43,27 @@ public record ScoreLootNumberProvider(
 		return this.target.getRequiredParameters();
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param target target
+	 * @param score score
+	 *
+	 * @return ScoreLootNumberProvider — результат операции
+	 */
 	public static ScoreLootNumberProvider create(LootContext.EntityReference target, String score) {
 		return create(target, score, 1.0F);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param target target
+	 * @param score score
+	 * @param scale scale
+	 *
+	 * @return ScoreLootNumberProvider — результат операции
+	 */
 	public static ScoreLootNumberProvider create(LootContext.EntityReference target, String score, float scale) {
 		return new ScoreLootNumberProvider(ContextLootScoreProvider.create(target), score, scale);
 	}

@@ -30,6 +30,16 @@ public class MultifaceGrower {
 		this.growChecker = growChecker;
 	}
 
+	/**
+	 * Проверяет возможность grow.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canGrow(BlockState state, BlockView world, BlockPos pos, Direction direction) {
 		return Direction
 				.stream()
@@ -48,6 +58,16 @@ public class MultifaceGrower {
 		                .orElse(Optional.empty());
 	}
 
+	/**
+	 * Grow.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param markForPostProcessing mark for post processing
+	 *
+	 * @return long — результат операции
+	 */
 	public long grow(BlockState state, WorldAccess world, BlockPos pos, boolean markForPostProcessing) {
 		return Direction.stream()
 		                .filter(direction -> this.growChecker.canGrow(state, direction))

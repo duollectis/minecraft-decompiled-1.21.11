@@ -16,6 +16,13 @@ public class ManagementLogger {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final String LOG_PREFIX = "RPC Connection #{}: ";
 
+	/**
+	 * Логирует action.
+	 *
+	 * @param remote remote
+	 * @param action action
+	 * @param arguments arguments
+	 */
 	public void logAction(ManagementConnectionId remote, String action, Object... arguments) {
 		if (arguments.length == 0) {
 			LOGGER.info("RPC Connection #{}: " + action, remote.connectionId());

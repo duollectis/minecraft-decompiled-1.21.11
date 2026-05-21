@@ -187,6 +187,13 @@ public class RealmsBrokenWorldScreen extends RealmsScreen {
 		return this.left_x + (i - 1) * 110;
 	}
 
+	/**
+	 * Создаёт error screen.
+	 *
+	 * @param error error
+	 *
+	 * @return Screen — результат операции
+	 */
 	public Screen createErrorScreen(RealmsServiceException error) {
 		return new RealmsGenericErrorScreen(error, this.parent);
 	}
@@ -204,6 +211,9 @@ public class RealmsBrokenWorldScreen extends RealmsScreen {
 		          );
 	}
 
+	/**
+	 * Play.
+	 */
 	public void play() {
 		new Thread(
 				() -> {

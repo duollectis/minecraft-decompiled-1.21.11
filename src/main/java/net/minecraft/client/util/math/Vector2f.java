@@ -14,6 +14,14 @@ public record Vector2f(float x, float y) {
 		return "(" + this.x + "," + this.y + ")";
 	}
 
+	/**
+	 * To long.
+	 *
+	 * @param x x
+	 * @param y y
+	 *
+	 * @return long — результат операции
+	 */
 	public static long toLong(float x, float y) {
 		long l = Float.floatToIntBits(x) & 4294967295L;
 		long m = Float.floatToIntBits(y) & 4294967295L;

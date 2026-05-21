@@ -43,12 +43,24 @@ public class StatusEffectsDisplay {
 		this.client = MinecraftClient.getInstance();
 	}
 
+	/**
+	 * Определяет, следует ли hide status effect hud.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldHideStatusEffectHud() {
 		int i = this.parent.x + this.parent.backgroundWidth + 2;
 		int j = this.parent.width - i;
 		return j >= 32;
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	public void render(DrawContext context, int mouseX, int mouseY) {
 		int i = this.parent.x + this.parent.backgroundWidth + 2;
 		int j = this.parent.width - i;

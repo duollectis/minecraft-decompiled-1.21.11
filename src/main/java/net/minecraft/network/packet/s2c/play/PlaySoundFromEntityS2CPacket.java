@@ -11,6 +11,9 @@ import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 
+/**
+ * Класс play sound from entity s2 c packet.
+ */
 public class PlaySoundFromEntityS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, PlaySoundFromEntityS2CPacket> CODEC = Packet.createCodec(
@@ -62,6 +65,11 @@ public class PlaySoundFromEntityS2CPacket implements Packet<ClientPlayPacketList
 		return PlayPackets.SOUND_ENTITY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlaySoundFromEntity(this);
 	}

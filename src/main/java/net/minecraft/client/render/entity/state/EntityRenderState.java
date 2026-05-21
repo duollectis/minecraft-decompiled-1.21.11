@@ -46,6 +46,11 @@ public class EntityRenderState implements FabricRenderState {
 		return this.outlineColor != 0;
 	}
 
+	/**
+	 * Добавляет crash report details.
+	 *
+	 * @param crashReportSection crash report section
+	 */
 	public void addCrashReportDetails(CrashReportSection crashReportSection) {
 		crashReportSection.add("EntityRenderState", this.getClass().getCanonicalName());
 		crashReportSection.add(

@@ -29,6 +29,13 @@ public class ScreenshotRecorder {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	public static final String SCREENSHOTS_DIRECTORY = "screenshots";
 
+	/**
+	 * Сохраняет screenshot.
+	 *
+	 * @param gameDirectory game directory
+	 * @param framebuffer framebuffer
+	 * @param messageReceiver message receiver
+	 */
 	public static void saveScreenshot(File gameDirectory, Framebuffer framebuffer, Consumer<Text> messageReceiver) {
 		saveScreenshot(gameDirectory, null, framebuffer, 1, messageReceiver);
 	}
@@ -98,10 +105,23 @@ public class ScreenshotRecorder {
 		);
 	}
 
+	/**
+	 * Take screenshot.
+	 *
+	 * @param framebuffer framebuffer
+	 * @param callback callback
+	 */
 	public static void takeScreenshot(Framebuffer framebuffer, Consumer<NativeImage> callback) {
 		takeScreenshot(framebuffer, 1, callback);
 	}
 
+	/**
+	 * Take screenshot.
+	 *
+	 * @param framebuffer framebuffer
+	 * @param downscaleFactor downscale factor
+	 * @param callback callback
+	 */
 	public static void takeScreenshot(Framebuffer framebuffer, int downscaleFactor, Consumer<NativeImage> callback) {
 		int i = framebuffer.textureWidth;
 		int j = framebuffer.textureHeight;

@@ -9,6 +9,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись creative inventory action c2 s packet.
+ */
 public record CreativeInventoryActionC2SPacket(
 		short slot,
 		ItemStack stack
@@ -31,6 +34,11 @@ public record CreativeInventoryActionC2SPacket(
 		return PlayPackets.SET_CREATIVE_MODE_SLOT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onCreativeInventoryAction(this);
 	}

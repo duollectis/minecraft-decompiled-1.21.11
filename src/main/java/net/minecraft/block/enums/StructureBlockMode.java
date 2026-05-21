@@ -29,6 +29,11 @@ public enum StructureBlockMode implements StringIdentifiable {
 		return this.name;
 	}
 
+	/**
+	 * As text.
+	 *
+	 * @return Text — результат операции
+	 */
 	public Text asText() {
 		return this.text;
 	}

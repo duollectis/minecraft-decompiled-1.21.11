@@ -60,6 +60,12 @@ public class SoundEngine {
 		this.deviceSpecifier = findAvailableDeviceSpecifier();
 	}
 
+	/**
+	 * Init.
+	 *
+	 * @param deviceSpecifier device specifier
+	 * @param directionalAudio directional audio
+	 */
 	public void init(@Nullable String deviceSpecifier, boolean directionalAudio) {
 		this.devicePointer = openDeviceOrFallback(deviceSpecifier);
 		this.disconnectExtensionPresent = false;
@@ -200,6 +206,11 @@ public class SoundEngine {
 		return var7;
 	}
 
+	/**
+	 * Ищет available device specifier.
+	 *
+	 * @return @Nullable String — available device specifier
+	 */
 	public static @Nullable String findAvailableDeviceSpecifier() {
 		if (!ALC10.alcIsExtensionPresent(0L, "ALC_ENUMERATE_ALL_EXT")) {
 			return null;
@@ -223,6 +234,11 @@ public class SoundEngine {
 		return string;
 	}
 
+	/**
+	 * Обновляет device specifier.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public synchronized boolean updateDeviceSpecifier() {
 		String string = findAvailableDeviceSpecifier();
 		if (Objects.equals(this.deviceSpecifier, string)) {
@@ -261,6 +277,9 @@ public class SoundEngine {
 		return l != 0L && !AlUtil.checkAlcErrors(l, "Open device") ? OptionalLong.of(l) : OptionalLong.empty();
 	}
 
+	/**
+	 * Close.
+	 */
 	public void close() {
 		this.streamingSources.close();
 		this.staticSources.close();
@@ -274,10 +293,22 @@ public class SoundEngine {
 		return this.listener;
 	}
 
+	/**
+	 * Создаёт source.
+	 *
+	 * @param mode mode
+	 *
+	 * @return @Nullable Source — результат операции
+	 */
 	public @Nullable Source createSource(SoundEngine.RunMode mode) {
 		return (mode == SoundEngine.RunMode.STREAMING ? this.staticSources : this.streamingSources).createSource();
 	}
 
+	/**
+	 * Release.
+	 *
+	 * @param source source
+	 */
 	public void release(Source source) {
 		if (!this.streamingSources.release(source) && !this.staticSources.release(source)) {
 			throw new IllegalStateException("Tried to release unknown channel");

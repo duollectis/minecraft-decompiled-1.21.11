@@ -3,6 +3,9 @@ package net.minecraft.network.listener;
 import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.s2c.login.*;
 
+/**
+ * Интерфейс client login packet listener.
+ */
 public interface ClientLoginPacketListener extends ClientCookieRequestPacketListener {
 
 	@Override

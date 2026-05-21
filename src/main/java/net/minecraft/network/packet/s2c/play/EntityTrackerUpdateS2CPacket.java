@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PlayPackets;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Запись entity tracker update s2 c packet.
+ */
 public record EntityTrackerUpdateS2CPacket(
 		int id,
 		List<DataTracker.SerializedEntry<?>> trackedValues
@@ -54,6 +57,11 @@ public record EntityTrackerUpdateS2CPacket(
 		return PlayPackets.SET_ENTITY_DATA;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntityTrackerUpdate(this);
 	}

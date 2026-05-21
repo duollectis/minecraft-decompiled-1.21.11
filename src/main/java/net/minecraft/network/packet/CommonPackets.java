@@ -7,6 +7,9 @@ import net.minecraft.network.packet.c2s.common.*;
 import net.minecraft.network.packet.s2c.common.*;
 import net.minecraft.util.Identifier;
 
+/**
+ * Класс common packets.
+ */
 public class CommonPackets {
 
 	public static final PacketType<ClearDialogS2CPacket> CLEAR_DIALOG = s2c("clear_dialog");

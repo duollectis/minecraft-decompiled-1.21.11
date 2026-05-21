@@ -34,6 +34,13 @@ public record TimeCheckLootCondition(Optional<Long> period, BoundedIntUnaryOpera
 		return this.value.getRequiredParameters();
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		ServerWorld serverWorld = lootContext.getWorld();
 		long l = serverWorld.getTimeOfDay();
@@ -65,6 +72,11 @@ public record TimeCheckLootCondition(Optional<Long> period, BoundedIntUnaryOpera
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return TimeCheckLootCondition — результат операции
+		 */
 		public TimeCheckLootCondition build() {
 			return new TimeCheckLootCondition(this.period, this.value);
 		}

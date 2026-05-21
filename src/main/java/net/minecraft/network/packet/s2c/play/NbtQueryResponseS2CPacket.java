@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс nbt query response s2 c packet.
+ */
 public class NbtQueryResponseS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, NbtQueryResponseS2CPacket> CODEC = Packet.createCodec(
@@ -37,6 +40,11 @@ public class NbtQueryResponseS2CPacket implements Packet<ClientPlayPacketListene
 		return PlayPackets.TAG_QUERY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onNbtQueryResponse(this);
 	}

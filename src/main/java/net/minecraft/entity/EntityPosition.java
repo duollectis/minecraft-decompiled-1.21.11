@@ -27,6 +27,13 @@ public record EntityPosition(Vec3d position, Vec3d deltaMovement, float yaw, flo
 			EntityPosition::new
 	);
 
+	/**
+	 * From entity.
+	 *
+	 * @param entity entity
+	 *
+	 * @return EntityPosition — результат операции
+	 */
 	public static EntityPosition fromEntity(Entity entity) {
 		return entity.isInterpolating()
 		       ? new EntityPosition(
@@ -38,10 +45,25 @@ public record EntityPosition(Vec3d position, Vec3d deltaMovement, float yaw, flo
 		       : new EntityPosition(entity.getEntityPos(), entity.getMovement(), entity.getYaw(), entity.getPitch());
 	}
 
+	/**
+	 * With rotation.
+	 *
+	 * @param yaw yaw
+	 * @param pitch pitch
+	 *
+	 * @return EntityPosition — результат операции
+	 */
 	public EntityPosition withRotation(float yaw, float pitch) {
 		return new EntityPosition(this.position(), this.deltaMovement(), yaw, pitch);
 	}
 
+	/**
+	 * From teleport target.
+	 *
+	 * @param teleportTarget teleport target
+	 *
+	 * @return EntityPosition — результат операции
+	 */
 	public static EntityPosition fromTeleportTarget(TeleportTarget teleportTarget) {
 		return new EntityPosition(
 				teleportTarget.position(),
@@ -51,6 +73,15 @@ public record EntityPosition(Vec3d position, Vec3d deltaMovement, float yaw, flo
 		);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param currentPos current pos
+	 * @param newPos new pos
+	 * @param flags flags
+	 *
+	 * @return EntityPosition — результат операции
+	 */
 	public static EntityPosition apply(EntityPosition currentPos, EntityPosition newPos, Set<PositionFlag> flags) {
 		double d = flags.contains(PositionFlag.X) ? currentPos.position.x : 0.0;
 		double e = flags.contains(PositionFlag.Y) ? currentPos.position.y : 0.0;

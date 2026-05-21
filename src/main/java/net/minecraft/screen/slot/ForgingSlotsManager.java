@@ -66,6 +66,11 @@ public class ForgingSlotsManager {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return ForgingSlotsManager — результат операции
+		 */
 		public ForgingSlotsManager build() {
 			int i = this.inputs.size();
 

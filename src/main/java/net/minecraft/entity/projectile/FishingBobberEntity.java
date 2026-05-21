@@ -505,6 +505,13 @@ public class FishingBobberEntity extends ProjectileEntity {
 	protected void readCustomData(ReadView view) {
 	}
 
+	/**
+	 * Use.
+	 *
+	 * @param usedItem used item
+	 *
+	 * @return int — результат операции
+	 */
 	public int use(ItemStack usedItem) {
 		PlayerEntity playerEntity = this.getPlayerOwner();
 		if (!this.getEntityWorld().isClient() && playerEntity != null && !this.removeIfInvalid(playerEntity)) {
@@ -591,6 +598,11 @@ public class FishingBobberEntity extends ProjectileEntity {
 		super.handleStatus(status);
 	}
 
+	/**
+	 * Pull hooked entity.
+	 *
+	 * @param entity entity
+	 */
 	protected void pullHookedEntity(Entity entity) {
 		Entity entity2 = this.getOwner();
 		if (entity2 != null) {

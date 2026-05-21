@@ -76,6 +76,13 @@ public final class ContainerComponent implements TooltipAppender {
 		}
 	}
 
+	/**
+	 * From stacks.
+	 *
+	 * @param stacks stacks
+	 *
+	 * @return ContainerComponent — результат операции
+	 */
 	public static ContainerComponent fromStacks(List<ItemStack> stacks) {
 		int i = findLastNonEmptyIndex(stacks);
 		if (i == -1) {
@@ -115,6 +122,11 @@ public final class ContainerComponent implements TooltipAppender {
 		return list;
 	}
 
+	/**
+	 * Создаёт копию to.
+	 *
+	 * @param stacks stacks
+	 */
 	public void copyTo(DefaultedList<ItemStack> stacks) {
 		for (int i = 0; i < stacks.size(); i++) {
 			ItemStack itemStack = i < this.stacks.size() ? this.stacks.get(i) : ItemStack.EMPTY;
@@ -122,22 +134,47 @@ public final class ContainerComponent implements TooltipAppender {
 		}
 	}
 
+	/**
+	 * Создаёт копию first stack.
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack copyFirstStack() {
 		return this.stacks.isEmpty() ? ItemStack.EMPTY : this.stacks.get(0).copy();
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<ItemStack> stream() {
 		return this.stacks.stream().map(ItemStack::copy);
 	}
 
+	/**
+	 * Stream non empty.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<ItemStack> streamNonEmpty() {
 		return this.stacks.stream().filter(stack -> !stack.isEmpty()).map(ItemStack::copy);
 	}
 
+	/**
+	 * Iterate non empty.
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public Iterable<ItemStack> iterateNonEmpty() {
 		return Iterables.filter(this.stacks, stack -> !stack.isEmpty());
 	}
 
+	/**
+	 * Iterate non empty copy.
+	 *
+	 * @return Iterable — результат операции
+	 */
 	public Iterable<ItemStack> iterateNonEmptyCopy() {
 		return Iterables.transform(this.iterateNonEmpty(), ItemStack::copy);
 	}

@@ -18,6 +18,13 @@ public record PngMetadata(int width, int height) {
 	private static final int IHDR_CHUNK_TYPE = 1229472850;
 	private static final int IHDR_CHUNK_LENGTH = 13;
 
+	/**
+	 * From stream.
+	 *
+	 * @param stream stream
+	 *
+	 * @return PngMetadata — результат операции
+	 */
 	public static PngMetadata fromStream(InputStream stream) throws IOException {
 		DataInputStream dataInputStream = new DataInputStream(stream);
 		long l = dataInputStream.readLong();
@@ -43,10 +50,22 @@ public record PngMetadata(int width, int height) {
 		}
 	}
 
+	/**
+	 * From bytes.
+	 *
+	 * @param bytes bytes
+	 *
+	 * @return PngMetadata — результат операции
+	 */
 	public static PngMetadata fromBytes(byte[] bytes) throws IOException {
 		return fromStream(new ByteArrayInputStream(bytes));
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param buf buf
+	 */
 	public static void validate(ByteBuffer buf) throws IOException {
 		ByteOrder byteOrder = buf.order();
 		buf.order(ByteOrder.BIG_ENDIAN);

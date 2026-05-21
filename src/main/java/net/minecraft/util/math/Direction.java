@@ -136,15 +136,35 @@ public enum Direction implements StringIdentifiable {
 		return new Direction[]{first, second, third, third.getOpposite(), second.getOpposite(), first.getOpposite()};
 	}
 
+	/**
+	 * Transform.
+	 *
+	 * @param matrix matrix
+	 * @param direction direction
+	 *
+	 * @return Direction — результат операции
+	 */
 	public static Direction transform(Matrix4fc matrix, Direction direction) {
 		Vector3f vector3f = matrix.transformDirection(direction.floatVector, new Vector3f());
 		return getFacing(vector3f.x(), vector3f.y(), vector3f.z());
 	}
 
+	/**
+	 * Shuffle.
+	 *
+	 * @param random random
+	 *
+	 * @return Collection — результат операции
+	 */
 	public static Collection<Direction> shuffle(Random random) {
 		return Util.copyShuffled(values(), random);
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<Direction> stream() {
 		return Stream.of(ALL);
 	}
@@ -194,6 +214,13 @@ public enum Direction implements StringIdentifiable {
 		return byIndex(this.oppositeIndex);
 	}
 
+	/**
+	 * Rotate clockwise.
+	 *
+	 * @param axis axis
+	 *
+	 * @return Direction — результат операции
+	 */
 	public Direction rotateClockwise(Direction.Axis axis) {
 		return switch (axis) {
 			case X -> this != WEST && this != EAST ? this.rotateXClockwise() : this;
@@ -202,6 +229,13 @@ public enum Direction implements StringIdentifiable {
 		};
 	}
 
+	/**
+	 * Rotate counterclockwise.
+	 *
+	 * @param axis axis
+	 *
+	 * @return Direction — результат операции
+	 */
 	public Direction rotateCounterclockwise(Direction.Axis axis) {
 		return switch (axis) {
 			case X -> this != WEST && this != EAST ? this.rotateXCounterclockwise() : this;
@@ -210,6 +244,11 @@ public enum Direction implements StringIdentifiable {
 		};
 	}
 
+	/**
+	 * Rotate y clockwise.
+	 *
+	 * @return Direction — результат операции
+	 */
 	public Direction rotateYClockwise() {
 		return switch (this) {
 			case NORTH -> EAST;
@@ -260,6 +299,11 @@ public enum Direction implements StringIdentifiable {
 		};
 	}
 
+	/**
+	 * Rotate y counterclockwise.
+	 *
+	 * @return Direction — результат операции
+	 */
 	public Direction rotateYCounterclockwise() {
 		return switch (this) {
 			case NORTH -> WEST;
@@ -294,22 +338,58 @@ public enum Direction implements StringIdentifiable {
 		return this.axis;
 	}
 
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable Direction — результат операции
+	 */
 	public static @Nullable Direction byId(String id) {
 		return CODEC.byId(id);
 	}
 
+	/**
+	 * By index.
+	 *
+	 * @param index index
+	 *
+	 * @return Direction — результат операции
+	 */
 	public static Direction byIndex(int index) {
 		return VALUES[MathHelper.abs(index % VALUES.length)];
 	}
 
+	/**
+	 * From horizontal quarter turns.
+	 *
+	 * @param quarterTurns quarter turns
+	 *
+	 * @return Direction — результат операции
+	 */
 	public static Direction fromHorizontalQuarterTurns(int quarterTurns) {
 		return HORIZONTAL[MathHelper.abs(quarterTurns % HORIZONTAL.length)];
 	}
 
+	/**
+	 * From horizontal degrees.
+	 *
+	 * @param angle angle
+	 *
+	 * @return Direction — результат операции
+	 */
 	public static Direction fromHorizontalDegrees(double angle) {
 		return fromHorizontalQuarterTurns(MathHelper.floor(angle / 90.0 + 0.5) & 3);
 	}
 
+	/**
+	 * From.
+	 *
+	 * @param axis axis
+	 * @param direction direction
+	 *
+	 * @return Direction — результат операции
+	 */
 	public static Direction from(Direction.Axis axis, Direction.AxisDirection direction) {
 		return switch (axis) {
 			case X -> direction == Direction.AxisDirection.POSITIVE ? EAST : WEST;
@@ -322,6 +402,13 @@ public enum Direction implements StringIdentifiable {
 		return (this.horizontalQuarterTurns & 3) * 90;
 	}
 
+	/**
+	 * Random.
+	 *
+	 * @param random random
+	 *
+	 * @return Direction — результат операции
+	 */
 	public static Direction random(Random random) {
 		return Util.getRandom(ALL, random);
 	}
@@ -350,6 +437,16 @@ public enum Direction implements StringIdentifiable {
 	}
 
 	@Contract("_,_,_,!null->!null;_,_,_,_->_")
+	/**
+	 * From vector.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param fallback fallback
+	 *
+	 * @return @Nullable Direction — результат операции
+	 */
 	public static @Nullable Direction fromVector(int x, int y, int z, @Nullable Direction fallback) {
 		int i = Math.abs(x);
 		int j = Math.abs(y);
@@ -369,6 +466,14 @@ public enum Direction implements StringIdentifiable {
 	}
 
 	@Contract("_,!null->!null;_,_->_")
+	/**
+	 * From vector.
+	 *
+	 * @param vec vec
+	 * @param fallback fallback
+	 *
+	 * @return @Nullable Direction — результат операции
+	 */
 	public static @Nullable Direction fromVector(Vec3i vec, @Nullable Direction fallback) {
 		return fromVector(vec.getX(), vec.getY(), vec.getZ(), fallback);
 	}
@@ -388,6 +493,14 @@ public enum Direction implements StringIdentifiable {
 		                                        : DataResult.error(() -> "Expected a vertical direction");
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param direction direction
+	 * @param axis axis
+	 *
+	 * @return Direction — 
+	 */
 	public static Direction get(Direction.AxisDirection direction, Direction.Axis axis) {
 		for (Direction direction2 : ALL) {
 			if (direction2.getDirection() == direction && direction2.getAxis() == axis) {
@@ -414,6 +527,13 @@ public enum Direction implements StringIdentifiable {
 		return this.floatVector;
 	}
 
+	/**
+	 * Points to.
+	 *
+	 * @param yaw yaw
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean pointsTo(float yaw) {
 		float f = yaw * (float) (Math.PI / 180.0);
 		float g = -MathHelper.sin(f);
@@ -547,6 +667,13 @@ public enum Direction implements StringIdentifiable {
 			return Util.getRandom(VALUES, random);
 		}
 
+		/**
+		 * Test.
+		 *
+		 * @param direction direction
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean test(@Nullable Direction direction) {
 			return direction != null && direction.getAxis() == this;
 		}
@@ -563,10 +690,37 @@ public enum Direction implements StringIdentifiable {
 			return this.id;
 		}
 
+		/**
+		 * Choose.
+		 *
+		 * @param x x
+		 * @param y y
+		 * @param z z
+		 *
+		 * @return int — результат операции
+		 */
 		public abstract int choose(int x, int y, int z);
 
+		/**
+		 * Choose.
+		 *
+		 * @param x x
+		 * @param y y
+		 * @param z z
+		 *
+		 * @return double — результат операции
+		 */
 		public abstract double choose(double x, double y, double z);
 
+		/**
+		 * Choose.
+		 *
+		 * @param x x
+		 * @param y y
+		 * @param z z
+		 *
+		 * @return boolean — результат операции
+		 */
 		public abstract boolean choose(boolean x, boolean y, boolean z);
 	}
 
@@ -585,6 +739,11 @@ public enum Direction implements StringIdentifiable {
 			this.description = description;
 		}
 
+		/**
+		 * Offset.
+		 *
+		 * @return int — результат операции
+		 */
 		public int offset() {
 			return this.offset;
 		}
@@ -621,6 +780,13 @@ public enum Direction implements StringIdentifiable {
 			this.axisArray = axisArray;
 		}
 
+		/**
+		 * Random.
+		 *
+		 * @param random random
+		 *
+		 * @return Direction — результат операции
+		 */
 		public Direction random(Random random) {
 			return Util.getRandom(this.facingArray, random);
 		}
@@ -629,6 +795,13 @@ public enum Direction implements StringIdentifiable {
 			return Util.getRandom(this.axisArray, random);
 		}
 
+		/**
+		 * Test.
+		 *
+		 * @param direction direction
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean test(@Nullable Direction direction) {
 			return direction != null && direction.getAxis().getType() == this;
 		}
@@ -638,6 +811,11 @@ public enum Direction implements StringIdentifiable {
 			return Iterators.forArray(this.facingArray);
 		}
 
+		/**
+		 * Stream.
+		 *
+		 * @return Stream — результат операции
+		 */
 		public Stream<Direction> stream() {
 			return Arrays.stream(this.facingArray);
 		}

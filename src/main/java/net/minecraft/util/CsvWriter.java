@@ -30,6 +30,11 @@ public class CsvWriter {
 		return new CsvWriter.Header();
 	}
 
+	/**
+	 * Выводит row.
+	 *
+	 * @param columns columns
+	 */
 	public void printRow(@Nullable Object... columns) throws IOException {
 		if (columns.length != this.column) {
 			throw new IllegalArgumentException(
@@ -60,6 +65,13 @@ public class CsvWriter {
 			return this;
 		}
 
+		/**
+		 * Запускает body.
+		 *
+		 * @param writer writer
+		 *
+		 * @return CsvWriter — результат операции
+		 */
 		public CsvWriter startBody(Writer writer) throws IOException {
 			return new CsvWriter(writer, this.columns);
 		}

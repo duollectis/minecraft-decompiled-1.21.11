@@ -35,6 +35,12 @@ public class VibrationSelector {
 		this.current = Optional.empty();
 	}
 
+	/**
+	 * Try accept.
+	 *
+	 * @param vibration vibration
+	 * @param tick tick
+	 */
 	public void tryAccept(Vibration vibration, long tick) {
 		if (this.shouldSelect(vibration, tick)) {
 			this.current = Optional.of(Pair.of(vibration, tick));
@@ -76,6 +82,9 @@ public class VibrationSelector {
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.current = Optional.empty();
 	}

@@ -140,6 +140,11 @@ public class RealmsPendingInvitesScreen extends RealmsScreen {
 			return this.getEntryCount() == 0;
 		}
 
+		/**
+		 * Remove.
+		 *
+		 * @param invitation invitation
+		 */
 		public void remove(RealmsPendingInvitesScreen.PendingInvitationSelectionListEntry invitation) {
 			this.removeEntry(invitation);
 		}

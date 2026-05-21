@@ -12,6 +12,15 @@ import java.util.function.ToDoubleFunction;
  */
 public class FuzzyTargeting {
 
+	/**
+	 * Find.
+	 *
+	 * @param entity entity
+	 * @param horizontalRange horizontal range
+	 * @param verticalRange vertical range
+	 *
+	 * @return @Nullable Vec3d — 
+	 */
 	public static @Nullable Vec3d find(PathAwareEntity entity, int horizontalRange, int verticalRange) {
 		return find(entity, horizontalRange, verticalRange, entity::getPathfindingFavor);
 	}
@@ -32,6 +41,16 @@ public class FuzzyTargeting {
 		);
 	}
 
+	/**
+	 * Ищет to.
+	 *
+	 * @param entity entity
+	 * @param horizontalRange horizontal range
+	 * @param verticalRange vertical range
+	 * @param end end
+	 *
+	 * @return @Nullable Vec3d — to
+	 */
 	public static @Nullable Vec3d findTo(PathAwareEntity entity, int horizontalRange, int verticalRange, Vec3d end) {
 		Vec3d vec3d = end.subtract(entity.getX(), entity.getY(), entity.getZ());
 		boolean bl = NavigationConditions.isPositionTargetInRange(entity, horizontalRange);
@@ -95,6 +114,14 @@ public class FuzzyTargeting {
 		);
 	}
 
+	/**
+	 * Validate.
+	 *
+	 * @param entity entity
+	 * @param pos pos
+	 *
+	 * @return @Nullable BlockPos — результат операции
+	 */
 	public static @Nullable BlockPos validate(PathAwareEntity entity, BlockPos pos) {
 		pos =
 				FuzzyPositions.upWhile(

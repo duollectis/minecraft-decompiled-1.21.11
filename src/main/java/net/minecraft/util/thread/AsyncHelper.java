@@ -152,6 +152,14 @@ public class AsyncHelper {
 			return this.index - this.lastBatch;
 		}
 
+		/**
+		 * Map async.
+		 *
+		 * @param future future
+		 * @param executor executor
+		 *
+		 * @return CompletableFuture> — результат операции
+		 */
 		public CompletableFuture<Map<K, V>> mapAsync(Map<K, U> future, Executor executor) {
 			future.forEach((key, value) -> {
 				this.entry.put(this.index++, (K) key, (U) value);
@@ -194,6 +202,13 @@ public class AsyncHelper {
 			this(function, new Object[size], new Object[size]);
 		}
 
+		/**
+		 * Put.
+		 *
+		 * @param index index
+		 * @param key key
+		 * @param value value
+		 */
 		public void put(int index, K key, U value) {
 			this.keys[index] = key;
 			this.values[index] = value;
@@ -211,10 +226,21 @@ public class AsyncHelper {
 			return (U) this.values[index];
 		}
 
+		/**
+		 * Apply.
+		 *
+		 * @param index index
+		 */
 		public void apply(int index) {
 			this.values[index] = this.operation.apply(this.getKey(index), this.getUValue(index));
 		}
 
+		/**
+		 * Copy.
+		 *
+		 * @param index index
+		 * @param futures futures
+		 */
 		public void copy(int index, Map<K, V> futures) {
 			V object = this.getValue(index);
 			if (object != null) {
@@ -223,6 +249,11 @@ public class AsyncHelper {
 			}
 		}
 
+		/**
+		 * Key size.
+		 *
+		 * @return int — результат операции
+		 */
 		public int keySize() {
 			return this.keys.length;
 		}

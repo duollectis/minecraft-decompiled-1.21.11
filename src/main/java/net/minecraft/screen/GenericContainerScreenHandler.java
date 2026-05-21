@@ -24,26 +24,74 @@ public class GenericContainerScreenHandler extends ScreenHandler {
 		this(type, syncId, playerInventory, new SimpleInventory(9 * rows), rows);
 	}
 
+	/**
+	 * Создаёт generic9x1.
+	 *
+	 * @param syncId sync id
+	 * @param playerInventory player inventory
+	 *
+	 * @return GenericContainerScreenHandler — результат операции
+	 */
 	public static GenericContainerScreenHandler createGeneric9x1(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X1, syncId, playerInventory, 1);
 	}
 
+	/**
+	 * Создаёт generic9x2.
+	 *
+	 * @param syncId sync id
+	 * @param playerInventory player inventory
+	 *
+	 * @return GenericContainerScreenHandler — результат операции
+	 */
 	public static GenericContainerScreenHandler createGeneric9x2(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X2, syncId, playerInventory, 2);
 	}
 
+	/**
+	 * Создаёт generic9x3.
+	 *
+	 * @param syncId sync id
+	 * @param playerInventory player inventory
+	 *
+	 * @return GenericContainerScreenHandler — результат операции
+	 */
 	public static GenericContainerScreenHandler createGeneric9x3(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X3, syncId, playerInventory, 3);
 	}
 
+	/**
+	 * Создаёт generic9x4.
+	 *
+	 * @param syncId sync id
+	 * @param playerInventory player inventory
+	 *
+	 * @return GenericContainerScreenHandler — результат операции
+	 */
 	public static GenericContainerScreenHandler createGeneric9x4(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X4, syncId, playerInventory, 4);
 	}
 
+	/**
+	 * Создаёт generic9x5.
+	 *
+	 * @param syncId sync id
+	 * @param playerInventory player inventory
+	 *
+	 * @return GenericContainerScreenHandler — результат операции
+	 */
 	public static GenericContainerScreenHandler createGeneric9x5(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X5, syncId, playerInventory, 5);
 	}
 
+	/**
+	 * Создаёт generic9x6.
+	 *
+	 * @param syncId sync id
+	 * @param playerInventory player inventory
+	 *
+	 * @return GenericContainerScreenHandler — результат операции
+	 */
 	public static GenericContainerScreenHandler createGeneric9x6(int syncId, PlayerInventory playerInventory) {
 		return new GenericContainerScreenHandler(ScreenHandlerType.GENERIC_9X6, syncId, playerInventory, 6);
 	}

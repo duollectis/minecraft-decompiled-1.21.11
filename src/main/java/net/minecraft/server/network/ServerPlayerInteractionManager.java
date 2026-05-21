@@ -58,6 +58,13 @@ public class ServerPlayerInteractionManager {
 		this.world = player.getEntityWorld();
 	}
 
+	/**
+	 * Change game mode.
+	 *
+	 * @param gameMode game mode
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean changeGameMode(GameMode gameMode) {
 		if (gameMode == this.gameMode) {
 			return false;
@@ -111,6 +118,9 @@ public class ServerPlayerInteractionManager {
 		return this.gameMode.isCreative();
 	}
 
+	/**
+	 * Update.
+	 */
 	public void update() {
 		this.tickCounter++;
 		if (this.failedToMine) {
@@ -275,6 +285,13 @@ public class ServerPlayerInteractionManager {
 		}
 	}
 
+	/**
+	 * Finish mining.
+	 *
+	 * @param pos pos
+	 * @param sequence sequence
+	 * @param reason reason
+	 */
 	public void finishMining(BlockPos pos, int sequence, String reason) {
 		if (this.tryBreakBlock(pos)) {
 			this.onBlockBreakingAction(pos, true, sequence, reason);
@@ -285,6 +302,13 @@ public class ServerPlayerInteractionManager {
 		}
 	}
 
+	/**
+	 * Try break block.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean tryBreakBlock(BlockPos pos) {
 		BlockState blockState = this.world.getBlockState(pos);
 		if (!this.player.getMainHandStack().canMine(blockState, this.world, pos, this.player)) {
@@ -332,6 +356,16 @@ public class ServerPlayerInteractionManager {
 		}
 	}
 
+	/**
+	 * Выполняет взаимодействие с item.
+	 *
+	 * @param player player
+	 * @param world world
+	 * @param stack stack
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult interactItem(ServerPlayerEntity player, World world, ItemStack stack, Hand hand) {
 		if (this.gameMode == GameMode.SPECTATOR) {
 			return ActionResult.PASS;

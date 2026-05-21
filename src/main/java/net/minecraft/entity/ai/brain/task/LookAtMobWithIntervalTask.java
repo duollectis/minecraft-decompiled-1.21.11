@@ -17,10 +17,27 @@ import java.util.function.Predicate;
  */
 public class LookAtMobWithIntervalTask {
 
+	/**
+	 * Follow.
+	 *
+	 * @param maxDistance max distance
+	 * @param interval interval
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> follow(float maxDistance, UniformIntProvider interval) {
 		return follow(maxDistance, interval, entity -> true);
 	}
 
+	/**
+	 * Follow.
+	 *
+	 * @param type type
+	 * @param maxDistance max distance
+	 * @param interval interval
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> follow(EntityType<?> type, float maxDistance, UniformIntProvider interval) {
 		return follow(maxDistance, interval, entity -> type.equals(entity.getType()));
 	}
@@ -77,6 +94,13 @@ public class LookAtMobWithIntervalTask {
 			}
 		}
 
+		/**
+		 * Определяет, следует ли run.
+		 *
+		 * @param random random
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldRun(Random random) {
 			if (this.remainingTicks == 0) {
 				this.remainingTicks = this.interval.get(random) - 1;

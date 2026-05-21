@@ -12,6 +12,13 @@ import java.util.Optional;
  */
 public class WantNewItemTask<E extends PiglinEntity> {
 
+	/**
+	 * Create.
+	 *
+	 * @param range range
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(int range) {
 		return TaskTriggerer.task(
 				context -> context.group(

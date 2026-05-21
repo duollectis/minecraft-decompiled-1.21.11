@@ -192,6 +192,11 @@ public class CheckboxWidget extends PressableWidget {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return CheckboxWidget — результат операции
+		 */
 		public CheckboxWidget build() {
 			CheckboxWidget.Callback callback = this.option == null ? this.callback : (checkbox, checked) -> {
 				this.option.setValue(checked);

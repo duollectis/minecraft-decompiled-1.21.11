@@ -97,6 +97,13 @@ public class ObserverBlock extends FacingBlock {
 		}
 	}
 
+	/**
+	 * Обновляет neighbors.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	protected void updateNeighbors(World world, BlockPos pos, BlockState state) {
 		Direction direction = state.get(FACING);
 		BlockPos blockPos = pos.offset(direction.getOpposite());

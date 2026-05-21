@@ -30,6 +30,13 @@ public class PreparedRecipes {
 		this.byKey = byKey;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param recipes recipes
+	 *
+	 * @return PreparedRecipes — результат операции
+	 */
 	public static PreparedRecipes of(Iterable<RecipeEntry<?>> recipes) {
 		Builder<RecipeType<?>, RecipeEntry<?>> builder = ImmutableMultimap.builder();
 		com.google.common.collect.ImmutableMap.Builder<RegistryKey<Recipe<?>>, RecipeEntry<?>>
@@ -49,10 +56,22 @@ public class PreparedRecipes {
 		return (Collection<RecipeEntry<T>>) (Collection<?>) this.byType.get(type);
 	}
 
+	/**
+	 * Recipes.
+	 *
+	 * @return Collection> — результат операции
+	 */
 	public Collection<RecipeEntry<?>> recipes() {
 		return this.byKey.values();
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param key key
+	 *
+	 * @return @Nullable RecipeEntry — 
+	 */
 	public @Nullable RecipeEntry<?> get(RegistryKey<Recipe<?>> key) {
 		return this.byKey.get(key);
 	}

@@ -10,6 +10,13 @@ import net.minecraft.server.dedicated.management.schema.RpcSchema;
  */
 public class IncomingRpcMethods {
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return IncomingRpcMethod — результат операции
+	 */
 	public static IncomingRpcMethod<?, ?> registerAndGetDefault(Registry<IncomingRpcMethod<?, ?>> registry) {
 		registerAllowlist(registry);
 		registerBans(registry);

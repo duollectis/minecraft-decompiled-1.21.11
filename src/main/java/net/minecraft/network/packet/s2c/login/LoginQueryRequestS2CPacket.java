@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.util.Identifier;
 
+/**
+ * Запись login query request s2 c packet.
+ */
 public record LoginQueryRequestS2CPacket(
 		int queryId,
 		LoginQueryRequestPayload payload
@@ -48,6 +51,11 @@ public record LoginQueryRequestS2CPacket(
 		return LoginPackets.CUSTOM_QUERY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientLoginPacketListener client login packet listener
+	 */
 	public void apply(ClientLoginPacketListener clientLoginPacketListener) {
 		clientLoginPacketListener.onQueryRequest(this);
 	}

@@ -27,10 +27,24 @@ public class EmptyWidget implements Widget {
 		this.height = height;
 	}
 
+	/**
+	 * Of width.
+	 *
+	 * @param width width
+	 *
+	 * @return EmptyWidget — результат операции
+	 */
 	public static EmptyWidget ofWidth(int width) {
 		return new EmptyWidget(width, 0);
 	}
 
+	/**
+	 * Of height.
+	 *
+	 * @param height height
+	 *
+	 * @return EmptyWidget — результат операции
+	 */
 	public static EmptyWidget ofHeight(int height) {
 		return new EmptyWidget(0, height);
 	}

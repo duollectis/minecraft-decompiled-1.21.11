@@ -7,6 +7,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.BitSet;
 import java.util.Objects;
 
+/**
+ * Класс last seen messages collector.
+ */
 public class LastSeenMessagesCollector {
 
 	private final @Nullable AcknowledgedMessage[] acknowledgedMessages;
@@ -18,6 +21,14 @@ public class LastSeenMessagesCollector {
 		this.acknowledgedMessages = new AcknowledgedMessage[size];
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param signature signature
+	 * @param displayed displayed
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean add(MessageSignatureData signature, boolean displayed) {
 		if (Objects.equals(signature, this.lastAdded)) {
 			return false;
@@ -36,6 +47,11 @@ public class LastSeenMessagesCollector {
 		this.acknowledgedMessages[i] = message;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param signature signature
+	 */
 	public void remove(MessageSignatureData signature) {
 		for (int i = 0; i < this.acknowledgedMessages.length; i++) {
 			AcknowledgedMessage acknowledgedMessage = this.acknowledgedMessages[i];
@@ -47,6 +63,11 @@ public class LastSeenMessagesCollector {
 		}
 	}
 
+	/**
+	 * Сбрасывает message count.
+	 *
+	 * @return int — результат операции
+	 */
 	public int resetMessageCount() {
 		int i = this.messageCount;
 		this.messageCount = 0;
@@ -79,6 +100,9 @@ public class LastSeenMessagesCollector {
 		return this.messageCount;
 	}
 
+	/**
+	 * Запись last seen messages.
+	 */
 	public record LastSeenMessages(LastSeenMessageList lastSeen, LastSeenMessageList.Acknowledgment update) {
 	}
 }

@@ -10,6 +10,9 @@ import net.minecraft.server.ServerLinks;
 
 import java.util.List;
 
+/**
+ * Запись server links s2 c packet.
+ */
 public record ServerLinksS2CPacket(List<ServerLinks.StringifiedEntry> links) implements Packet<ClientCommonPacketListener> {
 
 	public static final PacketCodec<ByteBuf, ServerLinksS2CPacket> CODEC = PacketCodec.tuple(
@@ -21,6 +24,11 @@ public record ServerLinksS2CPacket(List<ServerLinks.StringifiedEntry> links) imp
 		return CommonPackets.SERVER_LINKS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onServerLinks(this);
 	}

@@ -112,6 +112,9 @@ public class CommandBlockBlockEntity extends BlockEntity {
 		}
 	}
 
+	/**
+	 * Обновляет command block.
+	 */
 	public void updateCommandBlock() {
 		CommandBlockBlockEntity.Type type = this.getCommandBlockType();
 		if (type == CommandBlockBlockEntity.Type.AUTO && (this.powered || this.auto) && this.world != null) {
@@ -131,6 +134,11 @@ public class CommandBlockBlockEntity extends BlockEntity {
 		return this.conditionMet;
 	}
 
+	/**
+	 * Обновляет condition met.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean updateConditionMet() {
 		this.conditionMet = true;
 		if (this.isConditionalCommandBlock()) {

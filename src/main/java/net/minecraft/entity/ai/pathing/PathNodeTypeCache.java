@@ -15,6 +15,14 @@ public class PathNodeTypeCache {
 	private final long[] positions = new long[4096];
 	private final PathNodeType[] cache = new PathNodeType[4096];
 
+	/**
+	 * Add.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return PathNodeType — результат операции
+	 */
 	public PathNodeType add(BlockView world, BlockPos pos) {
 		long l = pos.asLong();
 		int i = hash(l);
@@ -33,6 +41,11 @@ public class PathNodeTypeCache {
 		return pathNodeType;
 	}
 
+	/**
+	 * Invalidate.
+	 *
+	 * @param pos pos
+	 */
 	public void invalidate(BlockPos pos) {
 		long l = pos.asLong();
 		int i = hash(l);

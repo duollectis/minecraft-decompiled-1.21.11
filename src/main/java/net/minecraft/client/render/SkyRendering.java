@@ -297,6 +297,11 @@ public class SkyRendering implements AutoCloseable {
 		return var10;
 	}
 
+	/**
+	 * Отрисовывает top sky.
+	 *
+	 * @param i i
+	 */
 	public void renderTopSky(int i) {
 		GpuBufferSlice gpuBufferSlice = RenderSystem.getDynamicUniforms()
 		                                            .write(
@@ -326,6 +331,14 @@ public class SkyRendering implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param world world
+	 * @param tickProgress tick progress
+	 * @param camera camera
+	 * @param state state
+	 */
 	public void updateRenderState(ClientWorld world, float tickProgress, Camera camera, SkyRenderState state) {
 		state.skybox = world.getDimension().skybox();
 		if (state.skybox != DimensionType.Skybox.NONE) {
@@ -375,6 +388,9 @@ public class SkyRendering implements AutoCloseable {
 				.getSkyDarknessHeight(world) < 0.0;
 	}
 
+	/**
+	 * Отрисовывает sky dark.
+	 */
 	public void renderSkyDark() {
 		Matrix4fStack matrix4fStack = RenderSystem.getModelViewStack();
 		matrix4fStack.pushMatrix();
@@ -567,6 +583,13 @@ public class SkyRendering implements AutoCloseable {
 		matrix4fStack.popMatrix();
 	}
 
+	/**
+	 * Отрисовывает glowing sky.
+	 *
+	 * @param matrices matrices
+	 * @param solarAngle solar angle
+	 * @param color color
+	 */
 	public void renderGlowingSky(MatrixStack matrices, float solarAngle, int color) {
 		float f = ColorHelper.getAlphaFloat(color);
 		if (!(f <= 0.001F)) {
@@ -610,6 +633,9 @@ public class SkyRendering implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Отрисовывает end sky.
+	 */
 	public void renderEndSky() {
 		RenderSystem.ShapeIndexBuffer shapeIndexBuffer = RenderSystem.getSequentialBuffer(VertexFormat.DrawMode.QUADS);
 		GpuBuffer gpuBuffer = shapeIndexBuffer.getIndexBuffer(36);
@@ -643,6 +669,14 @@ public class SkyRendering implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Draw end light flash.
+	 *
+	 * @param matrices matrices
+	 * @param intensity intensity
+	 * @param pitch pitch
+	 * @param yaw yaw
+	 */
 	public void drawEndLightFlash(MatrixStack matrices, float intensity, float pitch, float yaw) {
 		matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(180.0F - yaw));
 		matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-90.0F - pitch));

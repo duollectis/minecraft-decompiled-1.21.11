@@ -95,6 +95,11 @@ public class ServerLoginNetworkHandler implements ServerLoginPacketListener, Tic
 		return this.connection.isOpen();
 	}
 
+	/**
+	 * Disconnect.
+	 *
+	 * @param reason reason
+	 */
 	public void disconnect(Text reason) {
 		try {
 			LOGGER.info("Disconnecting {}: {}", this.getConnectionInfo(), reason.getString());

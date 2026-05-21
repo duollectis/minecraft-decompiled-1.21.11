@@ -21,6 +21,15 @@ public class TrackedPosition {
 		return value / 4096.0;
 	}
 
+	/**
+	 * With delta.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d withDelta(long x, long y, long z) {
 		if (x == 0L && y == 0L && z == 0L) {
 			return this.pos;
@@ -45,6 +54,13 @@ public class TrackedPosition {
 		return pack(pos.z) - pack(this.pos.z);
 	}
 
+	/**
+	 * Subtract.
+	 *
+	 * @param pos pos
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d subtract(Vec3d pos) {
 		return pos.subtract(this.pos);
 	}

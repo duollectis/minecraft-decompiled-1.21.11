@@ -15,6 +15,14 @@ public record NbtLong(long value) implements AbstractNbtNumber {
 
 	private static final int SIZE = 16;
 	public static final NbtType<NbtLong> TYPE = new NbtType.OfFixedSize<NbtLong>() {
+		/**
+		 * Read.
+		 *
+		 * @param dataInput data input
+		 * @param nbtSizeTracker nbt size tracker
+		 *
+		 * @return NbtLong — результат операции
+		 */
 		public NbtLong read(DataInput dataInput, NbtSizeTracker nbtSizeTracker) throws IOException {
 			return NbtLong.of(readLong(dataInput, nbtSizeTracker));
 		}
@@ -51,6 +59,13 @@ public record NbtLong(long value) implements AbstractNbtNumber {
 		this.value = value;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param value value
+	 *
+	 * @return NbtLong — результат операции
+	 */
 	public static NbtLong of(long value) {
 		return value >= -128L && value <= 1024L ? NbtLong.Cache.VALUES[(int) value - -128] : new NbtLong(value);
 	}
@@ -75,6 +90,11 @@ public record NbtLong(long value) implements AbstractNbtNumber {
 		return TYPE;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return NbtLong — результат операции
+	 */
 	public NbtLong copy() {
 		return this;
 	}

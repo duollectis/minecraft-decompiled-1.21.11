@@ -23,6 +23,14 @@ public class TimerCallbackSerializer<C> {
 			codec =
 			this.idMapper.getCodec(Identifier.CODEC).dispatch("Type", TimerCallback::getCodec, Function.identity());
 
+	/**
+	 * Регистрирует serializer.
+	 *
+	 * @param id id
+	 * @param codec codec
+	 *
+	 * @return TimerCallbackSerializer — результат операции
+	 */
 	public TimerCallbackSerializer<C> registerSerializer(Identifier id, MapCodec<? extends TimerCallback<C>> codec) {
 		this.idMapper.put(id, codec);
 		return this;

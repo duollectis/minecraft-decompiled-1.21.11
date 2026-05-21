@@ -126,6 +126,9 @@ public class TutorialToast implements Toast {
 		}
 	}
 
+	/**
+	 * Hide.
+	 */
 	public void hide() {
 		this.visibility = Toast.Visibility.HIDE;
 	}
@@ -153,6 +156,13 @@ public class TutorialToast implements Toast {
 			this.texture = texture;
 		}
 
+		/**
+		 * Draw icon.
+		 *
+		 * @param context context
+		 * @param x x
+		 * @param y y
+		 */
 		public void drawIcon(DrawContext context, int x, int y) {
 			context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, this.texture, x, y, 20, 20);
 		}

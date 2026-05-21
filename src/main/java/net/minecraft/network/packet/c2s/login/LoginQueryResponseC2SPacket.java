@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Запись login query response c2 s packet.
+ */
 public record LoginQueryResponseC2SPacket(
 		int queryId,
 		@Nullable LoginQueryResponsePayload response
@@ -48,6 +51,11 @@ public record LoginQueryResponseC2SPacket(
 		return LoginPackets.CUSTOM_QUERY_ANSWER;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverLoginPacketListener server login packet listener
+	 */
 	public void apply(ServerLoginPacketListener serverLoginPacketListener) {
 		serverLoginPacketListener.onQueryResponse(this);
 	}

@@ -40,12 +40,25 @@ public class BoundedRegionArray<T> {
 		}
 	}
 
+	/**
+	 * For each.
+	 *
+	 * @param callback callback
+	 */
 	public void forEach(Consumer<T> callback) {
 		for (Object object : this.array) {
 			callback.accept((T) object);
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param x x
+	 * @param z z
+	 *
+	 * @return T — 
+	 */
 	public T get(int x, int z) {
 		if (!this.isWithinBounds(x, z)) {
 			throw new IllegalArgumentException("Requested out of range value (" + x + "," + z + ") from " + this);

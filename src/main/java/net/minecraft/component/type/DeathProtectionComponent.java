@@ -46,6 +46,12 @@ public record DeathProtectionComponent(List<ConsumeEffect> deathEffects) {
 			)
 	);
 
+	/**
+	 * Применяет death effects.
+	 *
+	 * @param stack stack
+	 * @param entity entity
+	 */
 	public void applyDeathEffects(ItemStack stack, LivingEntity entity) {
 		for (ConsumeEffect consumeEffect : this.deathEffects) {
 			consumeEffect.onConsume(entity.getEntityWorld(), stack, entity);

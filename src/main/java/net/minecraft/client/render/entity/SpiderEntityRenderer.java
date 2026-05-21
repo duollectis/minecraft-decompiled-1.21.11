@@ -37,10 +37,22 @@ public class SpiderEntityRenderer<T extends SpiderEntity> extends MobEntityRende
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return LivingEntityRenderState — результат операции
+	 */
 	public LivingEntityRenderState createRenderState() {
 		return new LivingEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param spiderEntity spider entity
+	 * @param livingEntityRenderState living entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T spiderEntity, LivingEntityRenderState livingEntityRenderState, float f) {
 		super.updateRenderState(spiderEntity, livingEntityRenderState, f);
 	}

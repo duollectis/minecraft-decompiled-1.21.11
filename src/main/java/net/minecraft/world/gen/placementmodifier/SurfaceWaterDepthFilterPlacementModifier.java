@@ -26,6 +26,13 @@ public class SurfaceWaterDepthFilterPlacementModifier extends AbstractConditiona
 		this.maxWaterDepth = maxWaterDepth;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param maxWaterDepth max water depth
+	 *
+	 * @return SurfaceWaterDepthFilterPlacementModifier — результат операции
+	 */
 	public static SurfaceWaterDepthFilterPlacementModifier of(int maxWaterDepth) {
 		return new SurfaceWaterDepthFilterPlacementModifier(maxWaterDepth);
 	}

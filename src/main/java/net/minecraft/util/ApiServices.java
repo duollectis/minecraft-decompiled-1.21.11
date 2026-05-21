@@ -24,6 +24,14 @@ public record ApiServices(
 
 	private static final String USER_CACHE_FILE_NAME = "usercache.json";
 
+	/**
+	 * Create.
+	 *
+	 * @param authenticationService authentication service
+	 * @param rootDirectory root directory
+	 *
+	 * @return ApiServices — результат операции
+	 */
 	public static ApiServices create(YggdrasilAuthenticationService authenticationService, File rootDirectory) {
 		MinecraftSessionService minecraftSessionService = authenticationService.createMinecraftSessionService();
 		GameProfileRepository gameProfileRepository = authenticationService.createProfileRepository();
@@ -40,10 +48,20 @@ public record ApiServices(
 		);
 	}
 
+	/**
+	 * Service signature verifier.
+	 *
+	 * @return @Nullable SignatureVerifier — результат операции
+	 */
 	public @Nullable SignatureVerifier serviceSignatureVerifier() {
 		return SignatureVerifier.create(this.servicesKeySet, ServicesKeyType.PROFILE_KEY);
 	}
 
+	/**
+	 * Provides profile keys.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean providesProfileKeys() {
 		return !this.servicesKeySet.keys(ServicesKeyType.PROFILE_KEY).isEmpty();
 	}

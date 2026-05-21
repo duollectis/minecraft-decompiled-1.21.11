@@ -108,6 +108,14 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 				);
 	}
 
+	/**
+	 * Инициализирует ialize.
+	 *
+	 * @param parentWidth parent width
+	 * @param parentHeight parent height
+	 * @param client client
+	 * @param narrow narrow
+	 */
 	public void initialize(int parentWidth, int parentHeight, MinecraftClient client, boolean narrow) {
 		this.client = client;
 		this.parentWidth = parentWidth;
@@ -202,6 +210,14 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 
 	protected abstract ButtonTextures getBookButtonTextures();
 
+	/**
+	 * Ищет left edge.
+	 *
+	 * @param width width
+	 * @param backgroundWidth background width
+	 *
+	 * @return int — left edge
+	 */
 	public int findLeftEdge(int width, int backgroundWidth) {
 		int i;
 		if (this.isOpen() && !this.narrow) {
@@ -214,6 +230,9 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 		return i;
 	}
 
+	/**
+	 * Toggle open.
+	 */
 	public void toggleOpen() {
 		this.setOpen(!this.isOpen());
 	}
@@ -242,6 +261,11 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 
 	protected abstract boolean isCraftingSlot(Slot slot);
 
+	/**
+	 * Обрабатывает событие mouse click.
+	 *
+	 * @param slot slot
+	 */
 	public void onMouseClick(@Nullable Slot slot) {
 		if (slot != null && this.isCraftingSlot(slot)) {
 			this.selectedRecipeId = null;
@@ -260,6 +284,12 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 		}
 	}
 
+	/**
+	 * Populate recipes.
+	 *
+	 * @param recipeResultCollection recipe result collection
+	 * @param recipeFinder recipe finder
+	 */
 	protected abstract void populateRecipes(RecipeResultCollection recipeResultCollection, RecipeFinder recipeFinder);
 
 	private void refreshResults(boolean resetCurrentPage, boolean filteringCraftable) {
@@ -306,6 +336,9 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 		}
 	}
 
+	/**
+	 * Update.
+	 */
 	public void update() {
 		boolean bl = this.isGuiOpen();
 		if (this.isOpen() != bl) {
@@ -353,6 +386,14 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 		}
 	}
 
+	/**
+	 * Draw tooltip.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param slot slot
+	 */
 	public void drawTooltip(DrawContext context, int x, int y, @Nullable Slot slot) {
 		if (this.isOpen()) {
 			this.recipesArea.drawTooltip(context, x, y);
@@ -362,6 +403,12 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 
 	protected abstract Text getToggleCraftableButtonText();
 
+	/**
+	 * Draw ghost slots.
+	 *
+	 * @param context context
+	 * @param resultHasPadding result has padding
+	 */
 	public void drawGhostSlots(DrawContext context, boolean resultHasPadding) {
 		this.ghostRecipe.draw(context, this.client, resultHasPadding);
 	}
@@ -583,6 +630,9 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 		return this.leftOffset == 86;
 	}
 
+	/**
+	 * Refresh.
+	 */
 	public void refresh() {
 		this.populateAllRecipes();
 		this.refreshTabButtons(this.isFilteringCraftable());
@@ -591,10 +641,20 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 		}
 	}
 
+	/**
+	 * Обрабатывает событие recipe displayed.
+	 *
+	 * @param recipeId recipe id
+	 */
 	public void onRecipeDisplayed(NetworkRecipeId recipeId) {
 		this.client.player.onRecipeDisplayed(recipeId);
 	}
 
+	/**
+	 * Обрабатывает событие craft failed.
+	 *
+	 * @param display display
+	 */
 	public void onCraftFailed(RecipeDisplay display) {
 		this.ghostRecipe.clear();
 		ContextParameterMap
@@ -609,6 +669,9 @@ public abstract class RecipeBookWidget<T extends AbstractRecipeScreenHandler> im
 			ContextParameterMap context
 	);
 
+	/**
+	 * Отправляет book data packet.
+	 */
 	protected void sendBookDataPacket() {
 		if (this.client.getNetworkHandler() != null) {
 			net.minecraft.recipe.book.RecipeBookType recipeBookType = this.craftingScreenHandler.getCategory();

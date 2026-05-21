@@ -81,6 +81,13 @@ public abstract class MountScreen<T extends MountScreenHandler> extends HandledS
 		);
 	}
 
+	/**
+	 * Draw slot.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 */
 	protected void drawSlot(DrawContext context, int x, int y) {
 		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, this.getSlotTexture(), x, y, 18, 18);
 	}
@@ -99,7 +106,17 @@ public abstract class MountScreen<T extends MountScreenHandler> extends HandledS
 
 	protected abstract @Nullable Identifier getChestSlotsTexture();
 
+	/**
+	 * Проверяет возможность equip saddle.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected abstract boolean canEquipSaddle();
 
+	/**
+	 * Проверяет возможность equip armor.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected abstract boolean canEquipArmor();
 }

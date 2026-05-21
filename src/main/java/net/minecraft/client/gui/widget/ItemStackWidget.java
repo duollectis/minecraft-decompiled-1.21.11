@@ -64,6 +64,13 @@ public class ItemStackWidget extends ClickableWidget {
 		}
 	}
 
+	/**
+	 * Отрисовывает tooltip.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 */
 	protected void renderTooltip(DrawContext context, int mouseX, int mouseY) {
 		context.drawItemTooltip(this.client.textRenderer, this.stack, mouseX, mouseY);
 	}

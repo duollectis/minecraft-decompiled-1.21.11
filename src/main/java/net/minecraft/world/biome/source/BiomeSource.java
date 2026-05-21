@@ -43,6 +43,11 @@ public abstract class BiomeSource implements BiomeSupplier {
 
 	protected abstract MapCodec<? extends BiomeSource> getCodec();
 
+	/**
+	 * Biome stream.
+	 *
+	 * @return Stream> — результат операции
+	 */
 	protected abstract Stream<RegistryEntry<Biome>> biomeStream();
 
 	public Set<RegistryEntry<Biome>> getBiomes() {

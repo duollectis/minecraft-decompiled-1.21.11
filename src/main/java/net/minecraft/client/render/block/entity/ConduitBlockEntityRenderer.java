@@ -97,6 +97,11 @@ public class ConduitBlockEntityRenderer implements BlockEntityRenderer<ConduitBl
 		return TexturedModelData.of(modelData, 32, 16);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ConduitBlockEntityRenderState — результат операции
+	 */
 	public ConduitBlockEntityRenderState createRenderState() {
 		return new ConduitBlockEntityRenderState();
 	}

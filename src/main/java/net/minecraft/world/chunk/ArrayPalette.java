@@ -39,6 +39,14 @@ public class ArrayPalette<T> implements Palette<T> {
 		this.size = size;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param bits bits
+	 * @param values values
+	 *
+	 * @return Palette — результат операции
+	 */
 	public static <A> Palette<A> create(int bits, List<A> values) {
 		return new ArrayPalette<>(bits, values);
 	}

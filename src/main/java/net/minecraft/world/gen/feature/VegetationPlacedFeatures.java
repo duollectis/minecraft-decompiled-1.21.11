@@ -145,6 +145,13 @@ public class VegetationPlacedFeatures {
 			NOT_IN_SURFACE_WATER_MODIFIER =
 			SurfaceWaterDepthFilterPlacementModifier.of(0);
 
+	/**
+	 * Modifiers.
+	 *
+	 * @param count count
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<PlacementModifier> modifiers(int count) {
 		return List.of(
 				CountPlacementModifier.of(count),
@@ -179,10 +186,25 @@ public class VegetationPlacedFeatures {
 		                    .add(BiomePlacementModifier.of());
 	}
 
+	/**
+	 * Tree modifiers.
+	 *
+	 * @param modifier modifier
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<PlacementModifier> treeModifiers(PlacementModifier modifier) {
 		return treeModifiersBuilder(modifier).build();
 	}
 
+	/**
+	 * Tree modifiers with would survive.
+	 *
+	 * @param modifier modifier
+	 * @param block block
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<PlacementModifier> treeModifiersWithWouldSurvive(PlacementModifier modifier, Block block) {
 		return treeModifiersBuilder(modifier)
 				.add(BlockFilterPlacementModifier.of(BlockPredicate.wouldSurvive(
@@ -192,6 +214,11 @@ public class VegetationPlacedFeatures {
 				.build();
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =

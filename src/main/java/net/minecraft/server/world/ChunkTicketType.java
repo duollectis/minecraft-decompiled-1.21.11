@@ -33,6 +33,11 @@ public record ChunkTicketType(long expiryTicks, @ChunkTicketType.Flags int flags
 		return Registry.register(Registries.TICKET_TYPE, id, new ChunkTicketType(expiryTicks, flags));
 	}
 
+	/**
+	 * Определяет, следует ли serialize.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSerialize() {
 		return (this.flags & 1) != 0;
 	}
@@ -45,14 +50,29 @@ public record ChunkTicketType(long expiryTicks, @ChunkTicketType.Flags int flags
 		return (this.flags & 4) != 0;
 	}
 
+	/**
+	 * Сбрасывает s idle timeout.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean resetsIdleTimeout() {
 		return (this.flags & 8) != 0;
 	}
 
+	/**
+	 * Проверяет возможность expire before load.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canExpireBeforeLoad() {
 		return (this.flags & 16) != 0;
 	}
 
+	/**
+	 * Проверяет возможность expire.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canExpire() {
 		return this.expiryTicks != 0L;
 	}

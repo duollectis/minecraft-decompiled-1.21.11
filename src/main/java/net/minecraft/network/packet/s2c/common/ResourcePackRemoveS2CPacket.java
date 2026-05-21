@@ -11,6 +11,9 @@ import net.minecraft.util.Uuids;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Запись resource pack remove s2 c packet.
+ */
 public record ResourcePackRemoveS2CPacket(Optional<UUID> id) implements Packet<ClientCommonPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ResourcePackRemoveS2CPacket> CODEC = Packet.createCodec(
@@ -30,6 +33,11 @@ public record ResourcePackRemoveS2CPacket(Optional<UUID> id) implements Packet<C
 		return CommonPackets.RESOURCE_PACK_POP;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientCommonPacketListener client common packet listener
+	 */
 	public void apply(ClientCommonPacketListener clientCommonPacketListener) {
 		clientCommonPacketListener.onResourcePackRemove(this);
 	}

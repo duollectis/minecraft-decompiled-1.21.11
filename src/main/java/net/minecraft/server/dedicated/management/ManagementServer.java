@@ -58,22 +58,43 @@ public class ManagementServer {
 		this.eventLoopGroup = eventLoopGroup;
 	}
 
+	/**
+	 * Обрабатывает событие connection open.
+	 *
+	 * @param handler handler
+	 */
 	public void onConnectionOpen(ManagementConnectionHandler handler) {
 		synchronized (this.connectionHandlers) {
 			this.connectionHandlers.add(handler);
 		}
 	}
 
+	/**
+	 * Обрабатывает событие connection close.
+	 *
+	 * @param handler handler
+	 */
 	public void onConnectionClose(ManagementConnectionHandler handler) {
 		synchronized (this.connectionHandlers) {
 			this.connectionHandlers.remove(handler);
 		}
 	}
 
+	/**
+	 * Listen unencrypted.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public void listenUnencrypted(ManagementHandlerDispatcher dispatcher) {
 		this.listen(dispatcher, null);
 	}
 
+	/**
+	 * Listen encrypted.
+	 *
+	 * @param dispatcher dispatcher
+	 * @param sslContext ssl context
+	 */
 	public void listenEncrypted(ManagementHandlerDispatcher dispatcher, SslContext sslContext) {
 		this.listen(dispatcher, sslContext);
 	}
@@ -89,6 +110,11 @@ public class ManagementServer {
 				)
 						.childHandler(
 								new ChannelInitializer<Channel>() {
+									/**
+									 * Инициализирует channel.
+									 *
+									 * @param channel channel
+									 */
 									protected void initChannel(Channel channel) {
 										try {
 											channel.config().setOption(ChannelOption.TCP_NODELAY, true);
@@ -129,6 +155,11 @@ public class ManagementServer {
 		LOGGER.info("Json-RPC Management connection listening on {}:{}", this.address.getHost(), this.getPort());
 	}
 
+	/**
+	 * Stop.
+	 *
+	 * @param shutdownEventLoop shutdown event loop
+	 */
 	public void stop(boolean shutdownEventLoop) throws InterruptedException {
 		if (this.channel != null) {
 			this.channel.close().sync();
@@ -141,6 +172,9 @@ public class ManagementServer {
 		}
 	}
 
+	/**
+	 * Обрабатывает timeouts.
+	 */
 	public void processTimeouts() {
 		this.forEachConnection(ManagementConnectionHandler::processTimeouts);
 	}
@@ -150,6 +184,11 @@ public class ManagementServer {
 		                            : this.address.getPort();
 	}
 
+	/**
+	 * For each connection.
+	 *
+	 * @param task task
+	 */
 	public void forEachConnection(Consumer<ManagementConnectionHandler> task) {
 		synchronized (this.connectionHandlers) {
 			this.connectionHandlers.forEach(task);

@@ -29,6 +29,13 @@ public record WeatherCheckLootCondition(
 		return LootConditionTypes.WEATHER_CHECK;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		ServerWorld serverWorld = lootContext.getWorld();
 		return this.raining.isPresent() && this.raining.get() != serverWorld.isRaining()
@@ -58,6 +65,11 @@ public record WeatherCheckLootCondition(
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return WeatherCheckLootCondition — результат операции
+		 */
 		public WeatherCheckLootCondition build() {
 			return new WeatherCheckLootCondition(this.raining, this.thundering);
 		}

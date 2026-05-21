@@ -66,6 +66,12 @@ public class LevelLoadingScreen extends Screen {
 		this.reason = reason;
 	}
 
+	/**
+	 * Init.
+	 *
+	 * @param chunkLoadProgress chunk load progress
+	 * @param reason reason
+	 */
 	public void init(ClientChunkLoadProgress chunkLoadProgress, LevelLoadingScreen.WorldEntryReason reason) {
 		this.chunkLoadProgress = chunkLoadProgress;
 		this.reason = reason;

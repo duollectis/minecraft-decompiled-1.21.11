@@ -84,6 +84,11 @@ public class UpgradeData {
 		}
 	}
 
+	/**
+	 * Upgrade.
+	 *
+	 * @param chunk chunk
+	 */
 	public void upgrade(WorldChunk chunk) {
 		this.upgradeCenter(chunk);
 
@@ -213,6 +218,11 @@ public class UpgradeData {
 		return this.sidesToUpgrade.isEmpty();
 	}
 
+	/**
+	 * To nbt.
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound toNbt() {
 		NbtCompound nbtCompound = new NbtCompound();
 		NbtCompound nbtCompound2 = new NbtCompound();
@@ -246,6 +256,11 @@ public class UpgradeData {
 		return nbtCompound;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return UpgradeData — результат операции
+	 */
 	public UpgradeData copy() {
 		return this == NO_UPGRADE_DATA ? NO_UPGRADE_DATA : new UpgradeData(this);
 	}

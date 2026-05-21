@@ -19,6 +19,9 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.Base64.Encoder;
 
+/**
+ * Класс network encryption utils.
+ */
 public class NetworkEncryptionUtils {
 
 	private static final String AES = "AES";
@@ -56,6 +59,11 @@ public class NetworkEncryptionUtils {
 			}, NetworkEncryptionUtils::encodeRsaPrivateKey
 	);
 
+	/**
+	 * Generate secret key.
+	 *
+	 * @return SecretKey — результат операции
+	 */
 	public static SecretKey generateSecretKey() throws NetworkEncryptionException {
 		try {
 			KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
@@ -67,6 +75,11 @@ public class NetworkEncryptionUtils {
 		}
 	}
 
+	/**
+	 * Generate server key pair.
+	 *
+	 * @return KeyPair — результат операции
+	 */
 	public static KeyPair generateServerKeyPair() throws NetworkEncryptionException {
 		try {
 			KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
@@ -119,6 +132,13 @@ public class NetworkEncryptionUtils {
 		}
 	}
 
+	/**
+	 * Декодирует rsa private key pem.
+	 *
+	 * @param key key
+	 *
+	 * @return PrivateKey — результат операции
+	 */
 	public static PrivateKey decodeRsaPrivateKeyPem(String key) throws NetworkEncryptionException {
 		return decodePem(
 				key,
@@ -128,6 +148,13 @@ public class NetworkEncryptionUtils {
 		);
 	}
 
+	/**
+	 * Декодирует rsa public key pem.
+	 *
+	 * @param key key
+	 *
+	 * @return PublicKey — результат операции
+	 */
 	public static PublicKey decodeRsaPublicKeyPem(String key) throws NetworkEncryptionException {
 		return decodePem(
 				key,
@@ -137,6 +164,13 @@ public class NetworkEncryptionUtils {
 		);
 	}
 
+	/**
+	 * Кодирует rsa public key.
+	 *
+	 * @param key key
+	 *
+	 * @return String — результат операции
+	 */
 	public static String encodeRsaPublicKey(PublicKey key) {
 		if (!"RSA".equals(key.getAlgorithm())) {
 			throw new IllegalArgumentException("Public key must be RSA");
@@ -147,6 +181,13 @@ public class NetworkEncryptionUtils {
 		}
 	}
 
+	/**
+	 * Кодирует rsa private key.
+	 *
+	 * @param key key
+	 *
+	 * @return String — результат операции
+	 */
 	public static String encodeRsaPrivateKey(PrivateKey key) {
 		if (!"RSA".equals(key.getAlgorithm())) {
 			throw new IllegalArgumentException("Private key must be RSA");
@@ -168,6 +209,13 @@ public class NetworkEncryptionUtils {
 		}
 	}
 
+	/**
+	 * Декодирует encoded rsa public key.
+	 *
+	 * @param key key
+	 *
+	 * @return PublicKey — результат операции
+	 */
 	public static PublicKey decodeEncodedRsaPublicKey(byte[] key) throws NetworkEncryptionException {
 		try {
 			EncodedKeySpec encodedKeySpec = new X509EncodedKeySpec(key);
@@ -191,10 +239,26 @@ public class NetworkEncryptionUtils {
 		}
 	}
 
+	/**
+	 * Encrypt.
+	 *
+	 * @param key key
+	 * @param data data
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public static byte[] encrypt(Key key, byte[] data) throws NetworkEncryptionException {
 		return crypt(1, key, data);
 	}
 
+	/**
+	 * Decrypt.
+	 *
+	 * @param key key
+	 * @param data data
+	 *
+	 * @return byte[] — результат операции
+	 */
 	public static byte[] decrypt(Key key, byte[] data) throws NetworkEncryptionException {
 		return crypt(2, key, data);
 	}
@@ -214,6 +278,14 @@ public class NetworkEncryptionUtils {
 		return cipher;
 	}
 
+	/**
+	 * Cipher from key.
+	 *
+	 * @param opMode op mode
+	 * @param key key
+	 *
+	 * @return Cipher — результат операции
+	 */
 	public static Cipher cipherFromKey(int opMode, Key key) throws NetworkEncryptionException {
 		try {
 			Cipher cipher = Cipher.getInstance("AES/CFB8/NoPadding");
@@ -234,11 +306,19 @@ public class NetworkEncryptionUtils {
 
 		private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
+		/**
+		 * Next long.
+		 *
+		 * @return long — результат операции
+		 */
 		public static long nextLong() {
 			return SECURE_RANDOM.nextLong();
 		}
 	}
 
+	/**
+	 * Запись signature data.
+	 */
 	public record SignatureData(long salt, byte[] signature) {
 
 		public static final NetworkEncryptionUtils.SignatureData
@@ -253,6 +333,12 @@ public class NetworkEncryptionUtils {
 			return this.signature.length > 0;
 		}
 
+		/**
+		 * Write.
+		 *
+		 * @param buf buf
+		 * @param signatureData signature data
+		 */
 		public static void write(PacketByteBuf buf, NetworkEncryptionUtils.SignatureData signatureData) {
 			buf.writeLong(signatureData.salt);
 			buf.writeByteArray(signatureData.signature);

@@ -5,6 +5,9 @@ import net.minecraft.text.Text;
 import org.jspecify.annotations.Nullable;
 
 @FunctionalInterface
+/**
+ * Интерфейс message decorator.
+ */
 public interface MessageDecorator {
 
 	MessageDecorator NOOP = (sender, message) -> message;

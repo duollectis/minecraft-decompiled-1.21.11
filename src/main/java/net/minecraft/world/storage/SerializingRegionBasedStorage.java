@@ -75,6 +75,11 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 		this.world = world;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param shouldKeepTicking should keep ticking
+	 */
 	protected void tick(BooleanSupplier shouldKeepTicking) {
 		LongIterator longIterator = this.unsavedElements.iterator();
 
@@ -109,6 +114,9 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Save.
+	 */
 	public void save() {
 		if (!this.unsavedElements.isEmpty()) {
 			this.unsavedElements.forEach(chunkPos -> this.save(new ChunkPos(chunkPos)));
@@ -124,6 +132,13 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 		return (Optional<R>) this.loadedElements.get(pos);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param pos pos
+	 *
+	 * @return Optional — 
+	 */
 	protected Optional<R> get(long pos) {
 		if (this.isPosInvalid(pos)) {
 			return Optional.empty();
@@ -169,6 +184,13 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param chunkPos chunk pos
+	 *
+	 * @return CompletableFuture — результат операции
+	 */
 	public CompletableFuture<?> load(ChunkPos chunkPos) {
 		synchronized (this.lock) {
 			long l = chunkPos.toLong();
@@ -301,9 +323,19 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 		return ChunkSectionPos.asLong(chunkPos.x, y, chunkPos.z);
 	}
 
+	/**
+	 * Обрабатывает событие load.
+	 *
+	 * @param pos pos
+	 */
 	protected void onLoad(long pos) {
 	}
 
+	/**
+	 * Обрабатывает событие update.
+	 *
+	 * @param pos pos
+	 */
 	protected void onUpdate(long pos) {
 		Optional<R> optional = (Optional<R>) this.loadedElements.get(pos);
 		if (optional != null && !optional.isEmpty()) {
@@ -314,6 +346,11 @@ public class SerializingRegionBasedStorage<R, P> implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Сохраняет chunk.
+	 *
+	 * @param pos pos
+	 */
 	public void saveChunk(ChunkPos pos) {
 		if (this.unsavedElements.remove(pos.toLong())) {
 			this.save(pos);

@@ -69,6 +69,9 @@ public class ComposterBlock extends Block implements InventoryProvider {
 		return CODEC;
 	}
 
+	/**
+	 * Регистрирует default compostable items.
+	 */
 	public static void registerDefaultCompostableItems() {
 		ITEM_TO_LEVEL_INCREASE_CHANCE.defaultReturnValue(-1.0F);
 		float f = 0.3F;
@@ -202,6 +205,13 @@ public class ComposterBlock extends Block implements InventoryProvider {
 		this.setDefaultState(this.stateManager.getDefaultState().with(LEVEL, 0));
 	}
 
+	/**
+	 * Play effects.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param fill fill
+	 */
 	public static void playEffects(World world, BlockPos pos, boolean fill) {
 		BlockState blockState = world.getBlockState(pos);
 		world.playSoundAtBlockCenterClient(
@@ -294,6 +304,17 @@ public class ComposterBlock extends Block implements InventoryProvider {
 		}
 	}
 
+	/**
+	 * Compost.
+	 *
+	 * @param user user
+	 * @param state state
+	 * @param world world
+	 * @param stack stack
+	 * @param pos pos
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public static BlockState compost(Entity user, BlockState state, ServerWorld world, ItemStack stack, BlockPos pos) {
 		int i = state.get(LEVEL);
 		if (i < 7 && ITEM_TO_LEVEL_INCREASE_CHANCE.containsKey(stack.getItem())) {
@@ -306,6 +327,16 @@ public class ComposterBlock extends Block implements InventoryProvider {
 		}
 	}
 
+	/**
+	 * Empty full composter.
+	 *
+	 * @param user user
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public static BlockState emptyFullComposter(Entity user, BlockState state, World world, BlockPos pos) {
 		if (!world.isClient()) {
 			Vec3d vec3d = Vec3d.add(pos, 0.5, 1.01, 0.5).addHorizontalRandom(world.random, 0.7F);

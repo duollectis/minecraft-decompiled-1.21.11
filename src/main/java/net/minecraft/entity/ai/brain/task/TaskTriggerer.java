@@ -25,6 +25,13 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 
 	private final TaskTriggerer.TaskFunction<E, M> function;
 
+	/**
+	 * Cast.
+	 *
+	 * @param app app
+	 *
+	 * @return TaskTriggerer — результат операции
+	 */
 	public static <E extends LivingEntity, M> TaskTriggerer<E, M> cast(App<TaskTriggerer.K1<E>, M> app) {
 		return (TaskTriggerer<E, M>) app;
 	}
@@ -72,10 +79,24 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 		return runIf(predicate(predicate), task);
 	}
 
+	/**
+	 * Predicate.
+	 *
+	 * @param predicate predicate
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static <E extends LivingEntity> SingleTickTask<E> predicate(Predicate<E> predicate) {
 		return task(context -> context.point((world, entity, time) -> predicate.test(entity)));
 	}
 
+	/**
+	 * Predicate.
+	 *
+	 * @param predicate predicate
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static <E extends LivingEntity> SingleTickTask<E> predicate(BiPredicate<ServerWorld, E> predicate) {
 		return task(context -> context.point((world, entity, time) -> predicate.test(world, entity)));
 	}
@@ -106,6 +127,15 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 
 		QueryMemory(MemoryQuery<F, Value> query) {
 			super(new TaskTriggerer.TaskFunction<E, MemoryQueryResult<F, Value>>() {
+				/**
+				 * Run.
+				 *
+				 * @param serverWorld server world
+				 * @param livingEntity living entity
+				 * @param l l
+				 *
+				 * @return @Nullable MemoryQueryResult — результат операции
+				 */
 				public @Nullable MemoryQueryResult<F, Value> run(ServerWorld serverWorld, E livingEntity, long l) {
 					Brain<?> brain = livingEntity.getBrain();
 					Optional<Value> optional = brain.getOptionalMemory(query.memory());
@@ -185,14 +215,36 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 			return new TaskTriggerer.QueryMemory<>(new MemoryQuery.Absent<>(type));
 		}
 
+		/**
+		 * Trigger.
+		 *
+		 * @param runnable runnable
+		 *
+		 * @return TaskTriggerer — результат операции
+		 */
 		public TaskTriggerer<E, Unit> trigger(TaskRunnable<? super E> runnable) {
 			return new TaskTriggerer.Trigger<>(runnable);
 		}
 
+		/**
+		 * Point.
+		 *
+		 * @param object object
+		 *
+		 * @return TaskTriggerer — результат операции
+		 */
 		public <A> TaskTriggerer<E, A> point(A object) {
 			return new TaskTriggerer.Supply<>(object);
 		}
 
+		/**
+		 * Supply.
+		 *
+		 * @param nameSupplier name supplier
+		 * @param value value
+		 *
+		 * @return TaskTriggerer — результат операции
+		 */
 		public <A> TaskTriggerer<E, A> supply(Supplier<String> nameSupplier, A value) {
 			return new TaskTriggerer.Supply<>(value, nameSupplier);
 		}
@@ -465,6 +517,15 @@ public class TaskTriggerer<E extends LivingEntity, M> implements App<TaskTrigger
 
 		Trigger(TaskRunnable<? super E> taskRunnable) {
 			super(new TaskTriggerer.TaskFunction<E, Unit>() {
+				/**
+				 * Run.
+				 *
+				 * @param serverWorld server world
+				 * @param livingEntity living entity
+				 * @param l l
+				 *
+				 * @return @Nullable Unit — результат операции
+				 */
 				public @Nullable Unit run(ServerWorld serverWorld, E livingEntity, long l) {
 					return taskRunnable.trigger(serverWorld, livingEntity, l) ? Unit.INSTANCE : null;
 				}

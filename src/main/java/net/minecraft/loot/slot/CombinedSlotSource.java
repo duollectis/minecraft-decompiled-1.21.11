@@ -23,6 +23,13 @@ public abstract class CombinedSlotSource implements SlotSource {
 		this.source = SlotSources.concat(terms);
 	}
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param termsToSource terms to source
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	protected static <T extends CombinedSlotSource> MapCodec<T> createCodec(Function<List<SlotSource>, T> termsToSource) {
 		return RecordCodecBuilder.mapCodec(
 				instance -> instance
@@ -31,6 +38,13 @@ public abstract class CombinedSlotSource implements SlotSource {
 		);
 	}
 
+	/**
+	 * Создаёт inline codec.
+	 *
+	 * @param termsToSource terms to source
+	 *
+	 * @return Codec — результат операции
+	 */
 	protected static <T extends CombinedSlotSource> Codec<T> createInlineCodec(Function<List<SlotSource>, T> termsToSource) {
 		return SlotSources.CODEC.listOf().xmap(termsToSource, source -> source.terms);
 	}

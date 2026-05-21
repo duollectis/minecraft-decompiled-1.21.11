@@ -20,6 +20,11 @@ public class Cursor {
 		this.handle = handle;
 	}
 
+	/**
+	 * Применяет to.
+	 *
+	 * @param window window
+	 */
 	public void applyTo(Window window) {
 		GLFW.glfwSetCursor(window.getHandle(), this.handle);
 	}
@@ -29,6 +34,15 @@ public class Cursor {
 		return this.name;
 	}
 
+	/**
+	 * Создаёт standard.
+	 *
+	 * @param handle handle
+	 * @param name name
+	 * @param fallback fallback
+	 *
+	 * @return Cursor — результат операции
+	 */
 	public static Cursor createStandard(int handle, String name, Cursor fallback) {
 		long l = GLFW.glfwCreateStandardCursor(handle);
 		return l == 0L ? fallback : new Cursor(name, l);

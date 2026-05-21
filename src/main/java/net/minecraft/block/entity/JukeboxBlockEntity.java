@@ -38,6 +38,9 @@ public class JukeboxBlockEntity extends BlockEntity implements SingleStackInvent
 		return this.manager;
 	}
 
+	/**
+	 * Обрабатывает событие manager change.
+	 */
 	public void onManagerChange() {
 		this.world.updateNeighbors(this.getPos(), this.getCachedState().getBlock());
 		this.markDirty();
@@ -54,6 +57,9 @@ public class JukeboxBlockEntity extends BlockEntity implements SingleStackInvent
 		}
 	}
 
+	/**
+	 * Бросает record.
+	 */
 	public void dropRecord() {
 		if (this.world != null && !this.world.isClient()) {
 			BlockPos blockPos = this.getPos();
@@ -72,6 +78,14 @@ public class JukeboxBlockEntity extends BlockEntity implements SingleStackInvent
 		}
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, JukeboxBlockEntity blockEntity) {
 		blockEntity.manager.tick(world, state);
 	}
@@ -189,6 +203,9 @@ public class JukeboxBlockEntity extends BlockEntity implements SingleStackInvent
 	}
 
 	@VisibleForTesting
+	/**
+	 * Reload disc.
+	 */
 	public void reloadDisc() {
 		JukeboxSong.getSongEntryFromStack(this.world.getRegistryManager(), this.getStack())
 		           .ifPresent(song -> this.manager.startPlaying(this.world, (RegistryEntry<JukeboxSong>) song));

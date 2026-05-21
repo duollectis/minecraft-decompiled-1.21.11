@@ -104,10 +104,20 @@ public final class RecipeBookOptions {
 		this.apply(category, option -> option.withFilteringCraftable(filtering));
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return RecipeBookOptions — результат операции
+	 */
 	public RecipeBookOptions copy() {
 		return new RecipeBookOptions(this.crafting, this.furnace, this.blastFurnace, this.smoker);
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param other other
+	 */
 	public void copyFrom(RecipeBookOptions other) {
 		this.crafting = other.crafting;
 		this.furnace = other.furnace;

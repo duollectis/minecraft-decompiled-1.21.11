@@ -35,6 +35,14 @@ public class Variants {
 		return registries.getOrThrow(registryRef).getDefaultEntry().orElseThrow();
 	}
 
+	/**
+	 * Записывает data.
+	 *
+	 * @param view view
+	 * @param variantEntry variant entry
+	 *
+	 * @return void — результат операции
+	 */
 	public static <T> void writeData(WriteView view, RegistryEntry<T> variantEntry) {
 		variantEntry.getKey().ifPresent(key -> view.put("variant", Identifier.CODEC, key.getValue()));
 	}

@@ -51,6 +51,11 @@ public class IllusionerEntityRenderer extends IllagerEntityRenderer<IllusionerEn
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return IllusionerEntityRenderState — результат операции
+	 */
 	public IllusionerEntityRenderState createRenderState() {
 		return new IllusionerEntityRenderState();
 	}

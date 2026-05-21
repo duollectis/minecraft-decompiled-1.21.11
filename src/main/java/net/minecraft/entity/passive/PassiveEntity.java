@@ -59,6 +59,14 @@ public abstract class PassiveEntity extends PathAwareEntity {
 		return super.initialize(world, difficulty, spawnReason, entityData);
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 *
+	 * @return @Nullable PassiveEntity — результат операции
+	 */
 	public abstract @Nullable PassiveEntity createChild(ServerWorld world, PassiveEntity entity);
 
 	@Override
@@ -80,6 +88,12 @@ public abstract class PassiveEntity extends PathAwareEntity {
 		}
 	}
 
+	/**
+	 * Grow up.
+	 *
+	 * @param age age
+	 * @param overGrow over grow
+	 */
 	public void growUp(int age, boolean overGrow) {
 		int i = this.getBreedingAge();
 		i += age * 20;
@@ -101,6 +115,11 @@ public abstract class PassiveEntity extends PathAwareEntity {
 		}
 	}
 
+	/**
+	 * Grow up.
+	 *
+	 * @param age age
+	 */
 	public void growUp(int age) {
 		this.growUp(age, false);
 	}
@@ -169,6 +188,9 @@ public abstract class PassiveEntity extends PathAwareEntity {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие grow up.
+	 */
 	protected void onGrowUp() {
 		if (!this.isBaby()
 				&& this.hasVehicle()
@@ -188,6 +210,13 @@ public abstract class PassiveEntity extends PathAwareEntity {
 		this.setBreedingAge(baby ? -24000 : 0);
 	}
 
+	/**
+	 * To grow up age.
+	 *
+	 * @param breedingAge breeding age
+	 *
+	 * @return int — результат операции
+	 */
 	public static int toGrowUpAge(int breedingAge) {
 		return (int) (breedingAge / 20 * 0.1F);
 	}
@@ -228,10 +257,18 @@ public abstract class PassiveEntity extends PathAwareEntity {
 			return this.spawnCount;
 		}
 
+		/**
+		 * Count spawned.
+		 */
 		public void countSpawned() {
 			this.spawnCount++;
 		}
 
+		/**
+		 * Проверяет возможность spawn baby.
+		 *
+		 * @return boolean — {@code true} если условие выполнено
+		 */
 		public boolean canSpawnBaby() {
 			return this.babyAllowed;
 		}

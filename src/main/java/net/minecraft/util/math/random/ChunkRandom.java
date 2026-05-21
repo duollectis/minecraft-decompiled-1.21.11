@@ -90,6 +90,13 @@ public class ChunkRandom extends CheckedRandom {
 			this.provider = provider;
 		}
 
+		/**
+		 * Create.
+		 *
+		 * @param seed seed
+		 *
+		 * @return Random — результат операции
+		 */
 		public Random create(long seed) {
 			return this.provider.apply(seed);
 		}

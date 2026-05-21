@@ -23,6 +23,12 @@ public class RepeatedNarrator {
 		this.permitsPerSecond = 1000.0F / (float) duration.toMillis();
 	}
 
+	/**
+	 * Narrate.
+	 *
+	 * @param narratorManager narrator manager
+	 * @param text text
+	 */
 	public void narrate(NarratorManager narratorManager, Text text) {
 		RepeatedNarrator.Parameters parameters = this.params
 				.updateAndGet(

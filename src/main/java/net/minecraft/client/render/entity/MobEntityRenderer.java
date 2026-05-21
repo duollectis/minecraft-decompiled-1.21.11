@@ -30,6 +30,14 @@ public abstract class MobEntityRenderer<T extends MobEntity, S extends LivingEnt
 		return super.getShadowRadius(livingEntityRenderState) * livingEntityRenderState.ageScale;
 	}
 
+	/**
+	 * Name equals.
+	 *
+	 * @param entity entity
+	 * @param name name
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected static boolean nameEquals(Entity entity, String name) {
 		Text text = entity.getCustomName();
 		return text != null && name.equals(text.getString());

@@ -12,6 +12,13 @@ import net.minecraft.world.gen.feature.PlacedFeature;
  */
 public class TheEndBiomeCreator {
 
+	/**
+	 * Создаёт end biome.
+	 *
+	 * @param builder builder
+	 *
+	 * @return Biome — результат операции
+	 */
 	public static Biome createEndBiome(GenerationSettings.LookupBackedBuilder builder) {
 		SpawnSettings.Builder builder2 = new SpawnSettings.Builder();
 		DefaultBiomeFeatures.addEndMobs(builder2);

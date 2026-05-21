@@ -43,6 +43,13 @@ public class FlatChunkGeneratorLayer {
 		return this.block.getDefaultState();
 	}
 
+	/**
+	 * With max thickness.
+	 *
+	 * @param maxThickness max thickness
+	 *
+	 * @return FlatChunkGeneratorLayer — результат операции
+	 */
 	public FlatChunkGeneratorLayer withMaxThickness(int maxThickness) {
 		return this.thickness > maxThickness ? new FlatChunkGeneratorLayer(maxThickness, this.block) : this;
 	}

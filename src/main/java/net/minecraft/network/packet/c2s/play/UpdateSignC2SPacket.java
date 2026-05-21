@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Класс update sign c2 s packet.
+ */
 public class UpdateSignC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, UpdateSignC2SPacket>
@@ -48,6 +51,11 @@ public class UpdateSignC2SPacket implements Packet<ServerPlayPacketListener> {
 		return PlayPackets.SIGN_UPDATE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onUpdateSign(this);
 	}

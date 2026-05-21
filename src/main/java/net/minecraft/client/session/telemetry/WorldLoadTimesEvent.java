@@ -20,6 +20,11 @@ public class WorldLoadTimesEvent {
 		this.newWorld = newWorld;
 	}
 
+	/**
+	 * Send.
+	 *
+	 * @param sender sender
+	 */
 	public void send(TelemetrySender sender) {
 		if (this.worldLoadTime != null) {
 			sender.send(

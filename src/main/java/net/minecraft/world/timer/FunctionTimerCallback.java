@@ -19,6 +19,13 @@ public record FunctionTimerCallback(Identifier name) implements TimerCallback<Mi
 					.apply(instance, FunctionTimerCallback::new)
 	);
 
+	/**
+	 * Call.
+	 *
+	 * @param minecraftServer minecraft server
+	 * @param timer timer
+	 * @param l l
+	 */
 	public void call(MinecraftServer minecraftServer, Timer<MinecraftServer> timer, long l) {
 		CommandFunctionManager commandFunctionManager = minecraftServer.getCommandFunctionManager();
 		commandFunctionManager.getFunction(this.name)

@@ -28,10 +28,22 @@ public class BreezeEntityRenderer extends MobEntityRenderer<BreezeEntity, Breeze
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BreezeEntityRenderState — результат операции
+	 */
 	public BreezeEntityRenderState createRenderState() {
 		return new BreezeEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param breezeEntity breeze entity
+	 * @param breezeEntityRenderState breeze entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(BreezeEntity breezeEntity, BreezeEntityRenderState breezeEntityRenderState, float f) {
 		super.updateRenderState(breezeEntity, breezeEntityRenderState, f);
 		breezeEntityRenderState.idleAnimationState.copyFrom(breezeEntity.idleAnimationState);

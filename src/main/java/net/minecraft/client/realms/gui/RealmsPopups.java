@@ -32,6 +32,15 @@ public class RealmsPopups {
 				.build();
 	}
 
+	/**
+	 * Создаёт info popup.
+	 *
+	 * @param parent parent
+	 * @param message message
+	 * @param onContinuePressed on continue pressed
+	 *
+	 * @return PopupScreen — результат операции
+	 */
 	public static PopupScreen createInfoPopup(Screen parent, Text message, Consumer<PopupScreen> onContinuePressed) {
 		return new PopupScreen.Builder(parent, INFO_TEXT)
 				.message(message)

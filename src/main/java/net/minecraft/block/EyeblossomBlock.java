@@ -207,6 +207,13 @@ public class EyeblossomBlock extends FlowerBlock {
 			return open ? OPEN : CLOSED;
 		}
 
+		/**
+		 * Создаёт (спавнит) trail particle.
+		 *
+		 * @param world world
+		 * @param pos pos
+		 * @param random random
+		 */
 		public void spawnTrailParticle(ServerWorld world, BlockPos pos, Random random) {
 			Vec3d vec3d = pos.toCenterPos();
 			double d = 0.5 + random.nextDouble();

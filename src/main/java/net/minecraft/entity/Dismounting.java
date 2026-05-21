@@ -42,10 +42,26 @@ public class Dismounting {
 		};
 	}
 
+	/**
+	 * Проверяет возможность dismount in block.
+	 *
+	 * @param height height
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canDismountInBlock(double height) {
 		return !Double.isInfinite(height) && height < 1.0;
 	}
 
+	/**
+	 * Проверяет возможность place entity at.
+	 *
+	 * @param world world
+	 * @param entity entity
+	 * @param targetBox target box
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canPlaceEntityAt(CollisionView world, LivingEntity entity, Box targetBox) {
 		for (VoxelShape voxelShape : world.getBlockCollisions(entity, targetBox)) {
 			if (!voxelShape.isEmpty()) {
@@ -56,6 +72,16 @@ public class Dismounting {
 		return world.getWorldBorder().contains(targetBox);
 	}
 
+	/**
+	 * Проверяет возможность place entity at.
+	 *
+	 * @param world world
+	 * @param offset offset
+	 * @param entity entity
+	 * @param pose pose
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canPlaceEntityAt(CollisionView world, Vec3d offset, LivingEntity entity, EntityPose pose) {
 		return canPlaceEntityAt(world, entity, entity.getBoundingBox(pose).offset(offset));
 	}

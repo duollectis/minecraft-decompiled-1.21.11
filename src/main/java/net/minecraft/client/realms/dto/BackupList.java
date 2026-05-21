@@ -18,6 +18,13 @@ public record BackupList(List<Backup> backups) {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return BackupList — результат операции
+	 */
 	public static BackupList parse(String json) {
 		List<Backup> list = new ArrayList<>();
 

@@ -76,6 +76,11 @@ public class WardenBrain {
 			)
 	);
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param warden warden
+	 */
 	public static void updateActivities(WardenEntity warden) {
 		warden.getBrain()
 		      .resetPossibleActivities(
@@ -91,6 +96,14 @@ public class WardenBrain {
 		      );
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param warden warden
+	 * @param dynamic dynamic
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(WardenEntity warden, Dynamic<?> dynamic) {
 		Brain.Profile<WardenEntity> profile = Brain.createProfile(MEMORY_MODULES, SENSORS);
 		Brain<WardenEntity> brain = profile.deserialize(dynamic);
@@ -223,12 +236,23 @@ public class WardenBrain {
 		resetDigCooldown(warden);
 	}
 
+	/**
+	 * Сбрасывает dig cooldown.
+	 *
+	 * @param warden warden
+	 */
 	public static void resetDigCooldown(LivingEntity warden) {
 		if (warden.getBrain().hasMemoryModule(MemoryModuleType.DIG_COOLDOWN)) {
 			warden.getBrain().remember(MemoryModuleType.DIG_COOLDOWN, Unit.INSTANCE, 1200L);
 		}
 	}
 
+	/**
+	 * Look at disturbance.
+	 *
+	 * @param warden warden
+	 * @param pos pos
+	 */
 	public static void lookAtDisturbance(WardenEntity warden, BlockPos pos) {
 		if (warden.getEntityWorld().getWorldBorder().contains(pos)
 				&& !warden.getPrimeSuspect().isPresent()

@@ -28,6 +28,13 @@ public record WorldTemplatePaginatedList(List<WorldTemplate> templates, int page
 		return this.page * this.size >= this.total && this.page > 0 && this.total > 0 && this.size > 0;
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return WorldTemplatePaginatedList — результат операции
+	 */
 	public static WorldTemplatePaginatedList parse(String json) {
 		List<WorldTemplate> list = new ArrayList<>();
 		int i = 0;

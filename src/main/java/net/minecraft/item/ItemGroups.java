@@ -64,6 +64,13 @@ public class ItemGroups {
 		return RegistryKey.of(RegistryKeys.ITEM_GROUP, Identifier.ofVanilla(id));
 	}
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return ItemGroup — результат операции
+	 */
 	public static ItemGroup registerAndGetDefault(Registry<ItemGroup> registry) {
 		Registry.register(
 				registry,
@@ -2011,6 +2018,9 @@ public class ItemGroups {
 		);
 	}
 
+	/**
+	 * Collect.
+	 */
 	public static void collect() {
 		Map<Pair<ItemGroup.Row, Integer>, String> map = new HashMap<>();
 

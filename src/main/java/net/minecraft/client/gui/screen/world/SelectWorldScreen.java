@@ -224,6 +224,11 @@ public class SelectWorldScreen extends Screen {
 		this.client.setScreen(this.parent);
 	}
 
+	/**
+	 * World selected.
+	 *
+	 * @param levelSummary level summary
+	 */
 	public void worldSelected(@Nullable LevelSummary levelSummary) {
 		if (this.selectButton != null && this.editButton != null && this.recreateButton != null
 				&& this.deleteButton != null) {

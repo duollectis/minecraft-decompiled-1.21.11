@@ -3,6 +3,9 @@ package net.minecraft.network.packet;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 
+/**
+ * Запись brand custom payload.
+ */
 public record BrandCustomPayload(String brand) implements CustomPayload {
 
 	public static final PacketCodec<PacketByteBuf, BrandCustomPayload>

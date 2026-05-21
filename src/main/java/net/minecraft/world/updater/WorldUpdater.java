@@ -119,6 +119,9 @@ public class WorldUpdater implements AutoCloseable {
 		this.updateThread.start();
 	}
 
+	/**
+	 * Проверяет возможность cel.
+	 */
 	public void cancel() {
 		this.keepUpgradingChunks = false;
 
@@ -241,6 +244,14 @@ public class WorldUpdater implements AutoCloseable {
 			return false;
 		}
 
+		/**
+		 * Обновляет nbt.
+		 *
+		 * @param storage storage
+		 * @param nbt nbt
+		 *
+		 * @return NbtCompound — результат операции
+		 */
 		protected abstract NbtCompound updateNbt(VersionedChunkStorage storage, NbtCompound nbt);
 	}
 
@@ -409,6 +420,9 @@ public class WorldUpdater implements AutoCloseable {
 			this.finishedText = finishedText;
 		}
 
+		/**
+		 * Update.
+		 */
 		public void update() {
 			WorldUpdater.this.totalRegionCount = 0;
 			WorldUpdater.this.totalChunkCount = 0;
@@ -489,6 +503,14 @@ public class WorldUpdater implements AutoCloseable {
 			return list;
 		}
 
+		/**
+		 * Открывает storage.
+		 *
+		 * @param storageKey storage key
+		 * @param directory directory
+		 *
+		 * @return VersionedChunkStorage — результат операции
+		 */
 		protected abstract VersionedChunkStorage openStorage(StorageKey storageKey, Path directory);
 
 		private ListIterator<WorldUpdater.Region> enumerateRegions(StorageKey key, Path regionDirectory) {

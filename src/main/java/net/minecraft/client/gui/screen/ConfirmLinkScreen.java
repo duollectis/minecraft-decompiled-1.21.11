@@ -106,10 +106,20 @@ public class ConfirmLinkScreen extends ConfirmScreen {
 				layout.add(ButtonWidget.builder(this.noText, button -> this.callback.accept(false)).width(100).build());
 	}
 
+	/**
+	 * Создаёт копию to clipboard.
+	 */
 	public void copyToClipboard() {
 		this.client.keyboard.setClipboard(this.link);
 	}
 
+	/**
+	 * Open.
+	 *
+	 * @param parent parent
+	 * @param url url
+	 * @param linkTrusted link trusted
+	 */
 	public static void open(Screen parent, String url, boolean linkTrusted) {
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		minecraftClient.setScreen(new ConfirmLinkScreen(
@@ -123,6 +133,13 @@ public class ConfirmLinkScreen extends ConfirmScreen {
 		));
 	}
 
+	/**
+	 * Open.
+	 *
+	 * @param parent parent
+	 * @param uri uri
+	 * @param linkTrusted link trusted
+	 */
 	public static void open(Screen parent, URI uri, boolean linkTrusted) {
 		MinecraftClient minecraftClient = MinecraftClient.getInstance();
 		minecraftClient.setScreen(new ConfirmLinkScreen(
@@ -136,10 +153,22 @@ public class ConfirmLinkScreen extends ConfirmScreen {
 		));
 	}
 
+	/**
+	 * Open.
+	 *
+	 * @param parent parent
+	 * @param uri uri
+	 */
 	public static void open(Screen parent, URI uri) {
 		open(parent, uri, true);
 	}
 
+	/**
+	 * Open.
+	 *
+	 * @param parent parent
+	 * @param url url
+	 */
 	public static void open(Screen parent, String url) {
 		open(parent, url, true);
 	}

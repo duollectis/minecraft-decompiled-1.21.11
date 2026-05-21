@@ -17,6 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Класс advancement update s2 c packet.
+ */
 public class AdvancementUpdateS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, AdvancementUpdateS2CPacket> CODEC = Packet.createCodec(
@@ -63,6 +66,11 @@ public class AdvancementUpdateS2CPacket implements Packet<ClientPlayPacketListen
 		return PlayPackets.UPDATE_ADVANCEMENTS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onAdvancements(this);
 	}
@@ -79,10 +87,20 @@ public class AdvancementUpdateS2CPacket implements Packet<ClientPlayPacketListen
 		return this.toSetProgress;
 	}
 
+	/**
+	 * Определяет, следует ли clear current.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldClearCurrent() {
 		return this.clearCurrent;
 	}
 
+	/**
+	 * Определяет, следует ли show toast.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldShowToast() {
 		return this.showToast;
 	}

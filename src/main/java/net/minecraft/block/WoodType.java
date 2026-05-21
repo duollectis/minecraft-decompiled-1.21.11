@@ -88,6 +88,11 @@ public record WoodType(
 		return type;
 	}
 
+	/**
+	 * Stream.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public static Stream<WoodType> stream() {
 		return VALUES.values().stream();
 	}

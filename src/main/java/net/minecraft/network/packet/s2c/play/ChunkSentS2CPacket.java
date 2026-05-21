@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись chunk sent s2 c packet.
+ */
 public record ChunkSentS2CPacket(int batchSize) implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ChunkSentS2CPacket>
@@ -26,6 +29,11 @@ public record ChunkSentS2CPacket(int batchSize) implements Packet<ClientPlayPack
 		return PlayPackets.CHUNK_BATCH_FINISHED;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onChunkSent(this);
 	}

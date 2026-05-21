@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Класс select advancement tab s2 c packet.
+ */
 public class SelectAdvancementTabS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, SelectAdvancementTabS2CPacket> CODEC = Packet.createCodec(
@@ -33,6 +36,11 @@ public class SelectAdvancementTabS2CPacket implements Packet<ClientPlayPacketLis
 		return PlayPackets.SELECT_ADVANCEMENTS_TAB;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onSelectAdvancementTab(this);
 	}

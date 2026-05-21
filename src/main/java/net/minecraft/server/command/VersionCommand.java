@@ -18,6 +18,12 @@ public class VersionCommand {
 	private static final Text STABLE_YES_TEXT = Text.translatable("commands.version.stable.yes");
 	private static final Text STABLE_NO_TEXT = Text.translatable("commands.version.stable.no");
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 * @param dedicated dedicated
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher, boolean dedicated) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("version")
@@ -35,6 +41,11 @@ public class VersionCommand {
 		);
 	}
 
+	/**
+	 * Accept info.
+	 *
+	 * @param sender sender
+	 */
 	public static void acceptInfo(Consumer<Text> sender) {
 		GameVersion gameVersion = SharedConstants.getGameVersion();
 		sender.accept(Text.translatable("commands.version.id", gameVersion.id()));

@@ -102,6 +102,13 @@ public record EquippableComponent(
 			EquippableComponent::new
 	);
 
+	/**
+	 * Of carpet.
+	 *
+	 * @param color color
+	 *
+	 * @return EquippableComponent — результат операции
+	 */
 	public static EquippableComponent ofCarpet(DyeColor color) {
 		return builder(EquipmentSlot.BODY)
 				.equipSound(SoundEvents.ENTITY_LLAMA_SWAG)
@@ -112,6 +119,11 @@ public record EquippableComponent(
 				.build();
 	}
 
+	/**
+	 * Of saddle.
+	 *
+	 * @return EquippableComponent — результат операции
+	 */
 	public static EquippableComponent ofSaddle() {
 		RegistryEntryLookup<EntityType<?>> registryEntryLookup = Registries.createEntryLookup(Registries.ENTITY_TYPE);
 		return builder(EquipmentSlot.SADDLE)
@@ -124,6 +136,13 @@ public record EquippableComponent(
 				.build();
 	}
 
+	/**
+	 * Of harness.
+	 *
+	 * @param color color
+	 *
+	 * @return EquippableComponent — результат операции
+	 */
 	public static EquippableComponent ofHarness(DyeColor color) {
 		RegistryEntryLookup<EntityType<?>> registryEntryLookup = Registries.createEntryLookup(Registries.ENTITY_TYPE);
 		return builder(EquipmentSlot.BODY)
@@ -140,6 +159,14 @@ public record EquippableComponent(
 		return new EquippableComponent.Builder(slot);
 	}
 
+	/**
+	 * Equip.
+	 *
+	 * @param stack stack
+	 * @param player player
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult equip(ItemStack stack, PlayerEntity player) {
 		if (player.canUseSlot(this.slot) && this.allows(player.getType())) {
 			ItemStack itemStack = player.getEquippedStack(this.slot);
@@ -179,6 +206,15 @@ public record EquippableComponent(
 		}
 	}
 
+	/**
+	 * Equip on interact.
+	 *
+	 * @param player player
+	 * @param entity entity
+	 * @param stack stack
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult equipOnInteract(PlayerEntity player, LivingEntity entity, ItemStack stack) {
 		if (entity.canEquip(stack, this.slot) && !entity.hasStackEquipped(this.slot) && entity.isAlive()) {
 			if (!player.getEntityWorld().isClient()) {
@@ -195,6 +231,13 @@ public record EquippableComponent(
 		}
 	}
 
+	/**
+	 * Allows.
+	 *
+	 * @param entityType entity type
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean allows(EntityType<?> entityType) {
 		return this.allowedEntities.isEmpty() || this.allowedEntities.get().contains(entityType.getRegistryEntry());
 	}
@@ -274,6 +317,11 @@ public record EquippableComponent(
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return EquippableComponent — результат операции
+		 */
 		public EquippableComponent build() {
 			return new EquippableComponent(
 					this.slot,

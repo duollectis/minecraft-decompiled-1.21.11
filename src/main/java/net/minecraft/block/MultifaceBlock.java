@@ -72,6 +72,13 @@ public class MultifaceBlock extends Block implements Waterloggable {
 		);
 	}
 
+	/**
+	 * Collect directions.
+	 *
+	 * @param state state
+	 *
+	 * @return Set — результат операции
+	 */
 	public static Set<Direction> collectDirections(BlockState state) {
 		if (!(state.getBlock() instanceof MultifaceBlock)) {
 			return Set.of();
@@ -89,6 +96,13 @@ public class MultifaceBlock extends Block implements Waterloggable {
 		}
 	}
 
+	/**
+	 * Flag to directions.
+	 *
+	 * @param flag flag
+	 *
+	 * @return Set — результат операции
+	 */
 	public static Set<Direction> flagToDirections(byte flag) {
 		Set<Direction> set = EnumSet.noneOf(Direction.class);
 
@@ -101,6 +115,13 @@ public class MultifaceBlock extends Block implements Waterloggable {
 		return set;
 	}
 
+	/**
+	 * Directions to flag.
+	 *
+	 * @param directions directions
+	 *
+	 * @return byte — результат операции
+	 */
 	public static byte directionsToFlag(Collection<Direction> directions) {
 		byte b = 0;
 
@@ -111,6 +132,13 @@ public class MultifaceBlock extends Block implements Waterloggable {
 		return b;
 	}
 
+	/**
+	 * Проверяет возможность have direction.
+	 *
+	 * @param direction direction
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canHaveDirection(Direction direction) {
 		return true;
 	}
@@ -195,6 +223,16 @@ public class MultifaceBlock extends Block implements Waterloggable {
 		             .orElse(null);
 	}
 
+	/**
+	 * Проверяет возможность grow with direction.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canGrowWithDirection(BlockView world, BlockState state, BlockPos pos, Direction direction) {
 		if (this.canHaveDirection(direction) && (!state.isOf(this) || !hasDirection(state, direction))) {
 			BlockPos blockPos = pos.offset(direction);
@@ -205,6 +243,16 @@ public class MultifaceBlock extends Block implements Waterloggable {
 		}
 	}
 
+	/**
+	 * With direction.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return @Nullable BlockState — результат операции
+	 */
 	public @Nullable BlockState withDirection(BlockState state, BlockView world, BlockPos pos, Direction direction) {
 		if (!this.canGrowWithDirection(world, state, pos, direction)) {
 			return null;
@@ -257,12 +305,31 @@ public class MultifaceBlock extends Block implements Waterloggable {
 		return state.get(booleanProperty, false);
 	}
 
+	/**
+	 * Проверяет возможность grow on.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param direction direction
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canGrowOn(BlockView world, BlockPos pos, Direction direction) {
 		BlockPos blockPos = pos.offset(direction);
 		BlockState blockState = world.getBlockState(blockPos);
 		return canGrowOn(world, direction, blockPos, blockState);
 	}
 
+	/**
+	 * Проверяет возможность grow on.
+	 *
+	 * @param world world
+	 * @param direction direction
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canGrowOn(BlockView world, Direction direction, BlockPos pos, BlockState state) {
 		return Block.isFaceFullSquare(state.getSidesShape(world, pos), direction.getOpposite())
 				|| Block.isFaceFullSquare(state.getCollisionShape(world, pos), direction.getOpposite());

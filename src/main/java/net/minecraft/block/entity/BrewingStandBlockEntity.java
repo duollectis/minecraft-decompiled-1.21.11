@@ -98,6 +98,14 @@ public class BrewingStandBlockEntity extends LockableContainerBlockEntity implem
 		this.inventory = inventory;
 	}
 
+	/**
+	 * Tick.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 * @param blockEntity block entity
+	 */
 	public static void tick(World world, BlockPos pos, BlockState state, BrewingStandBlockEntity blockEntity) {
 		ItemStack itemStack = blockEntity.inventory.get(4);
 		if (blockEntity.fuel <= 0 && itemStack.isIn(ItemTags.BREWING_FUEL)) {

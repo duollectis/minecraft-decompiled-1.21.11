@@ -22,6 +22,13 @@ public class TadpoleBrain {
 	private static final float STROLL_SPEED = 0.5F;
 	private static final float TEMPT_SPEED = 1.25F;
 
+	/**
+	 * Create.
+	 *
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(Brain<TadpoleEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -74,6 +81,11 @@ public class TadpoleBrain {
 		);
 	}
 
+	/**
+	 * Обновляет activities.
+	 *
+	 * @param tadpole tadpole
+	 */
 	public static void updateActivities(TadpoleEntity tadpole) {
 		tadpole.getBrain().resetPossibleActivities(ImmutableList.of(Activity.IDLE));
 	}

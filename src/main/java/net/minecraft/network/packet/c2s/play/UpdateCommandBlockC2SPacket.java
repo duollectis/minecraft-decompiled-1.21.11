@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Класс update command block c2 s packet.
+ */
 public class UpdateCommandBlockC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, UpdateCommandBlockC2SPacket> CODEC = Packet.createCodec(
@@ -75,6 +78,11 @@ public class UpdateCommandBlockC2SPacket implements Packet<ServerPlayPacketListe
 		return PlayPackets.SET_COMMAND_BLOCK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onUpdateCommandBlock(this);
 	}
@@ -87,6 +95,11 @@ public class UpdateCommandBlockC2SPacket implements Packet<ServerPlayPacketListe
 		return this.command;
 	}
 
+	/**
+	 * Определяет, следует ли track output.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTrackOutput() {
 		return this.trackOutput;
 	}

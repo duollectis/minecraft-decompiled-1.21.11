@@ -303,6 +303,11 @@ public class InputUtil {
 			return this.localizedText.get();
 		}
 
+		/**
+		 * To int.
+		 *
+		 * @return OptionalInt — результат операции
+		 */
 		public OptionalInt toInt() {
 			if (this.code >= 48 && this.code <= 57) {
 				return OptionalInt.of(this.code - 48);

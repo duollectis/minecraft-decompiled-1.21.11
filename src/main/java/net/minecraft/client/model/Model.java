@@ -32,10 +32,27 @@ public abstract class Model<S> implements FabricModel<S> {
 		return this.layerFactory.apply(texture);
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param matrices matrices
+	 * @param vertices vertices
+	 * @param light light
+	 * @param overlay overlay
+	 * @param color color
+	 */
 	public final void render(MatrixStack matrices, VertexConsumer vertices, int light, int overlay, int color) {
 		this.getRootPart().render(matrices, vertices, light, overlay, color);
 	}
 
+	/**
+	 * Render.
+	 *
+	 * @param matrices matrices
+	 * @param vertices vertices
+	 * @param light light
+	 * @param overlay overlay
+	 */
 	public final void render(MatrixStack matrices, VertexConsumer vertices, int light, int overlay) {
 		this.render(matrices, vertices, light, overlay, -1);
 	}
@@ -52,6 +69,9 @@ public abstract class Model<S> implements FabricModel<S> {
 		this.resetTransforms();
 	}
 
+	/**
+	 * Сбрасывает transforms.
+	 */
 	public final void resetTransforms() {
 		for (ModelPart modelPart : this.parts) {
 			modelPart.resetTransform();

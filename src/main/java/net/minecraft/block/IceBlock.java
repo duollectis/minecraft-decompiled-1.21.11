@@ -66,6 +66,13 @@ public class IceBlock extends TranslucentBlock {
 		}
 	}
 
+	/**
+	 * Melt.
+	 *
+	 * @param state state
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected void melt(BlockState state, World world, BlockPos pos) {
 		if (world.getEnvironmentAttributes().getAttributeValue(EnvironmentAttributes.WATER_EVAPORATES_GAMEPLAY, pos)) {
 			world.removeBlock(pos, false);

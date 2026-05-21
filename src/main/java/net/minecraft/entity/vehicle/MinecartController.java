@@ -27,16 +27,38 @@ public abstract class MinecartController {
 		this.setVelocity(vec3d);
 	}
 
+	/**
+	 * Tick.
+	 */
 	public abstract void tick();
 
 	public World getWorld() {
 		return this.minecart.getEntityWorld();
 	}
 
+	/**
+	 * Перемещает on rail.
+	 *
+	 * @param world world
+	 */
 	public abstract void moveOnRail(ServerWorld world);
 
+	/**
+	 * Перемещает along track.
+	 *
+	 * @param blockPos block pos
+	 * @param railShape rail shape
+	 * @param remainingMovement remaining movement
+	 *
+	 * @return double — результат операции
+	 */
 	public abstract double moveAlongTrack(BlockPos blockPos, RailShape railShape, double remainingMovement);
 
+	/**
+	 * Обрабатывает collision.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public abstract boolean handleCollision();
 
 	public Vec3d getVelocity() {
@@ -95,6 +117,13 @@ public abstract class MinecartController {
 		return this.minecart.getHorizontalFacing();
 	}
 
+	/**
+	 * Limit speed.
+	 *
+	 * @param velocity velocity
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d limitSpeed(Vec3d velocity) {
 		return velocity;
 	}

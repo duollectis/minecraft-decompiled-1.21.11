@@ -76,6 +76,11 @@ public class VaultServerData {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Mark player as rewarded.
+	 *
+	 * @param player player
+	 */
 	public void markPlayerAsRewarded(PlayerEntity player) {
 		this.rewardedPlayers.add(player.getUuid());
 		if (this.rewardedPlayers.size() > 128) {
@@ -102,6 +107,9 @@ public class VaultServerData {
 		return this.itemsToEject;
 	}
 
+	/**
+	 * Finish ejecting.
+	 */
 	public void finishEjecting() {
 		this.totalEjectionsNeeded = 0;
 		this.markDirty();
@@ -131,6 +139,11 @@ public class VaultServerData {
 		}
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param data data
+	 */
 	public void copyFrom(VaultServerData data) {
 		this.stateUpdatingResumesAt = data.getStateUpdatingResumeTime();
 		this.itemsToEject.clear();

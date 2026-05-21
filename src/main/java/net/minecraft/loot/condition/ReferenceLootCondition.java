@@ -55,6 +55,13 @@ public record ReferenceLootCondition(RegistryKey<LootCondition> id) implements L
 		}
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		LootCondition
 				lootCondition =

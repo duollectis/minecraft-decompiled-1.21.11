@@ -44,10 +44,24 @@ public class MultiNoiseBiomeSource extends BiomeSource {
 		this.biomeEntries = biomeEntries;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param biomeEntries biome entries
+	 *
+	 * @return MultiNoiseBiomeSource — результат операции
+	 */
 	public static MultiNoiseBiomeSource create(MultiNoiseUtil.Entries<RegistryEntry<Biome>> biomeEntries) {
 		return new MultiNoiseBiomeSource(Either.left(biomeEntries));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param biomeEntries biome entries
+	 *
+	 * @return MultiNoiseBiomeSource — результат операции
+	 */
 	public static MultiNoiseBiomeSource create(RegistryEntry<MultiNoiseBiomeSourceParameterList> biomeEntries) {
 		return new MultiNoiseBiomeSource(Either.right(biomeEntries));
 	}
@@ -70,6 +84,13 @@ public class MultiNoiseBiomeSource extends BiomeSource {
 		return CODEC;
 	}
 
+	/**
+	 * Matches instance.
+	 *
+	 * @param parameterList parameter list
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matchesInstance(RegistryKey<MultiNoiseBiomeSourceParameterList> parameterList) {
 		Optional<RegistryEntry<MultiNoiseBiomeSourceParameterList>> optional = this.biomeEntries.right();
 		return optional.isPresent() && optional.get().matchesKey(parameterList);

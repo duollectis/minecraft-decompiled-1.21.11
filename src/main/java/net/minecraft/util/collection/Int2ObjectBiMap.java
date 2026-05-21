@@ -36,6 +36,13 @@ public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
 		this.size = size;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param expectedSize expected size
+	 *
+	 * @return Int2ObjectBiMap — результат операции
+	 */
 	public static <A> Int2ObjectBiMap<A> create(int expectedSize) {
 		return new Int2ObjectBiMap((int) (expectedSize / 0.8F));
 	}
@@ -54,14 +61,35 @@ public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
 		return index == -1 ? -1 : this.ids[index];
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param value value
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(K value) {
 		return this.getRawId(value) != -1;
 	}
 
+	/**
+	 * Contains key.
+	 *
+	 * @param index index
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean containsKey(int index) {
 		return this.get(index) != null;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param value value
+	 *
+	 * @return int — результат операции
+	 */
 	public int add(K value) {
 		int i = this.nextId();
 		this.put(value, i);
@@ -94,6 +122,12 @@ public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
 		this.size = int2ObjectBiMap.size;
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param value value
+	 * @param id id
+	 */
 	public void put(K value, int id) {
 		int i = Math.max(id, this.size + 1);
 		if (i >= this.values.length * 0.8F) {
@@ -165,6 +199,9 @@ public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
 		return Iterators.filter(Iterators.forArray(this.idToValues), Predicates.notNull());
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		Arrays.fill(this.values, null);
 		Arrays.fill(this.idToValues, null);
@@ -177,6 +214,11 @@ public class Int2ObjectBiMap<K> implements IndexedIterable<K> {
 		return this.size;
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return Int2ObjectBiMap — результат операции
+	 */
 	public Int2ObjectBiMap<K> copy() {
 		return new Int2ObjectBiMap<>(
 				(K[]) ((Object[]) this.values.clone()),

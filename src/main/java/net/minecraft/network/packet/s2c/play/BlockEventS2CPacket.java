@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Класс block event s2 c packet.
+ */
 public class BlockEventS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<RegistryByteBuf, BlockEventS2CPacket>
@@ -47,6 +50,11 @@ public class BlockEventS2CPacket implements Packet<ClientPlayPacketListener> {
 		return PlayPackets.BLOCK_EVENT;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onBlockEvent(this);
 	}

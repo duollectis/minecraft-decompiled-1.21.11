@@ -109,6 +109,15 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 		}
 	}
 
+	/**
+	 * Применяет operations.
+	 *
+	 * @param attribute attribute
+	 * @param base base
+	 * @param slot slot
+	 *
+	 * @return double — результат операции
+	 */
 	public double applyOperations(RegistryEntry<EntityAttribute> attribute, double base, EquipmentSlot slot) {
 		double d = base;
 
@@ -158,6 +167,11 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return AttributeModifiersComponent — результат операции
+		 */
 		public AttributeModifiersComponent build() {
 			return new AttributeModifiersComponent(this.entries.build());
 		}
@@ -468,6 +482,14 @@ public record AttributeModifiersComponent(List<AttributeModifiersComponent.Entry
 			this(attribute, modifier, slot, AttributeModifiersComponent.Display.getDefault());
 		}
 
+		/**
+		 * Matches.
+		 *
+		 * @param attribute attribute
+		 * @param modifierId modifier id
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean matches(RegistryEntry<EntityAttribute> attribute, Identifier modifierId) {
 			return attribute.equals(this.attribute) && this.modifier.idMatches(modifierId);
 		}

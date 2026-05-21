@@ -65,6 +65,11 @@ public abstract class BossBar {
 		this.style = style;
 	}
 
+	/**
+	 * Определяет, следует ли darken sky.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDarkenSky() {
 		return this.darkenSky;
 	}
@@ -88,6 +93,11 @@ public abstract class BossBar {
 		return this;
 	}
 
+	/**
+	 * Определяет, следует ли thicken fog.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldThickenFog() {
 		return this.thickenFog;
 	}

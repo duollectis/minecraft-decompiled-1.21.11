@@ -21,6 +21,13 @@ public record VersionedIdentifier(String namespace, String id, String version) {
 	);
 	public static final String DEFAULT_NAMESPACE = "minecraft";
 
+	/**
+	 * Создаёт vanilla.
+	 *
+	 * @param path path
+	 *
+	 * @return VersionedIdentifier — результат операции
+	 */
 	public static VersionedIdentifier createVanilla(String path) {
 		return new VersionedIdentifier("minecraft", path, SharedConstants.getGameVersion().id());
 	}

@@ -94,6 +94,13 @@ public class BoundedIntUnaryOperator {
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param value value
+	 *
+	 * @return BoundedIntUnaryOperator — результат операции
+	 */
 	public static BoundedIntUnaryOperator create(int value) {
 		ConstantLootNumberProvider constantLootNumberProvider = ConstantLootNumberProvider.create(value);
 		return new BoundedIntUnaryOperator(
@@ -102,6 +109,14 @@ public class BoundedIntUnaryOperator {
 		);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return BoundedIntUnaryOperator — результат операции
+	 */
 	public static BoundedIntUnaryOperator create(int min, int max) {
 		return new BoundedIntUnaryOperator(
 				Optional.of(ConstantLootNumberProvider.create(min)),
@@ -109,18 +124,48 @@ public class BoundedIntUnaryOperator {
 		);
 	}
 
+	/**
+	 * Создаёт min.
+	 *
+	 * @param min min
+	 *
+	 * @return BoundedIntUnaryOperator — результат операции
+	 */
 	public static BoundedIntUnaryOperator createMin(int min) {
 		return new BoundedIntUnaryOperator(Optional.of(ConstantLootNumberProvider.create(min)), Optional.empty());
 	}
 
+	/**
+	 * Создаёт max.
+	 *
+	 * @param max max
+	 *
+	 * @return BoundedIntUnaryOperator — результат операции
+	 */
 	public static BoundedIntUnaryOperator createMax(int max) {
 		return new BoundedIntUnaryOperator(Optional.empty(), Optional.of(ConstantLootNumberProvider.create(max)));
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param context context
+	 * @param value value
+	 *
+	 * @return int — результат операции
+	 */
 	public int apply(LootContext context, int value) {
 		return this.applier.apply(context, value);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param context context
+	 * @param value value
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext context, int value) {
 		return this.tester.test(context, value);
 	}

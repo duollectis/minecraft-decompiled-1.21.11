@@ -21,10 +21,24 @@ public record PropertiesMap(List<Property.Value<?>> values) {
 			COMPARATOR =
 			Comparator.comparing(value -> value.property().getName());
 
+	/**
+	 * With value.
+	 *
+	 * @param value value
+	 *
+	 * @return PropertiesMap — результат операции
+	 */
 	public PropertiesMap withValue(Property.Value<?> value) {
 		return new PropertiesMap(Util.withAppended(this.values, value));
 	}
 
+	/**
+	 * Создаёт копию of.
+	 *
+	 * @param propertiesMap properties map
+	 *
+	 * @return PropertiesMap — результат операции
+	 */
 	public PropertiesMap copyOf(PropertiesMap propertiesMap) {
 		return new PropertiesMap(
 				ImmutableList.<Property.Value<?>>builder()
@@ -34,10 +48,22 @@ public record PropertiesMap(List<Property.Value<?>> values) {
 		);
 	}
 
+	/**
+	 * With values.
+	 *
+	 * @param values values
+	 *
+	 * @return PropertiesMap — результат операции
+	 */
 	public static PropertiesMap withValues(Property.Value<?>... values) {
 		return new PropertiesMap(List.of(values));
 	}
 
+	/**
+	 * As string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String asString() {
 		return this.values.stream().sorted(COMPARATOR).map(Property.Value::toString).collect(Collectors.joining(","));
 	}

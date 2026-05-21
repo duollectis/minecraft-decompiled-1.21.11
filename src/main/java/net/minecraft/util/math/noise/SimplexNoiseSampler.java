@@ -56,6 +56,16 @@ public class SimplexNoiseSampler {
 		return this.permutation[input & 0xFF];
 	}
 
+	/**
+	 * Dot.
+	 *
+	 * @param gradient gradient
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return double — результат операции
+	 */
 	protected static double dot(int[] gradient, double x, double y, double z) {
 		return gradient[0] * x + gradient[1] * y + gradient[2] * z;
 	}
@@ -74,6 +84,14 @@ public class SimplexNoiseSampler {
 		return e;
 	}
 
+	/**
+	 * Sample.
+	 *
+	 * @param x x
+	 * @param y y
+	 *
+	 * @return double — результат операции
+	 */
 	public double sample(double x, double y) {
 		double d = (x + y) * SKEW_FACTOR_2D;
 		int i = MathHelper.floor(x + d);
@@ -109,6 +127,15 @@ public class SimplexNoiseSampler {
 		return 70.0 * (w + z + aa);
 	}
 
+	/**
+	 * Sample.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return double — результат операции
+	 */
 	public double sample(double x, double y, double z) {
 		double d = 0.3333333333333333;
 		double e = (x + y + z) * 0.3333333333333333;

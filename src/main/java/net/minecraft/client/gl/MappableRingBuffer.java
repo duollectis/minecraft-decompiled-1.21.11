@@ -39,6 +39,11 @@ public class MappableRingBuffer implements AutoCloseable {
 		}
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.size;
 	}
@@ -54,6 +59,9 @@ public class MappableRingBuffer implements AutoCloseable {
 		return this.buffers[this.current];
 	}
 
+	/**
+	 * Rotate.
+	 */
 	public void rotate() {
 		if (this.fences[this.current] != null) {
 			this.fences[this.current].close();

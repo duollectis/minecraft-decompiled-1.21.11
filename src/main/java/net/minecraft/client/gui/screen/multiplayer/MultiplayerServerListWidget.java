@@ -158,6 +158,9 @@ public class MultiplayerServerListWidget extends AlwaysSelectedEntryListWidget<M
 		return 305;
 	}
 
+	/**
+	 * Обрабатывает событие removed.
+	 */
 	public void onRemoved() {
 	}
 
@@ -173,6 +176,9 @@ public class MultiplayerServerListWidget extends AlwaysSelectedEntryListWidget<M
 
 		abstract boolean isOfSameType(MultiplayerServerListWidget.Entry entry);
 
+		/**
+		 * Connect.
+		 */
 		public abstract void connect();
 	}
 
@@ -581,10 +587,21 @@ public class MultiplayerServerListWidget extends AlwaysSelectedEntryListWidget<M
 			}
 		}
 
+		/**
+		 * Сохраняет file.
+		 */
 		public void saveFile() {
 			this.screen.getServerList().saveFile();
 		}
 
+		/**
+		 * Draw.
+		 *
+		 * @param context context
+		 * @param x x
+		 * @param y y
+		 * @param textureId texture id
+		 */
 		protected void draw(DrawContext context, int x, int y, Identifier textureId) {
 			context.drawTexture(RenderPipelines.GUI_TEXTURED, textureId, x, y, 0.0F, 0.0F, 32, 32, 32, 32);
 		}

@@ -34,6 +34,9 @@ public class ScrollableTextWidget extends ScrollableTextFieldWidget {
 		return this.wrapped.getHeight();
 	}
 
+	/**
+	 * Обновляет height.
+	 */
 	public void updateHeight() {
 		if (!this.textOverflows()) {
 			this.setHeight(this.getContentsHeight() + this.getPadding());
@@ -50,6 +53,11 @@ public class ScrollableTextWidget extends ScrollableTextFieldWidget {
 		super.drawBox(context);
 	}
 
+	/**
+	 * Text overflows.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean textOverflows() {
 		return super.overflows();
 	}

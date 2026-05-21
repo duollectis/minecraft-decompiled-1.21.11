@@ -134,6 +134,11 @@ public class TreeFeatureConfig implements FeatureConfig {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return TreeFeatureConfig — результат операции
+		 */
 		public TreeFeatureConfig build() {
 			return new TreeFeatureConfig(
 					this.trunkProvider,

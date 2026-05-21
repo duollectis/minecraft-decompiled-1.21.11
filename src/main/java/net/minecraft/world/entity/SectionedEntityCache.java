@@ -36,6 +36,12 @@ public class SectionedEntityCache<T extends EntityLike> {
 		this.posToStatus = chunkStatusDiscriminator;
 	}
 
+	/**
+	 * For each in box.
+	 *
+	 * @param box box
+	 * @param consumer consumer
+	 */
 	public void forEachInBox(Box box, LazyIterationConsumer<EntityTrackingSection<T>> consumer) {
 		int i = ChunkSectionPos.getSectionCoord(box.minX - 2.0);
 		int j = ChunkSectionPos.getSectionCoord(box.minY - 4.0);
@@ -102,6 +108,13 @@ public class SectionedEntityCache<T extends EntityLike> {
 		return (EntityTrackingSection<T>) this.trackingSections.computeIfAbsent(sectionPos, this::addSection);
 	}
 
+	/**
+	 * Ищет tracking section.
+	 *
+	 * @param sectionPos section pos
+	 *
+	 * @return @Nullable EntityTrackingSection — tracking section
+	 */
 	public @Nullable EntityTrackingSection<T> findTrackingSection(long sectionPos) {
 		return (EntityTrackingSection<T>) this.trackingSections.get(sectionPos);
 	}
@@ -119,20 +132,45 @@ public class SectionedEntityCache<T extends EntityLike> {
 		return longSet;
 	}
 
+	/**
+	 * For each intersects.
+	 *
+	 * @param box box
+	 * @param consumer consumer
+	 */
 	public void forEachIntersects(Box box, LazyIterationConsumer<T> consumer) {
 		this.forEachInBox(box, section -> section.forEach(box, consumer));
 	}
 
+	/**
+	 * For each intersects.
+	 *
+	 * @param filter filter
+	 * @param box box
+	 * @param consumer consumer
+	 *
+	 * @return void — результат операции
+	 */
 	public <U extends T> void forEachIntersects(TypeFilter<T, U> filter, Box box, LazyIterationConsumer<U> consumer) {
 		this.forEachInBox(box, section -> section.forEach(filter, box, consumer));
 	}
 
+	/**
+	 * Удаляет section.
+	 *
+	 * @param sectionPos section pos
+	 */
 	public void removeSection(long sectionPos) {
 		this.trackingSections.remove(sectionPos);
 		this.trackedPositions.remove(sectionPos);
 	}
 
 	@Debug
+	/**
+	 * Section count.
+	 *
+	 * @return int — результат операции
+	 */
 	public int sectionCount() {
 		return this.trackedPositions.size();
 	}

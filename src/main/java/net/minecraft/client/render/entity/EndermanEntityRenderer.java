@@ -42,6 +42,11 @@ public class EndermanEntityRenderer extends MobEntityRenderer<EndermanEntity, En
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return EndermanEntityRenderState — результат операции
+	 */
 	public EndermanEntityRenderState createRenderState() {
 		return new EndermanEntityRenderState();
 	}

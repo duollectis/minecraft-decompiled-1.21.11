@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс query entity nbt c2 s packet.
+ */
 public class QueryEntityNbtC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, QueryEntityNbtC2SPacket> CODEC = Packet.createCodec(
@@ -35,6 +38,11 @@ public class QueryEntityNbtC2SPacket implements Packet<ServerPlayPacketListener>
 		return PlayPackets.ENTITY_TAG_QUERY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onQueryEntityNbt(this);
 	}

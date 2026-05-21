@@ -77,6 +77,11 @@ public class PaleMossCarpetBlock extends Block implements Fertilizable {
 		this.shapeFunction = this.createShapeFunction();
 	}
 
+	/**
+	 * Создаёт shape function.
+	 *
+	 * @return Function — результат операции
+	 */
 	public Function<BlockState, VoxelShape> createShapeFunction() {
 		Map<Direction, VoxelShape>
 				map =
@@ -185,6 +190,14 @@ public class PaleMossCarpetBlock extends Block implements Fertilizable {
 		return updateState(this.getDefaultState(), ctx.getWorld(), ctx.getBlockPos(), true);
 	}
 
+	/**
+	 * Размещает at.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param random random
+	 * @param flags flags
+	 */
 	public static void placeAt(WorldAccess world, BlockPos pos, Random random, @Block.SetBlockStateFlag int flags) {
 		BlockState blockState = Blocks.PALE_MOSS_CARPET.getDefaultState();
 		BlockState blockState2 = updateState(blockState, world, pos, true);

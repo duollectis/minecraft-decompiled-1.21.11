@@ -25,6 +25,9 @@ import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+/**
+ * Класс chunk data.
+ */
 public class ChunkData {
 
 	private static final PacketCodec<ByteBuf, Map<Heightmap.Type, long[]>> HEIGHTMAPS_PACKET_CODEC = PacketCodecs.map(
@@ -65,6 +68,11 @@ public class ChunkData {
 		}
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param buf buf
+	 */
 	public void write(RegistryByteBuf buf) {
 		HEIGHTMAPS_PACKET_CODEC.encode(buf, this.heightmap);
 		buf.writeVarInt(this.sectionsData.length);
@@ -88,6 +96,12 @@ public class ChunkData {
 		return byteBuf;
 	}
 
+	/**
+	 * Записывает sections.
+	 *
+	 * @param buf buf
+	 * @param chunk chunk
+	 */
 	public static void writeSections(PacketByteBuf buf, WorldChunk chunk) {
 		for (ChunkSection chunkSection : chunk.getSectionArray()) {
 			chunkSection.toPacket(buf);
@@ -175,6 +189,9 @@ public class ChunkData {
 	}
 
 	@FunctionalInterface
+	/**
+	 * Интерфейс block entity visitor.
+	 */
 	public interface BlockEntityVisitor {
 
 		void accept(BlockPos pos, BlockEntityType<?> type, @Nullable NbtCompound nbt);

@@ -1368,6 +1368,9 @@ public class GlCommandEncoder implements CommandEncoder {
 		}
 	}
 
+	/**
+	 * Закрывает pass.
+	 */
 	public void closePass() {
 		this.renderPassOpen = false;
 		GlStateManager._glBindFramebuffer(36160, 0);

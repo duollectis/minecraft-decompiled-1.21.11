@@ -67,14 +67,38 @@ public class RamImpactTask extends MultiTickTask<GoatEntity> {
 		this.direction = Vec3d.ZERO;
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param goatEntity goat entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, GoatEntity goatEntity) {
 		return goatEntity.getBrain().hasMemoryModule(MemoryModuleType.RAM_TARGET);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param goatEntity goat entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, GoatEntity goatEntity, long l) {
 		return goatEntity.getBrain().hasMemoryModule(MemoryModuleType.RAM_TARGET);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param goatEntity goat entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, GoatEntity goatEntity, long l) {
 		BlockPos blockPos = goatEntity.getBlockPos();
 		Brain<?> brain = goatEntity.getBrain();
@@ -83,6 +107,13 @@ public class RamImpactTask extends MultiTickTask<GoatEntity> {
 		brain.remember(MemoryModuleType.WALK_TARGET, new WalkTarget(vec3d, this.speed, 0));
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param goatEntity goat entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, GoatEntity goatEntity, long l) {
 		List<LivingEntity>
 				list =
@@ -176,6 +207,12 @@ public class RamImpactTask extends MultiTickTask<GoatEntity> {
 				.isIn(BlockTags.SNAPS_GOAT_HORN);
 	}
 
+	/**
+	 * Finish ram.
+	 *
+	 * @param world world
+	 * @param goat goat
+	 */
 	protected void finishRam(ServerWorld world, GoatEntity goat) {
 		world.sendEntityStatus(goat, (byte) 59);
 		goat

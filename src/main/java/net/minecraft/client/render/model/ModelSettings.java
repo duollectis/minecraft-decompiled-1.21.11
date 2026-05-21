@@ -13,11 +13,26 @@ import net.minecraft.item.ItemDisplayContext;
  */
 public record ModelSettings(boolean usesBlockLight, Sprite particleIcon, ModelTransformation transforms) {
 
+	/**
+	 * Resolve settings.
+	 *
+	 * @param baker baker
+	 * @param model model
+	 * @param textures textures
+	 *
+	 * @return ModelSettings — результат операции
+	 */
 	public static ModelSettings resolveSettings(Baker baker, BakedSimpleModel model, ModelTextures textures) {
 		Sprite sprite = model.getParticleTexture(textures, baker);
 		return new ModelSettings(model.getGuiLight().isSide(), sprite, model.getTransformations());
 	}
 
+	/**
+	 * Добавляет settings.
+	 *
+	 * @param state state
+	 * @param mode mode
+	 */
 	public void addSettings(ItemRenderState.LayerRenderState state, ItemDisplayContext mode) {
 		state.setUseLight(this.usesBlockLight);
 		state.setParticle(this.particleIcon);

@@ -195,6 +195,13 @@ public class GameRules {
 			registerBooleanRule("water_source_conversion", GameRuleCategory.UPDATES, true);
 	private final ServerGameRules rules;
 
+	/**
+	 * Создаёт codec.
+	 *
+	 * @param featureSet feature set
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<GameRules> createCodec(FeatureSet featureSet) {
 		return ServerGameRules.CODEC.xmap(rules -> new GameRules(featureSet, rules), gameRules -> gameRules.rules);
 	}
@@ -212,6 +219,11 @@ public class GameRules {
 						.map(RegistryEntry::value));
 	}
 
+	/**
+	 * Stream rules.
+	 *
+	 * @return Stream> — результат операции
+	 */
 	public Stream<GameRule<?>> streamRules() {
 		return this.rules.keySet().stream();
 	}
@@ -238,14 +250,33 @@ public class GameRules {
 		}
 	}
 
+	/**
+	 * With enabled features.
+	 *
+	 * @param enabledFeatures enabled features
+	 *
+	 * @return GameRules — результат операции
+	 */
 	public GameRules withEnabledFeatures(FeatureSet enabledFeatures) {
 		return new GameRules(enabledFeatures, this.rules);
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param rules rules
+	 * @param server server
+	 */
 	public void copyFrom(GameRules rules, @Nullable MinecraftServer server) {
 		this.copyFrom(rules.rules, server);
 	}
 
+	/**
+	 * Создаёт копию from.
+	 *
+	 * @param rules rules
+	 * @param server server
+	 */
 	public void copyFrom(ServerGameRules rules, @Nullable MinecraftServer server) {
 		rules.keySet().forEach(rule -> this.copyFrom(rules, (GameRule<?>) rule, server));
 	}
@@ -254,6 +285,11 @@ public class GameRules {
 		this.setValue(rule, Objects.requireNonNull(rules.get(rule)), server);
 	}
 
+	/**
+	 * Accept.
+	 *
+	 * @param visitor visitor
+	 */
 	public void accept(GameRuleVisitor visitor) {
 		this.rules.keySet().forEach(rule -> {
 			visitor.visit((GameRule<?>) rule);
@@ -342,6 +378,13 @@ public class GameRules {
 		);
 	}
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return GameRule — результат операции
+	 */
 	public static GameRule<?> registerAndGetDefault(Registry<GameRule<?>> registry) {
 		return ADVANCE_TIME;
 	}

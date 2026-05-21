@@ -82,6 +82,11 @@ public class AttributeContainer {
 		                                       : this.defaultAttributes.getModifierValue(attribute, id);
 	}
 
+	/**
+	 * Добавляет temporary modifiers.
+	 *
+	 * @param modifiersMap modifiers map
+	 */
 	public void addTemporaryModifiers(Multimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> modifiersMap) {
 		modifiersMap.forEach((attribute, modifier) -> {
 			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attribute);
@@ -92,6 +97,11 @@ public class AttributeContainer {
 		});
 	}
 
+	/**
+	 * Удаляет modifiers.
+	 *
+	 * @param modifiersMap modifiers map
+	 */
 	public void removeModifiers(Multimap<RegistryEntry<EntityAttribute>, EntityAttributeModifier> modifiersMap) {
 		modifiersMap.asMap().forEach((attribute, modifiers) -> {
 			EntityAttributeInstance entityAttributeInstance = this.custom.get(attribute);
@@ -119,6 +129,11 @@ public class AttributeContainer {
 		});
 	}
 
+	/**
+	 * Добавляет persistent modifiers from.
+	 *
+	 * @param other other
+	 */
 	public void addPersistentModifiersFrom(AttributeContainer other) {
 		other.custom.values().forEach(attributeInstance -> {
 			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(attributeInstance.getAttribute());
@@ -128,6 +143,13 @@ public class AttributeContainer {
 		});
 	}
 
+	/**
+	 * Сбрасывает to base value.
+	 *
+	 * @param attribute attribute
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean resetToBaseValue(RegistryEntry<EntityAttribute> attribute) {
 		if (!this.defaultAttributes.has(attribute)) {
 			return false;
@@ -152,6 +174,11 @@ public class AttributeContainer {
 		return list;
 	}
 
+	/**
+	 * Unpack.
+	 *
+	 * @param packedList packed list
+	 */
 	public void unpack(List<EntityAttributeInstance.Packed> packedList) {
 		for (EntityAttributeInstance.Packed packed : packedList) {
 			EntityAttributeInstance entityAttributeInstance = this.getCustomInstance(packed.attribute());

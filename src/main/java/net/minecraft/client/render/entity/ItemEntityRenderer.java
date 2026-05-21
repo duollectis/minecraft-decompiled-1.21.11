@@ -35,10 +35,22 @@ public class ItemEntityRenderer extends EntityRenderer<ItemEntity, ItemEntityRen
 		this.shadowOpacity = 0.75F;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return ItemEntityRenderState — результат операции
+	 */
 	public ItemEntityRenderState createRenderState() {
 		return new ItemEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param itemEntity item entity
+	 * @param itemEntityRenderState item entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(ItemEntity itemEntity, ItemEntityRenderState itemEntityRenderState, float f) {
 		super.updateRenderState(itemEntity, itemEntityRenderState, f);
 		itemEntityRenderState.uniqueOffset = itemEntity.uniqueOffset;

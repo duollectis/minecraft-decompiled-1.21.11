@@ -99,6 +99,13 @@ public class DensityFunctions {
 		return RegistryKey.of(RegistryKeys.DENSITY_FUNCTION, Identifier.ofVanilla(id));
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param densityFunctionRegisterable density function registerable
+	 *
+	 * @return RegistryEntry — результат операции
+	 */
 	public static RegistryEntry<? extends DensityFunction> bootstrap(Registerable<DensityFunction> densityFunctionRegisterable) {
 		RegistryEntryLookup<DoublePerlinNoiseSampler.NoiseParameters>
 				registryEntryLookup =
@@ -923,6 +930,13 @@ public class DensityFunctions {
 		return applyFloatingIslandsSlides(slopedCheese, 0, 128);
 	}
 
+	/**
+	 * Создаёт end noise router.
+	 *
+	 * @param densityFunctionLookup density function lookup
+	 *
+	 * @return NoiseRouter — результат операции
+	 */
 	public static NoiseRouter createEndNoiseRouter(RegistryEntryLookup<DensityFunction> densityFunctionLookup) {
 		DensityFunction densityFunction = DensityFunctionTypes.cache2d(DensityFunctionTypes.endIslands(0L));
 		DensityFunction
@@ -947,6 +961,11 @@ public class DensityFunctions {
 		);
 	}
 
+	/**
+	 * Создаёт missing noise router.
+	 *
+	 * @return NoiseRouter — результат операции
+	 */
 	public static NoiseRouter createMissingNoiseRouter() {
 		return new NoiseRouter(
 				DensityFunctionTypes.zero(),
@@ -1061,6 +1080,13 @@ public class DensityFunctions {
 	 */
 	protected static final class CaveScaler {
 
+		/**
+		 * Scale caves.
+		 *
+		 * @param value value
+		 *
+		 * @return double — результат операции
+		 */
 		protected static double scaleCaves(double value) {
 			if (value < -0.75) {
 				return 0.5;
@@ -1076,6 +1102,13 @@ public class DensityFunctions {
 			}
 		}
 
+		/**
+		 * Scale tunnels.
+		 *
+		 * @param value value
+		 *
+		 * @return double — результат операции
+		 */
 		protected static double scaleTunnels(double value) {
 			if (value < -0.5) {
 				return 0.75;

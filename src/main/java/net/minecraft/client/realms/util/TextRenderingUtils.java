@@ -20,6 +20,13 @@ public class TextRenderingUtils {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Line break.
+	 *
+	 * @param text text
+	 *
+	 * @return List — результат операции
+	 */
 	protected static List<String> lineBreak(String text) {
 		return Arrays.asList(text.split("\\n"));
 	}
@@ -58,6 +65,14 @@ public class TextRenderingUtils {
 		return list;
 	}
 
+	/**
+	 * Split.
+	 *
+	 * @param line line
+	 * @param delimiter delimiter
+	 *
+	 * @return List — результат операции
+	 */
 	public static List<String> split(String line, String delimiter) {
 		if (delimiter.isEmpty()) {
 			throw new IllegalArgumentException("Delimiter cannot be the empty string");
@@ -174,6 +189,11 @@ public class TextRenderingUtils {
 					+ this.linkUrl + "'}";
 		}
 
+		/**
+		 * Отрисовывает ed text.
+		 *
+		 * @return String — результат операции
+		 */
 		public String renderedText() {
 			return this.isLink() ? this.linkTitle : this.fullText;
 		}

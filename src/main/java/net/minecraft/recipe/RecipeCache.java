@@ -86,6 +86,13 @@ public class RecipeCache {
 			@Nullable RecipeEntry<CraftingRecipe> value
 	) {
 
+		/**
+		 * Matches.
+		 *
+		 * @param input input
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean matches(CraftingRecipeInput input) {
 			if (this.width == input.getWidth() && this.height == input.getHeight()) {
 				for (int i = 0; i < this.key.size(); i++) {

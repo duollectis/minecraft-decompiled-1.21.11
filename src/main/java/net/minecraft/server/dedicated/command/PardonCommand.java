@@ -23,6 +23,11 @@ public class PardonCommand {
 			ALREADY_UNBANNED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.pardon.failed"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("pardon")

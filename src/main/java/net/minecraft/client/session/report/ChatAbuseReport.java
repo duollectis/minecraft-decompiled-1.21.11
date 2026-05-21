@@ -39,6 +39,12 @@ public class ChatAbuseReport extends AbuseReport {
 		super(uUID, instant, uUID2);
 	}
 
+	/**
+	 * Toggle message selection.
+	 *
+	 * @param index index
+	 * @param limits limits
+	 */
 	public void toggleMessageSelection(int index, AbuseReportLimits limits) {
 		if (this.selectedMessages.contains(index)) {
 			this.selectedMessages.remove(index);
@@ -48,6 +54,11 @@ public class ChatAbuseReport extends AbuseReport {
 		}
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return ChatAbuseReport — результат операции
+	 */
 	public ChatAbuseReport copy() {
 		ChatAbuseReport chatAbuseReport = new ChatAbuseReport(this.reportId, this.currentTime, this.reportedPlayerUuid);
 		chatAbuseReport.selectedMessages.addAll(this.selectedMessages);
@@ -80,6 +91,11 @@ public class ChatAbuseReport extends AbuseReport {
 			return this.report.selectedMessages;
 		}
 
+		/**
+		 * Toggle message selection.
+		 *
+		 * @param index index
+		 */
 		public void toggleMessageSelection(int index) {
 			this.report.toggleMessageSelection(index, this.limits);
 		}

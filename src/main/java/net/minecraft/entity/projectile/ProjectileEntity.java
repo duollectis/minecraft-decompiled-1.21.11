@@ -107,6 +107,9 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		this.checkedForLeftOwner = false;
 	}
 
+	/**
+	 * Выполняет тик обновления для left owner.
+	 */
 	protected void tickLeftOwner() {
 		if (!this.leftOwner && !this.checkedForLeftOwner) {
 			this.leftOwner = this.hasLeftOwner();
@@ -128,6 +131,17 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		}
 	}
 
+	/**
+	 * Вычисляет velocity.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param power power
+	 * @param uncertainty uncertainty
+	 *
+	 * @return Vec3d — результат операции
+	 */
 	public Vec3d calculateVelocity(double x, double y, double z, float power, float uncertainty) {
 		return new Vec3d(x, y, z)
 				.normalize()
@@ -227,6 +241,15 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		);
 	}
 
+	/**
+	 * Spawn.
+	 *
+	 * @param projectile projectile
+	 * @param world world
+	 * @param projectileStack projectile stack
+	 *
+	 * @return T — результат операции
+	 */
 	public static <T extends ProjectileEntity> T spawn(T projectile, ServerWorld world, ItemStack projectileStack) {
 		return spawn(projectile, world, projectileStack, entity -> {});
 	}
@@ -243,6 +266,12 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		return projectile;
 	}
 
+	/**
+	 * Trigger projectile spawned.
+	 *
+	 * @param world world
+	 * @param projectileStack projectile stack
+	 */
 	public void triggerProjectileSpawned(ServerWorld world, ItemStack projectileStack) {
 		EnchantmentHelper.onProjectileSpawned(world, projectileStack, this, item -> {});
 		if (this instanceof PersistentProjectileEntity persistentProjectileEntity) {
@@ -253,6 +282,13 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		}
 	}
 
+	/**
+	 * Hit or deflect.
+	 *
+	 * @param hitResult hit result
+	 *
+	 * @return ProjectileDeflection — результат операции
+	 */
 	protected ProjectileDeflection hitOrDeflect(HitResult hitResult) {
 		if (hitResult.getType() == HitResult.Type.ENTITY) {
 			EntityHitResult entityHitResult = (EntityHitResult) hitResult;
@@ -284,6 +320,11 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		return ProjectileDeflection.NONE;
 	}
 
+	/**
+	 * Deflects against world border.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean deflectsAgainstWorldBorder() {
 		return false;
 	}
@@ -303,12 +344,27 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		return true;
 	}
 
+	/**
+	 * Обрабатывает событие deflected.
+	 *
+	 * @param bl bl
+	 */
 	protected void onDeflected(boolean bl) {
 	}
 
+	/**
+	 * Обрабатывает событие broken.
+	 *
+	 * @param item item
+	 */
 	protected void onBroken(Item item) {
 	}
 
+	/**
+	 * Обрабатывает событие collision.
+	 *
+	 * @param hitResult hit result
+	 */
 	protected void onCollision(HitResult hitResult) {
 		HitResult.Type type = hitResult.getType();
 		if (type == HitResult.Type.ENTITY) {
@@ -338,14 +394,31 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие entity hit.
+	 *
+	 * @param entityHitResult entity hit result
+	 */
 	protected void onEntityHit(EntityHitResult entityHitResult) {
 	}
 
+	/**
+	 * Обрабатывает событие block hit.
+	 *
+	 * @param blockHitResult block hit result
+	 */
 	protected void onBlockHit(BlockHitResult blockHitResult) {
 		BlockState blockState = this.getEntityWorld().getBlockState(blockHitResult.getBlockPos());
 		blockState.onProjectileHit(this.getEntityWorld(), blockState, blockHitResult, this);
 	}
 
+	/**
+	 * Проверяет возможность hit.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canHit(Entity entity) {
 		if (!entity.canBeHitByProjectile()) {
 			return false;
@@ -356,6 +429,9 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		}
 	}
 
+	/**
+	 * Обновляет rotation.
+	 */
 	protected void updateRotation() {
 		Vec3d vec3d = this.getVelocity();
 		double d = vec3d.horizontalLength();
@@ -369,6 +445,14 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		));
 	}
 
+	/**
+	 * Обновляет rotation.
+	 *
+	 * @param lastRot last rot
+	 * @param newRot new rot
+	 *
+	 * @return float — результат операции
+	 */
 	protected static float updateRotation(float lastRot, float newRot) {
 		while (newRot - lastRot < -180.0F) {
 			lastRot -= 360.0F;
@@ -404,6 +488,13 @@ public abstract class ProjectileEntity extends Entity implements Ownable {
 		                                                                                           .getValue(GameRules.DO_MOB_GRIEFING);
 	}
 
+	/**
+	 * Проверяет возможность break blocks.
+	 *
+	 * @param world world
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canBreakBlocks(ServerWorld world) {
 		return this.getType().isIn(EntityTypeTags.IMPACT_PROJECTILES) && world
 				.getGameRules()

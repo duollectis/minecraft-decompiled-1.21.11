@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись bundle item selected c2 s packet.
+ */
 public record BundleItemSelectedC2SPacket(
 		int slotId,
 		int selectedItemIndex
@@ -33,6 +36,11 @@ public record BundleItemSelectedC2SPacket(
 		return PlayPackets.BUNDLE_ITEM_SELECTED;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onBundleItemSelected(this);
 	}

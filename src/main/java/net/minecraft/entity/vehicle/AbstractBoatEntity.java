@@ -84,6 +84,13 @@ public abstract class AbstractBoatEntity extends VehicleEntity implements Leasha
 		this.intersectionChecked = true;
 	}
 
+	/**
+	 * Инициализирует position.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 */
 	public void initPosition(double x, double y, double z) {
 		this.setPosition(x, y, z);
 		this.lastX = x;
@@ -109,6 +116,14 @@ public abstract class AbstractBoatEntity extends VehicleEntity implements Leasha
 		return canCollide(this, other);
 	}
 
+	/**
+	 * Проверяет возможность collide.
+	 *
+	 * @param entity entity
+	 * @param other other
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canCollide(Entity entity, Entity other) {
 		return (other.isCollidable(entity) || other.isPushable()) && !entity.isConnectedThroughVehicle(other);
 	}
@@ -390,6 +405,14 @@ public abstract class AbstractBoatEntity extends VehicleEntity implements Leasha
 		this.dataTracker.set(RIGHT_PADDLE_MOVING, right);
 	}
 
+	/**
+	 * Lerp paddle phase.
+	 *
+	 * @param paddle paddle
+	 * @param tickProgress tick progress
+	 *
+	 * @return float — результат операции
+	 */
 	public float lerpPaddlePhase(int paddle, float tickProgress) {
 		return this.isPaddleMoving(paddle)
 		       ? MathHelper.clampedLerp(
@@ -742,6 +765,11 @@ public abstract class AbstractBoatEntity extends VehicleEntity implements Leasha
 		return super.updatePassengerForDismount(passenger);
 	}
 
+	/**
+	 * Clamp passenger yaw.
+	 *
+	 * @param passenger passenger
+	 */
 	protected void clampPassengerYaw(Entity passenger) {
 		passenger.setBodyYaw(this.getYaw());
 		float f = MathHelper.wrapDegrees(passenger.getYaw() - this.getYaw());
@@ -818,6 +846,13 @@ public abstract class AbstractBoatEntity extends VehicleEntity implements Leasha
 		return this.dataTracker.get(BUBBLE_WOBBLE_TICKS);
 	}
 
+	/**
+	 * Lerp bubble wobble.
+	 *
+	 * @param tickProgress tick progress
+	 *
+	 * @return float — результат операции
+	 */
 	public float lerpBubbleWobble(float tickProgress) {
 		return MathHelper.lerp(tickProgress, this.lastBubbleWobble, this.bubbleWobble);
 	}

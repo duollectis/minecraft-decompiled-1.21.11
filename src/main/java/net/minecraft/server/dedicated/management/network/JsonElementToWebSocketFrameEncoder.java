@@ -12,6 +12,13 @@ import java.util.List;
  */
 public class JsonElementToWebSocketFrameEncoder extends MessageToMessageEncoder<JsonElement> {
 
+	/**
+	 * Encode.
+	 *
+	 * @param channelHandlerContext channel handler context
+	 * @param jsonElement json element
+	 * @param list list
+	 */
 	protected void encode(ChannelHandlerContext channelHandlerContext, JsonElement jsonElement, List<Object> list) {
 		list.add(new TextWebSocketFrame(jsonElement.toString()));
 	}

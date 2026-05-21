@@ -53,6 +53,11 @@ public final class ServerMBean implements DynamicMBean {
 		);
 	}
 
+	/**
+	 * Register.
+	 *
+	 * @param server server
+	 */
 	public static void register(MinecraftServer server) {
 		try {
 			ManagementFactory

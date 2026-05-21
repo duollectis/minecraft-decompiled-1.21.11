@@ -33,6 +33,14 @@ public class OctavePerlinNoiseSampler {
 	private final double maxValue;
 
 	@Deprecated
+	/**
+	 * Создаёт legacy.
+	 *
+	 * @param random random
+	 * @param octaves octaves
+	 *
+	 * @return OctavePerlinNoiseSampler — результат операции
+	 */
 	public static OctavePerlinNoiseSampler createLegacy(Random random, IntStream octaves) {
 		return new OctavePerlinNoiseSampler(
 				random,
@@ -42,14 +50,39 @@ public class OctavePerlinNoiseSampler {
 	}
 
 	@Deprecated
+	/**
+	 * Создаёт legacy.
+	 *
+	 * @param random random
+	 * @param offset offset
+	 * @param amplitudes amplitudes
+	 *
+	 * @return OctavePerlinNoiseSampler — результат операции
+	 */
 	public static OctavePerlinNoiseSampler createLegacy(Random random, int offset, DoubleList amplitudes) {
 		return new OctavePerlinNoiseSampler(random, Pair.of(offset, amplitudes), false);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param random random
+	 * @param octaves octaves
+	 *
+	 * @return OctavePerlinNoiseSampler — результат операции
+	 */
 	public static OctavePerlinNoiseSampler create(Random random, IntStream octaves) {
 		return create(random, octaves.boxed().collect(ImmutableList.toImmutableList()));
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param random random
+	 * @param octaves octaves
+	 *
+	 * @return OctavePerlinNoiseSampler — результат операции
+	 */
 	public static OctavePerlinNoiseSampler create(Random random, List<Integer> octaves) {
 		return new OctavePerlinNoiseSampler(random, calculateAmplitudes(new IntRBTreeSet(octaves)), true);
 	}
@@ -65,6 +98,15 @@ public class OctavePerlinNoiseSampler {
 		return new OctavePerlinNoiseSampler(random, Pair.of(offset, doubleArrayList), true);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param random random
+	 * @param offset offset
+	 * @param amplitudes amplitudes
+	 *
+	 * @return OctavePerlinNoiseSampler — результат операции
+	 */
 	public static OctavePerlinNoiseSampler create(Random random, int offset, DoubleList amplitudes) {
 		return new OctavePerlinNoiseSampler(random, Pair.of(offset, amplitudes), true);
 	}
@@ -164,11 +206,32 @@ public class OctavePerlinNoiseSampler {
 		random.skip(262);
 	}
 
+	/**
+	 * Sample.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return double — результат операции
+	 */
 	public double sample(double x, double y, double z) {
 		return this.sample(x, y, z, 0.0, 0.0, false);
 	}
 
 	@Deprecated
+	/**
+	 * Sample.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param yScale y scale
+	 * @param yMax y max
+	 * @param useOrigin use origin
+	 *
+	 * @return double — результат операции
+	 */
 	public double sample(double x, double y, double z, double yScale, double yMax, boolean useOrigin) {
 		double d = 0.0;
 		double e = this.lacunarity;
@@ -218,6 +281,13 @@ public class OctavePerlinNoiseSampler {
 		return this.octaveSamplers[this.octaveSamplers.length - 1 - octave];
 	}
 
+	/**
+	 * Maintain precision.
+	 *
+	 * @param value value
+	 *
+	 * @return double — результат операции
+	 */
 	public static double maintainPrecision(double value) {
 		return value - MathHelper.lfloor(value / 3.3554432E7 + 0.5) * 3.3554432E7;
 	}
@@ -231,6 +301,11 @@ public class OctavePerlinNoiseSampler {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Добавляет debug info.
+	 *
+	 * @param info info
+	 */
 	public void addDebugInfo(StringBuilder info) {
 		info.append("PerlinNoise{");
 		List<String>

@@ -37,10 +37,22 @@ public class WolfEntityRenderer extends AgeableMobEntityRenderer<WolfEntity, Wol
 		return wolfEntityRenderState.texture;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return WolfEntityRenderState — результат операции
+	 */
 	public WolfEntityRenderState createRenderState() {
 		return new WolfEntityRenderState();
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param wolfEntity wolf entity
+	 * @param wolfEntityRenderState wolf entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(WolfEntity wolfEntity, WolfEntityRenderState wolfEntityRenderState, float f) {
 		super.updateRenderState(wolfEntity, wolfEntityRenderState, f);
 		wolfEntityRenderState.angerTime = wolfEntity.hasAngerTime();

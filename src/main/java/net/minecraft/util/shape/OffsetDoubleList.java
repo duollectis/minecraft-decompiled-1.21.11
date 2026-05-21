@@ -20,6 +20,11 @@ public class OffsetDoubleList extends AbstractDoubleList {
 		return this.oldList.getDouble(position) + this.offset;
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.oldList.size();
 	}

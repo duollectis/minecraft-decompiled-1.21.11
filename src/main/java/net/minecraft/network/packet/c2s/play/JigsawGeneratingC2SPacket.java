@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Класс jigsaw generating c2 s packet.
+ */
 public class JigsawGeneratingC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, JigsawGeneratingC2SPacket> CODEC = Packet.createCodec(
@@ -40,6 +43,11 @@ public class JigsawGeneratingC2SPacket implements Packet<ServerPlayPacketListene
 		return PlayPackets.JIGSAW_GENERATE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onJigsawGenerating(this);
 	}
@@ -52,6 +60,11 @@ public class JigsawGeneratingC2SPacket implements Packet<ServerPlayPacketListene
 		return this.maxDepth;
 	}
 
+	/**
+	 * Определяет, следует ли keep jigsaws.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldKeepJigsaws() {
 		return this.keepJigsaws;
 	}

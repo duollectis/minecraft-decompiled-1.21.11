@@ -23,6 +23,9 @@ public class ElytraFlightController {
 		this.entity = entity;
 	}
 
+	/**
+	 * Update.
+	 */
 	public void update() {
 		this.lastLeftWingPitch = this.leftWingPitch;
 		this.lastLeftWingYaw = this.leftWingYaw;
@@ -58,14 +61,35 @@ public class ElytraFlightController {
 		this.leftWingRoll = this.leftWingRoll + (h - this.leftWingRoll) * 0.3F;
 	}
 
+	/**
+	 * Left wing pitch.
+	 *
+	 * @param tickProgress tick progress
+	 *
+	 * @return float — результат операции
+	 */
 	public float leftWingPitch(float tickProgress) {
 		return MathHelper.lerp(tickProgress, this.lastLeftWingPitch, this.leftWingPitch);
 	}
 
+	/**
+	 * Left wing yaw.
+	 *
+	 * @param tickProgress tick progress
+	 *
+	 * @return float — результат операции
+	 */
 	public float leftWingYaw(float tickProgress) {
 		return MathHelper.lerp(tickProgress, this.lastLeftWingYaw, this.leftWingYaw);
 	}
 
+	/**
+	 * Left wing roll.
+	 *
+	 * @param tickProgress tick progress
+	 *
+	 * @return float — результат операции
+	 */
 	public float leftWingRoll(float tickProgress) {
 		return MathHelper.lerp(tickProgress, this.lastLeftWingRoll, this.leftWingRoll);
 	}

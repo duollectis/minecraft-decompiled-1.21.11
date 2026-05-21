@@ -119,6 +119,11 @@ public class GenerationSettings {
 			}
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return GenerationSettings — результат операции
+		 */
 		public GenerationSettings build() {
 			return new GenerationSettings(
 					RegistryEntryList.of(this.carverStepsToCarvers),

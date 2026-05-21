@@ -41,6 +41,11 @@ public class NetherPlacedFeatures {
 	public static final RegistryKey<PlacedFeature> PATCH_SOUL_FIRE = PlacedFeatures.of("patch_soul_fire");
 	public static final RegistryKey<PlacedFeature> PATCH_FIRE = PlacedFeatures.of("patch_fire");
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param featureRegisterable feature registerable
+	 */
 	public static void bootstrap(Registerable<PlacedFeature> featureRegisterable) {
 		RegistryEntryLookup<ConfiguredFeature<?, ?>>
 				registryEntryLookup =

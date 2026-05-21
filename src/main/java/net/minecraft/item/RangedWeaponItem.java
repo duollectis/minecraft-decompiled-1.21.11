@@ -119,6 +119,15 @@ public abstract class RangedWeaponItem extends Item {
 		return persistentProjectileEntity;
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param stack stack
+	 * @param projectileStack projectile stack
+	 * @param shooter shooter
+	 *
+	 * @return List — результат операции
+	 */
 	protected static List<ItemStack> load(ItemStack stack, ItemStack projectileStack, LivingEntity shooter) {
 		if (projectileStack.isEmpty()) {
 			return List.of();

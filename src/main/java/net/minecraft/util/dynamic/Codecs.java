@@ -337,6 +337,13 @@ public class Codecs {
 		return DataResult.success(s);
 	});
 
+	/**
+	 * From ops.
+	 *
+	 * @param ops ops
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static <T> Codec<T> fromOps(DynamicOps<T> ops) {
 		return Codec.PASSTHROUGH.xmap(dynamic -> dynamic.convert(ops).getValue(), object -> new Dynamic(ops, object));
 	}
@@ -416,8 +423,24 @@ public class Codecs {
 		            );
 	}
 
+	/**
+	 * Or else partial.
+	 *
+	 * @param object object
+	 *
+	 * @return ResultFunction — результат операции
+	 */
 	public static <A> ResultFunction<A> orElsePartial(A object) {
 		return new ResultFunction<A>() {
+			/**
+			 * Apply.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 * @param result result
+			 *
+			 * @return DataResult> — результат операции
+			 */
 			public <T> DataResult<Pair<A, T>> apply(DynamicOps<T> ops, T input, DataResult<Pair<A, T>> result) {
 				MutableObject<String> mutableObject = new MutableObject();
 				Optional<Pair<A, T>> optional = result.resultOrPartial(mutableObject::setValue);
@@ -428,6 +451,15 @@ public class Codecs {
 				);
 			}
 
+			/**
+			 * Co apply.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 * @param result result
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<T> coApply(DynamicOps<T> ops, A input, DataResult<T> result) {
 				return result;
 			}
@@ -475,13 +507,38 @@ public class Codecs {
 		);
 	}
 
+	/**
+	 * Or compressed.
+	 *
+	 * @param uncompressedCodec uncompressed codec
+	 * @param compressedCodec compressed codec
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static <E> Codec<E> orCompressed(Codec<E> uncompressedCodec, Codec<E> compressedCodec) {
 		return new Codec<E>() {
+			/**
+			 * Encode.
+			 *
+			 * @param input input
+			 * @param ops ops
+			 * @param prefix prefix
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<T> encode(E input, DynamicOps<T> ops, T prefix) {
 				return ops.compressMaps() ? compressedCodec.encode(input, ops, prefix)
 				                          : uncompressedCodec.encode(input, ops, prefix);
 			}
 
+			/**
+			 * Decode.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 *
+			 * @return DataResult> — результат операции
+			 */
 			public <T> DataResult<Pair<E, T>> decode(DynamicOps<T> ops, T input) {
 				return ops.compressMaps() ? compressedCodec.decode(ops, input) : uncompressedCodec.decode(ops, input);
 			}
@@ -493,21 +550,58 @@ public class Codecs {
 		};
 	}
 
+	/**
+	 * Or compressed.
+	 *
+	 * @param uncompressedCodec uncompressed codec
+	 * @param compressedCodec compressed codec
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static <E> MapCodec<E> orCompressed(MapCodec<E> uncompressedCodec, MapCodec<E> compressedCodec) {
 		return new MapCodec<E>() {
+			/**
+			 * Encode.
+			 *
+			 * @param input input
+			 * @param ops ops
+			 * @param prefix prefix
+			 *
+			 * @return RecordBuilder — результат операции
+			 */
 			public <T> RecordBuilder<T> encode(E input, DynamicOps<T> ops, RecordBuilder<T> prefix) {
 				return ops.compressMaps() ? compressedCodec.encode(input, ops, prefix)
 				                          : uncompressedCodec.encode(input, ops, prefix);
 			}
 
+			/**
+			 * Decode.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<E> decode(DynamicOps<T> ops, MapLike<T> input) {
 				return ops.compressMaps() ? compressedCodec.decode(ops, input) : uncompressedCodec.decode(ops, input);
 			}
 
+			/**
+			 * Keys.
+			 *
+			 * @param ops ops
+			 *
+			 * @return Stream — результат операции
+			 */
 			public <T> Stream<T> keys(DynamicOps<T> ops) {
 				return compressedCodec.keys(ops);
 			}
 
+			/**
+			 * To string.
+			 *
+			 * @return String — результат операции
+			 */
 			public String toString() {
 				return uncompressedCodec + " orCompressed " + compressedCodec;
 			}
@@ -520,6 +614,15 @@ public class Codecs {
 			Function<E, Lifecycle> lifecycleGetter
 	) {
 		return originalCodec.mapResult(new ResultFunction<E>() {
+			/**
+			 * Apply.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 * @param result result
+			 *
+			 * @return DataResult> — результат операции
+			 */
 			public <T> DataResult<Pair<E, T>> apply(DynamicOps<T> ops, T input, DataResult<Pair<E, T>> result) {
 				return result
 						.result()
@@ -527,6 +630,15 @@ public class Codecs {
 						.orElse(result);
 			}
 
+			/**
+			 * Co apply.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 * @param result result
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<T> coApply(DynamicOps<T> ops, E input, DataResult<T> result) {
 				return result.setLifecycle(lifecycleGetter.apply(input));
 			}
@@ -538,6 +650,14 @@ public class Codecs {
 		});
 	}
 
+	/**
+	 * With lifecycle.
+	 *
+	 * @param originalCodec original codec
+	 * @param lifecycleGetter lifecycle getter
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static <E> Codec<E> withLifecycle(Codec<E> originalCodec, Function<E, Lifecycle> lifecycleGetter) {
 		return withLifecycle(originalCodec, lifecycleGetter, lifecycleGetter);
 	}
@@ -549,10 +669,25 @@ public class Codecs {
 		return new Codecs.StrictUnboundedMapCodec<>(keyCodec, elementCodec);
 	}
 
+	/**
+	 * List or single.
+	 *
+	 * @param entryCodec entry codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <E> Codec<List<E>> listOrSingle(Codec<E> entryCodec) {
 		return listOrSingle(entryCodec, entryCodec.listOf());
 	}
 
+	/**
+	 * List or single.
+	 *
+	 * @param entryCodec entry codec
+	 * @param listCodec list codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <E> Codec<List<E>> listOrSingle(Codec<E> entryCodec, Codec<List<E>> listCodec) {
 		return Codec.either(listCodec, entryCodec)
 		            .xmap(
@@ -570,6 +705,14 @@ public class Codecs {
 				);
 	}
 
+	/**
+	 * Ranged int.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<Integer> rangedInt(int min, int max) {
 		return rangedInt(min, max, value -> "Value must be within range [" + min + ";" + max + "]: " + value);
 	}
@@ -583,6 +726,14 @@ public class Codecs {
 				);
 	}
 
+	/**
+	 * Ranged long.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<Long> rangedLong(int min, int max) {
 		return rangedLong(min, max, value -> "Value must be within range [" + min + ";" + max + "]: " + value);
 	}
@@ -613,6 +764,14 @@ public class Codecs {
 				);
 	}
 
+	/**
+	 * Ranged inclusive float.
+	 *
+	 * @param minInclusive min inclusive
+	 * @param maxInclusive max inclusive
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<Float> rangedInclusiveFloat(float minInclusive, float maxInclusive) {
 		return rangedInclusiveFloat(
 				minInclusive,
@@ -621,11 +780,25 @@ public class Codecs {
 		);
 	}
 
+	/**
+	 * Non empty list.
+	 *
+	 * @param originalCodec original codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<List<T>> nonEmptyList(Codec<List<T>> originalCodec) {
 		return originalCodec.validate(list -> list.isEmpty() ? DataResult.error(() -> "List must have contents")
 		                                                     : DataResult.success(list));
 	}
 
+	/**
+	 * Non empty entry list.
+	 *
+	 * @param originalCodec original codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<RegistryEntryList<T>> nonEmptyEntryList(Codec<RegistryEntryList<T>> originalCodec) {
 		return originalCodec.validate(
 				entryList -> entryList.getStorage().right().filter(List::isEmpty).isPresent()
@@ -634,29 +807,72 @@ public class Codecs {
 		);
 	}
 
+	/**
+	 * Non empty map.
+	 *
+	 * @param originalCodec original codec
+	 *
+	 * @return > Codec — результат операции
+	 */
 	public static <M extends Map<?, ?>> Codec<M> nonEmptyMap(Codec<M> originalCodec) {
 		return originalCodec.validate(map -> map.isEmpty() ? DataResult.error(() -> "Map must have contents")
 		                                                   : DataResult.success(map));
 	}
 
+	/**
+	 * Создаёт context retrieval codec.
+	 *
+	 * @param retriever retriever
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static <E> MapCodec<E> createContextRetrievalCodec(Function<DynamicOps<?>, DataResult<E>> retriever) {
 		/**
 		 * {@code ContextRetrievalCodec}.
 		 */
 		class ContextRetrievalCodec extends MapCodec<E> {
 
+			/**
+			 * Encode.
+			 *
+			 * @param input input
+			 * @param ops ops
+			 * @param prefix prefix
+			 *
+			 * @return RecordBuilder — результат операции
+			 */
 			public <T> RecordBuilder<T> encode(E input, DynamicOps<T> ops, RecordBuilder<T> prefix) {
 				return prefix;
 			}
 
+			/**
+			 * Decode.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<E> decode(DynamicOps<T> ops, MapLike<T> input) {
 				return retriever.apply(ops);
 			}
 
+			/**
+			 * To string.
+			 *
+			 * @return String — результат операции
+			 */
 			public String toString() {
 				return "ContextRetrievalCodec[" + retriever + "]";
 			}
 
+			/**
+			 * Keys.
+			 *
+			 * @param ops ops
+			 *
+			 * @return Stream — результат операции
+			 */
 			public <T> Stream<T> keys(DynamicOps<T> ops) {
 				return Stream.empty();
 			}
@@ -665,6 +881,13 @@ public class Codecs {
 		return new ContextRetrievalCodec();
 	}
 
+	/**
+	 * Создаёт equal type checker.
+	 *
+	 * @param typeGetter type getter
+	 *
+	 * @return , T> Function> — результат операции
+	 */
 	public static <E, L extends Collection<E>, T> Function<L, DataResult<L>> createEqualTypeChecker(Function<E, T> typeGetter) {
 		return collection -> {
 			Iterator<E> iterator = collection.iterator();
@@ -685,9 +908,24 @@ public class Codecs {
 		};
 	}
 
+	/**
+	 * Exception catching.
+	 *
+	 * @param codec codec
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static <A> Codec<A> exceptionCatching(Codec<A> codec) {
 		return Codec.of(
 				codec, new Decoder<A>() {
+					/**
+					 * Decode.
+					 *
+					 * @param ops ops
+					 * @param input input
+					 *
+					 * @return DataResult> — результат операции
+					 */
 					public <T> DataResult<Pair<A, T>> decode(DynamicOps<T> ops, T input) {
 						try {
 							return codec.decode(ops, input);
@@ -701,6 +939,13 @@ public class Codecs {
 		);
 	}
 
+	/**
+	 * Форматирует ted time.
+	 *
+	 * @param formatter formatter
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<TemporalAccessor> formattedTime(DateTimeFormatter formatter) {
 		return Codec.STRING.comapFlatMap(
 				string -> {
@@ -714,6 +959,13 @@ public class Codecs {
 		);
 	}
 
+	/**
+	 * Optional long.
+	 *
+	 * @param codec codec
+	 *
+	 * @return MapCodec — результат операции
+	 */
 	public static MapCodec<OptionalLong> optionalLong(MapCodec<Optional<Long>> codec) {
 		return codec.xmap(OPTIONAL_OF_LONG_TO_OPTIONAL_LONG, OPTIONAL_LONG_TO_OPTIONAL_OF_LONG);
 	}
@@ -731,6 +983,14 @@ public class Codecs {
 		);
 	}
 
+	/**
+	 * Map.
+	 *
+	 * @param codec codec
+	 * @param maxLength max length
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <K, V> Codec<Map<K, V>> map(Codec<Map<K, V>> codec, int maxLength) {
 		return codec.validate(
 				map -> map.size() > maxLength
@@ -740,6 +1000,13 @@ public class Codecs {
 		);
 	}
 
+	/**
+	 * Object2 boolean map.
+	 *
+	 * @param keyCodec key codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <T> Codec<Object2BooleanMap<T>> object2BooleanMap(Codec<T> keyCodec) {
 		return Codec
 				.unboundedMap(keyCodec, Codec.BOOL)
@@ -755,10 +1022,25 @@ public class Codecs {
 			Function<? super K, ? extends Codec<? extends V>> parametersCodecGetter
 	) {
 		return new MapCodec<V>() {
+			/**
+			 * Keys.
+			 *
+			 * @param ops ops
+			 *
+			 * @return Stream — результат операции
+			 */
 			public <T> Stream<T> keys(DynamicOps<T> ops) {
 				return Stream.of((T[]) (new Object[]{ops.createString(typeKey), ops.createString(parametersKey)}));
 			}
 
+			/**
+			 * Decode.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<V> decode(DynamicOps<T> ops, MapLike<T> input) {
 				T object = (T) input.get(typeKey);
 				return object == null ? DataResult.error(() -> "Missing \"" + typeKey + "\" in: " + input)
@@ -776,6 +1058,15 @@ public class Codecs {
 				                      });
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param input input
+			 * @param ops ops
+			 * @param prefix prefix
+			 *
+			 * @return RecordBuilder — результат операции
+			 */
 			public <T> RecordBuilder<T> encode(V input, DynamicOps<T> ops, RecordBuilder<T> prefix) {
 				K object = (K) typeGetter.apply(input);
 				prefix.add(typeKey, typeCodec.encodeStart(ops, object));
@@ -794,8 +1085,23 @@ public class Codecs {
 		};
 	}
 
+	/**
+	 * Optional.
+	 *
+	 * @param codec codec
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <A> Codec<Optional<A>> optional(Codec<A> codec) {
 		return new Codec<Optional<A>>() {
+			/**
+			 * Decode.
+			 *
+			 * @param ops ops
+			 * @param input input
+			 *
+			 * @return DataResult, T>> — результат операции
+			 */
 			public <T> DataResult<Pair<Optional<A>, T>> decode(DynamicOps<T> ops, T input) {
 				return isEmpty(ops, input)
 				       ? DataResult.success(Pair.of(Optional.empty(), input))
@@ -807,6 +1113,15 @@ public class Codecs {
 				return optional.isPresent() && optional.get().entries().findAny().isEmpty();
 			}
 
+			/**
+			 * Encode.
+			 *
+			 * @param optional optional
+			 * @param dynamicOps dynamic ops
+			 * @param object object
+			 *
+			 * @return DataResult — результат операции
+			 */
 			public <T> DataResult<T> encode(Optional<A> optional, DynamicOps<T> dynamicOps, T object) {
 				return optional.isEmpty() ? DataResult.success(dynamicOps.emptyMap())
 				                          : codec.encode(optional.get(), dynamicOps, object);
@@ -815,6 +1130,13 @@ public class Codecs {
 	}
 
 	@Deprecated
+	/**
+	 * Enum by name.
+	 *
+	 * @param valueOf value of
+	 *
+	 * @return > Codec — результат операции
+	 */
 	public static <E extends Enum<E>> Codec<E> enumByName(Function<String, E> valueOf) {
 		return Codec.STRING.comapFlatMap(
 				id -> {
@@ -846,6 +1168,11 @@ public class Codecs {
 			return this;
 		}
 
+		/**
+		 * Values.
+		 *
+		 * @return Set — результат операции
+		 */
 		public Set<V> values() {
 			return Collections.unmodifiableSet(this.values.values());
 		}
@@ -859,6 +1186,14 @@ public class Codecs {
 			Codec<V> elementCodec
 	) implements Codec<Map<K, V>>, BaseMapCodec<K, V> {
 
+		/**
+		 * Decode.
+		 *
+		 * @param ops ops
+		 * @param input input
+		 *
+		 * @return DataResult> — результат операции
+		 */
 		public <T> DataResult<Map<K, V>> decode(DynamicOps<T> ops, MapLike<T> input) {
 			com.google.common.collect.ImmutableMap.Builder<K, V> builder = ImmutableMap.builder();
 
@@ -887,6 +1222,14 @@ public class Codecs {
 			return DataResult.success(map);
 		}
 
+		/**
+		 * Decode.
+		 *
+		 * @param ops ops
+		 * @param input input
+		 *
+		 * @return DataResult, T>> — результат операции
+		 */
 		public <T> DataResult<Pair<Map<K, V>, T>> decode(DynamicOps<T> ops, T input) {
 			return ops
 					.getMap(input)
@@ -895,6 +1238,15 @@ public class Codecs {
 					.map(map -> Pair.of(map, input));
 		}
 
+		/**
+		 * Encode.
+		 *
+		 * @param map map
+		 * @param dynamicOps dynamic ops
+		 * @param object object
+		 *
+		 * @return DataResult — результат операции
+		 */
 		public <T> DataResult<T> encode(Map<K, V> map, DynamicOps<T> dynamicOps, T object) {
 			return this.encode(map, dynamicOps, dynamicOps.mapBuilder()).build(object);
 		}

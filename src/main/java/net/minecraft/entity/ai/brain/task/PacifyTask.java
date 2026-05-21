@@ -8,6 +8,14 @@ import net.minecraft.entity.ai.brain.MemoryModuleType;
  */
 public class PacifyTask {
 
+	/**
+	 * Create.
+	 *
+	 * @param requiredMemory required memory
+	 * @param duration duration
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create(MemoryModuleType<?> requiredMemory, int duration) {
 		return TaskTriggerer.task(
 				context -> context.group(

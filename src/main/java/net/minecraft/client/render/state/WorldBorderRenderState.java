@@ -32,6 +32,9 @@ public class WorldBorderRenderState implements FabricRenderState {
 		return Arrays.stream(distances).sorted(Comparator.comparingDouble(d -> d.value)).toList();
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.alpha = 0.0;
 	}

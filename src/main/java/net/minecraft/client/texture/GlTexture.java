@@ -102,10 +102,16 @@ public class GlTexture extends GpuTexture {
 		return this.glId;
 	}
 
+	/**
+	 * Increment ref count.
+	 */
 	public void incrementRefCount() {
 		this.refCount++;
 	}
 
+	/**
+	 * Decrement ref count.
+	 */
 	public void decrementRefCount() {
 		this.refCount--;
 		if (this.closed && this.refCount == 0) {

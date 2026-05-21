@@ -55,22 +55,58 @@ public class TagEntry {
 		return new Codecs.TagEntryId(this.id, this.tag);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param id id
+	 *
+	 * @return TagEntry — результат операции
+	 */
 	public static TagEntry create(Identifier id) {
 		return new TagEntry(id, false, true);
 	}
 
+	/**
+	 * Создаёт optional.
+	 *
+	 * @param id id
+	 *
+	 * @return TagEntry — результат операции
+	 */
 	public static TagEntry createOptional(Identifier id) {
 		return new TagEntry(id, false, false);
 	}
 
+	/**
+	 * Создаёт tag.
+	 *
+	 * @param id id
+	 *
+	 * @return TagEntry — результат операции
+	 */
 	public static TagEntry createTag(Identifier id) {
 		return new TagEntry(id, true, true);
 	}
 
+	/**
+	 * Создаёт optional tag.
+	 *
+	 * @param id id
+	 *
+	 * @return TagEntry — результат операции
+	 */
 	public static TagEntry createOptionalTag(Identifier id) {
 		return new TagEntry(id, true, false);
 	}
 
+	/**
+	 * Resolve.
+	 *
+	 * @param valueGetter value getter
+	 * @param idConsumer id consumer
+	 *
+	 * @return boolean — результат операции
+	 */
 	public <T> boolean resolve(TagEntry.ValueGetter<T> valueGetter, Consumer<T> idConsumer) {
 		if (this.tag) {
 			Collection<T> collection = valueGetter.tag(this.id);
@@ -92,18 +128,36 @@ public class TagEntry {
 		return true;
 	}
 
+	/**
+	 * For each required tag id.
+	 *
+	 * @param idConsumer id consumer
+	 */
 	public void forEachRequiredTagId(Consumer<Identifier> idConsumer) {
 		if (this.tag && this.required) {
 			idConsumer.accept(this.id);
 		}
 	}
 
+	/**
+	 * For each optional tag id.
+	 *
+	 * @param idConsumer id consumer
+	 */
 	public void forEachOptionalTagId(Consumer<Identifier> idConsumer) {
 		if (this.tag && !this.required) {
 			idConsumer.accept(this.id);
 		}
 	}
 
+	/**
+	 * Проверяет возможность add.
+	 *
+	 * @param directEntryPredicate direct entry predicate
+	 * @param tagEntryPredicate tag entry predicate
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canAdd(Predicate<Identifier> directEntryPredicate, Predicate<Identifier> tagEntryPredicate) {
 		return !this.required || (this.tag ? tagEntryPredicate : directEntryPredicate).test(this.id);
 	}

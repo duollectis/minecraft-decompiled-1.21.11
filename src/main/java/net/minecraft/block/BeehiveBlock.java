@@ -256,6 +256,13 @@ public class BeehiveBlock extends BlockWithEntity {
 		}
 	}
 
+	/**
+	 * Take honey.
+	 *
+	 * @param world world
+	 * @param state state
+	 * @param pos pos
+	 */
 	public void takeHoney(World world, BlockState state, BlockPos pos) {
 		world.setBlockState(pos, state.with(HONEY_LEVEL, 0), 3);
 	}

@@ -26,6 +26,9 @@ public class SkyRenderState implements FabricRenderState {
 	public float endFlashPitch;
 	public float endFlashYaw;
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.skybox = DimensionType.Skybox.NONE;
 	}

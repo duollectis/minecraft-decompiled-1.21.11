@@ -101,6 +101,14 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 		);
 	}
 
+	/**
+	 * Grow.
+	 *
+	 * @param world world
+	 * @param random random
+	 * @param pos pos
+	 * @param direction direction
+	 */
 	public static void grow(WorldAccess world, Random random, BlockPos pos, Direction direction) {
 		int i = MathHelper.nextInt(random, 2, 5);
 		BlockPos.Mutable mutable = pos.mutableCopy();
@@ -126,6 +134,15 @@ public class BigDripleafBlock extends HorizontalFacingBlock implements Fertiliza
 		return state.isAir() || state.isOf(Blocks.WATER) || state.isOf(Blocks.SMALL_DRIPLEAF);
 	}
 
+	/**
+	 * Проверяет возможность grow into.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected static boolean canGrowInto(HeightLimitView world, BlockPos pos, BlockState state) {
 		return !world.isOutOfHeightLimit(pos) && canGrowInto(state);
 	}

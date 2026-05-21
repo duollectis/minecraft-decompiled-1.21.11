@@ -43,6 +43,14 @@ public class Texts {
 	}
 
 	@CheckReturnValue
+	/**
+	 * With style.
+	 *
+	 * @param text text
+	 * @param style style
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text withStyle(Text text, Style style) {
 		if (style.isEmpty()) {
 			return text;
@@ -98,10 +106,25 @@ public class Texts {
 		}
 	}
 
+	/**
+	 * Join ordered.
+	 *
+	 * @param strings strings
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text joinOrdered(Collection<String> strings) {
 		return joinOrdered(strings, string -> Text.literal(string).formatted(Formatting.GREEN));
 	}
 
+	/**
+	 * Join ordered.
+	 *
+	 * @param elements elements
+	 * @param transformer transformer
+	 *
+	 * @return > Text — результат операции
+	 */
 	public static <T extends Comparable<T>> Text joinOrdered(Collection<T> elements, Function<T, Text> transformer) {
 		if (elements.isEmpty()) {
 			return ScreenTexts.EMPTY;
@@ -116,6 +139,14 @@ public class Texts {
 		}
 	}
 
+	/**
+	 * Join.
+	 *
+	 * @param elements elements
+	 * @param transformer transformer
+	 *
+	 * @return Text — результат операции
+	 */
 	public static <T> Text join(Collection<? extends T> elements, Function<T, Text> transformer) {
 		return join(elements, GRAY_DEFAULT_SEPARATOR_TEXT, transformer);
 	}
@@ -128,6 +159,14 @@ public class Texts {
 		return join(elements, (Text) DataFixUtils.orElse(separator, GRAY_DEFAULT_SEPARATOR_TEXT), transformer);
 	}
 
+	/**
+	 * Join.
+	 *
+	 * @param texts texts
+	 * @param separator separator
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text join(Collection<? extends Text> texts, Text separator) {
 		return join(texts, separator, Function.identity());
 	}
@@ -160,10 +199,24 @@ public class Texts {
 		}
 	}
 
+	/**
+	 * Bracketed.
+	 *
+	 * @param text text
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText bracketed(Text text) {
 		return Text.translatable("chat.square_brackets", text);
 	}
 
+	/**
+	 * To text.
+	 *
+	 * @param message message
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text toText(Message message) {
 		return (Text) (message instanceof Text text ? text : Text.literal(message.getString()));
 	}
@@ -179,6 +232,13 @@ public class Texts {
 		}
 	}
 
+	/**
+	 * Bracketed copyable.
+	 *
+	 * @param string string
+	 *
+	 * @return MutableText — результат операции
+	 */
 	public static MutableText bracketedCopyable(String string) {
 		return bracketed(
 				Text.literal(string)

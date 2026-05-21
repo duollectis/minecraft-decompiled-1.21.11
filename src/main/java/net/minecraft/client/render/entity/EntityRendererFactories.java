@@ -29,10 +29,25 @@ public class EntityRendererFactories {
 			RENDERER_FACTORIES =
 			new Object2ObjectOpenHashMap();
 
+	/**
+	 * Register.
+	 *
+	 * @param type type
+	 * @param factory factory
+	 *
+	 * @return void — результат операции
+	 */
 	public static <T extends Entity> void register(EntityType<? extends T> type, EntityRendererFactory<T> factory) {
 		RENDERER_FACTORIES.put(type, factory);
 	}
 
+	/**
+	 * Reload entity renderers.
+	 *
+	 * @param ctx ctx
+	 *
+	 * @return Map, EntityRenderer> — результат операции
+	 */
 	public static Map<EntityType<?>, EntityRenderer<?, ?>> reloadEntityRenderers(EntityRendererFactory.Context ctx) {
 		Builder<EntityType<?>, EntityRenderer<?, ?>> builder = ImmutableMap.builder();
 		RENDERER_FACTORIES.forEach((entityType, factory) -> {

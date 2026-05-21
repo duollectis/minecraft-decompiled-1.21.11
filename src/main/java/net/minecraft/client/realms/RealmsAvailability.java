@@ -88,6 +88,13 @@ public class RealmsAvailability {
 			this(RealmsAvailability.Type.UNEXPECTED_ERROR, exception);
 		}
 
+		/**
+		 * Создаёт screen.
+		 *
+		 * @param parent parent
+		 *
+		 * @return @Nullable Screen — результат операции
+		 */
 		public @Nullable Screen createScreen(Screen parent) {
 			return (Screen) (switch (this.type) {
 				case SUCCESS -> null;

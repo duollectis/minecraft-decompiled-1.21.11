@@ -20,6 +20,13 @@ public class PlayersRpcDispatcher {
 
 	private static final Text DEFAULT_KICK_REASON = Text.translatable("multiplayer.disconnect.kicked");
 
+	/**
+	 * Get.
+	 *
+	 * @param dispatcher dispatcher
+	 *
+	 * @return List — 
+	 */
 	public static List<RpcPlayer> get(ManagementHandlerDispatcher dispatcher) {
 		return dispatcher.getPlayerListHandler().getPlayerList().stream().map(RpcPlayer::of).toList();
 	}

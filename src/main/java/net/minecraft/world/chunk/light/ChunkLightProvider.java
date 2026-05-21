@@ -43,6 +43,14 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 		this.clearChunkCache();
 	}
 
+	/**
+	 * Needs light update.
+	 *
+	 * @param oldState old state
+	 * @param newState new state
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean needsLightUpdate(BlockState oldState, BlockState newState) {
 		return newState == oldState
 		       ? false
@@ -84,6 +92,15 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 		return Math.max(1, state.getOpacity());
 	}
 
+	/**
+	 * Shapes cover full cube.
+	 *
+	 * @param source source
+	 * @param target target
+	 * @param direction direction
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shapesCoverFullCube(BlockState source, BlockState target, Direction direction) {
 		VoxelShape voxelShape = getOpaqueShape(source, direction);
 		VoxelShape voxelShape2 = getOpaqueShape(target, direction.getOpposite());
@@ -121,6 +138,12 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 		this.blockPositionsToCheck.add(pos.asLong());
 	}
 
+	/**
+	 * Enqueue section data.
+	 *
+	 * @param sectionPos section pos
+	 * @param lightArray light array
+	 */
 	public void enqueueSectionData(long sectionPos, @Nullable ChunkNibbleArray lightArray) {
 		this.lightStorage.enqueueSectionData(sectionPos, lightArray);
 	}
@@ -189,11 +212,23 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 		return i;
 	}
 
+	/**
+	 * Queue light decrease.
+	 *
+	 * @param blockPos block pos
+	 * @param flags flags
+	 */
 	protected void queueLightDecrease(long blockPos, long flags) {
 		this.lightDecreaseQueue.enqueue(blockPos);
 		this.lightDecreaseQueue.enqueue(flags);
 	}
 
+	/**
+	 * Queue light increase.
+	 *
+	 * @param blockPos block pos
+	 * @param flags flags
+	 */
 	protected void queueLightIncrease(long blockPos, long flags) {
 		this.lightIncreaseQueue.enqueue(blockPos);
 		this.lightIncreaseQueue.enqueue(flags);
@@ -215,6 +250,13 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 		return this.lightStorage.getLight(pos.asLong());
 	}
 
+	/**
+	 * Display section level.
+	 *
+	 * @param sectionPos section pos
+	 *
+	 * @return String — результат операции
+	 */
 	public String displaySectionLevel(long sectionPos) {
 		return this.getStatus(sectionPos).getSigil();
 	}
@@ -223,10 +265,28 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 		return this.lightStorage.getStatus(sectionPos);
 	}
 
+	/**
+	 * Проверяет for light update.
+	 *
+	 * @param blockPos block pos
+	 */
 	protected abstract void checkForLightUpdate(long blockPos);
 
+	/**
+	 * Propagate light increase.
+	 *
+	 * @param blockPos block pos
+	 * @param packed packed
+	 * @param lightLevel light level
+	 */
 	protected abstract void propagateLightIncrease(long blockPos, long packed, int lightLevel);
 
+	/**
+	 * Propagate light decrease.
+	 *
+	 * @param blockPos block pos
+	 * @param packed packed
+	 */
 	protected abstract void propagateLightDecrease(long blockPos, long packed);
 
 	/**
@@ -241,15 +301,38 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 		private static final long TRIVIAL_FLAG = 1024L;
 		private static final long FORCE_SET_FLAG = 2048L;
 
+		/**
+		 * Pack with one direction cleared.
+		 *
+		 * @param lightLevel light level
+		 * @param direction direction
+		 *
+		 * @return long — результат операции
+		 */
 		public static long packWithOneDirectionCleared(int lightLevel, Direction direction) {
 			long l = clearDirectionBit(1008L, direction);
 			return withLightLevel(l, lightLevel);
 		}
 
+		/**
+		 * Pack with all directions set.
+		 *
+		 * @param lightLevel light level
+		 *
+		 * @return long — результат операции
+		 */
 		public static long packWithAllDirectionsSet(int lightLevel) {
 			return withLightLevel(1008L, lightLevel);
 		}
 
+		/**
+		 * Pack with force.
+		 *
+		 * @param lightLevel light level
+		 * @param trivial trivial
+		 *
+		 * @return long — результат операции
+		 */
 		public static long packWithForce(int lightLevel, boolean trivial) {
 			long l = 1008L;
 			l |= 2048L;
@@ -260,6 +343,15 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 			return withLightLevel(l, lightLevel);
 		}
 
+		/**
+		 * Pack with one direction cleared.
+		 *
+		 * @param lightLevel light level
+		 * @param trivial trivial
+		 * @param direction direction
+		 *
+		 * @return long — результат операции
+		 */
 		public static long packWithOneDirectionCleared(int lightLevel, boolean trivial, Direction direction) {
 			long l = clearDirectionBit(1008L, direction);
 			if (trivial) {
@@ -269,6 +361,15 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 			return withLightLevel(l, lightLevel);
 		}
 
+		/**
+		 * Pack with repropagate.
+		 *
+		 * @param lightLevel light level
+		 * @param trivial trivial
+		 * @param direction direction
+		 *
+		 * @return long — результат операции
+		 */
 		public static long packWithRepropagate(int lightLevel, boolean trivial, Direction direction) {
 			long l = 0L;
 			if (trivial) {
@@ -318,6 +419,13 @@ public abstract class ChunkLightProvider<M extends ChunkToNibbleArrayMap<M>, S e
 			return (packed & 1024L) != 0L;
 		}
 
+		/**
+		 * Force set.
+		 *
+		 * @param packed packed
+		 *
+		 * @return boolean — результат операции
+		 */
 		public static boolean forceSet(long packed) {
 			return (packed & 2048L) != 0L;
 		}

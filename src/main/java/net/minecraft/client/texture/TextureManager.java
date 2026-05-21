@@ -42,6 +42,12 @@ public class TextureManager implements ResourceReloader, AutoCloseable {
 		);
 	}
 
+	/**
+	 * Регистрирует texture.
+	 *
+	 * @param id id
+	 * @param texture texture
+	 */
 	public void registerTexture(Identifier id, ReloadableTexture texture) {
 		try {
 			texture.reload(this.loadTexture(id, texture));
@@ -67,10 +73,21 @@ public class TextureManager implements ResourceReloader, AutoCloseable {
 		}
 	}
 
+	/**
+	 * Регистрирует texture.
+	 *
+	 * @param id id
+	 */
 	public void registerTexture(Identifier id) {
 		this.registerTexture(id, (AbstractTexture) (new ResourceTexture(id)));
 	}
 
+	/**
+	 * Регистрирует texture.
+	 *
+	 * @param id id
+	 * @param texture texture
+	 */
 	public void registerTexture(Identifier id, AbstractTexture texture) {
 		AbstractTexture abstractTexture = this.textures.put(id, texture);
 		if (abstractTexture != texture) {
@@ -107,12 +124,20 @@ public class TextureManager implements ResourceReloader, AutoCloseable {
 		}
 	}
 
+	/**
+	 * Tick.
+	 */
 	public void tick() {
 		for (TextureTickListener textureTickListener : this.tickListeners) {
 			textureTickListener.tick();
 		}
 	}
 
+	/**
+	 * Destroy texture.
+	 *
+	 * @param id id
+	 */
 	public void destroyTexture(Identifier id) {
 		AbstractTexture abstractTexture = this.textures.remove(id);
 		if (abstractTexture != null) {
@@ -155,6 +180,11 @@ public class TextureManager implements ResourceReloader, AutoCloseable {
 				);
 	}
 
+	/**
+	 * Dump dynamic textures.
+	 *
+	 * @param path path
+	 */
 	public void dumpDynamicTextures(Path path) {
 		try {
 			Files.createDirectories(path);

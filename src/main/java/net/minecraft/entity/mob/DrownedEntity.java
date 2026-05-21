@@ -239,6 +239,13 @@ public class DrownedEntity extends ZombieEntity implements RangedAttackMob {
 		return world.doesNotIntersectEntities(this);
 	}
 
+	/**
+	 * Проверяет возможность drowned attack target.
+	 *
+	 * @param target target
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canDrownedAttackTarget(@Nullable LivingEntity target) {
 		return target != null ? !this.getEntityWorld().isDay() || target.isTouchingWater() : false;
 	}

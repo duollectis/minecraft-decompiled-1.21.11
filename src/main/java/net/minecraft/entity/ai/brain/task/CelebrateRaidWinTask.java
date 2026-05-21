@@ -31,6 +31,14 @@ public class CelebrateRaidWinTask extends MultiTickTask<VillagerEntity> {
 		super(ImmutableMap.of(), minRunTime, maxRunTime);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, VillagerEntity villagerEntity) {
 		BlockPos blockPos = villagerEntity.getBlockPos();
 		this.raid = serverWorld.getRaidAt(blockPos);
@@ -41,10 +49,26 @@ public class CelebrateRaidWinTask extends MultiTickTask<VillagerEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		return this.raid != null && !this.raid.hasStopped();
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		this.raid = null;
 		villagerEntity
@@ -56,6 +80,13 @@ public class CelebrateRaidWinTask extends MultiTickTask<VillagerEntity> {
 				);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		Random random = villagerEntity.getRandom();
 		if (random.nextInt(100) == 0) {

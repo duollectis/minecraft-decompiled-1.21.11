@@ -80,6 +80,13 @@ public class NameGenerator {
 			"Fist"
 	};
 
+	/**
+	 * Name.
+	 *
+	 * @param entity entity
+	 *
+	 * @return String — результат операции
+	 */
 	public static String name(Entity entity) {
 		if (entity instanceof PlayerEntity) {
 			return entity.getStringifiedName();
@@ -90,6 +97,13 @@ public class NameGenerator {
 		}
 	}
 
+	/**
+	 * Name.
+	 *
+	 * @param uuid uuid
+	 *
+	 * @return String — результат операции
+	 */
 	public static String name(UUID uuid) {
 		Random random = randomFromUuid(uuid);
 		return getRandom(random, PREFIX) + getRandom(random, SUFFIX);

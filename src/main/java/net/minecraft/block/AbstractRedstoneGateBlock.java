@@ -47,6 +47,15 @@ public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 		return this.canPlaceAbove(world, blockPos, world.getBlockState(blockPos));
 	}
 
+	/**
+	 * Проверяет возможность place above.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canPlaceAbove(WorldView world, BlockPos pos, BlockState state) {
 		return state.isSideSolid(world, pos, Direction.UP, SideShapeType.RIGID);
 	}
@@ -106,6 +115,13 @@ public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 		}
 	}
 
+	/**
+	 * Обновляет powered.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	protected void updatePowered(World world, BlockPos pos, BlockState state) {
 		if (!this.isLocked(world, pos, state)) {
 			boolean bl = state.get(POWERED);
@@ -191,6 +207,13 @@ public abstract class AbstractRedstoneGateBlock extends HorizontalFacingBlock {
 		}
 	}
 
+	/**
+	 * Обновляет target.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	protected void updateTarget(World world, BlockPos pos, BlockState state) {
 		Direction direction = state.get(FACING);
 		BlockPos blockPos = pos.offset(direction.getOpposite());

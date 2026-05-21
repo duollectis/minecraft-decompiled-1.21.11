@@ -36,6 +36,15 @@ public class ClampedIntProvider extends IntProvider {
 	private final int min;
 	private final int max;
 
+	/**
+	 * Create.
+	 *
+	 * @param source source
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return ClampedIntProvider — результат операции
+	 */
 	public static ClampedIntProvider create(IntProvider source, int min, int max) {
 		return new ClampedIntProvider(source, min, max);
 	}

@@ -684,6 +684,11 @@ public class Keyboard {
 		}
 	}
 
+	/**
+	 * Устанавливает up.
+	 *
+	 * @param window window
+	 */
 	public void setup(Window window) {
 		InputUtil.setKeyboardCallbacks(
 				window, (handle, key, scancode, action, modifiers) -> {
@@ -712,6 +717,9 @@ public class Keyboard {
 		}
 	}
 
+	/**
+	 * Poll debug crash.
+	 */
 	public void pollDebugCrash() {
 		if (this.debugCrashStartTime > 0L) {
 			long l = Util.getMeasuringTimeMs();

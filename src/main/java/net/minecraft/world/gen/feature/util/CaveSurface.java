@@ -22,26 +22,67 @@ public abstract class CaveSurface {
 		return new CaveSurface.Bounded(floor, ceiling);
 	}
 
+	/**
+	 * Создаёт half with ceiling.
+	 *
+	 * @param ceiling ceiling
+	 *
+	 * @return CaveSurface — результат операции
+	 */
 	public static CaveSurface createHalfWithCeiling(int ceiling) {
 		return new CaveSurface.Half(ceiling, false);
 	}
 
+	/**
+	 * Создаёт half with ceiling expanded.
+	 *
+	 * @param i i
+	 *
+	 * @return CaveSurface — результат операции
+	 */
 	public static CaveSurface createHalfWithCeilingExpanded(int i) {
 		return new CaveSurface.Half(i + 1, false);
 	}
 
+	/**
+	 * Создаёт half with floor.
+	 *
+	 * @param floor floor
+	 *
+	 * @return CaveSurface — результат операции
+	 */
 	public static CaveSurface createHalfWithFloor(int floor) {
 		return new CaveSurface.Half(floor, true);
 	}
 
+	/**
+	 * Создаёт half with floor expanded.
+	 *
+	 * @param i i
+	 *
+	 * @return CaveSurface — результат операции
+	 */
 	public static CaveSurface createHalfWithFloorExpanded(int i) {
 		return new CaveSurface.Half(i - 1, true);
 	}
 
+	/**
+	 * Создаёт empty.
+	 *
+	 * @return CaveSurface — результат операции
+	 */
 	public static CaveSurface createEmpty() {
 		return CaveSurface.Empty.INSTANCE;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param ceilingHeight ceiling height
+	 * @param floorHeight floor height
+	 *
+	 * @return CaveSurface — результат операции
+	 */
 	public static CaveSurface create(OptionalInt ceilingHeight, OptionalInt floorHeight) {
 		if (ceilingHeight.isPresent() && floorHeight.isPresent()) {
 			return createBounded(ceilingHeight.getAsInt(), floorHeight.getAsInt());
@@ -60,10 +101,24 @@ public abstract class CaveSurface {
 
 	public abstract OptionalInt getOptionalHeight();
 
+	/**
+	 * With floor.
+	 *
+	 * @param floor floor
+	 *
+	 * @return CaveSurface — результат операции
+	 */
 	public CaveSurface withFloor(OptionalInt floor) {
 		return create(floor, this.getCeilingHeight());
 	}
 
+	/**
+	 * With ceiling.
+	 *
+	 * @param ceiling ceiling
+	 *
+	 * @return CaveSurface — результат операции
+	 */
 	public CaveSurface withCeiling(OptionalInt ceiling) {
 		return create(this.getFloorHeight(), ceiling);
 	}

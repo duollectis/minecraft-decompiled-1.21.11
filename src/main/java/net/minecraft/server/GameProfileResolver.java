@@ -40,6 +40,13 @@ public interface GameProfileResolver {
 			                           .expireAfterAccess(Duration.ofMinutes(10L))
 			                           .maximumSize(256L)
 			                           .build(new CacheLoader<UUID, Optional<GameProfile>>() {
+				                           /**
+				                            * Load.
+				                            *
+				                            * @param uUID u u i d
+				                            *
+				                            * @return Optional — результат операции
+				                            */
 				                           public Optional<GameProfile> load(UUID uUID) {
 					                           ProfileResult profileResult = sessionService.fetchProfile(uUID, true);
 					                           return Optional.ofNullable(profileResult).map(ProfileResult::profile);
@@ -50,6 +57,13 @@ public interface GameProfileResolver {
 			                             .maximumSize(256L)
 			                             .build(
 					                             new CacheLoader<String, Optional<GameProfile>>() {
+						                             /**
+						                              * Load.
+						                              *
+						                              * @param string string
+						                              *
+						                              * @return Optional — результат операции
+						                              */
 						                             public Optional<GameProfile> load(String string) {
 							                             return cache.findByName(string)
 							                                         .flatMap(entry -> (Optional<? extends GameProfile>) CachedSessionProfileResolver.this.idCache.getUnchecked(

@@ -31,18 +31,41 @@ public class NbtOps implements DynamicOps<NbtElement> {
 	private NbtOps() {
 	}
 
+	/**
+	 * Empty.
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement empty() {
 		return NbtEnd.INSTANCE;
 	}
 
+	/**
+	 * Empty list.
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement emptyList() {
 		return new NbtList();
 	}
 
+	/**
+	 * Empty map.
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement emptyMap() {
 		return new NbtCompound();
 	}
 
+	/**
+	 * Конвертирует to.
+	 *
+	 * @param dynamicOps dynamic ops
+	 * @param nbtElement nbt element
+	 *
+	 * @return U — результат операции
+	 */
 	public <U> U convertTo(DynamicOps<U> dynamicOps, NbtElement nbtElement) {
 		return (U) (switch (nbtElement) {
 			case NbtEnd nbtEnd -> (Object) dynamicOps.empty();
@@ -72,34 +95,90 @@ public class NbtOps implements DynamicOps<NbtElement> {
 				.orElseGet(() -> DataResult.error(() -> "Not a number"));
 	}
 
+	/**
+	 * Создаёт numeric.
+	 *
+	 * @param number number
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createNumeric(Number number) {
 		return NbtDouble.of(number.doubleValue());
 	}
 
+	/**
+	 * Создаёт byte.
+	 *
+	 * @param b b
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createByte(byte b) {
 		return NbtByte.of(b);
 	}
 
+	/**
+	 * Создаёт short.
+	 *
+	 * @param s s
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createShort(short s) {
 		return NbtShort.of(s);
 	}
 
+	/**
+	 * Создаёт int.
+	 *
+	 * @param i i
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createInt(int i) {
 		return NbtInt.of(i);
 	}
 
+	/**
+	 * Создаёт long.
+	 *
+	 * @param l l
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createLong(long l) {
 		return NbtLong.of(l);
 	}
 
+	/**
+	 * Создаёт float.
+	 *
+	 * @param f f
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createFloat(float f) {
 		return NbtFloat.of(f);
 	}
 
+	/**
+	 * Создаёт double.
+	 *
+	 * @param d d
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createDouble(double d) {
 		return NbtDouble.of(d);
 	}
 
+	/**
+	 * Создаёт boolean.
+	 *
+	 * @param bl bl
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createBoolean(boolean bl) {
 		return NbtByte.of(bl);
 	}
@@ -109,10 +188,25 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		                                                    : DataResult.error(() -> "Not a string");
 	}
 
+	/**
+	 * Создаёт string.
+	 *
+	 * @param string string
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createString(String string) {
 		return NbtString.of(string);
 	}
 
+	/**
+	 * Merge to list.
+	 *
+	 * @param nbtElement nbt element
+	 * @param nbtElement2 nbt element2
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public DataResult<NbtElement> mergeToList(NbtElement nbtElement, NbtElement nbtElement2) {
 		return createMerger(nbtElement)
 				.map(merger -> DataResult.success(merger.merge(nbtElement2).getResult()))
@@ -122,6 +216,14 @@ public class NbtOps implements DynamicOps<NbtElement> {
 				));
 	}
 
+	/**
+	 * Merge to list.
+	 *
+	 * @param nbtElement nbt element
+	 * @param list list
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public DataResult<NbtElement> mergeToList(NbtElement nbtElement, List<NbtElement> list) {
 		return createMerger(nbtElement)
 				.map(merger -> DataResult.success(merger.merge(list).getResult()))
@@ -131,6 +233,15 @@ public class NbtOps implements DynamicOps<NbtElement> {
 				));
 	}
 
+	/**
+	 * Merge to map.
+	 *
+	 * @param nbtElement nbt element
+	 * @param nbtElement2 nbt element2
+	 * @param nbtElement3 nbt element3
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public DataResult<NbtElement> mergeToMap(NbtElement nbtElement, NbtElement nbtElement2, NbtElement nbtElement3) {
 		if (!(nbtElement instanceof NbtCompound) && !(nbtElement instanceof NbtEnd)) {
 			return DataResult.error(() -> "mergeToMap called with not a map: " + nbtElement, nbtElement);
@@ -148,6 +259,14 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		}
 	}
 
+	/**
+	 * Merge to map.
+	 *
+	 * @param nbtElement nbt element
+	 * @param mapLike map like
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public DataResult<NbtElement> mergeToMap(NbtElement nbtElement, MapLike<NbtElement> mapLike) {
 		if (!(nbtElement instanceof NbtCompound) && !(nbtElement instanceof NbtEnd)) {
 			return DataResult.error(() -> "mergeToMap called with not a map: " + nbtElement, nbtElement);
@@ -178,6 +297,14 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		}
 	}
 
+	/**
+	 * Merge to map.
+	 *
+	 * @param nbtElement nbt element
+	 * @param map map
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public DataResult<NbtElement> mergeToMap(NbtElement nbtElement, Map<NbtElement, NbtElement> map) {
 		if (!(nbtElement instanceof NbtCompound) && !(nbtElement instanceof NbtEnd)) {
 			return DataResult.error(() -> "mergeToMap called with not a map: " + nbtElement, nbtElement);
@@ -226,6 +353,13 @@ public class NbtOps implements DynamicOps<NbtElement> {
 
 	public DataResult<MapLike<NbtElement>> getMap(NbtElement nbtElement) {
 		return nbtElement instanceof NbtCompound nbtCompound ? DataResult.success(new MapLike<NbtElement>() {
+			/**
+			 * Get.
+			 *
+			 * @param nbtElement nbt element
+			 *
+			 * @return @Nullable NbtElement — 
+			 */
 			public @Nullable NbtElement get(NbtElement nbtElement) {
 				if (nbtElement instanceof NbtString(String var4)) {
 					return nbtCompound.get(var4);
@@ -235,10 +369,22 @@ public class NbtOps implements DynamicOps<NbtElement> {
 				}
 			}
 
+			/**
+			 * Get.
+			 *
+			 * @param string string
+			 *
+			 * @return @Nullable NbtElement — 
+			 */
 			public @Nullable NbtElement get(String string) {
 				return nbtCompound.get(string);
 			}
 
+			/**
+			 * Entries.
+			 *
+			 * @return Stream> — результат операции
+			 */
 			public Stream<Pair<NbtElement, NbtElement>> entries() {
 				return nbtCompound
 						.entrySet()
@@ -253,6 +399,13 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		}) : DataResult.error(() -> "Not a map: " + nbtElement);
 	}
 
+	/**
+	 * Создаёт map.
+	 *
+	 * @param stream stream
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createMap(Stream<Pair<NbtElement, NbtElement>> stream) {
 		NbtCompound nbtCompound = new NbtCompound();
 		stream.forEach(entry -> {
@@ -285,6 +438,13 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		       : DynamicOps.super.getByteBuffer(nbtElement);
 	}
 
+	/**
+	 * Создаёт byte list.
+	 *
+	 * @param byteBuffer byte buffer
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createByteList(ByteBuffer byteBuffer) {
 		ByteBuffer byteBuffer2 = byteBuffer.duplicate().clear();
 		byte[] bs = new byte[byteBuffer.capacity()];
@@ -298,6 +458,13 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		       : DynamicOps.super.getIntStream(nbtElement);
 	}
 
+	/**
+	 * Создаёт int list.
+	 *
+	 * @param intStream int stream
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createIntList(IntStream intStream) {
 		return new NbtIntArray(intStream.toArray());
 	}
@@ -308,14 +475,36 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		       : DynamicOps.super.getLongStream(nbtElement);
 	}
 
+	/**
+	 * Создаёт long list.
+	 *
+	 * @param longStream long stream
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createLongList(LongStream longStream) {
 		return new NbtLongArray(longStream.toArray());
 	}
 
+	/**
+	 * Создаёт list.
+	 *
+	 * @param stream stream
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement createList(Stream<NbtElement> stream) {
 		return new NbtList(stream.collect(Util.toArrayList()));
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param nbtElement nbt element
+	 * @param string string
+	 *
+	 * @return NbtElement — результат операции
+	 */
 	public NbtElement remove(NbtElement nbtElement, String string) {
 		if (nbtElement instanceof NbtCompound nbtCompound) {
 			NbtCompound nbtCompound2 = nbtCompound.shallowCopy();
@@ -332,6 +521,11 @@ public class NbtOps implements DynamicOps<NbtElement> {
 		return "NBT";
 	}
 
+	/**
+	 * Map builder.
+	 *
+	 * @return RecordBuilder — результат операции
+	 */
 	public RecordBuilder<NbtElement> mapBuilder() {
 		return new NbtOps.MapBuilder();
 	}
@@ -492,15 +686,37 @@ public class NbtOps implements DynamicOps<NbtElement> {
 			super(NbtOps.this);
 		}
 
+		/**
+		 * Инициализирует builder.
+		 *
+		 * @return NbtCompound — результат операции
+		 */
 		protected NbtCompound initBuilder() {
 			return new NbtCompound();
 		}
 
+		/**
+		 * Append.
+		 *
+		 * @param string string
+		 * @param nbtElement nbt element
+		 * @param nbtCompound nbt compound
+		 *
+		 * @return NbtCompound — результат операции
+		 */
 		protected NbtCompound append(String string, NbtElement nbtElement, NbtCompound nbtCompound) {
 			nbtCompound.put(string, nbtElement);
 			return nbtCompound;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @param nbtCompound nbt compound
+		 * @param nbtElement nbt element
+		 *
+		 * @return DataResult — результат операции
+		 */
 		protected DataResult<NbtElement> build(NbtCompound nbtCompound, NbtElement nbtElement) {
 			if (nbtElement == null || nbtElement == NbtEnd.INSTANCE) {
 				return DataResult.success(nbtCompound);

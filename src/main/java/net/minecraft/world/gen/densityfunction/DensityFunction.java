@@ -131,6 +131,15 @@ public interface DensityFunction {
 			this(noiseData, null);
 		}
 
+		/**
+		 * Sample.
+		 *
+		 * @param x x
+		 * @param y y
+		 * @param z z
+		 *
+		 * @return double — результат операции
+		 */
 		public double sample(double x, double y, double z) {
 			return this.noise == null ? 0.0 : this.noise.sample(x, y, z);
 		}

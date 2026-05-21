@@ -42,6 +42,13 @@ public class StructureAccessor {
 		this.locator = locator;
 	}
 
+	/**
+	 * For region.
+	 *
+	 * @param region region
+	 *
+	 * @return StructureAccessor — результат операции
+	 */
 	public StructureAccessor forRegion(ChunkRegion region) {
 		if (region.toServerWorld() != this.world) {
 			throw new IllegalStateException(
@@ -128,6 +135,11 @@ public class StructureAccessor {
 		holder.addStructureReference(structure, reference);
 	}
 
+	/**
+	 * Определяет, следует ли generate structures.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldGenerateStructures() {
 		return this.options.shouldGenerateStructures();
 	}
@@ -175,6 +187,14 @@ public class StructureAccessor {
 		return StructureStart.DEFAULT;
 	}
 
+	/**
+	 * Structure contains.
+	 *
+	 * @param pos pos
+	 * @param structureStart structure start
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean structureContains(BlockPos pos, StructureStart structureStart) {
 		for (StructurePiece structurePiece : structureStart.getChildren()) {
 			if (structurePiece.getBoundingBox().contains(pos)) {
@@ -216,6 +236,11 @@ public class StructureAccessor {
 		return this.locator.getStructurePresence(chunkPos, structure, placement, skipReferencedStructures);
 	}
 
+	/**
+	 * Increment references.
+	 *
+	 * @param structureStart structure start
+	 */
 	public void incrementReferences(StructureStart structureStart) {
 		structureStart.incrementReferences();
 		this.locator.incrementReferences(structureStart.getPos(), structureStart.getStructure());

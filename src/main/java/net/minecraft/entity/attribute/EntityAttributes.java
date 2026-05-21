@@ -153,6 +153,13 @@ public class EntityAttributes {
 		return Registry.registerReference(Registries.ATTRIBUTE, Identifier.ofVanilla(id), attribute);
 	}
 
+	/**
+	 * Регистрирует and get default.
+	 *
+	 * @param registry registry
+	 *
+	 * @return RegistryEntry — результат операции
+	 */
 	public static RegistryEntry<EntityAttribute> registerAndGetDefault(Registry<EntityAttribute> registry) {
 		return MAX_HEALTH;
 	}

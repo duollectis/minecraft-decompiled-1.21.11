@@ -10,6 +10,9 @@ import net.minecraft.entity.passive.AbstractHorseEntity;
 import net.minecraft.util.Identifier;
 
 @Environment(EnvType.CLIENT)
+/**
+ * Класс undead horse entity renderer.
+ */
 public class UndeadHorseEntityRenderer
 		extends AbstractHorseEntityRenderer<AbstractHorseEntity, LivingHorseEntityRenderState, AbstractHorseEntityModel<LivingHorseEntityRenderState>> {
 
@@ -48,6 +51,11 @@ public class UndeadHorseEntityRenderer
 		return this.texture;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return LivingHorseEntityRenderState — результат операции
+	 */
 	public LivingHorseEntityRenderState createRenderState() {
 		return new LivingHorseEntityRenderState();
 	}

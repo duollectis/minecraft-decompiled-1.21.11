@@ -65,6 +65,14 @@ public class BlockBox {
 		}
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param first first
+	 * @param second second
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public static BlockBox create(Vec3i first, Vec3i second) {
 		return new BlockBox(
 				Math.min(first.getX(), second.getX()),
@@ -76,6 +84,11 @@ public class BlockBox {
 		);
 	}
 
+	/**
+	 * Infinite.
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public static BlockBox infinite() {
 		return new BlockBox(
 				Integer.MIN_VALUE,
@@ -140,6 +153,11 @@ public class BlockBox {
 		}
 	}
 
+	/**
+	 * Stream chunk pos.
+	 *
+	 * @return Stream — результат операции
+	 */
 	public Stream<ChunkPos> streamChunkPos() {
 		int i = ChunkSectionPos.getSectionCoord(this.getMinX());
 		int j = ChunkSectionPos.getSectionCoord(this.getMinZ());
@@ -148,6 +166,13 @@ public class BlockBox {
 		return ChunkPos.stream(new ChunkPos(i, j), new ChunkPos(k, l));
 	}
 
+	/**
+	 * Intersects.
+	 *
+	 * @param other other
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean intersects(BlockBox other) {
 		return this.maxX >= other.minX
 				&& this.minX <= other.maxX
@@ -157,10 +182,27 @@ public class BlockBox {
 				&& this.minY <= other.maxY;
 	}
 
+	/**
+	 * Intersects x z.
+	 *
+	 * @param minX min x
+	 * @param minZ min z
+	 * @param maxX max x
+	 * @param maxZ max z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean intersectsXZ(int minX, int minZ, int maxX, int maxZ) {
 		return this.maxX >= minX && this.minX <= maxX && this.maxZ >= minZ && this.minZ <= maxZ;
 	}
 
+	/**
+	 * Encompass positions.
+	 *
+	 * @param positions positions
+	 *
+	 * @return Optional — результат операции
+	 */
 	public static Optional<BlockBox> encompassPositions(Iterable<BlockPos> positions) {
 		Iterator<BlockPos> iterator = positions.iterator();
 		if (!iterator.hasNext()) {
@@ -173,6 +215,13 @@ public class BlockBox {
 		}
 	}
 
+	/**
+	 * Encompass.
+	 *
+	 * @param boxes boxes
+	 *
+	 * @return Optional — результат операции
+	 */
 	public static Optional<BlockBox> encompass(Iterable<BlockBox> boxes) {
 		Iterator<BlockBox> iterator = boxes.iterator();
 		if (!iterator.hasNext()) {
@@ -196,6 +245,13 @@ public class BlockBox {
 	}
 
 	@Deprecated
+	/**
+	 * Encompass.
+	 *
+	 * @param box box
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public BlockBox encompass(BlockBox box) {
 		this.minX = Math.min(this.minX, box.minX);
 		this.minY = Math.min(this.minY, box.minY);
@@ -206,6 +262,14 @@ public class BlockBox {
 		return this;
 	}
 
+	/**
+	 * Создаёт encompassing.
+	 *
+	 * @param box1 box1
+	 * @param box2 box2
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public static BlockBox createEncompassing(BlockBox box1, BlockBox box2) {
 		return new BlockBox(
 				Math.min(box1.minX, box2.minX),
@@ -218,6 +282,13 @@ public class BlockBox {
 	}
 
 	@Deprecated
+	/**
+	 * Encompass.
+	 *
+	 * @param pos pos
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public BlockBox encompass(BlockPos pos) {
 		this.minX = Math.min(this.minX, pos.getX());
 		this.minY = Math.min(this.minY, pos.getY());
@@ -229,6 +300,15 @@ public class BlockBox {
 	}
 
 	@Deprecated
+	/**
+	 * Move.
+	 *
+	 * @param dx dx
+	 * @param dy dy
+	 * @param dz dz
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public BlockBox move(int dx, int dy, int dz) {
 		this.minX += dx;
 		this.minY += dy;
@@ -240,18 +320,50 @@ public class BlockBox {
 	}
 
 	@Deprecated
+	/**
+	 * Move.
+	 *
+	 * @param vec vec
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public BlockBox move(Vec3i vec) {
 		return this.move(vec.getX(), vec.getY(), vec.getZ());
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public BlockBox offset(int x, int y, int z) {
 		return new BlockBox(this.minX + x, this.minY + y, this.minZ + z, this.maxX + x, this.maxY + y, this.maxZ + z);
 	}
 
+	/**
+	 * Expand.
+	 *
+	 * @param offset offset
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public BlockBox expand(int offset) {
 		return this.expand(offset, offset, offset);
 	}
 
+	/**
+	 * Expand.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return BlockBox — результат операции
+	 */
 	public BlockBox expand(int x, int y, int z) {
 		return new BlockBox(
 				this.getMinX() - x,
@@ -263,10 +375,26 @@ public class BlockBox {
 		);
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(Vec3i pos) {
 		return this.contains(pos.getX(), pos.getY(), pos.getZ());
 	}
 
+	/**
+	 * Contains.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean contains(int x, int y, int z) {
 		return x >= this.minX && x <= this.maxX && z >= this.minZ && z <= this.maxZ && y >= this.minY && y <= this.maxY;
 	}
@@ -295,6 +423,11 @@ public class BlockBox {
 		);
 	}
 
+	/**
+	 * For each vertex.
+	 *
+	 * @param consumer consumer
+	 */
 	public void forEachVertex(Consumer<BlockPos> consumer) {
 		BlockPos.Mutable mutable = new BlockPos.Mutable();
 		consumer.accept(mutable.set(this.maxX, this.maxY, this.maxZ));

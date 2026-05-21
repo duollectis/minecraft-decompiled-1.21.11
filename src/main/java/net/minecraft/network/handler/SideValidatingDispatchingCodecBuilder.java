@@ -7,6 +7,9 @@ import net.minecraft.network.listener.PacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 
+/**
+ * Класс side validating dispatching codec builder.
+ */
 public class SideValidatingDispatchingCodecBuilder<B extends ByteBuf, L extends PacketListener> {
 
 	private final PacketCodecDispatcher.Builder<B, Packet<? super L>, PacketType<? extends Packet<? super L>>>
@@ -34,6 +37,11 @@ public class SideValidatingDispatchingCodecBuilder<B extends ByteBuf, L extends 
 		}
 	}
 
+	/**
+	 * Build.
+	 *
+	 * @return PacketCodec> — результат операции
+	 */
 	public PacketCodec<B, Packet<? super L>> build() {
 		return this.backingBuilder.build();
 	}

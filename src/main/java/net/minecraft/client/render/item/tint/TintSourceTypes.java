@@ -18,6 +18,9 @@ public class TintSourceTypes {
 			CODEC =
 			ID_MAPPER.getCodec(Identifier.CODEC).dispatch(TintSource::getCodec, codec -> codec);
 
+	/**
+	 * Bootstrap.
+	 */
 	public static void bootstrap() {
 		ID_MAPPER.put(Identifier.ofVanilla("custom_model_data"), CustomModelDataTintSource.CODEC);
 		ID_MAPPER.put(Identifier.ofVanilla("constant"), ConstantTintSource.CODEC);

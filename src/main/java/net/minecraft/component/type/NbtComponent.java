@@ -32,14 +32,35 @@ public final class NbtComponent {
 		this.nbt = nbt;
 	}
 
+	/**
+	 * Of.
+	 *
+	 * @param nbt nbt
+	 *
+	 * @return NbtComponent — результат операции
+	 */
 	public static NbtComponent of(NbtCompound nbt) {
 		return new NbtComponent(nbt.copy());
 	}
 
+	/**
+	 * Matches.
+	 *
+	 * @param nbt nbt
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean matches(NbtCompound nbt) {
 		return NbtHelper.matches(nbt, this.nbt, true);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param type type
+	 * @param stack stack
+	 * @param nbtSetter nbt setter
+	 */
 	public static void set(ComponentType<NbtComponent> type, ItemStack stack, Consumer<NbtCompound> nbtSetter) {
 		NbtComponent nbtComponent = stack.getOrDefault(type, DEFAULT).apply(nbtSetter);
 		if (nbtComponent.nbt.isEmpty()) {
@@ -50,6 +71,13 @@ public final class NbtComponent {
 		}
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param type type
+	 * @param stack stack
+	 * @param nbt nbt
+	 */
 	public static void set(ComponentType<NbtComponent> type, ItemStack stack, NbtCompound nbt) {
 		if (!nbt.isEmpty()) {
 			stack.set(type, of(nbt));
@@ -59,6 +87,13 @@ public final class NbtComponent {
 		}
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param nbtConsumer nbt consumer
+	 *
+	 * @return NbtComponent — результат операции
+	 */
 	public NbtComponent apply(Consumer<NbtCompound> nbtConsumer) {
 		NbtCompound nbtCompound = this.nbt.copy();
 		nbtConsumer.accept(nbtCompound);
@@ -69,6 +104,11 @@ public final class NbtComponent {
 		return this.nbt.isEmpty();
 	}
 
+	/**
+	 * Создаёт копию nbt.
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public NbtCompound copyNbt() {
 		return this.nbt.copy();
 	}

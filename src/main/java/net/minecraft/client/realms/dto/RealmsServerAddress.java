@@ -24,6 +24,14 @@ public record RealmsServerAddress(
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final RealmsServerAddress NULL = new RealmsServerAddress(null, null, null, null);
 
+	/**
+	 * Parse.
+	 *
+	 * @param gson gson
+	 * @param json json
+	 *
+	 * @return RealmsServerAddress — результат операции
+	 */
 	public static RealmsServerAddress parse(CheckedGson gson, String json) {
 		try {
 			RealmsServerAddress realmsServerAddress = gson.fromJson(json, RealmsServerAddress.class);

@@ -204,6 +204,14 @@ public class RespawnAnchorBlock extends Block {
 				.getAttributeValue(EnvironmentAttributes.RESPAWN_ANCHOR_WORKS_GAMEPLAY, pos);
 	}
 
+	/**
+	 * Charge.
+	 *
+	 * @param charger charger
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	public static void charge(@Nullable Entity charger, World world, BlockPos pos, BlockState state) {
 		BlockState blockState = state.with(CHARGES, state.get(CHARGES) + 1);
 		world.setBlockState(pos, blockState, 3);
@@ -261,6 +269,15 @@ public class RespawnAnchorBlock extends Block {
 		return getLightLevel(state, 15);
 	}
 
+	/**
+	 * Ищет respawn position.
+	 *
+	 * @param entity entity
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return Optional — respawn position
+	 */
 	public static Optional<Vec3d> findRespawnPosition(EntityType<?> entity, CollisionView world, BlockPos pos) {
 		Optional<Vec3d> optional = findRespawnPosition(entity, world, pos, true);
 		return optional.isPresent() ? optional : findRespawnPosition(entity, world, pos, false);

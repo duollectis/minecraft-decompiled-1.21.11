@@ -17,10 +17,26 @@ public class PanicTask extends MultiTickTask<VillagerEntity> {
 		super(ImmutableMap.of());
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		return wasHurt(villagerEntity) || isHostileNearby(villagerEntity);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		if (wasHurt(villagerEntity) || isHostileNearby(villagerEntity)) {
 			Brain<?> brain = villagerEntity.getBrain();
@@ -36,6 +52,13 @@ public class PanicTask extends MultiTickTask<VillagerEntity> {
 		}
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param villagerEntity villager entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, VillagerEntity villagerEntity, long l) {
 		if (l % 100L == 0L) {
 			villagerEntity.summonGolem(serverWorld, l, 3);
@@ -46,6 +69,13 @@ public class PanicTask extends MultiTickTask<VillagerEntity> {
 		return entity.getBrain().hasMemoryModule(MemoryModuleType.NEAREST_HOSTILE);
 	}
 
+	/**
+	 * Was hurt.
+	 *
+	 * @param entity entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean wasHurt(LivingEntity entity) {
 		return entity.getBrain().hasMemoryModule(MemoryModuleType.HURT_BY);
 	}

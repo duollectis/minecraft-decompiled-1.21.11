@@ -133,6 +133,13 @@ public abstract class AbstractMinecartEntityRenderer<T extends AbstractMinecartE
 		matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(-g));
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param abstractMinecartEntity abstract minecart entity
+	 * @param minecartEntityRenderState minecart entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(T abstractMinecartEntity, S minecartEntityRenderState, float f) {
 		super.updateRenderState(abstractMinecartEntity, minecartEntityRenderState, f);
 		if (abstractMinecartEntity.getController() instanceof ExperimentalMinecartController experimentalMinecartController) {

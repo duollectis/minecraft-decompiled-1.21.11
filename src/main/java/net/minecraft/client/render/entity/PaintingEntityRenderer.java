@@ -61,6 +61,11 @@ public class PaintingEntityRenderer extends EntityRenderer<PaintingEntity, Paint
 		}
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return PaintingEntityRenderState — результат операции
+	 */
 	public PaintingEntityRenderState createRenderState() {
 		return new PaintingEntityRenderState();
 	}

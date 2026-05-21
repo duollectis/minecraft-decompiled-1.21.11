@@ -30,6 +30,13 @@ public class RegistryCodecs {
 		);
 	}
 
+	/**
+	 * Entry list.
+	 *
+	 * @param registryRef registry ref
+	 *
+	 * @return Codec> — результат операции
+	 */
 	public static <E> Codec<RegistryEntryList<E>> entryList(RegistryKey<? extends Registry<E>> registryRef) {
 		return entryList(registryRef, false);
 	}

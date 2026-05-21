@@ -8,6 +8,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.world.border.WorldBorder;
 
+/**
+ * Класс world border initialize s2 c packet.
+ */
 public class WorldBorderInitializeS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, WorldBorderInitializeS2CPacket> CODEC = Packet.createCodec(
@@ -60,6 +63,11 @@ public class WorldBorderInitializeS2CPacket implements Packet<ClientPlayPacketLi
 		return PlayPackets.INITIALIZE_BORDER;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onWorldBorderInitialize(this);
 	}

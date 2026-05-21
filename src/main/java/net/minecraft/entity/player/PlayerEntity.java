@@ -275,18 +275,38 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return this.isBlocking() ? 15.0F : super.getMaxRelativeHeadRotation();
 	}
 
+	/**
+	 * Определяет, следует ли cancel interaction.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldCancelInteraction() {
 		return this.isSneaking();
 	}
 
+	/**
+	 * Определяет, следует ли dismount.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldDismount() {
 		return this.isSneaking();
 	}
 
+	/**
+	 * Clip at ledge.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean clipAtLedge() {
 		return this.isSneaking();
 	}
 
+	/**
+	 * Обновляет water submersion state.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean updateWaterSubmersionState() {
 		this.isSubmergedInWater = this.isSubmergedIn(FluidTags.WATER);
 		return this.isSubmergedInWater;
@@ -322,10 +342,18 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return false;
 	}
 
+	/**
+	 * Создаёт cooldown manager.
+	 *
+	 * @return ItemCooldownManager — результат операции
+	 */
 	protected ItemCooldownManager createCooldownManager() {
 		return new ItemCooldownManager();
 	}
 
+	/**
+	 * Обновляет pose.
+	 */
 	protected void updatePose() {
 		if (this.canChangeIntoPose(EntityPose.SWIMMING)) {
 			EntityPose entityPose = this.getExpectedPose();
@@ -362,6 +390,13 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Проверяет возможность change into pose.
+	 *
+	 * @param pose pose
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canChangeIntoPose(EntityPose pose) {
 		return this
 				.getEntityWorld()
@@ -421,10 +456,16 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Закрывает handled screen.
+	 */
 	protected void closeHandledScreen() {
 		this.currentScreenHandler = this.playerScreenHandler;
 	}
 
+	/**
+	 * Обрабатывает событие handled screen closed.
+	 */
 	protected void onHandledScreenClosed() {
 	}
 
@@ -484,12 +525,21 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		this.handleShoulderEntities();
 	}
 
+	/**
+	 * Выполняет тик обновления для hunger.
+	 */
 	protected void tickHunger() {
 	}
 
+	/**
+	 * Обрабатывает shoulder entities.
+	 */
 	public void handleShoulderEntities() {
 	}
 
+	/**
+	 * Бросает shoulder entities.
+	 */
 	protected void dropShoulderEntities() {
 	}
 
@@ -505,11 +555,23 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		this.dataTracker.set(SCORE, score);
 	}
 
+	/**
+	 * Добавляет score.
+	 *
+	 * @param score score
+	 */
 	public void addScore(int score) {
 		int i = this.getScore();
 		this.dataTracker.set(SCORE, i + score);
 	}
 
+	/**
+	 * Использует riptide.
+	 *
+	 * @param riptideTicks riptide ticks
+	 * @param riptideAttackDamage riptide attack damage
+	 * @param stack stack
+	 */
 	public void useRiptide(int riptideTicks, float riptideAttackDamage, ItemStack stack) {
 		this.riptideTicks = riptideTicks;
 		this.riptideAttackDamage = riptideAttackDamage;
@@ -561,6 +623,9 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Vanish cursed items.
+	 */
 	protected void vanishCursedItems() {
 		for (int i = 0; i < this.inventory.size(); i++) {
 			ItemStack itemStack = this.inventory.getStack(i);
@@ -583,9 +648,22 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return SoundEvents.ENTITY_PLAYER_DEATH;
 	}
 
+	/**
+	 * Бросает creative stack.
+	 *
+	 * @param stack stack
+	 */
 	public void dropCreativeStack(ItemStack stack) {
 	}
 
+	/**
+	 * Бросает item.
+	 *
+	 * @param stack stack
+	 * @param retainOwnership retain ownership
+	 *
+	 * @return @Nullable ItemEntity — результат операции
+	 */
 	public @Nullable ItemEntity dropItem(ItemStack stack, boolean retainOwnership) {
 		return this.dropItem(stack, false, retainOwnership);
 	}
@@ -622,6 +700,13 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return f;
 	}
 
+	/**
+	 * Проверяет возможность harvest.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canHarvest(BlockState state) {
 		return !state.isToolRequired() || this.inventory.getSelectedStack().isSuitableFor(state);
 	}
@@ -745,6 +830,13 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return !this.getAbilities().invulnerable && super.canTakeDamage();
 	}
 
+	/**
+	 * Определяет, следует ли damage player.
+	 *
+	 * @param player player
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDamagePlayer(PlayerEntity player) {
 		AbstractTeam abstractTeam = this.getScoreboardTeam();
 		AbstractTeam abstractTeam2 = player.getScoreboardTeam();
@@ -798,41 +890,106 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Определяет, следует ли filter text.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldFilterText() {
 		return false;
 	}
 
+	/**
+	 * Открывает edit sign screen.
+	 *
+	 * @param sign sign
+	 * @param front front
+	 */
 	public void openEditSignScreen(SignBlockEntity sign, boolean front) {
 	}
 
+	/**
+	 * Открывает command block minecart screen.
+	 *
+	 * @param minecart minecart
+	 */
 	public void openCommandBlockMinecartScreen(CommandBlockMinecartEntity minecart) {
 	}
 
+	/**
+	 * Открывает command block screen.
+	 *
+	 * @param commandBlock command block
+	 */
 	public void openCommandBlockScreen(CommandBlockBlockEntity commandBlock) {
 	}
 
+	/**
+	 * Открывает structure block screen.
+	 *
+	 * @param structureBlock structure block
+	 */
 	public void openStructureBlockScreen(StructureBlockBlockEntity structureBlock) {
 	}
 
+	/**
+	 * Открывает test block screen.
+	 *
+	 * @param testBlock test block
+	 */
 	public void openTestBlockScreen(TestBlockEntity testBlock) {
 	}
 
+	/**
+	 * Открывает test instance block screen.
+	 *
+	 * @param testInstanceBlock test instance block
+	 */
 	public void openTestInstanceBlockScreen(TestInstanceBlockEntity testInstanceBlock) {
 	}
 
+	/**
+	 * Открывает jigsaw screen.
+	 *
+	 * @param jigsaw jigsaw
+	 */
 	public void openJigsawScreen(JigsawBlockEntity jigsaw) {
 	}
 
+	/**
+	 * Открывает horse inventory.
+	 *
+	 * @param horse horse
+	 * @param inventory inventory
+	 */
 	public void openHorseInventory(AbstractHorseEntity horse, Inventory inventory) {
 	}
 
+	/**
+	 * Открывает nautilus inventory.
+	 *
+	 * @param nautilus nautilus
+	 * @param inventory inventory
+	 */
 	public void openNautilusInventory(AbstractNautilusEntity nautilus, Inventory inventory) {
 	}
 
+	/**
+	 * Открывает handled screen.
+	 *
+	 * @param factory factory
+	 *
+	 * @return OptionalInt — результат операции
+	 */
 	public OptionalInt openHandledScreen(@Nullable NamedScreenHandlerFactory factory) {
 		return OptionalInt.empty();
 	}
 
+	/**
+	 * Открывает dialog.
+	 *
+	 * @param dialog dialog
+	 */
 	public void openDialog(RegistryEntry<Dialog> dialog) {
 	}
 
@@ -846,9 +1003,23 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 	) {
 	}
 
+	/**
+	 * Использует book.
+	 *
+	 * @param book book
+	 * @param hand hand
+	 */
 	public void useBook(ItemStack book, Hand hand) {
 	}
 
+	/**
+	 * Interact.
+	 *
+	 * @param entity entity
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public ActionResult interact(Entity entity, Hand hand) {
 		if (this.isSpectator()) {
 			if (entity instanceof NamedScreenHandlerFactory) {
@@ -990,6 +1161,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		           );
 	}
 
+	/**
+	 * Attack.
+	 *
+	 * @param target target
+	 */
 	public void attack(Entity target) {
 		if (!this.cannotAttack(target)) {
 			float
@@ -1285,6 +1461,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		this.attack(target);
 	}
 
+	/**
+	 * Добавляет crit particles.
+	 *
+	 * @param target target
+	 */
 	public void addCritParticles(Entity target) {
 	}
 
@@ -1351,6 +1532,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Добавляет enchanted hit particles.
+	 *
+	 * @param target target
+	 */
 	public void addEnchantedHitParticles(Entity target) {
 	}
 
@@ -1408,17 +1594,39 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return this.abilities.creativeMode;
 	}
 
+	/**
+	 * Определяет, следует ли skip block drops.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldSkipBlockDrops() {
 		return this.abilities.creativeMode;
 	}
 
+	/**
+	 * Обрабатывает событие pickup slot click.
+	 *
+	 * @param cursorStack cursor stack
+	 * @param slotStack slot stack
+	 * @param clickType click type
+	 */
 	public void onPickupSlotClick(ItemStack cursorStack, ItemStack slotStack, ClickType clickType) {
 	}
 
+	/**
+	 * Определяет, следует ли close handled screen on respawn.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldCloseHandledScreenOnRespawn() {
 		return this.currentScreenHandler != this.playerScreenHandler;
 	}
 
+	/**
+	 * Проверяет возможность drop items.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canDropItems() {
 		return true;
 	}
@@ -1429,6 +1637,12 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return Either.right(Unit.INSTANCE);
 	}
 
+	/**
+	 * Wake up.
+	 *
+	 * @param skipSleepTimer skip sleep timer
+	 * @param updateSleepingPlayers update sleeping players
+	 */
 	public void wakeUp(boolean skipSleepTimer, boolean updateSleepingPlayers) {
 		super.wakeUp();
 		if (this.getEntityWorld() instanceof ServerWorld && updateSleepingPlayers) {
@@ -1443,6 +1657,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		this.wakeUp(true, true);
 	}
 
+	/**
+	 * Проверяет возможность reset time by sleeping.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canResetTimeBySleeping() {
 		return this.isSleeping() && this.sleepTimer >= 100;
 	}
@@ -1451,37 +1670,95 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return this.sleepTimer;
 	}
 
+	/**
+	 * Отправляет message.
+	 *
+	 * @param message message
+	 * @param overlay overlay
+	 */
 	public void sendMessage(Text message, boolean overlay) {
 	}
 
+	/**
+	 * Increment stat.
+	 *
+	 * @param stat stat
+	 */
 	public void incrementStat(Identifier stat) {
 		this.incrementStat(Stats.CUSTOM.getOrCreateStat(stat));
 	}
 
+	/**
+	 * Increase stat.
+	 *
+	 * @param stat stat
+	 * @param amount amount
+	 */
 	public void increaseStat(Identifier stat, int amount) {
 		this.increaseStat(Stats.CUSTOM.getOrCreateStat(stat), amount);
 	}
 
+	/**
+	 * Increment stat.
+	 *
+	 * @param stat stat
+	 */
 	public void incrementStat(Stat<?> stat) {
 		this.increaseStat(stat, 1);
 	}
 
+	/**
+	 * Increase stat.
+	 *
+	 * @param stat stat
+	 * @param amount amount
+	 */
 	public void increaseStat(Stat<?> stat, int amount) {
 	}
 
+	/**
+	 * Сбрасывает stat.
+	 *
+	 * @param stat stat
+	 */
 	public void resetStat(Stat<?> stat) {
 	}
 
+	/**
+	 * Unlock recipes.
+	 *
+	 * @param recipes recipes
+	 *
+	 * @return int — результат операции
+	 */
 	public int unlockRecipes(Collection<RecipeEntry<?>> recipes) {
 		return 0;
 	}
 
+	/**
+	 * Обрабатывает событие recipe crafted.
+	 *
+	 * @param recipe recipe
+	 * @param ingredients ingredients
+	 */
 	public void onRecipeCrafted(RecipeEntry<?> recipe, List<ItemStack> ingredients) {
 	}
 
+	/**
+	 * Unlock recipes.
+	 *
+	 * @param recipes recipes
+	 */
 	public void unlockRecipes(List<RegistryKey<Recipe<?>>> recipes) {
 	}
 
+	/**
+	 * Lock recipes.
+	 *
+	 * @param recipes recipes
+	 *
+	 * @return int — результат операции
+	 */
 	public int lockRecipes(Collection<RecipeEntry<?>> recipes) {
 		return 0;
 	}
@@ -1532,6 +1809,13 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Does not suffocate.
+	 *
+	 * @param pos pos
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean doesNotSuffocate(BlockPos pos) {
 		return !this.getEntityWorld().getBlockState(pos).shouldSuffocate(this.getEntityWorld(), pos);
 	}
@@ -1578,6 +1862,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Проверяет gliding.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean checkGliding() {
 		if (!this.isGliding() && this.canGlide() && !this.isTouchingWater()) {
 			this.startGliding();
@@ -1588,6 +1877,9 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Запускает gliding.
+	 */
 	public void startGliding() {
 		this.setFlag(7, true);
 	}
@@ -1642,6 +1934,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		this.tryClearCurrentExplosion();
 	}
 
+	/**
+	 * Добавляет experience.
+	 *
+	 * @param experience experience
+	 */
 	public void addExperience(int experience) {
 		this.addScore(experience);
 		this.experienceProgress = this.experienceProgress + (float) experience / this.getNextLevelExperience();
@@ -1670,6 +1967,12 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return this.enchantingTableSeed;
 	}
 
+	/**
+	 * Применяет enchantment costs.
+	 *
+	 * @param enchantedItem enchanted item
+	 * @param experienceLevels experience levels
+	 */
 	public void applyEnchantmentCosts(ItemStack enchantedItem, int experienceLevels) {
 		this.experienceLevel -= experienceLevels;
 		if (this.experienceLevel < 0) {
@@ -1681,6 +1984,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		this.enchantingTableSeed = this.random.nextInt();
 	}
 
+	/**
+	 * Добавляет experience levels.
+	 *
+	 * @param levels levels
+	 */
 	public void addExperienceLevels(int levels) {
 		this.experienceLevel = IntMath.saturatedAdd(this.experienceLevel, levels);
 		if (this.experienceLevel < 0) {
@@ -1715,6 +2023,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Добавляет exhaustion.
+	 *
+	 * @param exhaustion exhaustion
+	 */
 	public void addExhaustion(float exhaustion) {
 		if (!this.abilities.invulnerable) {
 			if (!this.getEntityWorld().isClient()) {
@@ -1730,6 +2043,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		}
 	}
 
+	/**
+	 * Проверяет возможность sprint or fly.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canSprintOrFly() {
 		return this.getHungerManager().canSprint() || this.getAbilities().allowFlying;
 	}
@@ -1742,18 +2060,44 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return this.hungerManager;
 	}
 
+	/**
+	 * Проверяет возможность consume.
+	 *
+	 * @param ignoreHunger ignore hunger
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canConsume(boolean ignoreHunger) {
 		return this.abilities.invulnerable || ignoreHunger || this.hungerManager.isNotFull();
 	}
 
+	/**
+	 * Проверяет возможность food heal.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canFoodHeal() {
 		return this.getHealth() > 0.0F && this.getHealth() < this.getMaxHealth();
 	}
 
+	/**
+	 * Проверяет возможность modify blocks.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canModifyBlocks() {
 		return this.abilities.allowModifyWorld;
 	}
 
+	/**
+	 * Проверяет возможность place on.
+	 *
+	 * @param pos pos
+	 * @param facing facing
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canPlaceOn(BlockPos pos, Direction facing, ItemStack stack) {
 		if (this.abilities.allowModifyWorld) {
 			return true;
@@ -1789,6 +2133,9 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		                                                                     : Entity.MoveEffect.ALL;
 	}
 
+	/**
+	 * Отправляет abilities update.
+	 */
 	public void sendAbilitiesUpdate() {
 	}
 
@@ -1811,6 +2158,13 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return slot.getType() == EquipmentSlot.Type.HUMANOID_ARMOR;
 	}
 
+	/**
+	 * Give item stack.
+	 *
+	 * @param stack stack
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean giveItemStack(ItemStack stack) {
 		return this.inventory.insertStack(stack);
 	}
@@ -1940,6 +2294,13 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return Optional.empty();
 	}
 
+	/**
+	 * Map parrot variant.
+	 *
+	 * @param variant variant
+	 *
+	 * @return OptionalInt — результат операции
+	 */
 	protected static OptionalInt mapParrotVariant(Optional<ParrotEntity.Variant> variant) {
 		return variant.<OptionalInt>map(variantx -> OptionalInt.of(variantx.getIndex())).orElse(OptionalInt.empty());
 	}
@@ -1991,6 +2352,9 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		);
 	}
 
+	/**
+	 * Сбрасывает ticks since.
+	 */
 	public void resetTicksSince() {
 		this.ticksSinceLastAttack = 0;
 		this.ticksSinceHandEquipping = 0;
@@ -2002,6 +2366,9 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		super.beforePlayerAttack();
 	}
 
+	/**
+	 * Сбрасывает ticks since last attack.
+	 */
 	public void resetTicksSinceLastAttack() {
 		this.ticksSinceLastAttack = 0;
 	}
@@ -2161,20 +2528,52 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return this.getAttributeValue(EntityAttributes.ENTITY_INTERACTION_RANGE);
 	}
 
+	/**
+	 * Проверяет возможность interact with entity.
+	 *
+	 * @param entity entity
+	 * @param additionalRange additional range
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canInteractWithEntity(Entity entity, double additionalRange) {
 		return entity.isRemoved() ? false : this.canInteractWithEntityIn(entity.getBoundingBox(), additionalRange);
 	}
 
+	/**
+	 * Проверяет возможность interact with entity in.
+	 *
+	 * @param box box
+	 * @param additionalRange additional range
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canInteractWithEntityIn(Box box, double additionalRange) {
 		double d = this.getEntityInteractionRange() + additionalRange;
 		double e = box.squaredMagnitude(this.getEyePos());
 		return e < d * d;
 	}
 
+	/**
+	 * Проверяет возможность attack entity in.
+	 *
+	 * @param box box
+	 * @param additionalRange additional range
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canAttackEntityIn(Box box, double additionalRange) {
 		return this.getAttackRange().isWithinRange(this, box, additionalRange);
 	}
 
+	/**
+	 * Проверяет возможность interact with block at.
+	 *
+	 * @param pos pos
+	 * @param additionalRange additional range
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canInteractWithBlockAt(BlockPos pos, double additionalRange) {
 		double d = this.getBlockInteractionRange() + additionalRange;
 		return new Box(pos).squaredMagnitude(this.getEyePos()) < d * d;
@@ -2195,10 +2594,18 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 				Math.max(this.currentExplosionResetGraceTime, currentExplosionResetGraceTime);
 	}
 
+	/**
+	 * Определяет, следует ли ignore fall damage from current explosion.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldIgnoreFallDamageFromCurrentExplosion() {
 		return this.ignoreFallDamageFromCurrentExplosion;
 	}
 
+	/**
+	 * Try clear current explosion.
+	 */
 	public void tryClearCurrentExplosion() {
 		if (this.currentExplosionResetGraceTime == 0) {
 			this.clearCurrentExplosion();
@@ -2209,6 +2616,9 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return this.currentExplosionResetGraceTime > 0;
 	}
 
+	/**
+	 * Очищает current explosion.
+	 */
 	public void clearCurrentExplosion() {
 		this.currentExplosionResetGraceTime = 0;
 		this.explodedBy = null;
@@ -2216,6 +2626,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		this.ignoreFallDamageFromCurrentExplosion = false;
 	}
 
+	/**
+	 * Определяет, следует ли rotate with minecart.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldRotateWithMinecart() {
 		return false;
 	}
@@ -2225,6 +2640,11 @@ public abstract class PlayerEntity extends PlayerLikeEntity implements Container
 		return this.abilities.flying ? false : super.isClimbing();
 	}
 
+	/**
+	 * As string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String asString() {
 		return MoreObjects.toStringHelper(this)
 		                  .add("name", this.getStringifiedName())

@@ -14,6 +14,11 @@ public class StartSniffingTask {
 
 	private static final IntProvider COOLDOWN = UniformIntProvider.create(100, 200);
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(

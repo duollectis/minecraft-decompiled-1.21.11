@@ -28,6 +28,11 @@ public class InactivityFpsLimiter {
 		this.maxFps = options.getMaxFps().getValue();
 	}
 
+	/**
+	 * Update.
+	 *
+	 * @return int — результат операции
+	 */
 	public int update() {
 		return switch (this.getLimitReason()) {
 			case NONE -> this.maxFps;
@@ -61,6 +66,11 @@ public class InactivityFpsLimiter {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли disable profiler timeout.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDisableProfilerTimeout() {
 		InactivityFpsLimiter.LimitReason limitReason = this.getLimitReason();
 		return limitReason == InactivityFpsLimiter.LimitReason.WINDOW_ICONIFIED
@@ -71,6 +81,9 @@ public class InactivityFpsLimiter {
 		this.maxFps = maxFps;
 	}
 
+	/**
+	 * Обрабатывает событие input.
+	 */
 	public void onInput() {
 		this.lastInputTime = Util.getMeasuringTimeMs();
 	}

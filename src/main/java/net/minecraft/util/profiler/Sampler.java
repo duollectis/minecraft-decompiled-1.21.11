@@ -43,10 +43,29 @@ public class Sampler {
 		this.active = true;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param name name
+	 * @param type type
+	 * @param retriever retriever
+	 *
+	 * @return Sampler — результат операции
+	 */
 	public static Sampler create(String name, SampleType type, DoubleSupplier retriever) {
 		return new Sampler(name, type, retriever, null, null);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param name name
+	 * @param type type
+	 * @param context context
+	 * @param retriever retriever
+	 *
+	 * @return Sampler — результат операции
+	 */
 	public static <T> Sampler create(String name, SampleType type, T context, ToDoubleFunction<T> retriever) {
 		return builder(name, type, retriever, context).build();
 	}
@@ -65,6 +84,9 @@ public class Sampler {
 		}
 	}
 
+	/**
+	 * Start.
+	 */
 	public void start() {
 		if (!this.active) {
 			throw new IllegalStateException("Not running");
@@ -76,6 +98,11 @@ public class Sampler {
 		}
 	}
 
+	/**
+	 * Sample.
+	 *
+	 * @param tick tick
+	 */
 	public void sample(int tick) {
 		this.ensureActive();
 		this.currentSample = this.retriever.getAsDouble();
@@ -83,6 +110,9 @@ public class Sampler {
 		this.ticksBuffer.writeInt(tick);
 	}
 
+	/**
+	 * Stop.
+	 */
 	public void stop() {
 		this.ensureActive();
 		this.valueBuffer.release();
@@ -182,6 +212,11 @@ public class Sampler {
 			return this;
 		}
 
+		/**
+		 * Build.
+		 *
+		 * @return Sampler — результат операции
+		 */
 		public Sampler build() {
 			return new Sampler(this.name, this.type, this.timeGetter, this.startAction, this.deviationChecker);
 		}

@@ -160,11 +160,17 @@ public class BiomeEffectSoundPlayer implements ClientPlayerTickable {
 			this.volume = MathHelper.clamp(this.strength / 40.0F, 0.0F, 1.0F);
 		}
 
+		/**
+		 * Fade out.
+		 */
 		public void fadeOut() {
 			this.strength = Math.min(this.strength, 40);
 			this.delta = -1;
 		}
 
+		/**
+		 * Fade in.
+		 */
 		public void fadeIn() {
 			this.strength = Math.max(0, this.strength);
 			this.delta = 1;

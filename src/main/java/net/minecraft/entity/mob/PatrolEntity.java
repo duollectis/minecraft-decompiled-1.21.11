@@ -56,6 +56,11 @@ public abstract class PatrolEntity extends HostileEntity {
 		this.patrolling = view.getBoolean("Patrolling", false);
 	}
 
+	/**
+	 * Проверяет возможность lead.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canLead() {
 		return true;
 	}

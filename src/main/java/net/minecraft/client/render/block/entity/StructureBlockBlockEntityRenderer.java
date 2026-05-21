@@ -29,6 +29,11 @@ public class StructureBlockBlockEntityRenderer<T extends BlockEntity & Structure
 
 	public static final int STRUCTURE_VOID_FACE_COLOR = ColorHelper.fromFloats(0.2F, 0.75F, 0.75F, 1.0F);
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return StructureBlockBlockEntityRenderState — результат операции
+	 */
 	public StructureBlockBlockEntityRenderState createRenderState() {
 		return new StructureBlockBlockEntityRenderState();
 	}

@@ -29,6 +29,13 @@ public record RealmsServerPlayerList(Map<Long, List<ProfileComponent>> serverIdT
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return RealmsServerPlayerList — результат операции
+	 */
 	public static RealmsServerPlayerList parse(String json) {
 		Builder<Long, List<ProfileComponent>> builder = ImmutableMap.builder();
 
@@ -78,6 +85,13 @@ public record RealmsServerPlayerList(Map<Long, List<ProfileComponent>> serverIdT
 		return list;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param serverId server id
+	 *
+	 * @return List — 
+	 */
 	public List<ProfileComponent> get(long serverId) {
 		List<ProfileComponent> list = this.serverIdToPlayers.get(serverId);
 		return list != null ? list : List.of();

@@ -279,6 +279,14 @@ public class MooshroomEntity extends AbstractCowEntity implements Shearable {
 		}
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable MooshroomEntity — результат операции
+	 */
 	public @Nullable MooshroomEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		MooshroomEntity mooshroomEntity = EntityType.MOOSHROOM.create(serverWorld, SpawnReason.BREEDING);
 		if (mooshroomEntity != null) {

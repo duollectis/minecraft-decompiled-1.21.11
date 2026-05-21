@@ -37,6 +37,14 @@ public class BiasedToBottomIntProvider extends IntProvider {
 		this.max = max;
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param min min
+	 * @param max max
+	 *
+	 * @return BiasedToBottomIntProvider — результат операции
+	 */
 	public static BiasedToBottomIntProvider create(int min, int max) {
 		return new BiasedToBottomIntProvider(min, max);
 	}

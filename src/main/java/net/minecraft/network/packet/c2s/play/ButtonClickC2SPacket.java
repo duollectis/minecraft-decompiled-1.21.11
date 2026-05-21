@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись button click c2 s packet.
+ */
 public record ButtonClickC2SPacket(int syncId, int buttonId) implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ButtonClickC2SPacket> CODEC = PacketCodec.tuple(
@@ -23,6 +26,11 @@ public record ButtonClickC2SPacket(int syncId, int buttonId) implements Packet<S
 		return PlayPackets.CONTAINER_BUTTON_CLICK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onButtonClick(this);
 	}

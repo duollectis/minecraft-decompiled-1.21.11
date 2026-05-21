@@ -25,6 +25,13 @@ public class FixedPlacementModifier extends PlacementModifier {
 	);
 	private final List<BlockPos> positions;
 
+	/**
+	 * Of.
+	 *
+	 * @param positions positions
+	 *
+	 * @return FixedPlacementModifier — результат операции
+	 */
 	public static FixedPlacementModifier of(BlockPos... positions) {
 		return new FixedPlacementModifier(List.of(positions));
 	}

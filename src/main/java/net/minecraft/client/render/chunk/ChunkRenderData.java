@@ -83,6 +83,13 @@ public class ChunkRenderData implements AbstractChunkRenderData {
 		return this.buffersByLayer.get(layer);
 	}
 
+	/**
+	 * Upload.
+	 *
+	 * @param layer layer
+	 * @param builtBuffer built buffer
+	 * @param sectionPos section pos
+	 */
 	public void upload(BlockRenderLayer layer, BuiltBuffer builtBuffer, long sectionPos) {
 		CommandEncoder commandEncoder = RenderSystem.getDevice().createCommandEncoder();
 		Buffers buffers = this.getBuffersForLayer(layer);
@@ -188,6 +195,13 @@ public class ChunkRenderData implements AbstractChunkRenderData {
 		}
 	}
 
+	/**
+	 * Upload index buffer.
+	 *
+	 * @param layer layer
+	 * @param buffer buffer
+	 * @param sectionPos section pos
+	 */
 	public void uploadIndexBuffer(BlockRenderLayer layer, BufferAllocator.CloseableBuffer buffer, long sectionPos) {
 		Buffers buffers = this.getBuffersForLayer(layer);
 		if (buffers != null) {

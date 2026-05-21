@@ -98,18 +98,31 @@ public class ServerBossBar extends BossBar {
 		}
 	}
 
+	/**
+	 * Добавляет player.
+	 *
+	 * @param player player
+	 */
 	public void addPlayer(ServerPlayerEntity player) {
 		if (this.players.add(player) && this.visible) {
 			player.networkHandler.sendPacket(BossBarS2CPacket.add(this));
 		}
 	}
 
+	/**
+	 * Удаляет player.
+	 *
+	 * @param player player
+	 */
 	public void removePlayer(ServerPlayerEntity player) {
 		if (this.players.remove(player) && this.visible) {
 			player.networkHandler.sendPacket(BossBarS2CPacket.remove(this.getUuid()));
 		}
 	}
 
+	/**
+	 * Очищает players.
+	 */
 	public void clearPlayers() {
 		if (!this.players.isEmpty()) {
 			for (ServerPlayerEntity serverPlayerEntity : Lists.newArrayList(this.players)) {

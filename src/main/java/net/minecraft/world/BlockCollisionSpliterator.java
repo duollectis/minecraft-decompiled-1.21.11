@@ -78,6 +78,11 @@ public class BlockCollisionSpliterator<T> extends AbstractIterator<T> {
 		}
 	}
 
+	/**
+	 * Вычисляет next.
+	 *
+	 * @return T — результат операции
+	 */
 	protected T computeNext() {
 		while (this.blockIterator.step()) {
 			int i = this.blockIterator.getX();

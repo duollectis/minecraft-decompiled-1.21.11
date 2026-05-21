@@ -13,6 +13,11 @@ import java.util.List;
  */
 public class HuntHoglinTask {
 
+	/**
+	 * Create.
+	 *
+	 * @return SingleTickTask — результат операции
+	 */
 	public static SingleTickTask<PiglinEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(

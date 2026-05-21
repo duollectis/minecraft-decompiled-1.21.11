@@ -34,6 +34,11 @@ public class ChunkTaskScheduler implements ChunkHolder.LevelUpdateListener, Auto
 		this.pollOnUpdate = true;
 	}
 
+	/**
+	 * Определяет, следует ли delay shutdown.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldDelayShutdown() {
 		return this.dispatcher.hasQueuedTasks() || this.queue.hasQueuedElement();
 	}
@@ -53,6 +58,13 @@ public class ChunkTaskScheduler implements ChunkHolder.LevelUpdateListener, Auto
 		));
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param pos pos
+	 * @param callback callback
+	 * @param removeElement remove element
+	 */
 	public void remove(long pos, Runnable callback, boolean removeElement) {
 		this.dispatcher.send(new TaskQueue.PrioritizedTask(
 				1, () -> {
@@ -68,6 +80,13 @@ public class ChunkTaskScheduler implements ChunkHolder.LevelUpdateListener, Auto
 		));
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param runnable runnable
+	 * @param pos pos
+	 * @param levelGetter level getter
+	 */
 	public void add(Runnable runnable, long pos, IntSupplier levelGetter) {
 		this.dispatcher.send(new TaskQueue.PrioritizedTask(
 				2, () -> {
@@ -85,6 +104,9 @@ public class ChunkTaskScheduler implements ChunkHolder.LevelUpdateListener, Auto
 		));
 	}
 
+	/**
+	 * Poll task.
+	 */
 	protected void pollTask() {
 		this.dispatcher.send(new TaskQueue.PrioritizedTask(
 				3, () -> {
@@ -99,6 +121,11 @@ public class ChunkTaskScheduler implements ChunkHolder.LevelUpdateListener, Auto
 		));
 	}
 
+	/**
+	 * Schedule.
+	 *
+	 * @param entry entry
+	 */
 	protected void schedule(LevelPrioritizedQueue.Entry entry) {
 		CompletableFuture.allOf(entry.tasks().stream().map(runnable -> this.executor.executeAsync(future -> {
 			runnable.run();
@@ -106,6 +133,11 @@ public class ChunkTaskScheduler implements ChunkHolder.LevelUpdateListener, Auto
 		})).toArray(CompletableFuture[]::new)).thenAccept(v -> this.pollTask());
 	}
 
+	/**
+	 * Обрабатывает событие remove.
+	 *
+	 * @param chunkPos chunk pos
+	 */
 	protected void onRemove(long chunkPos) {
 	}
 

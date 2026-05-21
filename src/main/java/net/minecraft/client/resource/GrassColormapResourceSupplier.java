@@ -19,6 +19,14 @@ public class GrassColormapResourceSupplier extends SinglePreparationResourceRelo
 
 	private static final Identifier GRASS_COLORMAP_LOC = Identifier.ofVanilla("textures/colormap/grass.png");
 
+	/**
+	 * Prepare.
+	 *
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 *
+	 * @return int[] — результат операции
+	 */
 	protected int[] prepare(ResourceManager resourceManager, Profiler profiler) {
 		try {
 			return RawTextureDataLoader.loadRawTextureData(resourceManager, GRASS_COLORMAP_LOC);
@@ -28,6 +36,13 @@ public class GrassColormapResourceSupplier extends SinglePreparationResourceRelo
 		}
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param is is
+	 * @param resourceManager resource manager
+	 * @param profiler profiler
+	 */
 	protected void apply(int[] is, ResourceManager resourceManager, Profiler profiler) {
 		GrassColors.setColorMap(is);
 	}

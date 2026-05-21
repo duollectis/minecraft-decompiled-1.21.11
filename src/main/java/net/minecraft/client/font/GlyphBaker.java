@@ -24,6 +24,9 @@ public class GlyphBaker implements AutoCloseable {
 		this.fontId = fontId;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		int i = this.glyphAtlases.size();
 		this.glyphAtlases.clear();
@@ -38,6 +41,14 @@ public class GlyphBaker implements AutoCloseable {
 		this.clear();
 	}
 
+	/**
+	 * Bake.
+	 *
+	 * @param metrics metrics
+	 * @param glyph glyph
+	 *
+	 * @return @Nullable BakedGlyphImpl — результат операции
+	 */
 	public @Nullable BakedGlyphImpl bake(GlyphMetrics metrics, UploadableGlyph glyph) {
 		for (GlyphAtlasTexture glyphAtlasTexture : this.glyphAtlases) {
 			BakedGlyphImpl bakedGlyphImpl = glyphAtlasTexture.bake(metrics, glyph);

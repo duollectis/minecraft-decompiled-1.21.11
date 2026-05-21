@@ -80,6 +80,13 @@ public record GeneratorOptionsHolder(
 		);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param modifier modifier
+	 *
+	 * @return GeneratorOptionsHolder — результат операции
+	 */
 	public GeneratorOptionsHolder apply(GeneratorOptionsHolder.Modifier modifier) {
 		return new GeneratorOptionsHolder(
 				modifier.apply(this.generatorOptions),
@@ -92,6 +99,13 @@ public record GeneratorOptionsHolder(
 		);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param modifier modifier
+	 *
+	 * @return GeneratorOptionsHolder — результат операции
+	 */
 	public GeneratorOptionsHolder apply(GeneratorOptionsHolder.RegistryAwareModifier modifier) {
 		return new GeneratorOptionsHolder(
 				this.generatorOptions,
@@ -108,6 +122,9 @@ public record GeneratorOptionsHolder(
 		return this.combinedDynamicRegistries.getCombinedRegistryManager();
 	}
 
+	/**
+	 * Инициализирует ialize indexed features lists.
+	 */
 	public void initializeIndexedFeaturesLists() {
 		for (DimensionOptions dimensionOptions : this.dimensionOptionsRegistry()) {
 			dimensionOptions.chunkGenerator().initializeIndexedFeaturesList();

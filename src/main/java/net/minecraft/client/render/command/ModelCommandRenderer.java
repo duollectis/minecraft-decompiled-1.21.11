@@ -157,6 +157,12 @@ public class ModelCommandRenderer {
 		final List<OrderedRenderCommandQueueImpl.BlendedModelCommand<?>> blendedModelCommands = new ArrayList<>();
 		private final Set<RenderLayer> usedModelRenderLayers = new ObjectOpenHashSet();
 
+		/**
+		 * Add.
+		 *
+		 * @param renderLayer render layer
+		 * @param modelCommand model command
+		 */
 		public void add(RenderLayer renderLayer, OrderedRenderCommandQueueImpl.ModelCommand<?> modelCommand) {
 			if (renderLayer.getRenderPipeline().getBlendFunction().isEmpty()) {
 				this.opaqueModelCommands
@@ -173,6 +179,9 @@ public class ModelCommandRenderer {
 			}
 		}
 
+		/**
+		 * Clear.
+		 */
 		public void clear() {
 			this.blendedModelCommands.clear();
 
@@ -185,6 +194,9 @@ public class ModelCommandRenderer {
 			}
 		}
 
+		/**
+		 * Next frame.
+		 */
 		public void nextFrame() {
 			this.opaqueModelCommands
 					.keySet()

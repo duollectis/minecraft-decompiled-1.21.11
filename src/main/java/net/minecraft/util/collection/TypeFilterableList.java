@@ -78,6 +78,11 @@ public class TypeFilterableList<T> extends AbstractCollection<T> {
 		);
 	}
 
+	/**
+	 * Copy.
+	 *
+	 * @return List — результат операции
+	 */
 	public List<T> copy() {
 		return ImmutableList.copyOf(this.allElements);
 	}

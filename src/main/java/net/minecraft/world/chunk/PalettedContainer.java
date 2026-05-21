@@ -33,10 +33,16 @@ public class PalettedContainer<T> implements PaletteResizeListener<T>, ReadableC
 	private final PaletteProvider<T> paletteProvider;
 	private final LockHelper lockHelper = new LockHelper("PalettedContainer");
 
+	/**
+	 * Lock.
+	 */
 	public void lock() {
 		this.lockHelper.lock();
 	}
 
+	/**
+	 * Unlock.
+	 */
 	public void unlock() {
 		this.lockHelper.unlock();
 	}
@@ -134,6 +140,16 @@ public class PalettedContainer<T> implements PaletteResizeListener<T>, ReadableC
 		return data2.palette.index(object, PaletteResizeListener.throwing());
 	}
 
+	/**
+	 * Swap.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param value value
+	 *
+	 * @return T — результат операции
+	 */
 	public T swap(int x, int y, int z, T value) {
 		this.lock();
 
@@ -148,6 +164,16 @@ public class PalettedContainer<T> implements PaletteResizeListener<T>, ReadableC
 		return (T) var5;
 	}
 
+	/**
+	 * Swap unsafe.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param value value
+	 *
+	 * @return T — результат операции
+	 */
 	public T swapUnsafe(int x, int y, int z, T value) {
 		return this.swap(this.paletteProvider.computeIndex(x, y, z), value);
 	}
@@ -158,6 +184,14 @@ public class PalettedContainer<T> implements PaletteResizeListener<T>, ReadableC
 		return this.data.palette.get(j);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 * @param value value
+	 */
 	public void set(int x, int y, int z, T value) {
 		this.lock();
 
@@ -179,6 +213,13 @@ public class PalettedContainer<T> implements PaletteResizeListener<T>, ReadableC
 		return this.get(this.paletteProvider.computeIndex(x, y, z));
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param index index
+	 *
+	 * @return T — 
+	 */
 	protected T get(int index) {
 		PalettedContainer.Data<T> data = this.data;
 		return data.palette.get(data.storage.get(index));
@@ -192,6 +233,11 @@ public class PalettedContainer<T> implements PaletteResizeListener<T>, ReadableC
 		intSet.forEach(id -> action.accept(palette.get(id)));
 	}
 
+	/**
+	 * Читает packet.
+	 *
+	 * @param buf buf
+	 */
 	public void readPacket(PacketByteBuf buf) {
 		this.lock();
 
@@ -374,6 +420,12 @@ public class PalettedContainer<T> implements PaletteResizeListener<T>, ReadableC
 	 */
 	record Data<T>(PaletteType configuration, PaletteStorage storage, Palette<T> palette) {
 
+		/**
+		 * Import from.
+		 *
+		 * @param palette palette
+		 * @param storage storage
+		 */
 		public void importFrom(Palette<T> palette, PaletteStorage storage) {
 			PaletteResizeListener<T> paletteResizeListener = PaletteResizeListener.throwing();
 
@@ -387,6 +439,12 @@ public class PalettedContainer<T> implements PaletteResizeListener<T>, ReadableC
 			return 1 + this.palette.getPacketSize(idList) + this.storage.getData().length * 8;
 		}
 
+		/**
+		 * Записывает packet.
+		 *
+		 * @param buf buf
+		 * @param idList id list
+		 */
 		public void writePacket(PacketByteBuf buf, IndexedIterable<T> idList) {
 			buf.writeByte(this.storage.getElementBits());
 			this.palette.writePacket(buf, idList);

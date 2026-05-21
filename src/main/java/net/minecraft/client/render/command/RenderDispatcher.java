@@ -52,6 +52,9 @@ public class RenderDispatcher implements AutoCloseable {
 		this.textRenderer = textRenderer;
 	}
 
+	/**
+	 * Render.
+	 */
 	public void render() {
 		ObjectIterator var1 = this.queue.getBatchingQueues().values().iterator();
 
@@ -93,6 +96,9 @@ public class RenderDispatcher implements AutoCloseable {
 		this.queue.clear();
 	}
 
+	/**
+	 * End layered customs.
+	 */
 	public void endLayeredCustoms() {
 		this.layeredCustomCommandRenderer.end();
 	}

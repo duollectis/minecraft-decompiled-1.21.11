@@ -60,6 +60,13 @@ public class BuddingAmethystBlock extends AmethystBlock {
 		}
 	}
 
+	/**
+	 * Проверяет возможность grow in.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public static boolean canGrowIn(BlockState state) {
 		return state.isAir() || state.isOf(Blocks.WATER) && state.getFluidState().getLevel() == 8;
 	}

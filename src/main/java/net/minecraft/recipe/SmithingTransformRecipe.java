@@ -39,6 +39,14 @@ public class SmithingTransformRecipe implements SmithingRecipe {
 		this.result = result;
 	}
 
+	/**
+	 * Craft.
+	 *
+	 * @param smithingRecipeInput smithing recipe input
+	 * @param wrapperLookup wrapper lookup
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public ItemStack craft(SmithingRecipeInput smithingRecipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
 		return this.result.apply(smithingRecipeInput.base());
 	}

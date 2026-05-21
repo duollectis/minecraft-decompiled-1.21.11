@@ -6,6 +6,9 @@ import net.minecraft.network.listener.ServerHandshakePacketListener;
 import net.minecraft.network.packet.HandshakePackets;
 import net.minecraft.network.packet.c2s.handshake.HandshakeC2SPacket;
 
+/**
+ * Класс handshake states.
+ */
 public class HandshakeStates {
 
 	public static final NetworkStateFactory<ServerHandshakePacketListener, PacketByteBuf>

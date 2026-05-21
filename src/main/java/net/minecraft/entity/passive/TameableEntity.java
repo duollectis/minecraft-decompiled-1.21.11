@@ -96,6 +96,11 @@ public abstract class TameableEntity extends AnimalEntity implements Tameable {
 		return true;
 	}
 
+	/**
+	 * Show emote particle.
+	 *
+	 * @param positive positive
+	 */
 	protected void showEmoteParticle(boolean positive) {
 		ParticleEffect particleEffect = ParticleTypes.HEART;
 		if (!positive) {
@@ -151,6 +156,9 @@ public abstract class TameableEntity extends AnimalEntity implements Tameable {
 		}
 	}
 
+	/**
+	 * Обновляет attributes for tamed.
+	 */
 	protected void updateAttributesForTamed() {
 	}
 
@@ -198,6 +206,14 @@ public abstract class TameableEntity extends AnimalEntity implements Tameable {
 		return entity == this.getOwner();
 	}
 
+	/**
+	 * Проверяет возможность attack with owner.
+	 *
+	 * @param target target
+	 * @param owner owner
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canAttackWithOwner(LivingEntity target, LivingEntity owner) {
 		return true;
 	}
@@ -255,6 +271,9 @@ public abstract class TameableEntity extends AnimalEntity implements Tameable {
 		this.sitting = sitting;
 	}
 
+	/**
+	 * Try teleport to owner.
+	 */
 	public void tryTeleportToOwner() {
 		LivingEntity livingEntity = this.getOwner();
 		if (livingEntity != null) {
@@ -262,6 +281,11 @@ public abstract class TameableEntity extends AnimalEntity implements Tameable {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли try teleport to owner.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldTryTeleportToOwner() {
 		LivingEntity livingEntity = this.getOwner();
 		return livingEntity != null && this.squaredDistanceTo(this.getOwner()) >= 144.0;
@@ -308,12 +332,22 @@ public abstract class TameableEntity extends AnimalEntity implements Tameable {
 		}
 	}
 
+	/**
+	 * Проверяет возможность not follow owner.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public final boolean cannotFollowOwner() {
 		return this.isSitting() || this.hasVehicle() || this.mightBeLeashed() || this.getOwner() != null && this
 				.getOwner()
 				.isSpectator();
 	}
 
+	/**
+	 * Проверяет возможность teleport onto leaves.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canTeleportOntoLeaves() {
 		return false;
 	}

@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 
+/**
+ * Класс player interact block c2 s packet.
+ */
 public class PlayerInteractBlockC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, PlayerInteractBlockC2SPacket> CODEC = Packet.createCodec(
@@ -41,6 +44,11 @@ public class PlayerInteractBlockC2SPacket implements Packet<ServerPlayPacketList
 		return PlayPackets.USE_ITEM_ON;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onPlayerInteractBlock(this);
 	}

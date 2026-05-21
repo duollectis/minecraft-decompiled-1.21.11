@@ -18,6 +18,12 @@ public class CacheFiles {
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Clear.
+	 *
+	 * @param directory directory
+	 * @param maxRetained max retained
+	 */
 	public static void clear(Path directory, int maxRetained) {
 		try {
 			List<CacheFiles.CacheFile> list = findCacheFiles(directory);
@@ -70,6 +76,14 @@ public class CacheFiles {
 			final List<CacheFiles.CacheFile> list = new ArrayList<>();
 			Files.walkFileTree(
 					directory, new SimpleFileVisitor<Path>() {
+						/**
+						 * Visit file.
+						 *
+						 * @param path path
+						 * @param basicFileAttributes basic file attributes
+						 *
+						 * @return FileVisitResult — результат операции
+						 */
 						public FileVisitResult visitFile(Path path, BasicFileAttributes basicFileAttributes) {
 							if (basicFileAttributes.isRegularFile() && !path.getParent().equals(directory)) {
 								FileTime fileTime = basicFileAttributes.lastModifiedTime();

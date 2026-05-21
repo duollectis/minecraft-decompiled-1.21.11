@@ -232,10 +232,16 @@ public class OrderedRenderCommandQueueImpl implements OrderedRenderCommandQueue 
 		this.getBatchingQueue(0).submitCustom(customRenderer);
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.batchingQueues.values().forEach(BatchingRenderCommandQueue::clear);
 	}
 
+	/**
+	 * Обрабатывает событие next frame.
+	 */
 	public void onNextFrame() {
 		this.batchingQueues.values().removeIf(queue -> !queue.hasCommands());
 		this.batchingQueues.values().forEach(BatchingRenderCommandQueue::onNextFrame);

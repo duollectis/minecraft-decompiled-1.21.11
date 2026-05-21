@@ -92,6 +92,11 @@ public record ChunkGeneratorSettings(
 		return this.aquifers && !SharedConstants.DISABLE_AQUIFERS;
 	}
 
+	/**
+	 * Ore veins.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean oreVeins() {
 		return this.oreVeins && !SharedConstants.DISABLE_ORE_VEINS;
 	}
@@ -100,6 +105,11 @@ public record ChunkGeneratorSettings(
 		return this.usesLegacyRandom ? ChunkRandom.RandomProvider.LEGACY : ChunkRandom.RandomProvider.XOROSHIRO;
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param chunkGenerationSettingsRegisterable chunk generation settings registerable
+	 */
 	public static void bootstrap(Registerable<ChunkGeneratorSettings> chunkGenerationSettingsRegisterable) {
 		chunkGenerationSettingsRegisterable.register(
 				OVERWORLD,
@@ -220,6 +230,11 @@ public record ChunkGeneratorSettings(
 		);
 	}
 
+	/**
+	 * Создаёт missing settings.
+	 *
+	 * @return ChunkGeneratorSettings — результат операции
+	 */
 	public static ChunkGeneratorSettings createMissingSettings() {
 		return new ChunkGeneratorSettings(
 				GenerationShapeConfig.SURFACE,

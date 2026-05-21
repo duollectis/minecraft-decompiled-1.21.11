@@ -99,6 +99,12 @@ public class BambooShootBlock extends Block implements Fertilizable {
 		this.grow(world, pos);
 	}
 
+	/**
+	 * Grow.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 */
 	protected void grow(World world, BlockPos pos) {
 		world.setBlockState(pos.up(), Blocks.BAMBOO.getDefaultState().with(BambooBlock.LEAVES, BambooLeaves.SMALL), 3);
 	}

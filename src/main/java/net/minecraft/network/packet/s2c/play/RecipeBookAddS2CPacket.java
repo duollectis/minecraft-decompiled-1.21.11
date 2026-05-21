@@ -11,6 +11,9 @@ import net.minecraft.recipe.RecipeDisplayEntry;
 
 import java.util.List;
 
+/**
+ * Запись recipe book add s2 c packet.
+ */
 public record RecipeBookAddS2CPacket(
 		List<RecipeBookAddS2CPacket.Entry> entries,
 		boolean replace
@@ -29,10 +32,18 @@ public record RecipeBookAddS2CPacket(
 		return PlayPackets.RECIPE_BOOK_ADD;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onRecipeBookAdd(this);
 	}
 
+	/**
+	 * Запись entry.
+	 */
 	public record Entry(RecipeDisplayEntry contents, byte flags) {
 
 		public static final byte SHOW_NOTIFICATION = 1;
@@ -49,6 +60,11 @@ public record RecipeBookAddS2CPacket(
 			this(display, (byte) ((showNotification ? 1 : 0) | (highlighted ? 2 : 0)));
 		}
 
+		/**
+		 * Определяет, следует ли show notification.
+		 *
+		 * @return boolean — результат операции
+		 */
 		public boolean shouldShowNotification() {
 			return (this.flags & 1) != 0;
 		}

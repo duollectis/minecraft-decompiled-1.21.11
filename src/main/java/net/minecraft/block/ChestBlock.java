@@ -228,6 +228,13 @@ public class ChestBlock extends AbstractChestBlock<ChestBlockEntity> implements 
 		);
 	}
 
+	/**
+	 * Проверяет возможность merge with.
+	 *
+	 * @param state state
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canMergeWith(BlockState state) {
 		return state.isOf(this);
 	}

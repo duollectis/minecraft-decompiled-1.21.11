@@ -89,6 +89,11 @@ public abstract class ScrollableTextFieldWidget extends ScrollableWidget {
 		}
 	}
 
+	/**
+	 * Отрисовывает overlay.
+	 *
+	 * @param context context
+	 */
 	protected void renderOverlay(DrawContext context) {
 	}
 
@@ -116,10 +121,24 @@ public abstract class ScrollableTextFieldWidget extends ScrollableWidget {
 		return this.getContentsHeight() + this.getPadding();
 	}
 
+	/**
+	 * Draw box.
+	 *
+	 * @param context context
+	 */
 	protected void drawBox(DrawContext context) {
 		this.draw(context, this.getX(), this.getY(), this.getWidth(), this.getHeight());
 	}
 
+	/**
+	 * Draw.
+	 *
+	 * @param context context
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param height height
+	 */
 	protected void draw(DrawContext context, int x, int y, int width, int height) {
 		Identifier identifier = TEXTURES.get(this.isInteractable(), this.isFocused());
 		context.drawGuiTexture(RenderPipelines.GUI_TEXTURED, identifier, x, y, width, height);
@@ -132,6 +151,14 @@ public abstract class ScrollableTextFieldWidget extends ScrollableWidget {
 
 	protected abstract int getContentsHeight();
 
+	/**
+	 * Отрисовывает contents.
+	 *
+	 * @param context context
+	 * @param mouseX mouse x
+	 * @param mouseY mouse y
+	 * @param deltaTicks delta ticks
+	 */
 	protected abstract void renderContents(DrawContext context, int mouseX, int mouseY, float deltaTicks);
 
 	protected int getTextX() {

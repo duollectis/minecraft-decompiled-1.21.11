@@ -36,6 +36,14 @@ public class Bans {
 			SKIN_DESCRIPTION =
 			Text.translatable("gui.banned.skin.description", Text.of(Urls.JAVA_MODERATION));
 
+	/**
+	 * Создаёт ban screen.
+	 *
+	 * @param callback callback
+	 * @param banDetails ban details
+	 *
+	 * @return ConfirmLinkScreen — результат операции
+	 */
 	public static ConfirmLinkScreen createBanScreen(BooleanConsumer callback, BanDetails banDetails) {
 		return new ConfirmLinkScreen(
 				callback,
@@ -47,6 +55,13 @@ public class Bans {
 		);
 	}
 
+	/**
+	 * Создаёт skin ban screen.
+	 *
+	 * @param onClose on close
+	 *
+	 * @return ConfirmLinkScreen — результат операции
+	 */
 	public static ConfirmLinkScreen createSkinBanScreen(Runnable onClose) {
 		URI uRI = Urls.JAVA_MODERATION;
 		return new ConfirmLinkScreen(
@@ -60,6 +75,14 @@ public class Bans {
 		);
 	}
 
+	/**
+	 * Создаёт username ban screen.
+	 *
+	 * @param username username
+	 * @param onClose on close
+	 *
+	 * @return ConfirmLinkScreen — результат операции
+	 */
 	public static ConfirmLinkScreen createUsernameBanScreen(String username, Runnable onClose) {
 		URI uRI = Urls.JAVA_MODERATION;
 		return new ConfirmLinkScreen(

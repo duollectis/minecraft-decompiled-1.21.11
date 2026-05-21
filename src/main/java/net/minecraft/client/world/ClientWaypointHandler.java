@@ -21,14 +21,29 @@ public class ClientWaypointHandler implements TrackedWaypointHandler {
 
 	private final Map<Either<UUID, String>, TrackedWaypoint> waypoints = new ConcurrentHashMap<>();
 
+	/**
+	 * Обрабатывает событие track.
+	 *
+	 * @param trackedWaypoint tracked waypoint
+	 */
 	public void onTrack(TrackedWaypoint trackedWaypoint) {
 		this.waypoints.put(trackedWaypoint.getSource(), trackedWaypoint);
 	}
 
+	/**
+	 * Обрабатывает событие update.
+	 *
+	 * @param trackedWaypoint tracked waypoint
+	 */
 	public void onUpdate(TrackedWaypoint trackedWaypoint) {
 		this.waypoints.get(trackedWaypoint.getSource()).handleUpdate(trackedWaypoint);
 	}
 
+	/**
+	 * Обрабатывает событие untrack.
+	 *
+	 * @param trackedWaypoint tracked waypoint
+	 */
 	public void onUntrack(TrackedWaypoint trackedWaypoint) {
 		this.waypoints.remove(trackedWaypoint.getSource());
 	}
@@ -37,6 +52,12 @@ public class ClientWaypointHandler implements TrackedWaypointHandler {
 		return !this.waypoints.isEmpty();
 	}
 
+	/**
+	 * For each waypoint.
+	 *
+	 * @param receiver receiver
+	 * @param action action
+	 */
 	public void forEachWaypoint(Entity receiver, Consumer<TrackedWaypoint> action) {
 		this.waypoints
 				.values()

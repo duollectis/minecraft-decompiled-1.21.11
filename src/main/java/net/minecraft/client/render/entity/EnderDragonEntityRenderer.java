@@ -271,6 +271,11 @@ public class EnderDragonEntityRenderer extends EntityRenderer<EnderDragonEntity,
 		matrices.pop();
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return EnderDragonEntityRenderState — результат операции
+	 */
 	public EnderDragonEntityRenderState createRenderState() {
 		return new EnderDragonEntityRenderState();
 	}
@@ -313,6 +318,13 @@ public class EnderDragonEntityRenderer extends EntityRenderer<EnderDragonEntity,
 		enderDragonEntityRenderState.frameTracker.copyFrom(enderDragonEntity.frameTracker);
 	}
 
+	/**
+	 * Проверяет возможность be culled.
+	 *
+	 * @param enderDragonEntity ender dragon entity
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected boolean canBeCulled(EnderDragonEntity enderDragonEntity) {
 		return false;
 	}

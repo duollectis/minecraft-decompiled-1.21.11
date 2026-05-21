@@ -17,6 +17,11 @@ public class ChunkOcclusionData {
 	private static final int DIRECTION_COUNT = Direction.values().length;
 	private final BitSet visibility = new BitSet(DIRECTION_COUNT * DIRECTION_COUNT);
 
+	/**
+	 * Добавляет open edge faces.
+	 *
+	 * @param faces faces
+	 */
 	public void addOpenEdgeFaces(Set<Direction> faces) {
 		for (Direction direction : faces) {
 			for (Direction direction2 : faces) {
@@ -30,6 +35,11 @@ public class ChunkOcclusionData {
 		this.visibility.set(to.ordinal() + from.ordinal() * DIRECTION_COUNT, visible);
 	}
 
+	/**
+	 * Fill.
+	 *
+	 * @param visible visible
+	 */
 	public void fill(boolean visible) {
 		this.visibility.set(0, this.visibility.size(), visible);
 	}

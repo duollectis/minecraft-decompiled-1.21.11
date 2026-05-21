@@ -16,6 +16,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.BitSet;
 import java.util.function.Supplier;
 
+/**
+ * Класс filter mask.
+ */
 public class FilterMask {
 
 	public static final Codec<FilterMask> CODEC = StringIdentifiable.createCodec(FilterMask.FilterStatus::values)
@@ -61,6 +64,13 @@ public class FilterMask {
 		return this.mask;
 	}
 
+	/**
+	 * Читает mask.
+	 *
+	 * @param buf buf
+	 *
+	 * @return FilterMask — результат операции
+	 */
 	public static FilterMask readMask(PacketByteBuf buf) {
 		FilterMask.FilterStatus filterStatus = buf.readEnumConstant(FilterMask.FilterStatus.class);
 
@@ -71,6 +81,12 @@ public class FilterMask {
 		};
 	}
 
+	/**
+	 * Записывает mask.
+	 *
+	 * @param buf buf
+	 * @param mask mask
+	 */
 	public static void writeMask(PacketByteBuf buf, FilterMask mask) {
 		buf.writeEnumConstant(mask.status);
 		if (mask.status == FilterMask.FilterStatus.PARTIALLY_FILTERED) {
@@ -78,10 +94,22 @@ public class FilterMask {
 		}
 	}
 
+	/**
+	 * Mark filtered.
+	 *
+	 * @param index index
+	 */
 	public void markFiltered(int index) {
 		this.mask.set(index);
 	}
 
+	/**
+	 * Filter.
+	 *
+	 * @param raw raw
+	 *
+	 * @return @Nullable String — результат операции
+	 */
 	public @Nullable String filter(String raw) {
 		return switch (this.status) {
 			case PASS_THROUGH -> raw;

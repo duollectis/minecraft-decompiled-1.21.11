@@ -155,11 +155,19 @@ public class BreezeEntity extends HostileEntity {
 		super.tick();
 	}
 
+	/**
+	 * Сбрасывает long jumping particle add count.
+	 *
+	 * @return BreezeEntity — результат операции
+	 */
 	public BreezeEntity resetLongJumpingParticleAddCount() {
 		this.longJumpingParticleAddCount = 0;
 		return this;
 	}
 
+	/**
+	 * Добавляет long jumping particles.
+	 */
 	public void addLongJumpingParticles() {
 		if (++this.longJumpingParticleAddCount <= 5) {
 			BlockState
@@ -184,6 +192,11 @@ public class BreezeEntity extends HostileEntity {
 		}
 	}
 
+	/**
+	 * Добавляет block particles.
+	 *
+	 * @param count count
+	 */
 	public void addBlockParticles(int count) {
 		if (!this.hasVehicle()) {
 			Vec3d vec3d = this.getBoundingBox().getCenter();
@@ -217,6 +230,9 @@ public class BreezeEntity extends HostileEntity {
 		}
 	}
 
+	/**
+	 * Play whirl sound.
+	 */
 	public void playWhirlSound() {
 		float f = 0.7F + 0.4F * this.random.nextFloat();
 		float g = 0.8F + 0.2F * this.random.nextFloat();

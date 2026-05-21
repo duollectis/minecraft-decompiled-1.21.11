@@ -38,6 +38,9 @@ public class ServerList {
 		this.client = client;
 	}
 
+	/**
+	 * Загружает file.
+	 */
 	public void loadFile() {
 		try {
 			this.servers.clear();
@@ -62,6 +65,9 @@ public class ServerList {
 		}
 	}
 
+	/**
+	 * Сохраняет file.
+	 */
 	public void saveFile() {
 		try {
 			NbtList nbtList = new NbtList();
@@ -92,10 +98,24 @@ public class ServerList {
 		}
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param index index
+	 *
+	 * @return ServerInfo — 
+	 */
 	public ServerInfo get(int index) {
 		return this.servers.get(index);
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param address address
+	 *
+	 * @return @Nullable ServerInfo — 
+	 */
 	public @Nullable ServerInfo get(String address) {
 		for (ServerInfo serverInfo : this.servers) {
 			if (serverInfo.address.equals(address)) {
@@ -112,6 +132,13 @@ public class ServerList {
 		return null;
 	}
 
+	/**
+	 * Try unhide.
+	 *
+	 * @param address address
+	 *
+	 * @return @Nullable ServerInfo — результат операции
+	 */
 	public @Nullable ServerInfo tryUnhide(String address) {
 		for (int i = 0; i < this.hiddenServers.size(); i++) {
 			ServerInfo serverInfo = this.hiddenServers.get(i);
@@ -125,12 +152,23 @@ public class ServerList {
 		return null;
 	}
 
+	/**
+	 * Remove.
+	 *
+	 * @param serverInfo server info
+	 */
 	public void remove(ServerInfo serverInfo) {
 		if (!this.servers.remove(serverInfo)) {
 			this.hiddenServers.remove(serverInfo);
 		}
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param serverInfo server info
+	 * @param hidden hidden
+	 */
 	public void add(ServerInfo serverInfo, boolean hidden) {
 		if (hidden) {
 			this.hiddenServers.add(0, serverInfo);
@@ -144,10 +182,21 @@ public class ServerList {
 		}
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.servers.size();
 	}
 
+	/**
+	 * Swap entries.
+	 *
+	 * @param index1 index1
+	 * @param index2 index2
+	 */
 	public void swapEntries(int index1, int index2) {
 		ServerInfo serverInfo = this.get(index1);
 		this.servers.set(index1, this.get(index2));
@@ -155,6 +204,12 @@ public class ServerList {
 		this.saveFile();
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param index index
+	 * @param serverInfo server info
+	 */
 	public void set(int index, ServerInfo serverInfo) {
 		this.servers.set(index, serverInfo);
 	}
@@ -171,6 +226,11 @@ public class ServerList {
 		return false;
 	}
 
+	/**
+	 * Обновляет server list entry.
+	 *
+	 * @param serverInfo server info
+	 */
 	public static void updateServerListEntry(ServerInfo serverInfo) {
 		IO_EXECUTOR.send(() -> {
 			ServerList serverList = new ServerList(MinecraftClient.getInstance());

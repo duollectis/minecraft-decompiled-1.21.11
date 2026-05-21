@@ -68,6 +68,9 @@ public abstract class ConsecutiveExecutor<T extends Runnable> implements Samplea
 		}
 	}
 
+	/**
+	 * Run all.
+	 */
 	public void runAll() {
 		try {
 			while (this.runOnce()) {
@@ -101,6 +104,11 @@ public abstract class ConsecutiveExecutor<T extends Runnable> implements Samplea
 		}
 	}
 
+	/**
+	 * Queue size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int queueSize() {
 		return this.queue.getSize();
 	}

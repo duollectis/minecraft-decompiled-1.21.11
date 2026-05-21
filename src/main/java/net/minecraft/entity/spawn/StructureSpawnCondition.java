@@ -21,6 +21,13 @@ public record StructureSpawnCondition(RegistryEntryList<Structure> requiredStruc
 					.apply(instance, StructureSpawnCondition::new)
 	);
 
+	/**
+	 * Test.
+	 *
+	 * @param spawnContext spawn context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(SpawnContext spawnContext) {
 		return spawnContext
 				.world()

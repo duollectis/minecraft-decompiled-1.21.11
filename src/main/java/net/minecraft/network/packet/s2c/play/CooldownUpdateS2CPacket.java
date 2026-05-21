@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Identifier;
 
+/**
+ * Запись cooldown update s2 c packet.
+ */
 public record CooldownUpdateS2CPacket(
 		Identifier cooldownGroup,
 		int cooldown
@@ -27,6 +30,11 @@ public record CooldownUpdateS2CPacket(
 		return PlayPackets.COOLDOWN;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onCooldownUpdate(this);
 	}

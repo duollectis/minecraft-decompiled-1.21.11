@@ -52,6 +52,14 @@ public class BreezeShootTask extends MultiTickTask<BreezeEntity> {
 		);
 	}
 
+	/**
+	 * Определяет, следует ли run.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRun(ServerWorld serverWorld, BreezeEntity breezeEntity) {
 		return breezeEntity.getPose() != EntityPose.STANDING
 		       ? false
@@ -68,12 +76,28 @@ public class BreezeShootTask extends MultiTickTask<BreezeEntity> {
 		                     .orElse(false);
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		return breezeEntity.getBrain().hasMemoryModule(MemoryModuleType.ATTACK_TARGET) && breezeEntity
 				.getBrain()
 				.hasMemoryModule(MemoryModuleType.BREEZE_SHOOT);
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		breezeEntity
 				.getBrain()
@@ -83,6 +107,13 @@ public class BreezeShootTask extends MultiTickTask<BreezeEntity> {
 		breezeEntity.playSound(SoundEvents.ENTITY_BREEZE_INHALE, 1.0F, 1.0F);
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		if (breezeEntity.getPose() == EntityPose.SHOOTING) {
 			breezeEntity.setPose(EntityPose.STANDING);
@@ -92,6 +123,13 @@ public class BreezeShootTask extends MultiTickTask<BreezeEntity> {
 		breezeEntity.getBrain().forget(MemoryModuleType.BREEZE_SHOOT);
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param breezeEntity breeze entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, BreezeEntity breezeEntity, long l) {
 		Brain<BreezeEntity> brain = breezeEntity.getBrain();
 		LivingEntity livingEntity = brain.getOptionalRegisteredMemory(MemoryModuleType.ATTACK_TARGET).orElse(null);

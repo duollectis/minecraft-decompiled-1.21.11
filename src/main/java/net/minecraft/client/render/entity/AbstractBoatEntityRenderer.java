@@ -87,6 +87,11 @@ public abstract class AbstractBoatEntityRenderer extends EntityRenderer<Abstract
 
 	protected abstract RenderLayer getRenderLayer();
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return BoatEntityRenderState — результат операции
+	 */
 	public BoatEntityRenderState createRenderState() {
 		return new BoatEntityRenderState();
 	}

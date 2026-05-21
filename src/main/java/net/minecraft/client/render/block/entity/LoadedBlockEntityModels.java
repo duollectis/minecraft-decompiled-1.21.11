@@ -24,6 +24,13 @@ public class LoadedBlockEntityModels {
 		this.renderers = renderers;
 	}
 
+	/**
+	 * From models.
+	 *
+	 * @param context context
+	 *
+	 * @return LoadedBlockEntityModels — результат операции
+	 */
 	public static LoadedBlockEntityModels fromModels(SpecialModelRenderer.BakeContext context) {
 		return new LoadedBlockEntityModels(SpecialModelTypes.buildBlockToModelTypeMap(context));
 	}

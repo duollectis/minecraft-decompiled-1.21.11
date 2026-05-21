@@ -12,6 +12,11 @@ import net.minecraft.text.Text;
  */
 public class TimeCommand {
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager
@@ -125,6 +130,14 @@ public class TimeCommand {
 		return time;
 	}
 
+	/**
+	 * Execute set.
+	 *
+	 * @param source source
+	 * @param time time
+	 *
+	 * @return int — результат операции
+	 */
 	public static int executeSet(ServerCommandSource source, int time) {
 		for (ServerWorld serverWorld : source.getServer().getWorlds()) {
 			serverWorld.setTimeOfDay(time);
@@ -135,6 +148,14 @@ public class TimeCommand {
 		return getDayTime(source.getWorld());
 	}
 
+	/**
+	 * Execute add.
+	 *
+	 * @param source source
+	 * @param time time
+	 *
+	 * @return int — результат операции
+	 */
 	public static int executeAdd(ServerCommandSource source, int time) {
 		for (ServerWorld serverWorld : source.getServer().getWorlds()) {
 			serverWorld.setTimeOfDay(serverWorld.getTimeOfDay() + time);

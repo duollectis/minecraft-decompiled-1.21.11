@@ -3,6 +3,9 @@ package net.minecraft.network.listener;
 import net.minecraft.network.NetworkPhase;
 import net.minecraft.network.packet.c2s.play.*;
 
+/**
+ * Интерфейс server play packet listener.
+ */
 public interface ServerPlayPacketListener extends ServerCommonPacketListener, ServerQueryPingPacketListener {
 
 	@Override

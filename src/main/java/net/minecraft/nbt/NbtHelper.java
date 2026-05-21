@@ -133,6 +133,14 @@ public final class NbtHelper {
 		}
 	}
 
+	/**
+	 * To block state.
+	 *
+	 * @param blockLookup block lookup
+	 * @param nbt nbt
+	 *
+	 * @return BlockState — результат операции
+	 */
 	public static BlockState toBlockState(RegistryEntryLookup<Block> blockLookup, NbtCompound nbt) {
 		Optional<? extends RegistryEntry<Block>>
 				optional =
@@ -175,6 +183,13 @@ public final class NbtHelper {
 		}
 	}
 
+	/**
+	 * From block state.
+	 *
+	 * @param state state
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound fromBlockState(BlockState state) {
 		NbtCompound nbtCompound = new NbtCompound();
 		nbtCompound.putString("Name", Registries.BLOCK.getId(state.getBlock()).toString());
@@ -193,6 +208,13 @@ public final class NbtHelper {
 		return nbtCompound;
 	}
 
+	/**
+	 * From fluid state.
+	 *
+	 * @param state state
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound fromFluidState(FluidState state) {
 		NbtCompound nbtCompound = new NbtCompound();
 		nbtCompound.putString("Name", Registries.FLUID.getId(state.getFluid()).toString());
@@ -215,10 +237,25 @@ public final class NbtHelper {
 		return property.name((T) value);
 	}
 
+	/**
+	 * To formatted string.
+	 *
+	 * @param nbt nbt
+	 *
+	 * @return String — результат операции
+	 */
 	public static String toFormattedString(NbtElement nbt) {
 		return toFormattedString(nbt, false);
 	}
 
+	/**
+	 * To formatted string.
+	 *
+	 * @param nbt nbt
+	 * @param withArrayContents with array contents
+	 *
+	 * @return String — результат операции
+	 */
 	public static String toFormattedString(NbtElement nbt, boolean withArrayContents) {
 		return appendFormattedString(new StringBuilder(), nbt, 0, withArrayContents).toString();
 	}
@@ -415,14 +452,35 @@ public final class NbtHelper {
 		return stringBuilder;
 	}
 
+	/**
+	 * To pretty printed text.
+	 *
+	 * @param element element
+	 *
+	 * @return Text — результат операции
+	 */
 	public static Text toPrettyPrintedText(NbtElement element) {
 		return new NbtTextFormatter("").apply(element);
 	}
 
+	/**
+	 * To nbt provider string.
+	 *
+	 * @param compound compound
+	 *
+	 * @return String — результат операции
+	 */
 	public static String toNbtProviderString(NbtCompound compound) {
 		return new NbtOrderedStringFormatter().apply(toNbtProviderFormat(compound));
 	}
 
+	/**
+	 * From nbt provider string.
+	 *
+	 * @param string string
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound fromNbtProviderString(String string) throws CommandSyntaxException {
 		return fromNbtProviderFormat(StringNbtReader.readCompound(string));
 	}
@@ -598,30 +656,71 @@ public final class NbtHelper {
 		return nbtCompound;
 	}
 
+	/**
+	 * Put data version.
+	 *
+	 * @param nbt nbt
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound putDataVersion(NbtCompound nbt) {
 		int i = SharedConstants.getGameVersion().dataVersion().id();
 		return putDataVersion(nbt, i);
 	}
 
+	/**
+	 * Put data version.
+	 *
+	 * @param nbt nbt
+	 * @param dataVersion data version
+	 *
+	 * @return NbtCompound — результат операции
+	 */
 	public static NbtCompound putDataVersion(NbtCompound nbt, int dataVersion) {
 		nbt.putInt("DataVersion", dataVersion);
 		return nbt;
 	}
 
+	/**
+	 * Put data version.
+	 *
+	 * @param dynamic dynamic
+	 *
+	 * @return Dynamic — результат операции
+	 */
 	public static Dynamic<NbtElement> putDataVersion(Dynamic<NbtElement> dynamic) {
 		int i = SharedConstants.getGameVersion().dataVersion().id();
 		return putDataVersion(dynamic, i);
 	}
 
+	/**
+	 * Put data version.
+	 *
+	 * @param dynamic dynamic
+	 * @param dataVersion data version
+	 *
+	 * @return Dynamic — результат операции
+	 */
 	public static Dynamic<NbtElement> putDataVersion(Dynamic<NbtElement> dynamic, int dataVersion) {
 		return dynamic.set("DataVersion", dynamic.createInt(dataVersion));
 	}
 
+	/**
+	 * Записывает data version.
+	 *
+	 * @param view view
+	 */
 	public static void writeDataVersion(WriteView view) {
 		int i = SharedConstants.getGameVersion().dataVersion().id();
 		writeDataVersion(view, i);
 	}
 
+	/**
+	 * Записывает data version.
+	 *
+	 * @param view view
+	 * @param dataVersion data version
+	 */
 	public static void writeDataVersion(WriteView view, int dataVersion) {
 		view.putInt("DataVersion", dataVersion);
 	}

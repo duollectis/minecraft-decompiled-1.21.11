@@ -34,6 +34,13 @@ public enum BanReason {
 		return this.description;
 	}
 
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 *
+	 * @return @Nullable BanReason — результат операции
+	 */
 	public static @Nullable BanReason byId(int id) {
 		return switch (id) {
 			case 2 -> FALSE_REPORTING;

@@ -10,6 +10,9 @@ import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 
+/**
+ * Класс update jigsaw c2 s packet.
+ */
 public class UpdateJigsawC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, UpdateJigsawC2SPacket>
@@ -71,6 +74,11 @@ public class UpdateJigsawC2SPacket implements Packet<ServerPlayPacketListener> {
 		return PlayPackets.SET_JIGSAW_BLOCK;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onUpdateJigsaw(this);
 	}

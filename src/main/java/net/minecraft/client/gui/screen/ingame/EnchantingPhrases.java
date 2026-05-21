@@ -93,6 +93,14 @@ public class EnchantingPhrases {
 		return INSTANCE;
 	}
 
+	/**
+	 * Generate phrase.
+	 *
+	 * @param textRenderer text renderer
+	 * @param width width
+	 *
+	 * @return StringVisitable — результат операции
+	 */
 	public StringVisitable generatePhrase(TextRenderer textRenderer, int width) {
 		StringBuilder stringBuilder = new StringBuilder();
 		int i = this.random.nextInt(2) + 3;

@@ -45,6 +45,13 @@ public record LocationCheckLootCondition(
 		return LootConditionTypes.LOCATION_CHECK;
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		Vec3d vec3d = lootContext.get(LootContextParameters.ORIGIN);
 		return vec3d != null

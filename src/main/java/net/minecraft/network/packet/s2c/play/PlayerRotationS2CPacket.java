@@ -8,6 +8,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Запись player rotation s2 c packet.
+ */
 public record PlayerRotationS2CPacket(
 		float yaw,
 		boolean relativeYaw,
@@ -32,6 +35,11 @@ public record PlayerRotationS2CPacket(
 		return PlayPackets.PLAYER_ROTATION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onPlayerRotation(this);
 	}

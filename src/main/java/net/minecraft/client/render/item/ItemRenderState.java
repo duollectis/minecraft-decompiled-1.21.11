@@ -40,6 +40,11 @@ public class ItemRenderState implements FabricRenderState {
 			layers =
 			new ItemRenderState.LayerRenderState[]{new ItemRenderState.LayerRenderState()};
 
+	/**
+	 * Добавляет layers.
+	 *
+	 * @param add add
+	 */
 	public void addLayers(int add) {
 		int i = this.layers.length;
 		int j = this.layerCount + add;
@@ -57,6 +62,9 @@ public class ItemRenderState implements FabricRenderState {
 		return this.layers[this.layerCount++];
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.displayContext = ItemDisplayContext.NONE;
 
@@ -70,6 +78,9 @@ public class ItemRenderState implements FabricRenderState {
 		this.cachedModelBoundingBox = null;
 	}
 
+	/**
+	 * Mark animated.
+	 */
 	public void markAnimated() {
 		this.animated = true;
 	}
@@ -78,6 +89,11 @@ public class ItemRenderState implements FabricRenderState {
 		return this.animated;
 	}
 
+	/**
+	 * Добавляет model key.
+	 *
+	 * @param modelKey model key
+	 */
 	public void addModelKey(Object modelKey) {
 	}
 
@@ -97,6 +113,11 @@ public class ItemRenderState implements FabricRenderState {
 		return this.layerCount == 0 ? null : this.layers[random.nextInt(this.layerCount)].particle;
 	}
 
+	/**
+	 * Load.
+	 *
+	 * @param posConsumer pos consumer
+	 */
 	public void load(Consumer<Vector3fc> posConsumer) {
 		Vector3f vector3f = new Vector3f();
 		MatrixStack.Entry entry = new MatrixStack.Entry();
@@ -177,6 +198,9 @@ public class ItemRenderState implements FabricRenderState {
 		private @Nullable Object data;
 		Supplier<Vector3fc[]> vertices = DEFAULT;
 
+		/**
+		 * Clear.
+		 */
 		public void clear() {
 			this.quads.clear();
 			this.renderLayer = null;
@@ -227,6 +251,13 @@ public class ItemRenderState implements FabricRenderState {
 			this.glint = glint;
 		}
 
+		/**
+		 * Инициализирует tints.
+		 *
+		 * @param maxIndex max index
+		 *
+		 * @return int[] — результат операции
+		 */
 		public int[] initTints(int maxIndex) {
 			if (maxIndex > this.tints.length) {
 				this.tints = new int[maxIndex];

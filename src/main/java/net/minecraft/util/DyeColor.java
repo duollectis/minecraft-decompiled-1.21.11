@@ -101,16 +101,38 @@ public enum DyeColor implements StringIdentifiable {
 		return this.signColor;
 	}
 
+	/**
+	 * By index.
+	 *
+	 * @param index index
+	 *
+	 * @return DyeColor — результат операции
+	 */
 	public static DyeColor byIndex(int index) {
 		return INDEX_MAPPER.apply(index);
 	}
 
 	@Contract("_,!null->!null;_,null->_")
+	/**
+	 * By id.
+	 *
+	 * @param id id
+	 * @param fallback fallback
+	 *
+	 * @return @Nullable DyeColor — результат операции
+	 */
 	public static @Nullable DyeColor byId(String id, @Nullable DyeColor fallback) {
 		DyeColor dyeColor = CODEC.byId(id);
 		return dyeColor != null ? dyeColor : fallback;
 	}
 
+	/**
+	 * By firework color.
+	 *
+	 * @param color color
+	 *
+	 * @return @Nullable DyeColor — результат операции
+	 */
 	public static @Nullable DyeColor byFireworkColor(int color) {
 		return (DyeColor) BY_FIREWORK_COLOR.get(color);
 	}
@@ -125,6 +147,15 @@ public enum DyeColor implements StringIdentifiable {
 		return this.id;
 	}
 
+	/**
+	 * Mix colors.
+	 *
+	 * @param world world
+	 * @param first first
+	 * @param second second
+	 *
+	 * @return DyeColor — результат операции
+	 */
 	public static DyeColor mixColors(ServerWorld world, DyeColor first, DyeColor second) {
 		CraftingRecipeInput craftingRecipeInput = createColorMixingRecipeInput(first, second);
 		return world.getRecipeManager()

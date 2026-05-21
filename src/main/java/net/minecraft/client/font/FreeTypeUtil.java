@@ -19,6 +19,11 @@ public class FreeTypeUtil {
 	public static final Object LOCK = new Object();
 	private static long freeType = 0L;
 
+	/**
+	 * Инициализирует ialize.
+	 *
+	 * @return long — результат операции
+	 */
 	public static long initialize() {
 		synchronized (LOCK) {
 			if (freeType == 0L) {
@@ -51,12 +56,26 @@ public class FreeTypeUtil {
 		}
 	}
 
+	/**
+	 * Проверяет fatal error.
+	 *
+	 * @param code code
+	 * @param description description
+	 */
 	public static void checkFatalError(int code, String description) {
 		if (code != 0) {
 			throw new IllegalStateException("FreeType error: " + getErrorMessage(code) + " (" + description + ")");
 		}
 	}
 
+	/**
+	 * Проверяет error.
+	 *
+	 * @param code code
+	 * @param description description
+	 *
+	 * @return boolean — результат операции
+	 */
 	public static boolean checkError(int code, String description) {
 		if (code != 0) {
 			LOGGER.error("FreeType error: {} ({})", getErrorMessage(code), description);
@@ -72,6 +91,15 @@ public class FreeTypeUtil {
 		return string != null ? string : "Unrecognized error: 0x" + Integer.toHexString(code);
 	}
 
+	/**
+	 * Set.
+	 *
+	 * @param vec vec
+	 * @param x x
+	 * @param y y
+	 *
+	 * @return FT_Vector — результат операции
+	 */
 	public static FT_Vector set(FT_Vector vec, float x, float y) {
 		long l = Math.round(x * 64.0F);
 		long m = Math.round(y * 64.0F);
@@ -82,6 +110,9 @@ public class FreeTypeUtil {
 		return (float) vec.x() / 64.0F;
 	}
 
+	/**
+	 * Release.
+	 */
 	public static void release() {
 		synchronized (LOCK) {
 			if (freeType != 0L) {

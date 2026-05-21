@@ -50,20 +50,44 @@ public class Animation {
 		return new Animation(definition, List.copyOf(list));
 	}
 
+	/**
+	 * Применяет static.
+	 */
 	public void applyStatic() {
 		this.apply(0L, 1.0F);
 	}
 
+	/**
+	 * Применяет walking.
+	 *
+	 * @param limbSwingAnimationProgress limb swing animation progress
+	 * @param limbSwingAmplitude limb swing amplitude
+	 * @param f f
+	 * @param g g
+	 */
 	public void applyWalking(float limbSwingAnimationProgress, float limbSwingAmplitude, float f, float g) {
 		long l = (long) (limbSwingAnimationProgress * 50.0F * f);
 		float h = Math.min(limbSwingAmplitude * g, 1.0F);
 		this.apply(l, h);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param animationState animation state
+	 * @param age age
+	 */
 	public void apply(AnimationState animationState, float age) {
 		this.apply(animationState, age, 1.0F);
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param animationState animation state
+	 * @param age age
+	 * @param speedMultiplier speed multiplier
+	 */
 	public void apply(AnimationState animationState, float age, float speedMultiplier) {
 		animationState.run(state -> this.apply(
 				(long) ((float) state.getTimeInMilliseconds(age) * speedMultiplier),
@@ -71,6 +95,12 @@ public class Animation {
 		));
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param timeInMilliseconds time in milliseconds
+	 * @param scale scale
+	 */
 	public void apply(long timeInMilliseconds, float scale) {
 		float f = this.getRunningSeconds(timeInMilliseconds);
 		Vector3f vector3f = new Vector3f();
@@ -91,6 +121,13 @@ public class Animation {
 	 */
 	record TransformationEntry(ModelPart part, Transformation.Target target, Keyframe[] keyframes) {
 
+		/**
+		 * Apply.
+		 *
+		 * @param runningSeconds running seconds
+		 * @param scale scale
+		 * @param vec vec
+		 */
 		public void apply(float runningSeconds, float scale, Vector3f vec) {
 			int
 					i =

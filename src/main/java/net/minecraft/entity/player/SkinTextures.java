@@ -31,6 +31,13 @@ public record SkinTextures(
 		return new SkinTextures(body, cape, elytra, model, false);
 	}
 
+	/**
+	 * With override.
+	 *
+	 * @param override override
+	 *
+	 * @return SkinTextures — результат операции
+	 */
 	public SkinTextures withOverride(SkinTextures.SkinOverride override) {
 		return override.equals(SkinTextures.SkinOverride.EMPTY)
 		       ? this

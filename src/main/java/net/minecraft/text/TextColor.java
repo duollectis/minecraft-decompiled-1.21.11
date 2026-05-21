@@ -84,14 +84,35 @@ public final class TextColor {
 		return this.getName();
 	}
 
+	/**
+	 * From formatting.
+	 *
+	 * @param formatting formatting
+	 *
+	 * @return @Nullable TextColor — результат операции
+	 */
 	public static @Nullable TextColor fromFormatting(Formatting formatting) {
 		return FORMATTING_TO_COLOR.get(formatting);
 	}
 
+	/**
+	 * From rgb.
+	 *
+	 * @param rgb rgb
+	 *
+	 * @return TextColor — результат операции
+	 */
 	public static TextColor fromRgb(int rgb) {
 		return new TextColor(rgb);
 	}
 
+	/**
+	 * Parse.
+	 *
+	 * @param name name
+	 *
+	 * @return DataResult — результат операции
+	 */
 	public static DataResult<TextColor> parse(String name) {
 		if (name.startsWith("#")) {
 			try {

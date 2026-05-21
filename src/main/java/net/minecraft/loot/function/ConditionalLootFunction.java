@@ -39,10 +39,26 @@ public abstract class ConditionalLootFunction implements LootFunction {
 				.forGetter(function -> function.conditions));
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param itemStack item stack
+	 * @param lootContext loot context
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	public final ItemStack apply(ItemStack itemStack, LootContext lootContext) {
 		return this.predicate.test(lootContext) ? this.process(itemStack, lootContext) : itemStack;
 	}
 
+	/**
+	 * Process.
+	 *
+	 * @param stack stack
+	 * @param context context
+	 *
+	 * @return ItemStack — результат операции
+	 */
 	protected abstract ItemStack process(ItemStack stack, LootContext context);
 
 	@Override
@@ -69,6 +85,13 @@ public abstract class ConditionalLootFunction implements LootFunction {
 				conditionList =
 				ImmutableList.builder();
 
+		/**
+		 * Conditionally.
+		 *
+		 * @param builder builder
+		 *
+		 * @return T — результат операции
+		 */
 		public T conditionally(LootCondition.Builder builder) {
 			this.conditionList.add(builder.build());
 			return this.getThisBuilder();

@@ -19,6 +19,14 @@ import java.util.List;
  */
 public class ReorderingUtil {
 
+	/**
+	 * Reorder.
+	 *
+	 * @param text text
+	 * @param rightToLeft right to left
+	 *
+	 * @return OrderedText — результат операции
+	 */
 	public static OrderedText reorder(StringVisitable text, boolean rightToLeft) {
 		TextReorderingProcessor
 				textReorderingProcessor =

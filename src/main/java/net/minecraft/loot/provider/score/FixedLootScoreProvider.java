@@ -20,6 +20,13 @@ public record FixedLootScoreProvider(String name) implements LootScoreProvider {
 					.apply(instance, FixedLootScoreProvider::new)
 	);
 
+	/**
+	 * Create.
+	 *
+	 * @param name name
+	 *
+	 * @return LootScoreProvider — результат операции
+	 */
 	public static LootScoreProvider create(String name) {
 		return new FixedLootScoreProvider(name);
 	}

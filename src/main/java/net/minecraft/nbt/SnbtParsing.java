@@ -192,6 +192,13 @@ public class SnbtParsing {
 		return CursorExceptionType.create(NUMBER_PARSE_FAILURE_EXCEPTION, exception.getMessage());
 	}
 
+	/**
+	 * Escape special char.
+	 *
+	 * @param c c
+	 *
+	 * @return @Nullable String — результат операции
+	 */
 	public static @Nullable String escapeSpecialChar(char c) {
 		return switch (c) {
 			case '\b' -> "b";
@@ -321,6 +328,13 @@ public class SnbtParsing {
 		};
 	}
 
+	/**
+	 * Создаёт parser.
+	 *
+	 * @param ops ops
+	 *
+	 * @return PackratParser — результат операции
+	 */
 	public static <T> PackratParser<T> createParser(DynamicOps<T> ops) {
 		T object = (T) ops.createBoolean(true);
 		T object2 = (T) ops.createBoolean(false);
@@ -997,6 +1011,13 @@ public class SnbtParsing {
 			return type == this.elementType || this.castableTypes.contains(type);
 		}
 
+		/**
+		 * Создаёт empty.
+		 *
+		 * @param ops ops
+		 *
+		 * @return T — результат операции
+		 */
 		public abstract <T> T createEmpty(DynamicOps<T> ops);
 
 		public abstract <T> @Nullable T decode(
@@ -1005,6 +1026,14 @@ public class SnbtParsing {
 				ParsingState<?> state
 		);
 
+		/**
+		 * Decode.
+		 *
+		 * @param value value
+		 * @param state state
+		 *
+		 * @return @Nullable Number — результат операции
+		 */
 		protected @Nullable Number decode(SnbtParsing.IntValue value, ParsingState<?> state) {
 			SnbtParsing.NumericType numericType = this.getType(value.suffix);
 			if (numericType == null) {
@@ -1100,10 +1129,27 @@ public class SnbtParsing {
 			}
 		}
 
+		/**
+		 * Decode.
+		 *
+		 * @param ops ops
+		 * @param state state
+		 *
+		 * @return @Nullable T — результат операции
+		 */
 		public <T> @Nullable T decode(DynamicOps<T> ops, ParsingState<?> state) {
 			return this.decode(ops, Objects.requireNonNullElse(this.suffix.type, SnbtParsing.NumericType.INT), state);
 		}
 
+		/**
+		 * Decode.
+		 *
+		 * @param ops ops
+		 * @param type type
+		 * @param state state
+		 *
+		 * @return @Nullable T — результат операции
+		 */
 		public <T> @Nullable T decode(DynamicOps<T> ops, SnbtParsing.NumericType type, ParsingState<?> state) {
 			boolean bl = this.getSignedness() == SnbtParsing.Signedness.SIGNED;
 			if (!bl && this.sign == SnbtParsing.Sign.MINUS) {
@@ -1191,6 +1237,11 @@ public class SnbtParsing {
 		PLUS,
 		MINUS;
 
+		/**
+		 * Append.
+		 *
+		 * @param builder builder
+		 */
 		public void append(StringBuilder builder) {
 			if (this == MINUS) {
 				builder.append("-");

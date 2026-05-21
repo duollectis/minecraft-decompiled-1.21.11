@@ -88,6 +88,9 @@ public class DefaultFramebufferSet implements PostEffectProcessor.FramebufferSet
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.mainFramebuffer = Handle.empty();
 		this.translucentFramebuffer = null;

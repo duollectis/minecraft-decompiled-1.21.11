@@ -26,6 +26,11 @@ public class PillagerEntityRenderer extends IllagerEntityRenderer<PillagerEntity
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return IllagerEntityRenderState — результат операции
+	 */
 	public IllagerEntityRenderState createRenderState() {
 		return new IllagerEntityRenderState();
 	}

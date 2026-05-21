@@ -15,6 +15,9 @@ import net.minecraft.registry.RegistryKey;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Запись synchronize recipes s2 c packet.
+ */
 public record SynchronizeRecipesS2CPacket(
 		Map<RegistryKey<RecipePropertySet>, RecipePropertySet> itemSets,
 		CuttingRecipeDisplay.Grouping<StonecuttingRecipe> stonecutterRecipes
@@ -37,6 +40,11 @@ public record SynchronizeRecipesS2CPacket(
 		return PlayPackets.UPDATE_RECIPES;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onSynchronizeRecipes(this);
 	}

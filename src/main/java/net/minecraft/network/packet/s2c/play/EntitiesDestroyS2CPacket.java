@@ -9,6 +9,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс entities destroy s2 c packet.
+ */
 public class EntitiesDestroyS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, EntitiesDestroyS2CPacket> CODEC = Packet.createCodec(
@@ -37,6 +40,11 @@ public class EntitiesDestroyS2CPacket implements Packet<ClientPlayPacketListener
 		return PlayPackets.REMOVE_ENTITIES;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onEntitiesDestroy(this);
 	}

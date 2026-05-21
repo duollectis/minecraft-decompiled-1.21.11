@@ -89,6 +89,13 @@ public class SculkShriekerBlockEntity extends BlockEntity implements GameEventLi
 		view.put("listener", Vibrations.ListenerData.CODEC, this.vibrationListenerData);
 	}
 
+	/**
+	 * Ищет responsible player from entity.
+	 *
+	 * @param entity entity
+	 *
+	 * @return @Nullable ServerPlayerEntity — responsible player from entity
+	 */
 	public static @Nullable ServerPlayerEntity findResponsiblePlayerFromEntity(@Nullable Entity entity) {
 		if (entity instanceof ServerPlayerEntity serverPlayerEntity) {
 			return serverPlayerEntity;
@@ -107,6 +114,12 @@ public class SculkShriekerBlockEntity extends BlockEntity implements GameEventLi
 		}
 	}
 
+	/**
+	 * Shriek.
+	 *
+	 * @param world world
+	 * @param player player
+	 */
 	public void shriek(ServerWorld world, @Nullable ServerPlayerEntity player) {
 		if (player != null) {
 			BlockState blockState = this.getCachedState();
@@ -147,6 +160,11 @@ public class SculkShriekerBlockEntity extends BlockEntity implements GameEventLi
 		}
 	}
 
+	/**
+	 * Warn.
+	 *
+	 * @param world world
+	 */
 	public void warn(ServerWorld world) {
 		if (this.canWarn(world) && this.warningLevel > 0) {
 			if (!this.trySpawnWarden(world)) {

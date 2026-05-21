@@ -12,6 +12,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.UUID;
 
+/**
+ * Класс spectator teleport c2 s packet.
+ */
 public class SpectatorTeleportC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, SpectatorTeleportC2SPacket> CODEC = Packet.createCodec(
@@ -36,6 +39,11 @@ public class SpectatorTeleportC2SPacket implements Packet<ServerPlayPacketListen
 		return PlayPackets.TELEPORT_TO_ENTITY;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onSpectatorTeleport(this);
 	}

@@ -15,6 +15,9 @@ import org.jspecify.annotations.Nullable;
 import java.util.BitSet;
 import java.util.List;
 
+/**
+ * Класс light data.
+ */
 public class LightData {
 
 	private static final PacketCodec<ByteBuf, byte[]> CODEC = PacketCodecs.byteArray(2048);
@@ -66,6 +69,11 @@ public class LightData {
 		this.blockNibbles = buf.readList(CODEC);
 	}
 
+	/**
+	 * Write.
+	 *
+	 * @param buf buf
+	 */
 	public void write(PacketByteBuf buf) {
 		buf.writeBitSet(this.initedSky);
 		buf.writeBitSet(this.initedBlock);

@@ -52,10 +52,27 @@ public final class SimpleOption<T> {
 	final Text text;
 	private T value;
 
+	/**
+	 * Of boolean.
+	 *
+	 * @param key key
+	 * @param defaultValue default value
+	 * @param changeCallback change callback
+	 *
+	 * @return SimpleOption — результат операции
+	 */
 	public static SimpleOption<Boolean> ofBoolean(String key, boolean defaultValue, Consumer<Boolean> changeCallback) {
 		return ofBoolean(key, emptyTooltip(), defaultValue, changeCallback);
 	}
 
+	/**
+	 * Of boolean.
+	 *
+	 * @param key key
+	 * @param defaultValue default value
+	 *
+	 * @return SimpleOption — результат операции
+	 */
 	public static SimpleOption<Boolean> ofBoolean(String key, boolean defaultValue) {
 		return ofBoolean(key, emptyTooltip(), defaultValue, value -> {});
 	}
@@ -125,14 +142,42 @@ public final class SimpleOption<T> {
 		return value -> Tooltip.of(text);
 	}
 
+	/**
+	 * Создаёт widget.
+	 *
+	 * @param options options
+	 *
+	 * @return ClickableWidget — результат операции
+	 */
 	public ClickableWidget createWidget(GameOptions options) {
 		return this.createWidget(options, 0, 0, 150);
 	}
 
+	/**
+	 * Создаёт widget.
+	 *
+	 * @param options options
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 *
+	 * @return ClickableWidget — результат операции
+	 */
 	public ClickableWidget createWidget(GameOptions options, int x, int y, int width) {
 		return this.createWidget(options, x, y, width, value -> {});
 	}
 
+	/**
+	 * Создаёт widget.
+	 *
+	 * @param options options
+	 * @param x x
+	 * @param y y
+	 * @param width width
+	 * @param changeCallback change callback
+	 *
+	 * @return ClickableWidget — результат операции
+	 */
 	public ClickableWidget createWidget(GameOptions options, int x, int y, int width, Consumer<T> changeCallback) {
 		return this.callbacks.getWidgetCreator(this.tooltipFactory, options, x, y, width, changeCallback).apply(this);
 	}
@@ -320,14 +365,35 @@ public final class SimpleOption<T> {
 	public static enum DoubleSliderCallbacks implements SimpleOption.SliderCallbacks<Double> {
 		INSTANCE;
 
+		/**
+		 * Validate.
+		 *
+		 * @param double_ double_
+		 *
+		 * @return Optional — результат операции
+		 */
 		public Optional<Double> validate(Double double_) {
 			return double_ >= 0.0 && double_ <= 1.0 ? Optional.of(double_) : Optional.empty();
 		}
 
+		/**
+		 * To slider progress.
+		 *
+		 * @param double_ double_
+		 *
+		 * @return double — результат операции
+		 */
 		public double toSliderProgress(Double double_) {
 			return double_;
 		}
 
+		/**
+		 * To value.
+		 *
+		 * @param d d
+		 *
+		 * @return Double — результат операции
+		 */
 		public Double toValue(double d) {
 			return d;
 		}
@@ -507,6 +573,13 @@ public final class SimpleOption<T> {
 			implements SimpleOption.IntSliderCallbacks,
 			SimpleOption.TypeChangeableCallbacks<Integer> {
 
+		/**
+		 * Validate.
+		 *
+		 * @param integer integer
+		 *
+		 * @return Optional — результат операции
+		 */
 		public Optional<Integer> validate(Integer integer) {
 			return Optional.of(MathHelper.clamp(integer, this.minInclusive(), this.maxInclusive()));
 		}
@@ -596,6 +669,9 @@ public final class SimpleOption<T> {
 			}
 		}
 
+		/**
+		 * Применяет pending value.
+		 */
 		public void applyPendingValue() {
 			N object = this.callbacks.toValue(this.value);
 			if (!Objects.equals(object, this.option.getValue())) {
@@ -796,6 +872,13 @@ public final class SimpleOption<T> {
 			this(minInclusive, maxInclusive, true);
 		}
 
+		/**
+		 * Validate.
+		 *
+		 * @param integer integer
+		 *
+		 * @return Optional — результат операции
+		 */
 		public Optional<Integer> validate(Integer integer) {
 			return integer.compareTo(this.minInclusive()) >= 0 && integer.compareTo(this.maxInclusive()) <= 0
 			       ? Optional.of(integer) : Optional.empty();

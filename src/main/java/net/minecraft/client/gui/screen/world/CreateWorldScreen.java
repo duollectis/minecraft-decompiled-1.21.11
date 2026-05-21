@@ -117,6 +117,12 @@ public class CreateWorldScreen extends Screen {
 	private @Nullable ResourcePackManager packManager;
 	private @Nullable TabNavigationWidget tabNavigation;
 
+	/**
+	 * Show.
+	 *
+	 * @param client client
+	 * @param runnable runnable
+	 */
 	public static void show(MinecraftClient client, Runnable runnable) {
 		show(
 				client,
@@ -128,6 +134,13 @@ public class CreateWorldScreen extends Screen {
 		);
 	}
 
+	/**
+	 * Show.
+	 *
+	 * @param client client
+	 * @param runnable runnable
+	 * @param callback callback
+	 */
 	public static void show(MinecraftClient client, Runnable runnable, CreateWorldCallback callback) {
 		GeneratorOptionsFactory
 				generatorOptionsFactory =
@@ -140,6 +153,12 @@ public class CreateWorldScreen extends Screen {
 		show(client, runnable, function, generatorOptionsFactory, WorldPresets.DEFAULT, callback);
 	}
 
+	/**
+	 * Show test world.
+	 *
+	 * @param client client
+	 * @param runnable runnable
+	 */
 	public static void showTestWorld(MinecraftClient client, Runnable runnable) {
 		GeneratorOptionsFactory
 				generatorOptionsFactory =
@@ -451,6 +470,9 @@ public class CreateWorldScreen extends Screen {
 		this.onCloseScreen();
 	}
 
+	/**
+	 * Обрабатывает событие close screen.
+	 */
 	public void onCloseScreen() {
 		this.closeCallback.run();
 		this.clearDataPackTempDir();
@@ -765,6 +787,14 @@ public class CreateWorldScreen extends Screen {
 		return Optional.empty();
 	}
 
+	/**
+	 * Создаёт копию data pack.
+	 *
+	 * @param srcFolder src folder
+	 * @param client client
+	 *
+	 * @return Path — результат операции
+	 */
 	public static Path copyDataPack(Path srcFolder, MinecraftClient client) {
 		MutableObject<Path> mutableObject = new MutableObject();
 

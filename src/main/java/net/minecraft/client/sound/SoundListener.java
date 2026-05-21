@@ -32,6 +32,9 @@ public class SoundListener {
 		);
 	}
 
+	/**
+	 * Init.
+	 */
 	public void init() {
 		this.setTransform(SoundListenerTransform.DEFAULT);
 	}

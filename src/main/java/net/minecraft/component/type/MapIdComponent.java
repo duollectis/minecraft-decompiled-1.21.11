@@ -26,6 +26,11 @@ public record MapIdComponent(int id) implements TooltipAppender {
 			PacketCodecs.VAR_INT.xmap(MapIdComponent::new, MapIdComponent::id);
 	private static final Text LOCKED_TOOLTIP_TEXT = Text.translatable("filled_map.locked").formatted(Formatting.GRAY);
 
+	/**
+	 * As string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String asString() {
 		return "map_" + this.id;
 	}

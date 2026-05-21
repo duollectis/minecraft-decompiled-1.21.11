@@ -202,6 +202,9 @@ public class StructurePlacementCalculator {
 		}
 	}
 
+	/**
+	 * Try calculate.
+	 */
 	public void tryCalculate() {
 		if (!this.calculated) {
 			this.calculate();

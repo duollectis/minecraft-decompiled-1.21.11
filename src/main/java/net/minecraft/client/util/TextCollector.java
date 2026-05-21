@@ -16,6 +16,11 @@ public class TextCollector {
 
 	private final List<StringVisitable> texts = Lists.newArrayList();
 
+	/**
+	 * Add.
+	 *
+	 * @param text text
+	 */
 	public void add(StringVisitable text) {
 		this.texts.add(text);
 	}
@@ -34,6 +39,9 @@ public class TextCollector {
 		return stringVisitable != null ? stringVisitable : StringVisitable.EMPTY;
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.texts.clear();
 	}

@@ -369,10 +369,24 @@ public class RegistryKeys {
 	public static final RegistryKey<Registry<Advancement>> ADVANCEMENT = of("advancement");
 	public static final RegistryKey<Registry<Recipe<?>>> RECIPE = of("recipe");
 
+	/**
+	 * To world key.
+	 *
+	 * @param key key
+	 *
+	 * @return RegistryKey — результат операции
+	 */
 	public static RegistryKey<World> toWorldKey(RegistryKey<DimensionOptions> key) {
 		return RegistryKey.of(WORLD, key.getValue());
 	}
 
+	/**
+	 * To dimension key.
+	 *
+	 * @param key key
+	 *
+	 * @return RegistryKey — результат операции
+	 */
 	public static RegistryKey<DimensionOptions> toDimensionKey(RegistryKey<World> key) {
 		return RegistryKey.of(DIMENSION, key.getValue());
 	}

@@ -16,6 +16,11 @@ import java.util.Optional;
  */
 public class WorkStationCompetitionTask {
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<VillagerEntity> create() {
 		return TaskTriggerer.task(
 				context -> context

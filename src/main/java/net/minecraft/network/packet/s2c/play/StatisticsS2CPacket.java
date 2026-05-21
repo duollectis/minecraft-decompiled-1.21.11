@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 import net.minecraft.stat.Stat;
 
+/**
+ * Запись statistics s2 c packet.
+ */
 public record StatisticsS2CPacket(Object2IntMap<Stat<?>> stats) implements Packet<ClientPlayPacketListener> {
 
 	private static final PacketCodec<RegistryByteBuf, Object2IntMap<Stat<?>>> STAT_MAP_CODEC = PacketCodecs.map(
@@ -25,6 +28,11 @@ public record StatisticsS2CPacket(Object2IntMap<Stat<?>> stats) implements Packe
 		return PlayPackets.AWARD_STATS;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onStatistics(this);
 	}

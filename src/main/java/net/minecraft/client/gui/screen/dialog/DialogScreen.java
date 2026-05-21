@@ -113,6 +113,11 @@ public abstract class DialogScreen<T extends Dialog> extends Screen {
 		this.resetWarningButtonPosition();
 	}
 
+	/**
+	 * Создаёт header.
+	 *
+	 * @return Widget — результат операции
+	 */
 	protected Widget createHeader() {
 		DirectionalLayoutWidget directionalLayoutWidget = DirectionalLayoutWidget.horizontal().spacing(10);
 		directionalLayoutWidget.getMainPositioner().alignHorizontalCenter().alignVerticalCenter();
@@ -121,6 +126,9 @@ public abstract class DialogScreen<T extends Dialog> extends Screen {
 		return directionalLayoutWidget;
 	}
 
+	/**
+	 * Сбрасывает warning button position.
+	 */
 	protected void resetWarningButtonPosition() {
 		int i = this.warningButton.getX();
 		int j = this.warningButton.getY();
@@ -163,10 +171,21 @@ public abstract class DialogScreen<T extends Dialog> extends Screen {
 		this.runAction(this.cancelAction.get(), AfterAction.CLOSE);
 	}
 
+	/**
+	 * Run action.
+	 *
+	 * @param clickEvent click event
+	 */
 	public void runAction(Optional<ClickEvent> clickEvent) {
 		this.runAction(clickEvent, this.dialog.common().afterAction());
 	}
 
+	/**
+	 * Run action.
+	 *
+	 * @param clickEvent click event
+	 * @param afterAction after action
+	 */
 	public void runAction(Optional<ClickEvent> clickEvent, AfterAction afterAction) {
 		Screen screen = (Screen) (switch (afterAction) {
 			case NONE -> this;
@@ -203,6 +222,14 @@ public abstract class DialogScreen<T extends Dialog> extends Screen {
 		return this.parent;
 	}
 
+	/**
+	 * Создаёт grid widget.
+	 *
+	 * @param widgets widgets
+	 * @param columns columns
+	 *
+	 * @return Widget — результат операции
+	 */
 	protected static Widget createGridWidget(List<? extends Widget> widgets, int columns) {
 		GridWidget gridWidget = new GridWidget();
 		gridWidget.getMainPositioner().alignHorizontalCenter();

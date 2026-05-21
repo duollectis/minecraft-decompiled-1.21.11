@@ -78,6 +78,14 @@ public class PiglinBrain {
 	private static final float WANDER_SPEED = 0.6F;
 	private static final float FOLLOW_SPEED = 0.6F;
 
+	/**
+	 * Create.
+	 *
+	 * @param piglin piglin
+	 * @param brain brain
+	 *
+	 * @return Brain — результат операции
+	 */
 	protected static Brain<?> create(PiglinEntity piglin, Brain<PiglinEntity> brain) {
 		addCoreActivities(brain);
 		addIdleActivities(brain);
@@ -306,6 +314,11 @@ public class PiglinBrain {
 		);
 	}
 
+	/**
+	 * Выполняет тик обновления для activities.
+	 *
+	 * @param piglin piglin
+	 */
 	protected static void tickActivities(PiglinEntity piglin) {
 		Brain<PiglinEntity> brain = piglin.getBrain();
 		Activity activity = brain.getFirstPossibleNonCoreActivity().orElse(null);
@@ -345,6 +358,13 @@ public class PiglinBrain {
 		}
 	}
 
+	/**
+	 * Loot.
+	 *
+	 * @param world world
+	 * @param piglin piglin
+	 * @param itemEntity item entity
+	 */
 	protected static void loot(ServerWorld world, PiglinEntity piglin, ItemEntity itemEntity) {
 		stopWalking(piglin);
 		ItemStack itemStack;
@@ -395,6 +415,13 @@ public class PiglinBrain {
 		return itemStack2;
 	}
 
+	/**
+	 * Consume off hand item.
+	 *
+	 * @param world world
+	 * @param piglin piglin
+	 * @param barter barter
+	 */
 	public static void consumeOffHandItem(ServerWorld world, PiglinEntity piglin, boolean barter) {
 		ItemStack itemStack = piglin.getStackInHand(Hand.OFF_HAND);
 		piglin.setStackInHand(Hand.OFF_HAND, ItemStack.EMPTY);
@@ -426,6 +453,12 @@ public class PiglinBrain {
 		}
 	}
 
+	/**
+	 * Подбирает up item with off hand.
+	 *
+	 * @param world world
+	 * @param piglin piglin
+	 */
 	protected static void pickupItemWithOffHand(ServerWorld world, PiglinEntity piglin) {
 		if (isAdmiringItem(piglin) && !piglin.getOffHandStack().isEmpty()) {
 			piglin.dropStack(world, piglin.getOffHandStack());
@@ -490,6 +523,14 @@ public class PiglinBrain {
 		                                               < 0.1F;
 	}
 
+	/**
+	 * Проверяет возможность gather.
+	 *
+	 * @param piglin piglin
+	 * @param stack stack
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	protected static boolean canGather(PiglinEntity piglin, ItemStack stack) {
 		if (piglin.isBaby() && stack.isIn(ItemTags.IGNORED_BY_PIGLIN_BABIES)) {
 			return false;
@@ -589,6 +630,13 @@ public class PiglinBrain {
 		}
 	}
 
+	/**
+	 * Обрабатывает событие guarded block interacted.
+	 *
+	 * @param world world
+	 * @param player player
+	 * @param blockOpen block open
+	 */
 	public static void onGuardedBlockInteracted(ServerWorld world, PlayerEntity player, boolean blockOpen) {
 		List<PiglinEntity>
 				list =
@@ -609,6 +657,16 @@ public class PiglinBrain {
 				});
 	}
 
+	/**
+	 * Player interact.
+	 *
+	 * @param world world
+	 * @param piglin piglin
+	 * @param player player
+	 * @param hand hand
+	 *
+	 * @return ActionResult — результат операции
+	 */
 	public static ActionResult playerInteract(ServerWorld world, PiglinEntity piglin, PlayerEntity player, Hand hand) {
 		ItemStack itemStack = player.getStackInHand(hand);
 		if (isWillingToTrade(piglin, itemStack)) {
@@ -628,6 +686,13 @@ public class PiglinBrain {
 				nearbyItems);
 	}
 
+	/**
+	 * Обрабатывает событие attacked.
+	 *
+	 * @param world world
+	 * @param piglin piglin
+	 * @param attacker attacker
+	 */
 	protected static void onAttacked(ServerWorld world, PiglinEntity piglin, LivingEntity attacker) {
 		if (!(attacker instanceof PiglinEntity)) {
 			if (hasItemInOffHand(piglin)) {
@@ -663,6 +728,13 @@ public class PiglinBrain {
 		}
 	}
 
+	/**
+	 * Try revenge.
+	 *
+	 * @param world world
+	 * @param piglin piglin
+	 * @param target target
+	 */
 	protected static void tryRevenge(ServerWorld world, AbstractPiglinEntity piglin, LivingEntity target) {
 		if (!piglin.getBrain().hasActivity(Activity.AVOID)) {
 			if (Sensor.testAttackableTargetPredicateIgnoreVisibility(world, piglin, target)) {
@@ -758,6 +830,13 @@ public class PiglinBrain {
 		);
 	}
 
+	/**
+	 * Anger at closer targets.
+	 *
+	 * @param world world
+	 * @param piglin piglin
+	 * @param target target
+	 */
 	public static void angerAtCloserTargets(ServerWorld world, AbstractPiglinEntity piglin, LivingEntity target) {
 		getNearbyPiglins(piglin).forEach(nearbyPiglin -> {
 			if (target.getType() != EntityType.HOGLIN
@@ -767,6 +846,12 @@ public class PiglinBrain {
 		});
 	}
 
+	/**
+	 * Anger nearby piglins.
+	 *
+	 * @param world world
+	 * @param piglin piglin
+	 */
 	protected static void angerNearbyPiglins(ServerWorld world, AbstractPiglinEntity piglin) {
 		getNearbyPiglins(piglin)
 				.forEach(nearbyPiglin -> getNearestDetectedPlayer(nearbyPiglin).ifPresent(player -> becomeAngryWith(
@@ -776,6 +861,13 @@ public class PiglinBrain {
 				)));
 	}
 
+	/**
+	 * Become angry with.
+	 *
+	 * @param world world
+	 * @param piglin piglin
+	 * @param target target
+	 */
 	public static void becomeAngryWith(ServerWorld world, AbstractPiglinEntity piglin, LivingEntity target) {
 		if (Sensor.testAttackableTargetPredicateIgnoreVisibility(world, piglin, target)) {
 			piglin.getBrain().forget(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
@@ -895,6 +987,11 @@ public class PiglinBrain {
 		rememberHunting(piglin);
 	}
 
+	/**
+	 * Remember hunting.
+	 *
+	 * @param piglin piglin
+	 */
 	public static void rememberHunting(AbstractPiglinEntity piglin) {
 		piglin
 				.getBrain()

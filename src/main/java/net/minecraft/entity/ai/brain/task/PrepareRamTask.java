@@ -70,6 +70,13 @@ public class PrepareRamTask<E extends PathAwareEntity> extends MultiTickTask<E> 
 		this.soundFactory = soundFactory;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void run(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		Brain<?> brain = pathAwareEntity.getBrain();
 		brain.getOptionalRegisteredMemory(MemoryModuleType.VISIBLE_MOBS)
@@ -77,6 +84,13 @@ public class PrepareRamTask<E extends PathAwareEntity> extends MultiTickTask<E> 
 		     .ifPresent(mob -> this.findRam(pathAwareEntity, mob));
 	}
 
+	/**
+	 * Finish running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void finishRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
 		Brain<?> brain = pathAwareEntity.getBrain();
 		if (!brain.hasMemoryModule(MemoryModuleType.RAM_TARGET)) {
@@ -85,10 +99,26 @@ public class PrepareRamTask<E extends PathAwareEntity> extends MultiTickTask<E> 
 		}
 	}
 
+	/**
+	 * Определяет, следует ли keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldKeepRunning(ServerWorld serverWorld, PathAwareEntity pathAwareEntity, long l) {
 		return this.ram.isPresent() && this.ram.get().getEntity().isAlive();
 	}
 
+	/**
+	 * Keep running.
+	 *
+	 * @param serverWorld server world
+	 * @param pathAwareEntity path aware entity
+	 * @param l l
+	 */
 	protected void keepRunning(ServerWorld serverWorld, E pathAwareEntity, long l) {
 		if (!this.ram.isEmpty()) {
 			pathAwareEntity

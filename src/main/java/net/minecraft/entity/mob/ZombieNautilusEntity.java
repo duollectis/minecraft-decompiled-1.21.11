@@ -49,6 +49,14 @@ public class ZombieNautilusEntity extends AbstractNautilusEntity {
 		return AbstractNautilusEntity.createNautilusAttributes().add(EntityAttributes.MOVEMENT_SPEED, 1.1F);
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable ZombieNautilusEntity — результат операции
+	 */
 	public @Nullable ZombieNautilusEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		return null;
 	}

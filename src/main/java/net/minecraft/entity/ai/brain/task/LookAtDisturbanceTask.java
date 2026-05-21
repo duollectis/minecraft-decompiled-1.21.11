@@ -13,6 +13,11 @@ import java.util.Optional;
  */
 public class LookAtDisturbanceTask {
 
+	/**
+	 * Create.
+	 *
+	 * @return Task — результат операции
+	 */
 	public static Task<LivingEntity> create() {
 		return TaskTriggerer.task(
 				context -> context.group(

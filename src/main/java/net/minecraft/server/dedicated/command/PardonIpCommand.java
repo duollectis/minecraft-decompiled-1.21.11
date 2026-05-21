@@ -24,6 +24,11 @@ public class PardonIpCommand {
 			ALREADY_UNBANNED_EXCEPTION =
 			new SimpleCommandExceptionType(Text.translatable("commands.pardonip.failed"));
 
+	/**
+	 * Register.
+	 *
+	 * @param dispatcher dispatcher
+	 */
 	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
 		dispatcher.register(
 				(LiteralArgumentBuilder) ((LiteralArgumentBuilder) CommandManager.literal("pardon-ip")

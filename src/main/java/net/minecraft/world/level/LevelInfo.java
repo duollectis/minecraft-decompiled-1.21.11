@@ -40,6 +40,14 @@ public final class LevelInfo {
 		this.dataConfiguration = dataConfiguration;
 	}
 
+	/**
+	 * From dynamic.
+	 *
+	 * @param dynamic dynamic
+	 * @param dataConfiguration data configuration
+	 *
+	 * @return LevelInfo — результат операции
+	 */
 	public static LevelInfo fromDynamic(Dynamic<?> dynamic, DataConfiguration dataConfiguration) {
 		GameMode gameMode = GameMode.byIndex(dynamic.get("GameType").asInt(0));
 		return new LevelInfo(
@@ -77,6 +85,11 @@ public final class LevelInfo {
 		return this.difficulty;
 	}
 
+	/**
+	 * Are commands allowed.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean areCommandsAllowed() {
 		return this.allowCommands;
 	}
@@ -89,6 +102,13 @@ public final class LevelInfo {
 		return this.dataConfiguration;
 	}
 
+	/**
+	 * With game mode.
+	 *
+	 * @param mode mode
+	 *
+	 * @return LevelInfo — результат операции
+	 */
 	public LevelInfo withGameMode(GameMode mode) {
 		return new LevelInfo(
 				this.name,
@@ -101,6 +121,13 @@ public final class LevelInfo {
 		);
 	}
 
+	/**
+	 * With difficulty.
+	 *
+	 * @param difficulty difficulty
+	 *
+	 * @return LevelInfo — результат операции
+	 */
 	public LevelInfo withDifficulty(Difficulty difficulty) {
 		return new LevelInfo(
 				this.name,
@@ -113,6 +140,13 @@ public final class LevelInfo {
 		);
 	}
 
+	/**
+	 * With data configuration.
+	 *
+	 * @param dataConfiguration data configuration
+	 *
+	 * @return LevelInfo — результат операции
+	 */
 	public LevelInfo withDataConfiguration(DataConfiguration dataConfiguration) {
 		return new LevelInfo(
 				this.name,
@@ -125,6 +159,11 @@ public final class LevelInfo {
 		);
 	}
 
+	/**
+	 * With copied game rules.
+	 *
+	 * @return LevelInfo — результат операции
+	 */
 	public LevelInfo withCopiedGameRules() {
 		return new LevelInfo(
 				this.name,

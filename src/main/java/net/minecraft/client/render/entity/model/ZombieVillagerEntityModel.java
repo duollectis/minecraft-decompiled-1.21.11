@@ -131,6 +131,12 @@ public class ZombieVillagerEntityModel<S extends ZombieVillagerRenderState> exte
 		);
 	}
 
+	/**
+	 * Rotate arms.
+	 *
+	 * @param zombieVillagerRenderState zombie villager render state
+	 * @param matrixStack matrix stack
+	 */
 	public void rotateArms(ZombieVillagerRenderState zombieVillagerRenderState, MatrixStack matrixStack) {
 		this.setArmAngle(zombieVillagerRenderState, Arm.RIGHT, matrixStack);
 	}

@@ -12,6 +12,9 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.Objects;
 
+/**
+ * Класс scoreboard display s2 c packet.
+ */
 public class ScoreboardDisplayS2CPacket implements Packet<ClientPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, ScoreboardDisplayS2CPacket> CODEC = Packet.createCodec(
@@ -45,6 +48,11 @@ public class ScoreboardDisplayS2CPacket implements Packet<ClientPlayPacketListen
 		return PlayPackets.SET_DISPLAY_OBJECTIVE;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param clientPlayPacketListener client play packet listener
+	 */
 	public void apply(ClientPlayPacketListener clientPlayPacketListener) {
 		clientPlayPacketListener.onScoreboardDisplay(this);
 	}

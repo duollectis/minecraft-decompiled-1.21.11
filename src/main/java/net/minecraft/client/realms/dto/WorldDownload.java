@@ -16,6 +16,13 @@ public record WorldDownload(String downloadLink, String resourcePackUrl, String 
 
 	private static final Logger LOGGER = LogUtils.getLogger();
 
+	/**
+	 * Parse.
+	 *
+	 * @param json json
+	 *
+	 * @return WorldDownload — результат операции
+	 */
 	public static WorldDownload parse(String json) {
 		JsonObject jsonObject = LenientJsonParser.parse(json).getAsJsonObject();
 

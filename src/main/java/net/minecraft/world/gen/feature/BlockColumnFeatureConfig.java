@@ -39,6 +39,14 @@ public record BlockColumnFeatureConfig(
 		return new BlockColumnFeatureConfig.Layer(height, state);
 	}
 
+	/**
+	 * Create.
+	 *
+	 * @param height height
+	 * @param state state
+	 *
+	 * @return BlockColumnFeatureConfig — результат операции
+	 */
 	public static BlockColumnFeatureConfig create(IntProvider height, BlockStateProvider state) {
 		return new BlockColumnFeatureConfig(
 				List.of(createLayer(height, state)),

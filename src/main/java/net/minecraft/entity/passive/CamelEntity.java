@@ -432,6 +432,11 @@ public class CamelEntity extends AbstractHorseEntity {
 		return Leashable.createQuadLeashOffsets(this, 0.02, 0.48, 0.25, 0.82);
 	}
 
+	/**
+	 * Проверяет возможность change pose.
+	 *
+	 * @return boolean — {@code true} если условие выполнено
+	 */
 	public boolean canChangePose() {
 		return this.wouldNotSuffocateInPose(this.isSitting() ? EntityPose.STANDING : EntityPose.SITTING);
 	}
@@ -506,6 +511,14 @@ public class CamelEntity extends AbstractHorseEntity {
 		return other != this && other instanceof CamelEntity camelEntity && this.canBreed() && camelEntity.canBreed();
 	}
 
+	/**
+	 * Создаёт child.
+	 *
+	 * @param serverWorld server world
+	 * @param passiveEntity passive entity
+	 *
+	 * @return @Nullable CamelEntity — результат операции
+	 */
 	public @Nullable CamelEntity createChild(ServerWorld serverWorld, PassiveEntity passiveEntity) {
 		return EntityType.CAMEL.create(serverWorld, SpawnReason.BREEDING);
 	}
@@ -611,6 +624,11 @@ public class CamelEntity extends AbstractHorseEntity {
 		return this.dataTracker.get(LAST_POSE_TICK) < 0L;
 	}
 
+	/**
+	 * Определяет, следует ли update sitting animations.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldUpdateSittingAnimations() {
 		return this.getTimeSinceLastPoseTick() < 0L != this.isSitting();
 	}
@@ -624,6 +642,9 @@ public class CamelEntity extends AbstractHorseEntity {
 		return this.isSitting() && this.getTimeSinceLastPoseTick() < 40L && this.getTimeSinceLastPoseTick() >= 0L;
 	}
 
+	/**
+	 * Запускает sitting.
+	 */
 	public void startSitting() {
 		if (!this.isSitting()) {
 			this.playSound(this.getSitSound());
@@ -633,6 +654,9 @@ public class CamelEntity extends AbstractHorseEntity {
 		}
 	}
 
+	/**
+	 * Запускает standing.
+	 */
 	public void startStanding() {
 		if (this.isSitting()) {
 			this.playSound(this.getStandSound());

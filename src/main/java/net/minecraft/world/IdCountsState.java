@@ -29,6 +29,11 @@ public class IdCountsState extends PersistentState {
 		this.map = map;
 	}
 
+	/**
+	 * Создаёт next map id.
+	 *
+	 * @return MapIdComponent — результат операции
+	 */
 	public MapIdComponent createNextMapId() {
 		MapIdComponent mapIdComponent = new MapIdComponent(++this.map);
 		this.markDirty();

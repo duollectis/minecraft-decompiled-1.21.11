@@ -10,6 +10,9 @@ import net.minecraft.util.crash.CrashException;
 import net.minecraft.util.crash.CrashReport;
 import net.minecraft.util.crash.CrashReportSection;
 
+/**
+ * Интерфейс packet listener.
+ */
 public interface PacketListener {
 
 	NetworkSide getSide();

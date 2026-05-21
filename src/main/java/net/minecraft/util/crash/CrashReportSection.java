@@ -23,10 +23,29 @@ public class CrashReportSection {
 		this.title = title;
 	}
 
+	/**
+	 * Создаёт position string.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return String — результат операции
+	 */
 	public static String createPositionString(double x, double y, double z) {
 		return String.format(Locale.ROOT, "%.2f,%.2f,%.2f", x, y, z);
 	}
 
+	/**
+	 * Создаёт position string.
+	 *
+	 * @param world world
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return String — результат операции
+	 */
 	public static String createPositionString(HeightLimitView world, double x, double y, double z) {
 		return String.format(
 				Locale.ROOT,
@@ -38,10 +57,28 @@ public class CrashReportSection {
 		);
 	}
 
+	/**
+	 * Создаёт position string.
+	 *
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return String — результат операции
+	 */
 	public static String createPositionString(HeightLimitView world, BlockPos pos) {
 		return createPositionString(world, pos.getX(), pos.getY(), pos.getZ());
 	}
 
+	/**
+	 * Создаёт position string.
+	 *
+	 * @param world world
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return String — результат операции
+	 */
 	public static String createPositionString(HeightLimitView world, int x, int y, int z) {
 		StringBuilder stringBuilder = new StringBuilder();
 
@@ -131,6 +168,14 @@ public class CrashReportSection {
 		return stringBuilder.toString();
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param name name
+	 * @param callable callable
+	 *
+	 * @return CrashReportSection — результат операции
+	 */
 	public CrashReportSection add(String name, CrashCallable<String> callable) {
 		try {
 			this.add(name, callable.call());
@@ -142,15 +187,36 @@ public class CrashReportSection {
 		return this;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param name name
+	 * @param detail detail
+	 *
+	 * @return CrashReportSection — результат операции
+	 */
 	public CrashReportSection add(String name, Object detail) {
 		this.elements.add(new CrashReportSection.Element(name, detail));
 		return this;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param name name
+	 * @param throwable throwable
+	 */
 	public void add(String name, Throwable throwable) {
 		this.add(name, (Object) throwable);
 	}
 
+	/**
+	 * Инициализирует stack trace.
+	 *
+	 * @param ignoredCallCount ignored call count
+	 *
+	 * @return int — результат операции
+	 */
 	public int initStackTrace(int ignoredCallCount) {
 		StackTraceElement[] stackTraceElements = Thread.currentThread().getStackTrace();
 		if (stackTraceElements.length <= 0) {
@@ -163,6 +229,14 @@ public class CrashReportSection {
 		}
 	}
 
+	/**
+	 * Определяет, следует ли generate stack trace.
+	 *
+	 * @param prev prev
+	 * @param next next
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldGenerateStackTrace(StackTraceElement prev, StackTraceElement next) {
 		if (this.stackTrace.length != 0 && prev != null) {
 			StackTraceElement stackTraceElement = this.stackTrace[0];
@@ -190,12 +264,22 @@ public class CrashReportSection {
 		}
 	}
 
+	/**
+	 * Trim stack trace end.
+	 *
+	 * @param callCount call count
+	 */
 	public void trimStackTraceEnd(int callCount) {
 		StackTraceElement[] stackTraceElements = new StackTraceElement[this.stackTrace.length - callCount];
 		System.arraycopy(this.stackTrace, 0, stackTraceElements, 0, stackTraceElements.length);
 		this.stackTrace = stackTraceElements;
 	}
 
+	/**
+	 * Добавляет stack trace.
+	 *
+	 * @param crashReportBuilder crash report builder
+	 */
 	public void addStackTrace(StringBuilder crashReportBuilder) {
 		crashReportBuilder.append("-- ").append(this.title).append(" --\n");
 		crashReportBuilder.append("Details:");
@@ -221,11 +305,28 @@ public class CrashReportSection {
 		return this.stackTrace;
 	}
 
+	/**
+	 * Добавляет block info.
+	 *
+	 * @param element element
+	 * @param world world
+	 * @param pos pos
+	 * @param state state
+	 */
 	public static void addBlockInfo(CrashReportSection element, HeightLimitView world, BlockPos pos, BlockState state) {
 		element.add("Block", state::toString);
 		addBlockLocation(element, world, pos);
 	}
 
+	/**
+	 * Добавляет block location.
+	 *
+	 * @param element element
+	 * @param world world
+	 * @param pos pos
+	 *
+	 * @return CrashReportSection — результат операции
+	 */
 	public static CrashReportSection addBlockLocation(CrashReportSection element, HeightLimitView world, BlockPos pos) {
 		return element.add("Block location", () -> createPositionString(world, pos));
 	}

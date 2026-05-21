@@ -22,6 +22,11 @@ public class FractionalDoubleList extends AbstractDoubleList {
 		return (double) position / this.sectionCount;
 	}
 
+	/**
+	 * Size.
+	 *
+	 * @return int — результат операции
+	 */
 	public int size() {
 		return this.sectionCount + 1;
 	}

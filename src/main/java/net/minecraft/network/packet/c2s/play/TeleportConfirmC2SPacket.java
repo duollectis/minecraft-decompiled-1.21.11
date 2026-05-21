@@ -7,6 +7,9 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.PacketType;
 import net.minecraft.network.packet.PlayPackets;
 
+/**
+ * Класс teleport confirm c2 s packet.
+ */
 public class TeleportConfirmC2SPacket implements Packet<ServerPlayPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, TeleportConfirmC2SPacket> CODEC = Packet.createCodec(
@@ -31,6 +34,11 @@ public class TeleportConfirmC2SPacket implements Packet<ServerPlayPacketListener
 		return PlayPackets.ACCEPT_TELEPORTATION;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverPlayPacketListener server play packet listener
+	 */
 	public void apply(ServerPlayPacketListener serverPlayPacketListener) {
 		serverPlayPacketListener.onTeleportConfirm(this);
 	}

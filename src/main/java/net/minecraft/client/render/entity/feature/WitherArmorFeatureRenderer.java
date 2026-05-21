@@ -26,6 +26,13 @@ public class WitherArmorFeatureRenderer extends EnergySwirlOverlayFeatureRendere
 		this.model = new WitherEntityModel(loader.getModelPart(EntityModelLayers.WITHER_ARMOR));
 	}
 
+	/**
+	 * Определяет, следует ли render.
+	 *
+	 * @param witherEntityRenderState wither entity render state
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean shouldRender(WitherEntityRenderState witherEntityRenderState) {
 		return witherEntityRenderState.armored;
 	}

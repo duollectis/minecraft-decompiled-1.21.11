@@ -20,6 +20,13 @@ public class LazyContainer {
 		this.id = id;
 	}
 
+	/**
+	 * Get.
+	 *
+	 * @param commandFunctionManager command function manager
+	 *
+	 * @return Optional> — 
+	 */
 	public Optional<CommandFunction<ServerCommandSource>> get(CommandFunctionManager commandFunctionManager) {
 		if (!this.initialized) {
 			this.function = commandFunctionManager.getFunction(this.id);

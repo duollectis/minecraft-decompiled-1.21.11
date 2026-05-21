@@ -138,6 +138,13 @@ public final class Style {
 		return oldAttribute != null && newAttribute == null && newStyle.equals(EMPTY) ? EMPTY : newStyle;
 	}
 
+	/**
+	 * With color.
+	 *
+	 * @param color color
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withColor(@Nullable TextColor color) {
 		return Objects.equals(this.color, color)
 		       ? this
@@ -160,14 +167,35 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With color.
+	 *
+	 * @param color color
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withColor(@Nullable Formatting color) {
 		return this.withColor(color != null ? TextColor.fromFormatting(color) : null);
 	}
 
+	/**
+	 * With color.
+	 *
+	 * @param rgbColor rgb color
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withColor(int rgbColor) {
 		return this.withColor(TextColor.fromRgb(rgbColor));
 	}
 
+	/**
+	 * With shadow color.
+	 *
+	 * @param shadowColor shadow color
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withShadowColor(int shadowColor) {
 		return Objects.equals(this.shadowColor, shadowColor)
 		       ? this
@@ -190,10 +218,22 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * Without shadow.
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withoutShadow() {
 		return this.withShadowColor(0);
 	}
 
+	/**
+	 * With bold.
+	 *
+	 * @param bold bold
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withBold(@Nullable Boolean bold) {
 		return Objects.equals(this.bold, bold)
 		       ? this
@@ -216,6 +256,13 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With italic.
+	 *
+	 * @param italic italic
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withItalic(@Nullable Boolean italic) {
 		return Objects.equals(this.italic, italic)
 		       ? this
@@ -238,6 +285,13 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With underline.
+	 *
+	 * @param underline underline
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withUnderline(@Nullable Boolean underline) {
 		return Objects.equals(this.underlined, underline)
 		       ? this
@@ -260,6 +314,13 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With strikethrough.
+	 *
+	 * @param strikethrough strikethrough
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withStrikethrough(@Nullable Boolean strikethrough) {
 		return Objects.equals(this.strikethrough, strikethrough)
 		       ? this
@@ -282,6 +343,13 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With obfuscated.
+	 *
+	 * @param obfuscated obfuscated
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withObfuscated(@Nullable Boolean obfuscated) {
 		return Objects.equals(this.obfuscated, obfuscated)
 		       ? this
@@ -304,6 +372,13 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With click event.
+	 *
+	 * @param clickEvent click event
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withClickEvent(@Nullable ClickEvent clickEvent) {
 		return Objects.equals(this.clickEvent, clickEvent)
 		       ? this
@@ -326,6 +401,13 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With hover event.
+	 *
+	 * @param hoverEvent hover event
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withHoverEvent(@Nullable HoverEvent hoverEvent) {
 		return Objects.equals(this.hoverEvent, hoverEvent)
 		       ? this
@@ -348,6 +430,13 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With insertion.
+	 *
+	 * @param insertion insertion
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withInsertion(@Nullable String insertion) {
 		return Objects.equals(this.insertion, insertion)
 		       ? this
@@ -370,6 +459,13 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With font.
+	 *
+	 * @param font font
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withFont(@Nullable StyleSpriteSource font) {
 		return Objects.equals(this.font, font)
 		       ? this
@@ -392,6 +488,13 @@ public final class Style {
 		       );
 	}
 
+	/**
+	 * With formatting.
+	 *
+	 * @param formatting formatting
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withFormatting(Formatting formatting) {
 		TextColor textColor = this.color;
 		Boolean boolean_ = this.bold;
@@ -436,6 +539,13 @@ public final class Style {
 		);
 	}
 
+	/**
+	 * With exclusive formatting.
+	 *
+	 * @param formatting formatting
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withExclusiveFormatting(Formatting formatting) {
 		TextColor textColor = this.color;
 		Boolean boolean_ = this.bold;
@@ -485,6 +595,13 @@ public final class Style {
 		);
 	}
 
+	/**
+	 * With formatting.
+	 *
+	 * @param formattings formattings
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withFormatting(Formatting... formattings) {
 		TextColor textColor = this.color;
 		Boolean boolean_ = this.bold;
@@ -532,6 +649,13 @@ public final class Style {
 		);
 	}
 
+	/**
+	 * With parent.
+	 *
+	 * @param parent parent
+	 *
+	 * @return Style — результат операции
+	 */
 	public Style withParent(Style parent) {
 		if (this == EMPTY) {
 			return parent;

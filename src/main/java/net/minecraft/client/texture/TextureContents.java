@@ -18,6 +18,14 @@ import java.io.InputStream;
  */
 public record TextureContents(NativeImage image, @Nullable TextureResourceMetadata metadata) implements Closeable {
 
+	/**
+	 * Load.
+	 *
+	 * @param resourceManager resource manager
+	 * @param textureId texture id
+	 *
+	 * @return TextureContents — результат операции
+	 */
 	public static TextureContents load(ResourceManager resourceManager, Identifier textureId) throws IOException {
 		Resource resource = resourceManager.getResourceOrThrow(textureId);
 
@@ -32,14 +40,29 @@ public record TextureContents(NativeImage image, @Nullable TextureResourceMetada
 		return new TextureContents(nativeImage, textureResourceMetadata);
 	}
 
+	/**
+	 * Создаёт missing.
+	 *
+	 * @return TextureContents — результат операции
+	 */
 	public static TextureContents createMissing() {
 		return new TextureContents(MissingSprite.createImage(), null);
 	}
 
+	/**
+	 * Blur.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean blur() {
 		return this.metadata != null ? this.metadata.blur() : false;
 	}
 
+	/**
+	 * Clamp.
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean clamp() {
 		return this.metadata != null ? this.metadata.clamp() : false;
 	}

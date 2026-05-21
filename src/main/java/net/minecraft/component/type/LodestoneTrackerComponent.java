@@ -32,6 +32,13 @@ public record LodestoneTrackerComponent(Optional<GlobalPos> target, boolean trac
 			LodestoneTrackerComponent::new
 	);
 
+	/**
+	 * For world.
+	 *
+	 * @param world world
+	 *
+	 * @return LodestoneTrackerComponent — результат операции
+	 */
 	public LodestoneTrackerComponent forWorld(ServerWorld world) {
 		if (this.tracked && !this.target.isEmpty()) {
 			if (this.target.get().dimension() != world.getRegistryKey()) {

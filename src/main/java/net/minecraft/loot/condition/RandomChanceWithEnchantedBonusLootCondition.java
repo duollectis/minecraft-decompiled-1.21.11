@@ -51,6 +51,13 @@ public record RandomChanceWithEnchantedBonusLootCondition(
 		return Set.of(LootContextParameters.ATTACKING_ENTITY);
 	}
 
+	/**
+	 * Test.
+	 *
+	 * @param lootContext loot context
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean test(LootContext lootContext) {
 		Entity entity = lootContext.get(LootContextParameters.ATTACKING_ENTITY);
 		int

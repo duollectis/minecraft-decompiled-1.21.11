@@ -203,6 +203,11 @@ public class GhastEntity extends MobEntity implements Monster {
 		return 16.0;
 	}
 
+	/**
+	 * Обновляет yaw.
+	 *
+	 * @param ghast ghast
+	 */
 	public static void updateYaw(MobEntity ghast) {
 		if (ghast.getTarget() == null) {
 			Vec3d vec3d = ghast.getVelocity();
@@ -266,6 +271,14 @@ public class GhastEntity extends MobEntity implements Monster {
 			this.ghast.getMoveControl().moveTo(vec3d.getX(), vec3d.getY(), vec3d.getZ(), 1.0);
 		}
 
+		/**
+		 * Locate target.
+		 *
+		 * @param ghast ghast
+		 * @param blockCheckDistance block check distance
+		 *
+		 * @return Vec3d — результат операции
+		 */
 		public static Vec3d locateTarget(MobEntity ghast, int blockCheckDistance) {
 			World world = ghast.getEntityWorld();
 			Random random = ghast.getRandom();

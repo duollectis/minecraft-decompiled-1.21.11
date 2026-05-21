@@ -39,6 +39,13 @@ public class Vec3i implements Comparable<Vec3i> {
 	private int y;
 	private int z;
 
+	/**
+	 * Создаёт offset codec.
+	 *
+	 * @param maxAbsValue max abs value
+	 *
+	 * @return Codec — результат операции
+	 */
 	public static Codec<Vec3i> createOffsetCodec(int maxAbsValue) {
 		return CODEC.validate(
 				vec -> Math.abs(vec.getX()) < maxAbsValue && Math.abs(vec.getY()) < maxAbsValue
@@ -70,6 +77,13 @@ public class Vec3i implements Comparable<Vec3i> {
 		return (this.getY() + this.getZ() * 31) * 31 + this.getX();
 	}
 
+	/**
+	 * Compare to.
+	 *
+	 * @param vec3i vec3i
+	 *
+	 * @return int — результат операции
+	 */
 	public int compareTo(Vec3i vec3i) {
 		if (this.getY() == vec3i.getY()) {
 			return this.getZ() == vec3i.getZ() ? this.getX() - vec3i.getX() : this.getZ() - vec3i.getZ();
@@ -106,18 +120,48 @@ public class Vec3i implements Comparable<Vec3i> {
 		return this;
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param x x
+	 * @param y y
+	 * @param z z
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i add(int x, int y, int z) {
 		return x == 0 && y == 0 && z == 0 ? this : new Vec3i(this.getX() + x, this.getY() + y, this.getZ() + z);
 	}
 
+	/**
+	 * Add.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i add(Vec3i vec) {
 		return this.add(vec.getX(), vec.getY(), vec.getZ());
 	}
 
+	/**
+	 * Subtract.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i subtract(Vec3i vec) {
 		return this.add(-vec.getX(), -vec.getY(), -vec.getZ());
 	}
 
+	/**
+	 * Multiply.
+	 *
+	 * @param scale scale
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i multiply(int scale) {
 		if (scale == 1) {
 			return this;
@@ -127,62 +171,158 @@ public class Vec3i implements Comparable<Vec3i> {
 		}
 	}
 
+	/**
+	 * Multiply.
+	 *
+	 * @param scaleX scale x
+	 * @param scaleY scale y
+	 * @param scaleZ scale z
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i multiply(int scaleX, int scaleY, int scaleZ) {
 		return new Vec3i(this.getX() * scaleX, this.getY() * scaleY, this.getZ() * scaleZ);
 	}
 
+	/**
+	 * Up.
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i up() {
 		return this.up(1);
 	}
 
+	/**
+	 * Up.
+	 *
+	 * @param distance distance
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i up(int distance) {
 		return this.offset(Direction.UP, distance);
 	}
 
+	/**
+	 * Down.
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i down() {
 		return this.down(1);
 	}
 
+	/**
+	 * Down.
+	 *
+	 * @param distance distance
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i down(int distance) {
 		return this.offset(Direction.DOWN, distance);
 	}
 
+	/**
+	 * North.
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i north() {
 		return this.north(1);
 	}
 
+	/**
+	 * North.
+	 *
+	 * @param distance distance
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i north(int distance) {
 		return this.offset(Direction.NORTH, distance);
 	}
 
+	/**
+	 * South.
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i south() {
 		return this.south(1);
 	}
 
+	/**
+	 * South.
+	 *
+	 * @param distance distance
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i south(int distance) {
 		return this.offset(Direction.SOUTH, distance);
 	}
 
+	/**
+	 * West.
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i west() {
 		return this.west(1);
 	}
 
+	/**
+	 * West.
+	 *
+	 * @param distance distance
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i west(int distance) {
 		return this.offset(Direction.WEST, distance);
 	}
 
+	/**
+	 * East.
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i east() {
 		return this.east(1);
 	}
 
+	/**
+	 * East.
+	 *
+	 * @param distance distance
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i east(int distance) {
 		return this.offset(Direction.EAST, distance);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param direction direction
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i offset(Direction direction) {
 		return this.offset(direction, 1);
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param direction direction
+	 * @param distance distance
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i offset(Direction direction, int distance) {
 		return distance == 0
 		       ? this
@@ -193,6 +333,14 @@ public class Vec3i implements Comparable<Vec3i> {
 		       );
 	}
 
+	/**
+	 * Offset.
+	 *
+	 * @param axis axis
+	 * @param distance distance
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i offset(Direction.Axis axis, int distance) {
 		if (distance == 0) {
 			return this;
@@ -205,6 +353,13 @@ public class Vec3i implements Comparable<Vec3i> {
 		}
 	}
 
+	/**
+	 * Cross product.
+	 *
+	 * @param vec vec
+	 *
+	 * @return Vec3i — результат операции
+	 */
 	public Vec3i crossProduct(Vec3i vec) {
 		return new Vec3i(
 				this.getY() * vec.getZ() - this.getZ() * vec.getY(),
@@ -261,6 +416,11 @@ public class Vec3i implements Comparable<Vec3i> {
 		return axis.choose(this.x, this.y, this.z);
 	}
 
+	/**
+	 * As vector3i.
+	 *
+	 * @return Vector3i — результат операции
+	 */
 	public Vector3i asVector3i() {
 		return new Vector3i(this.x, this.y, this.z);
 	}
@@ -275,6 +435,11 @@ public class Vec3i implements Comparable<Vec3i> {
 				.toString();
 	}
 
+	/**
+	 * To short string.
+	 *
+	 * @return String — результат операции
+	 */
 	public String toShortString() {
 		return this.getX() + ", " + this.getY() + ", " + this.getZ();
 	}

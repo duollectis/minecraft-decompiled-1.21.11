@@ -41,6 +41,13 @@ public record BackgroundMusic(
 		this(MusicType.createIngameMusic(defaultMusic));
 	}
 
+	/**
+	 * With underwater.
+	 *
+	 * @param underwater underwater
+	 *
+	 * @return BackgroundMusic — результат операции
+	 */
 	public BackgroundMusic withUnderwater(MusicSound underwater) {
 		return new BackgroundMusic(this.defaultMusic, this.creativeMusic, Optional.of(underwater));
 	}

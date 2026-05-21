@@ -157,6 +157,9 @@ public class FrogspawnBlock extends Block {
 	}
 
 	@VisibleForTesting
+	/**
+	 * Сбрасывает hatch time range.
+	 */
 	public static void resetHatchTimeRange() {
 		minHatchTime = 3600;
 		maxHatchTime = 12000;

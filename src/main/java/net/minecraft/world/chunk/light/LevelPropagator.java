@@ -28,6 +28,11 @@ public abstract class LevelPropagator {
 			this.levelCount = levelCount;
 			this.pendingUpdateQueue = new PendingUpdateQueue(levelCount, expectedLevelSize);
 			this.pendingUpdates = new Long2ByteOpenHashMap(expectedTotalSize, 0.5F) {
+				/**
+				 * Rehash.
+				 *
+				 * @param newN new n
+				 */
 				protected void rehash(int newN) {
 					if (newN > expectedTotalSize) {
 						super.rehash(newN);
@@ -38,6 +43,11 @@ public abstract class LevelPropagator {
 		}
 	}
 
+	/**
+	 * Удаляет pending update.
+	 *
+	 * @param id id
+	 */
 	protected void removePendingUpdate(long id) {
 		int i = this.pendingUpdates.remove(id) & 255;
 		if (i != 255) {
@@ -48,6 +58,11 @@ public abstract class LevelPropagator {
 		}
 	}
 
+	/**
+	 * Удаляет pending update if.
+	 *
+	 * @param predicate predicate
+	 */
 	public void removePendingUpdateIf(LongPredicate predicate) {
 		LongList longList = new LongArrayList();
 		this.pendingUpdates.keySet().forEach(l -> {
@@ -62,10 +77,23 @@ public abstract class LevelPropagator {
 		return Math.min(Math.min(a, b), this.levelCount - 1);
 	}
 
+	/**
+	 * Сбрасывает level.
+	 *
+	 * @param id id
+	 */
 	protected void resetLevel(long id) {
 		this.updateLevel(id, id, this.levelCount - 1, false);
 	}
 
+	/**
+	 * Обновляет level.
+	 *
+	 * @param sourceId source id
+	 * @param id id
+	 * @param level level
+	 * @param decrease decrease
+	 */
 	protected void updateLevel(long sourceId, long id, int level, boolean decrease) {
 		this.updateLevel(sourceId, id, level, this.getLevel(id), this.pendingUpdates.get(id) & 255, decrease);
 		this.hasPendingUpdates = !this.pendingUpdateQueue.isEmpty();
@@ -105,6 +133,14 @@ public abstract class LevelPropagator {
 		}
 	}
 
+	/**
+	 * Propagate level.
+	 *
+	 * @param sourceId source id
+	 * @param targetId target id
+	 * @param level level
+	 * @param decrease decrease
+	 */
 	protected final void propagateLevel(long sourceId, long targetId, int level, boolean decrease) {
 		int i = this.pendingUpdates.get(targetId) & 255;
 		int j = MathHelper.clamp(this.getPropagatedLevel(sourceId, targetId, level), 0, this.levelCount - 1);
@@ -138,6 +174,13 @@ public abstract class LevelPropagator {
 		return this.hasPendingUpdates;
 	}
 
+	/**
+	 * Применяет pending updates.
+	 *
+	 * @param maxSteps max steps
+	 *
+	 * @return int — результат операции
+	 */
 	protected final int applyPendingUpdates(int maxSteps) {
 		if (this.pendingUpdateQueue.isEmpty()) {
 			return maxSteps;
@@ -176,8 +219,24 @@ public abstract class LevelPropagator {
 		return id == Long.MAX_VALUE;
 	}
 
+	/**
+	 * Recalculate level.
+	 *
+	 * @param id id
+	 * @param excludedId excluded id
+	 * @param maxLevel max level
+	 *
+	 * @return int — результат операции
+	 */
 	protected abstract int recalculateLevel(long id, long excludedId, int maxLevel);
 
+	/**
+	 * Propagate level.
+	 *
+	 * @param id id
+	 * @param level level
+	 * @param decrease decrease
+	 */
 	protected abstract void propagateLevel(long id, int level, boolean decrease);
 
 	protected abstract int getLevel(long id);

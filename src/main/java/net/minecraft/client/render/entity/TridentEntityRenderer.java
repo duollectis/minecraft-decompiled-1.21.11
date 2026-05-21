@@ -69,6 +69,11 @@ public class TridentEntityRenderer extends EntityRenderer<TridentEntity, Trident
 		super.render(tridentEntityRenderState, matrixStack, orderedRenderCommandQueue, cameraRenderState);
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return TridentEntityRenderState — результат операции
+	 */
 	public TridentEntityRenderState createRenderState() {
 		return new TridentEntityRenderState();
 	}

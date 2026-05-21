@@ -21,6 +21,14 @@ public class MultipartModelConditionBuilder {
 		this.values.put(property.getName(), terms);
 	}
 
+	/**
+	 * Put.
+	 *
+	 * @param property property
+	 * @param value value
+	 *
+	 * @return > MultipartModelConditionBuilder — результат операции
+	 */
 	public final <T extends Comparable<T>> MultipartModelConditionBuilder put(Property<T> property, T value) {
 		this.putTerms(
 				property,
@@ -51,6 +59,14 @@ public class MultipartModelConditionBuilder {
 		return this;
 	}
 
+	/**
+	 * Replace.
+	 *
+	 * @param property property
+	 * @param value value
+	 *
+	 * @return > MultipartModelConditionBuilder — результат операции
+	 */
 	public final <T extends Comparable<T>> MultipartModelConditionBuilder replace(Property<T> property, T value) {
 		this.putTerms(
 				property,
@@ -62,6 +78,11 @@ public class MultipartModelConditionBuilder {
 		return this;
 	}
 
+	/**
+	 * Build.
+	 *
+	 * @return MultipartModelCondition — результат операции
+	 */
 	public MultipartModelCondition build() {
 		return new SimpleMultipartModelSelector(this.values.buildOrThrow());
 	}

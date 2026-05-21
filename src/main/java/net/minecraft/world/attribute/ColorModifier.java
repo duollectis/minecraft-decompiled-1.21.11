@@ -14,6 +14,14 @@ import net.minecraft.util.math.MathHelper;
 public interface ColorModifier<Argument> extends EnvironmentAttributeModifier<Integer, Argument> {
 
 	ColorModifier<Integer> ALPHA_BLEND = new ColorModifier<Integer>() {
+		/**
+		 * Apply.
+		 *
+		 * @param integer integer
+		 * @param integer2 integer2
+		 *
+		 * @return Integer — результат операции
+		 */
 		public Integer apply(Integer integer, Integer integer2) {
 			return ColorHelper.alphaBlend(integer, integer2);
 		}
@@ -38,6 +46,14 @@ public interface ColorModifier<Argument> extends EnvironmentAttributeModifier<In
 	ColorModifier<Integer> MULTIPLY_ARGB = (ColorModifier.Argb) ColorHelper::mix;
 
 	ColorModifier<ColorModifier.BlendToGrayArg> BLEND_TO_GRAY = new ColorModifier<ColorModifier.BlendToGrayArg>() {
+		/**
+		 * Apply.
+		 *
+		 * @param integer integer
+		 * @param blendToGrayArg blend to gray arg
+		 *
+		 * @return Integer — результат операции
+		 */
 		public Integer apply(Integer integer, ColorModifier.BlendToGrayArg blendToGrayArg) {
 			int i = ColorHelper.scaleRgb(ColorHelper.grayscale(integer), blendToGrayArg.brightness);
 			return ColorHelper.lerp(blendToGrayArg.factor, integer, i);

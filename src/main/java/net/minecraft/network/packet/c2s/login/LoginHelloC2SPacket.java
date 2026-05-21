@@ -9,6 +9,9 @@ import net.minecraft.network.packet.PacketType;
 
 import java.util.UUID;
 
+/**
+ * Запись login hello c2 s packet.
+ */
 public record LoginHelloC2SPacket(String name, UUID profileId) implements Packet<ServerLoginPacketListener> {
 
 	public static final PacketCodec<PacketByteBuf, LoginHelloC2SPacket>
@@ -29,6 +32,11 @@ public record LoginHelloC2SPacket(String name, UUID profileId) implements Packet
 		return LoginPackets.HELLO_C2S;
 	}
 
+	/**
+	 * Apply.
+	 *
+	 * @param serverLoginPacketListener server login packet listener
+	 */
 	public void apply(ServerLoginPacketListener serverLoginPacketListener) {
 		serverLoginPacketListener.onHello(this);
 	}

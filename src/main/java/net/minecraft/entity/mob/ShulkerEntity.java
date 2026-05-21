@@ -261,6 +261,16 @@ public class ShulkerEntity extends GolemEntity implements Monster {
 		}
 	}
 
+	/**
+	 * Вычисляет bounding box.
+	 *
+	 * @param scale scale
+	 * @param facing facing
+	 * @param extraLength extra length
+	 * @param pos pos
+	 *
+	 * @return Box — результат операции
+	 */
 	public static Box calculateBoundingBox(float scale, Direction facing, float extraLength, Vec3d pos) {
 		return calculateBoundingBox(scale, facing, -1.0F, extraLength, pos);
 	}
@@ -372,6 +382,13 @@ public class ShulkerEntity extends GolemEntity implements Monster {
 		}
 	}
 
+	/**
+	 * Ищет attach side.
+	 *
+	 * @param pos pos
+	 *
+	 * @return @Nullable Direction — attach side
+	 */
 	protected @Nullable Direction findAttachSide(BlockPos pos) {
 		for (Direction direction : Direction.values()) {
 			if (this.canStay(pos, direction)) {
@@ -416,6 +433,11 @@ public class ShulkerEntity extends GolemEntity implements Monster {
 		}
 	}
 
+	/**
+	 * Try teleport.
+	 *
+	 * @return boolean — результат операции
+	 */
 	protected boolean tryTeleport() {
 		if (!this.isAiDisabled() && this.isAlive()) {
 			BlockPos blockPos = this.getBlockPos();

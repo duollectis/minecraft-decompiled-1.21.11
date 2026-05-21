@@ -16,6 +16,9 @@ import net.minecraft.util.Identifier;
 
 import java.util.Optional;
 
+/**
+ * Запись message type.
+ */
 public record MessageType(Decoration chat, Decoration narration) {
 
 	public static final Codec<MessageType> CODEC = RecordCodecBuilder.create(
@@ -50,6 +53,11 @@ public record MessageType(Decoration chat, Decoration narration) {
 		return RegistryKey.of(RegistryKeys.MESSAGE_TYPE, Identifier.ofVanilla(id));
 	}
 
+	/**
+	 * Bootstrap.
+	 *
+	 * @param messageTypeRegisterable message type registerable
+	 */
 	public static void bootstrap(Registerable<MessageType> messageTypeRegisterable) {
 		messageTypeRegisterable.register(
 				CHAT,
@@ -113,6 +121,9 @@ public record MessageType(Decoration chat, Decoration narration) {
 		return new MessageType.Parameters(registry.getOrThrow(typeKey), name);
 	}
 
+	/**
+	 * Запись parameters.
+	 */
 	public record Parameters(RegistryEntry<MessageType> type, Text name, Optional<Text> targetName) {
 
 		public static final PacketCodec<RegistryByteBuf, MessageType.Parameters> CODEC = PacketCodec.tuple(
@@ -129,10 +140,24 @@ public record MessageType(Decoration chat, Decoration narration) {
 			this(type, name, Optional.empty());
 		}
 
+		/**
+		 * Применяет chat decoration.
+		 *
+		 * @param content content
+		 *
+		 * @return Text — результат операции
+		 */
 		public Text applyChatDecoration(Text content) {
 			return this.type.value().chat().apply(content, this);
 		}
 
+		/**
+		 * Применяет narration decoration.
+		 *
+		 * @param content content
+		 *
+		 * @return Text — результат операции
+		 */
 		public Text applyNarrationDecoration(Text content) {
 			return this.type.value().narration().apply(content, this);
 		}

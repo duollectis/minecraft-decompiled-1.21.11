@@ -11,6 +11,9 @@ import net.minecraft.network.packet.PacketType;
 import net.minecraft.util.annotation.Debug;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Интерфейс network state.
+ */
 public interface NetworkState<T extends PacketListener> {
 
 	NetworkPhase id();
@@ -21,11 +24,17 @@ public interface NetworkState<T extends PacketListener> {
 
 	@Nullable PacketBundleHandler bundleHandler();
 
+	/**
+	 * Интерфейс factory.
+	 */
 	public interface Factory {
 
 		NetworkState.Unbound buildUnbound();
 	}
 
+	/**
+	 * Интерфейс unbound.
+	 */
 	public interface Unbound {
 
 		NetworkPhase phase();
@@ -36,6 +45,9 @@ public interface NetworkState<T extends PacketListener> {
 		void forEachPacketType(NetworkState.Unbound.PacketTypeConsumer callback);
 
 		@FunctionalInterface
+		/**
+		 * Интерфейс packet type consumer.
+		 */
 		public interface PacketTypeConsumer {
 
 			void accept(PacketType<?> type, int protocolId);

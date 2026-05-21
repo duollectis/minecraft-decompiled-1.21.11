@@ -134,6 +134,13 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		this.messageChainTaskQueue = messageChainTaskQueue;
 	}
 
+	/**
+	 * With output.
+	 *
+	 * @param output output
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withOutput(CommandOutput output) {
 		return this.output == output
 		       ? this
@@ -155,6 +162,13 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
+	/**
+	 * With entity.
+	 *
+	 * @param entity entity
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withEntity(Entity entity) {
 		return this.entity == entity
 		       ? this
@@ -176,6 +190,13 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
+	/**
+	 * With position.
+	 *
+	 * @param position position
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withPosition(Vec3d position) {
 		return this.position.equals(position)
 		       ? this
@@ -197,6 +218,13 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
+	/**
+	 * With rotation.
+	 *
+	 * @param rotation rotation
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withRotation(Vec2f rotation) {
 		return this.rotation.equals(rotation)
 		       ? this
@@ -218,6 +246,13 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
+	/**
+	 * With return value consumer.
+	 *
+	 * @param returnValueConsumer return value consumer
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withReturnValueConsumer(ReturnValueConsumer returnValueConsumer) {
 		return Objects.equals(this.returnValueConsumer, returnValueConsumer)
 		       ? this
@@ -247,6 +282,11 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		return this.withReturnValueConsumer(returnValueConsumer2);
 	}
 
+	/**
+	 * With silent.
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withSilent() {
 		return !this.silent && !this.output.cannotBeSilenced()
 		       ? new ServerCommandSource(
@@ -268,6 +308,13 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       : this;
 	}
 
+	/**
+	 * With permissions.
+	 *
+	 * @param permissions permissions
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withPermissions(PermissionPredicate permissions) {
 		return permissions == this.permissions
 		       ? this
@@ -289,10 +336,24 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
+	/**
+	 * With additional permissions.
+	 *
+	 * @param permissions permissions
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withAdditionalPermissions(PermissionPredicate permissions) {
 		return this.withPermissions(this.permissions.or(permissions));
 	}
 
+	/**
+	 * With entity anchor.
+	 *
+	 * @param anchor anchor
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withEntityAnchor(EntityAnchorArgumentType.EntityAnchor anchor) {
 		return anchor == this.entityAnchor
 		       ? this
@@ -314,6 +375,13 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		       );
 	}
 
+	/**
+	 * With world.
+	 *
+	 * @param world world
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withWorld(ServerWorld world) {
 		if (world == this.world) {
 			return this;
@@ -340,10 +408,25 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		}
 	}
 
+	/**
+	 * With looking at.
+	 *
+	 * @param entity entity
+	 * @param anchor anchor
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withLookingAt(Entity entity, EntityAnchorArgumentType.EntityAnchor anchor) {
 		return this.withLookingAt(anchor.positionAt(entity));
 	}
 
+	/**
+	 * With looking at.
+	 *
+	 * @param position position
+	 *
+	 * @return ServerCommandSource — результат операции
+	 */
 	public ServerCommandSource withLookingAt(Vec3d position) {
 		Vec3d vec3d = this.entityAnchor.positionAt(this);
 		double d = position.x - vec3d.x;
@@ -450,6 +533,13 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		return this.messageChainTaskQueue;
 	}
 
+	/**
+	 * Определяет, следует ли filter text.
+	 *
+	 * @param recipient recipient
+	 *
+	 * @return boolean — результат операции
+	 */
 	public boolean shouldFilterText(ServerPlayerEntity recipient) {
 		ServerPlayerEntity serverPlayerEntity = this.getPlayer();
 		return recipient == serverPlayerEntity ? false
@@ -457,6 +547,13 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		                                         || recipient.shouldFilterText();
 	}
 
+	/**
+	 * Отправляет chat message.
+	 *
+	 * @param message message
+	 * @param filterMaskEnabled filter mask enabled
+	 * @param params params
+	 */
 	public void sendChatMessage(SentMessage message, boolean filterMaskEnabled, MessageType.Parameters params) {
 		if (!this.silent) {
 			ServerPlayerEntity serverPlayerEntity = this.getPlayer();
@@ -469,6 +566,11 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		}
 	}
 
+	/**
+	 * Отправляет message.
+	 *
+	 * @param message message
+	 */
 	public void sendMessage(Text message) {
 		if (!this.silent) {
 			ServerPlayerEntity serverPlayerEntity = this.getPlayer();
@@ -481,6 +583,12 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		}
 	}
 
+	/**
+	 * Отправляет feedback.
+	 *
+	 * @param feedbackSupplier feedback supplier
+	 * @param broadcastToOps broadcast to ops
+	 */
 	public void sendFeedback(Supplier<Text> feedbackSupplier, boolean broadcastToOps) {
 		boolean bl = this.output.shouldReceiveFeedback() && !this.silent;
 		boolean bl2 = broadcastToOps && this.output.shouldBroadcastConsoleToOps() && !this.silent;
@@ -518,6 +626,11 @@ public class ServerCommandSource implements AbstractServerCommandSource<ServerCo
 		}
 	}
 
+	/**
+	 * Отправляет error.
+	 *
+	 * @param message message
+	 */
 	public void sendError(Text message) {
 		if (this.output.shouldTrackOutput() && !this.silent) {
 			this.output.sendMessage(Text.empty().append(message).formatted(Formatting.RED));

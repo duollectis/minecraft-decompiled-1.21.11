@@ -24,6 +24,11 @@ public class RavagerEntityRenderer extends MobEntityRenderer<RavagerEntity, Rava
 		return TEXTURE;
 	}
 
+	/**
+	 * Создаёт render state.
+	 *
+	 * @return RavagerEntityRenderState — результат операции
+	 */
 	public RavagerEntityRenderState createRenderState() {
 		return new RavagerEntityRenderState();
 	}

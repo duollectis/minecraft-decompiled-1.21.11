@@ -23,6 +23,13 @@ public class HoglinEntityRenderer extends AbstractHoglinEntityRenderer<HoglinEnt
 		return TEXTURE;
 	}
 
+	/**
+	 * Обновляет render state.
+	 *
+	 * @param hoglinEntity hoglin entity
+	 * @param hoglinEntityRenderState hoglin entity render state
+	 * @param f f
+	 */
 	public void updateRenderState(HoglinEntity hoglinEntity, HoglinEntityRenderState hoglinEntityRenderState, float f) {
 		super.updateRenderState(hoglinEntity, hoglinEntityRenderState, f);
 		hoglinEntityRenderState.canConvert = hoglinEntity.canConvert();

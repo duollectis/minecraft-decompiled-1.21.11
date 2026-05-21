@@ -10,6 +10,13 @@ public class PathMinHeap {
 	private PathNode[] pathNodes = new PathNode[128];
 	private int count;
 
+	/**
+	 * Push.
+	 *
+	 * @param node node
+	 *
+	 * @return PathNode — результат операции
+	 */
 	public PathNode push(PathNode node) {
 		if (node.heapIndex >= 0) {
 			throw new IllegalStateException("OW KNOWS!");
@@ -28,6 +35,9 @@ public class PathMinHeap {
 		}
 	}
 
+	/**
+	 * Clear.
+	 */
 	public void clear() {
 		this.count = 0;
 	}
@@ -36,6 +46,11 @@ public class PathMinHeap {
 		return this.pathNodes[0];
 	}
 
+	/**
+	 * Pop.
+	 *
+	 * @return PathNode — результат операции
+	 */
 	public PathNode pop() {
 		PathNode pathNode = this.pathNodes[0];
 		this.pathNodes[0] = this.pathNodes[--this.count];
@@ -48,6 +63,11 @@ public class PathMinHeap {
 		return pathNode;
 	}
 
+	/**
+	 * Pop node.
+	 *
+	 * @param node node
+	 */
 	public void popNode(PathNode node) {
 		this.pathNodes[node.heapIndex] = this.pathNodes[--this.count];
 		this.pathNodes[this.count] = null;
